@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Jiroo: design handoff prototype is not production code.
+    ".claude/**",
   ]),
 ]);
 
