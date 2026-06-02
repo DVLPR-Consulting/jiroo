@@ -10,6 +10,7 @@ export default function TwoFactorPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   async function verify(code: string) {
     setError(null);
@@ -18,6 +19,7 @@ export default function TwoFactorPage() {
     setVerifying(false);
     if (error) {
       setError("Code invalide. Réessayez.");
+      setAttempt((a) => a + 1);
       return;
     }
     router.push("/");
@@ -28,7 +30,7 @@ export default function TwoFactorPage() {
       <p className="t-sm mb-4 text-center text-muted-foreground">
         Saisissez le code à 6 chiffres de votre application d&apos;authentification.
       </p>
-      <OtpInput onComplete={verify} />
+      <OtpInput key={attempt} onComplete={verify} />
       {verifying && <p className="t-sm mt-3 text-center text-muted-foreground">Vérification…</p>}
       {error && (
         <p className="t-sm mt-3 text-center" style={{ color: "var(--danger)" }}>
