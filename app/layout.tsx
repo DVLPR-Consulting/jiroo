@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { DensityProvider } from "@/components/theme/density-provider";
 import { NoFlashScript } from "@/components/theme/no-flash-script";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,7 +34,11 @@ export default function RootLayout({
       <head>
         <NoFlashScript />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ThemeProvider>
+          <DensityProvider>{children}</DensityProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
