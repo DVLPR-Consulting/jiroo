@@ -19,6 +19,8 @@ export function InitialsAvatar({
 }) {
   return (
     <span
+      role="img"
+      aria-label={name}
       className="inline-flex flex-none items-center justify-center rounded-full font-semibold text-white"
       style={{
         width: size,
