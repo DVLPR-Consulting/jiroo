@@ -38,6 +38,35 @@ Reset the database: `docker compose down -v`.
 - `pnpm db:studio` — Drizzle Studio
 - `pnpm check:auth` — headless sign-in smoke check
 
+## Authentication
+
+The app uses [better-auth](https://www.better-auth.com/) for authentication.
+
+- **Email + password sign-in.** Users sign in with their email and password.
+- **Two-factor authentication (TOTP).** Optional second factor via any
+  authenticator app. Enrollment displays a QR code (plus a manual setup key)
+  and a set of one-time recovery codes to store safely.
+- **Recovery codes.** If the authenticator is unavailable, a one-time recovery
+  code can be used instead of the 6-digit TOTP. Each code works once.
+
+### Flow
+
+`login` → (if 2FA is enabled) `/2fa` → app.
+
+After a successful password sign-in, accounts with 2FA enabled are challenged
+at `/2fa` for a 6-digit TOTP code (with a recovery-code fallback). Accounts
+without 2FA go straight to the app.
+
+### Secrets
+
+The TOTP secret and recovery codes are **encrypted at rest** by better-auth,
+keyed on `BETTER_AUTH_SECRET`. Keep this secret stable and private — rotating it
+invalidates existing 2FA enrollments.
+
+`BETTER_AUTH_URL` must match the app's origin. Locally this is
+`http://localhost:3000` by default; set it to your actual dev port if you run
+the server elsewhere.
+
 ## Environments
 
 `DATABASE_URL` switches the app between local Docker, Neon (pooled, EU) and the future internal server. Migrations use `DIRECT_DATABASE_URL` (unpooled). Auth secrets live in `.env` / host env; never commit them. The auth API route runs on the Node.js runtime (not edge).
