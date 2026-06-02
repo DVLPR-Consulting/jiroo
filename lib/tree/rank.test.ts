@@ -25,4 +25,11 @@ describe("fractional rank", () => {
     const a = rankLast(null);
     expect(() => rankBetween(a, a)).toThrow();
   });
+
+  it("orders bounds when called with reversed arguments", () => {
+    const a = rankLast(null);
+    const b = rankLast(a);
+    const mid = rankBetween(b, a); // reversed
+    expect(a < mid && mid < b).toBe(true);
+  });
 });
