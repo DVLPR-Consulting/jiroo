@@ -29,10 +29,14 @@ export default function EnrollPage() {
       setError("Mot de passe incorrect.");
       return;
     }
-    const totpURI = data.totpURI;
-    const secret = /secret=([^&]+)/.exec(totpURI)?.[1] ?? "";
-    const qr = await QRCode.toDataURL(totpURI);
-    setSetup({ qr, secret, backupCodes: data.backupCodes });
+    try {
+      const totpURI = data.totpURI;
+      const secret = /secret=([^&]+)/.exec(totpURI ?? "")?.[1] ?? "";
+      const qr = await QRCode.toDataURL(totpURI);
+      setSetup({ qr, secret, backupCodes: data.backupCodes });
+    } catch {
+      setError("Impossible de générer le QR code. Réessayez.");
+    }
   }
 
   async function confirm(code: string) {

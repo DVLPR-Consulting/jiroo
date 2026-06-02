@@ -18,7 +18,7 @@ export default function RecoveryPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await authClient.twoFactor.verifyBackupCode({ code, trustDevice: true });
+    const { error } = await authClient.twoFactor.verifyBackupCode({ code: code.trim(), trustDevice: true });
     setLoading(false);
     if (error) {
       setError("Code de récupération invalide.");

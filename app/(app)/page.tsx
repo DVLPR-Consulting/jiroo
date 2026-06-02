@@ -17,7 +17,7 @@ export default async function AppHome() {
         </a>
       )}
       <h1 className="t-h1">Bonjour {session?.user.name ?? ""}</h1>
-      <p className="t-sm muted">
+      <p className="t-sm text-muted-foreground">
         Connecté en tant que {session?.user.email} — rôle {role}.
       </p>
       <SignOutButton />
