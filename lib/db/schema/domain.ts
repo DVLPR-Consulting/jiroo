@@ -83,10 +83,11 @@ export const items = pgTable(
     ),
   },
   (t) => [
-    // UNIQUE so concurrent same-gap rank drops collide at the DB (withRetry re-midpoints).
-    // NULLS NOT DISTINCT (hand-added in the generated migration; drizzle 0.45 has no builder
-    // method) is required so root items (parentId = NULL) also collide on identical ranks.
-    uniqueIndex("items_backlog_parent_rank_idx").on(t.backlogId, t.parentId, t.rank),
+    // Rank is a single GLOBAL order per backlog (LexoRank-style total order), so the same
+    // value can order siblings in the tree AND cards across a status column on the board.
+    // UNIQUE per (backlog, rank) so concurrent same-gap drops collide at the DB and withRetry
+    // re-midpoints. rank is NOT NULL, so no NULLS-NOT-DISTINCT handling is needed.
+    uniqueIndex("items_backlog_rank_idx").on(t.backlogId, t.rank),
     index("items_path_idx").using("gist", t.path),
     index("items_search_idx").using("gin", t.search),
     check(

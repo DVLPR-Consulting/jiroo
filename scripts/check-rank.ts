@@ -31,11 +31,12 @@ async function main() {
   console.log(`Created throwaway backlog ZZRK (${tb.id}).`);
 
   try {
-    // (c) composant C (no parent) + a second empty composant C2 (no children)
+    // (c) composant C (no parent) + a second root composant C2. Rank is a single GLOBAL order
+    // per backlog, so every item below shares one rank space: C(a0) < C2(a1) < E1 < E2 < E3.
     const c = await createItem({ backlogId: tb.id, type: "composant", title: "C" }, actorId);
-    const c2 = await createItem({ backlogId: tb.id, type: "composant", title: "C2" }, actorId);
+    await createItem({ backlogId: tb.id, type: "composant", title: "C2" }, actorId);
 
-    // (d) 3 epic children of C — appended in order → ranks r1 < r2 < r3
+    // (d) 3 epic children of C — appended at the global tail in order → ranks r1 < r2 < r3
     await createItem({ backlogId: tb.id, type: "epic", parentId: c.id, title: "E1" }, actorId);
     await createItem({ backlogId: tb.id, type: "epic", parentId: c.id, title: "E2" }, actorId);
     await createItem({ backlogId: tb.id, type: "epic", parentId: c.id, title: "E3" }, actorId);
@@ -57,38 +58,46 @@ async function main() {
 
     // between E1,E2 — use E3 as the "moved" id (excluded from the group)
     const gotBetween = await db.transaction((tx) =>
-      rankAtDrop(tx, tb.id, c.id, e3!.id, e1!.id, e2!.id),
+      rankAtDrop(tx, tb.id, e3!.id, e1!.id, e2!.id),
     );
     assert(r1 < gotBetween && gotBetween < r2, `between E1,E2 → r1 < got < r2 (got ${gotBetween})`);
 
-    // top: before=null, after=E1 → got < r1
+    // CROSS-PARENT (the board-reorder fix): move root C between E1,E2 (children of C). Under a
+    // global rank a root item CAN be ranked between two items of a different parent → r1 < got < r2.
+    const gotCross = await db.transaction((tx) =>
+      rankAtDrop(tx, tb.id, c.id, e1!.id, e2!.id),
+    );
+    assert(r1 < gotCross && gotCross < r2, `cross-parent (move C between E1,E2) → r1 < got < r2 (got ${gotCross})`);
+
+    // top: before=null, after=E1 → D3 re-derives the global predecessor (C2) → got < r1
     const gotTop = await db.transaction((tx) =>
-      rankAtDrop(tx, tb.id, c.id, e3!.id, null, e1!.id),
+      rankAtDrop(tx, tb.id, e3!.id, null, e1!.id),
     );
     assert(gotTop < r1, `top (after=E1) → got < r1 (got ${gotTop})`);
 
-    // bottom: before=E3, after=null → got > r3
+    // bottom: before=E3, after=null → E3 is the global max → got > r3
     const gotBottom = await db.transaction((tx) =>
-      rankAtDrop(tx, tb.id, c.id, e1!.id, e3!.id, null),
+      rankAtDrop(tx, tb.id, e1!.id, e3!.id, null),
     );
     assert(gotBottom > r3, `bottom (before=E3) → got > r3 (got ${gotBottom})`);
 
-    // empty group: drop into C2 (no children), before/after null → "a0" (rankLast(null))
-    const gotEmpty = await db.transaction((tx) =>
-      rankAtDrop(tx, tb.id, c2.id, e1!.id, null, null),
+    // no bounds (before/after null) → append at the GLOBAL tail of the backlog (there is no
+    // per-parent "empty group" anymore; the order space is the whole backlog) → got > r3
+    const gotTail = await db.transaction((tx) =>
+      rankAtDrop(tx, tb.id, e1!.id, null, null),
     );
-    assert(gotEmpty === "a0", `empty group → "a0" (got ${gotEmpty})`);
+    assert(gotTail > r3, `no bounds → append at global tail, got > r3 (got ${gotTail})`);
 
     // one-sided re-derive (D3): only afterId=E2, beforeId=null. E1 exists below E2 →
     // server re-derives before=E1 → r1 < got < r2 (NOT top).
     const gotDerive = await db.transaction((tx) =>
-      rankAtDrop(tx, tb.id, c.id, e3!.id, null, e2!.id),
+      rankAtDrop(tx, tb.id, e3!.id, null, e2!.id),
     );
     assert(r1 < gotDerive && gotDerive < r2, `D3 re-derive (after=E2) → r1 < got < r2 (got ${gotDerive})`);
 
     // inverted (D2): before=E2, after=E1 (swapped) → normalized → r1 < got < r2
     const gotInverted = await db.transaction((tx) =>
-      rankAtDrop(tx, tb.id, c.id, e3!.id, e2!.id, e1!.id),
+      rankAtDrop(tx, tb.id, e3!.id, e2!.id, e1!.id),
     );
     assert(r1 < gotInverted && gotInverted < r2, `D2 inverted (before=E2,after=E1) → r1 < got < r2 (got ${gotInverted})`);
 
@@ -96,16 +105,16 @@ async function main() {
     // dropped (not in group), then D3 re-derives before=E1 → r1 < got < r2.
     const stale = "00000000-0000-0000-0000-000000000000";
     const gotStale = await db.transaction((tx) =>
-      rankAtDrop(tx, tb.id, c.id, e3!.id, stale, e2!.id),
+      rankAtDrop(tx, tb.id, e3!.id, stale, e2!.id),
     );
     assert(r1 < gotStale && gotStale < r2, `stale before (non-member uuid) + after=E2 → r1 < got < r2 (got ${gotStale})`);
 
-    // stale/self neighbor (top fallback): beforeId = a random non-member uuid, afterId=E1 →
-    // stale before dropped, D3 finds nothing below E1 → before stays null → rankFirst(E1) < r1.
+    // stale/self neighbor: beforeId = a random non-member uuid, afterId=E1 → stale before
+    // dropped, D3 re-derives the global predecessor (C2) below E1 → got < r1.
     const gotStaleTop = await db.transaction((tx) =>
-      rankAtDrop(tx, tb.id, c.id, e3!.id, stale, e1!.id),
+      rankAtDrop(tx, tb.id, e3!.id, stale, e1!.id),
     );
-    assert(gotStaleTop < r1, `stale before + after=E1 → falls back to top, got < r1 (got ${gotStaleTop})`);
+    assert(gotStaleTop < r1, `stale before + after=E1 → got < r1 (got ${gotStaleTop})`);
   } finally {
     // cleanup: hard-delete the throwaway backlog (cascades items/statuses/activities)
     await db.delete(backlogs).where(eq(backlogs.key, "ZZRK"));
