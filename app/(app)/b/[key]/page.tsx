@@ -12,6 +12,12 @@ import {
   listUsers,
 } from "@/lib/services/items";
 import { moveItemAction, reparentItemAction } from "@/app/actions/items";
+import {
+  parseViewState,
+  matchItem,
+  isFiltersActive,
+  type FilterItem,
+} from "@/lib/items/filter";
 import { ViewBar } from "@/components/shell/view-bar";
 import { ItemList } from "@/components/items/item-list";
 import { ItemBoard } from "@/components/items/item-board";
@@ -24,10 +30,19 @@ export default async function BacklogPage({
   searchParams,
 }: {
   params: Promise<{ key: string }>;
-  searchParams: Promise<{ item?: string; view?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { key } = await params;
-  const { item: itemKey, view: rawView } = await searchParams;
+  const sp = await searchParams;
+  const itemKey = sp.item;
+  const rawView = sp.view;
+  const viewState = parseViewState(
+    new URLSearchParams(
+      Object.entries(sp).filter(
+        (entry): entry is [string, string] => entry[1] != null,
+      ),
+    ),
+  );
   const backlog = await getBacklogByKey(key);
   if (!backlog || backlog.archivedAt) notFound();
 
@@ -37,6 +52,31 @@ export default async function BacklogPage({
     : "board";
 
   const items = await listItems(backlog.id);
+
+  const filterRows: FilterItem[] = items.map((i) => ({
+    id: i.id,
+    key: i.key,
+    type: i.type,
+    title: i.title,
+    description: i.description,
+    statusId: i.statusId,
+    priority: i.priority,
+    assigneeId: i.assigneeId,
+    parentId: i.parentId,
+    path: i.path,
+    dueDate: i.dueDate,
+    createdAt: i.createdAt,
+    updatedAt: i.updatedAt,
+    rank: i.rank,
+  }));
+  const filtersOn = isFiltersActive(viewState.filters);
+  const matchedIds = new Set(
+    filterRows
+      .filter((r) => matchItem(r, viewState.filters))
+      .map((r) => r.id),
+  );
+  const isMatch = (id: string) => !filtersOn || matchedIds.has(id);
+
   const statusRows = await db
     .select()
     .from(statuses)
@@ -66,7 +106,7 @@ export default async function BacklogPage({
   // nested under their tâche (shown as the subCount badge); Composant/Epic are structure,
   // navigated in the tree/list — never sibling cards next to their own children.
   const boardCards = items
-    .filter((i) => i.type === "tache")
+    .filter((i) => i.type === "tache" && isMatch(i.id))
     .map((i) => ({
       id: i.id,
       key: i.key,
@@ -126,7 +166,7 @@ export default async function BacklogPage({
       />
       {view === "list" && (
         <ItemList
-          items={items}
+          items={items.filter((i) => isMatch(i.id))}
           statuses={statusMap}
           backlogKey={key}
           selectedKey={itemKey}
