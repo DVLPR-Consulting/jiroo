@@ -73,6 +73,12 @@ async function main() {
       .returning();
     const todo = insertedStatuses.find((s) => s.order === 0)!;
 
+    // Rank is a single global order per backlog, so the demo items get distinct, increasing
+    // ranks chained in depth-first order (root → epic → tache).
+    const rootRank = rankLast(null);
+    const epicRank = rankLast(rootRank);
+    const tacheRank = rankLast(epicRank);
+
     await tx.insert(items).values({
       id: composantId,
       key: composantKey,
@@ -81,7 +87,7 @@ async function main() {
       title: "Authentification",
       statusId: todo.id,
       reporterId: admin.id,
-      rank: rankLast(null),
+      rank: rootRank,
       path: composantPath,
       depth: childDepth(null),
     });
@@ -95,7 +101,7 @@ async function main() {
       statusId: todo.id,
       reporterId: admin.id,
       parentId: composantId,
-      rank: rankLast(null),
+      rank: epicRank,
       path: epicPath,
       depth: childDepth(0),
     });
@@ -109,7 +115,7 @@ async function main() {
       statusId: todo.id,
       reporterId: admin.id,
       parentId: epicId,
-      rank: rankLast(null),
+      rank: tacheRank,
       path: tachePath,
       depth: childDepth(1),
     });

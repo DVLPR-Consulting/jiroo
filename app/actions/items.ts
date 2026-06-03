@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { type Role, canWriteItems } from "@/lib/auth/rbac";
 import { getSession } from "@/lib/auth/session";
 import type { ItemType } from "@/lib/design/constants";
-import { createItem, restoreItem, softDeleteItem, updateItem } from "@/lib/services/items";
+import {
+  createItem,
+  moveItem,
+  reparentItem,
+  restoreItem,
+  softDeleteItem,
+  updateItem,
+} from "@/lib/services/items";
 
 type CreateItemActionInput = {
   backlogKey: string;
@@ -96,4 +103,57 @@ export async function restoreItemAction(input: { id: string; backlogKey: string 
   revalidatePath(`/b/${input.backlogKey}`);
   revalidatePath("/trash");
   return { ok: true as const };
+}
+
+type MoveItemActionInput = {
+  backlogKey: string;
+  id: string;
+  statusId?: string;
+  beforeId?: string | null;
+  afterId?: string | null;
+};
+
+type ReparentItemActionInput = {
+  backlogKey: string;
+  id: string;
+  newParentId: string | null;
+  beforeId?: string | null;
+  afterId?: string | null;
+};
+
+function mapMoveError(e: unknown): string {
+  const s = String(e);
+  if (s.includes("Statut invalide")) return "Statut invalide pour ce backlog.";
+  if (s.includes("Cycle") || s.includes("sous-arbre")) return "Impossible : destination dans le sous-arbre déplacé.";
+  if (s.includes("Hiérarchie")) return "Parent invalide pour ce type.";
+  if (s.includes("autre backlog")) return "Le parent appartient à un autre backlog.";
+  if (s.includes("ancêtre")) return "Un parent est supprimé.";
+  if (s.includes("Parent")) return "Parent introuvable.";
+  return "Déplacement impossible.";
+}
+
+export async function moveItemAction(input: MoveItemActionInput) {
+  const actorId = await requireWriter();
+  const { backlogKey, ...data } = input;
+  try {
+    const item = await moveItem(data, actorId);
+    if (!item) return { ok: false as const, error: "Item introuvable." };
+    revalidatePath(`/b/${backlogKey}`);
+    return { ok: true as const, item };
+  } catch (e) {
+    return { ok: false as const, error: mapMoveError(e) };
+  }
+}
+
+export async function reparentItemAction(input: ReparentItemActionInput) {
+  const actorId = await requireWriter();
+  const { backlogKey, ...data } = input;
+  try {
+    const item = await reparentItem(data, actorId);
+    if (!item) return { ok: false as const, error: "Item introuvable." };
+    revalidatePath(`/b/${backlogKey}`);
+    return { ok: true as const, item };
+  } catch (e) {
+    return { ok: false as const, error: mapMoveError(e) };
+  }
 }

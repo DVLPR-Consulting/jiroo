@@ -1,13 +1,13 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { activities, backlogs, itemLabels, items, labels, statuses } from "@/lib/db/schema/domain";
 import { user } from "@/lib/db/schema/auth";
 import { nextItemKey } from "@/lib/items/key";
-import { buildPath, childDepth } from "@/lib/tree/path";
+import { ROOT_LABEL, buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
-import { rankLast } from "@/lib/tree/rank";
-import { createItemSchema, idInputSchema, updateItemSchema } from "@/lib/validation/item";
+import { rankBetween, rankFirst, rankLast } from "@/lib/tree/rank";
+import { createItemSchema, idInputSchema, moveItemSchema, reparentItemSchema, updateItemSchema } from "@/lib/validation/item";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -97,121 +97,254 @@ async function resolveStatusInBacklog(
   return s;
 }
 
-// ---- createItem: validate → tx(mutate + activity) ----
-export async function createItem(input: unknown, actorId: string) {
-  const data = createItemSchema.parse(input);
-  return db.transaction(async (tx) => {
-    const [backlog] = await tx
-      .select({ id: backlogs.id, key: backlogs.key })
-      .from(backlogs)
-      .where(eq(backlogs.id, data.backlogId));
-    if (!backlog) throw new Error("Backlog introuvable.");
+const RETRYABLE_PG_CODES = new Set(["40P01", "40001", "23505"]);
 
-    let parentPath: string | null = null;
-    let parentDepth: number | null = null;
-    if (data.parentId) {
-      const [parent] = await tx
-        .select({
-          id: items.id,
-          type: items.type,
-          path: items.path,
-          depth: items.depth,
-          backlogId: items.backlogId,
-          deletedAt: items.deletedAt,
-        })
-        .from(items)
-        .where(eq(items.id, data.parentId))
-        .for("update");
-      if (!parent || parent.deletedAt) throw new Error("Parent introuvable.");
-      if (parent.backlogId !== data.backlogId) throw new Error("Le parent appartient à un autre backlog.");
-      if (!isValidParenting(data.type, parent.type)) throw new Error("Hiérarchie invalide pour ce type.");
-      const ancestorDeleted = await tx
-        .select({ one: sql`1` })
-        .from(items)
-        .where(and(sql`${items.path} @> ${parent.path}::ltree`, isNotNull(items.deletedAt)))
-        .limit(1);
-      if (ancestorDeleted.length > 0) throw new Error("Un ancêtre est supprimé.");
-      parentPath = parent.path;
-      parentDepth = parent.depth;
+// Retry a transaction on Postgres deadlock (40P01), serialization (40001),
+// or unique-violation (23505 — used by the rank-collision re-midpoint path).
+export async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < tries; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const code = (e as { code?: string } | null)?.code;
+      if (code && RETRYABLE_PG_CODES.has(code) && attempt < tries - 1) {
+        lastErr = e;
+        continue;
+      }
+      throw e;
     }
+  }
+  throw lastErr;
+}
 
-    let statusId: string;
-    let category: "todo" | "in_progress" | "done";
-    if (data.statusId) {
-      const s = await resolveStatusInBacklog(tx, data.statusId, data.backlogId);
-      statusId = s.id;
-      category = s.category;
-    } else {
-      statusId = await resolveDefaultStatusId(tx, data.backlogId);
-      category = "todo";
-    }
+// Extracted from updateItem's status-change block (used by updateItem AND moveItem).
+// Returns null on a no-op (same status). closed_at follows the DONE CATEGORY of the
+// OLD vs NEW status (never closed_at!=null).
+async function applyStatusChange(
+  tx: Tx,
+  cur: typeof items.$inferSelect,
+  statusId: string,
+  actorId: string,
+): Promise<{ patch: Partial<typeof items.$inferInsert>; act: typeof activities.$inferInsert } | null> {
+  if (statusId === cur.statusId) return null;
+  const s = await resolveStatusInBacklog(tx, statusId, cur.backlogId);
+  const wasDone = await isDoneStatus(tx, cur.statusId);
+  const nowDone = s.category === "done";
+  const patch: Partial<typeof items.$inferInsert> = { statusId: s.id };
+  if (nowDone && !wasDone) patch.closedAt = new Date();
+  else if (!nowDone && wasDone) patch.closedAt = null;
+  return { patch, act: activityRow(cur.id, actorId, "status_change", "status", cur.statusId, s.id) };
+}
 
-    const id = randomUUID();
-    const path = buildPath(parentPath, id);
-    const depth = childDepth(parentDepth);
-    const key = await nextItemKey(tx, backlog.key);
+// Server-authoritative drop rank. Client passes neighbor ids (never a rank). Locks the named
+// neighbors FOR UPDATE (rank ASC = stable lock order), re-derives a missing bound from the DB,
+// normalizes inverted neighbors, and appends against the group tail for collapsed/empty cases.
+// The order space is the WHOLE backlog (rank is a single global order), so beforeId/afterId are
+// global neighbors — board column neighbors AND tree siblings live in one rank space. The group
+// INCLUDES soft-deleted rows: the unique index spans all rows, so a deleted rank stays reserved
+// and must never be reused (restore re-enters the index), so computing against all rows yields a
+// rank that no live OR deleted row holds.
+export async function rankAtDrop(
+  tx: Tx,
+  backlogId: string,
+  movedId: string,
+  beforeId: string | null,
+  afterId: string | null,
+): Promise<string> {
+  const groupBase = and(eq(items.backlogId, backlogId), ne(items.id, movedId));
 
-    const [lastSibling] = await tx
+  const wanted = [beforeId, afterId].filter((x): x is string => x !== null && x !== movedId);
+  const byId = new Map<string, string>();
+  if (wanted.length > 0) {
+    const rows = await tx
+      .select({ id: items.id, rank: items.rank })
+      .from(items)
+      .where(and(groupBase, inArray(items.id, wanted)))
+      .orderBy(asc(items.rank))
+      .for("update");
+    for (const r of rows) byId.set(r.id, r.rank);
+  }
+  let before = beforeId ? (byId.get(beforeId) ?? null) : null;
+  let after = afterId ? (byId.get(afterId) ?? null) : null;
+
+  // D3: re-derive a missing bound from the DB (a forgotten interior neighbor self-heals).
+  if (before === null && after !== null) {
+    const [r] = await tx
       .select({ rank: items.rank })
       .from(items)
-      .where(
-        and(
-          eq(items.backlogId, data.backlogId),
-          data.parentId ? eq(items.parentId, data.parentId) : isNull(items.parentId),
-          isNull(items.deletedAt),
-        ),
-      )
+      .where(and(groupBase, sql`${items.rank} < ${after}`))
       .orderBy(desc(items.rank))
       .limit(1)
       .for("update");
-    const rank = rankLast(lastSibling?.rank ?? null);
+    before = r?.rank ?? null;
+  } else if (after === null && before !== null) {
+    const [r] = await tx
+      .select({ rank: items.rank })
+      .from(items)
+      .where(and(groupBase, sql`${items.rank} > ${before}`))
+      .orderBy(asc(items.rank))
+      .limit(1)
+      .for("update");
+    after = r?.rank ?? null;
+  }
 
-    const closedAt = category === "done" ? new Date() : null;
+  // D2: normalize inverted client neighbors.
+  if (before !== null && after !== null && before > after) {
+    const tmp = before;
+    before = after;
+    after = tmp;
+  }
 
-    const [item] = await tx
-      .insert(items)
-      .values({
-        id,
-        key,
-        type: data.type,
-        backlogId: data.backlogId,
-        title: data.title,
-        description: data.description ?? null,
-        parentId: data.parentId,
-        statusId,
-        priority: data.priority,
-        assigneeId: data.assigneeId ?? null,
-        reporterId: actorId,
-        rank,
-        path,
-        depth,
-        dueDate: data.dueDate ?? null,
-        closedAt,
-      })
-      .returning();
+  // Append against the group tail incl. soft-deleted (collapsed or no-bounds): strictly-increasing
+  // serialized appends that never reuse a reserved (deleted) rank.
+  async function appendLast(): Promise<string> {
+    const [last] = await tx
+      .select({ rank: items.rank })
+      .from(items)
+      .where(groupBase)
+      .orderBy(desc(items.rank))
+      .limit(1)
+      .for("update");
+    return rankLast(last?.rank ?? null);
+  }
 
-    if (data.labelIds.length > 0) {
-      // Reject labels that belong to ANOTHER backlog (the FK only checks existence).
-      // Global labels (backlogId IS NULL) are usable everywhere.
-      const valid = await tx
-        .select({ id: labels.id })
-        .from(labels)
-        .where(
-          and(
-            inArray(labels.id, data.labelIds),
-            or(eq(labels.backlogId, data.backlogId), isNull(labels.backlogId)),
-          ),
-        );
-      if (valid.length !== data.labelIds.length) {
-        throw new Error("Un ou plusieurs labels n'appartiennent pas à ce backlog.");
+  if (before !== null && after !== null) {
+    if (before === after) return appendLast();
+    // Self-heal under concurrent same-gap drops: a winner may have committed a rank strictly
+    // inside (before, after). Tighten to the nearest in-gap live sibling so a withRetry attempt
+    // lands at a fresh adjacent rank instead of deterministically re-colliding on the unique index.
+    const [mid] = await tx
+      .select({ rank: items.rank })
+      .from(items)
+      .where(and(groupBase, sql`${items.rank} > ${before}`, sql`${items.rank} < ${after}`))
+      .orderBy(asc(items.rank))
+      .limit(1)
+      .for("update");
+    if (mid) return rankBetween(before, mid.rank);
+    return rankBetween(before, after);
+  }
+  if (after !== null) return rankFirst(after);
+  if (before !== null) return rankLast(before);
+  return appendLast(); // empty group → rankLast(null) = "a0"
+}
+
+// ---- createItem: validate → tx(mutate + activity) ----
+export async function createItem(input: unknown, actorId: string) {
+  const data = createItemSchema.parse(input);
+  return withRetry(() =>
+    db.transaction(async (tx) => {
+      const [backlog] = await tx
+        .select({ id: backlogs.id, key: backlogs.key })
+        .from(backlogs)
+        .where(eq(backlogs.id, data.backlogId));
+      if (!backlog) throw new Error("Backlog introuvable.");
+
+      let parentPath: string | null = null;
+      let parentDepth: number | null = null;
+      if (data.parentId) {
+        const [parent] = await tx
+          .select({
+            id: items.id,
+            type: items.type,
+            path: items.path,
+            depth: items.depth,
+            backlogId: items.backlogId,
+            deletedAt: items.deletedAt,
+          })
+          .from(items)
+          .where(eq(items.id, data.parentId))
+          .for("update");
+        if (!parent || parent.deletedAt) throw new Error("Parent introuvable.");
+        if (parent.backlogId !== data.backlogId) throw new Error("Le parent appartient à un autre backlog.");
+        if (!isValidParenting(data.type, parent.type)) throw new Error("Hiérarchie invalide pour ce type.");
+        const ancestorDeleted = await tx
+          .select({ one: sql`1` })
+          .from(items)
+          .where(and(sql`${items.path} @> ${parent.path}::ltree`, isNotNull(items.deletedAt)))
+          .limit(1);
+        if (ancestorDeleted.length > 0) throw new Error("Un ancêtre est supprimé.");
+        parentPath = parent.path;
+        parentDepth = parent.depth;
       }
-      await tx.insert(itemLabels).values(data.labelIds.map((labelId) => ({ itemId: id, labelId })));
-    }
 
-    await tx.insert(activities).values(activityRow(id, actorId, "create", null, null, key));
+      let statusId: string;
+      let category: "todo" | "in_progress" | "done";
+      if (data.statusId) {
+        const s = await resolveStatusInBacklog(tx, data.statusId, data.backlogId);
+        statusId = s.id;
+        category = s.category;
+      } else {
+        statusId = await resolveDefaultStatusId(tx, data.backlogId);
+        category = "todo";
+      }
 
-    return item!;
-  });
+      const id = randomUUID();
+      const path = buildPath(parentPath, id);
+      const depth = childDepth(parentDepth);
+      const key = await nextItemKey(tx, backlog.key);
+
+      // Append at the global tail of the backlog. The tail is taken over ALL rows incl.
+      // soft-deleted (the unique index spans all rows, so a deleted rank stays reserved):
+      // appending past the all-rows max never collides, and the new rank also exceeds every
+      // live sibling → last among siblings in the tree. Locking the tail row serializes
+      // concurrent creates; withRetry covers a residual unique collision.
+      const [lastInBacklog] = await tx
+        .select({ rank: items.rank })
+        .from(items)
+        .where(eq(items.backlogId, data.backlogId))
+        .orderBy(desc(items.rank))
+        .limit(1)
+        .for("update");
+      const rank = rankLast(lastInBacklog?.rank ?? null);
+
+      const closedAt = category === "done" ? new Date() : null;
+
+      const [item] = await tx
+        .insert(items)
+        .values({
+          id,
+          key,
+          type: data.type,
+          backlogId: data.backlogId,
+          title: data.title,
+          description: data.description ?? null,
+          parentId: data.parentId,
+          statusId,
+          priority: data.priority,
+          assigneeId: data.assigneeId ?? null,
+          reporterId: actorId,
+          rank,
+          path,
+          depth,
+          dueDate: data.dueDate ?? null,
+          closedAt,
+        })
+        .returning();
+
+      if (data.labelIds.length > 0) {
+        // Reject labels that belong to ANOTHER backlog (the FK only checks existence).
+        // Global labels (backlogId IS NULL) are usable everywhere.
+        const valid = await tx
+          .select({ id: labels.id })
+          .from(labels)
+          .where(
+            and(
+              inArray(labels.id, data.labelIds),
+              or(eq(labels.backlogId, data.backlogId), isNull(labels.backlogId)),
+            ),
+          );
+        if (valid.length !== data.labelIds.length) {
+          throw new Error("Un ou plusieurs labels n'appartiennent pas à ce backlog.");
+        }
+        await tx.insert(itemLabels).values(data.labelIds.map((labelId) => ({ itemId: id, labelId })));
+      }
+
+      await tx.insert(activities).values(activityRow(id, actorId, "create", null, null, key));
+
+      return item!;
+    }),
+  );
 }
 
 // ---- updateItem: field-diff → tx(update + per-field activity) ----
@@ -262,14 +395,12 @@ export async function updateItem(input: unknown, actorId: string) {
         );
       }
     }
-    if (data.statusId !== undefined && data.statusId !== cur.statusId) {
-      const s = await resolveStatusInBacklog(tx, data.statusId, cur.backlogId);
-      const wasDone = await isDoneStatus(tx, cur.statusId);
-      const nowDone = s.category === "done";
-      patch.statusId = s.id;
-      if (nowDone && !wasDone) patch.closedAt = new Date();
-      else if (!nowDone && wasDone) patch.closedAt = null;
-      acts.push(activityRow(cur.id, actorId, "status_change", "status", cur.statusId, s.id));
+    if (data.statusId !== undefined) {
+      const sc = await applyStatusChange(tx, cur, data.statusId, actorId);
+      if (sc) {
+        Object.assign(patch, sc.patch);
+        acts.push(sc.act);
+      }
     }
     if (data.labelIds !== undefined) {
       if (data.labelIds.length > 0) {
@@ -319,6 +450,50 @@ export async function updateItem(input: unknown, actorId: string) {
     await tx.insert(activities).values(acts);
     return updated!;
   });
+}
+
+// Board drag: status change and/or reorder within the backlog's single global rank order.
+// NEVER touches path/depth/parentId — the board column is a STATUS, not a parent, so the ltree
+// path is invariant and the path CHECK is never exposed.
+export async function moveItem(input: unknown, actorId: string) {
+  const data = moveItemSchema.parse(input);
+  return withRetry(() =>
+    db.transaction(async (tx) => {
+      const [cur] = await tx
+        .select()
+        .from(items)
+        .where(and(eq(items.id, data.id), isNull(items.deletedAt)))
+        .for("update");
+      if (!cur) return null;
+
+      const patch: Partial<typeof items.$inferInsert> = {};
+      const acts: (typeof activities.$inferInsert)[] = [];
+
+      if (data.statusId !== undefined) {
+        const sc = await applyStatusChange(tx, cur, data.statusId, actorId);
+        if (sc) {
+          Object.assign(patch, sc.patch);
+          acts.push(sc.act);
+        }
+      }
+
+      const newRank = await rankAtDrop(tx, cur.backlogId, cur.id, data.beforeId, data.afterId);
+      if (newRank !== cur.rank) {
+        patch.rank = newRank;
+        acts.push(activityRow(cur.id, actorId, "move", "rank", cur.rank, newRank));
+      }
+
+      if (acts.length === 0) return cur;
+
+      const [updated] = await tx
+        .update(items)
+        .set({ ...patch, updatedAt: new Date() })
+        .where(eq(items.id, cur.id))
+        .returning();
+      await tx.insert(activities).values(acts);
+      return updated!;
+    }),
+  );
 }
 
 // ---- softDeleteItem: subtree lock → cascade soft-delete + per-node activity ----
@@ -396,4 +571,105 @@ export async function restoreItem(input: unknown, actorId: string) {
     }
     return target;
   });
+}
+
+// Tree reparent: change parentId + rewrite the ltree path/depth of the node AND its whole subtree.
+// NEVER touches statusId. The path-rewrite splices against the PARENT path at offset oldLevels-1
+// (the naive subpath(path, oldLevels) THROWS `invalid positions` on the node's own row — verified).
+export async function reparentItem(input: unknown, actorId: string) {
+  const data = reparentItemSchema.parse(input);
+  return withRetry(() =>
+    db.transaction(async (tx) => {
+      const [node] = await tx
+        .select()
+        .from(items)
+        .where(and(eq(items.id, data.id), isNull(items.deletedAt)))
+        .for("update");
+      if (!node) return null;
+
+      const sameParent = (node.parentId ?? null) === (data.newParentId ?? null);
+
+      let parentPath: string | null = null;
+      let parentDepth: number | null = null;
+      if (data.newParentId !== null) {
+        if (data.newParentId === node.id) throw new Error("Cycle : un item ne peut pas être son propre parent.");
+        const [parent] = await tx
+          .select({
+            id: items.id,
+            type: items.type,
+            path: items.path,
+            depth: items.depth,
+            backlogId: items.backlogId,
+            deletedAt: items.deletedAt,
+          })
+          .from(items)
+          .where(eq(items.id, data.newParentId))
+          .for("update");
+        if (!parent || parent.deletedAt) throw new Error("Parent introuvable.");
+        if (parent.backlogId !== node.backlogId) throw new Error("Le parent appartient à un autre backlog.");
+        if (!isValidParenting(node.type, parent.type)) throw new Error("Hiérarchie invalide pour ce type.");
+        // cycle guard: the new parent must NOT be the node or a descendant of it (self-inclusive <@)
+        const cyc = await tx
+          .select({ one: sql`1` })
+          .from(items)
+          .where(and(eq(items.id, parent.id), sql`${items.path} <@ ${node.path}::ltree`))
+          .limit(1);
+        if (cyc.length > 0) throw new Error("Cycle : le nouveau parent est dans le sous-arbre déplacé.");
+        // ancestor-deleted guard
+        const ancDel = await tx
+          .select({ one: sql`1` })
+          .from(items)
+          .where(and(sql`${items.path} @> ${parent.path}::ltree`, isNotNull(items.deletedAt)))
+          .limit(1);
+        if (ancDel.length > 0) throw new Error("Un ancêtre est supprimé.");
+        parentPath = parent.path;
+        parentDepth = parent.depth;
+      } else if (!isValidParenting(node.type, null)) {
+        throw new Error("Hiérarchie invalide pour ce type.");
+      }
+
+      if (!sameParent) {
+        // lock the whole moved subtree (asc(path)) before the rewrite
+        const subtree = and(
+          eq(items.backlogId, node.backlogId),
+          sql`${items.path} <@ ${node.path}::ltree`,
+          isNull(items.deletedAt),
+        );
+        await tx.select({ id: items.id }).from(items).where(subtree).orderBy(asc(items.path)).for("update");
+
+        const oldLevels = node.path.split(".").length; // = nlevel(node.path)
+        const newNodeDepth = childDepth(parentDepth);
+        const depthDelta = newNodeDepth - node.depth;
+        const newBase = parentPath ?? ROOT_LABEL;
+
+        await tx
+          .update(items)
+          .set({
+            path: sql`(${newBase}::ltree || subpath(${items.path}, ${oldLevels - 1}))`,
+            depth: sql`${items.depth} + ${depthDelta}`,
+            updatedAt: new Date(),
+          })
+          .where(subtree);
+      }
+
+      // rank under the NEW (or same) parent group
+      const newRank = await rankAtDrop(tx, node.backlogId, node.id, data.beforeId, data.afterId);
+
+      const patch: Partial<typeof items.$inferInsert> = {};
+      const acts: (typeof activities.$inferInsert)[] = [];
+      if (!sameParent) {
+        patch.parentId = data.newParentId;
+        patch.rank = newRank;
+        acts.push(activityRow(node.id, actorId, "move", "parent", node.parentId ?? null, data.newParentId ?? null));
+      } else {
+        if (newRank === node.rank) return node; // same-parent no-op
+        patch.rank = newRank;
+        acts.push(activityRow(node.id, actorId, "move", "rank", node.rank, newRank));
+      }
+
+      const [updated] = await tx.update(items).set({ ...patch, updatedAt: new Date() }).where(eq(items.id, node.id)).returning();
+      await tx.insert(activities).values(acts);
+      return updated!;
+    }),
+  );
 }
