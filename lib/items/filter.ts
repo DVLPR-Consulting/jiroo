@@ -73,3 +73,52 @@ export function writeViewState(sp: URLSearchParams, state: ViewState): void {
   setOrDelete("group", group ?? "");
   setOrDelete("sort", sort ? `${sort.field}:${sort.dir}` : "");
 }
+
+export type FilterItem = {
+  id: string;
+  key: string;
+  type: ItemType;
+  title: string;
+  description: string | null;
+  statusId: string;
+  priority: number;
+  assigneeId: string | null;
+  parentId: string | null;
+  path: string;
+  dueDate: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  rank: string;
+};
+
+export function isFiltersActive(f: Filters): boolean {
+  return (
+    f.q.trim() !== "" ||
+    f.types.length > 0 ||
+    f.statusIds.length > 0 ||
+    f.priorities.length > 0 ||
+    f.assignees.length > 0
+  );
+}
+
+function normalize(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+}
+
+export function matchItem(it: FilterItem, f: Filters): boolean {
+  if (f.types.length && !f.types.includes(it.type)) return false;
+  if (f.statusIds.length && !f.statusIds.includes(it.statusId)) return false;
+  if (f.priorities.length && !f.priorities.includes(it.priority)) return false;
+  if (f.assignees.length) {
+    const hit =
+      (it.assigneeId !== null && f.assignees.includes(it.assigneeId)) ||
+      (it.assigneeId === null && f.assignees.includes("none"));
+    if (!hit) return false;
+  }
+  const q = f.q.trim();
+  if (q) {
+    const hay = normalize(`${it.title} ${it.description ?? ""}`);
+    if (!hay.includes(normalize(q))) return false;
+  }
+  return true;
+}
