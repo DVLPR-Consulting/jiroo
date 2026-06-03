@@ -62,17 +62,22 @@ export default async function BacklogPage({
     (view === "board" || view === "tree") && items.some((i) => i.assigneeId);
   const usersForBoard = needsAssignees ? await listUsers() : [];
   const userName = new Map(usersForBoard.map((u) => [u.id, u.name]));
-  const boardCards = items.map((i) => ({
-    id: i.id,
-    key: i.key,
-    type: i.type,
-    title: i.title,
-    statusId: i.statusId,
-    priority: i.priority,
-    rank: i.rank,
-    assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
-    subCount: childCount.get(i.id) ?? 0,
-  }));
+  // Jira-style mono-level board: cards are the working level (Tâche) only. Sous-tâches stay
+  // nested under their tâche (shown as the subCount badge); Composant/Epic are structure,
+  // navigated in the tree/list — never sibling cards next to their own children.
+  const boardCards = items
+    .filter((i) => i.type === "tache")
+    .map((i) => ({
+      id: i.id,
+      key: i.key,
+      type: i.type,
+      title: i.title,
+      statusId: i.statusId,
+      priority: i.priority,
+      rank: i.rank,
+      assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
+      subCount: childCount.get(i.id) ?? 0,
+    }));
 
   // Tree rows: the flat item list (already ordered depth,rank,key) reshaped for ItemTree.
   const treeData =
