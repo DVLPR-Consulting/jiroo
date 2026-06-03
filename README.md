@@ -137,6 +137,41 @@ An **Activité** tab surfaces the audit trail for the item, reading the
 From the panel menu, an item can be **soft-deleted**; the delete cascades over
 the whole subtree (see [Items & hierarchy](#items--hierarchy)).
 
+## Views: board, list & tree
+
+A backlog renders in three interchangeable views, selected by the
+`?view=board|list|tree` query parameter (the **ViewBar** tabs are plain links,
+so the current view and any open `?item=` survive reloads and are shareable).
+
+- **Board** — a kanban whose columns are the backlog's statuses and whose cards
+  are the items, ordered by `rank` within each column. Dragging a card to
+  another column changes its **status**; dragging within a column **reorders**
+  it. The drag layer is optimistic, but it sends only the moved card and its
+  neighbours' ids — never a rank — so the server computes the authoritative
+  `rank` and is the single source of truth.
+- **List** — a flat, ordered list of the backlog's items.
+- **Tree** — the hierarchy as a collapsible tree, with **drag-and-drop
+  reparenting**.
+
+### Ranking & reparenting
+
+Order is a single global `rank` per item, stored as a
+[fractional index](https://github.com/rocicorp/fractional-indexing) string so a
+reorder rewrites **one row**, never the whole column. On the server,
+`rankAtDrop` locks the moved item's neighbours `FOR UPDATE`, derives a rank
+strictly between them, and self-heals a collapsed or contended gap under
+concurrent drops.
+
+In the tree, a drop uses **three zones** over the target row — *before* /
+*into* / *after* — to mean "reorder above", "become a child", or "reorder
+below". When the parent changes, `reparentItem` rewrites the item's
+`parent_id`, its `ltree` `path` **and the path of every descendant** in one
+transaction, refusing any drop that would create a cycle (a node into its own
+subtree) or land under a deleted ancestor. Same-parent drops route to the
+lighter `moveItem` (rank only); cross-parent drops route to `reparentItem`.
+Both views roll back the optimistic state if the server rejects the move, and
+every move writes an audit row.
+
 ## Environments
 
 `DATABASE_URL` switches the app between local Docker, Neon (pooled, EU) and the future internal server. Migrations use `DIRECT_DATABASE_URL` (unpooled). Auth secrets live in `.env` / host env; never commit them. The auth API route runs on the Node.js runtime (not edge).
