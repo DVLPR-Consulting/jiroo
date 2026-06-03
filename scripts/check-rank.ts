@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { backlogs, items } from "@/lib/db/schema/domain";
 import { createBacklog } from "@/lib/services/backlogs";
-import { createItem, rankAtDrop } from "@/lib/services/items";
+import { createItem, rankAtDrop, restoreItem, softDeleteItem } from "@/lib/services/items";
 
 let passed = 0;
 let failed = 0;
@@ -115,6 +115,15 @@ async function main() {
       rankAtDrop(tx, tb.id, e3!.id, stale, e1!.id),
     );
     assert(gotStaleTop < r1, `stale before + after=E1 → got < r1 (got ${gotStaleTop})`);
+
+    // --- soft-delete reserves a rank: append must NOT reuse a deleted rank, restore must not
+    // collide (regression for the global unique index spanning all rows). E3 is the global tail
+    // (r3); soft-delete it (its rank stays reserved), then a fresh create must append PAST it. ---
+    await softDeleteItem({ id: e3!.id }, actorId);
+    const e4 = await createItem({ backlogId: tb.id, type: "epic", parentId: c.id, title: "E4" }, actorId);
+    assert(e4.rank > r3, `append after soft-deleting the tail → fresh rank > r3, no 23505 (got ${e4.rank})`);
+    const restored = await restoreItem({ id: e3!.id }, actorId);
+    assert(restored !== null, `restore the soft-deleted tail → succeeds (reserved rank was never reused)`);
   } finally {
     // cleanup: hard-delete the throwaway backlog (cascades items/statuses/activities)
     await db.delete(backlogs).where(eq(backlogs.key, "ZZRK"));

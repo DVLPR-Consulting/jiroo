@@ -139,9 +139,12 @@ async function applyStatusChange(
 
 // Server-authoritative drop rank. Client passes neighbor ids (never a rank). Locks the named
 // neighbors FOR UPDATE (rank ASC = stable lock order), re-derives a missing bound from the DB,
-// normalizes inverted neighbors, and appends against the LIVE group tail for collapsed/empty
-// cases. The order space is the WHOLE backlog (rank is a single global order), so beforeId/
-// afterId are global neighbors — board column neighbors AND tree siblings live in one rank space.
+// normalizes inverted neighbors, and appends against the group tail for collapsed/empty cases.
+// The order space is the WHOLE backlog (rank is a single global order), so beforeId/afterId are
+// global neighbors — board column neighbors AND tree siblings live in one rank space. The group
+// INCLUDES soft-deleted rows: the unique index spans all rows, so a deleted rank stays reserved
+// and must never be reused (restore re-enters the index), so computing against all rows yields a
+// rank that no live OR deleted row holds.
 export async function rankAtDrop(
   tx: Tx,
   backlogId: string,
@@ -149,11 +152,7 @@ export async function rankAtDrop(
   beforeId: string | null,
   afterId: string | null,
 ): Promise<string> {
-  const groupBase = and(
-    eq(items.backlogId, backlogId),
-    isNull(items.deletedAt),
-    ne(items.id, movedId),
-  );
+  const groupBase = and(eq(items.backlogId, backlogId), ne(items.id, movedId));
 
   const wanted = [beforeId, afterId].filter((x): x is string => x !== null && x !== movedId);
   const byId = new Map<string, string>();
@@ -197,7 +196,8 @@ export async function rankAtDrop(
     after = tmp;
   }
 
-  // Append against the LIVE group tail (collapsed or no-bounds): strictly-increasing serialized appends.
+  // Append against the group tail incl. soft-deleted (collapsed or no-bounds): strictly-increasing
+  // serialized appends that never reuse a reserved (deleted) rank.
   async function appendLast(): Promise<string> {
     const [last] = await tx
       .select({ rank: items.rank })
@@ -284,13 +284,15 @@ export async function createItem(input: unknown, actorId: string) {
       const depth = childDepth(parentDepth);
       const key = await nextItemKey(tx, backlog.key);
 
-      // Append at the global tail of the backlog's rank order. The global max exceeds every
-      // existing sibling rank, so the new item is also last among its siblings in the tree.
-      // Locking the tail row serializes concurrent creates; withRetry re-tries a unique collision.
+      // Append at the global tail of the backlog. The tail is taken over ALL rows incl.
+      // soft-deleted (the unique index spans all rows, so a deleted rank stays reserved):
+      // appending past the all-rows max never collides, and the new rank also exceeds every
+      // live sibling → last among siblings in the tree. Locking the tail row serializes
+      // concurrent creates; withRetry covers a residual unique collision.
       const [lastInBacklog] = await tx
         .select({ rank: items.rank })
         .from(items)
-        .where(and(eq(items.backlogId, data.backlogId), isNull(items.deletedAt)))
+        .where(eq(items.backlogId, data.backlogId))
         .orderBy(desc(items.rank))
         .limit(1)
         .for("update");
