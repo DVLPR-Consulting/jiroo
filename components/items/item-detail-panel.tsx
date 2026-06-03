@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { softDeleteItemAction } from "@/app/actions/items";
 import { ActivityLog } from "@/components/items/detail/activity-log";
 import { EditableTitle } from "@/components/items/detail/editable-title";
 import { DescriptionEditor } from "@/components/items/detail/description-editor";
@@ -66,8 +68,17 @@ export function ItemDetailPanel({
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<"detail" | "activity">("detail");
+  const [deleting, startDelete] = useTransition();
 
   const close = () => router.push(`/b/${backlogKey}`);
+
+  const handleDelete = () => {
+    if (!window.confirm("Supprimer cet item et ses sous-items ?")) return;
+    startDelete(async () => {
+      await softDeleteItemAction({ id: detail.id, backlogKey });
+      router.push(`/b/${backlogKey}`);
+    });
+  };
 
   const userById = new Map(users.map((u) => [u.id, u]));
   const reporter = detail.reporterId ? userById.get(detail.reporterId) : undefined;
@@ -96,7 +107,19 @@ export function ItemDetailPanel({
                   …
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" />
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  disabled={deleting}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    handleDelete();
+                  }}
+                  className="text-[var(--danger)] focus:text-[var(--danger)]"
+                >
+                  <Trash2 className="size-4" />
+                  {deleting ? "Suppression…" : "Supprimer l'item"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
             </DropdownMenu>
             <button
               type="button"
