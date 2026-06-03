@@ -135,3 +135,42 @@ export function withAncestors(items: FilterItem[], matchedIds: Set<string>): Set
   }
   return result;
 }
+
+// Partition into [key, items][] preserving first-seen order. Label resolution
+// (status name, user name, priority label, parent title) belongs to the caller.
+export function groupItems(items: FilterItem[], group: GroupKey): Array<[string, FilterItem[]]> {
+  const keyOf = (i: FilterItem): string => {
+    switch (group) {
+      case "status": return i.statusId;
+      case "assignee": return i.assigneeId ?? "none";
+      case "priority": return String(i.priority);
+      case "parent": return i.parentId ?? "none";
+    }
+  };
+  const map = new Map<string, FilterItem[]>();
+  for (const i of items) {
+    const k = keyOf(i);
+    (map.get(k) ?? map.set(k, []).get(k)!).push(i);
+  }
+  return [...map.entries()];
+}
+
+export function sortItems(items: FilterItem[], sort: { field: SortField; dir: SortDir }): FilterItem[] {
+  const sign = sort.dir === "asc" ? 1 : -1;
+  const cmp = (a: FilterItem, b: FilterItem): number => {
+    switch (sort.field) {
+      case "priority": return (a.priority - b.priority) * sign;
+      case "created": return (a.createdAt.getTime() - b.createdAt.getTime()) * sign;
+      case "updated": return (a.updatedAt.getTime() - b.updatedAt.getTime()) * sign;
+      case "key": return a.key.localeCompare(b.key, undefined, { numeric: true }) * sign;
+      case "dueDate": {
+        // nulls always last, regardless of direction
+        if (a.dueDate === null && b.dueDate === null) return 0;
+        if (a.dueDate === null) return 1;
+        if (b.dueDate === null) return -1;
+        return (a.dueDate.getTime() - b.dueDate.getTime()) * sign;
+      }
+    }
+  };
+  return [...items].sort(cmp);
+}

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseViewState, writeViewState, type ViewState } from "./filter";
 import { isFiltersActive, matchItem, type FilterItem } from "./filter";
 import { withAncestors } from "./filter";
+import { groupItems, sortItems } from "./filter";
 
 const empty: ViewState = {
   filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
@@ -122,5 +123,53 @@ describe("withAncestors", () => {
   it("is a no-op when the matched set already contains the chain", () => {
     const out = withAncestors(rows, new Set(["c", "e", "t"]));
     expect(out).toEqual(new Set(["c", "e", "t"]));
+  });
+});
+
+describe("groupItems", () => {
+  const rows = [
+    item({ id: "a", assigneeId: "u1", priority: 4, parentId: "p1", statusId: "s1" }),
+    item({ id: "b", assigneeId: null, priority: 4, parentId: "p1", statusId: "s2" }),
+    item({ id: "c", assigneeId: "u1", priority: 2, parentId: null, statusId: "s1" }),
+  ];
+  it("groups by assignee, mapping null to 'none', preserving first-seen order", () => {
+    expect(groupItems(rows, "assignee")).toEqual([
+      ["u1", [rows[0], rows[2]]],
+      ["none", [rows[1]]],
+    ]);
+  });
+  it("groups by priority with numeric string keys", () => {
+    expect(groupItems(rows, "priority")).toEqual([
+      ["4", [rows[0], rows[1]]],
+      ["2", [rows[2]]],
+    ]);
+  });
+  it("groups by parent, mapping null to 'none'", () => {
+    expect(groupItems(rows, "parent")).toEqual([
+      ["p1", [rows[0], rows[1]]],
+      ["none", [rows[2]]],
+    ]);
+  });
+});
+
+describe("sortItems", () => {
+  const rows = [
+    item({ id: "a", priority: 1, key: "CASS-2", createdAt: new Date("2026-01-03"), dueDate: new Date("2026-02-01") }),
+    item({ id: "b", priority: 4, key: "CASS-10", createdAt: new Date("2026-01-01"), dueDate: null }),
+    item({ id: "c", priority: 1, key: "CASS-1", createdAt: new Date("2026-01-02"), dueDate: new Date("2026-01-15") }),
+  ];
+  it("sorts by priority desc", () => {
+    expect(sortItems(rows, { field: "priority", dir: "desc" }).map((r) => r.id)).toEqual(["b", "a", "c"]);
+  });
+  it("sorts by key ascending, numeric-aware (CASS-2 before CASS-10)", () => {
+    expect(sortItems(rows, { field: "key", dir: "asc" }).map((r) => r.id)).toEqual(["c", "a", "b"]);
+  });
+  it("sorts by dueDate asc with nulls last", () => {
+    expect(sortItems(rows, { field: "dueDate", dir: "asc" }).map((r) => r.id)).toEqual(["c", "a", "b"]);
+  });
+  it("does not mutate the input array", () => {
+    const copy = [...rows];
+    sortItems(rows, { field: "priority", dir: "asc" });
+    expect(rows).toEqual(copy);
   });
 });
