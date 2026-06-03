@@ -83,6 +83,38 @@ Board, list and tree views, search, notifications and new-item are placeholders
 until later lots. The current view shows a live item count for the active
 backlog.
 
+## Items & hierarchy
+
+Work is broken down along a strict four-level hierarchy:
+
+`Composant > Epic > Tâche > Sous-tâche`
+
+Parenting is validated: an item may only be created or moved under a parent
+whose type is exactly one level above it (a tâche under an epic, a sous-tâche
+under a tâche, etc.). Top-level items must be composants.
+
+Each item gets a human-readable, sequential key of the form `CASS-N`, allocated
+from a Postgres sequence so keys are stable and never reused.
+
+Every item mutation — `createItem`, `updateItem`, `softDeleteItem`,
+`restoreItem` — runs through a single transactional service. Within **one
+database transaction** the service validates, applies the mutation, and writes
+a matching audit row to the `activities` table, so the audit trail can never
+drift from the data it describes. `closed_at` is maintained automatically when
+an item moves into (or out of) a done-category status.
+
+Deletion is a **soft delete** that cascades over the whole subtree (rows are
+locked `FOR UPDATE` while the subtree is marked deleted). Restore is the inverse
+and guards against orphans — an item cannot be restored while its parent is
+still deleted.
+
+Subtree queries rely on a self-inclusive [`ltree`](https://www.postgresql.org/docs/current/ltree.html)
+`path` on each item: the path includes the item's own key and is enforced by a
+database `CHECK` constraint, so the materialized hierarchy stays consistent.
+
+Items are created from a backlog view via the **Nouvel item** dialog, which only
+offers parents and types allowed by the hierarchy rules.
+
 ## Environments
 
 `DATABASE_URL` switches the app between local Docker, Neon (pooled, EU) and the future internal server. Migrations use `DIRECT_DATABASE_URL` (unpooled). Auth secrets live in `.env` / host env; never commit them. The auth API route runs on the Node.js runtime (not edge).

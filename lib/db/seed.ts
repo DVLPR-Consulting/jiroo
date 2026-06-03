@@ -6,6 +6,7 @@ import { user } from "@/lib/db/schema/auth";
 import { backlogs, items, statuses } from "@/lib/db/schema/domain";
 import { STATUS_CATEGORY } from "@/lib/design/constants";
 import { nextItemKey } from "@/lib/items/key";
+import { buildPath, childDepth } from "@/lib/tree/path";
 import { rankLast } from "@/lib/tree/rank";
 
 const STATUS_SEED = [
@@ -40,6 +41,16 @@ async function main() {
   const epicKey = await nextItemKey(db, "CASS");
   const tacheKey = await nextItemKey(db, "CASS");
 
+  // Generate item ids app-side up front so each row's stored `path` ends with
+  // the row's own id-label (the self-inclusive invariant enforced by the
+  // items_path_self_inclusive CHECK constraint).
+  const composantId = crypto.randomUUID();
+  const epicId = crypto.randomUUID();
+  const tacheId = crypto.randomUUID();
+  const composantPath = buildPath(null, composantId);
+  const epicPath = buildPath(composantPath, epicId);
+  const tachePath = buildPath(epicPath, tacheId);
+
   // 3) Backlog, statuses and a valid demo tree (composant > epic > tache),
   // inserted atomically so it's all-or-nothing.
   await db.transaction(async (tx) => {
@@ -62,48 +73,45 @@ async function main() {
       .returning();
     const todo = insertedStatuses.find((s) => s.order === 0)!;
 
-    const [composant] = await tx
-      .insert(items)
-      .values({
-        key: composantKey,
-        type: "composant",
-        backlogId: backlog!.id,
-        title: "Authentification",
-        statusId: todo.id,
-        reporterId: admin.id,
-        rank: rankLast(null),
-        path: "root",
-        depth: 0,
-      })
-      .returning();
-
-    const [epic] = await tx
-      .insert(items)
-      .values({
-        key: epicKey,
-        type: "epic",
-        backlogId: backlog!.id,
-        title: "2FA TOTP",
-        statusId: todo.id,
-        reporterId: admin.id,
-        parentId: composant!.id,
-        rank: rankLast(null),
-        path: `root.${composant!.id.replace(/-/g, "")}`,
-        depth: 1,
-      })
-      .returning();
+    await tx.insert(items).values({
+      id: composantId,
+      key: composantKey,
+      type: "composant",
+      backlogId: backlog!.id,
+      title: "Authentification",
+      statusId: todo.id,
+      reporterId: admin.id,
+      rank: rankLast(null),
+      path: composantPath,
+      depth: childDepth(null),
+    });
 
     await tx.insert(items).values({
+      id: epicId,
+      key: epicKey,
+      type: "epic",
+      backlogId: backlog!.id,
+      title: "2FA TOTP",
+      statusId: todo.id,
+      reporterId: admin.id,
+      parentId: composantId,
+      rank: rankLast(null),
+      path: epicPath,
+      depth: childDepth(0),
+    });
+
+    await tx.insert(items).values({
+      id: tacheId,
       key: tacheKey,
       type: "tache",
       backlogId: backlog!.id,
       title: "Écran de vérification du code",
       statusId: todo.id,
       reporterId: admin.id,
-      parentId: epic!.id,
+      parentId: epicId,
       rank: rankLast(null),
-      path: `root.${composant!.id.replace(/-/g, "")}.${epic!.id.replace(/-/g, "")}`,
-      depth: 2,
+      path: tachePath,
+      depth: childDepth(1),
     });
   });
 

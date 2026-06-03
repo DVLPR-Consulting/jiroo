@@ -1,7 +1,6 @@
-import { Button } from "@/components/ui/button";
 import { DensityToggle } from "@/components/theme/density-toggle";
 
-export function ViewBar() {
+export function ViewBar({ newItemSlot }: { newItemSlot?: React.ReactNode }) {
   return (
     <div className="flex h-[46px] items-center gap-3 border-b border-border px-4">
       <div className="inline-flex rounded-md border border-border p-0.5">
@@ -30,9 +29,7 @@ export function ViewBar() {
       </div>
       <div className="ml-auto flex items-center gap-3">
         <DensityToggle />
-        <Button disabled title="bientôt">
-          Nouvel item
-        </Button>
+        {newItemSlot}
       </div>
     </div>
   );
