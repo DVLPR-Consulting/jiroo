@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseViewState, writeViewState, type ViewState } from "./filter";
 import { isFiltersActive, matchItem, type FilterItem } from "./filter";
+import { withAncestors } from "./filter";
 
 const empty: ViewState = {
   filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
@@ -98,5 +99,28 @@ describe("matchItem", () => {
     expect(matchItem(item({ assigneeId: null }), f({ assignees: ["none"] }))).toBe(true);
     expect(matchItem(item({ assigneeId: "u1" }), f({ assignees: ["none"] }))).toBe(false);
     expect(matchItem(item({ assigneeId: "u1" }), f({ assignees: ["none", "u1"] }))).toBe(true);
+  });
+});
+
+describe("withAncestors", () => {
+  // self-inclusive ltree paths: child path = parent path + "." + childHex
+  const rows = [
+    item({ id: "c", path: "c" }),               // root composant
+    item({ id: "e", path: "c.e" }),             // epic under c
+    item({ id: "t", path: "c.e.t" }),           // tache under e
+    item({ id: "o", path: "o" }),               // unrelated root
+  ];
+
+  it("adds the ancestors of every matched id", () => {
+    const out = withAncestors(rows, new Set(["t"]));
+    expect(out).toEqual(new Set(["t", "e", "c"]));
+  });
+  it("keeps unrelated matches and adds nothing extra", () => {
+    const out = withAncestors(rows, new Set(["o"]));
+    expect(out).toEqual(new Set(["o"]));
+  });
+  it("is a no-op when the matched set already contains the chain", () => {
+    const out = withAncestors(rows, new Set(["c", "e", "t"]));
+    expect(out).toEqual(new Set(["c", "e", "t"]));
   });
 });

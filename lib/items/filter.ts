@@ -122,3 +122,16 @@ export function matchItem(it: FilterItem, f: Filters): boolean {
   }
   return true;
 }
+
+// Expand a matched id set to include the ancestors of every match, using the
+// self-inclusive ltree path: A is an ancestor of M iff M.path starts with A.path + ".".
+export function withAncestors(items: FilterItem[], matchedIds: Set<string>): Set<string> {
+  const result = new Set(matchedIds);
+  const matched = items.filter((i) => matchedIds.has(i.id));
+  for (const m of matched) {
+    for (const i of items) {
+      if (m.path.startsWith(i.path + ".")) result.add(i.id);
+    }
+  }
+  return result;
+}
