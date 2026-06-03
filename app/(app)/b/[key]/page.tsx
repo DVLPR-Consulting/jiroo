@@ -11,8 +11,10 @@ import {
   listLabelsForBacklog,
   listUsers,
 } from "@/lib/services/items";
+import { moveItemAction } from "@/app/actions/items";
 import { ViewBar } from "@/components/shell/view-bar";
 import { ItemList } from "@/components/items/item-list";
+import { ItemBoard } from "@/components/items/item-board";
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
 import { NewItemButton } from "@/components/items/new-item-dialog";
 
@@ -50,6 +52,26 @@ export default async function BacklogPage({
     statusRows.map((s) => [s.id, { name: s.name, color: s.color }]),
   );
 
+  // Board cards: in-memory subCount per parent + assignee names resolved from a users map.
+  const childCount = new Map<string, number>();
+  for (const i of items) {
+    if (i.parentId) childCount.set(i.parentId, (childCount.get(i.parentId) ?? 0) + 1);
+  }
+  const usersForBoard =
+    view === "board" && items.some((i) => i.assigneeId) ? await listUsers() : [];
+  const userName = new Map(usersForBoard.map((u) => [u.id, u.name]));
+  const boardCards = items.map((i) => ({
+    id: i.id,
+    key: i.key,
+    type: i.type,
+    title: i.title,
+    statusId: i.statusId,
+    priority: i.priority,
+    rank: i.rank,
+    assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
+    subCount: childCount.get(i.id) ?? 0,
+  }));
+
   const detail = itemKey ? await getItemByKey(itemKey) : null;
   const showPanel = detail && detail.backlogId === backlog.id;
 
@@ -86,9 +108,12 @@ export default async function BacklogPage({
         />
       )}
       {view === "board" && (
-        <div className="grid flex-1 place-items-center p-10 text-center">
-          <p className="t-sm text-muted-foreground">Le board arrive (T11).</p>
-        </div>
+        <ItemBoard
+          backlogKey={key}
+          items={boardCards}
+          statuses={statusList}
+          moveItemAction={moveItemAction}
+        />
       )}
       {view === "tree" && (
         <div className="grid flex-1 place-items-center p-10 text-center">
