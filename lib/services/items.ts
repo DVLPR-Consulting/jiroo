@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { activities, backlogs, itemLabels, items, labels, statuses } from "@/lib/db/schema/domain";
@@ -6,7 +6,7 @@ import { user } from "@/lib/db/schema/auth";
 import { nextItemKey } from "@/lib/items/key";
 import { buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
-import { rankLast } from "@/lib/tree/rank";
+import { rankBetween, rankFirst, rankLast } from "@/lib/tree/rank";
 import { createItemSchema, idInputSchema, updateItemSchema } from "@/lib/validation/item";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -135,6 +135,89 @@ async function applyStatusChange(
   if (nowDone && !wasDone) patch.closedAt = new Date();
   else if (!nowDone && wasDone) patch.closedAt = null;
   return { patch, act: activityRow(cur.id, actorId, "status_change", "status", cur.statusId, s.id) };
+}
+
+// Server-authoritative drop rank. Client passes neighbor ids (never a rank). Locks the named
+// neighbors FOR UPDATE (rank ASC = stable lock order), re-derives a missing bound from the DB,
+// normalizes inverted neighbors, and appends against the LIVE group tail for collapsed/empty
+// cases. parentId is the sibling group (board: cur.parentId unchanged; reparent: the NEW parent).
+export async function rankAtDrop(
+  tx: Tx,
+  backlogId: string,
+  parentId: string | null,
+  movedId: string,
+  beforeId: string | null,
+  afterId: string | null,
+): Promise<string> {
+  const parentFilter = parentId === null ? isNull(items.parentId) : eq(items.parentId, parentId);
+  const groupBase = and(
+    eq(items.backlogId, backlogId),
+    parentFilter,
+    isNull(items.deletedAt),
+    ne(items.id, movedId),
+  );
+
+  const wanted = [beforeId, afterId].filter((x): x is string => x !== null && x !== movedId);
+  const byId = new Map<string, string>();
+  if (wanted.length > 0) {
+    const rows = await tx
+      .select({ id: items.id, rank: items.rank })
+      .from(items)
+      .where(and(groupBase, inArray(items.id, wanted)))
+      .orderBy(asc(items.rank))
+      .for("update");
+    for (const r of rows) byId.set(r.id, r.rank);
+  }
+  let before = beforeId ? (byId.get(beforeId) ?? null) : null;
+  let after = afterId ? (byId.get(afterId) ?? null) : null;
+
+  // D3: re-derive a missing bound from the DB (a forgotten interior neighbor self-heals).
+  if (before === null && after !== null) {
+    const [r] = await tx
+      .select({ rank: items.rank })
+      .from(items)
+      .where(and(groupBase, sql`${items.rank} < ${after}`))
+      .orderBy(desc(items.rank))
+      .limit(1)
+      .for("update");
+    before = r?.rank ?? null;
+  } else if (after === null && before !== null) {
+    const [r] = await tx
+      .select({ rank: items.rank })
+      .from(items)
+      .where(and(groupBase, sql`${items.rank} > ${before}`))
+      .orderBy(asc(items.rank))
+      .limit(1)
+      .for("update");
+    after = r?.rank ?? null;
+  }
+
+  // D2: normalize inverted client neighbors.
+  if (before !== null && after !== null && before > after) {
+    const tmp = before;
+    before = after;
+    after = tmp;
+  }
+
+  // Append against the LIVE group tail (collapsed or no-bounds): strictly-increasing serialized appends.
+  async function appendLast(): Promise<string> {
+    const [last] = await tx
+      .select({ rank: items.rank })
+      .from(items)
+      .where(groupBase)
+      .orderBy(desc(items.rank))
+      .limit(1)
+      .for("update");
+    return rankLast(last?.rank ?? null);
+  }
+
+  if (before !== null && after !== null) {
+    if (before === after) return appendLast();
+    return rankBetween(before, after);
+  }
+  if (after !== null) return rankFirst(after);
+  if (before !== null) return rankLast(before);
+  return appendLast(); // empty group → rankLast(null) = "a0"
 }
 
 // ---- createItem: validate → tx(mutate + activity) ----
