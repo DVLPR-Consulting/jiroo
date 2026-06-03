@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Layers, Settings, Trash2, User } from "lucide-react";
+import { BacklogSelector } from "@/components/shell/backlog-selector";
 import { UserCard } from "@/components/shell/user-card";
 
 type Backlog = { id: string; key: string; name: string; color: string };
@@ -20,23 +21,7 @@ export function Sidebar({
 
       {/* Backlogs */}
       <div className="t-meta px-2 pt-2 pb-1 text-muted-foreground">Backlogs</div>
-      <nav className="flex flex-col gap-0.5">
-        {backlogs.map((b) => (
-          <Link
-            key={b.id}
-            href={`/b/${b.key}`}
-            className="flex items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
-          >
-            <span
-              className="rounded px-1.5 py-0.5 text-[11px] font-medium text-white"
-              style={{ background: b.color }}
-            >
-              {b.key}
-            </span>
-            <span className="truncate">{b.name}</span>
-          </Link>
-        ))}
-      </nav>
+      <BacklogSelector backlogs={backlogs} />
 
       {/* Nav (placeholder — later lot) */}
       <div className="t-meta px-2 pt-3 pb-1 text-muted-foreground">Navigation</div>
