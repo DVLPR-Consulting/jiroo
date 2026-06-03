@@ -4,10 +4,10 @@ import { db } from "@/lib/db";
 import { activities, backlogs, itemLabels, items, labels, statuses } from "@/lib/db/schema/domain";
 import { user } from "@/lib/db/schema/auth";
 import { nextItemKey } from "@/lib/items/key";
-import { buildPath, childDepth } from "@/lib/tree/path";
+import { ROOT_LABEL, buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
 import { rankBetween, rankFirst, rankLast } from "@/lib/tree/rank";
-import { createItemSchema, idInputSchema, moveItemSchema, updateItemSchema } from "@/lib/validation/item";
+import { createItemSchema, idInputSchema, moveItemSchema, reparentItemSchema, updateItemSchema } from "@/lib/validation/item";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -572,4 +572,105 @@ export async function restoreItem(input: unknown, actorId: string) {
     }
     return target;
   });
+}
+
+// Tree reparent: change parentId + rewrite the ltree path/depth of the node AND its whole subtree.
+// NEVER touches statusId. The path-rewrite splices against the PARENT path at offset oldLevels-1
+// (the naive subpath(path, oldLevels) THROWS `invalid positions` on the node's own row — verified).
+export async function reparentItem(input: unknown, actorId: string) {
+  const data = reparentItemSchema.parse(input);
+  return withRetry(() =>
+    db.transaction(async (tx) => {
+      const [node] = await tx
+        .select()
+        .from(items)
+        .where(and(eq(items.id, data.id), isNull(items.deletedAt)))
+        .for("update");
+      if (!node) return null;
+
+      const sameParent = (node.parentId ?? null) === (data.newParentId ?? null);
+
+      let parentPath: string | null = null;
+      let parentDepth: number | null = null;
+      if (data.newParentId !== null) {
+        if (data.newParentId === node.id) throw new Error("Cycle : un item ne peut pas être son propre parent.");
+        const [parent] = await tx
+          .select({
+            id: items.id,
+            type: items.type,
+            path: items.path,
+            depth: items.depth,
+            backlogId: items.backlogId,
+            deletedAt: items.deletedAt,
+          })
+          .from(items)
+          .where(eq(items.id, data.newParentId))
+          .for("update");
+        if (!parent || parent.deletedAt) throw new Error("Parent introuvable.");
+        if (parent.backlogId !== node.backlogId) throw new Error("Le parent appartient à un autre backlog.");
+        if (!isValidParenting(node.type, parent.type)) throw new Error("Hiérarchie invalide pour ce type.");
+        // cycle guard: the new parent must NOT be the node or a descendant of it (self-inclusive <@)
+        const cyc = await tx
+          .select({ one: sql`1` })
+          .from(items)
+          .where(and(eq(items.id, parent.id), sql`${items.path} <@ ${node.path}::ltree`))
+          .limit(1);
+        if (cyc.length > 0) throw new Error("Cycle : le nouveau parent est dans le sous-arbre déplacé.");
+        // ancestor-deleted guard
+        const ancDel = await tx
+          .select({ one: sql`1` })
+          .from(items)
+          .where(and(sql`${items.path} @> ${parent.path}::ltree`, isNotNull(items.deletedAt)))
+          .limit(1);
+        if (ancDel.length > 0) throw new Error("Un ancêtre est supprimé.");
+        parentPath = parent.path;
+        parentDepth = parent.depth;
+      } else if (!isValidParenting(node.type, null)) {
+        throw new Error("Hiérarchie invalide pour ce type.");
+      }
+
+      if (!sameParent) {
+        // lock the whole moved subtree (asc(path)) before the rewrite
+        const subtree = and(
+          eq(items.backlogId, node.backlogId),
+          sql`${items.path} <@ ${node.path}::ltree`,
+          isNull(items.deletedAt),
+        );
+        await tx.select({ id: items.id }).from(items).where(subtree).orderBy(asc(items.path)).for("update");
+
+        const oldLevels = node.path.split(".").length; // = nlevel(node.path)
+        const newNodeDepth = childDepth(parentDepth);
+        const depthDelta = newNodeDepth - node.depth;
+        const newBase = parentPath ?? ROOT_LABEL;
+
+        await tx
+          .update(items)
+          .set({
+            path: sql`(${newBase}::ltree || subpath(${items.path}, ${oldLevels - 1}))`,
+            depth: sql`${items.depth} + ${depthDelta}`,
+            updatedAt: new Date(),
+          })
+          .where(subtree);
+      }
+
+      // rank under the NEW (or same) parent group
+      const newRank = await rankAtDrop(tx, node.backlogId, data.newParentId, node.id, data.beforeId, data.afterId);
+
+      const patch: Partial<typeof items.$inferInsert> = {};
+      const acts: (typeof activities.$inferInsert)[] = [];
+      if (!sameParent) {
+        patch.parentId = data.newParentId;
+        patch.rank = newRank;
+        acts.push(activityRow(node.id, actorId, "move", "parent", node.parentId ?? null, data.newParentId ?? null));
+      } else {
+        if (newRank === node.rank) return node; // same-parent no-op
+        patch.rank = newRank;
+        acts.push(activityRow(node.id, actorId, "move", "rank", node.rank, newRank));
+      }
+
+      const [updated] = await tx.update(items).set({ ...patch, updatedAt: new Date() }).where(eq(items.id, node.id)).returning();
+      await tx.insert(activities).values(acts);
+      return updated!;
+    }),
+  );
 }
