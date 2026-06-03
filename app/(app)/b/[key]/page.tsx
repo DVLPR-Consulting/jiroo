@@ -149,9 +149,37 @@ export default async function BacklogPage({
       statusId: i.statusId,
       priority: i.priority,
       rank: i.rank,
+      assigneeId: i.assigneeId,
+      parentId: i.parentId,
       assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
       subCount: childCount.get(i.id) ?? 0,
     }));
+
+  // Board swimlanes: status is the columns, so it never groups the board. Build
+  // the label for each band key the same way the board partitions its cards.
+  const boardGroup =
+    viewState.group && viewState.group !== "status" ? viewState.group : null;
+  const groupLabels: Record<string, string> = {};
+  if (boardGroup) {
+    for (const c of boardCards) {
+      const k =
+        boardGroup === "assignee"
+          ? (c.assigneeId ?? "none")
+          : boardGroup === "priority"
+            ? String(c.priority)
+            : (c.parentId ?? "none");
+      groupLabels[k] =
+        k === "none"
+          ? boardGroup === "assignee"
+            ? "Non assigné"
+            : "Sans parent"
+          : boardGroup === "assignee"
+            ? (c.assigneeName ?? k)
+            : boardGroup === "priority"
+              ? PRIORITY_LABELS[Number(k) as 0 | 1 | 2 | 3 | 4]
+              : (items.find((i) => i.id === k)?.title ?? k);
+    }
+  }
 
   // Tree rows: the flat item list (already ordered depth,rank,key) reshaped for ItemTree.
   // When filters are active, restrict to matched items + their ancestors (context). Ancestors
@@ -239,6 +267,8 @@ export default async function BacklogPage({
           backlogKey={key}
           items={boardCards}
           statuses={statusList}
+          group={boardGroup}
+          groupLabels={groupLabels}
           moveItemAction={moveItemAction}
         />
       )}

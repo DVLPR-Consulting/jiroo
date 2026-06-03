@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -39,14 +39,65 @@ export type BoardCard = {
   statusId: string;
   priority: number;
   rank: string;
+  assigneeId: string | null;
+  parentId: string | null;
   assigneeName?: string | null;
   subCount?: number;
 };
 
+export type BoardGroup = "assignee" | "priority" | "parent" | null;
+
 type Status = { id: string; name: string; color: string; category: string };
 type Columns = Record<string, BoardCard[]>;
 
+// Column droppable id form: `col:<swimlaneKey>:<statusId>`. The swimlane key is
+// "" when the board is ungrouped, so the single-band path flows through the same
+// code as the grouped one.
 const COL_PREFIX = "col:";
+const colId = (swimlane: string, statusId: string) =>
+  `${COL_PREFIX}${swimlane}:${statusId}`;
+const parseColId = (id: string): { swimlane: string; statusId: string } => {
+  const rest = id.slice(COL_PREFIX.length);
+  const sep = rest.indexOf(":");
+  return { swimlane: rest.slice(0, sep), statusId: rest.slice(sep + 1) };
+};
+
+// Swimlane key for a card under the active group dimension.
+function swimlaneOf(card: BoardCard, group: BoardGroup): string {
+  switch (group) {
+    case "assignee":
+      return card.assigneeId ?? "none";
+    case "priority":
+      return String(card.priority);
+    case "parent":
+      return card.parentId ?? "none";
+    case null:
+      return "";
+  }
+}
+
+// Partition cards into swimlanes in first-seen order, with the "none" band last.
+function partitionSwimlanes(
+  items: BoardCard[],
+  group: BoardGroup,
+): Array<[string, BoardCard[]]> {
+  const map = new Map<string, BoardCard[]>();
+  for (const c of items) {
+    const k = swimlaneOf(c, group);
+    (map.get(k) ?? map.set(k, []).get(k)!).push(c);
+  }
+  const entries = [...map.entries()];
+  entries.sort((a, b) => {
+    if (a[0] === "none" && b[0] !== "none") return 1;
+    if (b[0] === "none" && a[0] !== "none") return -1;
+    return 0;
+  });
+  return entries;
+}
+
+function byRank(a: BoardCard, b: BoardCard): number {
+  return a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0;
+}
 
 // Clamp the DB integer priority into the 0..4 union PrioIcon expects.
 function asPriority(value: number): Priority {
@@ -60,43 +111,53 @@ function hueFor(name: string): LabelHue {
   return LABEL_HUES[Math.abs(h) % LABEL_HUES.length]!;
 }
 
-// Bucket cards by status, each bucket sorted by rank lexicographically.
-function groupByStatus(items: BoardCard[], statuses: Status[]): Columns {
+// Bucket cards into (swimlane, status) cells, keyed by the column dom id, each
+// bucket sorted by rank. When ungrouped, the swimlane key is "" so there is one
+// cell per status — identical to the previous single-band layout.
+function groupByCell(
+  items: BoardCard[],
+  statuses: Status[],
+  swimlanes: string[],
+  group: BoardGroup,
+): Columns {
   const cols: Columns = {};
-  for (const s of statuses) cols[s.id] = [];
+  for (const sw of swimlanes) {
+    for (const s of statuses) cols[colId(sw, s.id)] = [];
+  }
   for (const c of items) {
-    (cols[c.statusId] ??= []).push(c);
+    const id = colId(swimlaneOf(c, group), c.statusId);
+    (cols[id] ??= []).push(c);
   }
   for (const id of Object.keys(cols)) {
-    cols[id]!.sort((a, b) => (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0));
+    cols[id]!.sort(byRank);
   }
   return cols;
 }
 
-function stripPrefix(id: string): string {
-  return id.startsWith(COL_PREFIX) ? id.slice(COL_PREFIX.length) : id;
-}
-
-// Find which column a card id currently lives in, given a columns snapshot.
+// Find which column (dom id) a card currently lives in, given a snapshot.
 function findColumn(cols: Columns, cardId: string): string | null {
-  for (const [colId, cards] of Object.entries(cols)) {
-    if (cards.some((c) => c.id === cardId)) return colId;
+  for (const [id, cards] of Object.entries(cols)) {
+    if (cards.some((c) => c.id === cardId)) return id;
   }
   return null;
 }
 
 function SortableCard({
   card,
+  colDomId,
+  swimlane,
   backlogKey,
   onOpen,
 }: {
   card: BoardCard;
+  colDomId: string;
+  swimlane: string;
   backlogKey: string;
   onOpen: (key: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
-    data: { type: "card", columnId: card.statusId },
+    data: { type: "card", columnId: colDomId, swimlane },
   });
 
   return (
@@ -154,20 +215,24 @@ function CardInner({ card }: { card: BoardCard; backlogKey: string }) {
 
 function Column({
   status,
+  colDomId,
+  swimlane,
   cards,
   backlogKey,
   isOver,
   onOpen,
 }: {
   status: Status;
+  colDomId: string;
+  swimlane: string;
   cards: BoardCard[];
   backlogKey: string;
   isOver: boolean;
   onOpen: (key: string) => void;
 }) {
   const { setNodeRef } = useDroppable({
-    id: `${COL_PREFIX}${status.id}`,
-    data: { type: "column", columnId: status.id },
+    id: colDomId,
+    data: { type: "column", columnId: colDomId, swimlane, statusId: status.id },
   });
 
   return (
@@ -194,7 +259,14 @@ function Column({
           }
         >
           {cards.map((card) => (
-            <SortableCard key={card.id} card={card} backlogKey={backlogKey} onOpen={onOpen} />
+            <SortableCard
+              key={card.id}
+              card={card}
+              colDomId={colDomId}
+              swimlane={swimlane}
+              backlogKey={backlogKey}
+              onOpen={onOpen}
+            />
           ))}
         </div>
       </SortableContext>
@@ -206,18 +278,31 @@ export function ItemBoard({
   backlogKey,
   items,
   statuses,
+  group,
+  groupLabels,
   moveItemAction,
 }: {
   backlogKey: string;
   items: BoardCard[];
   statuses: Status[];
+  group: BoardGroup;
+  groupLabels: Record<string, string>;
   moveItemAction: typeof MoveItemAction;
 }) {
   const router = useRouter();
   const dndId = useId();
-  const [columns, setColumns] = useState<Columns>(() => groupByStatus(items, statuses));
+  // Swimlane bands in first-seen order ("none" last). When ungrouped, a single
+  // band keyed "" reproduces the original layout exactly.
+  const swimlanes = useMemo(
+    () => (group === null ? [""] : partitionSwimlanes(items, group).map(([k]) => k)),
+    [items, group],
+  );
+  const [columns, setColumns] = useState<Columns>(() =>
+    groupByCell(items, statuses, swimlanes, group),
+  );
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [overColumn, setOverColumn] = useState<string | null>(null);
+  // The full column dom id currently hovered (used for the drop highlight).
+  const [overColId, setOverColId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const snapshot = useRef<Columns | null>(null);
   const pending = useRef(0);
@@ -227,9 +312,9 @@ export function ItemBoard({
   // clobber the optimistic state.
   useEffect(() => {
     if (activeId === null && pending.current === 0) {
-      setColumns(groupByStatus(items, statuses));
+      setColumns(groupByCell(items, statuses, swimlanes, group));
     }
-  }, [items, statuses, activeId]);
+  }, [items, statuses, swimlanes, group, activeId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -249,7 +334,7 @@ export function ItemBoard({
     setError(null);
     const id = String(event.active.id);
     setActiveId(id);
-    setOverColumn(findColumn(columns, id));
+    setOverColId(findColumn(columns, id));
   }
 
   // onDragOver is the SOLE mutator of cross-column membership (placeholder jump).
@@ -258,11 +343,18 @@ export function ItemBoard({
     if (!over) return;
     const activeIdStr = String(active.id);
     const fromCol = (active.data.current?.columnId as string | undefined) ?? findColumn(columns, activeIdStr);
-    const overData = over.data.current as { type?: string; columnId?: string } | undefined;
+    const overData = over.data.current as
+      | { type?: string; columnId?: string }
+      | undefined;
     const toCol =
-      overData?.type === "column" ? stripPrefix(String(over.id)) : (overData?.columnId ?? findColumn(columns, String(over.id)));
+      overData?.type === "column"
+        ? String(over.id)
+        : (overData?.columnId ?? findColumn(columns, String(over.id)));
     if (!fromCol || !toCol) return;
-    setOverColumn(toCol);
+    // Swimlanes are display-only: a drop is only valid within the card's own
+    // lane. Reject cross-lane targets (leave state untouched so it snaps back).
+    if (parseColId(fromCol).swimlane !== parseColId(toCol).swimlane) return;
+    setOverColId(toCol);
     if (fromCol === toCol) return;
 
     setColumns((prev) => {
@@ -278,7 +370,7 @@ export function ItemBoard({
         if (overIdx !== -1) insertAt = overIdx;
       }
       const nextTo = [...toCards];
-      nextTo.splice(insertAt, 0, { ...moving, statusId: toCol });
+      nextTo.splice(insertAt, 0, { ...moving, statusId: parseColId(toCol).statusId });
       return {
         ...prev,
         [fromCol]: fromCards.filter((c) => c.id !== activeIdStr),
@@ -291,7 +383,7 @@ export function ItemBoard({
     const { active, over } = event;
     const activeIdStr = String(active.id);
     setActiveId(null);
-    setOverColumn(null);
+    setOverColId(null);
 
     if (!over) {
       // Dropped outside any droppable — restore the pre-drag baseline.
@@ -303,7 +395,11 @@ export function ItemBoard({
     const toCol = findColumn(columns, activeIdStr);
     if (!toCol || !base) return;
     const fromCol = findColumn(base, activeIdStr);
-    const movedCols = fromCol !== toCol;
+    // A status change means the (lane-namespaced) status portion changed. Same
+    // lane is guaranteed by the onDragOver guard, so comparing statusId here is
+    // equivalent to comparing column ids but reads as the true intent.
+    const toStatusId = parseColId(toCol).statusId;
+    const movedCols = fromCol === null || parseColId(fromCol).statusId !== toStatusId;
 
     // Reorder within the target column to land at the over position.
     let finalCols = columns;
@@ -343,13 +439,13 @@ export function ItemBoard({
     setColumns((prev) => ({
       ...prev,
       [toCol]: (prev[toCol] ?? []).map((c) =>
-        c.id === activeIdStr ? { ...c, rank: optimisticRank, statusId: toCol } : c,
+        c.id === activeIdStr ? { ...c, rank: optimisticRank, statusId: toStatusId } : c,
       ),
     }));
 
     void commit({
       id: activeIdStr,
-      toCol,
+      toStatusId,
       movedCols,
       beforeId: before?.id ?? null,
       afterId: after?.id ?? null,
@@ -358,7 +454,7 @@ export function ItemBoard({
 
   async function commit(args: {
     id: string;
-    toCol: string;
+    toStatusId: string;
     movedCols: boolean;
     beforeId: string | null;
     afterId: string | null;
@@ -368,7 +464,7 @@ export function ItemBoard({
       const res = await moveItemAction({
         backlogKey,
         id: args.id,
-        statusId: args.movedCols ? args.toCol : undefined,
+        statusId: args.movedCols ? args.toStatusId : undefined,
         beforeId: args.beforeId,
         afterId: args.afterId,
       });
@@ -404,18 +500,52 @@ export function ItemBoard({
         onDragEnd={onDragEnd}
       >
         <div className="flex-1 overflow-x-auto p-4">
-          <div className="flex h-full items-start gap-3">
-            {statuses.map((status) => (
-              <Column
-                key={status.id}
-                status={status}
-                cards={columns[status.id] ?? []}
-                backlogKey={backlogKey}
-                isOver={activeId !== null && overColumn === status.id}
-                onOpen={openItem}
-              />
-            ))}
-          </div>
+          {group === null ? (
+            <div className="flex h-full items-start gap-3">
+              {statuses.map((status) => {
+                const id = colId("", status.id);
+                return (
+                  <Column
+                    key={id}
+                    status={status}
+                    colDomId={id}
+                    swimlane=""
+                    cards={columns[id] ?? []}
+                    backlogKey={backlogKey}
+                    isOver={activeId !== null && overColId === id}
+                    onOpen={openItem}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {swimlanes.map((sw) => (
+                <div key={sw}>
+                  <div className="px-1 py-1 text-xs font-medium text-muted-foreground">
+                    {groupLabels[sw] ?? sw}
+                  </div>
+                  <div className="flex items-start gap-3">
+                    {statuses.map((status) => {
+                      const id = colId(sw, status.id);
+                      return (
+                        <Column
+                          key={id}
+                          status={status}
+                          colDomId={id}
+                          swimlane={sw}
+                          cards={columns[id] ?? []}
+                          backlogKey={backlogKey}
+                          isOver={activeId !== null && overColId === id}
+                          onOpen={openItem}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <DragOverlay modifiers={[restrictToWindowEdges]}>
           {activeCard ? (
