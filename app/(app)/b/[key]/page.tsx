@@ -21,12 +21,17 @@ export default async function BacklogPage({
   searchParams,
 }: {
   params: Promise<{ key: string }>;
-  searchParams: Promise<{ item?: string }>;
+  searchParams: Promise<{ item?: string; view?: string }>;
 }) {
   const { key } = await params;
-  const { item: itemKey } = await searchParams;
+  const { item: itemKey, view: rawView } = await searchParams;
   const backlog = await getBacklogByKey(key);
   if (!backlog || backlog.archivedAt) notFound();
+
+  const VIEWS = ["board", "list", "tree"] as const;
+  const view = (VIEWS as readonly string[]).includes(rawView ?? "")
+    ? (rawView as string)
+    : "board";
 
   const items = await listItems(backlog.id);
   const statusRows = await db
@@ -60,6 +65,9 @@ export default async function BacklogPage({
   return (
     <div className="flex h-full flex-col">
       <ViewBar
+        view={view}
+        backlogKey={key}
+        itemKey={itemKey}
         newItemSlot={
           <NewItemButton
             backlogId={backlog.id}
@@ -69,12 +77,24 @@ export default async function BacklogPage({
           />
         }
       />
-      <ItemList
-        items={items}
-        statuses={statusMap}
-        backlogKey={key}
-        selectedKey={itemKey}
-      />
+      {view === "list" && (
+        <ItemList
+          items={items}
+          statuses={statusMap}
+          backlogKey={key}
+          selectedKey={itemKey}
+        />
+      )}
+      {view === "board" && (
+        <div className="grid flex-1 place-items-center p-10 text-center">
+          <p className="t-sm text-muted-foreground">Le board arrive (T11).</p>
+        </div>
+      )}
+      {view === "tree" && (
+        <div className="grid flex-1 place-items-center p-10 text-center">
+          <p className="t-sm text-muted-foreground">L&apos;arbre arrive (T12).</p>
+        </div>
+      )}
       {showPanel && (
         <ItemDetailPanel
           detail={detail}
