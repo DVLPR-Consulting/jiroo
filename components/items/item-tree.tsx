@@ -161,10 +161,16 @@ export function ItemTree({
 
   function onDragOver(e: DragEvent<HTMLDivElement>, row: TreeItem) {
     e.preventDefault();
-    if (dragId === null || dragId === row.id) return;
-    // Suppress the indicator over the dragged node's own subtree (the SERVER
-    // cycle guard is the real enforcement).
-    if (dragDescendants.current.has(row.id)) return;
+    if (dragId === null) return;
+    // Dropping a node onto itself or into its own subtree would create a cycle.
+    // Surface a "no-drop" cursor and clear any stale indicator instead of failing
+    // silently, so the disallowed target reads as disabled rather than broken (the
+    // SERVER cycle guard is the real enforcement).
+    if (dragId === row.id || dragDescendants.current.has(row.id)) {
+      e.dataTransfer.dropEffect = "none";
+      if (target !== null) setTarget(null);
+      return;
+    }
     e.dataTransfer.dropEffect = "move";
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
