@@ -281,6 +281,7 @@ export function ItemBoard({
   group,
   groupLabels,
   moveItemAction,
+  params,
 }: {
   backlogKey: string;
   items: BoardCard[];
@@ -288,6 +289,7 @@ export function ItemBoard({
   group: BoardGroup;
   groupLabels: Record<string, string>;
   moveItemAction: typeof MoveItemAction;
+  params?: Record<string, string>;
 }) {
   const router = useRouter();
   const dndId = useId();
@@ -326,7 +328,9 @@ export function ItemBoard({
     : null;
 
   const openItem = (key: string) => {
-    router.push(`/b/${backlogKey}?item=${key}&view=board`);
+    const sp = new URLSearchParams(params ?? {});
+    sp.set("item", key);
+    router.push(`/b/${backlogKey}?${sp.toString()}`);
   };
 
   function onDragStart(event: DragStartEvent) {

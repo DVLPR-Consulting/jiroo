@@ -41,21 +41,28 @@ function Row({
   statuses,
   backlogKey,
   selectedKey,
+  params,
+  grouped,
 }: {
   item: Item;
   statuses: StatusMap;
   backlogKey: string;
   selectedKey?: string;
+  params?: Record<string, string>;
+  grouped?: boolean;
 }) {
   const isSelected = item.key === selectedKey;
+  const sp = new URLSearchParams(params ?? {});
+  sp.set("item", item.key);
+  const href = `/b/${backlogKey}?${sp.toString()}`;
   return (
     <li className="border-b border-border">
       <Link
-        href={`/b/${backlogKey}?item=${item.key}`}
+        href={href}
         className={`flex items-center gap-2.5 py-2 pr-4 transition-colors hover:bg-muted/50 ${
           isSelected ? "bg-[var(--accent-subtle)]" : ""
         }`}
-        style={{ paddingLeft: 12 + item.depth * 20 }}
+        style={{ paddingLeft: grouped ? 12 : 12 + item.depth * 20 }}
       >
         <TypeIcon type={item.type} />
         <ItemKey value={item.key} />
@@ -73,12 +80,14 @@ export function ItemList({
   statuses,
   backlogKey,
   selectedKey,
+  params,
 }: {
   groups: Group[];
   grouped: boolean;
   statuses: StatusMap;
   backlogKey: string;
   selectedKey?: string;
+  params?: Record<string, string>;
 }) {
   const total = groups.reduce((n, g) => n + g.items.length, 0);
 
@@ -100,6 +109,8 @@ export function ItemList({
             statuses={statuses}
             backlogKey={backlogKey}
             selectedKey={selectedKey}
+            params={params}
+            grouped={false}
           />
         ))}
       </ul>
@@ -121,6 +132,8 @@ export function ItemList({
                 statuses={statuses}
                 backlogKey={backlogKey}
                 selectedKey={selectedKey}
+                params={params}
+                grouped={true}
               />
             ))}
           </ul>

@@ -112,6 +112,7 @@ export function ItemTree({
   contextIds = [],
   reparentItemAction,
   moveItemAction,
+  params,
 }: {
   backlogKey: string;
   items: TreeItem[];
@@ -120,6 +121,7 @@ export function ItemTree({
   contextIds?: string[];
   reparentItemAction: typeof ReparentItemAction;
   moveItemAction: typeof MoveItemAction;
+  params?: Record<string, string>;
 }) {
   const router = useRouter();
   const [treeItems, setTreeItems] = useState<TreeItem[]>(() => seed(items));
@@ -288,7 +290,9 @@ export function ItemTree({
   }
 
   function openItem(key: string) {
-    router.push(`/b/${backlogKey}?item=${key}&view=tree`);
+    const sp = new URLSearchParams(params ?? {});
+    sp.set("item", key);
+    router.push(`/b/${backlogKey}?${sp.toString()}`);
   }
 
   function renderNode(node: TreeNode): React.ReactNode {

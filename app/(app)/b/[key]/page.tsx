@@ -226,12 +226,20 @@ export default async function BacklogPage({
       ])
     : [[], [], []];
 
+  // Bug 2: board status filter hides unselected columns — pass only the selected
+  // statuses when a status filter is active; all statuses otherwise.
+  const boardStatuses =
+    viewState.filters.statusIds.length > 0
+      ? statusList.filter((s) => viewState.filters.statusIds.includes(s.id))
+      : statusList;
+
   return (
     <div className="flex h-full flex-col">
       <ViewBar
         view={view}
         backlogKey={key}
         itemKey={itemKey}
+        params={currentParams}
         newItemSlot={
           <NewItemButton
             backlogId={backlog.id}
@@ -260,16 +268,18 @@ export default async function BacklogPage({
           statuses={statusMap}
           backlogKey={key}
           selectedKey={itemKey}
+          params={currentParams}
         />
       )}
       {view === "board" && (
         <ItemBoard
           backlogKey={key}
           items={boardCards}
-          statuses={statusList}
+          statuses={boardStatuses}
           group={boardGroup}
           groupLabels={groupLabels}
           moveItemAction={moveItemAction}
+          params={currentParams}
         />
       )}
       {view === "tree" && (
@@ -281,6 +291,7 @@ export default async function BacklogPage({
           contextIds={[...contextIds]}
           reparentItemAction={reparentItemAction}
           moveItemAction={moveItemAction}
+          params={currentParams}
         />
       )}
       {showPanel && (
