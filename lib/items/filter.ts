@@ -23,7 +23,7 @@ const SORT_FIELDS: SortField[] = ["priority", "dueDate", "created", "updated", "
 
 function csv(sp: URLSearchParams, key: string): string[] {
   const raw = sp.get(key);
-  return raw ? raw.split(",").filter(Boolean) : [];
+  return raw ? [...new Set(raw.split(",").filter(Boolean))] : [];
 }
 
 export function parseViewState(sp: URLSearchParams): ViewState {
@@ -40,8 +40,14 @@ export function parseViewState(sp: URLSearchParams): ViewState {
   const sortRaw = sp.get("sort");
   let sort: ViewState["sort"] = null;
   if (sortRaw) {
-    const [field, dir] = sortRaw.split(":");
-    if ((SORT_FIELDS as string[]).includes(field ?? "") && (dir === "asc" || dir === "desc")) {
+    const parts = sortRaw.split(":");
+    const [field, dir] = parts;
+    if (
+      parts.length === 2 &&
+      field !== undefined &&
+      (SORT_FIELDS as string[]).includes(field) &&
+      (dir === "asc" || dir === "desc")
+    ) {
       sort = { field: field as SortField, dir };
     }
   }

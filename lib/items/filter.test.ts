@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { parseViewState, writeViewState, type ViewState } from "./filter";
-import { isFiltersActive, matchItem, type FilterItem } from "./filter";
-import { withAncestors } from "./filter";
-import { groupItems, sortItems } from "./filter";
+import {
+  parseViewState,
+  writeViewState,
+  isFiltersActive,
+  matchItem,
+  withAncestors,
+  groupItems,
+  sortItems,
+  type ViewState,
+  type FilterItem,
+} from "./filter";
 
 const empty: ViewState = {
   filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
@@ -39,6 +46,10 @@ describe("parseViewState", () => {
     expect(s.filters.priorities).toEqual([2]);
     expect(s.group).toBeNull();
     expect(s.sort).toBeNull();
+  });
+
+  it("dedups repeated CSV values", () => {
+    expect(parseViewState(new URLSearchParams("type=tache,tache")).filters.types).toEqual(["tache"]);
   });
 });
 
@@ -78,6 +89,9 @@ describe("isFiltersActive", () => {
   it("is true when any dimension is set", () => {
     expect(isFiltersActive({ q: "", types: ["tache"], statusIds: [], priorities: [], assignees: [] })).toBe(true);
     expect(isFiltersActive({ q: "x", types: [], statusIds: [], priorities: [], assignees: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: ["s1"], priorities: [], assignees: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [2], assignees: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: ["u1"] })).toBe(true);
   });
 });
 
@@ -150,6 +164,12 @@ describe("groupItems", () => {
       ["none", [rows[2]]],
     ]);
   });
+  it("groups by status, keyed by statusId, preserving first-seen order", () => {
+    expect(groupItems(rows, "status")).toEqual([
+      ["s1", [rows[0], rows[2]]],
+      ["s2", [rows[1]]],
+    ]);
+  });
 });
 
 describe("sortItems", () => {
@@ -166,6 +186,14 @@ describe("sortItems", () => {
   });
   it("sorts by dueDate asc with nulls last", () => {
     expect(sortItems(rows, { field: "dueDate", dir: "asc" }).map((r) => r.id)).toEqual(["c", "a", "b"]);
+  });
+  it("sorts by updated desc", () => {
+    const updRows = [
+      item({ id: "a", updatedAt: new Date("2026-01-02") }),
+      item({ id: "b", updatedAt: new Date("2026-01-05") }),
+      item({ id: "c", updatedAt: new Date("2026-01-01") }),
+    ];
+    expect(sortItems(updRows, { field: "updated", dir: "desc" }).map((r) => r.id)).toEqual(["b", "a", "c"]);
   });
   it("does not mutate the input array", () => {
     const copy = [...rows];
