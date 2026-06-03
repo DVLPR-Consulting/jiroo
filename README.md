@@ -67,6 +67,22 @@ invalidates existing 2FA enrollments.
 `http://localhost:3000` by default; set it to your actual dev port if you run
 the server elsewhere.
 
+## App shell & backlogs
+
+After signing in, the user lands in the app shell: a sidebar with a backlog
+selector, a topbar, and a view bar. The active backlog is encoded in the URL at
+`/b/[key]`, so the current backlog survives reloads and is shareable.
+
+Admins manage backlogs at `/admin`:
+
+- **Create** a backlog — it is provisioned with 4 default statuses.
+- **Edit** a backlog's name and color.
+- **Soft-archive** a backlog (it is hidden rather than deleted).
+
+Board, list and tree views, search, notifications and new-item are placeholders
+until later lots. The current view shows a live item count for the active
+backlog.
+
 ## Environments
 
 `DATABASE_URL` switches the app between local Docker, Neon (pooled, EU) and the future internal server. Migrations use `DIRECT_DATABASE_URL` (unpooled). Auth secrets live in `.env` / host env; never commit them. The auth API route runs on the Node.js runtime (not edge).
