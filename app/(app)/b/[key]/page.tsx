@@ -11,10 +11,11 @@ import {
   listLabelsForBacklog,
   listUsers,
 } from "@/lib/services/items";
-import { moveItemAction } from "@/app/actions/items";
+import { moveItemAction, reparentItemAction } from "@/app/actions/items";
 import { ViewBar } from "@/components/shell/view-bar";
 import { ItemList } from "@/components/items/item-list";
 import { ItemBoard } from "@/components/items/item-board";
+import { ItemTree } from "@/components/items/item-tree";
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
 import { NewItemButton } from "@/components/items/new-item-dialog";
 
@@ -57,8 +58,9 @@ export default async function BacklogPage({
   for (const i of items) {
     if (i.parentId) childCount.set(i.parentId, (childCount.get(i.parentId) ?? 0) + 1);
   }
-  const usersForBoard =
-    view === "board" && items.some((i) => i.assigneeId) ? await listUsers() : [];
+  const needsAssignees =
+    (view === "board" || view === "tree") && items.some((i) => i.assigneeId);
+  const usersForBoard = needsAssignees ? await listUsers() : [];
   const userName = new Map(usersForBoard.map((u) => [u.id, u.name]));
   const boardCards = items.map((i) => ({
     id: i.id,
@@ -71,6 +73,24 @@ export default async function BacklogPage({
     assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
     subCount: childCount.get(i.id) ?? 0,
   }));
+
+  // Tree rows: the flat item list (already ordered depth,rank,key) reshaped for ItemTree.
+  const treeData =
+    view === "tree"
+      ? items.map((i) => ({
+          id: i.id,
+          key: i.key,
+          type: i.type,
+          title: i.title,
+          parentId: i.parentId,
+          statusId: i.statusId,
+          priority: i.priority,
+          depth: i.depth,
+          rank: i.rank,
+          path: i.path,
+          assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
+        }))
+      : [];
 
   const detail = itemKey ? await getItemByKey(itemKey) : null;
   const showPanel = detail && detail.backlogId === backlog.id;
@@ -116,9 +136,14 @@ export default async function BacklogPage({
         />
       )}
       {view === "tree" && (
-        <div className="grid flex-1 place-items-center p-10 text-center">
-          <p className="t-sm text-muted-foreground">L&apos;arbre arrive (T12).</p>
-        </div>
+        <ItemTree
+          backlogKey={key}
+          items={treeData}
+          selectedKey={itemKey}
+          statuses={statusMap}
+          reparentItemAction={reparentItemAction}
+          moveItemAction={moveItemAction}
+        />
       )}
       {showPanel && (
         <ItemDetailPanel
