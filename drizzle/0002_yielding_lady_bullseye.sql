@@ -1,0 +1,1 @@
+ALTER TABLE "items" ADD CONSTRAINT "items_path_self_inclusive" CHECK (subpath("items"."path", nlevel("items"."path") - 1)::text = replace("items"."id"::text, '-', ''));

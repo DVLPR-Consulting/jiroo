@@ -2,6 +2,7 @@ import { sql, type SQL } from "drizzle-orm";
 import {
   type AnyPgColumn,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -84,6 +85,10 @@ export const items = pgTable(
     index("items_backlog_parent_rank_idx").on(t.backlogId, t.parentId, t.rank),
     index("items_path_idx").using("gist", t.path),
     index("items_search_idx").using("gin", t.search),
+    check(
+      "items_path_self_inclusive",
+      sql`subpath(${t.path}, nlevel(${t.path}) - 1)::text = replace(${t.id}::text, '-', '')`,
+    ),
   ],
 );
 
