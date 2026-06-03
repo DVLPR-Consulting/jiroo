@@ -7,9 +7,15 @@ export function formatItemKey(prefix: string, n: number): string {
   return `${prefix.toUpperCase()}-${n}`;
 }
 
-// Atomic next key for a backlog, backed by the native Postgres sequence.
-export async function nextItemKey(db: DB, backlogKey: string): Promise<string> {
-  const rows = await db.execute<{ nextval: string }>(sql`SELECT nextval('item_key_seq') AS nextval`);
+// Next key for a backlog, backed by the native Postgres sequence.
+// Accepts any executor with `.execute` (the pooled `db` OR a `tx`), so callers can run
+// nextval ON THE TRANSACTION'S connection — no cast. NB: nextval is non-transactional, so a
+// rolled-back create permanently burns a value (gaps); uniqueness is backstopped by items.key.
+export async function nextItemKey(
+  exec: Pick<DB, "execute">,
+  backlogKey: string,
+): Promise<string> {
+  const rows = await exec.execute<{ nextval: string }>(sql`SELECT nextval('item_key_seq') AS nextval`);
   const n = Number(rows.rows[0]!.nextval);
   return formatItemKey(backlogKey, n);
 }
