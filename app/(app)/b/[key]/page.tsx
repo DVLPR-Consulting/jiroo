@@ -18,6 +18,7 @@ import {
   isFiltersActive,
   groupItems,
   sortItems,
+  withAncestors,
   type FilterItem,
 } from "@/lib/items/filter";
 import { PRIORITY_LABELS } from "@/lib/design/constants";
@@ -153,21 +154,29 @@ export default async function BacklogPage({
     }));
 
   // Tree rows: the flat item list (already ordered depth,rank,key) reshaped for ItemTree.
+  // When filters are active, restrict to matched items + their ancestors (context). Ancestors
+  // are passed separately so the tree can render them dimmed and non-interactive.
+  const treeVisibleIds = filtersOn ? withAncestors(filterRows, matchedIds) : null;
+  const contextIds = filtersOn
+    ? new Set([...treeVisibleIds!].filter((id) => !matchedIds.has(id)))
+    : new Set<string>();
   const treeData =
     view === "tree"
-      ? items.map((i) => ({
-          id: i.id,
-          key: i.key,
-          type: i.type,
-          title: i.title,
-          parentId: i.parentId,
-          statusId: i.statusId,
-          priority: i.priority,
-          depth: i.depth,
-          rank: i.rank,
-          path: i.path,
-          assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
-        }))
+      ? items
+          .filter((i) => treeVisibleIds === null || treeVisibleIds.has(i.id))
+          .map((i) => ({
+            id: i.id,
+            key: i.key,
+            type: i.type,
+            title: i.title,
+            parentId: i.parentId,
+            statusId: i.statusId,
+            priority: i.priority,
+            depth: i.depth,
+            rank: i.rank,
+            path: i.path,
+            assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
+          }))
       : [];
 
   const detail = itemKey ? await getItemByKey(itemKey) : null;
@@ -239,6 +248,7 @@ export default async function BacklogPage({
           items={treeData}
           selectedKey={itemKey}
           statuses={statusMap}
+          contextIds={[...contextIds]}
           reparentItemAction={reparentItemAction}
           moveItemAction={moveItemAction}
         />
