@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
@@ -109,15 +109,19 @@ export function ItemTree({
   items,
   selectedKey,
   statuses = {},
+  contextIds = [],
   reparentItemAction,
   moveItemAction,
+  params,
 }: {
   backlogKey: string;
   items: TreeItem[];
   selectedKey?: string;
   statuses?: StatusMap;
+  contextIds?: string[];
   reparentItemAction: typeof ReparentItemAction;
   moveItemAction: typeof MoveItemAction;
+  params?: Record<string, string>;
 }) {
   const router = useRouter();
   const [treeItems, setTreeItems] = useState<TreeItem[]>(() => seed(items));
@@ -134,6 +138,10 @@ export function ItemTree({
   // Monotonic commit id: only the latest commit may roll back or surface an
   // error, so a superseded older commit cannot clobber newer optimistic state.
   const seq = useRef(0);
+
+  // Set of ancestor ids that are shown as dimmed context when a filter is active.
+  // Stable identity across renders via useMemo so downstream equality checks hold.
+  const contextSet = useMemo(() => new Set(contextIds), [contextIds]);
 
   // Re-seed from fresh server props only when no drag is active and nothing is
   // in flight, so a mid-drag revalidate cannot clobber the optimistic state.
@@ -282,7 +290,9 @@ export function ItemTree({
   }
 
   function openItem(key: string) {
-    router.push(`/b/${backlogKey}?item=${key}&view=tree`);
+    const sp = new URLSearchParams(params ?? {});
+    sp.set("item", key);
+    router.push(`/b/${backlogKey}?${sp.toString()}`);
   }
 
   function renderNode(node: TreeNode): React.ReactNode {
@@ -291,17 +301,19 @@ export function ItemTree({
     const isSelected = node.key === selectedKey;
     const isTarget = target?.id === node.id;
     const zone = isTarget ? target.zone : null;
+    // A context row is an ancestor shown for readability — dimmed and non-interactive.
+    const isContext = contextSet.has(node.id);
 
     return (
       <div key={node.id}>
         <div
-          draggable
-          onDragStart={(e) => onDragStart(e, node)}
-          onDragEnd={onDragEnd}
-          onDragOver={(e) => onDragOver(e, node)}
-          onDrop={(e) => onDrop(e, node.id, zone ?? "into")}
-          onClick={() => openItem(node.key)}
-          onKeyDown={(e) => {
+          draggable={!isContext}
+          onDragStart={isContext ? undefined : (e) => onDragStart(e, node)}
+          onDragEnd={isContext ? undefined : onDragEnd}
+          onDragOver={isContext ? undefined : (e) => onDragOver(e, node)}
+          onDrop={isContext ? undefined : (e) => onDrop(e, node.id, zone ?? "into")}
+          onClick={isContext ? undefined : () => openItem(node.key)}
+          onKeyDown={isContext ? undefined : (e) => {
             // Only the row itself activates; let the chevron button handle its own keys.
             if (e.target !== e.currentTarget) return;
             if (e.key === "Enter" || e.key === " ") {
@@ -310,14 +322,17 @@ export function ItemTree({
             }
           }}
           role="button"
-          tabIndex={0}
+          tabIndex={isContext ? -1 : 0}
+          aria-disabled={isContext || undefined}
           aria-label={`${node.key} — ${node.title}`}
-          className={`group relative flex cursor-grab items-center gap-2 py-1.5 pr-3 text-sm transition-colors active:cursor-grabbing ${
-            isSelected ? "bg-[var(--accent-subtle)]" : "hover:bg-muted/50"
+          className={`group relative flex items-center gap-2 py-1.5 pr-3 text-sm transition-colors ${
+            isContext
+              ? "cursor-default"
+              : `cursor-grab active:cursor-grabbing ${isSelected ? "bg-[var(--accent-subtle)]" : "hover:bg-muted/50"}`
           }`}
           style={{
             paddingLeft: 8 + node.depth * 20,
-            opacity: dragId === node.id ? 0.4 : 1,
+            opacity: isContext ? 0.45 : dragId === node.id ? 0.4 : 1,
             boxShadow: zone === "into" ? "inset 0 0 0 1.5px var(--ring)" : undefined,
             background: zone === "into" ? "var(--accent-subtle)" : undefined,
             borderTop: zone === "before" ? "2px solid var(--ring)" : "2px solid transparent",

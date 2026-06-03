@@ -12,21 +12,23 @@ export function ViewBar({
   view,
   backlogKey,
   itemKey,
+  params,
   newItemSlot,
 }: {
   view: string;
   backlogKey: string;
   itemKey?: string;
+  params?: Record<string, string>;
   newItemSlot?: React.ReactNode;
 }) {
   return (
     <div className="flex h-[46px] items-center gap-3 border-b border-border px-4">
       <div className="inline-flex rounded-md border border-border p-0.5">
         {TABS.map(([v, label]) => {
-          const href = `/b/${backlogKey}?${new URLSearchParams({
-            view: v,
-            ...(itemKey ? { item: itemKey } : {}),
-          }).toString()}`;
+          const sp = new URLSearchParams(params ?? {});
+          sp.set("view", v);
+          if (!params && itemKey) sp.set("item", itemKey);
+          const href = `/b/${backlogKey}?${sp.toString()}`;
           const active = view === v;
           return (
             <Link
