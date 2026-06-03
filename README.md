@@ -143,24 +143,29 @@ A backlog renders in three interchangeable views, selected by the
 `?view=board|list|tree` query parameter (the **ViewBar** tabs are plain links,
 so the current view and any open `?item=` survive reloads and are shareable).
 
-- **Board** — a kanban whose columns are the backlog's statuses and whose cards
-  are the items, ordered by `rank` within each column. Dragging a card to
-  another column changes its **status**; dragging within a column **reorders**
-  it. The drag layer is optimistic, but it sends only the moved card and its
-  neighbours' ids — never a rank — so the server computes the authoritative
-  `rank` and is the single source of truth.
+- **Board** — a kanban whose columns are the backlog's statuses. Like Jira, the
+  board is **mono-level**: cards are the working level (**Tâche**) only —
+  Sous-tâches stay nested under their tâche (a sub-count badge) and
+  Composant/Epic are structure navigated in the other views, never sibling cards
+  next to their own children. Dragging a card to another column changes its
+  **status**; dragging within a column **reorders** it. The drag layer is
+  optimistic, but it sends only the moved card and its neighbours' ids — never a
+  rank — so the server computes the authoritative `rank` and is the single
+  source of truth.
 - **List** — a flat, ordered list of the backlog's items.
 - **Tree** — the hierarchy as a collapsible tree, with **drag-and-drop
   reparenting**.
 
 ### Ranking & reparenting
 
-Order is a single global `rank` per item, stored as a
-[fractional index](https://github.com/rocicorp/fractional-indexing) string so a
-reorder rewrites **one row**, never the whole column. On the server,
-`rankAtDrop` locks the moved item's neighbours `FOR UPDATE`, derives a rank
-strictly between them, and self-heals a collapsed or contended gap under
-concurrent drops.
+Order is a **single global `rank` per backlog** — one
+[LexoRank](https://docs.atlassian.com/cloud/jira-software-rest)-style total order
+(a [fractional index](https://github.com/rocicorp/fractional-indexing) string,
+unique per `backlog_id`) reused by every view, so a reorder rewrites **one row**
+and the same value orders tree siblings *and* cards across a status column. On
+the server, `rankAtDrop` works over the whole backlog: it locks the moved item's
+neighbours `FOR UPDATE`, derives a rank strictly between them, and self-heals a
+collapsed or contended gap under concurrent drops.
 
 In the tree, a drop uses **three zones** over the target row — *before* /
 *into* / *after* — to mean "reorder above", "become a child", or "reorder
