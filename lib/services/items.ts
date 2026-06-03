@@ -213,6 +213,17 @@ export async function rankAtDrop(
 
   if (before !== null && after !== null) {
     if (before === after) return appendLast();
+    // Self-heal under concurrent same-gap drops: a winner may have committed a rank strictly
+    // inside (before, after). Tighten to the nearest in-gap live sibling so a withRetry attempt
+    // lands at a fresh adjacent rank instead of deterministically re-colliding on the unique index.
+    const [mid] = await tx
+      .select({ rank: items.rank })
+      .from(items)
+      .where(and(groupBase, sql`${items.rank} > ${before}`, sql`${items.rank} < ${after}`))
+      .orderBy(asc(items.rank))
+      .limit(1)
+      .for("update");
+    if (mid) return rankBetween(before, mid.rank);
     return rankBetween(before, after);
   }
   if (after !== null) return rankFirst(after);
