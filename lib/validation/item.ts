@@ -44,5 +44,31 @@ export const updateItemSchema = z.object({
 
 export const idInputSchema = z.object({ id: z.uuid() });
 
+export const moveItemSchema = z
+  .object({
+    id: z.uuid(),
+    statusId: z.uuid().optional(),
+    beforeId: z.uuid().nullable().default(null),
+    afterId: z.uuid().nullable().default(null),
+  })
+  .refine((d) => d.beforeId === null || d.beforeId !== d.afterId, {
+    message: "Voisins de dépôt invalides.",
+    path: ["afterId"],
+  });
+
+export const reparentItemSchema = z
+  .object({
+    id: z.uuid(),
+    newParentId: z.uuid().nullable().default(null),
+    beforeId: z.uuid().nullable().default(null),
+    afterId: z.uuid().nullable().default(null),
+  })
+  .refine((d) => d.beforeId === null || d.beforeId !== d.afterId, {
+    message: "Voisins de dépôt invalides.",
+    path: ["afterId"],
+  });
+
 export type CreateItemInput = z.infer<typeof createItemSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
+export type MoveItemInput = z.infer<typeof moveItemSchema>;
+export type ReparentItemInput = z.infer<typeof reparentItemSchema>;
