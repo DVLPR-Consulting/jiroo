@@ -115,6 +115,28 @@ database `CHECK` constraint, so the materialized hierarchy stays consistent.
 Items are created from a backlog view via the **Nouvel item** dialog, which only
 offers parents and types allowed by the hierarchy rules.
 
+## Item detail & editing
+
+Clicking an item opens a right slide-over **detail panel**. The selected item is
+encoded in the URL at `/b/[key]?item=KEY`, so an open item survives reloads and
+is shareable. The panel only renders for items that belong to the current
+backlog, so cross-backlog access is guarded.
+
+Most fields are inline-editable and each change is persisted through the
+transactional, RBAC-guarded `updateItem` service:
+
+- **Title** — inline text edit.
+- **Description** — markdown, rendered with
+  [react-markdown](https://github.com/remarkjs/react-markdown) (raw HTML is not
+  allowed).
+- **Status**, **priority**, **assignee**, **due date** and **labels**.
+
+An **Activité** tab surfaces the audit trail for the item, reading the
+`activities` rows written by the same service.
+
+From the panel menu, an item can be **soft-deleted**; the delete cascades over
+the whole subtree (see [Items & hierarchy](#items--hierarchy)).
+
 ## Environments
 
 `DATABASE_URL` switches the app between local Docker, Neon (pooled, EU) and the future internal server. Migrations use `DIRECT_DATABASE_URL` (unpooled). Auth secrets live in `.env` / host env; never commit them. The auth API route runs on the Node.js runtime (not edge).
