@@ -11,18 +11,18 @@ import {
   type Filters,
   type SortField,
 } from "@/lib/items/filter";
-
-const parseSort = (v: string): ViewState["sort"] => {
-  if (!v) return null;
-  const [field, dir] = v.split(":");
-  return { field: field as SortField, dir: dir as "asc" | "desc" };
-};
 import {
   ITEM_TYPE_LABELS,
   ITEM_TYPES,
   PRIORITIES,
   PRIORITY_LABELS,
 } from "@/lib/design/constants";
+
+const parseSort = (v: string): ViewState["sort"] => {
+  if (!v) return null;
+  const [field, dir] = v.split(":");
+  return { field: field as SortField, dir: dir as "asc" | "desc" };
+};
 
 type StatusOpt = { id: string; name: string };
 type UserOpt = { id: string; name: string };

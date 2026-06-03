@@ -113,8 +113,11 @@ export default async function BacklogPage({
 
   const groupLabel = (key: string): string => {
     if (!viewState.group || key === "") return "";
-    if (key === "none")
-      return viewState.group === "assignee" ? "Non assigné" : "Sans parent";
+    if (key === "none") {
+      if (viewState.group === "assignee") return "Non assigné";
+      if (viewState.group === "parent") return "Sans parent";
+      return key; // priority/status never emit "none"
+    }
     switch (viewState.group) {
       case "status":
         return statusMap[key]?.name ?? key;
