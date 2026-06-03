@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { X } from "lucide-react";
 import { FilterMenu, type Option } from "@/components/shell/filter-menu";
 import {
@@ -48,6 +48,22 @@ export function FilterBar({
   const setFilters = (patch: Partial<Filters>) =>
     push({ ...state, filters: { ...state.filters, ...patch } });
 
+  // Free-text field is controlled locally and debounced; URL-driven changes
+  // (reset, browser Back) flow back in by syncing during render when the prop moves.
+  const [text, setText] = useState(state.filters.q);
+  const [lastQ, setLastQ] = useState(state.filters.q);
+  if (state.filters.q !== lastQ) {
+    setLastQ(state.filters.q);
+    setText(state.filters.q);
+  }
+
+  const qTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const scheduleQ = (value: string) => {
+    clearTimeout(qTimer.current);
+    qTimer.current = setTimeout(() => setFilters({ q: value }), 300);
+  };
+  useEffect(() => () => clearTimeout(qTimer.current), []);
+
   const typeOpts: Option[] = ITEM_TYPES.map((t) => ({
     value: t,
     label: ITEM_TYPE_LABELS[t],
@@ -71,9 +87,12 @@ export function FilterBar({
     <div className="flex items-center gap-2 border-b border-border px-4 py-2">
       <input
         type="search"
-        defaultValue={state.filters.q}
+        value={text}
         placeholder="Filtrer…"
-        onChange={(e) => setFilters({ q: e.target.value })}
+        onChange={(e) => {
+          setText(e.target.value);
+          scheduleQ(e.target.value);
+        }}
         className="h-7 w-44 rounded-[var(--radius-sm)] border border-border bg-[var(--surface)] px-2 text-xs"
       />
       <FilterMenu
@@ -104,7 +123,8 @@ export function FilterBar({
       {active && (
         <button
           type="button"
-          onClick={() =>
+          onClick={() => {
+            setText("");
             push({
               ...state,
               filters: {
@@ -114,8 +134,8 @@ export function FilterBar({
                 priorities: [],
                 assignees: [],
               },
-            })
-          }
+            });
+          }}
           className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
         >
           <X className="size-3.5" /> Réinitialiser

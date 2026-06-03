@@ -151,14 +151,13 @@ export default async function BacklogPage({
     ),
   );
 
-  const [activities, itemLabelIds, backlogLabels, users] = showPanel
+  const [activities, itemLabelIds, backlogLabels] = showPanel
     ? await Promise.all([
         listActivities(detail.id),
         getItemLabelIds(detail.id),
         listLabelsForBacklog(backlog.id),
-        listUsers(),
       ])
-    : [[], [], [], []];
+    : [[], [], []];
 
   return (
     <div className="flex h-full flex-col">
@@ -214,7 +213,7 @@ export default async function BacklogPage({
           activities={activities}
           itemLabelIds={itemLabelIds}
           backlogLabels={backlogLabels}
-          users={users}
+          users={usersForFilter}
           statuses={statusList}
           backlogKey={key}
         />
