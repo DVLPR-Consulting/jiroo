@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
-import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import {
   DropdownMenu,
@@ -15,10 +14,13 @@ import { ActivityLog } from "@/components/items/detail/activity-log";
 import { EditableTitle } from "@/components/items/detail/editable-title";
 import { DescriptionEditor } from "@/components/items/detail/description-editor";
 import {
-  ITEM_TYPE_LABELS,
-  PRIORITY_LABELS,
-  type Priority,
-} from "@/lib/design/constants";
+  StatusField,
+  PriorityField,
+  AssigneeField,
+  DueDateField,
+  LabelsField,
+} from "@/components/items/detail/field-editors";
+import { ITEM_TYPE_LABELS } from "@/lib/design/constants";
 import type {
   activities as activitiesTable,
   items as itemsTable,
@@ -35,11 +37,6 @@ const dateFmt = new Intl.DateTimeFormat("fr-FR", {
   dateStyle: "medium",
   timeStyle: "short",
 });
-const dueFmt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" });
-
-function asPriority(value: number): Priority {
-  return Math.min(4, Math.max(0, value)) as Priority;
-}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -73,11 +70,7 @@ export function ItemDetailPanel({
   const close = () => router.push(`/b/${backlogKey}`);
 
   const userById = new Map(users.map((u) => [u.id, u]));
-  const status = statuses.find((s) => s.id === detail.statusId);
-  const assignee = detail.assigneeId ? userById.get(detail.assigneeId) : undefined;
   const reporter = detail.reporterId ? userById.get(detail.reporterId) : undefined;
-  const labelSet = new Set(itemLabelIds);
-  const itemLabels = backlogLabels.filter((l) => labelSet.has(l.id));
 
   return (
     <div
@@ -161,51 +154,48 @@ export function ItemDetailPanel({
           {/* Side column */}
           <div className="flex flex-col gap-4 border-l border-border bg-[var(--surface-2)] p-5">
             <Field label="Statut">
-              {status ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <span
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ background: status.color }}
-                    aria-hidden
-                  />
-                  {status.name}
-                </span>
-              ) : (
-                "—"
-              )}
+              <StatusField
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                statusId={detail.statusId}
+                statuses={statuses}
+              />
             </Field>
 
             <Field label="Priorité">
-              <span className="inline-flex items-center gap-1.5">
-                <PrioIcon priority={asPriority(detail.priority)} />
-                {PRIORITY_LABELS[asPriority(detail.priority)]}
-              </span>
+              <PriorityField
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                priority={detail.priority}
+              />
             </Field>
 
-            <Field label="Assigné">{assignee?.name ?? "Non assigné"}</Field>
+            <Field label="Assigné">
+              <AssigneeField
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                assigneeId={detail.assigneeId}
+                users={users}
+              />
+            </Field>
 
             <Field label="Rapporteur">{reporter?.name ?? "—"}</Field>
 
             <Field label="Labels">
-              {itemLabels.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {itemLabels.map((l) => (
-                    <span
-                      key={l.id}
-                      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
-                      style={{ background: `${l.color}22`, color: l.color }}
-                    >
-                      {l.name}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                "—"
-              )}
+              <LabelsField
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                itemLabelIds={itemLabelIds}
+                backlogLabels={backlogLabels}
+              />
             </Field>
 
             <Field label="Échéance">
-              {detail.dueDate ? dueFmt.format(new Date(detail.dueDate)) : "—"}
+              <DueDateField
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                dueDate={detail.dueDate}
+              />
             </Field>
 
             <div className="mt-2 flex flex-col gap-1 border-t border-border pt-3 text-xs text-muted-foreground">
