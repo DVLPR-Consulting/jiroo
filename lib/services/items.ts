@@ -7,7 +7,7 @@ import { nextItemKey } from "@/lib/items/key";
 import { buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
 import { rankBetween, rankFirst, rankLast } from "@/lib/tree/rank";
-import { createItemSchema, idInputSchema, updateItemSchema } from "@/lib/validation/item";
+import { createItemSchema, idInputSchema, moveItemSchema, updateItemSchema } from "@/lib/validation/item";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -440,6 +440,50 @@ export async function updateItem(input: unknown, actorId: string) {
     await tx.insert(activities).values(acts);
     return updated!;
   });
+}
+
+// Board drag: status change and/or reorder WITHIN cur's OWN (backlogId, parentId) sibling group.
+// NEVER touches path/depth/parentId — the board column is a STATUS, not a parent, so the ltree
+// path is invariant and the path CHECK is never exposed.
+export async function moveItem(input: unknown, actorId: string) {
+  const data = moveItemSchema.parse(input);
+  return withRetry(() =>
+    db.transaction(async (tx) => {
+      const [cur] = await tx
+        .select()
+        .from(items)
+        .where(and(eq(items.id, data.id), isNull(items.deletedAt)))
+        .for("update");
+      if (!cur) return null;
+
+      const patch: Partial<typeof items.$inferInsert> = {};
+      const acts: (typeof activities.$inferInsert)[] = [];
+
+      if (data.statusId !== undefined) {
+        const sc = await applyStatusChange(tx, cur, data.statusId, actorId);
+        if (sc) {
+          Object.assign(patch, sc.patch);
+          acts.push(sc.act);
+        }
+      }
+
+      const newRank = await rankAtDrop(tx, cur.backlogId, cur.parentId, cur.id, data.beforeId, data.afterId);
+      if (newRank !== cur.rank) {
+        patch.rank = newRank;
+        acts.push(activityRow(cur.id, actorId, "move", "rank", cur.rank, newRank));
+      }
+
+      if (acts.length === 0) return cur;
+
+      const [updated] = await tx
+        .update(items)
+        .set({ ...patch, updatedAt: new Date() })
+        .where(eq(items.id, cur.id))
+        .returning();
+      await tx.insert(activities).values(acts);
+      return updated!;
+    }),
+  );
 }
 
 // ---- softDeleteItem: subtree lock → cascade soft-delete + per-node activity ----
