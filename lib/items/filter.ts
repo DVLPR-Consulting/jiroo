@@ -91,6 +91,7 @@ export type FilterItem = {
   assigneeId: string | null;
   parentId: string | null;
   path: string;
+  depth: number;
   dueDate: Date | null;
   createdAt: Date;
   updatedAt: Date;

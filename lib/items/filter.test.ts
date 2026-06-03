@@ -78,6 +78,7 @@ describe("writeViewState ⇄ parseViewState round-trip", () => {
 const item = (over: Partial<FilterItem> = {}): FilterItem => ({
   id: "i1", key: "CASS-1", type: "tache", title: "Générer le QR code", description: "scan",
   statusId: "s1", priority: 2, assigneeId: "u1", parentId: "p1", path: "aa.bb",
+  depth: 0,
   dueDate: null, createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-02"), rank: "a1",
   ...over,
 });

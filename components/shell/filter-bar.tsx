@@ -9,7 +9,14 @@ import {
   isFiltersActive,
   type ViewState,
   type Filters,
+  type SortField,
 } from "@/lib/items/filter";
+
+const parseSort = (v: string): ViewState["sort"] => {
+  if (!v) return null;
+  const [field, dir] = v.split(":");
+  return { field: field as SortField, dir: dir as "asc" | "desc" };
+};
 import {
   ITEM_TYPE_LABELS,
   ITEM_TYPES,
@@ -21,12 +28,14 @@ type StatusOpt = { id: string; name: string };
 type UserOpt = { id: string; name: string };
 
 export function FilterBar({
+  view,
   state,
   currentParams,
   statuses,
   users,
   resultCount,
 }: {
+  view: string;
   state: ViewState;
   currentParams: Record<string, string>;
   statuses: StatusOpt[];
@@ -140,6 +149,41 @@ export function FilterBar({
         >
           <X className="size-3.5" /> Réinitialiser
         </button>
+      )}
+      {view === "list" && (
+        <>
+          <select
+            value={state.group ?? ""}
+            onChange={(e) =>
+              push({
+                ...state,
+                group: (e.target.value || null) as ViewState["group"],
+              })
+            }
+            className="h-7 rounded-[var(--radius-sm)] border border-border bg-[var(--surface)] px-1.5 text-xs"
+            aria-label="Grouper par"
+          >
+            <option value="">Sans groupe</option>
+            <option value="status">Statut</option>
+            <option value="assignee">Assigné</option>
+            <option value="priority">Priorité</option>
+            <option value="parent">Parent</option>
+          </select>
+          <select
+            value={state.sort ? `${state.sort.field}:${state.sort.dir}` : ""}
+            onChange={(e) => push({ ...state, sort: parseSort(e.target.value) })}
+            className="h-7 rounded-[var(--radius-sm)] border border-border bg-[var(--surface)] px-1.5 text-xs"
+            aria-label="Trier par"
+          >
+            <option value="">Rang manuel</option>
+            <option value="priority:desc">Priorité ↓</option>
+            <option value="priority:asc">Priorité ↑</option>
+            <option value="dueDate:asc">Échéance ↑</option>
+            <option value="created:desc">Créé ↓</option>
+            <option value="updated:desc">MAJ ↓</option>
+            <option value="key:asc">Clé ↑</option>
+          </select>
+        </>
       )}
       <span className="ml-auto text-xs text-muted-foreground">
         {resultCount} résultat{resultCount > 1 ? "s" : ""}

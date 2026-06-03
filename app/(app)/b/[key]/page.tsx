@@ -16,8 +16,11 @@ import {
   parseViewState,
   matchItem,
   isFiltersActive,
+  groupItems,
+  sortItems,
   type FilterItem,
 } from "@/lib/items/filter";
+import { PRIORITY_LABELS } from "@/lib/design/constants";
 import { ViewBar } from "@/components/shell/view-bar";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ItemList } from "@/components/items/item-list";
@@ -65,6 +68,7 @@ export default async function BacklogPage({
     assigneeId: i.assigneeId,
     parentId: i.parentId,
     path: i.path,
+    depth: i.depth,
     dueDate: i.dueDate,
     createdAt: i.createdAt,
     updatedAt: i.updatedAt,
@@ -77,6 +81,13 @@ export default async function BacklogPage({
       .map((r) => r.id),
   );
   const isMatch = (id: string) => !filtersOn || matchedIds.has(id);
+
+  // List view: sort then group the filtered rows.
+  const listRows = filterRows.filter((r) => isMatch(r.id));
+  const listSorted = viewState.sort ? sortItems(listRows, viewState.sort) : listRows;
+  const listGroups: Array<[string, typeof listSorted]> = viewState.group
+    ? groupItems(listSorted, viewState.group)
+    : [["", listSorted]];
 
   const statusRows = await db
     .select()
@@ -99,6 +110,22 @@ export default async function BacklogPage({
   // Single user fetch reused by both the filter bar facet and assignee-name resolution.
   const usersForFilter = await listUsers();
   const userName = new Map(usersForFilter.map((u) => [u.id, u.name]));
+
+  const groupLabel = (key: string): string => {
+    if (!viewState.group || key === "") return "";
+    if (key === "none")
+      return viewState.group === "assignee" ? "Non assigné" : "Sans parent";
+    switch (viewState.group) {
+      case "status":
+        return statusMap[key]?.name ?? key;
+      case "assignee":
+        return userName.get(key) ?? key;
+      case "priority":
+        return PRIORITY_LABELS[Number(key) as 0 | 1 | 2 | 3 | 4] ?? key;
+      case "parent":
+        return items.find((i) => i.id === key)?.title ?? key;
+    }
+  };
 
   // Board cards: in-memory subCount per parent + assignee names resolved from the users map.
   const childCount = new Map<string, number>();
@@ -175,6 +202,7 @@ export default async function BacklogPage({
         }
       />
       <FilterBar
+        view={view}
         state={viewState}
         currentParams={currentParams}
         statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}
@@ -183,7 +211,12 @@ export default async function BacklogPage({
       />
       {view === "list" && (
         <ItemList
-          items={items.filter((i) => isMatch(i.id))}
+          groups={listGroups.map(([key, rows]) => ({
+            key,
+            label: groupLabel(key),
+            items: rows,
+          }))}
+          grouped={viewState.group !== null}
           statuses={statusMap}
           backlogKey={key}
           selectedKey={itemKey}
