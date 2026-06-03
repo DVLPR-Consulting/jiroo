@@ -97,6 +97,46 @@ async function resolveStatusInBacklog(
   return s;
 }
 
+const RETRYABLE_PG_CODES = new Set(["40P01", "40001", "23505"]);
+
+// Retry a transaction on Postgres deadlock (40P01), serialization (40001),
+// or unique-violation (23505 — used by the rank-collision re-midpoint path).
+export async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < tries; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const code = (e as { code?: string } | null)?.code;
+      if (code && RETRYABLE_PG_CODES.has(code) && attempt < tries - 1) {
+        lastErr = e;
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
+// Extracted from updateItem's status-change block (used by updateItem AND moveItem).
+// Returns null on a no-op (same status). closed_at follows the DONE CATEGORY of the
+// OLD vs NEW status (never closed_at!=null).
+async function applyStatusChange(
+  tx: Tx,
+  cur: typeof items.$inferSelect,
+  statusId: string,
+  actorId: string,
+): Promise<{ patch: Partial<typeof items.$inferInsert>; act: typeof activities.$inferInsert } | null> {
+  if (statusId === cur.statusId) return null;
+  const s = await resolveStatusInBacklog(tx, statusId, cur.backlogId);
+  const wasDone = await isDoneStatus(tx, cur.statusId);
+  const nowDone = s.category === "done";
+  const patch: Partial<typeof items.$inferInsert> = { statusId: s.id };
+  if (nowDone && !wasDone) patch.closedAt = new Date();
+  else if (!nowDone && wasDone) patch.closedAt = null;
+  return { patch, act: activityRow(cur.id, actorId, "status_change", "status", cur.statusId, s.id) };
+}
+
 // ---- createItem: validate → tx(mutate + activity) ----
 export async function createItem(input: unknown, actorId: string) {
   const data = createItemSchema.parse(input);
@@ -262,14 +302,12 @@ export async function updateItem(input: unknown, actorId: string) {
         );
       }
     }
-    if (data.statusId !== undefined && data.statusId !== cur.statusId) {
-      const s = await resolveStatusInBacklog(tx, data.statusId, cur.backlogId);
-      const wasDone = await isDoneStatus(tx, cur.statusId);
-      const nowDone = s.category === "done";
-      patch.statusId = s.id;
-      if (nowDone && !wasDone) patch.closedAt = new Date();
-      else if (!nowDone && wasDone) patch.closedAt = null;
-      acts.push(activityRow(cur.id, actorId, "status_change", "status", cur.statusId, s.id));
+    if (data.statusId !== undefined) {
+      const sc = await applyStatusChange(tx, cur, data.statusId, actorId);
+      if (sc) {
+        Object.assign(patch, sc.patch);
+        acts.push(sc.act);
+      }
     }
     if (data.labelIds !== undefined) {
       if (data.labelIds.length > 0) {
