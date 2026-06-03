@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
@@ -35,7 +36,17 @@ function StatusPill({ status }: { status?: { name: string; color: string } }) {
   );
 }
 
-export function ItemList({ items, statuses }: { items: Item[]; statuses: StatusMap }) {
+export function ItemList({
+  items,
+  statuses,
+  backlogKey,
+  selectedKey,
+}: {
+  items: Item[];
+  statuses: StatusMap;
+  backlogKey: string;
+  selectedKey?: string;
+}) {
   if (items.length === 0) {
     return (
       <div className="grid flex-1 place-items-center p-10 text-center">
@@ -46,19 +57,26 @@ export function ItemList({ items, statuses }: { items: Item[]; statuses: StatusM
 
   return (
     <ul className="flex-1 overflow-auto">
-      {items.map((item) => (
-        <li
-          key={item.id}
-          className="flex items-center gap-2.5 border-b border-border py-2 pr-4 transition-colors hover:bg-muted/50"
-          style={{ paddingLeft: 12 + item.depth * 20 }}
-        >
-          <TypeIcon type={item.type} />
-          <ItemKey value={item.key} />
-          <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
-          <StatusPill status={statuses[item.statusId]} />
-          <PrioIcon priority={asPriority(item.priority)} />
-        </li>
-      ))}
+      {items.map((item) => {
+        const isSelected = item.key === selectedKey;
+        return (
+          <li key={item.id} className="border-b border-border">
+            <Link
+              href={`/b/${backlogKey}?item=${item.key}`}
+              className={`flex items-center gap-2.5 py-2 pr-4 transition-colors hover:bg-muted/50 ${
+                isSelected ? "bg-[var(--accent-subtle)]" : ""
+              }`}
+              style={{ paddingLeft: 12 + item.depth * 20 }}
+            >
+              <TypeIcon type={item.type} />
+              <ItemKey value={item.key} />
+              <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
+              <StatusPill status={statuses[item.statusId]} />
+              <PrioIcon priority={asPriority(item.priority)} />
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { activities, backlogs, itemLabels, items, labels, statuses } from "@/lib/db/schema/domain";
+import { user } from "@/lib/db/schema/auth";
 import { nextItemKey } from "@/lib/items/key";
 import { buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
@@ -35,6 +36,23 @@ export function listActivities(itemId: string) {
     .from(activities)
     .where(eq(activities.itemId, itemId))
     .orderBy(asc(activities.at), asc(activities.id));
+}
+
+export function listLabelsForBacklog(backlogId: string) {
+  return db
+    .select()
+    .from(labels)
+    .where(or(eq(labels.backlogId, backlogId), isNull(labels.backlogId)))
+    .orderBy(asc(labels.name));
+}
+
+export async function getItemLabelIds(itemId: string): Promise<string[]> {
+  const rows = await db.select({ labelId: itemLabels.labelId }).from(itemLabels).where(eq(itemLabels.itemId, itemId));
+  return rows.map((r) => r.labelId);
+}
+
+export function listUsers() {
+  return db.select({ id: user.id, name: user.name, email: user.email }).from(user);
 }
 
 // ---- private helpers (tx) ----
