@@ -18,6 +18,7 @@ export default function EnrollPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   async function startEnroll(e: React.FormEvent) {
     e.preventDefault();
@@ -44,6 +45,7 @@ export default function EnrollPage() {
     const { error } = await authClient.twoFactor.verifyTotp({ code });
     if (error) {
       setError("Code invalide. Réessayez.");
+      setAttempt((a) => a + 1);
       return;
     }
     router.push("/");
@@ -99,7 +101,7 @@ export default function EnrollPage() {
 
         <div className={saved ? "" : "pointer-events-none opacity-50"} aria-disabled={!saved}>
           <p className="t-sm mb-2 text-muted-foreground">Entrez un code de votre application pour activer :</p>
-          <OtpInput onComplete={confirm} autoFocus={false} />
+          <OtpInput key={attempt} onComplete={confirm} autoFocus={false} />
         </div>
         {error && <p className="t-sm text-center" style={{ color: "var(--danger)" }}>{error}</p>}
       </div>

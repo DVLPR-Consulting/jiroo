@@ -34,72 +34,77 @@ async function main() {
     console.log("seed: CASS backlog already present, skipping item seed");
     return;
   }
-  const [backlog] = await db
-    .insert(backlogs)
-    .values({ key: "CASS", name: "Cour de cassation", color: "#7c3030" })
-    .returning();
-
-  // 3) Statuses.
-  const insertedStatuses = await db
-    .insert(statuses)
-    .values(
-      STATUS_SEED.map((s, i) => ({
-        backlogId: backlog!.id,
-        name: s.name,
-        category: STATUS_CATEGORY[s.id],
-        order: i,
-        color: s.color,
-      })),
-    )
-    .returning();
-  const todo = insertedStatuses.find((s) => s.order === 0)!;
-
-  // 4) A valid demo tree: composant > epic > tache > soustache.
+  // nextval is non-transactional (sequence values don't roll back), so
+  // precompute the three item keys before opening the transaction.
   const composantKey = await nextItemKey(db, "CASS");
-  const [composant] = await db
-    .insert(items)
-    .values({
-      key: composantKey,
-      type: "composant",
-      backlogId: backlog!.id,
-      title: "Authentification",
-      statusId: todo.id,
-      reporterId: admin.id,
-      rank: rankLast(null),
-      path: "root",
-      depth: 0,
-    })
-    .returning();
-
   const epicKey = await nextItemKey(db, "CASS");
-  const [epic] = await db
-    .insert(items)
-    .values({
-      key: epicKey,
-      type: "epic",
+  const tacheKey = await nextItemKey(db, "CASS");
+
+  // 3) Backlog, statuses and a valid demo tree (composant > epic > tache),
+  // inserted atomically so it's all-or-nothing.
+  await db.transaction(async (tx) => {
+    const [backlog] = await tx
+      .insert(backlogs)
+      .values({ key: "CASS", name: "Cour de cassation", color: "#7c3030" })
+      .returning();
+
+    const insertedStatuses = await tx
+      .insert(statuses)
+      .values(
+        STATUS_SEED.map((s, i) => ({
+          backlogId: backlog!.id,
+          name: s.name,
+          category: STATUS_CATEGORY[s.id],
+          order: i,
+          color: s.color,
+        })),
+      )
+      .returning();
+    const todo = insertedStatuses.find((s) => s.order === 0)!;
+
+    const [composant] = await tx
+      .insert(items)
+      .values({
+        key: composantKey,
+        type: "composant",
+        backlogId: backlog!.id,
+        title: "Authentification",
+        statusId: todo.id,
+        reporterId: admin.id,
+        rank: rankLast(null),
+        path: "root",
+        depth: 0,
+      })
+      .returning();
+
+    const [epic] = await tx
+      .insert(items)
+      .values({
+        key: epicKey,
+        type: "epic",
+        backlogId: backlog!.id,
+        title: "2FA TOTP",
+        statusId: todo.id,
+        reporterId: admin.id,
+        parentId: composant!.id,
+        rank: rankLast(null),
+        path: `root.${composant!.id.replace(/-/g, "")}`,
+        depth: 1,
+      })
+      .returning();
+
+    await tx.insert(items).values({
+      key: tacheKey,
+      type: "tache",
       backlogId: backlog!.id,
-      title: "2FA TOTP",
+      title: "Écran de vérification du code",
       statusId: todo.id,
       reporterId: admin.id,
-      parentId: composant!.id,
+      parentId: epic!.id,
       rank: rankLast(null),
-      path: `root.${composant!.id.replace(/-/g, "")}`,
-      depth: 1,
-    })
-    .returning();
-
-  const tacheKey = await nextItemKey(db, "CASS");
-  await db.insert(items).values({
-    key: tacheKey,
-    type: "tache",
-    backlogId: backlog!.id,
-    title: "Écran de vérification du code",
-    statusId: todo.id,
-    reporterId: admin.id,
-    parentId: epic!.id,
-    rank: rankLast(null),
-    path: `root.${composant!.id.replace(/-/g, "")}.${epic!.id.replace(/-/g, "")}`,
-    depth: 2,
+      path: `root.${composant!.id.replace(/-/g, "")}.${epic!.id.replace(/-/g, "")}`,
+      depth: 2,
+    });
   });
 
   console.log(`seed: created admin ${email}, backlog CASS, 4 statuses, 3 demo items`);
