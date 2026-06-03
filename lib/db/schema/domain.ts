@@ -11,6 +11,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { user } from "./auth";
@@ -82,7 +83,10 @@ export const items = pgTable(
     ),
   },
   (t) => [
-    index("items_backlog_parent_rank_idx").on(t.backlogId, t.parentId, t.rank),
+    // UNIQUE so concurrent same-gap rank drops collide at the DB (withRetry re-midpoints).
+    // NULLS NOT DISTINCT (hand-added in the generated migration; drizzle 0.45 has no builder
+    // method) is required so root items (parentId = NULL) also collide on identical ranks.
+    uniqueIndex("items_backlog_parent_rank_idx").on(t.backlogId, t.parentId, t.rank),
     index("items_path_idx").using("gist", t.path),
     index("items_search_idx").using("gin", t.search),
     check(
