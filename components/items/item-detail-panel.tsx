@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ActivityLog } from "@/components/items/detail/activity-log";
+import { EditableTitle } from "@/components/items/detail/editable-title";
+import { DescriptionEditor } from "@/components/items/detail/description-editor";
 import {
   ITEM_TYPE_LABELS,
   PRIORITY_LABELS,
@@ -118,7 +120,7 @@ export function ItemDetailPanel({
         <div className="grid grid-cols-[1fr_220px]">
           {/* Main column */}
           <div className="flex min-w-0 flex-col gap-4 p-5">
-            <h2 className="t-h1">{detail.title}</h2>
+            <EditableTitle itemId={detail.id} backlogKey={backlogKey} title={detail.title} />
 
             <div className="flex gap-1 border-b border-border">
               <button
@@ -146,13 +148,11 @@ export function ItemDetailPanel({
             </div>
 
             {tab === "detail" ? (
-              detail.description ? (
-                <pre className="t-sm whitespace-pre-wrap font-sans text-foreground">
-                  {detail.description}
-                </pre>
-              ) : (
-                <p className="t-sm text-muted-foreground">Aucune description</p>
-              )
+              <DescriptionEditor
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                description={detail.description}
+              />
             ) : (
               <ActivityLog activities={activities} users={users} statuses={statuses} />
             )}
