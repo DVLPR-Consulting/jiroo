@@ -19,6 +19,7 @@ import {
   type FilterItem,
 } from "@/lib/items/filter";
 import { ViewBar } from "@/components/shell/view-bar";
+import { FilterBar } from "@/components/shell/filter-bar";
 import { ItemList } from "@/components/items/item-list";
 import { ItemBoard } from "@/components/items/item-board";
 import { ItemTree } from "@/components/items/item-tree";
@@ -93,15 +94,17 @@ export default async function BacklogPage({
     statusRows.map((s) => [s.id, { name: s.name, color: s.color }]),
   );
 
-  // Board cards: in-memory subCount per parent + assignee names resolved from a users map.
+  const resultCount = filtersOn ? matchedIds.size : items.length;
+
+  // Single user fetch reused by both the filter bar facet and assignee-name resolution.
+  const usersForFilter = await listUsers();
+  const userName = new Map(usersForFilter.map((u) => [u.id, u.name]));
+
+  // Board cards: in-memory subCount per parent + assignee names resolved from the users map.
   const childCount = new Map<string, number>();
   for (const i of items) {
     if (i.parentId) childCount.set(i.parentId, (childCount.get(i.parentId) ?? 0) + 1);
   }
-  const needsAssignees =
-    (view === "board" || view === "tree") && items.some((i) => i.assigneeId);
-  const usersForBoard = needsAssignees ? await listUsers() : [];
-  const userName = new Map(usersForBoard.map((u) => [u.id, u.name]));
   // Jira-style mono-level board: cards are the working level (Tâche) only. Sous-tâches stay
   // nested under their tâche (shown as the subCount badge); Composant/Epic are structure,
   // navigated in the tree/list — never sibling cards next to their own children.
@@ -140,6 +143,14 @@ export default async function BacklogPage({
   const detail = itemKey ? await getItemByKey(itemKey) : null;
   const showPanel = detail && detail.backlogId === backlog.id;
 
+  // Build currentParams: skip undefined and array values — bar always writes CSV params.
+  const currentParams: Record<string, string> = Object.fromEntries(
+    Object.entries(sp).filter(
+      (entry): entry is [string, string] =>
+        typeof entry[1] === "string",
+    ),
+  );
+
   const [activities, itemLabelIds, backlogLabels, users] = showPanel
     ? await Promise.all([
         listActivities(detail.id),
@@ -163,6 +174,13 @@ export default async function BacklogPage({
             statuses={statusRows.map((s) => ({ id: s.id, name: s.name }))}
           />
         }
+      />
+      <FilterBar
+        state={viewState}
+        currentParams={currentParams}
+        statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}
+        users={usersForFilter.map((u) => ({ id: u.id, name: u.name }))}
+        resultCount={resultCount}
       />
       {view === "list" && (
         <ItemList
