@@ -6,7 +6,7 @@ import { nextItemKey } from "@/lib/items/key";
 import { buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
 import { rankLast } from "@/lib/tree/rank";
-import { createItemSchema } from "@/lib/validation/item";
+import { createItemSchema, idInputSchema, updateItemSchema } from "@/lib/validation/item";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -193,5 +193,189 @@ export async function createItem(input: unknown, actorId: string) {
     await tx.insert(activities).values(activityRow(id, actorId, "create", null, null, key));
 
     return item!;
+  });
+}
+
+// ---- updateItem: field-diff → tx(update + per-field activity) ----
+export async function updateItem(input: unknown, actorId: string) {
+  const data = updateItemSchema.parse(input);
+  return db.transaction(async (tx) => {
+    const [cur] = await tx
+      .select()
+      .from(items)
+      .where(and(eq(items.id, data.id), isNull(items.deletedAt)))
+      .for("update");
+    if (!cur) return null;
+
+    const patch: Partial<typeof items.$inferInsert> = {};
+    const acts: (typeof activities.$inferInsert)[] = [];
+
+    if (data.title !== undefined && data.title !== cur.title) {
+      patch.title = data.title;
+      acts.push(activityRow(cur.id, actorId, "update", "title", cur.title, data.title));
+    }
+    if (data.description !== undefined && (data.description ?? null) !== cur.description) {
+      patch.description = data.description ?? null;
+      acts.push(activityRow(cur.id, actorId, "update", "description", cur.description, data.description ?? null));
+    }
+    if (data.priority !== undefined && data.priority !== cur.priority) {
+      patch.priority = data.priority;
+      acts.push(activityRow(cur.id, actorId, "update", "priority", String(cur.priority), String(data.priority)));
+    }
+    if (data.assigneeId !== undefined && (data.assigneeId ?? null) !== cur.assigneeId) {
+      patch.assigneeId = data.assigneeId ?? null;
+      acts.push(activityRow(cur.id, actorId, "update", "assignee", cur.assigneeId, data.assigneeId ?? null));
+    }
+    if (data.dueDate !== undefined) {
+      const newDue = data.dueDate ?? null;
+      const curT = cur.dueDate ? cur.dueDate.getTime() : null;
+      const newT = newDue ? newDue.getTime() : null;
+      if (curT !== newT) {
+        patch.dueDate = newDue;
+        acts.push(
+          activityRow(
+            cur.id,
+            actorId,
+            "update",
+            "due_date",
+            cur.dueDate ? cur.dueDate.toISOString() : null,
+            newDue ? newDue.toISOString() : null,
+          ),
+        );
+      }
+    }
+    if (data.statusId !== undefined && data.statusId !== cur.statusId) {
+      const s = await resolveStatusInBacklog(tx, data.statusId, cur.backlogId);
+      const wasDone = await isDoneStatus(tx, cur.statusId);
+      const nowDone = s.category === "done";
+      patch.statusId = s.id;
+      if (nowDone && !wasDone) patch.closedAt = new Date();
+      else if (!nowDone && wasDone) patch.closedAt = null;
+      acts.push(activityRow(cur.id, actorId, "status_change", "status", cur.statusId, s.id));
+    }
+    if (data.labelIds !== undefined) {
+      if (data.labelIds.length > 0) {
+        const valid = await tx
+          .select({ id: labels.id })
+          .from(labels)
+          .where(
+            and(
+              inArray(labels.id, data.labelIds),
+              or(eq(labels.backlogId, cur.backlogId), isNull(labels.backlogId)),
+            ),
+          );
+        if (valid.length !== data.labelIds.length) {
+          throw new Error("Un ou plusieurs labels n'appartiennent pas à ce backlog.");
+        }
+      }
+      const current = await tx
+        .select({ labelId: itemLabels.labelId })
+        .from(itemLabels)
+        .where(eq(itemLabels.itemId, cur.id));
+      const curSet = new Set(current.map((r) => r.labelId));
+      const newSet = new Set(data.labelIds);
+      const toAdd = data.labelIds.filter((l) => !curSet.has(l));
+      const toRemove = [...curSet].filter((l) => !newSet.has(l));
+      if (toAdd.length > 0 || toRemove.length > 0) {
+        if (toRemove.length > 0) {
+          await tx
+            .delete(itemLabels)
+            .where(and(eq(itemLabels.itemId, cur.id), inArray(itemLabels.labelId, toRemove)));
+        }
+        if (toAdd.length > 0) {
+          await tx.insert(itemLabels).values(toAdd.map((labelId) => ({ itemId: cur.id, labelId })));
+        }
+        const oldCsv = [...curSet].sort().join(",") || null;
+        const newCsv = [...newSet].sort().join(",") || null;
+        acts.push(activityRow(cur.id, actorId, "update", "labels", oldCsv, newCsv));
+      }
+    }
+
+    if (acts.length === 0) return cur;
+
+    const [updated] = await tx
+      .update(items)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(items.id, cur.id))
+      .returning();
+    await tx.insert(activities).values(acts);
+    return updated!;
+  });
+}
+
+// ---- softDeleteItem: subtree lock → cascade soft-delete + per-node activity ----
+export async function softDeleteItem(input: unknown, actorId: string) {
+  const { id } = idInputSchema.parse(input);
+  return db.transaction(async (tx) => {
+    const [target] = await tx
+      .select()
+      .from(items)
+      .where(and(eq(items.id, id), isNull(items.deletedAt)))
+      .for("update");
+    if (!target) return null;
+
+    const subtree = and(
+      eq(items.backlogId, target.backlogId),
+      sql`${items.path} <@ ${target.path}::ltree`,
+      isNull(items.deletedAt),
+    );
+    // lock the whole live subtree so concurrent creates under it block
+    await tx.select({ id: items.id }).from(items).where(subtree).for("update");
+
+    const now = new Date();
+    const affected = await tx
+      .update(items)
+      .set({ deletedAt: now })
+      .where(subtree)
+      .returning({ id: items.id });
+
+    if (affected.length > 0) {
+      await tx
+        .insert(activities)
+        .values(
+          affected.map((r) => activityRow(r.id, actorId, "delete", "deleted_at", null, now.toISOString())),
+        );
+    }
+    return target;
+  });
+}
+
+// ---- restoreItem: orphan guard → cascade restore + inverted activity ----
+export async function restoreItem(input: unknown, actorId: string) {
+  const { id } = idInputSchema.parse(input);
+  return db.transaction(async (tx) => {
+    const [target] = await tx
+      .select()
+      .from(items)
+      .where(and(eq(items.id, id), isNotNull(items.deletedAt)))
+      .for("update");
+    if (!target) return null;
+
+    if (target.parentId) {
+      const [parent] = await tx
+        .select({ id: items.id, deletedAt: items.deletedAt })
+        .from(items)
+        .where(eq(items.id, target.parentId))
+        .for("update");
+      if (!parent || parent.deletedAt) throw new Error("Parent supprimé : restaurez-le d'abord.");
+    }
+
+    const subtree = and(
+      eq(items.backlogId, target.backlogId),
+      sql`${items.path} <@ ${target.path}::ltree`,
+      isNotNull(items.deletedAt),
+    );
+    const affected = await tx
+      .update(items)
+      .set({ deletedAt: null })
+      .where(subtree)
+      .returning({ id: items.id });
+
+    if (affected.length > 0) {
+      await tx
+        .insert(activities)
+        .values(affected.map((r) => activityRow(r.id, actorId, "delete", "deleted_at", "deleted", null)));
+    }
+    return target;
   });
 }

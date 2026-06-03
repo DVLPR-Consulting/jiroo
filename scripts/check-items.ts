@@ -1,10 +1,17 @@
 import "dotenv/config";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
-import { backlogs, statuses } from "@/lib/db/schema/domain";
+import { backlogs, items, statuses } from "@/lib/db/schema/domain";
 import { createBacklog } from "@/lib/services/backlogs";
-import { createItem, listActivities } from "@/lib/services/items";
+import {
+  createItem,
+  listActivities,
+  listItems,
+  restoreItem,
+  softDeleteItem,
+  updateItem,
+} from "@/lib/services/items";
 
 let passed = 0;
 let failed = 0;
@@ -98,6 +105,83 @@ async function main() {
       assert(creates.length === 1, `${label} has exactly one 'create' activity (got ${creates.length})`);
       assert(creates[0]?.newValue === item.key, `${label} create activity.newValue === key (got ${creates[0]?.newValue})`);
     }
+
+    // (i) updateItem: title change → row updated + 'update'/'title' activity
+    const beforeTitleActs = (await listActivities(tache.id)).filter(
+      (r) => r.action === "update" && r.field === "title",
+    ).length;
+    const renamed = await updateItem({ id: tache.id, title: "Tache renommée" }, actorId);
+    assert(renamed?.title === "Tache renommée", `updateItem changed tache title (got ${renamed?.title})`);
+    const afterTitleActs = (await listActivities(tache.id)).filter(
+      (r) => r.action === "update" && r.field === "title",
+    ).length;
+    assert(afterTitleActs === beforeTitleActs + 1, `one new 'update'/'title' activity added (got +${afterTitleActs - beforeTitleActs})`);
+
+    // (j) status transitions: closedAt set on → done, cleared on → todo.
+    // ZZTST already has a seeded 'done' status; add a SECOND 'done' to test transitions.
+    const [todoStatus] = await db
+      .select({ id: statuses.id })
+      .from(statuses)
+      .where(and(eq(statuses.backlogId, tb.id), eq(statuses.category, "todo")))
+      .limit(1);
+    if (!todoStatus) throw new Error("Aucun statut 'todo' pour ZZTST.");
+    const [doneStatus] = await db
+      .insert(statuses)
+      .values({ backlogId: tb.id, name: "Terminé bis", category: "done", order: 99, color: "#3aa675" })
+      .returning({ id: statuses.id });
+    if (!doneStatus) throw new Error("Échec insertion du statut 'done' secondaire.");
+
+    const toDone = await updateItem({ id: tache.id, statusId: doneStatus.id }, actorId);
+    assert(toDone?.statusId === doneStatus.id, `updateItem moved tache to done status (got ${toDone?.statusId})`);
+    assert(toDone?.closedAt != null, `closedAt IS NOT null after → done (got ${toDone?.closedAt})`);
+
+    const toTodo = await updateItem({ id: tache.id, statusId: todoStatus.id }, actorId);
+    assert(toTodo?.statusId === todoStatus.id, `updateItem moved tache back to todo status (got ${toTodo?.statusId})`);
+    assert(toTodo?.closedAt == null, `closedAt IS null after → todo (got ${toTodo?.closedAt})`);
+
+    // (k) no-op update: same title → returns row, writes NO new activity
+    const actsBeforeNoop = (await listActivities(tache.id)).length;
+    const noop = await updateItem({ id: tache.id, title: "Tache renommée" }, actorId);
+    assert(noop?.id === tache.id, `no-op updateItem returns the row (got ${noop?.id})`);
+    const actsAfterNoop = (await listActivities(tache.id)).length;
+    assert(actsAfterNoop === actsBeforeNoop, `no-op update writes no activity (before ${actsBeforeNoop}, after ${actsAfterNoop})`);
+
+    // (l) softDeleteItem the composant → cascade: composant+epic+tache all deletedAt set
+    const deleted = await softDeleteItem({ id: composant.id }, actorId);
+    assert(deleted?.id === composant.id, `softDeleteItem returns the target (got ${deleted?.id})`);
+    const deletedFlags = await Promise.all(
+      [composant, epic, tache].map(async (it) => {
+        const [row] = await db.select({ deletedAt: items.deletedAt }).from(items).where(eq(items.id, it.id));
+        return row?.deletedAt != null;
+      }),
+    );
+    assert(deletedFlags.every(Boolean), `cascade: composant+epic+tache all have deletedAt set (got ${deletedFlags})`);
+    const delActs = (
+      await Promise.all([composant, epic, tache].map((it) => listActivities(it.id)))
+    )
+      .flat()
+      .filter((r) => r.action === "delete" && r.newValue !== null);
+    assert(delActs.length === 3, `3 'delete' activity rows added on cascade (got ${delActs.length})`);
+    const liveAfterDelete = await listItems(tb.id);
+    assert(liveAfterDelete.length === 0, `listItems(ZZTST) returns 0 after soft-delete (got ${liveAfterDelete.length})`);
+
+    // (m) restoreItem the tache while composant still deleted → REJECTS (parent deleted)
+    await assertRejects("restore tache while parent deleted rejects", () =>
+      restoreItem({ id: tache.id }, actorId),
+    );
+
+    // (n) restoreItem the composant → whole subtree live again
+    const restored = await restoreItem({ id: composant.id }, actorId);
+    assert(restored?.id === composant.id, `restoreItem returns the target (got ${restored?.id})`);
+    const liveFlags = await Promise.all(
+      [composant, epic, tache].map(async (it) => {
+        const [row] = await db.select({ deletedAt: items.deletedAt }).from(items).where(eq(items.id, it.id));
+        return row?.deletedAt == null;
+      }),
+    );
+    assert(liveFlags.every(Boolean), `cascade: composant+epic+tache all live again (got ${liveFlags})`);
+    const liveAfterRestore = await listItems(tb.id);
+    assert(liveAfterRestore.length === 3, `listItems(ZZTST) returns 3 after restore (got ${liveAfterRestore.length})`);
   } finally {
     // (h) hard-delete the throwaway backlog (cascades items/statuses/activities)
     await db.delete(backlogs).where(eq(backlogs.key, "ZZTST"));
