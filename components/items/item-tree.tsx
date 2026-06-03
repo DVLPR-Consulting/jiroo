@@ -125,9 +125,15 @@ export function ItemTree({
   const [dragId, setDragId] = useState<string | null>(null);
   const [target, setTarget] = useState<Target | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const snapshot = useRef<TreeItem[] | null>(null);
+  // Bumped whenever the last in-flight commit settles, so the gated re-seed
+  // effect re-runs against the freshest server props (a ref decrement alone
+  // schedules no render).
+  const [settledTick, setSettledTick] = useState(0);
   const dragDescendants = useRef<Set<string>>(new Set());
   const pending = useRef(0);
+  // Monotonic commit id: only the latest commit may roll back or surface an
+  // error, so a superseded older commit cannot clobber newer optimistic state.
+  const seq = useRef(0);
 
   // Re-seed from fresh server props only when no drag is active and nothing is
   // in flight, so a mid-drag revalidate cannot clobber the optimistic state.
@@ -135,14 +141,13 @@ export function ItemTree({
     if (dragId === null && pending.current === 0) {
       setTreeItems(seed(items));
     }
-  }, [items, dragId]);
+  }, [items, dragId, settledTick]);
 
   const roots = buildTree(treeItems);
 
   function onDragStart(e: DragEvent<HTMLDivElement>, item: TreeItem) {
     setDragId(item.id);
     setError(null);
-    snapshot.current = treeItems;
     dragDescendants.current = descendantIds(treeItems, item.id);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", item.id);
@@ -206,12 +211,11 @@ export function ItemTree({
 
     const sameParent = (newParentId ?? null) === (dragNode.parentId ?? null);
 
-    // Optimistic update + snapshot for rollback.
-    snapshot.current = base;
+    // Optimistic update; `base` is this commit's own pre-image for rollback.
     setTreeItems(optimisticMove(base, id, newParentId));
     onDragEnd();
 
-    void commit({ id, newParentId, beforeId, afterId, sameParent });
+    void commit({ id, newParentId, beforeId, afterId, sameParent, base });
   }
 
   async function commit(args: {
@@ -220,7 +224,9 @@ export function ItemTree({
     beforeId: string | null;
     afterId: string | null;
     sameParent: boolean;
+    base: TreeItem[];
   }) {
+    const mySeq = ++seq.current;
     pending.current++;
     try {
       // R7 routing: same-parent reorder → moveItemAction (rank only); else reparent.
@@ -238,15 +244,25 @@ export function ItemTree({
             beforeId: args.beforeId,
             afterId: args.afterId,
           });
-      if (!res.ok) {
-        if (snapshot.current) setTreeItems(snapshot.current);
+      // Only the latest commit reconciles UI state; a superseded older commit
+      // must not roll back over (or error on) newer optimistic state.
+      if (mySeq !== seq.current) return;
+      if (res.ok) {
+        setError(null);
+      } else {
+        setTreeItems(args.base);
         setError(res.error);
       }
     } catch {
-      if (snapshot.current) setTreeItems(snapshot.current);
-      setError("Déplacement impossible.");
+      if (mySeq === seq.current) {
+        setTreeItems(args.base);
+        setError("Déplacement impossible.");
+      }
     } finally {
       pending.current--;
+      // A bare ref decrement schedules no render; bump state so the gated
+      // re-seed effect re-runs and applies the freshest server props.
+      if (pending.current === 0) setSettledTick((t) => t + 1);
     }
   }
 
@@ -279,6 +295,14 @@ export function ItemTree({
           onDragOver={(e) => onDragOver(e, node)}
           onDrop={(e) => onDrop(e, node.id, zone ?? "into")}
           onClick={() => openItem(node.key)}
+          onKeyDown={(e) => {
+            // Only the row itself activates; let the chevron button handle its own keys.
+            if (e.target !== e.currentTarget) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              openItem(node.key);
+            }
+          }}
           role="button"
           tabIndex={0}
           aria-label={`${node.key} — ${node.title}`}
@@ -290,8 +314,8 @@ export function ItemTree({
             opacity: dragId === node.id ? 0.4 : 1,
             boxShadow: zone === "into" ? "inset 0 0 0 1.5px var(--ring)" : undefined,
             background: zone === "into" ? "var(--accent-subtle)" : undefined,
-            borderTop: zone === "before" ? "2px solid var(--primary)" : "2px solid transparent",
-            borderBottom: zone === "after" ? "2px solid var(--primary)" : "2px solid transparent",
+            borderTop: zone === "before" ? "2px solid var(--ring)" : "2px solid transparent",
+            borderBottom: zone === "after" ? "2px solid var(--ring)" : "2px solid transparent",
           }}
         >
           <button
@@ -346,10 +370,18 @@ export function ItemTree({
       {error && (
         <div
           role="alert"
-          className="mx-4 mt-3 rounded-[var(--radius-md)] px-3 py-2 text-[13px] text-white"
+          className="mx-4 mt-3 flex items-center justify-between gap-3 rounded-[var(--radius-md)] px-3 py-2 text-[13px] text-white"
           style={{ background: "var(--danger)" }}
         >
-          {error}
+          <span>{error}</span>
+          <button
+            type="button"
+            aria-label="Fermer"
+            onClick={() => setError(null)}
+            className="flex-none rounded px-1 leading-none opacity-80 hover:opacity-100"
+          >
+            ×
+          </button>
         </div>
       )}
       <div className="flex-1 overflow-auto py-1">{roots.map((node) => renderNode(node))}</div>
