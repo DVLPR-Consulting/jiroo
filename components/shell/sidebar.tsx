@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Layers, Settings, Trash2, User } from "lucide-react";
 import { BacklogSelector } from "@/components/shell/backlog-selector";
+import { NavLink } from "@/components/shell/nav-link";
 import { SidebarViews } from "@/components/shell/sidebar-views";
 import { UserCard } from "@/components/shell/user-card";
 import type { SidebarViewRow } from "@/components/shell/sidebar-views";
@@ -39,13 +40,10 @@ export function Sidebar({
           <Layers className="size-4" />
           Tous les items
         </span>
-        <span
-          className="flex cursor-default items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-sm text-muted-foreground"
-          title="bientôt"
-        >
+        <NavLink href="/mine">
           <User className="size-4" />
           Mes items
-        </span>
+        </NavLink>
       </div>
 
       {/* Saved views — personal & shared */}
