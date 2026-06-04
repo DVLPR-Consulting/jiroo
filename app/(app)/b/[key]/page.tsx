@@ -101,6 +101,7 @@ export default async function BacklogPage({
     createdAt: i.createdAt,
     updatedAt: i.updatedAt,
     rank: i.rank,
+    labelIds: [], // populated in T4 (label data join)
   }));
   const filtersOn = isFiltersActive(viewState.filters);
   const matchedIds = new Set(

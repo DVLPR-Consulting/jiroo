@@ -10,6 +10,7 @@ export type Filters = {
   statusIds: string[];
   priorities: number[];
   assignees: string[]; // user ids; the literal "none" = unassigned
+  labels: string[]; // label ids
 };
 
 export type ViewState = {
@@ -59,6 +60,7 @@ export function parseViewState(sp: URLSearchParams): ViewState {
       statusIds: csv(sp, "status"),
       priorities,
       assignees: csv(sp, "assignee"),
+      labels: csv(sp, "label"),
     },
     group,
     sort,
@@ -76,6 +78,7 @@ export function writeViewState(sp: URLSearchParams, state: ViewState): void {
   setOrDelete("status", filters.statusIds.join(","));
   setOrDelete("prio", filters.priorities.join(","));
   setOrDelete("assignee", filters.assignees.join(","));
+  setOrDelete("label", filters.labels.join(","));
   setOrDelete("group", group ?? "");
   setOrDelete("sort", sort ? `${sort.field}:${sort.dir}` : "");
 }
@@ -96,6 +99,7 @@ export type FilterItem = {
   createdAt: Date;
   updatedAt: Date;
   rank: string;
+  labelIds: string[];
 };
 
 export function isFiltersActive(f: Filters): boolean {
@@ -104,7 +108,8 @@ export function isFiltersActive(f: Filters): boolean {
     f.types.length > 0 ||
     f.statusIds.length > 0 ||
     f.priorities.length > 0 ||
-    f.assignees.length > 0
+    f.assignees.length > 0 ||
+    f.labels.length > 0
   );
 }
 
@@ -121,6 +126,10 @@ export function matchItem(it: FilterItem, f: Filters): boolean {
       (it.assigneeId !== null && f.assignees.includes(it.assigneeId)) ||
       (it.assigneeId === null && f.assignees.includes("none"));
     if (!hit) return false;
+  }
+  // OR within the label facet: item passes if it carries ANY of the selected labels.
+  if (f.labels.length) {
+    if (!it.labelIds.some((id) => f.labels.includes(id))) return false;
   }
   const q = f.q.trim();
   if (q) {

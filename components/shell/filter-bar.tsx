@@ -142,6 +142,7 @@ export function FilterBar({
                 statusIds: [],
                 priorities: [],
                 assignees: [],
+                labels: [],
               },
             });
           }}
