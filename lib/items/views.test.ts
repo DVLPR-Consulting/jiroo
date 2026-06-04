@@ -20,7 +20,7 @@ import type { ViewState } from "./filter";
 // ---------------------------------------------------------------------------
 
 const empty: ViewState = {
-  filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
+  filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [] },
   group: null,
   sort: null,
 };
@@ -32,6 +32,7 @@ const full: ViewState = {
     statusIds: ["s1", "s2"],
     priorities: [0, 2],
     assignees: ["u1", "none"],
+    labels: [],
   },
   group: "priority",
   sort: { field: "dueDate", dir: "asc" },
@@ -68,7 +69,7 @@ describe("viewStateToColumns", () => {
 
   it("preserves priority 0 in filters (regression guard)", () => {
     const state: ViewState = {
-      filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [] },
       group: null,
       sort: null,
     };
@@ -159,6 +160,7 @@ describe("columnsToViewState", () => {
       statusIds: [],
       priorities: [],
       assignees: [],
+      labels: [],
     });
   });
 
@@ -182,7 +184,7 @@ describe("columnsToViewState", () => {
   it("preserves priority 0 in round-trip (regression guard)", () => {
     const cols = viewStateToColumns(
       {
-        filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [] },
+        filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [] },
         group: null,
         sort: null,
       },
@@ -298,7 +300,7 @@ describe("isViewDirty", () => {
 
   it("preserves priority 0 comparison correctly (regression guard)", () => {
     const withZero: ViewState = {
-      filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [] },
       group: null,
       sort: null,
     };
@@ -371,7 +373,7 @@ describe("buildViewUrl", () => {
     const prioView = {
       id: "v2",
       state: {
-        filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [] },
+        filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [] },
         group: null,
         sort: null,
       } satisfies ViewState,
@@ -399,7 +401,7 @@ describe("createViewInput", () => {
       name: "My view",
       backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [] },
       group: null,
       sort: null,
       shared: false,
@@ -411,7 +413,7 @@ describe("createViewInput", () => {
     const result = createViewInput.safeParse({
       name: "",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [] },
       group: null,
       sort: null,
       shared: false,
@@ -423,7 +425,7 @@ describe("createViewInput", () => {
     const result = createViewInput.safeParse({
       name: "a".repeat(81),
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [] },
       group: null,
       sort: null,
       shared: false,
@@ -436,7 +438,7 @@ describe("createViewInput", () => {
       name: "  My view  ",
       backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [] },
       group: null,
       sort: null,
       shared: false,
@@ -449,7 +451,7 @@ describe("createViewInput", () => {
     const result = createViewInput.safeParse({
       name: "ok",
       displayMode: "kanban",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [] },
       group: null,
       sort: null,
       shared: false,
@@ -463,7 +465,7 @@ describe("createViewInput", () => {
         name: "ok",
         backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
         displayMode: mode,
-        filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
+        filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [] },
         group: null,
         sort: null,
         shared: false,
@@ -477,7 +479,7 @@ describe("createViewInput", () => {
       name: "ok",
       backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
       displayMode: "list",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [] },
       group: "priority",
       sort: { field: "key", dir: "asc" },
       shared: true,
@@ -489,7 +491,7 @@ describe("createViewInput", () => {
     const result = createViewInput.safeParse({
       name: "ok",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [] },
       group: null,
       sort: null,
       shared: false,
@@ -502,7 +504,7 @@ describe("createViewInput", () => {
       name: "ok",
       backlogId: "not-a-uuid",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [] },
       group: null,
       sort: null,
       shared: false,
@@ -514,7 +516,7 @@ describe("createViewInput", () => {
 describe("updateViewStateInput", () => {
   const validState = {
     displayMode: "list",
-    filters: { q: "bug", types: ["tache"], statusIds: ["s1"], priorities: [2], assignees: ["u1"] },
+    filters: { q: "bug", types: ["tache"], statusIds: ["s1"], priorities: [2], assignees: ["u1"], labels: [] },
     group: "priority",
     sort: { field: "key", dir: "asc" },
   };

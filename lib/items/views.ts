@@ -125,8 +125,12 @@ export function columnsToViewState(row: {
     ? (rawFilters.assignees as unknown[]).filter((a): a is string => typeof a === "string")
     : [];
 
+  const labels: string[] = Array.isArray(rawFilters.labels)
+    ? (rawFilters.labels as unknown[]).filter((l): l is string => typeof l === "string")
+    : [];
+
   const state: ViewState = {
-    filters: { q, types, statusIds, priorities, assignees },
+    filters: { q, types, statusIds, priorities, assignees, labels },
     group,
     sort,
   };
@@ -171,6 +175,7 @@ export function isViewDirty(
   if (!sameSet(vs.filters.statusIds, cs.filters.statusIds)) return true;
   if (!sameSet(vs.filters.priorities, cs.filters.priorities)) return true;
   if (!sameSet(vs.filters.assignees, cs.filters.assignees)) return true;
+  if (!sameSet(vs.filters.labels, cs.filters.labels)) return true;
 
   return false;
 }
@@ -221,6 +226,7 @@ const filtersSchema = z.object({
   statusIds: z.array(z.string()).default([]),
   priorities: z.array(z.number()).default([]),
   assignees: z.array(z.string()).default([]),
+  labels: z.array(z.string()).default([]),
 });
 
 const sortSchema = z

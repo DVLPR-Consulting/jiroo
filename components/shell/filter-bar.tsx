@@ -26,6 +26,7 @@ const parseSort = (v: string): ViewState["sort"] => {
 
 type StatusOpt = { id: string; name: string };
 type UserOpt = { id: string; name: string };
+type LabelOpt = { id: string; name: string; color: string };
 
 export function FilterBar({
   view,
@@ -33,6 +34,7 @@ export function FilterBar({
   currentParams,
   statuses,
   users,
+  labels,
   resultCount,
 }: {
   view: string;
@@ -40,6 +42,7 @@ export function FilterBar({
   currentParams: Record<string, string>;
   statuses: StatusOpt[];
   users: UserOpt[];
+  labels: LabelOpt[];
   resultCount: number;
 }) {
   const router = useRouter();
@@ -89,6 +92,7 @@ export function FilterBar({
     { value: "none", label: "Non assigné" },
     ...users.map((u) => ({ value: u.id, label: u.name })),
   ];
+  const labelOpts: Option[] = labels.map((l) => ({ value: l.id, label: l.name }));
 
   const active = isFiltersActive(state.filters);
 
@@ -128,6 +132,14 @@ export function FilterBar({
         selected={state.filters.assignees}
         onChange={(v) => setFilters({ assignees: v })}
       />
+      {labels.length > 0 && (
+        <FilterMenu
+          label="Label"
+          options={labelOpts}
+          selected={state.filters.labels}
+          onChange={(v) => setFilters({ labels: v })}
+        />
+      )}
 
       {active && (
         <button
@@ -142,6 +154,7 @@ export function FilterBar({
                 statusIds: [],
                 priorities: [],
                 assignees: [],
+                labels: [],
               },
             });
           }}

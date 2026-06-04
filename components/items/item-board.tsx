@@ -28,6 +28,7 @@ import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
+import { LabelPill } from "@/components/items/label-pill";
 import { LABEL_HUES, type ItemType, type LabelHue, type Priority } from "@/lib/design/constants";
 import type { moveItemAction as MoveItemAction } from "@/app/actions/items";
 
@@ -43,6 +44,8 @@ export type BoardCard = {
   parentId: string | null;
   assigneeName?: string | null;
   subCount?: number;
+  /** Label objects attached in T4; rendered as chips in T5. */
+  labels?: { id: string; name: string; color: string }[];
 };
 
 export type BoardGroup = "assignee" | "priority" | "parent" | null;
@@ -195,6 +198,13 @@ function CardInner({ card }: { card: BoardCard; backlogKey: string }) {
       <p className="mt-1.5 text-[13px] leading-snug" style={{ textWrap: "pretty" }}>
         {card.title}
       </p>
+      {card.labels && card.labels.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {card.labels.map((label) => (
+            <LabelPill key={label.id} name={label.name} color={label.color} />
+          ))}
+        </div>
+      )}
       <div className="mt-2 flex items-center justify-between">
         <span className="item-key inline-flex items-center gap-1">
           {card.subCount && card.subCount > 0 ? `${card.subCount} sous-item${card.subCount > 1 ? "s" : ""}` : ""}
