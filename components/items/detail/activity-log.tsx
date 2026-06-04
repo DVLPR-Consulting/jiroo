@@ -25,6 +25,8 @@ function phrase(
     }
     case "delete":
       return newValue != null ? "a supprimé l'item" : "a restauré l'item";
+    case "comment":
+      return "a commenté";
     case "update":
       switch (field) {
         case "title":
