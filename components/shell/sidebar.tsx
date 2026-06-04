@@ -51,13 +51,15 @@ export function Sidebar({
 
       {/* Bottom */}
       <div className="mt-auto flex flex-col gap-1">
-        <Link
-          href="/trash"
-          className="flex items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
-        >
-          <Trash2 className="size-4" />
-          Corbeille
-        </Link>
+        {user.role === "admin" && (
+          <Link
+            href="/trash"
+            className="flex items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
+          >
+            <Trash2 className="size-4" />
+            Corbeille
+          </Link>
+        )}
         {user.role === "admin" && (
           <Link
             href="/admin"
