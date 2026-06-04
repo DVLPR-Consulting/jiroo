@@ -12,6 +12,7 @@ import {
   listLabelsForBacklog,
   listUsers,
 } from "@/lib/services/items";
+import { listComments } from "@/lib/services/comments";
 import { moveItemAction, reparentItemAction } from "@/app/actions/items";
 import {
   parseViewState,
@@ -264,9 +265,13 @@ export default async function BacklogPage({
   );
 
   // Reuse the already-fetched backlogLabelRows for the detail panel (avoids a second DB round-trip).
-  const [activities, itemLabelIds] = showPanel
-    ? await Promise.all([listActivities(detail.id), getItemLabelIds(detail.id)])
-    : [[], []];
+  const [activities, itemLabelIds, comments] = showPanel
+    ? await Promise.all([
+        listActivities(detail.id),
+        getItemLabelIds(detail.id),
+        listComments(detail.id),
+      ])
+    : [[], [], []];
 
   // Bug 2: board status filter hides unselected columns — pass only the selected
   // statuses when a status filter is active; all statuses otherwise.
@@ -359,6 +364,8 @@ export default async function BacklogPage({
         <ItemDetailPanel
           detail={detail}
           activities={activities}
+          comments={comments}
+          currentUserId={userId}
           itemLabelIds={itemLabelIds}
           backlogLabels={backlogLabelRows}
           users={usersForFilter}

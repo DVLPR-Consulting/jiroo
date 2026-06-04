@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { softDeleteItemAction } from "@/app/actions/items";
 import { ActivityLog } from "@/components/items/detail/activity-log";
+import { CommentThread } from "@/components/items/detail/comment-thread";
 import { EditableTitle } from "@/components/items/detail/editable-title";
 import { DescriptionEditor } from "@/components/items/detail/description-editor";
 import {
@@ -23,6 +24,7 @@ import {
   LabelsField,
 } from "@/components/items/detail/field-editors";
 import { ITEM_TYPE_LABELS } from "@/lib/design/constants";
+import type { CommentRow } from "@/lib/services/comments";
 import type {
   activities as activitiesTable,
   items as itemsTable,
@@ -52,6 +54,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export function ItemDetailPanel({
   detail,
   activities,
+  comments,
+  currentUserId,
   itemLabelIds,
   backlogLabels,
   users,
@@ -60,6 +64,8 @@ export function ItemDetailPanel({
 }: {
   detail: ItemRow;
   activities: ActivityRow[];
+  comments: CommentRow[];
+  currentUserId: string;
   itemLabelIds: string[];
   backlogLabels: LabelRow[];
   users: UserLite[];
@@ -67,7 +73,7 @@ export function ItemDetailPanel({
   backlogKey: string;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<"detail" | "activity">("detail");
+  const [tab, setTab] = useState<"detail" | "comments" | "activity">("detail");
   const [deleting, startDelete] = useTransition();
 
   const close = () => router.push(`/b/${backlogKey}`);
@@ -152,6 +158,17 @@ export function ItemDetailPanel({
               </button>
               <button
                 type="button"
+                onClick={() => setTab("comments")}
+                className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+                  tab === "comments"
+                    ? "border-[var(--primary)] font-medium"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Commentaires
+              </button>
+              <button
+                type="button"
                 onClick={() => setTab("activity")}
                 className={`-mb-px border-b-2 px-3 py-2 text-sm ${
                   tab === "activity"
@@ -163,13 +180,23 @@ export function ItemDetailPanel({
               </button>
             </div>
 
-            {tab === "detail" ? (
+            {tab === "detail" && (
               <DescriptionEditor
                 itemId={detail.id}
                 backlogKey={backlogKey}
                 description={detail.description}
               />
-            ) : (
+            )}
+            {tab === "comments" && (
+              <CommentThread
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                comments={comments}
+                users={users.map((u) => ({ id: u.id, name: u.name }))}
+                currentUserId={currentUserId}
+              />
+            )}
+            {tab === "activity" && (
               <ActivityLog activities={activities} users={users} statuses={statuses} />
             )}
           </div>

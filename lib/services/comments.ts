@@ -8,19 +8,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // ---- reads (no tx) ----
 
-export type CommentRow = {
-  id: string;
-  authorId: string;
-  authorName: string;
-  body: string;
-  mentions: string[];
-  createdAt: Date;
-  editedAt: Date | null;
-  deletedAt: Date | null;
-  deleted: boolean;
-};
-
-export async function listComments(itemId: string): Promise<CommentRow[]> {
+export async function listComments(itemId: string) {
   const rows = await db
     .select({
       id: comments.id,
@@ -49,6 +37,13 @@ export async function listComments(itemId: string): Promise<CommentRow[]> {
     };
   });
 }
+
+/**
+ * Canonical shape of a row returned by {@link listComments}. Derived from the
+ * function's return type so it can never drift from the actual query result;
+ * the client thread/panel import this single source of truth.
+ */
+export type CommentRow = Awaited<ReturnType<typeof listComments>>[number];
 
 // ---- private helpers (tx) ----
 

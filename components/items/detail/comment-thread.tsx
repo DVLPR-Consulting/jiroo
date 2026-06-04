@@ -14,28 +14,22 @@ import {
 import { CommentMarkdown } from "./comment-markdown";
 import { CommentComposer } from "./comment-composer";
 import { deleteCommentAction } from "@/app/actions/comments";
+import type { CommentRow } from "@/lib/services/comments";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export type CommentRow = {
-  id: string;
-  authorId: string;
-  authorName: string;
-  body: string;
-  mentions: string[];
-  createdAt: Date | string;
-  editedAt: Date | string | null;
-  deletedAt: Date | string | null;
-  deleted: boolean;
-};
+// Re-export the canonical row type so existing consumers (e.g. ItemDetailPanel)
+// can keep importing it from here; the single source of truth lives in the service.
+export type { CommentRow };
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Formats a date as a localised French absolute datetime string. */
+/**
+ * Formats a date as a localised French absolute datetime string.
+ * RSC preserves Date across the server→client boundary, so the canonical
+ * CommentRow carries real Date objects; the string branch is a defensive
+ * normalization in case a value is ever serialized as a string.
+ */
 function formatDate(d: Date | string): string {
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toLocaleString("fr-FR", {
