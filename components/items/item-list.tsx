@@ -2,6 +2,7 @@ import Link from "next/link";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
+import { LabelPill } from "@/components/items/label-pill";
 import type { ItemType, Priority } from "@/lib/design/constants";
 
 type LabelChip = { id: string; name: string; color: string };
@@ -71,6 +72,13 @@ function Row({
         <TypeIcon type={item.type} />
         <ItemKey value={item.key} />
         <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
+        {item.labels && item.labels.length > 0 && (
+          <span className="flex flex-wrap gap-1">
+            {item.labels.map((label) => (
+              <LabelPill key={label.id} name={label.name} color={label.color} />
+            ))}
+          </span>
+        )}
         <StatusPill status={statuses[item.statusId]} />
         <PrioIcon priority={asPriority(item.priority)} />
       </Link>
