@@ -5,9 +5,13 @@ import {
   isViewDirty,
   buildViewUrl,
   createViewInput,
+  updateViewStateInput,
   renameViewInput,
   setSharedInput,
+  canMutateView,
+  partitionViews,
   type DisplayMode,
+  type ViewRow,
 } from "./views";
 import type { ViewState } from "./filter";
 
@@ -393,6 +397,7 @@ describe("createViewInput", () => {
   it("accepts a valid input", () => {
     const result = createViewInput.safeParse({
       name: "My view",
+      backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
       displayMode: "board",
       filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
       group: null,
@@ -429,6 +434,7 @@ describe("createViewInput", () => {
   it("trims whitespace from the name", () => {
     const result = createViewInput.safeParse({
       name: "  My view  ",
+      backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
       displayMode: "board",
       filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
       group: null,
@@ -455,6 +461,7 @@ describe("createViewInput", () => {
     for (const mode of ["board", "list", "tree"]) {
       const result = createViewInput.safeParse({
         name: "ok",
+        backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
         displayMode: mode,
         filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
         group: null,
@@ -468,6 +475,7 @@ describe("createViewInput", () => {
   it("accepts a valid sort object", () => {
     const result = createViewInput.safeParse({
       name: "ok",
+      backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
       displayMode: "list",
       filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
       group: "priority",
@@ -475,6 +483,75 @@ describe("createViewInput", () => {
       shared: true,
     });
     expect(result.success).toBe(true);
+  });
+
+  it("rejects a missing backlogId", () => {
+    const result = createViewInput.safeParse({
+      name: "ok",
+      displayMode: "board",
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
+      group: null,
+      sort: null,
+      shared: false,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a non-UUID backlogId", () => {
+    const result = createViewInput.safeParse({
+      name: "ok",
+      backlogId: "not-a-uuid",
+      displayMode: "board",
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [] },
+      group: null,
+      sort: null,
+      shared: false,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("updateViewStateInput", () => {
+  const validState = {
+    displayMode: "list",
+    filters: { q: "bug", types: ["tache"], statusIds: ["s1"], priorities: [2], assignees: ["u1"] },
+    group: "priority",
+    sort: { field: "key", dir: "asc" },
+  };
+
+  it("accepts a state-only payload", () => {
+    const result = updateViewStateInput.safeParse(validState);
+    expect(result.success).toBe(true);
+  });
+
+  it("strips a stray name field instead of carrying it through", () => {
+    const result = updateViewStateInput.safeParse({ ...validState, name: "Renamed" });
+    expect(result.success).toBe(true);
+    // Zod object strips unknown keys by default → no `name` leaks into the parsed data.
+    if (result.success) expect(result.data).not.toHaveProperty("name");
+  });
+
+  it("strips stray shared and backlogId fields", () => {
+    const result = updateViewStateInput.safeParse({
+      ...validState,
+      shared: true,
+      backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).not.toHaveProperty("shared");
+      expect(result.data).not.toHaveProperty("backlogId");
+    }
+  });
+
+  it("rejects a missing displayMode", () => {
+    const { displayMode: _omit, ...rest } = validState;
+    void _omit;
+    expect(updateViewStateInput.safeParse(rest).success).toBe(false);
+  });
+
+  it("rejects an invalid displayMode", () => {
+    expect(updateViewStateInput.safeParse({ ...validState, displayMode: "kanban" }).success).toBe(false);
   });
 });
 
@@ -506,5 +583,122 @@ describe("setSharedInput", () => {
 
   it("rejects non-boolean", () => {
     expect(setSharedInput.safeParse({ shared: "yes" }).success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// canMutateView
+// ---------------------------------------------------------------------------
+
+describe("canMutateView", () => {
+  it("returns true when the actor is the owner", () => {
+    expect(canMutateView({ ownerId: "u1" }, "u1")).toBe(true);
+  });
+
+  it("returns false when the actor is not the owner", () => {
+    expect(canMutateView({ ownerId: "u1" }, "u2")).toBe(false);
+  });
+
+  it("returns false for an empty string userId", () => {
+    expect(canMutateView({ ownerId: "u1" }, "")).toBe(false);
+  });
+
+  it("returns false when ownerId differs by case", () => {
+    expect(canMutateView({ ownerId: "U1" }, "u1")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// partitionViews
+// ---------------------------------------------------------------------------
+
+/** Minimal factory for test rows. */
+function makeRow(
+  id: string,
+  ownerId: string,
+  shared: boolean,
+  name = "View",
+): ViewRow {
+  return { id, ownerId, shared, name };
+}
+
+describe("partitionViews", () => {
+  it("returns empty buckets for empty input", () => {
+    const { personal, shared } = partitionViews([], "u1");
+    expect(personal).toEqual([]);
+    expect(shared).toEqual([]);
+  });
+
+  it("puts the owner's own personal view into personal", () => {
+    const row = makeRow("v1", "u1", false);
+    const { personal, shared } = partitionViews([row], "u1");
+    expect(personal).toEqual([row]);
+    expect(shared).toEqual([]);
+  });
+
+  it("puts the owner's own shared view into personal (not shared)", () => {
+    const row = makeRow("v1", "u1", true);
+    const { personal, shared } = partitionViews([row], "u1");
+    expect(personal).toEqual([row]);
+    expect(shared).toEqual([]);
+  });
+
+  it("puts another user's shared view into shared", () => {
+    const row = makeRow("v1", "u2", true);
+    const { personal, shared } = partitionViews([row], "u1");
+    expect(personal).toEqual([]);
+    expect(shared).toEqual([row]);
+  });
+
+  it("excludes another user's non-shared (personal) view entirely", () => {
+    const row = makeRow("v1", "u2", false);
+    const { personal, shared } = partitionViews([row], "u1");
+    expect(personal).toEqual([]);
+    expect(shared).toEqual([]);
+  });
+
+  it("partitions a mixed set correctly", () => {
+    const ownPrivate   = makeRow("v1", "u1", false, "Own private");
+    const ownShared    = makeRow("v2", "u1", true,  "Own shared");
+    const othersShared = makeRow("v3", "u2", true,  "Others shared");
+    const othersPriv   = makeRow("v4", "u2", false, "Others private");
+
+    const { personal, shared } = partitionViews(
+      [ownPrivate, ownShared, othersShared, othersPriv],
+      "u1",
+    );
+
+    expect(personal).toEqual([ownPrivate, ownShared]);
+    expect(shared).toEqual([othersShared]);
+    // othersPriv is excluded from both buckets
+    expect(personal).not.toContainEqual(othersPriv);
+    expect(shared).not.toContainEqual(othersPriv);
+  });
+
+  it("preserves input order within each bucket", () => {
+    const a = makeRow("v1", "u1", false, "A");
+    const b = makeRow("v2", "u1", true,  "B");
+    const c = makeRow("v3", "u1", false, "C");
+    const d = makeRow("v4", "u2", true,  "D");
+    const e = makeRow("v5", "u2", true,  "E");
+
+    const { personal, shared } = partitionViews([a, b, c, d, e], "u1");
+
+    expect(personal.map((r) => r.id)).toEqual(["v1", "v2", "v3"]);
+    expect(shared.map((r) => r.id)).toEqual(["v4", "v5"]);
+  });
+
+  it("handles all-mine rows with none shared by others", () => {
+    const rows = [makeRow("v1", "u1", false), makeRow("v2", "u1", true)];
+    const { personal, shared } = partitionViews(rows, "u1");
+    expect(personal.length).toBe(2);
+    expect(shared.length).toBe(0);
+  });
+
+  it("handles all-others-shared rows with none own", () => {
+    const rows = [makeRow("v1", "u2", true), makeRow("v2", "u3", true)];
+    const { personal, shared } = partitionViews(rows, "u1");
+    expect(personal.length).toBe(0);
+    expect(shared.length).toBe(2);
   });
 });

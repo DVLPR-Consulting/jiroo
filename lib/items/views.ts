@@ -233,11 +233,24 @@ const sortSchema = z
 /** Input for creating a new saved view. */
 export const createViewInput = z.object({
   name: z.string().trim().min(1).max(80),
+  backlogId: z.string().uuid(),
   displayMode: displayModeSchema,
   filters: filtersSchema,
   group: z.enum(GROUP_KEYS as [GroupKey, ...GroupKey[]]).nullable(),
   sort: sortSchema,
   shared: z.boolean(),
+});
+
+/**
+ * Input for the in-place "Save" of a view's display state.
+ * Carries ONLY the 4 state fields — name/shared/backlogId are intentionally
+ * absent so a caller can't believe a rename/visibility change happened here.
+ */
+export const updateViewStateInput = z.object({
+  displayMode: displayModeSchema,
+  filters: filtersSchema,
+  group: z.enum(GROUP_KEYS as [GroupKey, ...GroupKey[]]).nullable(),
+  sort: sortSchema,
 });
 
 /** Input for renaming a saved view. */
@@ -251,5 +264,62 @@ export const setSharedInput = z.object({
 });
 
 export type CreateViewInput = z.infer<typeof createViewInput>;
+export type UpdateViewStateInput = z.infer<typeof updateViewStateInput>;
 export type RenameViewInput = z.infer<typeof renameViewInput>;
 export type SetSharedInput = z.infer<typeof setSharedInput>;
+
+// ---------------------------------------------------------------------------
+// ViewRow — minimal structural type for the access/partition helpers.
+// Compatible with the Drizzle inferred row type from the `views` table.
+// ---------------------------------------------------------------------------
+
+export type ViewRow = {
+  id: string;
+  ownerId: string;
+  shared: boolean;
+  name: string;
+};
+
+// ---------------------------------------------------------------------------
+// canMutateView — owner-only mutation guard (pure, unit-tested)
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns `true` iff the actor is the view's owner.
+ * Views use a strict owner-only model: sharing allows read access for others,
+ * but write/delete is always restricted to the original creator.
+ */
+export function canMutateView(view: { ownerId: string }, userId: string): boolean {
+  return view.ownerId === userId;
+}
+
+// ---------------------------------------------------------------------------
+// partitionViews — personal vs shared split (pure, unit-tested)
+// ---------------------------------------------------------------------------
+
+/**
+ * Splits a list of view rows into two buckets for a given user:
+ * - `personal`: rows owned by `userId` (both private and the user's own shared)
+ * - `shared`: rows with `shared === true` owned by someone else
+ *
+ * Rows that are neither (other users' private views) are excluded entirely.
+ * Input order is preserved within each bucket.
+ */
+export function partitionViews(
+  rows: ViewRow[],
+  userId: string,
+): { personal: ViewRow[]; shared: ViewRow[] } {
+  const personal: ViewRow[] = [];
+  const shared: ViewRow[] = [];
+
+  for (const row of rows) {
+    if (row.ownerId === userId) {
+      personal.push(row);
+    } else if (row.shared) {
+      shared.push(row);
+    }
+    // others' private views are dropped
+  }
+
+  return { personal, shared };
+}
