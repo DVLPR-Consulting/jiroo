@@ -18,8 +18,8 @@ export type ViewState = {
   sort: { field: SortField; dir: SortDir } | null;
 };
 
-const GROUP_KEYS: GroupKey[] = ["status", "assignee", "priority", "parent"];
-const SORT_FIELDS: SortField[] = ["priority", "dueDate", "created", "updated", "key"];
+export const GROUP_KEYS: GroupKey[] = ["status", "assignee", "priority", "parent"];
+export const SORT_FIELDS: SortField[] = ["priority", "dueDate", "created", "updated", "key"];
 
 function csv(sp: URLSearchParams, key: string): string[] {
   const raw = sp.get(key);

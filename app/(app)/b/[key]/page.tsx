@@ -22,8 +22,12 @@ import {
   type FilterItem,
 } from "@/lib/items/filter";
 import { PRIORITY_LABELS } from "@/lib/design/constants";
+import { getSession } from "@/lib/auth/session";
+import { getViewById } from "@/lib/services/views";
+import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
 import { ViewBar } from "@/components/shell/view-bar";
 import { FilterBar } from "@/components/shell/filter-bar";
+import { ViewActions } from "@/components/shell/view-actions";
 import { ItemList } from "@/components/items/item-list";
 import { ItemBoard } from "@/components/items/item-board";
 import { ItemTree } from "@/components/items/item-tree";
@@ -48,13 +52,36 @@ export default async function BacklogPage({
       ),
     ),
   );
-  const backlog = await getBacklogByKey(key);
-  if (!backlog || backlog.archivedAt) notFound();
+
+  const session = await getSession();
+  const userId = session?.user.id ?? "";
 
   const VIEWS = ["board", "list", "tree"] as const;
   const view = (VIEWS as readonly string[]).includes(rawView ?? "")
     ? (rawView as string)
     : "board";
+
+  const backlog = await getBacklogByKey(key);
+  if (!backlog || backlog.archivedAt) notFound();
+
+  // Load and validate the active saved view from ?v=.
+  // A stale, foreign, or inaccessible view id is silently treated as "no active view".
+  const v = sp.v;
+  const rawActiveView = v ? await getViewById(v) : null;
+  const activeViewRow =
+    rawActiveView &&
+    rawActiveView.backlogId === backlog.id &&
+    (rawActiveView.ownerId === userId || rawActiveView.shared)
+      ? rawActiveView
+      : null;
+
+  const isOwner = activeViewRow !== null && activeViewRow.ownerId === userId;
+  const dirty =
+    activeViewRow !== null &&
+    isViewDirty(columnsToViewState(activeViewRow), {
+      state: viewState,
+      displayMode: view as DisplayMode,
+    });
 
   const items = await listItems(backlog.id);
 
@@ -240,6 +267,24 @@ export default async function BacklogPage({
         backlogKey={key}
         itemKey={itemKey}
         params={currentParams}
+        viewActionsSlot={
+          <ViewActions
+            backlogKey={key}
+            backlogId={backlog.id}
+            activeView={
+              activeViewRow
+                ? { id: activeViewRow.id, name: activeViewRow.name, shared: activeViewRow.shared }
+                : null
+            }
+            isOwner={isOwner}
+            dirty={dirty}
+            displayMode={view as DisplayMode}
+            filters={viewState.filters}
+            group={viewState.group}
+            sort={viewState.sort}
+            currentParams={currentParams}
+          />
+        }
         newItemSlot={
           <NewItemButton
             backlogId={backlog.id}
