@@ -5,6 +5,7 @@ import { listVisibleViews } from "@/lib/services/views";
 import { unreadCount, listRecentNotifications } from "@/lib/services/notifications";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
+import { Toaster } from "@/components/ui/toaster";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -37,6 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         )}
         <main className="min-h-0 flex-1 overflow-auto bg-background">{children}</main>
       </div>
+      <Toaster />
     </div>
   );
 }
