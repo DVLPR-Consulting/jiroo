@@ -7,6 +7,7 @@ import {
   getItemByKey,
   getItemLabelIds,
   listActivities,
+  listItemLabelPairs,
   listItems,
   listLabelsForBacklog,
   listUsers,
@@ -83,7 +84,18 @@ export default async function BacklogPage({
       displayMode: view as DisplayMode,
     });
 
-  const items = await listItems(backlog.id);
+  const [items, labelPairs] = await Promise.all([
+    listItems(backlog.id),
+    listItemLabelPairs(backlog.id),
+  ]);
+
+  // Build a map from itemId to its array of label objects for quick lookup.
+  const labelsByItem = new Map<string, { id: string; name: string; color: string }[]>();
+  for (const p of labelPairs) {
+    const arr = labelsByItem.get(p.itemId) ?? [];
+    arr.push({ id: p.labelId, name: p.name, color: p.color });
+    labelsByItem.set(p.itemId, arr);
+  }
 
   const filterRows: FilterItem[] = items.map((i) => ({
     id: i.id,
@@ -101,7 +113,7 @@ export default async function BacklogPage({
     createdAt: i.createdAt,
     updatedAt: i.updatedAt,
     rank: i.rank,
-    labelIds: [], // populated in T4 (label data join)
+    labelIds: (labelsByItem.get(i.id) ?? []).map((l) => l.id),
   }));
   const filtersOn = isFiltersActive(viewState.filters);
   const matchedIds = new Set(
@@ -137,7 +149,11 @@ export default async function BacklogPage({
   const resultCount = filtersOn ? matchedIds.size : items.length;
 
   // Single user fetch reused by both the filter bar facet and assignee-name resolution.
-  const usersForFilter = await listUsers();
+  // Backlog labels fetched once and reused by the filter facet and (when open) the detail panel.
+  const [usersForFilter, backlogLabelRows] = await Promise.all([
+    listUsers(),
+    listLabelsForBacklog(backlog.id),
+  ]);
   const userName = new Map(usersForFilter.map((u) => [u.id, u.name]));
 
   const groupLabel = (key: string): string => {
@@ -181,6 +197,7 @@ export default async function BacklogPage({
       parentId: i.parentId,
       assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
       subCount: childCount.get(i.id) ?? 0,
+      labels: labelsByItem.get(i.id) ?? [],
     }));
 
   // Board swimlanes: status is the columns, so it never groups the board. Build
@@ -246,13 +263,10 @@ export default async function BacklogPage({
     ),
   );
 
-  const [activities, itemLabelIds, backlogLabels] = showPanel
-    ? await Promise.all([
-        listActivities(detail.id),
-        getItemLabelIds(detail.id),
-        listLabelsForBacklog(backlog.id),
-      ])
-    : [[], [], []];
+  // Reuse the already-fetched backlogLabelRows for the detail panel (avoids a second DB round-trip).
+  const [activities, itemLabelIds] = showPanel
+    ? await Promise.all([listActivities(detail.id), getItemLabelIds(detail.id)])
+    : [[], []];
 
   // Bug 2: board status filter hides unselected columns — pass only the selected
   // statuses when a status filter is active; all statuses otherwise.
@@ -301,6 +315,7 @@ export default async function BacklogPage({
         currentParams={currentParams}
         statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}
         users={usersForFilter.map((u) => ({ id: u.id, name: u.name }))}
+        labels={backlogLabelRows.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
         resultCount={resultCount}
       />
       {view === "list" && (
@@ -308,7 +323,7 @@ export default async function BacklogPage({
           groups={listGroups.map(([key, rows]) => ({
             key,
             label: groupLabel(key),
-            items: rows,
+            items: rows.map((r) => ({ ...r, labels: labelsByItem.get(r.id) ?? [] })),
           }))}
           grouped={viewState.group !== null}
           statuses={statusMap}
@@ -345,7 +360,7 @@ export default async function BacklogPage({
           detail={detail}
           activities={activities}
           itemLabelIds={itemLabelIds}
-          backlogLabels={backlogLabels}
+          backlogLabels={backlogLabelRows}
           users={usersForFilter}
           statuses={statusList}
           backlogKey={key}

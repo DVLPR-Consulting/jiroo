@@ -43,6 +43,8 @@ export type BoardCard = {
   parentId: string | null;
   assigneeName?: string | null;
   subCount?: number;
+  /** Label objects attached in T4; rendered as chips in T5. */
+  labels?: { id: string; name: string; color: string }[];
 };
 
 export type BoardGroup = "assignee" | "priority" | "parent" | null;

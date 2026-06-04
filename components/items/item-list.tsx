@@ -4,6 +4,8 @@ import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import type { ItemType, Priority } from "@/lib/design/constants";
 
+type LabelChip = { id: string; name: string; color: string };
+
 type Item = {
   id: string;
   key: string;
@@ -12,6 +14,8 @@ type Item = {
   statusId: string;
   priority: number;
   depth: number;
+  /** Label objects attached in T4; rendered as chips in T5. */
+  labels?: LabelChip[];
 };
 
 type Group = { key: string; label: string; items: Item[] };

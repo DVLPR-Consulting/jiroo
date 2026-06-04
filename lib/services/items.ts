@@ -51,6 +51,20 @@ export async function getItemLabelIds(itemId: string): Promise<string[]> {
   return rows.map((r) => r.labelId);
 }
 
+export function listItemLabelPairs(backlogId: string) {
+  return db
+    .select({
+      itemId: itemLabels.itemId,
+      labelId: labels.id,
+      name: labels.name,
+      color: labels.color,
+    })
+    .from(itemLabels)
+    .innerJoin(items, eq(itemLabels.itemId, items.id))
+    .innerJoin(labels, eq(itemLabels.labelId, labels.id))
+    .where(and(eq(items.backlogId, backlogId), isNull(items.deletedAt)));
+}
+
 export function listUsers() {
   return db.select({ id: user.id, name: user.name, email: user.email }).from(user);
 }
