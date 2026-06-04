@@ -69,6 +69,36 @@ export function listUsers() {
   return db.select({ id: user.id, name: user.name, email: user.email }).from(user);
 }
 
+export function listItemsAssignedTo(userId: string) {
+  return db
+    .select({
+      id: items.id,
+      key: items.key,
+      type: items.type,
+      title: items.title,
+      priority: items.priority,
+      statusId: items.statusId,
+      statusName: statuses.name,
+      statusColor: statuses.color,
+      rank: items.rank,
+      backlogId: backlogs.id,
+      backlogKey: backlogs.key,
+      backlogName: backlogs.name,
+      backlogColor: backlogs.color,
+    })
+    .from(items)
+    .innerJoin(statuses, eq(items.statusId, statuses.id))
+    .innerJoin(backlogs, eq(items.backlogId, backlogs.id))
+    .where(
+      and(
+        eq(items.assigneeId, userId),
+        isNull(items.deletedAt),
+        isNull(backlogs.archivedAt),
+      ),
+    )
+    .orderBy(asc(backlogs.name), asc(items.rank), asc(items.key));
+}
+
 // ---- private helpers (tx) ----
 function activityRow(
   itemId: string,

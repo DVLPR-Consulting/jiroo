@@ -39,13 +39,13 @@ export function Sidebar({
           <Layers className="size-4" />
           Tous les items
         </span>
-        <span
-          className="flex cursor-default items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-sm text-muted-foreground"
-          title="bientôt"
+        <Link
+          href="/mine"
+          className="flex items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
         >
           <User className="size-4" />
           Mes items
-        </span>
+        </Link>
       </div>
 
       {/* Saved views — personal & shared */}
