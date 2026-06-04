@@ -12,6 +12,36 @@ import { createItemSchema, idInputSchema, moveItemSchema, reparentItemSchema, up
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // ---- reads (no tx) ----
+
+/** A soft-deleted item row enriched with backlog and status info, for the Trash page. */
+export type TrashedItem = Awaited<ReturnType<typeof listTrashedItems>>[number];
+
+/**
+ * Returns all soft-deleted items across every backlog, ordered by deletion date
+ * (most recent first), then by backlog name and item key for stable grouping.
+ * Cross-backlog — admin only (enforced at the action layer).
+ */
+export function listTrashedItems() {
+  return db
+    .select({
+      id: items.id,
+      key: items.key,
+      type: items.type,
+      title: items.title,
+      backlogKey: backlogs.key,
+      backlogName: backlogs.name,
+      backlogColor: backlogs.color,
+      statusName: statuses.name,
+      statusColor: statuses.color,
+      deletedAt: items.deletedAt,
+    })
+    .from(items)
+    .innerJoin(backlogs, eq(items.backlogId, backlogs.id))
+    .innerJoin(statuses, eq(items.statusId, statuses.id))
+    .where(isNotNull(items.deletedAt))
+    .orderBy(desc(items.deletedAt), asc(backlogs.name), asc(items.key));
+}
+
 export function listItems(backlogId: string) {
   return db
     .select()
@@ -716,4 +746,24 @@ export async function reparentItem(input: unknown, actorId: string) {
       return updated!;
     }),
   );
+}
+
+// ---- purgeItem: permanent hard-delete of a soft-deleted item + its whole subtree ----
+// The item must already be in the trash (deletedAt IS NOT NULL). All descendant items
+// cascade via items.parentId (onDelete: cascade), and comments/activities/item_labels/
+// notifications all cascade from items.id — the entire soft-deleted subtree and its
+// related rows are removed atomically. No activity row is written: both the item and
+// its history are being destroyed.
+export async function purgeItem(id: string): Promise<string> {
+  return db.transaction(async (tx) => {
+    const [target] = await tx
+      .select({ id: items.id })
+      .from(items)
+      .where(and(eq(items.id, id), isNotNull(items.deletedAt)))
+      .for("update");
+    if (!target) throw new Error("Item introuvable dans la corbeille.");
+
+    await tx.delete(items).where(eq(items.id, target.id));
+    return target.id;
+  });
 }
