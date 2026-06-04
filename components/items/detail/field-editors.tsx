@@ -3,11 +3,15 @@
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateItemAction } from "@/app/actions/items";
+import { createLabelAction } from "@/app/actions/labels";
 import { PrioIcon } from "@/components/icons/prio-icon";
+import { LabelPill } from "@/components/items/label-pill";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
+  DropdownMenuSeparator,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -219,32 +223,71 @@ export function DueDateField({
   );
 }
 
+// Normalise a string for case/accent-insensitive comparison.
+function normalise(s: string) {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
+}
+
 export function LabelsField({
   itemId,
   backlogKey,
+  backlogId,
   itemLabelIds,
   backlogLabels,
 }: {
   itemId: string;
   backlogKey: string;
+  backlogId: string;
   itemLabelIds: string[];
   backlogLabels: LabelLite[];
 }) {
   const { pending, error, run } = useFieldUpdate(itemId, backlogKey);
-
-  if (backlogLabels.length === 0) {
-    return <p className="t-sm text-muted-foreground">Aucun label disponible</p>;
-  }
+  const [query, setQuery] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, startCreate] = useTransition();
 
   const selectedSet = new Set(itemLabelIds);
   const selected = backlogLabels.filter((l) => selectedSet.has(l.id));
+
+  // Filter by query (case/accent-insensitive).
+  const normQuery = normalise(query.trim());
+  const filtered = normQuery
+    ? backlogLabels.filter((l) => normalise(l.name).includes(normQuery))
+    : backlogLabels;
+
+  // Show the create option when there's a non-empty query that doesn't match
+  // any existing label name exactly.
+  const exactMatch = backlogLabels.some(
+    (l) => normalise(l.name) === normQuery
+  );
+  const showCreate = normQuery.length > 0 && !exactMatch;
 
   function toggle(labelId: string) {
     const next = new Set(selectedSet);
     if (next.has(labelId)) next.delete(labelId);
     else next.add(labelId);
-    // Full replace: the action sets the complete label set for the item.
     run({ labelIds: Array.from(next) });
+  }
+
+  function handleCreate() {
+    const name = query.trim();
+    if (!name) return;
+    setCreateError(null);
+    startCreate(async () => {
+      const res = await createLabelAction({ backlogKey, backlogId, name });
+      if (!res.ok) {
+        setCreateError(res.error);
+        return;
+      }
+      // Assign the newly-created label immediately.
+      const next = new Set(selectedSet);
+      next.add(res.label.id);
+      run({ labelIds: Array.from(next) });
+      setQuery("");
+    });
   }
 
   return (
@@ -259,39 +302,72 @@ export function LabelsField({
           >
             {selected.length > 0 ? (
               selected.map((l) => (
-                <span
-                  key={l.id}
-                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
-                  style={{ background: `${l.color}22`, color: l.color }}
-                >
-                  {l.name}
-                </span>
+                <LabelPill key={l.id} name={l.name} color={l.color} />
               ))
             ) : (
               <span className="text-muted-foreground">Aucun label</span>
             )}
           </button>
         </DropdownMenuTrigger>
+
         <DropdownMenuContent align="start" className="w-56">
-          {backlogLabels.map((l) => (
-            <DropdownMenuCheckboxItem
-              key={l.id}
-              checked={selectedSet.has(l.id)}
-              disabled={pending}
-              onSelect={(e) => e.preventDefault()}
-              onCheckedChange={() => toggle(l.id)}
-            >
-              <span
-                className="size-2 shrink-0 rounded-full"
-                style={{ background: l.color }}
-                aria-hidden
-              />
-              {l.name}
-            </DropdownMenuCheckboxItem>
-          ))}
+          {/* Search / create input — rendered outside menuitem flow so Radix
+              typeahead doesn't hijack keystrokes. */}
+          <div className="px-1.5 pb-1 pt-1">
+            <input
+              className={selectClass}
+              placeholder="Filtrer ou créer…"
+              value={query}
+              autoComplete="off"
+              onChange={(e) => setQuery(e.target.value)}
+              // Prevent Radix's roving focus / typeahead from stealing keys.
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+          </div>
+
+          {filtered.length > 0 ? (
+            filtered.map((l) => (
+              <DropdownMenuCheckboxItem
+                key={l.id}
+                checked={selectedSet.has(l.id)}
+                disabled={pending}
+                onSelect={(e) => e.preventDefault()}
+                onCheckedChange={() => toggle(l.id)}
+              >
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ background: `var(${l.color})` }}
+                  aria-hidden
+                />
+                {l.name}
+              </DropdownMenuCheckboxItem>
+            ))
+          ) : (
+            !showCreate && (
+              <p className="px-2 py-2 text-xs text-muted-foreground">
+                Aucun label disponible
+              </p>
+            )
+          )}
+
+          {showCreate && (
+            <>
+              {filtered.length > 0 && <DropdownMenuSeparator />}
+              <DropdownMenuItem
+                disabled={creating || pending}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  handleCreate();
+                }}
+              >
+                Créer «&nbsp;{query.trim()}&nbsp;»
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       <FieldError error={error} />
+      <FieldError error={createError} />
     </div>
   );
 }

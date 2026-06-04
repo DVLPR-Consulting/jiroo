@@ -208,6 +208,7 @@ export function ItemDetailPanel({
               <LabelsField
                 itemId={detail.id}
                 backlogKey={backlogKey}
+                backlogId={detail.backlogId}
                 itemLabelIds={itemLabelIds}
                 backlogLabels={backlogLabels}
               />
