@@ -1,19 +1,25 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { listBacklogs } from "@/lib/services/backlogs";
+import { listVisibleViews } from "@/lib/services/views";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  const backlogs = await listBacklogs();
+  const [backlogs, views] = await Promise.all([
+    listBacklogs(),
+    listVisibleViews(session.user.id),
+  ]);
   const role = (session.user as { role?: string }).role ?? "viewer";
   const twoFactorEnabled = (session.user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? false;
   return (
     <div className="grid h-screen grid-cols-[248px_1fr] overflow-hidden">
       <Sidebar
         backlogs={backlogs}
+        views={views}
+        userId={session.user.id}
         user={{ name: session.user.name, email: session.user.email, role }}
       />
       <div className="flex min-w-0 flex-col">

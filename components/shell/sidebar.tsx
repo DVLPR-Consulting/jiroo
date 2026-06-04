@@ -1,15 +1,21 @@
 import Link from "next/link";
 import { Layers, Settings, Trash2, User } from "lucide-react";
 import { BacklogSelector } from "@/components/shell/backlog-selector";
+import { SidebarViews } from "@/components/shell/sidebar-views";
 import { UserCard } from "@/components/shell/user-card";
+import type { SidebarViewRow } from "@/components/shell/sidebar-views";
 
 type Backlog = { id: string; key: string; name: string; color: string };
 
 export function Sidebar({
   backlogs,
+  views,
+  userId,
   user,
 }: {
   backlogs: Backlog[];
+  views: SidebarViewRow[];
+  userId: string;
   user: { name: string; email: string; role: string };
 }) {
   return (
@@ -42,11 +48,8 @@ export function Sidebar({
         </span>
       </div>
 
-      {/* Views (placeholder — later lot) */}
-      <div className="t-meta px-2 pt-3 pb-1 text-muted-foreground">Vues perso</div>
-      <div className="px-2 py-1 text-sm text-muted-foreground">Aucune vue</div>
-      <div className="t-meta px-2 pt-3 pb-1 text-muted-foreground">Vues partagées</div>
-      <div className="px-2 py-1 text-sm text-muted-foreground">Aucune vue</div>
+      {/* Saved views — personal & shared */}
+      <SidebarViews views={views} userId={userId} backlogs={backlogs} />
 
       {/* Bottom */}
       <div className="mt-auto flex flex-col gap-1">

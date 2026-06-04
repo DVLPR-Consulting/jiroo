@@ -20,6 +20,19 @@ export type { ViewRow };
 // ---- reads (no tx) ----
 
 /**
+ * Returns ALL views visible to `userId` across every backlog — i.e. rows
+ * where `ownerId === userId` OR `shared === true` — ordered by name asc.
+ * Used by the app layout to feed the sidebar once at the top level.
+ */
+export async function listVisibleViews(userId: string) {
+  return db
+    .select()
+    .from(views)
+    .where(or(eq(views.ownerId, userId), eq(views.shared, true)))
+    .orderBy(asc(views.name));
+}
+
+/**
  * Returns all views visible to `userId` for the given backlog, split into
  * `personal` (owned by the user) and `shared` (other users' shared views).
  * Rows are ordered by name ascending before partitioning so each bucket is
