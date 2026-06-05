@@ -13,6 +13,7 @@ import {
   listUsers,
 } from "@/lib/services/items";
 import { listComments } from "@/lib/services/comments";
+import { listLinksForItem } from "@/lib/services/links";
 import { moveItemAction, reparentItemAction } from "@/app/actions/items";
 import {
   parseViewState,
@@ -265,13 +266,19 @@ export default async function BacklogPage({
   );
 
   // Reuse the already-fetched backlogLabelRows for the detail panel (avoids a second DB round-trip).
-  const [activities, itemLabelIds, comments] = showPanel
+  const [activities, itemLabelIds, comments, links] = showPanel
     ? await Promise.all([
         listActivities(detail.id),
         getItemLabelIds(detail.id),
         listComments(detail.id),
+        listLinksForItem(detail.id),
       ])
-    : [[], [], []];
+    : [[], [], [], []];
+
+  // Build picker candidates from the already-loaded items list (live items only).
+  const candidates = showPanel
+    ? items.map((i) => ({ id: i.id, key: i.key, title: i.title, type: i.type }))
+    : [];
 
   // Bug 2: board status filter hides unselected columns — pass only the selected
   // statuses when a status filter is active; all statuses otherwise.
@@ -371,6 +378,8 @@ export default async function BacklogPage({
           users={usersForFilter}
           statuses={statusList}
           backlogKey={key}
+          links={links}
+          candidates={candidates}
         />
       )}
     </div>
