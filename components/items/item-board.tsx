@@ -29,7 +29,8 @@ import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { LabelPill } from "@/components/items/label-pill";
-import { LABEL_HUES, type ItemType, type LabelHue, type Priority } from "@/lib/design/constants";
+import { LABEL_HUES, type ItemKind, type ItemType, type LabelHue, type Priority } from "@/lib/design/constants";
+import { KindIcon } from "@/components/icons/kind-icon";
 import type { moveItemAction as MoveItemAction } from "@/app/actions/items";
 
 export type BoardCard = {
@@ -48,6 +49,8 @@ export type BoardCard = {
   labels?: { id: string; name: string; color: string }[];
   /** True when this item is the target of an unfinished `blocks` link. */
   blocked?: boolean;
+  /** Bug or feature classification (orthogonal to hierarchy type). */
+  kind?: ItemKind;
 };
 
 export type BoardGroup = "assignee" | "priority" | "parent" | null;
@@ -193,6 +196,7 @@ function CardInner({ card }: { card: BoardCard; backlogKey: string }) {
       <div className="flex items-center gap-1.5">
         <TypeIcon type={card.type} size={14} />
         <ItemKey value={card.key} />
+        {card.kind && <KindIcon kind={card.kind} />}
         <span className="ml-auto">
           <PrioIcon priority={asPriority(card.priority)} />
         </span>

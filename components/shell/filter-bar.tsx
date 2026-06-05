@@ -12,6 +12,8 @@ import {
   type SortField,
 } from "@/lib/items/filter";
 import {
+  ITEM_KIND_LABELS,
+  ITEM_KINDS,
   ITEM_TYPE_LABELS,
   ITEM_TYPES,
   PRIORITIES,
@@ -93,6 +95,10 @@ export function FilterBar({
     ...users.map((u) => ({ value: u.id, label: u.name })),
   ];
   const labelOpts: Option[] = labels.map((l) => ({ value: l.id, label: l.name }));
+  const kindOpts: Option[] = ITEM_KINDS.map((k) => ({
+    value: k,
+    label: ITEM_KIND_LABELS[k],
+  }));
 
   const active = isFiltersActive(state.filters);
 
@@ -140,6 +146,12 @@ export function FilterBar({
           onChange={(v) => setFilters({ labels: v })}
         />
       )}
+      <FilterMenu
+        label="Nature"
+        options={kindOpts}
+        selected={state.filters.kind}
+        onChange={(v) => setFilters({ kind: v as typeof state.filters.kind })}
+      />
 
       {active && (
         <button
@@ -155,6 +167,7 @@ export function FilterBar({
                 priorities: [],
                 assignees: [],
                 labels: [],
+                kind: [],
               },
             });
           }}

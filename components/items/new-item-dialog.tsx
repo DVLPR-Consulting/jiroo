@@ -17,10 +17,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TypeIcon } from "@/components/icons/type-icon";
 import {
+  ITEM_KINDS,
+  ITEM_KIND_LABELS,
   ITEM_TYPES,
   ITEM_TYPE_LABELS,
   PRIORITIES,
   PRIORITY_LABELS,
+  type ItemKind,
   type ItemType,
   type Priority,
 } from "@/lib/design/constants";
@@ -49,6 +52,7 @@ export function NewItemButton({
   const [open, setOpen] = useState(false);
 
   const [type, setType] = useState<ItemType>("composant");
+  const [kind, setKind] = useState<ItemKind>("feature");
   const [title, setTitle] = useState("");
   const [parentId, setParentId] = useState<string>("");
   const [statusId, setStatusId] = useState<string>("");
@@ -63,6 +67,7 @@ export function NewItemButton({
 
   function reset() {
     setType("composant");
+    setKind("feature");
     setTitle("");
     setParentId("");
     setStatusId("");
@@ -90,6 +95,7 @@ export function NewItemButton({
         backlogKey,
         backlogId,
         type,
+        kind,
         parentId: requiredParentType ? parentId || null : null,
         title: title.trim(),
         statusId: statusId || undefined,
@@ -208,6 +214,22 @@ export function NewItemButton({
               {PRIORITIES.map((p) => (
                 <option key={p} value={p}>
                   {PRIORITY_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="item-kind">Nature</Label>
+            <select
+              id="item-kind"
+              className={FIELD}
+              value={kind}
+              onChange={(e) => setKind(e.target.value as ItemKind)}
+            >
+              {ITEM_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {ITEM_KIND_LABELS[k]}
                 </option>
               ))}
             </select>

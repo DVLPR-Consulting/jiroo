@@ -43,6 +43,13 @@
       "when": 1780647651139,
       "tag": "0005_nappy_mister_sinister",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780649818114,
+      "tag": "0006_neat_hawkeye",
+      "breakpoints": true
     }
   ]
 }

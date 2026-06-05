@@ -120,6 +120,7 @@ export default async function BacklogPage({
     updatedAt: i.updatedAt,
     rank: i.rank,
     labelIds: (labelsByItem.get(i.id) ?? []).map((l) => l.id),
+    kind: i.kind,
   }));
   const filtersOn = isFiltersActive(viewState.filters);
   const matchedIds = new Set(
@@ -205,6 +206,7 @@ export default async function BacklogPage({
       subCount: childCount.get(i.id) ?? 0,
       labels: labelsByItem.get(i.id) ?? [],
       blocked: blockedSet.has(i.id),
+      kind: i.kind,
     }));
 
   // Board swimlanes: status is the columns, so it never groups the board. Build

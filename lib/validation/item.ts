@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ITEM_TYPES } from "@/lib/design/constants";
+import { ITEM_KINDS, ITEM_TYPES } from "@/lib/design/constants";
 
 const itemType = z.enum(ITEM_TYPES);
 const title = z.string().trim().min(1, "Le titre est requis.").max(200, "Titre trop long (200 max).");
@@ -22,6 +22,7 @@ export const createItemSchema = z
     description,
     statusId: z.uuid("Statut invalide.").optional(),
     priority: priority.default(0),
+    kind: z.enum(ITEM_KINDS).default("feature"),
     assigneeId,
     dueDate,
     labelIds,
@@ -37,6 +38,7 @@ export const updateItemSchema = z.object({
   description,
   statusId: z.uuid().optional(),
   priority: priority.optional(),
+  kind: z.enum(ITEM_KINDS).optional(),
   assigneeId,
   dueDate,
   labelIds: z.array(z.uuid()).optional(),

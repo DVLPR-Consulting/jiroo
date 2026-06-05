@@ -12,7 +12,7 @@ import {
 } from "./filter";
 
 const empty: ViewState = {
-  filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [] },
+  filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [] },
   group: null,
   sort: null,
 };
@@ -34,6 +34,7 @@ describe("parseViewState", () => {
         priorities: [3, 4],
         assignees: ["none", "u1"],
         labels: [],
+        kind: [],
       },
       group: "assignee",
       sort: { field: "priority", dir: "desc" },
@@ -52,12 +53,26 @@ describe("parseViewState", () => {
   it("dedups repeated CSV values", () => {
     expect(parseViewState(new URLSearchParams("type=tache,tache")).filters.types).toEqual(["tache"]);
   });
+
+  it("parses kind param correctly", () => {
+    const sp = new URLSearchParams("kind=bug");
+    expect(parseViewState(sp).filters.kind).toEqual(["bug"]);
+  });
+
+  it("filters out invalid kind values on parse", () => {
+    const sp = new URLSearchParams("kind=bug,invalid,feature");
+    expect(parseViewState(sp).filters.kind).toEqual(["bug", "feature"]);
+  });
+
+  it("returns empty kind array when param is absent", () => {
+    expect(parseViewState(new URLSearchParams()).filters.kind).toEqual([]);
+  });
 });
 
 describe("writeViewState ⇄ parseViewState round-trip", () => {
   it("round-trips a full state", () => {
     const state: ViewState = {
-      filters: { q: "abc", types: ["epic"], statusIds: ["s1"], priorities: [0], assignees: ["none"], labels: [] },
+      filters: { q: "abc", types: ["epic"], statusIds: ["s1"], priorities: [0], assignees: ["none"], labels: [], kind: [] },
       group: "priority",
       sort: { field: "key", dir: "asc" },
     };
@@ -77,7 +92,7 @@ describe("writeViewState ⇄ parseViewState round-trip", () => {
 
   it("round-trips label ids", () => {
     const state: ViewState = {
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: ["id1", "id2"] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: ["id1", "id2"], kind: [] },
       group: null,
       sort: null,
     };
@@ -92,10 +107,28 @@ describe("writeViewState ⇄ parseViewState round-trip", () => {
     writeViewState(sp, empty);
     expect(sp.get("label")).toBeNull();
   });
+
+  it("round-trips kind param", () => {
+    const state: ViewState = {
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: ["bug"] },
+      group: null,
+      sort: null,
+    };
+    const sp = new URLSearchParams();
+    writeViewState(sp, state);
+    expect(sp.get("kind")).toBe("bug");
+    expect(parseViewState(sp)).toEqual(state);
+  });
+
+  it("omits the kind param when kind is empty", () => {
+    const sp = new URLSearchParams("kind=bug");
+    writeViewState(sp, empty);
+    expect(sp.get("kind")).toBeNull();
+  });
 });
 
 const item = (over: Partial<FilterItem> = {}): FilterItem => ({
-  id: "i1", key: "CASS-1", type: "tache", title: "Générer le QR code", description: "scan",
+  id: "i1", key: "CASS-1", type: "tache", kind: "feature", title: "Générer le QR code", description: "scan",
   statusId: "s1", priority: 2, assigneeId: "u1", parentId: "p1", path: "aa.bb",
   depth: 0,
   dueDate: null, createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-02"), rank: "a1",
@@ -105,20 +138,21 @@ const item = (over: Partial<FilterItem> = {}): FilterItem => ({
 
 describe("isFiltersActive", () => {
   it("is false for the empty filter set", () => {
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [] })).toBe(false);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [] })).toBe(false);
   });
   it("is true when any dimension is set", () => {
-    expect(isFiltersActive({ q: "", types: ["tache"], statusIds: [], priorities: [], assignees: [], labels: [] })).toBe(true);
-    expect(isFiltersActive({ q: "x", types: [], statusIds: [], priorities: [], assignees: [], labels: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: ["s1"], priorities: [], assignees: [], labels: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [2], assignees: [], labels: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: ["u1"], labels: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: ["lbl-1"] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: ["tache"], statusIds: [], priorities: [], assignees: [], labels: [], kind: [] })).toBe(true);
+    expect(isFiltersActive({ q: "x", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: ["s1"], priorities: [], assignees: [], labels: [], kind: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [2], assignees: [], labels: [], kind: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: ["u1"], labels: [], kind: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: ["lbl-1"], kind: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: ["bug"] })).toBe(true);
   });
 });
 
 describe("matchItem", () => {
-  const f = (over = {}) => ({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], ...over });
+  const f = (over = {}) => ({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], ...over });
 
   it("matches everything when no filter is active", () => {
     expect(matchItem(item(), f())).toBe(true);
@@ -154,6 +188,45 @@ describe("matchItem", () => {
   it("label facet: inactive (labels: []) ignores labelIds entirely", () => {
     expect(matchItem(item({ labelIds: [] }), f({ labels: [] }))).toBe(true);
     expect(matchItem(item({ labelIds: ["lbl-1"] }), f({ labels: [] }))).toBe(true);
+  });
+
+  it("kind facet: item with matching kind passes (feature)", () => {
+    expect(matchItem(item({ kind: "feature" }), f({ kind: ["feature"] }))).toBe(true);
+  });
+
+  it("kind facet: item with matching kind passes (bug)", () => {
+    expect(matchItem(item({ kind: "bug" }), f({ kind: ["bug"] }))).toBe(true);
+  });
+
+  it("kind facet: item with non-matching kind is excluded", () => {
+    expect(matchItem(item({ kind: "feature" }), f({ kind: ["bug"] }))).toBe(false);
+  });
+
+  it("kind facet: inactive (kind: []) ignores item kind entirely", () => {
+    expect(matchItem(item({ kind: "feature" }), f({ kind: [] }))).toBe(true);
+    expect(matchItem(item({ kind: "bug" }), f({ kind: [] }))).toBe(true);
+  });
+
+  it("kind facet: OR within facet — both bug and feature selected matches any kind", () => {
+    expect(matchItem(item({ kind: "feature" }), f({ kind: ["bug", "feature"] }))).toBe(true);
+    expect(matchItem(item({ kind: "bug" }), f({ kind: ["bug", "feature"] }))).toBe(true);
+  });
+
+  it("kind facet is ANDed with other facets (combined gate)", () => {
+    // passes both type and kind
+    expect(
+      matchItem(
+        item({ type: "tache", kind: "bug" }),
+        f({ types: ["tache"], kind: ["bug"] }),
+      ),
+    ).toBe(true);
+    // fails kind gate even though type passes
+    expect(
+      matchItem(
+        item({ type: "tache", kind: "feature" }),
+        f({ types: ["tache"], kind: ["bug"] }),
+      ),
+    ).toBe(false);
   });
 
   it("labels are ANDed across other facets (combined gate)", () => {
