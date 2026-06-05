@@ -7,7 +7,7 @@ import * as schema from "@/lib/db/schema";
 export const auth = betterAuth({
   appName: "Jiroo",
   database: drizzleAdapter(db, { provider: "pg", schema }),
-  emailAndPassword: { enabled: true },
+  emailAndPassword: { enabled: true, autoSignIn: false },
   user: {
     additionalFields: {
       role: { type: "string", required: false, defaultValue: "contributor", input: false },
