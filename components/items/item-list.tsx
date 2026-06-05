@@ -17,6 +17,8 @@ type Item = {
   depth: number;
   /** Label objects attached in T4; rendered as chips in T5. */
   labels?: LabelChip[];
+  /** True when this item is the target of an unfinished `blocks` link. */
+  blocked?: boolean;
 };
 
 type Group = { key: string; label: string; items: Item[] };
@@ -77,6 +79,17 @@ function Row({
             {item.labels.map((label) => (
               <LabelPill key={label.id} name={label.name} color={label.color} />
             ))}
+          </span>
+        )}
+        {item.blocked && (
+          <span
+            className="inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-medium"
+            style={{
+              color: "var(--danger)",
+              background: "color-mix(in oklch, var(--danger) 14%, transparent)",
+            }}
+          >
+            bloqué
           </span>
         )}
         <StatusPill status={statuses[item.statusId]} />
