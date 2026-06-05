@@ -46,6 +46,8 @@ export type BoardCard = {
   subCount?: number;
   /** Label objects attached in T4; rendered as chips in T5. */
   labels?: { id: string; name: string; color: string }[];
+  /** True when this item is the target of an unfinished `blocks` link. */
+  blocked?: boolean;
 };
 
 export type BoardGroup = "assignee" | "priority" | "parent" | null;
@@ -203,6 +205,19 @@ function CardInner({ card }: { card: BoardCard; backlogKey: string }) {
           {card.labels.map((label) => (
             <LabelPill key={label.id} name={label.name} color={label.color} />
           ))}
+        </div>
+      )}
+      {card.blocked && (
+        <div className="mt-1.5">
+          <span
+            className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium"
+            style={{
+              color: "var(--danger)",
+              background: "color-mix(in oklch, var(--danger) 14%, transparent)",
+            }}
+          >
+            bloqué
+          </span>
         </div>
       )}
       <div className="mt-2 flex items-center justify-between">

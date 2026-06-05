@@ -24,12 +24,15 @@ import {
   LabelsField,
 } from "@/components/items/detail/field-editors";
 import { ITEM_TYPE_LABELS } from "@/lib/design/constants";
+import type { ItemType } from "@/lib/design/constants";
 import type { CommentRow } from "@/lib/services/comments";
+import type { LinkWithOther } from "@/lib/services/links";
 import type {
   activities as activitiesTable,
   items as itemsTable,
   labels as labelsTable,
 } from "@/lib/db/schema/domain";
+import { LinksSection } from "@/components/items/detail/links-section";
 
 type ItemRow = typeof itemsTable.$inferSelect;
 type ActivityRow = typeof activitiesTable.$inferSelect;
@@ -61,6 +64,8 @@ export function ItemDetailPanel({
   users,
   statuses,
   backlogKey,
+  links,
+  candidates,
 }: {
   detail: ItemRow;
   activities: ActivityRow[];
@@ -71,6 +76,8 @@ export function ItemDetailPanel({
   users: UserLite[];
   statuses: StatusLite[];
   backlogKey: string;
+  links: LinkWithOther[];
+  candidates: { id: string; key: string; title: string; type: ItemType }[];
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<"detail" | "comments" | "activity">("detail");
@@ -246,6 +253,15 @@ export function ItemDetailPanel({
                 itemId={detail.id}
                 backlogKey={backlogKey}
                 dueDate={detail.dueDate}
+              />
+            </Field>
+
+            <Field label="Liens">
+              <LinksSection
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                links={links}
+                candidates={candidates}
               />
             </Field>
 

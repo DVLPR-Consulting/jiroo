@@ -36,6 +36,13 @@
       "when": 1780498651219,
       "tag": "0004_panoramic_thunderbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780647651139,
+      "tag": "0005_nappy_mister_sinister",
+      "breakpoints": true
     }
   ]
 }

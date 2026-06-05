@@ -13,6 +13,7 @@ import {
   listUsers,
 } from "@/lib/services/items";
 import { listComments } from "@/lib/services/comments";
+import { listLinksForItem, blockedItemIds } from "@/lib/services/links";
 import { moveItemAction, reparentItemAction } from "@/app/actions/items";
 import {
   parseViewState,
@@ -85,10 +86,14 @@ export default async function BacklogPage({
       displayMode: view as DisplayMode,
     });
 
-  const [items, labelPairs] = await Promise.all([
+  const [items, labelPairs, blockedIds] = await Promise.all([
     listItems(backlog.id),
     listItemLabelPairs(backlog.id),
+    blockedItemIds(backlog.id),
   ]);
+
+  // Set of item ids that are blocked by an unfinished item — used to drive the badge.
+  const blockedSet = new Set(blockedIds);
 
   // Build a map from itemId to its array of label objects for quick lookup.
   const labelsByItem = new Map<string, { id: string; name: string; color: string }[]>();
@@ -199,6 +204,7 @@ export default async function BacklogPage({
       assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
       subCount: childCount.get(i.id) ?? 0,
       labels: labelsByItem.get(i.id) ?? [],
+      blocked: blockedSet.has(i.id),
     }));
 
   // Board swimlanes: status is the columns, so it never groups the board. Build
@@ -265,13 +271,19 @@ export default async function BacklogPage({
   );
 
   // Reuse the already-fetched backlogLabelRows for the detail panel (avoids a second DB round-trip).
-  const [activities, itemLabelIds, comments] = showPanel
+  const [activities, itemLabelIds, comments, links] = showPanel
     ? await Promise.all([
         listActivities(detail.id),
         getItemLabelIds(detail.id),
         listComments(detail.id),
+        listLinksForItem(detail.id),
       ])
-    : [[], [], []];
+    : [[], [], [], []];
+
+  // Build picker candidates from the already-loaded items list (live items only).
+  const candidates = showPanel
+    ? items.map((i) => ({ id: i.id, key: i.key, title: i.title, type: i.type }))
+    : [];
 
   // Bug 2: board status filter hides unselected columns — pass only the selected
   // statuses when a status filter is active; all statuses otherwise.
@@ -328,7 +340,11 @@ export default async function BacklogPage({
           groups={listGroups.map(([key, rows]) => ({
             key,
             label: groupLabel(key),
-            items: rows.map((r) => ({ ...r, labels: labelsByItem.get(r.id) ?? [] })),
+            items: rows.map((r) => ({
+            ...r,
+            labels: labelsByItem.get(r.id) ?? [],
+            blocked: blockedSet.has(r.id),
+          })),
           }))}
           grouped={viewState.group !== null}
           statuses={statusMap}
@@ -371,6 +387,8 @@ export default async function BacklogPage({
           users={usersForFilter}
           statuses={statusList}
           backlogKey={key}
+          links={links}
+          candidates={candidates}
         />
       )}
     </div>
