@@ -27,6 +27,7 @@ import {
   type ItemType,
   type Priority,
 } from "@/lib/design/constants";
+import { ITEM_TEMPLATES, getTemplate } from "@/lib/items/templates";
 import { allowedParentType } from "@/lib/tree/hierarchy";
 
 type Item = { id: string; key: string; type: ItemType; title: string };
@@ -51,9 +52,11 @@ export function NewItemButton({
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
 
+  const [templateId, setTemplateId] = useState<string>("");
   const [type, setType] = useState<ItemType>("composant");
   const [kind, setKind] = useState<ItemKind>("feature");
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState<string>("");
   const [parentId, setParentId] = useState<string>("");
   const [statusId, setStatusId] = useState<string>("");
   const [priority, setPriority] = useState<Priority>(0);
@@ -66,13 +69,30 @@ export function NewItemButton({
   );
 
   function reset() {
+    setTemplateId("");
     setType("composant");
     setKind("feature");
     setTitle("");
+    setDescription("");
     setParentId("");
     setStatusId("");
     setPriority(0);
     setError(null);
+  }
+
+  function handleTemplateChange(id: string) {
+    setTemplateId(id);
+    if (!id) {
+      // "Aucun" selected — reset template-seeded fields to defaults
+      setKind("feature");
+      setDescription("");
+      return;
+    }
+    const tpl = getTemplate(id);
+    if (tpl) {
+      setKind(tpl.kind);
+      setDescription(tpl.description);
+    }
   }
 
   function handleTypeChange(next: ItemType) {
@@ -98,6 +118,7 @@ export function NewItemButton({
         kind,
         parentId: requiredParentType ? parentId || null : null,
         title: title.trim(),
+        description: description || null,
         statusId: statusId || undefined,
         priority,
       });
@@ -133,6 +154,23 @@ export function NewItemButton({
           <DialogTitle>Nouvel item</DialogTitle>
         </DialogHeader>
         <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <Label htmlFor="item-template">Modèle</Label>
+            <select
+              id="item-template"
+              className={FIELD}
+              value={templateId}
+              onChange={(e) => handleTemplateChange(e.target.value)}
+            >
+              <option value="">Aucun</option>
+              {ITEM_TEMPLATES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="item-type">Type</Label>
             <select
