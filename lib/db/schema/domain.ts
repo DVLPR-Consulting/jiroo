@@ -22,6 +22,7 @@ import {
   itemTypeEnum,
   linkTypeEnum,
   notificationTypeEnum,
+  refKindEnum,
   statusCategoryEnum,
 } from "./enums";
 import { ltree, tsvector } from "./types";
@@ -196,4 +197,19 @@ export const itemLinks = pgTable(
     uniqueIndex("item_links_uniq").on(t.sourceId, t.targetId, t.type),
     check("item_links_no_self", sql`${t.sourceId} <> ${t.targetId}`),
   ],
+);
+
+export const itemRefs = pgTable(
+  "item_refs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    kind: refKindEnum("kind").notNull(),
+    createdBy: text("created_by").references(() => user.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("item_refs_item_idx").on(t.itemId)],
 );

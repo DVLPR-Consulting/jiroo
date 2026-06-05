@@ -14,6 +14,7 @@ import {
 } from "@/lib/services/items";
 import { listComments } from "@/lib/services/comments";
 import { listLinksForItem, blockedItemIds } from "@/lib/services/links";
+import { listRefsForItem } from "@/lib/services/refs";
 import { moveItemAction, reparentItemAction } from "@/app/actions/items";
 import {
   parseViewState,
@@ -273,14 +274,15 @@ export default async function BacklogPage({
   );
 
   // Reuse the already-fetched backlogLabelRows for the detail panel (avoids a second DB round-trip).
-  const [activities, itemLabelIds, comments, links] = showPanel
+  const [activities, itemLabelIds, comments, links, refs] = showPanel
     ? await Promise.all([
         listActivities(detail.id),
         getItemLabelIds(detail.id),
         listComments(detail.id),
         listLinksForItem(detail.id),
+        listRefsForItem(detail.id),
       ])
-    : [[], [], [], []];
+    : [[], [], [], [], []];
 
   // Build picker candidates from the already-loaded items list (live items only).
   const candidates = showPanel
@@ -391,6 +393,7 @@ export default async function BacklogPage({
           backlogKey={key}
           links={links}
           candidates={candidates}
+          refs={refs}
         />
       )}
     </div>

@@ -34,6 +34,7 @@ import type {
   labels as labelsTable,
 } from "@/lib/db/schema/domain";
 import { LinksSection } from "@/components/items/detail/links-section";
+import { DevRefsSection } from "@/components/items/detail/dev-refs-section";
 
 type ItemRow = typeof itemsTable.$inferSelect;
 type ActivityRow = typeof activitiesTable.$inferSelect;
@@ -67,6 +68,7 @@ export function ItemDetailPanel({
   backlogKey,
   links,
   candidates,
+  refs,
 }: {
   detail: ItemRow;
   activities: ActivityRow[];
@@ -79,6 +81,7 @@ export function ItemDetailPanel({
   backlogKey: string;
   links: LinkWithOther[];
   candidates: { id: string; key: string; title: string; type: ItemType }[];
+  refs: { id: string; url: string; kind: string; createdAt: Date | string }[];
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<"detail" | "comments" | "activity">("detail");
@@ -271,6 +274,14 @@ export function ItemDetailPanel({
                 backlogKey={backlogKey}
                 links={links}
                 candidates={candidates}
+              />
+            </Field>
+
+            <Field label="Développement">
+              <DevRefsSection
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                refs={refs}
               />
             </Field>
 
