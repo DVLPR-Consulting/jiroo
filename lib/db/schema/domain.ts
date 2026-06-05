@@ -19,6 +19,7 @@ import {
   activityActionEnum,
   displayModeEnum,
   itemTypeEnum,
+  linkTypeEnum,
   notificationTypeEnum,
   statusCategoryEnum,
 } from "./enums";
@@ -172,3 +173,25 @@ export const views = pgTable("views", {
   filters: jsonb("filters").notNull().default(sql`'{}'::jsonb`),
   sort: jsonb("sort").notNull().default(sql`'"manual"'::jsonb`),
 });
+
+export const itemLinks = pgTable(
+  "item_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    targetId: uuid("target_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    type: linkTypeEnum("type").notNull(),
+    createdBy: text("created_by").references(() => user.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("item_links_source_idx").on(t.sourceId),
+    index("item_links_target_idx").on(t.targetId),
+    uniqueIndex("item_links_uniq").on(t.sourceId, t.targetId, t.type),
+    check("item_links_no_self", sql`${t.sourceId} <> ${t.targetId}`),
+  ],
+);
