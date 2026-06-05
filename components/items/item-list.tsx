@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
+import { StatusDot } from "@/components/icons/status-dot";
 import { KindIcon } from "@/components/icons/kind-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { LabelPill } from "@/components/items/label-pill";
-import type { ItemKind, ItemType, Priority } from "@/lib/design/constants";
+import type { ItemKind, ItemType, Priority, StatusId } from "@/lib/design/constants";
 
 type LabelChip = { id: string; name: string; color: string };
 
@@ -32,16 +33,18 @@ function asPriority(value: number): Priority {
   return Math.min(4, Math.max(0, value)) as Priority;
 }
 
-function StatusPill({ status }: { status?: { name: string; color: string } }) {
-  if (!status) return null;
+function StatusPill({
+  statusId,
+  statusName,
+}: {
+  statusId?: string;
+  statusName?: string;
+}) {
+  if (!statusId || !statusName) return null;
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
-      <span
-        className="size-2 shrink-0 rounded-full"
-        style={{ background: status.color }}
-        aria-hidden
-      />
-      {status.name}
+      <StatusDot status={statusId as StatusId} />
+      {statusName}
     </span>
   );
 }
@@ -69,10 +72,13 @@ function Row({
     <li className="border-b border-border">
       <Link
         href={href}
-        className={`flex items-center gap-2.5 py-2 pr-4 transition-colors hover:bg-muted/50 ${
+        className={`flex items-center gap-2.5 py-1 pr-4 transition-colors hover:bg-muted/50 ${
           isSelected ? "bg-[var(--accent-subtle)]" : ""
         }`}
-        style={{ paddingLeft: grouped ? 12 : 12 + item.depth * 20 }}
+        style={{
+          paddingLeft: grouped ? 12 : 12 + item.depth * 20,
+          minHeight: "var(--row-h)",
+        }}
       >
         <TypeIcon type={item.type} />
         <ItemKey value={item.key} />
@@ -96,7 +102,7 @@ function Row({
             bloqué
           </span>
         )}
-        <StatusPill status={statuses[item.statusId]} />
+        <StatusPill statusId={item.statusId} statusName={statuses[item.statusId]?.name} />
         <PrioIcon priority={asPriority(item.priority)} />
       </Link>
     </li>

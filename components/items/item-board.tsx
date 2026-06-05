@@ -24,13 +24,15 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { generateKeyBetween } from "fractional-indexing";
+import { Calendar } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { LabelPill } from "@/components/items/label-pill";
-import { LABEL_HUES, type ItemKind, type ItemType, type LabelHue, type Priority } from "@/lib/design/constants";
+import { LABEL_HUES, type ItemKind, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
 import { KindIcon } from "@/components/icons/kind-icon";
+import { StatusDot } from "@/components/icons/status-dot";
 import type { moveItemAction as MoveItemAction } from "@/app/actions/items";
 
 export type BoardCard = {
@@ -51,6 +53,8 @@ export type BoardCard = {
   blocked?: boolean;
   /** Bug or feature classification (orthogonal to hierarchy type). */
   kind?: ItemKind;
+  /** Optional due date; rendered in card footer as a short French date. */
+  dueDate?: Date | string | null;
 };
 
 export type BoardGroup = "assignee" | "priority" | "parent" | null;
@@ -175,11 +179,12 @@ function SortableCard({
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.4 : 1,
+        padding: "var(--card-pad)",
       }}
       {...attributes}
       {...listeners}
       onClick={() => onOpen(card.key)}
-      className="cursor-grab rounded-[var(--radius-md)] border border-border bg-[var(--surface)] p-3 shadow-[var(--shadow-xs)] active:cursor-grabbing"
+      className="cursor-grab rounded-[var(--radius-md)] border border-border bg-[var(--surface)] shadow-[var(--shadow-xs)] active:cursor-grabbing"
       role="button"
       tabIndex={0}
       aria-label={`${card.key} — ${card.title}`}
@@ -187,6 +192,11 @@ function SortableCard({
       <CardInner card={card} backlogKey={backlogKey} />
     </div>
   );
+}
+
+/** Format a due date as a short French date: "12 juin". */
+function formatDueDate(d: Date | string): string {
+  return new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
 // Visual body shared by sortable cards and the drag overlay.
@@ -201,7 +211,10 @@ function CardInner({ card }: { card: BoardCard; backlogKey: string }) {
           <PrioIcon priority={asPriority(card.priority)} />
         </span>
       </div>
-      <p className="mt-1.5 text-[13px] leading-snug" style={{ textWrap: "pretty" }}>
+      <p
+        className="mt-1.5 text-[13px] font-medium"
+        style={{ textWrap: "pretty", lineHeight: 1.42 }}
+      >
         {card.title}
       </p>
       {card.labels && card.labels.length > 0 && (
@@ -225,9 +238,21 @@ function CardInner({ card }: { card: BoardCard; backlogKey: string }) {
         </div>
       )}
       <div className="mt-2 flex items-center justify-between">
-        <span className="item-key inline-flex items-center gap-1">
-          {card.subCount && card.subCount > 0 ? `${card.subCount} sous-item${card.subCount > 1 ? "s" : ""}` : ""}
+        {/* Left cluster: due date + subtask count */}
+        <span className="inline-flex items-center gap-1.5">
+          {card.dueDate && (
+            <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground">
+              <Calendar size={12} />
+              {formatDueDate(card.dueDate)}
+            </span>
+          )}
+          {card.subCount && card.subCount > 0 ? (
+            <span className="item-key inline-flex items-center gap-1">
+              {`⌐ ${card.subCount}`}
+            </span>
+          ) : null}
         </span>
+        {/* Right: assignee avatar */}
         {card.assigneeName ? (
           <InitialsAvatar name={card.assigneeName} hue={hueFor(card.assigneeName)} size={22} />
         ) : (
@@ -267,11 +292,7 @@ function Column({
   return (
     <div className="flex w-[296px] flex-none flex-col rounded-[var(--radius-lg)] border border-border bg-[var(--surface-2)]">
       <div className="flex items-center gap-2 px-3 py-2.5">
-        <span
-          aria-hidden
-          className="size-2.5 flex-none rounded-full"
-          style={{ background: status.color }}
-        />
+        <StatusDot status={status.id as StatusId} size={14} />
         <span className="text-[13px] font-medium">{status.name}</span>
         <span className="item-key ml-auto rounded-[var(--radius-sm)] bg-[var(--surface)] px-1.5 py-0.5">
           {cards.length}
@@ -583,8 +604,8 @@ export function ItemBoard({
         <DragOverlay modifiers={[restrictToWindowEdges]}>
           {activeCard ? (
             <div
-              className="rounded-[var(--radius-md)] border border-border bg-[var(--surface)] p-3 shadow-[var(--shadow-md)]"
-              style={{ transform: "rotate(2deg)", width: 280 }}
+              className="rounded-[var(--radius-md)] border border-border bg-[var(--surface)] shadow-[var(--shadow-md)]"
+              style={{ transform: "rotate(2deg)", width: 280, padding: "var(--card-pad)" }}
             >
               <CardInner card={activeCard} backlogKey={backlogKey} />
             </div>

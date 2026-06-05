@@ -31,6 +31,7 @@ export function listTrashedItems() {
       backlogKey: backlogs.key,
       backlogName: backlogs.name,
       backlogColor: backlogs.color,
+      statusId: items.statusId,
       statusName: statuses.name,
       statusColor: statuses.color,
       deletedAt: items.deletedAt,

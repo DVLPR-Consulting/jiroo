@@ -4,8 +4,9 @@ import { getSession } from "@/lib/auth/session";
 import { listItemsAssignedTo } from "@/lib/services/items";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
+import { StatusDot } from "@/components/icons/status-dot";
 import { ItemKey } from "@/components/jiroo/item-key";
-import type { ItemType, Priority } from "@/lib/design/constants";
+import type { ItemType, Priority, StatusId } from "@/lib/design/constants";
 
 // Clamp DB integer priority into the 0..4 union PrioIcon expects.
 function asPriority(value: number): Priority {
@@ -14,14 +15,10 @@ function asPriority(value: number): Priority {
 
 type Row = Awaited<ReturnType<typeof listItemsAssignedTo>>[number];
 
-function StatusPill({ name, color }: { name: string; color: string }) {
+function StatusPill({ statusId, name }: { statusId: string; name: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
-      <span
-        className="size-2 shrink-0 rounded-full"
-        style={{ background: color }}
-        aria-hidden
-      />
+      <StatusDot status={statusId as StatusId} />
       {name}
     </span>
   );
@@ -38,7 +35,7 @@ function ItemRow({ row }: { row: Row }) {
         <TypeIcon type={row.type as ItemType} />
         <ItemKey value={row.key} />
         <span className="min-w-0 flex-1 truncate text-sm">{row.title}</span>
-        <StatusPill name={row.statusName} color={row.statusColor} />
+        <StatusPill statusId={row.statusId} name={row.statusName} />
         <PrioIcon priority={asPriority(row.priority)} />
       </Link>
     </li>

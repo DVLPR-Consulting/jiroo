@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
+import { StatusDot } from "@/components/icons/status-dot";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { LINK_TYPES, LINK_TYPE_META, groupLinksForDisplay } from "@/lib/items/links";
 import { addLinkAction, removeLinkAction } from "@/app/actions/links";
 import { toast } from "@/lib/toast";
 import type { LinkWithOther } from "@/lib/services/links";
-import type { ItemType } from "@/lib/design/constants";
+import type { ItemType, StatusId } from "@/lib/design/constants";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -135,11 +136,7 @@ export function LinksSection({
               className="group flex items-center gap-1.5 rounded px-1 py-0.5 hover:bg-[var(--muted)]"
             >
               {/* Status dot */}
-              <span
-                className="size-2 flex-none rounded-full"
-                style={{ background: link.other.statusColor }}
-                title={link.other.statusName}
-              />
+              <StatusDot status={link.other.statusId as StatusId} />
               {/* TypeIcon + key + title — whole row links to the item */}
               <Link
                 href={`/b/${backlogKey}?item=${link.other.key}`}

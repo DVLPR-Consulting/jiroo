@@ -13,6 +13,7 @@ export type SearchResult = {
   type: string;
   title: string;
   backlogKey: string;
+  statusId: string;
   statusName: string;
   statusColor: string;
 };
@@ -64,6 +65,7 @@ export async function searchItems(rawQuery: string, limit = 20): Promise<SearchR
       type: items.type,
       title: items.title,
       backlogKey: backlogs.key,
+      statusId: statuses.id,
       statusName: statuses.name,
       statusColor: statuses.color,
     })

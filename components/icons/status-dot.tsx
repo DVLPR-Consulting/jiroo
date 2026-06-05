@@ -1,50 +1,80 @@
-import { STATUS_COLOR_VAR, STATUS_LABELS, type StatusId } from "@/lib/design/constants";
+import { STATUS_LABELS, type StatusId } from "@/lib/design/constants";
 
-// Cercle de progression façon Linear. r=6, circonférence ≈ 37.7.
-const C = 2 * Math.PI * 6;
-const PROGRESS: Record<StatusId, number> = { todo: 0, doing: 0.5, review: 0.78, done: 1 };
+// Handoff geometry: viewBox 0 0 14 14, Linear-style progress circles.
+// C = circumference of r=3 circle = 2π×3 ≈ 18.85 (used for arc dasharray).
+const C = 18.85;
 
-export function StatusDot({ status, size = 14 }: { status: StatusId; size?: number }) {
-  const color = `var(${STATUS_COLOR_VAR[status]})`;
+function arc(pct: number, col: string) {
+  return (
+    <>
+      {/* Ghost ring */}
+      <circle cx="7" cy="7" r="5.5" fill="none" stroke={col} strokeWidth="1.5" opacity="0.32" />
+      {/* Filled arc: r=3, stroke-width=6 creates a thick band; dasharray clips it to pct% */}
+      <circle
+        cx="7"
+        cy="7"
+        r="3"
+        fill="none"
+        stroke={col}
+        strokeWidth="6"
+        transform="rotate(-90 7 7)"
+        strokeDasharray={`${(C * pct).toFixed(2)} ${C}`}
+      />
+    </>
+  );
+}
+
+export function StatusDot({
+  status,
+  size = 14,
+  className,
+}: {
+  status: StatusId;
+  size?: number;
+  className?: string;
+}) {
   const label = STATUS_LABELS[status];
-  const dash = PROGRESS[status] * C;
 
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 14 14"
+      fill="none"
+      style={{ flex: "none", display: "block" }}
       role="img"
       aria-label={label}
-      className="inline-block flex-none"
+      className={className}
     >
-      {status === "todo" ? (
-        <circle cx="7" cy="7" r="6" fill="none" stroke={color} strokeWidth="1.5" strokeDasharray="2 2" />
-      ) : status === "done" ? (
+      {status === "todo" && (
+        // Dashed circle — "not started"
+        <circle
+          cx="7"
+          cy="7"
+          r="5.4"
+          fill="none"
+          stroke="var(--status-todo)"
+          strokeWidth="1.4"
+          strokeDasharray="1.8 2"
+        />
+      )}
+
+      {status === "doing" && arc(0.5, "var(--status-doing)")}
+
+      {status === "review" && arc(0.78, "var(--status-review)")}
+
+      {status === "done" && (
         <>
-          <circle cx="7" cy="7" r="6.5" fill={color} />
-          <polyline
-            points="4,7.2 6.2,9.2 10,5"
+          {/* Filled disc */}
+          <circle cx="7" cy="7" r="6.2" fill="var(--status-done)" />
+          {/* White checkmark */}
+          <path
+            d="M4.3 7.1 6.1 9 9.7 5.1"
             fill="none"
             stroke="white"
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-          />
-        </>
-      ) : (
-        <>
-          <circle cx="7" cy="7" r="6" fill="none" stroke="var(--border-strong)" strokeWidth="1.5" />
-          <circle
-            cx="7"
-            cy="7"
-            r="6"
-            fill="none"
-            stroke={color}
-            strokeWidth="1.5"
-            strokeDasharray={`${dash} ${C}`}
-            transform="rotate(-90 7 7)"
-            strokeLinecap="round"
           />
         </>
       )}

@@ -6,8 +6,10 @@ import { toast } from "@/lib/toast";
 import { restoreTrashedItemAction, purgeItemAction } from "@/app/actions/trash";
 import type { TrashedItem } from "@/lib/services/items";
 import { TypeIcon } from "@/components/icons/type-icon";
+import { StatusDot } from "@/components/icons/status-dot";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { Button } from "@/components/ui/button";
+import type { StatusId } from "@/lib/design/constants";
 import {
   Dialog,
   DialogContent,
@@ -137,11 +139,7 @@ function TrashRow({ item }: { item: TrashedItem }) {
 
         {/* Status */}
         <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
-          <span
-            className="size-2 shrink-0 rounded-full"
-            style={{ background: item.statusColor }}
-            aria-hidden
-          />
+          <StatusDot status={item.statusId as StatusId} />
           {item.statusName}
         </span>
 
