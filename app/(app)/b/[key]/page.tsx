@@ -208,6 +208,7 @@ export default async function BacklogPage({
       labels: labelsByItem.get(i.id) ?? [],
       blocked: blockedSet.has(i.id),
       kind: i.kind,
+      dueDate: i.dueDate,
     }));
 
   // Board swimlanes: status is the columns, so it never groups the board. Build

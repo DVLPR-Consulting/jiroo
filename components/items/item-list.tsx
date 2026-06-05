@@ -72,10 +72,13 @@ function Row({
     <li className="border-b border-border">
       <Link
         href={href}
-        className={`flex items-center gap-2.5 py-2 pr-4 transition-colors hover:bg-muted/50 ${
+        className={`flex items-center gap-2.5 py-1 pr-4 transition-colors hover:bg-muted/50 ${
           isSelected ? "bg-[var(--accent-subtle)]" : ""
         }`}
-        style={{ paddingLeft: grouped ? 12 : 12 + item.depth * 20 }}
+        style={{
+          paddingLeft: grouped ? 12 : 12 + item.depth * 20,
+          minHeight: "var(--row-h)",
+        }}
       >
         <TypeIcon type={item.type} />
         <ItemKey value={item.key} />
