@@ -1,6 +1,7 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
 export const itemTypeEnum = pgEnum("item_type", ["composant", "epic", "tache", "soustache"]);
+export const itemKindEnum = pgEnum("item_kind", ["feature", "bug"]);
 export const statusCategoryEnum = pgEnum("status_category", ["todo", "in_progress", "done"]);
 export const activityActionEnum = pgEnum("activity_action", [
   "create",

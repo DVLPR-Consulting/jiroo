@@ -380,6 +380,7 @@ export async function createItem(input: unknown, actorId: string) {
           id,
           key,
           type: data.type,
+          kind: data.kind,
           backlogId: data.backlogId,
           title: data.title,
           description: data.description ?? null,
@@ -446,6 +447,10 @@ export async function updateItem(input: unknown, actorId: string) {
     if (data.priority !== undefined && data.priority !== cur.priority) {
       patch.priority = data.priority;
       acts.push(activityRow(cur.id, actorId, "update", "priority", String(cur.priority), String(data.priority)));
+    }
+    if (data.kind !== undefined && data.kind !== cur.kind) {
+      patch.kind = data.kind;
+      acts.push(activityRow(cur.id, actorId, "update", "kind", cur.kind, data.kind));
     }
     if (data.assigneeId !== undefined && (data.assigneeId ?? null) !== cur.assigneeId) {
       patch.assigneeId = data.assigneeId ?? null;

@@ -120,8 +120,7 @@ export default async function BacklogPage({
     updatedAt: i.updatedAt,
     rank: i.rank,
     labelIds: (labelsByItem.get(i.id) ?? []).map((l) => l.id),
-    // TODO(lot11-T2): use i.kind once the column exists in the DB
-    kind: "feature" as const,
+    kind: i.kind,
   }));
   const filtersOn = isFiltersActive(viewState.filters);
   const matchedIds = new Set(

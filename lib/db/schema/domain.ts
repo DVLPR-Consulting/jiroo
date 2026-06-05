@@ -18,6 +18,7 @@ import { user } from "./auth";
 import {
   activityActionEnum,
   displayModeEnum,
+  itemKindEnum,
   itemTypeEnum,
   linkTypeEnum,
   notificationTypeEnum,
@@ -54,6 +55,7 @@ export const items = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     key: text("key").notNull().unique(),
     type: itemTypeEnum("type").notNull(),
+    kind: itemKindEnum("kind").notNull().default("feature"),
     backlogId: uuid("backlog_id")
       .notNull()
       .references(() => backlogs.id, { onDelete: "cascade" }),
