@@ -29,8 +29,9 @@ import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { LabelPill } from "@/components/items/label-pill";
-import { LABEL_HUES, type ItemKind, type ItemType, type LabelHue, type Priority } from "@/lib/design/constants";
+import { LABEL_HUES, type ItemKind, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
 import { KindIcon } from "@/components/icons/kind-icon";
+import { StatusDot } from "@/components/icons/status-dot";
 import type { moveItemAction as MoveItemAction } from "@/app/actions/items";
 
 export type BoardCard = {
@@ -267,11 +268,7 @@ function Column({
   return (
     <div className="flex w-[296px] flex-none flex-col rounded-[var(--radius-lg)] border border-border bg-[var(--surface-2)]">
       <div className="flex items-center gap-2 px-3 py-2.5">
-        <span
-          aria-hidden
-          className="size-2.5 flex-none rounded-full"
-          style={{ background: status.color }}
-        />
+        <StatusDot status={status.id as StatusId} size={14} />
         <span className="text-[13px] font-medium">{status.name}</span>
         <span className="item-key ml-auto rounded-[var(--radius-sm)] bg-[var(--surface)] px-1.5 py-0.5">
           {cards.length}

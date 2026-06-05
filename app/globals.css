@@ -60,6 +60,11 @@
   --danger: oklch(0.56 0.205 27);
   --info: oklch(0.6 0.11 240);
 
+  /* Type icon colors */
+  --type-info: oklch(0.600 0.110 240);
+  --type-composant: oklch(0.560 0.055 255);
+  --type-epic: oklch(0.520 0.130 18);
+
   /* Labels */
   --label-1: oklch(0.62 0.11 25);
   --label-2: oklch(0.64 0.11 145);
@@ -125,6 +130,14 @@
   --prio-medium: oklch(0.76 0.125 80);
   --prio-high: oklch(0.705 0.155 50);
   --prio-urgent: oklch(0.64 0.2 28);
+
+  /* Type icon colors (dark) */
+  --type-info: oklch(0.640 0.110 240);
+  --type-composant: oklch(0.640 0.055 255);
+  --type-epic: oklch(0.625 0.118 18);
+
+  /* Danger — brighter in dark mode (handoff destructive) */
+  --danger: oklch(0.640 0.200 28);
 
   --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.3);
   --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.36), 0 1px 1px oklch(0 0 0 / 0.3);

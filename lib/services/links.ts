@@ -18,6 +18,7 @@ export type LinkWithOther = {
     key: string;
     title: string;
     type: typeof items.$inferSelect.type;
+    statusId: string;
     statusName: string;
     statusColor: string;
   };
@@ -44,6 +45,7 @@ export async function listLinksForItem(itemId: string): Promise<LinkWithOther[]>
       otherKey: items.key,
       otherTitle: items.title,
       otherType: items.type,
+      otherStatusId: items.statusId,
       otherStatusName: statuses.name,
       otherStatusColor: statuses.color,
     })
@@ -63,6 +65,7 @@ export async function listLinksForItem(itemId: string): Promise<LinkWithOther[]>
       otherKey: items.key,
       otherTitle: items.title,
       otherType: items.type,
+      otherStatusId: items.statusId,
       otherStatusName: statuses.name,
       otherStatusColor: statuses.color,
     })
@@ -85,6 +88,7 @@ export async function listLinksForItem(itemId: string): Promise<LinkWithOther[]>
       key: row.otherKey,
       title: row.otherTitle,
       type: row.otherType,
+      statusId: row.otherStatusId,
       statusName: row.otherStatusName,
       statusColor: row.otherStatusColor,
     },

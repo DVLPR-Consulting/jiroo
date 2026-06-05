@@ -29,13 +29,6 @@ export const STATUS_CATEGORY: Record<StatusId, "todo" | "in_progress" | "done"> 
   done: "done",
 };
 
-export const STATUS_COLOR_VAR: Record<StatusId, string> = {
-  todo: "--status-todo",
-  doing: "--status-doing",
-  review: "--status-review",
-  done: "--status-done",
-};
-
 // Priorités : 0 = aucune … 4 = urgent (numérique pour le tri).
 export const PRIORITIES = [0, 1, 2, 3, 4] as const;
 export type Priority = (typeof PRIORITIES)[number];
@@ -46,14 +39,6 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
   2: "Moyenne",
   3: "Haute",
   4: "Urgent",
-};
-
-export const PRIORITY_COLOR_VAR: Record<Priority, string> = {
-  0: "--prio-none",
-  1: "--prio-low",
-  2: "--prio-medium",
-  3: "--prio-high",
-  4: "--prio-urgent",
 };
 
 // Item kinds: orthogonal to the hierarchy type. Bug vs feature classification.

@@ -7,7 +7,8 @@ import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
-import { LABEL_HUES, type ItemType, type LabelHue, type Priority } from "@/lib/design/constants";
+import { LABEL_HUES, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
+import { StatusDot as CanonicalStatusDot } from "@/components/icons/status-dot";
 import type {
   moveItemAction as MoveItemAction,
   reparentItemAction as ReparentItemAction,
@@ -93,36 +94,34 @@ function seed(items: TreeItem[]): TreeItem[] {
   return items.map((i) => ({ ...i }));
 }
 
-function StatusDot({ status }: { status?: { name: string; color: string } }) {
-  return (
-    <span
-      aria-hidden
-      className="size-2 flex-none rounded-full"
-      style={{ background: status?.color ?? "var(--border-strong)" }}
-      title={status?.name}
-    />
-  );
+function StatusDotLocal({ statusId }: { statusId: string }) {
+  return <CanonicalStatusDot status={statusId as StatusId} />;
 }
 
-export function ItemTree({
-  backlogKey,
-  items,
-  selectedKey,
-  statuses = {},
-  contextIds = [],
-  reparentItemAction,
-  moveItemAction,
-  params,
-}: {
+// StatusMap is kept in the prop type for call-site compatibility.
+// StatusDot now derives its visual variant purely from node.statusId,
+// so the map is no longer destructured from props.
+type ItemTreeProps = {
   backlogKey: string;
   items: TreeItem[];
   selectedKey?: string;
+  /** Accepted for compatibility — no longer consumed inside this component. */
   statuses?: StatusMap;
   contextIds?: string[];
   reparentItemAction: typeof ReparentItemAction;
   moveItemAction: typeof MoveItemAction;
   params?: Record<string, string>;
-}) {
+};
+
+export function ItemTree({
+  backlogKey,
+  items,
+  selectedKey,
+  contextIds = [],
+  reparentItemAction,
+  moveItemAction,
+  params,
+}: ItemTreeProps) {
   const router = useRouter();
   const [treeItems, setTreeItems] = useState<TreeItem[]>(() => seed(items));
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -361,7 +360,7 @@ export function ItemTree({
           <span className="min-w-0 flex-1 truncate">{node.title}</span>
           <span className="flex flex-none items-center gap-2">
             <PrioIcon priority={asPriority(node.priority)} />
-            <StatusDot status={statuses[node.statusId]} />
+            <StatusDotLocal statusId={node.statusId} />
             {node.assigneeName ? (
               <InitialsAvatar name={node.assigneeName} hue={hueFor(node.assigneeName)} size={20} />
             ) : (

@@ -12,8 +12,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TypeIcon } from "@/components/icons/type-icon";
+import { StatusDot } from "@/components/icons/status-dot";
 import { ItemKey } from "@/components/jiroo/item-key";
-import type { ItemType } from "@/lib/design/constants";
+import type { ItemType, StatusId } from "@/lib/design/constants";
 
 // ---------------------------------------------------------------------------
 // Highlight helper
@@ -329,11 +330,7 @@ export function SearchModal() {
 
                       {/* Status dot + name */}
                       <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
-                        <span
-                          className="size-2 shrink-0 rounded-full"
-                          style={{ background: r.statusColor }}
-                          aria-hidden
-                        />
+                        <StatusDot status={r.statusId as StatusId} />
                         {r.statusName}
                       </span>
                     </button>
