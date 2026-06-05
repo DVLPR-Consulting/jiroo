@@ -19,6 +19,7 @@ import { DescriptionEditor } from "@/components/items/detail/description-editor"
 import {
   StatusField,
   PriorityField,
+  KindField,
   AssigneeField,
   DueDateField,
   LabelsField,
@@ -224,6 +225,14 @@ export function ItemDetailPanel({
                 itemId={detail.id}
                 backlogKey={backlogKey}
                 priority={detail.priority}
+              />
+            </Field>
+
+            <Field label="Nature">
+              <KindField
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                kind={detail.kind}
               />
             </Field>
 

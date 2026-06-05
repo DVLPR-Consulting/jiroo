@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
+import { KindIcon } from "@/components/icons/kind-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { LabelPill } from "@/components/items/label-pill";
-import type { ItemType, Priority } from "@/lib/design/constants";
+import type { ItemKind, ItemType, Priority } from "@/lib/design/constants";
 
 type LabelChip = { id: string; name: string; color: string };
 
@@ -19,6 +20,8 @@ type Item = {
   labels?: LabelChip[];
   /** True when this item is the target of an unfinished `blocks` link. */
   blocked?: boolean;
+  /** Bug or feature classification (orthogonal to hierarchy type). */
+  kind?: ItemKind;
 };
 
 type Group = { key: string; label: string; items: Item[] };
@@ -73,6 +76,7 @@ function Row({
       >
         <TypeIcon type={item.type} />
         <ItemKey value={item.key} />
+        {item.kind && <KindIcon kind={item.kind} />}
         <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
         {item.labels && item.labels.length > 0 && (
           <span className="flex flex-wrap gap-1">

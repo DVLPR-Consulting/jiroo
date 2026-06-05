@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { type Role, canWriteItems } from "@/lib/auth/rbac";
 import { getSession } from "@/lib/auth/session";
-import type { ItemType } from "@/lib/design/constants";
+import type { ItemKind, ItemType } from "@/lib/design/constants";
 import {
   createItem,
   moveItem,
@@ -25,6 +25,7 @@ type CreateItemActionInput = {
   assigneeId?: string | null;
   dueDate?: string | null;
   labelIds?: string[];
+  kind?: ItemKind;
 };
 
 type UpdateItemActionInput = {
@@ -37,6 +38,7 @@ type UpdateItemActionInput = {
   assigneeId?: string | null;
   dueDate?: string | null;
   labelIds?: string[];
+  kind?: ItemKind;
 };
 
 // Authz FIRST on every action; actorId from the session, never client input.

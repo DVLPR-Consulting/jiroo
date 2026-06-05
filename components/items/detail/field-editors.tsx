@@ -15,8 +15,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  ITEM_KINDS,
+  ITEM_KIND_LABELS,
   PRIORITIES,
   PRIORITY_LABELS,
+  type ItemKind,
   type Priority,
 } from "@/lib/design/constants";
 
@@ -145,6 +148,37 @@ export function PriorityField({
           ))}
         </select>
       </div>
+      <FieldError error={error} />
+    </div>
+  );
+}
+
+export function KindField({
+  itemId,
+  backlogKey,
+  kind,
+}: {
+  itemId: string;
+  backlogKey: string;
+  kind: ItemKind;
+}) {
+  const { pending, error, run } = useFieldUpdate(itemId, backlogKey);
+
+  return (
+    <div>
+      <select
+        className={selectClass}
+        value={kind}
+        disabled={pending}
+        onChange={(e) => run({ kind: e.target.value as ItemKind })}
+        aria-label="Nature"
+      >
+        {ITEM_KINDS.map((k) => (
+          <option key={k} value={k}>
+            {ITEM_KIND_LABELS[k]}
+          </option>
+        ))}
+      </select>
       <FieldError error={error} />
     </div>
   );
