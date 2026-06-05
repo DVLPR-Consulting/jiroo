@@ -14,3 +14,4 @@ export const activityActionEnum = pgEnum("activity_action", [
 export const notificationTypeEnum = pgEnum("notification_type", ["mention", "assignment"]);
 export const displayModeEnum = pgEnum("display_mode", ["board", "list", "tree"]);
 export const linkTypeEnum = pgEnum("link_type", ["blocks", "relates", "duplicates"]);
+export const refKindEnum = pgEnum("ref_kind", ["pr", "commit", "branch", "repo", "other"]);
