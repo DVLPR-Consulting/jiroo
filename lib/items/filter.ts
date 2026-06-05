@@ -1,4 +1,4 @@
-import { ITEM_TYPES, PRIORITIES, type ItemType } from "@/lib/design/constants";
+import { ITEM_KINDS, ITEM_TYPES, PRIORITIES, type ItemKind, type ItemType } from "@/lib/design/constants";
 
 export type GroupKey = "status" | "assignee" | "priority" | "parent";
 export type SortField = "priority" | "dueDate" | "created" | "updated" | "key";
@@ -11,6 +11,7 @@ export type Filters = {
   priorities: number[];
   assignees: string[]; // user ids; the literal "none" = unassigned
   labels: string[]; // label ids
+  kind: ItemKind[]; // bug | feature — orthogonal to the hierarchy type
 };
 
 export type ViewState = {
@@ -53,6 +54,10 @@ export function parseViewState(sp: URLSearchParams): ViewState {
     }
   }
 
+  const kind = csv(sp, "kind").filter((k): k is ItemKind =>
+    (ITEM_KINDS as readonly string[]).includes(k),
+  );
+
   return {
     filters: {
       q: sp.get("q") ?? "",
@@ -61,6 +66,7 @@ export function parseViewState(sp: URLSearchParams): ViewState {
       priorities,
       assignees: csv(sp, "assignee"),
       labels: csv(sp, "label"),
+      kind,
     },
     group,
     sort,
@@ -79,6 +85,7 @@ export function writeViewState(sp: URLSearchParams, state: ViewState): void {
   setOrDelete("prio", filters.priorities.join(","));
   setOrDelete("assignee", filters.assignees.join(","));
   setOrDelete("label", filters.labels.join(","));
+  setOrDelete("kind", filters.kind.join(","));
   setOrDelete("group", group ?? "");
   setOrDelete("sort", sort ? `${sort.field}:${sort.dir}` : "");
 }
@@ -87,6 +94,7 @@ export type FilterItem = {
   id: string;
   key: string;
   type: ItemType;
+  kind: ItemKind;
   title: string;
   description: string | null;
   statusId: string;
@@ -109,7 +117,8 @@ export function isFiltersActive(f: Filters): boolean {
     f.statusIds.length > 0 ||
     f.priorities.length > 0 ||
     f.assignees.length > 0 ||
-    f.labels.length > 0
+    f.labels.length > 0 ||
+    f.kind.length > 0
   );
 }
 
@@ -131,6 +140,8 @@ export function matchItem(it: FilterItem, f: Filters): boolean {
   if (f.labels.length) {
     if (!it.labelIds.some((id) => f.labels.includes(id))) return false;
   }
+  // OR within the kind facet: item passes if its kind is one of the selected kinds.
+  if (f.kind.length && !f.kind.includes(it.kind)) return false;
   const q = f.q.trim();
   if (q) {
     const hay = normalize(`${it.title} ${it.description ?? ""}`);

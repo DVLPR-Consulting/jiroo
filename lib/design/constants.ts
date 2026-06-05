@@ -56,6 +56,15 @@ export const PRIORITY_COLOR_VAR: Record<Priority, string> = {
   4: "--prio-urgent",
 };
 
+// Item kinds: orthogonal to the hierarchy type. Bug vs feature classification.
+export const ITEM_KINDS = ["feature", "bug"] as const;
+export type ItemKind = (typeof ITEM_KINDS)[number];
+
+export const ITEM_KIND_LABELS: Record<ItemKind, string> = {
+  feature: "Fonctionnalité",
+  bug: "Bug",
+};
+
 // 6 teintes de labels harmonisées (cf. handoff).
 export const LABEL_HUES = [1, 2, 3, 4, 5, 6] as const;
 export type LabelHue = (typeof LABEL_HUES)[number];

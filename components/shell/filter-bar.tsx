@@ -155,6 +155,7 @@ export function FilterBar({
                 priorities: [],
                 assignees: [],
                 labels: [],
+                kind: [],
               },
             });
           }}

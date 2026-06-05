@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ITEM_TYPES, PRIORITIES, type ItemType } from "@/lib/design/constants";
+import { ITEM_KINDS, ITEM_TYPES, PRIORITIES, type ItemKind, type ItemType } from "@/lib/design/constants";
 import {
   GROUP_KEYS,
   SORT_FIELDS,
@@ -129,8 +129,16 @@ export function columnsToViewState(row: {
     ? (rawFilters.labels as unknown[]).filter((l): l is string => typeof l === "string")
     : [];
 
+  // Defensive default for `kind`: legacy saved views may not have this key.
+  const kind: ItemKind[] = Array.isArray(rawFilters.kind)
+    ? (rawFilters.kind as unknown[]).filter(
+        (k): k is ItemKind =>
+          typeof k === "string" && (ITEM_KINDS as readonly string[]).includes(k),
+      )
+    : [];
+
   const state: ViewState = {
-    filters: { q, types, statusIds, priorities, assignees, labels },
+    filters: { q, types, statusIds, priorities, assignees, labels, kind },
     group,
     sort,
   };
@@ -176,6 +184,7 @@ export function isViewDirty(
   if (!sameSet(vs.filters.priorities, cs.filters.priorities)) return true;
   if (!sameSet(vs.filters.assignees, cs.filters.assignees)) return true;
   if (!sameSet(vs.filters.labels, cs.filters.labels)) return true;
+  if (!sameSet(vs.filters.kind, cs.filters.kind)) return true;
 
   return false;
 }
@@ -227,6 +236,7 @@ const filtersSchema = z.object({
   priorities: z.array(z.number()).default([]),
   assignees: z.array(z.string()).default([]),
   labels: z.array(z.string()).default([]),
+  kind: z.array(z.enum(ITEM_KINDS)).default([]),
 });
 
 const sortSchema = z
