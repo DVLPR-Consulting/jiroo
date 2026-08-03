@@ -339,12 +339,17 @@ export default async function BacklogPage({
         }
       />
       <FilterBar
-        view={view}
         state={viewState}
         currentParams={currentParams}
         statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}
         users={usersForFilter.map((u) => ({ id: u.id, name: u.name }))}
         labels={backlogLabelRows.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
+        hierarchy={items.map((item) => ({
+          id: item.id,
+          key: item.key,
+          title: item.title,
+          type: item.type,
+        }))}
         resultCount={resultCount}
       />
       {view === "list" && (

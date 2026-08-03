@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { X } from "lucide-react";
 import { FilterMenu, type Option } from "@/components/shell/filter-menu";
@@ -9,7 +9,6 @@ import {
   isFiltersActive,
   type ViewState,
   type Filters,
-  type SortField,
 } from "@/lib/items/filter";
 import {
   ITEM_KIND_LABELS,
@@ -20,31 +19,32 @@ import {
   PRIORITY_LABELS,
 } from "@/lib/design/constants";
 
-const parseSort = (v: string): ViewState["sort"] => {
-  if (!v) return null;
-  const [field, dir] = v.split(":");
-  return { field: field as SortField, dir: dir as "asc" | "desc" };
-};
-
 type StatusOpt = { id: string; name: string };
 type UserOpt = { id: string; name: string };
 type LabelOpt = { id: string; name: string; color: string };
+type HierarchyOpt = { id: string; key: string; title: string; type: string };
+
+function activeLabel(options: Option[], selected: string[]): string | undefined {
+  return selected.length > 0
+    ? options.find((option) => option.value === selected[0])?.label
+    : undefined;
+}
 
 export function FilterBar({
-  view,
   state,
   currentParams,
   statuses,
   users,
   labels,
+  hierarchy,
   resultCount,
 }: {
-  view: string;
   state: ViewState;
   currentParams: Record<string, string>;
   statuses: StatusOpt[];
   users: UserOpt[];
   labels: LabelOpt[];
+  hierarchy: HierarchyOpt[];
   resultCount: number;
 }) {
   const router = useRouter();
@@ -99,6 +99,9 @@ export function FilterBar({
     value: k,
     label: ITEM_KIND_LABELS[k],
   }));
+  const hierarchyOpts: Option[] = hierarchy
+    .filter((item) => item.type === "composant" || item.type === "epic")
+    .map((item) => ({ value: item.id, label: `${item.key} — ${item.title}` }));
 
   const active = isFiltersActive(state.filters);
 
@@ -119,38 +122,56 @@ export function FilterBar({
         options={typeOpts}
         selected={state.filters.types}
         onChange={(v) => setFilters({ types: v as typeof state.filters.types })}
+        activeLabel={activeLabel(typeOpts, state.filters.types)}
+        onClear={() => setFilters({ types: [] })}
       />
       <FilterMenu
         label="Statut"
         options={statusOpts}
         selected={state.filters.statusIds}
         onChange={(v) => setFilters({ statusIds: v })}
+        activeLabel={activeLabel(statusOpts, state.filters.statusIds)}
+        onClear={() => setFilters({ statusIds: [] })}
       />
       <FilterMenu
         label="Priorité"
         options={prioOpts}
         selected={state.filters.priorities.map(String)}
         onChange={(v) => setFilters({ priorities: v.map(Number) })}
+        activeLabel={activeLabel(prioOpts, state.filters.priorities.map(String))}
+        onClear={() => setFilters({ priorities: [] })}
       />
       <FilterMenu
         label="Assigné"
         options={assigneeOpts}
         selected={state.filters.assignees}
         onChange={(v) => setFilters({ assignees: v })}
+        activeLabel={activeLabel(assigneeOpts, state.filters.assignees)}
+        onClear={() => setFilters({ assignees: [] })}
       />
-      {labels.length > 0 && (
-        <FilterMenu
-          label="Label"
-          options={labelOpts}
-          selected={state.filters.labels}
-          onChange={(v) => setFilters({ labels: v })}
-        />
-      )}
+      <FilterMenu
+        label="Label"
+        options={labelOpts}
+        selected={state.filters.labels}
+        onChange={(v) => setFilters({ labels: v })}
+        activeLabel={activeLabel(labelOpts, state.filters.labels)}
+        onClear={() => setFilters({ labels: [] })}
+      />
       <FilterMenu
         label="Nature"
         options={kindOpts}
         selected={state.filters.kind}
         onChange={(v) => setFilters({ kind: v as typeof state.filters.kind })}
+        activeLabel={activeLabel(kindOpts, state.filters.kind)}
+        onClear={() => setFilters({ kind: [] })}
+      />
+      <FilterMenu
+        label="Sous"
+        options={hierarchyOpts}
+        selected={state.filters.underIds}
+        onChange={(v) => setFilters({ underIds: v })}
+        activeLabel={activeLabel(hierarchyOpts, state.filters.underIds)}
+        onClear={() => setFilters({ underIds: [] })}
       />
 
       {active && (
@@ -176,48 +197,6 @@ export function FilterBar({
         >
           <X className="size-3.5" /> Réinitialiser
         </button>
-      )}
-      {/* Group select: list and board. On the board, statuses are the columns,
-          so the "Statut" option is omitted there. */}
-      {(view === "list" || view === "board") && (
-        <select
-          value={
-            view === "board" && state.group === "status"
-              ? ""
-              : (state.group ?? "")
-          }
-          onChange={(e) =>
-            push({
-              ...state,
-              group: (e.target.value || null) as ViewState["group"],
-            })
-          }
-          className="h-7 rounded-[var(--radius-sm)] border border-border bg-[var(--surface)] px-1.5 text-xs"
-          aria-label="Grouper par"
-        >
-          <option value="">Sans groupe</option>
-          {view === "list" && <option value="status">Statut</option>}
-          <option value="assignee">Assigné</option>
-          <option value="priority">Priorité</option>
-          <option value="parent">Parent</option>
-        </select>
-      )}
-      {/* Sort is list-only (the board orders cards by manual rank). */}
-      {view === "list" && (
-        <select
-          value={state.sort ? `${state.sort.field}:${state.sort.dir}` : ""}
-          onChange={(e) => push({ ...state, sort: parseSort(e.target.value) })}
-          className="h-7 rounded-[var(--radius-sm)] border border-border bg-[var(--surface)] px-1.5 text-xs"
-          aria-label="Trier par"
-        >
-          <option value="">Rang manuel</option>
-          <option value="priority:desc">Priorité ↓</option>
-          <option value="priority:asc">Priorité ↑</option>
-          <option value="dueDate:asc">Échéance ↑</option>
-          <option value="created:desc">Créé ↓</option>
-          <option value="updated:desc">MAJ ↓</option>
-          <option value="key:asc">Clé ↑</option>
-        </select>
       )}
       <span className="ml-auto text-xs text-muted-foreground">
         {resultCount} résultat{resultCount > 1 ? "s" : ""}
