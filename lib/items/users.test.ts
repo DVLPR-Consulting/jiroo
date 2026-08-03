@@ -36,6 +36,11 @@ describe("createUserInput", () => {
     if (result.success) expect(result.data.email).toBe("user@test.com");
   });
 
+  it("normalizes the email to lowercase after trimming", () => {
+    const result = createUserInput.parse({ ...valid, email: " ADMIN@EXAMPLE.COM " });
+    expect(result.email).toBe("admin@example.com");
+  });
+
   // name
   it("rejects an empty name", () => {
     expect(createUserInput.safeParse({ ...valid, name: "" }).success).toBe(false);
@@ -77,7 +82,9 @@ describe("createUserInput", () => {
   });
 
   it("rejects an unknown role", () => {
-    expect(createUserInput.safeParse({ ...valid, role: "superuser" }).success).toBe(false);
+    const result = createUserInput.safeParse({ ...valid, role: "superuser" });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0]?.message).toBe("Rôle invalide.");
   });
 
   it("rejects a missing role", () => {
@@ -117,11 +124,17 @@ describe("setRoleInput", () => {
   });
 
   it("rejects an unknown role", () => {
-    expect(setRoleInput.safeParse({ userId: "abc-123", role: "god" }).success).toBe(false);
+    const result = setRoleInput.safeParse({ userId: "abc-123", role: "god" });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0]?.message).toBe("Rôle invalide.");
   });
 
   it("rejects a missing userId", () => {
     expect(setRoleInput.safeParse({ role: "admin" }).success).toBe(false);
+  });
+
+  it("rejects an empty userId", () => {
+    expect(setRoleInput.safeParse({ userId: "", role: "viewer" }).success).toBe(false);
   });
 
   it("rejects a missing role", () => {

@@ -17,6 +17,22 @@ export type AdminUserRow = {
   role: Role;
 };
 
+function toAdminUserRow(row: {
+  id: string;
+  name: string;
+  email: string;
+  role: string | null;
+}): AdminUserRow {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    role: (ROLES as readonly string[]).includes(row.role ?? "")
+      ? (row.role as Role)
+      : "contributor",
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Reads
 // ---------------------------------------------------------------------------
@@ -28,20 +44,13 @@ export type AdminUserRow = {
  * NOTE: This is distinct from the items.ts listUsers() helper which omits the
  * role field and is used for assignee pickers.
  */
-export async function listUsers(): Promise<AdminUserRow[]> {
+export async function listAdminUsers(): Promise<AdminUserRow[]> {
   const rows = await db
     .select({ id: user.id, name: user.name, email: user.email, role: user.role })
     .from(user)
     .orderBy(asc(user.name));
 
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    email: r.email,
-    // Coerce to a valid Role; fall back to "contributor" if the DB value is
-    // somehow null or an unrecognized string (should never happen in practice).
-    role: (ROLES as readonly string[]).includes(r.role ?? "") ? (r.role as Role) : "contributor",
-  }));
+  return rows.map(toAdminUserRow);
 }
 
 // ---------------------------------------------------------------------------
@@ -54,11 +63,19 @@ export async function listUsers(): Promise<AdminUserRow[]> {
  * The self-demotion guard (admin cannot demote themselves) is enforced at the
  * action layer, not here, to keep this function testable in isolation.
  */
-export async function setUserRole(userId: string, role: Role): Promise<void> {
+export async function setUserRole(userId: string, role: Role): Promise<AdminUserRow> {
   const parsed = setRoleInput.safeParse({ userId, role });
-  if (!parsed.success) throw new Error("Rôle invalide.");
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Rôle invalide.");
+  }
 
-  await db.update(user).set({ role }).where(eq(user.id, userId));
+  const [updated] = await db
+    .update(user)
+    .set({ role: parsed.data.role })
+    .where(eq(user.id, parsed.data.userId))
+    .returning({ id: user.id, name: user.name, email: user.email, role: user.role });
+  if (!updated) throw new Error("Utilisateur introuvable.");
+  return toAdminUserRow(updated);
 }
 
 /**
@@ -109,10 +126,5 @@ export async function createUser(input: unknown): Promise<AdminUserRow> {
 
   if (!created) throw new Error("Utilisateur introuvable après création.");
 
-  return {
-    id: created.id,
-    name: created.name,
-    email: created.email,
-    role: (ROLES as readonly string[]).includes(created.role ?? "") ? (created.role as Role) : "contributor",
-  };
+  return toAdminUserRow(created);
 }

@@ -23,8 +23,18 @@ async function requireAdmin(): Promise<string> {
 
 function mapUserError(e: unknown): string {
   const msg = String(e);
-  if (msg.includes("Cet e-mail est déjà utilisé.")) return "Cet e-mail est déjà utilisé.";
-  if (msg.includes("Mot de passe : 8 caractères minimum.")) return "Mot de passe : 8 caractères minimum.";
+  const safeMessages = [
+    "Cet e-mail est déjà utilisé.",
+    "Adresse e-mail invalide.",
+    "Le nom est requis.",
+    "Le nom ne peut pas dépasser 80 caractères.",
+    "Rôle invalide.",
+    "Mot de passe : 8 caractères minimum.",
+    "L’utilisateur est requis.",
+    "Utilisateur introuvable.",
+  ];
+  const safeMessage = safeMessages.find((message) => msg.includes(message));
+  if (safeMessage) return safeMessage;
   return "Action impossible.";
 }
 
