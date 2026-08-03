@@ -11,40 +11,70 @@ import {
 
 type Backlog = { id: string; key: string; name: string; color: string };
 
-export function BacklogSelector({ backlogs }: { backlogs: Backlog[] }) {
+export function BacklogSelector({
+  backlogs,
+  collapsed = false,
+  activeKey: activeKeyOverride,
+}: {
+  backlogs: Backlog[];
+  collapsed?: boolean;
+  activeKey?: string;
+}) {
   const params = useParams<{ key?: string }>();
   const router = useRouter();
 
-  const activeKey =
-    typeof params.key === "string" ? params.key.toUpperCase() : undefined;
-  const activeBacklog = backlogs.find((b) => b.key === activeKey);
+  const routeKey = typeof params.key === "string" ? params.key.toUpperCase() : undefined;
+  const activeKey = activeKeyOverride?.toUpperCase() ?? routeKey;
+  const activeBacklog = backlogs.find((b) => b.key.toUpperCase() === activeKey);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
+          data-sidebar-backlog-trigger
           type="button"
-          className="flex w-full items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
+          aria-label={
+            activeBacklog
+              ? `Backlog ${activeBacklog.key} — ${activeBacklog.name}`
+              : "Choisir un backlog"
+          }
+          title={collapsed ? activeBacklog?.name ?? "Choisir un backlog" : undefined}
+          className={[
+            "flex w-full items-center gap-2 rounded-[var(--radius)] border border-border bg-[var(--surface)] p-1.5 text-sm hover:bg-[var(--muted)]",
+            collapsed ? "justify-center" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
         >
           {activeBacklog ? (
             <>
               <span
-                className="rounded px-1.5 py-0.5 text-[11px] font-medium text-white"
+                className="inline-flex h-6 min-w-6 items-center justify-center rounded px-1 text-[10px] font-semibold text-white"
                 style={{ background: activeBacklog.color }}
               >
                 {activeBacklog.key}
               </span>
-              <span className="truncate">{activeBacklog.name}</span>
+              <span
+                data-sidebar-label
+                className={collapsed ? "sr-only" : "truncate"}
+              >
+                {activeBacklog.name}
+              </span>
             </>
           ) : (
             <span className="truncate text-muted-foreground">Choisir un backlog</span>
           )}
-          <ChevronsUpDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
+          {!collapsed && (
+            <ChevronsUpDown
+              data-sidebar-open-only
+              className="ml-auto size-4 shrink-0 text-muted-foreground"
+            />
+          )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
         {backlogs.map((b) => {
-          const isActive = b.key === activeKey;
+          const isActive = b.key.toUpperCase() === activeKey;
           return (
             <DropdownMenuItem
               key={b.id}
