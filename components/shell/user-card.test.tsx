@@ -67,10 +67,13 @@ describe("UserCard", () => {
 
     const densityGroup = within(dialog).getByRole("group", { name: "Densité" });
     expect(within(densityGroup).getByRole("radio", { name: "Confort" })).toBeChecked();
-    expect(within(densityGroup).getByRole("radio", { name: "Compact" })).not.toBeChecked();
+    const compact = within(densityGroup).getByRole("radio", { name: "Compact" });
+    expect(compact).not.toBeChecked();
+    expect(compact).toHaveClass("peer");
+    expect(compact.nextElementSibling).toHaveClass("peer-focus-visible:ring-2");
 
-    await interaction.click(within(densityGroup).getByRole("radio", { name: "Compact" }));
-    expect(within(densityGroup).getByRole("radio", { name: "Compact" })).toBeChecked();
+    await interaction.click(compact);
+    expect(compact).toBeChecked();
     expect(localStorage.getItem("jiroo-density")).toBe("compact");
   });
 

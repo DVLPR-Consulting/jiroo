@@ -25,11 +25,11 @@ export function DensityToggle() {
             value={o.value}
             checked={density === o.value}
             onChange={() => setDensity(o.value)}
-            className="sr-only"
+            className="peer sr-only"
           />
           <span
             className={cn(
-              "block rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium transition-colors",
+              "block rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring/50",
               density === o.value
                 ? "bg-[var(--accent-subtle)] text-[var(--accent-subtle-fg)]"
                 : "text-[var(--subtle-foreground)] hover:text-foreground",
