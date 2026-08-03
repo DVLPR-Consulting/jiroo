@@ -7,6 +7,8 @@ export function NoFlashScript() {
     if(t === 'dark'){ document.documentElement.classList.add('dark'); }
     var d = localStorage.getItem('jiroo-density') || 'comfy';
     document.documentElement.setAttribute('data-density', d);
+    var s = localStorage.getItem('jiroo-sidebar-collapsed') === 'true';
+    document.documentElement.setAttribute('data-sidebar', s ? 'collapsed' : 'open');
   }catch(e){}})();`;
   return <script dangerouslySetInnerHTML={{ __html: code }} />;
 }
