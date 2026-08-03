@@ -1,0 +1,77 @@
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  archiveBacklogAction: vi.fn(),
+  createBacklogAction: vi.fn(),
+  updateBacklogAction: vi.fn(),
+}));
+
+vi.mock("@/app/actions/backlogs", () => ({
+  archiveBacklogAction: mocks.archiveBacklogAction,
+  createBacklogAction: mocks.createBacklogAction,
+  updateBacklogAction: mocks.updateBacklogAction,
+}));
+
+import { BacklogAdmin } from "@/components/admin/backlog-admin";
+
+const backlog = {
+  id: "backlog-1",
+  key: "WEB",
+  name: "Site web",
+  color: "#7c3030",
+  archivedAt: null,
+};
+
+describe("BacklogAdmin", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("asks for confirmation before changing a backlog key", async () => {
+    const user = userEvent.setup();
+    mocks.updateBacklogAction.mockResolvedValue({ ok: true });
+    render(<BacklogAdmin backlogs={[backlog]} />);
+
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    const dialog = await screen.findByRole("dialog");
+    const keyInput = within(dialog).getByRole("textbox", { name: "Clé" });
+    await user.clear(keyInput);
+    await user.type(keyInput, "plat");
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+
+    expect(mocks.updateBacklogAction).not.toHaveBeenCalled();
+    expect(
+      within(dialog).getByText(
+        "La clé et toutes les clés d’items seront renommées. Les anciens liens ne fonctionneront plus.",
+      ),
+    ).toBeVisible();
+
+    await user.click(within(dialog).getByRole("button", { name: "Confirmer le renommage" }));
+    await waitFor(() =>
+      expect(mocks.updateBacklogAction).toHaveBeenCalledWith({
+        id: "backlog-1",
+        key: "PLAT",
+        name: "Site web",
+        color: "#7c3030",
+      }),
+    );
+  });
+
+  it("keeps the edit dialog open and displays an action error", async () => {
+    const user = userEvent.setup();
+    mocks.updateBacklogAction.mockResolvedValue({
+      ok: false,
+      error: "Cette clé est déjà utilisée.",
+    });
+    render(<BacklogAdmin backlogs={[backlog]} />);
+
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+
+    expect(await within(dialog).findByText("Cette clé est déjà utilisée.")).toBeVisible();
+    expect(dialog).toBeVisible();
+  });
+});
