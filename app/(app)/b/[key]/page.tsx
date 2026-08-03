@@ -375,16 +375,20 @@ export default async function BacklogPage({
             key,
             label: groupLabel(key),
             items: rows.map((r) => ({
-            ...r,
-            labels: labelsByItem.get(r.id) ?? [],
-            blocked: blockedSet.has(r.id),
-          })),
+              ...r,
+              dueDate: r.dueDate?.toISOString() ?? null,
+              assigneeName: r.assigneeId ? (userName.get(r.assigneeId) ?? null) : null,
+              labels: labelsByItem.get(r.id) ?? [],
+              blocked: blockedSet.has(r.id),
+            })),
           }))}
           grouped={viewState.group !== null}
-          statuses={statusMap}
+          statuses={statusList}
+          users={usersForFilter.map((user) => ({ id: user.id, name: user.name }))}
           backlogKey={key}
           selectedKey={itemKey}
-          params={currentParams}
+          currentSort={viewState.sort}
+          currentParams={currentParams}
         />
       )}
       {view === "board" && (
