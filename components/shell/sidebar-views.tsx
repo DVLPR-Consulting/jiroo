@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { User, Users } from "lucide-react";
+import { NavLink } from "@/components/shell/nav-link";
 import { partitionViews, columnsToViewState, buildViewUrl } from "@/lib/items/views";
 
 // ---------------------------------------------------------------------------
@@ -35,10 +35,12 @@ export function SidebarViews({
   views,
   userId,
   backlogs,
+  collapsed = false,
 }: {
   views: SidebarViewRow[];
   userId: string;
   backlogs: Backlog[];
+  collapsed?: boolean;
 }) {
   const params = useParams<{ key?: string }>();
   const searchParams = useSearchParams();
@@ -48,7 +50,7 @@ export function SidebarViews({
   const activeBacklog = activeKey ? backlogs.find((b) => b.key === activeKey) : undefined;
 
   // Not on a /b/[key] route — views sections have no context, hide them.
-  if (!activeBacklog) return null;
+  if (!activeBacklog || collapsed) return null;
 
   // Filter to the active backlog and partition.
   // SidebarViewRow is a structural superset of ViewRow, so partitionViews
@@ -123,16 +125,11 @@ function ViewLink({
   const href = buildViewUrl({ id: view.id, state, displayMode }, basePath);
 
   return (
-    <Link
+    <NavLink
       href={href}
-      className={[
-        "flex items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]",
-        isActive ? "bg-[var(--accent-subtle)] font-medium" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      active={isActive}
     >
       <span className="truncate">{view.name}</span>
-    </Link>
+    </NavLink>
   );
 }

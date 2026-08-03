@@ -17,7 +17,13 @@ const ROLE_LABELS: Record<string, string> = {
   viewer: "Lecteur",
 };
 
-export function UserCard({ user }: { user: { name: string; email: string; role: string } }) {
+export function UserCard({
+  user,
+  collapsed = false,
+}: {
+  user: { name: string; email: string; role: string };
+  collapsed?: boolean;
+}) {
   const router = useRouter();
   const roleLabel = ROLE_LABELS[user.role] ?? user.role;
 
@@ -31,10 +37,17 @@ export function UserCard({ user }: { user: { name: string; email: string; role: 
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex w-full items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left text-sm hover:bg-[var(--surface)]"
+          aria-label={`Profil de ${user.name}`}
+          title={collapsed ? user.name : undefined}
+          className={[
+            "flex w-full items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left text-sm hover:bg-[var(--surface)]",
+            collapsed ? "justify-center px-0" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
         >
           <InitialsAvatar name={user.name} hue={3} />
-          <span className="flex min-w-0 flex-col leading-tight">
+          <span className={collapsed ? "sr-only" : "flex min-w-0 flex-col leading-tight"}>
             <span className="truncate font-medium">{user.name}</span>
             <span className="truncate text-[11px] text-muted-foreground">{roleLabel}</span>
           </span>

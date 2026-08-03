@@ -1,11 +1,23 @@
-import Link from "next/link";
-import { Layers, Settings, Trash2, User } from "lucide-react";
+"use client";
+
+import { usePathname, useSearchParams } from "next/navigation";
+import {
+  Layers,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings,
+  Trash2,
+  User,
+} from "lucide-react";
 import { BacklogSelector } from "@/components/shell/backlog-selector";
 import { NavLink } from "@/components/shell/nav-link";
+import { useSidebarState } from "@/components/shell/sidebar-state";
 import { SidebarViews } from "@/components/shell/sidebar-views";
 import { UserCard } from "@/components/shell/user-card";
 import type { SidebarViewRow } from "@/components/shell/sidebar-views";
+import { deriveShellContext } from "@/lib/items/shell";
 import type { ShellCounts } from "@/lib/services/shell";
+import { cn } from "@/lib/utils";
 
 type Backlog = { id: string; key: string; name: string; color: string };
 
@@ -14,6 +26,7 @@ export function Sidebar({
   views,
   userId,
   user,
+  counts,
 }: {
   backlogs: Backlog[];
   views: SidebarViewRow[];
@@ -21,58 +34,137 @@ export function Sidebar({
   user: { name: string; email: string; role: string };
   counts: ShellCounts;
 }) {
+  const { collapsed, toggle } = useSidebarState();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const backlogKeys = new Map(backlogs.map((backlog) => [backlog.id, backlog.key]));
+  const context = deriveShellContext({
+    pathname,
+    search: new URLSearchParams(searchParams.toString()),
+    backlogs,
+    views: views.flatMap((view) => {
+      const backlogKey = view.backlogId ? backlogKeys.get(view.backlogId) : undefined;
+      return backlogKey ? [{ id: view.id, name: view.name, backlogKey }] : [];
+    }),
+  });
+  const activeKey = context.activeBacklogKey?.toUpperCase();
+  const allCount = activeKey ? counts.allByBacklog[activeKey] ?? 0 : 0;
+
   return (
-    <div className="flex h-full flex-col gap-1 border-r border-border bg-[var(--surface-2)] p-3">
-      {/* Logo */}
-      <div className="t-h2 px-2 py-1 font-semibold">
-        Jir<span className="text-[var(--primary)]">oo</span>
+    <div
+      className={cn(
+        "flex h-full flex-col gap-1 overflow-hidden border-r border-border bg-[var(--surface-2)]",
+        collapsed ? "p-2" : "p-3",
+      )}
+    >
+      <div className={cn("flex items-center", collapsed ? "justify-between" : "px-2 py-1")}>
+        <div
+          aria-label="Jiroo"
+          title={collapsed ? "Jiroo" : undefined}
+          className="t-h2 overflow-hidden font-semibold"
+        >
+          {collapsed ? (
+            <span aria-hidden="true">J</span>
+          ) : (
+            <span aria-hidden="true">
+              Jir<span className="text-[var(--primary)]">oo</span>
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={collapsed ? "Déplier la barre latérale" : "Replier la barre latérale"}
+          title={collapsed ? "Déplier la barre latérale" : "Replier la barre latérale"}
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground"
+        >
+          {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+        </button>
       </div>
 
-      {/* Backlogs */}
-      <div className="t-meta px-2 pt-2 pb-1 text-muted-foreground">Backlogs</div>
-      <BacklogSelector backlogs={backlogs} />
+      <BacklogSelector
+        backlogs={backlogs}
+        collapsed={collapsed}
+        activeKey={context.activeBacklogKey}
+      />
 
-      {/* Nav (placeholder — later lot) */}
-      <div className="t-meta px-2 pt-3 pb-1 text-muted-foreground">Navigation</div>
-      <div className="flex flex-col gap-0.5">
-        <span
-          className="flex cursor-default items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-sm text-muted-foreground"
-          title="bientôt"
+      <div className="mt-2 flex flex-col gap-0.5">
+        <NavLink
+          href={context.allItemsHref}
+          active={context.activeNav === "all"}
+          ariaLabel={`Tous les items ${allCount}`}
+          collapsed={collapsed}
+          title={collapsed ? "Tous les items" : undefined}
         >
           <Layers className="size-4" />
-          Tous les items
-        </span>
-        <NavLink href="/mine">
+          <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
+            Tous les items
+          </span>
+          <Count value={allCount} collapsed={collapsed} />
+        </NavLink>
+        <NavLink
+          href="/mine"
+          active={context.activeNav === "mine"}
+          ariaLabel={`Mes items ${counts.mine}`}
+          collapsed={collapsed}
+          title={collapsed ? "Mes items" : undefined}
+        >
           <User className="size-4" />
-          Mes items
+          <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>Mes items</span>
+          <Count value={counts.mine} collapsed={collapsed} />
         </NavLink>
       </div>
 
-      {/* Saved views — personal & shared */}
-      <SidebarViews views={views} userId={userId} backlogs={backlogs} />
+      <SidebarViews
+        views={views}
+        userId={userId}
+        backlogs={backlogs}
+        collapsed={collapsed}
+      />
 
-      {/* Bottom */}
       <div className="mt-auto flex flex-col gap-1">
         {user.role === "admin" && (
-          <Link
+          <NavLink
             href="/trash"
-            className="flex items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
+            active={context.activeNav === "trash"}
+            ariaLabel={`Corbeille ${counts.trash}`}
+            collapsed={collapsed}
+            title={collapsed ? "Corbeille" : undefined}
           >
             <Trash2 className="size-4" />
-            Corbeille
-          </Link>
+            <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>Corbeille</span>
+            <Count value={counts.trash} collapsed={collapsed} />
+          </NavLink>
         )}
         {user.role === "admin" && (
-          <Link
+          <NavLink
             href="/admin"
-            className="flex items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
+            active={context.activeNav === "admin"}
+            ariaLabel="Administration"
+            collapsed={collapsed}
+            title={collapsed ? "Administration" : undefined}
           >
             <Settings className="size-4" />
-            Administration
-          </Link>
+            <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
+              Administration
+            </span>
+          </NavLink>
         )}
-        <UserCard user={user} />
+        <UserCard user={user} collapsed={collapsed} />
       </div>
     </div>
+  );
+}
+
+function Count({ value, collapsed }: { value: number; collapsed: boolean }) {
+  return (
+    <span
+      className={cn(
+        "ml-auto text-xs tabular-nums text-muted-foreground",
+        collapsed && "sr-only",
+      )}
+    >
+      {value}
+    </span>
   );
 }
