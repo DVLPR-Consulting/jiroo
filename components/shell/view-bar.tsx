@@ -13,6 +13,7 @@ export function ViewBar({
   backlogKey,
   itemKey,
   params,
+  groupControlSlot,
   viewActionsSlot,
   newItemSlot,
 }: {
@@ -20,7 +21,9 @@ export function ViewBar({
   backlogKey: string;
   itemKey?: string;
   params?: Record<string, string>;
-  /** Rendered right after the tabs group, before the ml-auto cluster. */
+  /** Rendered right after the tabs group, before saved-view actions. */
+  groupControlSlot?: React.ReactNode;
+  /** Rendered after grouping, before the ml-auto cluster. */
   viewActionsSlot?: React.ReactNode;
   newItemSlot?: React.ReactNode;
 }) {
@@ -49,6 +52,7 @@ export function ViewBar({
           );
         })}
       </div>
+      {groupControlSlot}
       {viewActionsSlot}
       <div className="ml-auto flex items-center gap-3">
         <DensityToggle />

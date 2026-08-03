@@ -45,6 +45,7 @@ export type BoardCard = {
   rank: string;
   assigneeId: string | null;
   parentId: string | null;
+  componentId: string | null;
   assigneeName?: string | null;
   subCount?: number;
   /** Label objects attached in T4; rendered as chips in T5. */
@@ -57,7 +58,7 @@ export type BoardCard = {
   dueDate?: Date | string | null;
 };
 
-export type BoardGroup = "assignee" | "priority" | "parent" | null;
+export type BoardGroup = "assignee" | "priority" | "component" | "parent" | null;
 
 type Status = { id: string; name: string; color: string; category: string };
 type Columns = Record<string, BoardCard[]>;
@@ -81,6 +82,8 @@ function swimlaneOf(card: BoardCard, group: BoardGroup): string {
       return card.assigneeId ?? "none";
     case "priority":
       return String(card.priority);
+    case "component":
+      return card.componentId ?? "none";
     case "parent":
       return card.parentId ?? "none";
     case null:

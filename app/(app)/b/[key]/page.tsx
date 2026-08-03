@@ -31,6 +31,7 @@ import { getSession } from "@/lib/auth/session";
 import { getViewById } from "@/lib/services/views";
 import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
 import { ViewBar } from "@/components/shell/view-bar";
+import { GroupControl } from "@/components/shell/group-control";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewActions } from "@/components/shell/view-actions";
 import { ItemList } from "@/components/items/item-list";
@@ -193,6 +194,7 @@ export default async function BacklogPage({
   for (const i of items) {
     if (i.parentId) childCount.set(i.parentId, (childCount.get(i.parentId) ?? 0) + 1);
   }
+  const filterRowById = new Map(filterRows.map((row) => [row.id, row]));
   // Jira-style mono-level board: cards are the working level (Tâche) only. Sous-tâches stay
   // nested under their tâche (shown as the subCount badge); Composant/Epic are structure,
   // navigated in the tree/list — never sibling cards next to their own children.
@@ -208,6 +210,7 @@ export default async function BacklogPage({
       rank: i.rank,
       assigneeId: i.assigneeId,
       parentId: i.parentId,
+      componentId: filterRowById.get(i.id)?.componentId ?? null,
       assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
       subCount: childCount.get(i.id) ?? 0,
       labels: labelsByItem.get(i.id) ?? [],
@@ -219,7 +222,10 @@ export default async function BacklogPage({
   // Board swimlanes: status is the columns, so it never groups the board. Build
   // the label for each band key the same way the board partitions its cards.
   const boardGroup =
-    viewState.group === "assignee" || viewState.group === "priority" || viewState.group === "parent"
+    viewState.group === "assignee" ||
+    viewState.group === "priority" ||
+    viewState.group === "component" ||
+    viewState.group === "parent"
       ? viewState.group
       : null;
   const groupLabels: Record<string, string> = {};
@@ -230,12 +236,16 @@ export default async function BacklogPage({
           ? (c.assigneeId ?? "none")
           : boardGroup === "priority"
             ? String(c.priority)
-            : (c.parentId ?? "none");
+            : boardGroup === "component"
+              ? (c.componentId ?? "none")
+              : (c.parentId ?? "none");
       groupLabels[k] =
         k === "none"
           ? boardGroup === "assignee"
             ? "Non assigné"
-            : "Sans parent"
+            : boardGroup === "component"
+              ? "Sans composant"
+              : "Sans parent"
             : boardGroup === "assignee"
             ? (c.assigneeName ?? k)
             : boardGroup === "priority"
@@ -311,6 +321,13 @@ export default async function BacklogPage({
         backlogKey={key}
         itemKey={itemKey}
         params={currentParams}
+        groupControlSlot={
+          <GroupControl
+            view={view as DisplayMode}
+            state={viewState}
+            currentParams={currentParams}
+          />
+        }
         viewActionsSlot={
           <ViewActions
             backlogKey={key}
