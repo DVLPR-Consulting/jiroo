@@ -1,18 +1,23 @@
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { NotificationBell } from "@/components/shell/notification-bell";
 import { SearchModal } from "@/components/shell/search-modal";
+import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
 import type { NotificationRow } from "@/lib/services/notifications";
 
 export function Topbar({
   notifications,
   unreadCount,
+  backlogs,
+  views,
 }: {
   notifications: NotificationRow[];
   unreadCount: number;
+  backlogs: Array<{ id: string; key: string; name: string }>;
+  views: Array<{ id: string; name: string; backlogId: string | null }>;
 }) {
   return (
     <div className="flex h-[52px] items-center gap-3 border-b border-border bg-[var(--surface)] px-4">
-      <span className="t-h3">Jiroo</span>
+      <ShellBreadcrumb backlogs={backlogs} views={views} />
       <div className="ml-auto flex items-center gap-1">
         <SearchModal />
         <NotificationBell notifications={notifications} unreadCount={unreadCount} />

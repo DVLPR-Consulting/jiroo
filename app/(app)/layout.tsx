@@ -30,7 +30,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           counts={counts}
         />
       }
-      topbar={<Topbar notifications={notifications} unreadCount={notifCount} />}
+      topbar={
+        <Topbar
+          notifications={notifications}
+          unreadCount={notifCount}
+          backlogs={backlogs}
+          views={views}
+        />
+      }
     >
       {children}
     </AppShell>
