@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -91,12 +92,14 @@ function BacklogDialog({
   const [name, setName] = useState(initialName);
   const [color, setColor] = useState(initialColor);
   const [error, setError] = useState<string | null>(null);
+  const [confirmKeyChange, setConfirmKeyChange] = useState(false);
 
   function reset() {
     setKey(initialKey);
     setName(initialName);
     setColor(initialColor);
     setError(null);
+    setConfirmKeyChange(false);
   }
 
   return (
@@ -111,13 +114,25 @@ function BacklogDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            Renseignez une clé, un nom et une couleur pour ce backlog.
+          </DialogDescription>
         </DialogHeader>
         <form
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
             setError(null);
-            onSubmit({ key: key.trim(), name: name.trim(), color }, () => setOpen(false), setError);
+            const normalizedKey = key.trim();
+            if (initialKey && normalizedKey !== initialKey && !confirmKeyChange) {
+              setConfirmKeyChange(true);
+              return;
+            }
+            onSubmit(
+              { key: normalizedKey, name: name.trim(), color },
+              () => setOpen(false),
+              setError,
+            );
           }}
         >
           <div className="space-y-2">
@@ -128,7 +143,10 @@ function BacklogDialog({
               maxLength={6}
               disabled={!keyEditable}
               placeholder="ex. WEB"
-              onChange={(e) => setKey(e.target.value.toUpperCase())}
+              onChange={(e) => {
+                setKey(e.target.value.toUpperCase());
+                setConfirmKeyChange(false);
+              }}
             />
             <p className="t-sm text-muted-foreground">En majuscules, 6 caractères max.</p>
           </div>
@@ -145,10 +163,16 @@ function BacklogDialog({
             <Label>Couleur</Label>
             <ColorPicker value={color} onChange={setColor} />
           </div>
+          {confirmKeyChange && (
+            <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              La clé et toutes les clés d’items seront renommées. Les anciens liens ne fonctionneront
+              plus.
+            </p>
+          )}
           {error && <p className="t-sm text-destructive">{error}</p>}
           <DialogFooter>
             <Button type="submit" disabled={pending || !name || (keyEditable && !key)}>
-              Enregistrer
+              {confirmKeyChange ? "Confirmer le renommage" : "Enregistrer"}
             </Button>
           </DialogFooter>
         </form>
@@ -213,7 +237,6 @@ export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
                     <BacklogDialog
                       title="Modifier le backlog"
                       pending={pending}
-                      keyEditable={false}
                       initialKey={b.key}
                       initialName={b.name}
                       initialColor={b.color}
@@ -222,13 +245,18 @@ export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
                           Modifier
                         </Button>
                       }
-                      onSubmit={(values, close) => {
+                      onSubmit={(values, close, setError) => {
                         startTransition(async () => {
-                          await updateBacklogAction({
+                          const result = await updateBacklogAction({
                             id: b.id,
+                            key: values.key,
                             name: values.name,
                             color: values.color,
                           });
+                          if (!result.ok) {
+                            setError(result.error);
+                            return;
+                          }
                           close();
                         });
                       }}

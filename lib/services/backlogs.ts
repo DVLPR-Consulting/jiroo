@@ -1,7 +1,8 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { backlogs, statuses } from "@/lib/db/schema/domain";
+import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
 import { STATUS_CATEGORY, type StatusId } from "@/lib/design/constants";
+import { planItemKeyRewrite } from "@/lib/items/backlog-key";
 import { createBacklogSchema, updateBacklogSchema } from "@/lib/validation/backlog";
 
 // The 4 fixed statuses every backlog gets at creation.
@@ -42,14 +43,48 @@ export async function createBacklog(input: unknown) {
   });
 }
 
-export async function updateBacklog(input: unknown) {
+export async function updateBacklog(input: unknown, actorId: string) {
   const data = updateBacklogSchema.parse(input);
-  const [b] = await db
-    .update(backlogs)
-    .set({ name: data.name, color: data.color })
-    .where(eq(backlogs.id, data.id))
-    .returning();
-  return b ?? null;
+  return db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(backlogs)
+      .where(eq(backlogs.id, data.id))
+      .for("update");
+    if (!current) return null;
+
+    const backlogItems = await tx
+      .select({ id: items.id, key: items.key })
+      .from(items)
+      .where(eq(items.backlogId, data.id))
+      .for("update");
+    const rewrites = planItemKeyRewrite(backlogItems, current.key, data.key);
+
+    const [backlog] = await tx
+      .update(backlogs)
+      .set({ key: data.key, name: data.name, color: data.color })
+      .where(eq(backlogs.id, data.id))
+      .returning();
+
+    for (const rewrite of rewrites) {
+      await tx.update(items).set({ key: rewrite.newKey }).where(eq(items.id, rewrite.id));
+    }
+
+    if (rewrites.length > 0) {
+      await tx.insert(activities).values(
+        rewrites.map((rewrite) => ({
+          itemId: rewrite.id,
+          actorId,
+          action: "update" as const,
+          field: "key",
+          oldValue: rewrite.oldKey,
+          newValue: rewrite.newKey,
+        })),
+      );
+    }
+
+    return { backlog: backlog!, previousKey: current.key };
+  });
 }
 
 export async function archiveBacklog(id: string) {
