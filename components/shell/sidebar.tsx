@@ -5,6 +5,7 @@ import { NavLink } from "@/components/shell/nav-link";
 import { SidebarViews } from "@/components/shell/sidebar-views";
 import { UserCard } from "@/components/shell/user-card";
 import type { SidebarViewRow } from "@/components/shell/sidebar-views";
+import type { ShellCounts } from "@/lib/services/shell";
 
 type Backlog = { id: string; key: string; name: string; color: string };
 
@@ -18,6 +19,7 @@ export function Sidebar({
   views: SidebarViewRow[];
   userId: string;
   user: { name: string; email: string; role: string };
+  counts: ShellCounts;
 }) {
   return (
     <div className="flex h-full flex-col gap-1 border-r border-border bg-[var(--surface-2)] p-3">
