@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type Backlog = {
+export type Backlog = {
   id: string;
   key: string;
   name: string;
