@@ -168,6 +168,7 @@ export function FilterBar({
                 assignees: [],
                 labels: [],
                 kind: [],
+                underIds: [],
               },
             });
           }}

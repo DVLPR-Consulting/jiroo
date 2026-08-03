@@ -23,6 +23,7 @@ import {
   groupItems,
   sortItems,
   withAncestors,
+  enrichHierarchy,
   type FilterItem,
 } from "@/lib/items/filter";
 import { PRIORITY_LABELS } from "@/lib/design/constants";
@@ -87,10 +88,15 @@ export default async function BacklogPage({
       displayMode: view as DisplayMode,
     });
 
-  const [items, labelPairs, blockedIds] = await Promise.all([
+  const [items, labelPairs, blockedIds, statusRows] = await Promise.all([
     listItems(backlog.id),
     listItemLabelPairs(backlog.id),
     blockedItemIds(backlog.id),
+    db
+      .select()
+      .from(statuses)
+      .where(eq(statuses.backlogId, backlog.id))
+      .orderBy(asc(statuses.order)),
   ]);
 
   // Set of item ids that are blocked by an unfinished item — used to drive the badge.
@@ -104,7 +110,8 @@ export default async function BacklogPage({
     labelsByItem.set(p.itemId, arr);
   }
 
-  const filterRows: FilterItem[] = items.map((i) => ({
+  const statusOrderById = new Map(statusRows.map((status) => [status.id, status.order]));
+  const filterRows: FilterItem[] = enrichHierarchy(items.map((i) => ({
     id: i.id,
     key: i.key,
     type: i.type,
@@ -122,7 +129,8 @@ export default async function BacklogPage({
     rank: i.rank,
     labelIds: (labelsByItem.get(i.id) ?? []).map((l) => l.id),
     kind: i.kind,
-  }));
+    statusOrder: statusOrderById.get(i.statusId) ?? 0,
+  })));
   const filtersOn = isFiltersActive(viewState.filters);
   const matchedIds = new Set(
     filterRows
@@ -137,12 +145,6 @@ export default async function BacklogPage({
   const listGroups: Array<[string, typeof listSorted]> = viewState.group
     ? groupItems(listSorted, viewState.group)
     : [["", listSorted]];
-
-  const statusRows = await db
-    .select()
-    .from(statuses)
-    .where(eq(statuses.backlogId, backlog.id))
-    .orderBy(asc(statuses.order));
 
   const statusList = statusRows.map((s) => ({
     id: s.id,
@@ -168,6 +170,7 @@ export default async function BacklogPage({
     if (!viewState.group || key === "") return "";
     if (key === "none") {
       if (viewState.group === "assignee") return "Non assigné";
+      if (viewState.group === "component") return "Sans composant";
       if (viewState.group === "parent") return "Sans parent";
       return key; // priority/status never emit "none"
     }
@@ -178,6 +181,8 @@ export default async function BacklogPage({
         return userName.get(key) ?? key;
       case "priority":
         return PRIORITY_LABELS[Number(key) as 0 | 1 | 2 | 3 | 4] ?? key;
+      case "component":
+        return items.find((i) => i.id === key)?.title ?? key;
       case "parent":
         return items.find((i) => i.id === key)?.title ?? key;
     }
@@ -214,7 +219,9 @@ export default async function BacklogPage({
   // Board swimlanes: status is the columns, so it never groups the board. Build
   // the label for each band key the same way the board partitions its cards.
   const boardGroup =
-    viewState.group && viewState.group !== "status" ? viewState.group : null;
+    viewState.group === "assignee" || viewState.group === "priority" || viewState.group === "parent"
+      ? viewState.group
+      : null;
   const groupLabels: Record<string, string> = {};
   if (boardGroup) {
     for (const c of boardCards) {
@@ -229,7 +236,7 @@ export default async function BacklogPage({
           ? boardGroup === "assignee"
             ? "Non assigné"
             : "Sans parent"
-          : boardGroup === "assignee"
+            : boardGroup === "assignee"
             ? (c.assigneeName ?? k)
             : boardGroup === "priority"
               ? PRIORITY_LABELS[Number(k) as 0 | 1 | 2 | 3 | 4]

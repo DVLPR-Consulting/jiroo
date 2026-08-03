@@ -79,7 +79,7 @@ export function columnsToViewState(row: {
   // --- groupBy → group ---
   const group: GroupKey | null =
     typeof row.groupBy === "string" &&
-    (GROUP_KEYS as string[]).includes(row.groupBy)
+    ([...GROUP_KEYS, "parent"] as string[]).includes(row.groupBy)
       ? (row.groupBy as GroupKey)
       : null;
 
@@ -137,8 +137,12 @@ export function columnsToViewState(row: {
       )
     : [];
 
+  const underIds: string[] = Array.isArray(rawFilters.underIds)
+    ? (rawFilters.underIds as unknown[]).filter((id): id is string => typeof id === "string")
+    : [];
+
   const state: ViewState = {
-    filters: { q, types, statusIds, priorities, assignees, labels, kind },
+    filters: { q, types, statusIds, priorities, assignees, labels, kind, underIds },
     group,
     sort,
   };
@@ -185,6 +189,7 @@ export function isViewDirty(
   if (!sameSet(vs.filters.assignees, cs.filters.assignees)) return true;
   if (!sameSet(vs.filters.labels, cs.filters.labels)) return true;
   if (!sameSet(vs.filters.kind, cs.filters.kind)) return true;
+  if (!sameSet(vs.filters.underIds, cs.filters.underIds)) return true;
 
   return false;
 }
@@ -237,6 +242,7 @@ const filtersSchema = z.object({
   assignees: z.array(z.string()).default([]),
   labels: z.array(z.string()).default([]),
   kind: z.array(z.enum(ITEM_KINDS)).default([]),
+  underIds: z.array(z.string()).default([]),
 });
 
 const sortSchema = z
