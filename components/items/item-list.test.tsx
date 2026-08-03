@@ -22,9 +22,37 @@ vi.mock("@/app/actions/items", () => ({
   updateItemAction: mocks.updateItemAction,
 }));
 
-const statuses = [
-  { id: "todo", name: "À faire", color: "--status-todo", category: "todo" },
-  { id: "doing", name: "En cours", color: "--status-doing", category: "doing" },
+const todoStatusId = "11111111-1111-4111-8111-111111111111";
+
+const statuses: Array<{
+  id: string;
+  name: string;
+  color: string;
+  category: "todo" | "in_progress" | "done";
+  order: number;
+}> = [
+  { id: todoStatusId, name: "À faire", color: "#9aa0a6", category: "todo", order: 0 },
+  {
+    id: "22222222-2222-4222-8222-222222222222",
+    name: "En cours",
+    color: "#d99a2b",
+    category: "in_progress",
+    order: 1,
+  },
+  {
+    id: "33333333-3333-4333-8333-333333333333",
+    name: "En revue",
+    color: "#8b5cf6",
+    category: "in_progress",
+    order: 2,
+  },
+  {
+    id: "44444444-4444-4444-8444-444444444444",
+    name: "Terminé",
+    color: "#3aa675",
+    category: "done",
+    order: 3,
+  },
 ];
 
 const users = [
@@ -44,7 +72,7 @@ function item(
     type: "tache" as const,
     kind: "feature" as const,
     title,
-    statusId: "todo",
+    statusId: todoStatusId,
     priority: 2,
     depth: 0,
     dueDate: "2026-08-12T00:00:00.000Z",
@@ -106,6 +134,7 @@ describe("ItemList", () => {
       expect(screen.getByRole("columnheader", { name: heading })).toBeInTheDocument();
     }
     expect(screen.getByRole("columnheader", { name: "Clé" }).closest("thead")).toHaveClass("sticky");
+    expect(screen.getAllByRole("img", { name: "À faire" })[0]).toBeVisible();
   });
 
   it("toggles title sorting while preserving unrelated URL parameters", async () => {

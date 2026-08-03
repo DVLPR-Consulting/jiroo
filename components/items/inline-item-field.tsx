@@ -25,7 +25,8 @@ type StatusOption = {
   id: string;
   name: string;
   color: string;
-  category: string;
+  category: "todo" | "in_progress" | "done";
+  order: number;
 };
 
 type UserOption = { id: string; name: string };
@@ -41,6 +42,21 @@ function hueFor(value: string): LabelHue {
     hash = (hash * 31 + value.charCodeAt(index)) | 0;
   }
   return LABEL_HUES[Math.abs(hash) % LABEL_HUES.length]!;
+}
+
+function visualStatusId(status: StatusOption, statuses: StatusOption[]): StatusId {
+  if (status.category === "todo") return "todo";
+  if (status.category === "done") return "done";
+
+  // Backlogs own the same fixed pair of in-progress statuses. Their UUIDs are
+  // generated per backlog, so their deterministic domain order distinguishes
+  // the first progress state (doing) from the second (review).
+  const progressStatuses = statuses
+    .filter((option) => option.category === "in_progress")
+    .sort((a, b) => a.order - b.order);
+  return progressStatuses.findIndex((option) => option.id === status.id) <= 0
+    ? "doing"
+    : "review";
 }
 
 function useInlineUpdate(itemId: string, backlogKey: string) {
@@ -113,7 +129,7 @@ export function InlineStatus({
             onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
           >
-            <StatusDot status={statusId as StatusId} />
+            {selected && <StatusDot status={visualStatusId(selected, statuses)} />}
             <span className="truncate">{selected?.name ?? statusId}</span>
           </button>
         </DropdownMenuTrigger>
@@ -129,7 +145,7 @@ export function InlineStatus({
               aria-label={status.name}
               onSelect={() => update({ statusId: status.id })}
             >
-              <StatusDot status={status.id as StatusId} />
+              <StatusDot status={visualStatusId(status, statuses)} />
               {status.name}
             </DropdownMenuItem>
           ))}

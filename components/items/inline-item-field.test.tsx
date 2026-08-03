@@ -20,10 +20,19 @@ vi.mock("@/app/actions/items", () => ({
   updateItemAction: mocks.updateItemAction,
 }));
 
+const statusIds = {
+  todo: "11111111-1111-4111-8111-111111111111",
+  doing: "22222222-2222-4222-8222-222222222222",
+  review: "33333333-3333-4333-8333-333333333333",
+  done: "44444444-4444-4444-8444-444444444444",
+};
+
 const statuses = [
-  { id: "todo", name: "À faire", color: "--status-todo", category: "todo" },
-  { id: "doing", name: "En cours", color: "--status-doing", category: "doing" },
-];
+  { id: statusIds.todo, name: "À faire", color: "#9aa0a6", category: "todo", order: 0 },
+  { id: statusIds.doing, name: "En cours", color: "#d99a2b", category: "in_progress", order: 1 },
+  { id: statusIds.review, name: "En revue", color: "#8b5cf6", category: "in_progress", order: 2 },
+  { id: statusIds.done, name: "Terminé", color: "#3aa675", category: "done", order: 3 },
+] as const;
 
 const users = [
   { id: "marie", name: "Marie Lemaire" },
@@ -52,8 +61,8 @@ describe("compact inline item editors", () => {
       <InlineStatus
         itemId="item-1"
         backlogKey="DEMO"
-        statusId="todo"
-        statuses={statuses}
+        statusId={statusIds.todo}
+        statuses={[...statuses]}
       />,
     );
 
@@ -64,7 +73,7 @@ describe("compact inline item editors", () => {
     expect(mocks.updateItemAction).toHaveBeenCalledWith({
       id: "item-1",
       backlogKey: "DEMO",
-      statusId: "doing",
+      statusId: statusIds.doing,
     });
     expect(trigger).toBeDisabled();
     expect(screen.getByRole("img", { name: "À faire" })).toBeInTheDocument();
@@ -84,8 +93,8 @@ describe("compact inline item editors", () => {
       <InlineStatus
         itemId="item-1"
         backlogKey="DEMO"
-        statusId="todo"
-        statuses={statuses}
+        statusId={statusIds.todo}
+        statuses={[...statuses]}
       />,
     );
 
@@ -97,6 +106,25 @@ describe("compact inline item editors", () => {
     expect(error).toHaveTextContent("Mise à jour impossible.");
     expect(trigger).toHaveAttribute("aria-describedby", error.id);
     expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it("maps UUID status metadata to the four canonical accessible icons", async () => {
+    const user = userEvent.setup();
+    render(
+      <InlineStatus
+        itemId="item-1"
+        backlogKey="DEMO"
+        statusId={statusIds.review}
+        statuses={[...statuses]}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "En revue" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: /Statut.*En revue/i }));
+    for (const label of ["À faire", "En cours", "En revue", "Terminé"]) {
+      expect(screen.getAllByRole("img", { name: label }).at(-1)).toBeVisible();
+    }
   });
 
   it("sends the selected numeric priority", async () => {

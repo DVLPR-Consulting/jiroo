@@ -17,7 +17,13 @@ import type { SortDir, SortField } from "@/lib/items/filter";
 
 type LabelChip = { id: string; name: string; color: string };
 type UserOption = { id: string; name: string };
-type StatusOption = { id: string; name: string; color: string; category: string };
+type StatusOption = {
+  id: string;
+  name: string;
+  color: string;
+  category: "todo" | "in_progress" | "done";
+  order: number;
+};
 
 export type ListItem = {
   id: string;

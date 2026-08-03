@@ -152,6 +152,7 @@ export default async function BacklogPage({
     name: s.name,
     color: s.color,
     category: s.category,
+    order: s.order,
   }));
   const statusMap = Object.fromEntries(
     statusRows.map((s) => [s.id, { name: s.name, color: s.color }]),
