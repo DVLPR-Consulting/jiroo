@@ -31,6 +31,7 @@ function renderUserCard() {
 describe("UserCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     document.documentElement.classList.remove("dark");
     document.documentElement.dataset.density = "comfy";
   });
@@ -59,11 +60,18 @@ describe("UserCard", () => {
     await interaction.click(screen.getByRole("menuitem", { name: "Préférences" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Préférences" });
-    expect(within(dialog).getByText("Thème")).toBeVisible();
-    expect(within(dialog).getByRole("button", { name: "Basculer le thème" })).toBeVisible();
-    expect(within(dialog).getByText("Densité")).toBeVisible();
-    expect(within(dialog).getByRole("button", { name: "Confort" })).toBeVisible();
-    expect(within(dialog).getByRole("button", { name: "Compact" })).toBeVisible();
+    const themeGroup = within(dialog).getByRole("group", { name: "Thème" });
+    expect(
+      within(themeGroup).getByRole("button", { name: "Activer le thème sombre" }),
+    ).toBeVisible();
+
+    const densityGroup = within(dialog).getByRole("group", { name: "Densité" });
+    expect(within(densityGroup).getByRole("radio", { name: "Confort" })).toBeChecked();
+    expect(within(densityGroup).getByRole("radio", { name: "Compact" })).not.toBeChecked();
+
+    await interaction.click(within(densityGroup).getByRole("radio", { name: "Compact" }));
+    expect(within(densityGroup).getByRole("radio", { name: "Compact" })).toBeChecked();
+    expect(localStorage.getItem("jiroo-density")).toBe("compact");
   });
 
   it("keeps sign-out and login redirection intact", async () => {

@@ -30,6 +30,7 @@ export function NavLink({
 
   return (
     <Link
+      data-slot="nav-link"
       href={href}
       aria-label={ariaLabel}
       aria-current={active ? "page" : undefined}

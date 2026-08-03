@@ -29,7 +29,14 @@ export async function getShellCounts(userId: string): Promise<ShellCounts> {
     db
       .select({ count: count() })
       .from(items)
-      .where(and(eq(items.assigneeId, userId), isNull(items.deletedAt))),
+      .innerJoin(backlogs, eq(items.backlogId, backlogs.id))
+      .where(
+        and(
+          eq(items.assigneeId, userId),
+          isNull(items.deletedAt),
+          isNull(backlogs.archivedAt),
+        ),
+      ),
     db.select({ count: count() }).from(items).where(isNotNull(items.deletedAt)),
   ]);
 

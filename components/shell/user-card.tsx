@@ -42,6 +42,7 @@ export function UserCard({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
+            data-sidebar-user-trigger
             type="button"
             aria-label={`Profil de ${user.name}`}
             title={collapsed ? user.name : undefined}
@@ -53,7 +54,10 @@ export function UserCard({
               .join(" ")}
           >
             <InitialsAvatar name={user.name} hue={3} />
-            <span className={collapsed ? "sr-only" : "flex min-w-0 flex-col leading-tight"}>
+            <span
+              data-sidebar-label
+              className={collapsed ? "sr-only" : "flex min-w-0 flex-col leading-tight"}
+            >
               <span className="truncate font-medium">{user.name}</span>
               <span className="truncate text-[11px] text-muted-foreground">{roleLabel}</span>
             </span>

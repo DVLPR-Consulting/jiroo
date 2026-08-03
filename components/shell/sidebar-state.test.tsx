@@ -36,7 +36,7 @@ describe("SidebarStateProvider", () => {
     expect(document.documentElement.dataset.sidebar).toBe("open");
   });
 
-  it("uses a 64px shell column when the sidebar is collapsed", () => {
+  it("lets the pre-hydration root attribute control the shell width", () => {
     document.documentElement.dataset.sidebar = "collapsed";
     const { container } = render(
       <AppShell sidebar={<aside>Sidebar</aside>} topbar={<header>Topbar</header>}>
@@ -45,7 +45,7 @@ describe("SidebarStateProvider", () => {
     );
 
     expect(container.firstElementChild).toHaveStyle({
-      gridTemplateColumns: "64px minmax(0,1fr)",
+      gridTemplateColumns: "var(--sidebar-width, 248px) minmax(0,1fr)",
     });
   });
 });

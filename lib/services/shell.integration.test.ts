@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -20,9 +20,19 @@ describeDb("getShellCounts", () => {
     if (!actor) throw new Error("Le seed doit contenir un utilisateur.");
     const baseline = await getShellCounts(actor.id);
     const backlogKey = randomBacklogKey();
+    const archivedBacklogKey = randomBacklogKey();
     const [backlog] = await db
       .insert(backlogs)
       .values({ key: backlogKey, name: "Compteurs shell", color: "#475569" })
+      .returning();
+    const [archivedBacklog] = await db
+      .insert(backlogs)
+      .values({
+        key: archivedBacklogKey,
+        name: "Compteurs shell archivés",
+        color: "#64748b",
+        archivedAt: new Date(),
+      })
       .returning();
     const [status] = await db
       .insert(statuses)
@@ -34,7 +44,17 @@ describeDb("getShellCounts", () => {
         color: "#9aa0a6",
       })
       .returning();
-    const ids = [randomUUID(), randomUUID(), randomUUID()];
+    const [archivedStatus] = await db
+      .insert(statuses)
+      .values({
+        backlogId: archivedBacklog!.id,
+        name: "À faire",
+        category: "todo",
+        order: 0,
+        color: "#9aa0a6",
+      })
+      .returning();
+    const ids = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
     const suffix = Date.now();
     await db.insert(items).values([
       {
@@ -73,6 +93,18 @@ describeDb("getShellCounts", () => {
         path: `root.${ids[2]!.replaceAll("-", "")}`,
         deletedAt: new Date(),
       },
+      {
+        id: ids[3]!,
+        key: `${archivedBacklogKey}-${suffix}`,
+        type: "composant",
+        backlogId: archivedBacklog!.id,
+        title: "Assigné dans un backlog archivé",
+        statusId: archivedStatus!.id,
+        assigneeId: actor.id,
+        reporterId: actor.id,
+        rank: "a0",
+        path: `root.${ids[3]!.replaceAll("-", "")}`,
+      },
     ]);
 
     try {
@@ -81,7 +113,9 @@ describeDb("getShellCounts", () => {
       expect(counts.mine).toBe(baseline.mine + 1);
       expect(counts.trash).toBe(baseline.trash + 1);
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, backlog!.id));
+      await db
+        .delete(backlogs)
+        .where(inArray(backlogs.id, [backlog!.id, archivedBacklog!.id]));
     }
   });
 });

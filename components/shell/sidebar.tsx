@@ -52,24 +52,27 @@ export function Sidebar({
 
   return (
     <div
+      data-sidebar-shell
       className={cn(
         "flex h-full flex-col gap-1 overflow-hidden border-r border-border bg-[var(--surface-2)]",
         collapsed ? "p-2" : "p-3",
       )}
     >
-      <div className={cn("flex items-center", collapsed ? "justify-between" : "px-2 py-1")}>
+      <div
+        data-sidebar-brand
+        className={cn("flex items-center", collapsed ? "justify-between" : "px-2 py-1")}
+      >
         <div
           aria-label="Jiroo"
           title={collapsed ? "Jiroo" : undefined}
           className="t-h2 overflow-hidden font-semibold"
         >
-          {collapsed ? (
-            <span aria-hidden="true">J</span>
-          ) : (
-            <span aria-hidden="true">
-              Jir<span className="text-[var(--primary)]">oo</span>
-            </span>
-          )}
+          <span data-sidebar-collapsed-only aria-hidden="true">
+            J
+          </span>
+          <span data-sidebar-open-only aria-hidden="true">
+            Jir<span className="text-[var(--primary)]">oo</span>
+          </span>
         </div>
         <button
           type="button"
@@ -78,7 +81,8 @@ export function Sidebar({
           title={collapsed ? "Déplier la barre latérale" : "Replier la barre latérale"}
           className="inline-flex size-7 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground"
         >
-          {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+          <PanelLeftOpen data-sidebar-collapsed-only className="size-4" />
+          <PanelLeftClose data-sidebar-open-only className="size-4" />
         </button>
       </div>
 
@@ -97,7 +101,10 @@ export function Sidebar({
           title={collapsed ? "Tous les items" : undefined}
         >
           <Layers className="size-4" />
-          <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
+          <span
+            data-sidebar-label
+            className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}
+          >
             Tous les items
           </span>
           <Count value={allCount} collapsed={collapsed} />
@@ -110,17 +117,24 @@ export function Sidebar({
           title={collapsed ? "Mes items" : undefined}
         >
           <User className="size-4" />
-          <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>Mes items</span>
+          <span
+            data-sidebar-label
+            className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}
+          >
+            Mes items
+          </span>
           <Count value={counts.mine} collapsed={collapsed} />
         </NavLink>
       </div>
 
-      <SidebarViews
-        views={views}
-        userId={userId}
-        backlogs={backlogs}
-        collapsed={collapsed}
-      />
+      <div data-sidebar-open-only className="min-h-0 flex-1 overflow-y-auto">
+        <SidebarViews
+          views={views}
+          userId={userId}
+          backlogs={backlogs}
+          collapsed={collapsed}
+        />
+      </div>
 
       <div className="mt-auto flex flex-col gap-1">
         {user.role === "admin" && (
@@ -132,7 +146,12 @@ export function Sidebar({
             title={collapsed ? "Corbeille" : undefined}
           >
             <Trash2 className="size-4" />
-            <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>Corbeille</span>
+            <span
+              data-sidebar-label
+              className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}
+            >
+              Corbeille
+            </span>
             <Count value={counts.trash} collapsed={collapsed} />
           </NavLink>
         )}
@@ -145,7 +164,10 @@ export function Sidebar({
             title={collapsed ? "Administration" : undefined}
           >
             <Settings className="size-4" />
-            <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
+            <span
+              data-sidebar-label
+              className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}
+            >
               Administration
             </span>
           </NavLink>
@@ -159,6 +181,7 @@ export function Sidebar({
 function Count({ value, collapsed }: { value: number; collapsed: boolean }) {
   return (
     <span
+      data-sidebar-label
       className={cn(
         "ml-auto text-xs tabular-nums text-muted-foreground",
         collapsed && "sr-only",

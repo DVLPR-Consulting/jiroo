@@ -66,7 +66,7 @@ export function deriveShellContext({
       mode,
       viewTitle: savedView?.name ?? "Tous les items",
       allItemsHref: backlog ? `/b/${requestedKey}` : allItemsHref,
-      activeNav: backlog && !search.has("v") ? "all" : null,
+      activeNav: backlog && !savedView ? "all" : null,
     };
   }
 

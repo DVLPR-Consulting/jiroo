@@ -28,12 +28,14 @@ export function UserPreferencesDialog({
         </DialogHeader>
         <div className="grid gap-2">
           <PreferenceRow
+            id="theme"
             label="Thème"
             description="Alterner entre les apparences claire et sombre."
           >
             <ThemeToggle />
           </PreferenceRow>
           <PreferenceRow
+            id="density"
             label="Densité"
             description="Adapter l’espacement des listes et des tableaux."
           >
@@ -46,19 +48,30 @@ export function UserPreferencesDialog({
 }
 
 function PreferenceRow({
+  id,
   label,
   description,
   children,
 }: {
+  id: string;
   label: string;
   description: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-4 rounded-lg border border-border p-3">
+    <div
+      role="group"
+      aria-labelledby={`preference-${id}-label`}
+      aria-describedby={`preference-${id}-description`}
+      className="flex items-center gap-4 rounded-lg border border-border p-3"
+    >
       <div className="min-w-0 flex-1">
-        <div className="font-medium">{label}</div>
-        <div className="text-xs text-muted-foreground">{description}</div>
+        <div id={`preference-${id}-label`} className="font-medium">
+          {label}
+        </div>
+        <div id={`preference-${id}-description`} className="text-xs text-muted-foreground">
+          {description}
+        </div>
       </div>
       {children}
     </div>

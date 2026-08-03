@@ -31,6 +31,7 @@ export function BacklogSelector({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
+          data-sidebar-backlog-trigger
           type="button"
           aria-label={
             activeBacklog
@@ -53,13 +54,21 @@ export function BacklogSelector({
               >
                 {activeBacklog.key}
               </span>
-              <span className={collapsed ? "sr-only" : "truncate"}>{activeBacklog.name}</span>
+              <span
+                data-sidebar-label
+                className={collapsed ? "sr-only" : "truncate"}
+              >
+                {activeBacklog.name}
+              </span>
             </>
           ) : (
             <span className="truncate text-muted-foreground">Choisir un backlog</span>
           )}
           {!collapsed && (
-            <ChevronsUpDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
+            <ChevronsUpDown
+              data-sidebar-open-only
+              className="ml-auto size-4 shrink-0 text-muted-foreground"
+            />
           )}
         </button>
       </DropdownMenuTrigger>

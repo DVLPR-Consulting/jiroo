@@ -59,7 +59,7 @@ describe("deriveShellContext", () => {
     ).toMatchObject({
       mode: "Arbre",
       viewTitle: "Tous les items",
-      activeNav: null,
+      activeNav: "all",
     });
   });
 
