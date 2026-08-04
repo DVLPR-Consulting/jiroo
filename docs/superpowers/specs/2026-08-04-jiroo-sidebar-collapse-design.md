@@ -30,7 +30,8 @@ icons can also become visible. The redesign removes this split authority.
 - The shell sidebar column is exactly 248 px wide.
 - The header renders one `Jiroo` wordmark, with the existing garnet accent on
   `oo`.
-- The header renders one control labelled `Replier la barre latérale`.
+- The header renders one `ChevronLeft` control at its top-right edge, labelled
+  `Replier la barre latérale`.
 - The active backlog selector shows its badge, name, and dropdown affordance.
 - Primary navigation, personal and shared views, counts, trash,
   administration, and the user card retain their current behavior.
@@ -38,7 +39,8 @@ icons can also become visible. The redesign removes this split authority.
 ### Collapsed state
 
 - The shell sidebar column is exactly 64 px wide.
-- The header renders one `J` monogram and one control labelled
+- The wordmark and monogram are absent from the compact rail.
+- The rail begins with one centered `ChevronRight` control labelled
   `Déplier la barre latérale`.
 - The active backlog selector shows only the backlog key badge.
 - Primary navigation, trash, administration, and the user avatar remain as
@@ -78,10 +80,11 @@ The width transition remains short and affects the actual grid column.
 
 ### `Sidebar`
 
-`Sidebar` renders mutually exclusive React branches for the brand and toggle
-icon. It does not pre-render both variants and depend on CSS to hide one. The
-same `collapsed` value controls child props, view-group rendering, padding, and
-accessible labels.
+`Sidebar` renders the expanded wordmark and `ChevronLeft`, or the compact
+`ChevronRight` control, as mutually exclusive React branches. It does not
+pre-render both variants and depend on CSS to hide one. The same `collapsed`
+value controls child props, view-group rendering, padding, and accessible
+labels.
 
 ### Global CSS
 
@@ -105,8 +108,8 @@ density behavior remain unchanged.
 Implementation follows TDD and adds regressions that fail if:
 
 - toggling does not change the actual shell grid from 248 px to 64 px;
-- the expanded header contains more than one wordmark or toggle icon;
-- the collapsed header contains more than one monogram or toggle icon;
+- the expanded header contains more than one wordmark or `ChevronLeft` icon;
+- the collapsed rail contains branding or more than one `ChevronRight` icon;
 - collapsed labels or view groups remain visibly rendered;
 - essential rail controls lose their accessible names;
 - the preference is not persisted or restored.
@@ -127,4 +130,13 @@ present, the sidebar starts expanded.
 - Changing sidebar information architecture, routes, counts, saved views, or
   role visibility.
 - Replacing the sidebar with a third-party navigation framework.
-- Redesigning the Jiroo wordmark beyond the existing text treatment.
+- Redesigning the expanded Jiroo wordmark beyond the existing text treatment.
+
+## Pattern References
+
+- Jira's current navigation places the control at the top-right when the
+  sidebar is open and at the top-left when it is closed:
+  `https://support.atlassian.com/navigation/docs/old-vs-new-navigation-in-jira/`.
+- The Material UI mini drawer documents the persistent full-panel/icon-rail
+  pattern used here:
+  `https://v5-0-6.mui.com/components/drawers/`.
