@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, X } from "lucide-react";
+import { Copy, Trash2, X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { useViewUrlState } from "@/components/shell/view-url-state";
@@ -22,6 +22,7 @@ import {
   PriorityField,
   KindField,
   AssigneeField,
+  ReporterField,
   DueDateField,
   LabelsField,
 } from "@/components/items/detail/field-editors";
@@ -71,6 +72,7 @@ export function ItemDetailPanel({
   links,
   candidates,
   refs,
+  parent,
 }: {
   detail: ItemRow;
   activities: ActivityRow[];
@@ -84,6 +86,7 @@ export function ItemDetailPanel({
   links: LinkWithOther[];
   candidates: { id: string; key: string; title: string; type: ItemType }[];
   refs: { id: string; url: string; kind: string; createdAt: Date | string }[];
+  parent?: { key: string; title: string };
 }) {
   const router = useRouter();
   const viewUrl = useViewUrlState();
@@ -91,6 +94,15 @@ export function ItemDetailPanel({
   const [deleting, startDelete] = useTransition();
 
   const close = () => viewUrl.push((params) => params.delete("item"));
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Lien copié.");
+    } catch {
+      toast.error("Impossible de copier le lien.");
+    }
+  };
 
   const handleDelete = () => {
     if (!window.confirm("Supprimer cet item et ses sous-items ?")) return;
@@ -114,9 +126,6 @@ export function ItemDetailPanel({
     });
   };
 
-  const userById = new Map(users.map((u) => [u.id, u]));
-  const reporter = detail.reporterId ? userById.get(detail.reporterId) : undefined;
-
   return (
     <div
       className="fixed inset-0 z-50 flex animate-in fade-in-0 justify-end bg-black/30 duration-150"
@@ -129,8 +138,31 @@ export function ItemDetailPanel({
         {/* Header */}
         <header className="flex items-center gap-2 border-b border-border px-4 py-3">
           <TypeIcon type={detail.type} />
-          <ItemKey value={detail.key} />
+          <nav
+            aria-label="Fil d’Ariane"
+            className="flex min-w-0 items-center gap-1.5 text-sm"
+          >
+            {parent && (
+              <>
+                <span className="truncate" title={parent.title}>
+                  <ItemKey value={parent.key} />
+                </span>
+                <span className="text-muted-foreground" aria-hidden>
+                  {" / "}
+                </span>
+              </>
+            )}
+            <ItemKey value={detail.key} />
+          </nav>
           <div className="ml-auto flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="flex items-center gap-1.5 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-[var(--muted)]"
+            >
+              <Copy className="size-4" aria-hidden />
+              Copier le lien
+            </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -265,7 +297,14 @@ export function ItemDetailPanel({
               />
             </Field>
 
-            <Field label="Rapporteur">{reporter?.name ?? "—"}</Field>
+            <Field label="Rapporteur">
+              <ReporterField
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                reporterId={detail.reporterId}
+                users={users}
+              />
+            </Field>
 
             <Field label="Labels">
               <LabelsField

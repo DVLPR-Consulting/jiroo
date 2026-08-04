@@ -59,6 +59,12 @@ export async function ItemDetailContent({
     title: item.title,
     type: item.type as ItemType,
   }));
+  const parentItem = detail.parentId
+    ? items.find((item) => item.id === detail.parentId)
+    : undefined;
+  const parent = parentItem
+    ? { key: parentItem.key, title: parentItem.title }
+    : undefined;
 
   return (
     <>
@@ -76,6 +82,7 @@ export async function ItemDetailContent({
         links={links}
         candidates={candidates}
         refs={refs}
+        parent={parent}
       />
     </>
   );

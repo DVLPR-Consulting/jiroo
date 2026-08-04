@@ -218,6 +218,39 @@ export function AssigneeField({
   );
 }
 
+export function ReporterField({
+  itemId,
+  backlogKey,
+  reporterId,
+  users,
+}: {
+  itemId: string;
+  backlogKey: string;
+  reporterId: string;
+  users: UserLite[];
+}) {
+  const { pending, error, run } = useFieldUpdate(itemId, backlogKey);
+
+  return (
+    <div>
+      <select
+        className={selectClass}
+        value={reporterId}
+        disabled={pending}
+        onChange={(e) => run({ reporterId: e.target.value })}
+        aria-label="Rapporteur"
+      >
+        {users.map((u) => (
+          <option key={u.id} value={u.id}>
+            {u.name}
+          </option>
+        ))}
+      </select>
+      <FieldError error={error} />
+    </div>
+  );
+}
+
 export function DueDateField({
   itemId,
   backlogKey,

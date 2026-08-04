@@ -458,6 +458,15 @@ export async function updateItem(input: unknown, actorId: string) {
       patch.assigneeId = data.assigneeId ?? null;
       acts.push(activityRow(cur.id, actorId, "update", "assignee", cur.assigneeId, data.assigneeId ?? null));
     }
+    if (data.reporterId !== undefined && data.reporterId !== cur.reporterId) {
+      const [reporter] = await tx
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.id, data.reporterId));
+      if (!reporter) throw new Error("Rapporteur introuvable.");
+      patch.reporterId = reporter.id;
+      acts.push(activityRow(cur.id, actorId, "update", "reporter", cur.reporterId, reporter.id));
+    }
     if (data.dueDate !== undefined) {
       const newDue = data.dueDate ?? null;
       const curT = cur.dueDate ? cur.dueDate.getTime() : null;

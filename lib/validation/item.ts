@@ -7,6 +7,7 @@ const description = z.string().trim().max(20_000).nullable().optional();
 const priority = z.number().int().min(0, "Priorité invalide.").max(4, "Priorité invalide.");
 // user.id is TEXT (better-auth), NOT a uuid — keep it a plain string.
 const assigneeId = z.string().nullable().optional();
+const reporterId = z.string().min(1, "Rapporteur requis.").optional();
 // Map ''/null → null so an empty "no due date" field doesn't coerce to Invalid Date.
 const dueDate = z
   .preprocess((v) => (v === "" || v == null ? null : v), z.coerce.date().nullable())
@@ -40,6 +41,7 @@ export const updateItemSchema = z.object({
   priority: priority.optional(),
   kind: z.enum(ITEM_KINDS).optional(),
   assigneeId,
+  reporterId,
   dueDate,
   labelIds: z.array(z.uuid()).optional(),
 });

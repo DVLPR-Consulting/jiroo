@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
-import { restoreItem } from "@/lib/services/items";
+import { restoreItem, updateItem } from "@/lib/services/items";
 
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 
@@ -91,6 +91,128 @@ describeDb("restoreItem transaction", () => {
       expect(audit).toEqual([]);
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, backlog!.id));
+    }
+  });
+});
+
+async function createUpdateFixture(reporterId?: string) {
+  const [actor] = await db.select({ id: user.id }).from(user).limit(1);
+  if (!actor) throw new Error("Le seed doit contenir un utilisateur.");
+
+  const [backlog] = await db
+    .insert(backlogs)
+    .values({ key: randomBacklogKey(), name: "Édition rapporteur", color: "#475569" })
+    .returning();
+  const [status] = await db
+    .insert(statuses)
+    .values({
+      backlogId: backlog!.id,
+      name: "À faire",
+      category: "todo",
+      order: 0,
+      color: "#9aa0a6",
+    })
+    .returning();
+  const itemId = randomUUID();
+  const [item] = await db
+    .insert(items)
+    .values({
+      id: itemId,
+      key: `${backlog!.key}-1`,
+      type: "composant",
+      backlogId: backlog!.id,
+      title: "Rapport transactionnel",
+      statusId: status!.id,
+      reporterId: reporterId ?? actor.id,
+      rank: "a0",
+      path: `root.${itemId.replaceAll("-", "")}`,
+      depth: 0,
+    })
+    .returning();
+
+  return { actorId: actor.id, backlogId: backlog!.id, item: item! };
+}
+
+describeDb("updateItem reporter transaction", () => {
+  it("updates an existing reporter and writes the reporter audit", async () => {
+    const reporterId = `reporter-${randomUUID()}`;
+    await db.insert(user).values({
+      id: reporterId,
+      name: "Nouveau rapporteur",
+      email: `${reporterId}@example.test`,
+    });
+    const fixture = await createUpdateFixture();
+
+    try {
+      const updated = await updateItem(
+        { id: fixture.item.id, reporterId },
+        fixture.actorId,
+      );
+
+      expect(updated?.reporterId).toBe(reporterId);
+      const audit = await db
+        .select({ action: activities.action, field: activities.field, oldValue: activities.oldValue, newValue: activities.newValue })
+        .from(activities)
+        .where(eq(activities.itemId, fixture.item.id));
+      expect(audit).toEqual([
+        {
+          action: "update",
+          field: "reporter",
+          oldValue: fixture.item.reporterId,
+          newValue: reporterId,
+        },
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+      await db.delete(user).where(eq(user.id, reporterId));
+    }
+  });
+
+  it("keeps updatedAt and activities unchanged for a reporter no-op", async () => {
+    const [actor] = await db.select({ id: user.id }).from(user).limit(1);
+    if (!actor) throw new Error("Le seed doit contenir un utilisateur.");
+    const fixture = await createUpdateFixture(actor.id);
+
+    try {
+      const updated = await updateItem(
+        { id: fixture.item.id, reporterId: actor.id },
+        fixture.actorId,
+      );
+
+      expect(updated?.updatedAt).toEqual(fixture.item.updatedAt);
+      const audit = await db
+        .select({ id: activities.id })
+        .from(activities)
+        .where(eq(activities.itemId, fixture.item.id));
+      expect(audit).toEqual([]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("rejects a missing reporter without changing the item or audit", async () => {
+    const [actor] = await db.select({ id: user.id }).from(user).limit(1);
+    if (!actor) throw new Error("Le seed doit contenir un utilisateur.");
+    const fixture = await createUpdateFixture(actor.id);
+
+    try {
+      await expect(
+        updateItem(
+          { id: fixture.item.id, reporterId: `missing-${randomUUID()}` },
+          fixture.actorId,
+        ),
+      ).rejects.toThrow("Rapporteur introuvable.");
+
+      const [stored] = await db.select().from(items).where(eq(items.id, fixture.item.id));
+      expect(stored?.reporterId).toBe(actor.id);
+      expect(stored?.updatedAt).toEqual(fixture.item.updatedAt);
+      const audit = await db
+        .select({ id: activities.id })
+        .from(activities)
+        .where(eq(activities.itemId, fixture.item.id));
+      expect(audit).toEqual([]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
     }
   });
 });

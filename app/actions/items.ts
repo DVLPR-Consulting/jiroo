@@ -36,6 +36,7 @@ type UpdateItemActionInput = {
   statusId?: string;
   priority?: number;
   assigneeId?: string | null;
+  reporterId?: string;
   dueDate?: string | null;
   labelIds?: string[];
   kind?: ItemKind;

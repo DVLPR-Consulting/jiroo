@@ -44,6 +44,16 @@ describe("updateItemSchema", () => {
   it("allows labelIds undefined (untouched)", () => {
     expect(updateItemSchema.safeParse({ id: BID }).success).toBe(true);
   });
+  it("accepts a non-empty better-auth text reporterId", () => {
+    expect(updateItemSchema.safeParse({ id: BID, reporterId: "better-auth-user" }).success).toBe(true);
+  });
+  it("rejects an empty reporterId", () => {
+    expect(updateItemSchema.safeParse({ id: BID, reporterId: "" }).success).toBe(false);
+  });
+  it("leaves reporterId untouched when omitted", () => {
+    const parsed = updateItemSchema.parse({ id: BID });
+    expect(parsed).not.toHaveProperty("reporterId");
+  });
 });
 
 describe("idInputSchema", () => {
