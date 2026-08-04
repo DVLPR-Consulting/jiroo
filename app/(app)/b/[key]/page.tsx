@@ -287,6 +287,8 @@ export default async function BacklogPage({
             depth: i.depth,
             rank: i.rank,
             path: i.path,
+            labels: labelsByItem.get(i.id) ?? [],
+            assigneeId: i.assigneeId,
             assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
           }))
       : [];
@@ -417,7 +419,7 @@ export default async function BacklogPage({
           backlogKey={key}
           items={treeData}
           selectedKey={itemKey}
-          statuses={statusMap}
+          statuses={statusList}
           contextIds={[...contextIds]}
           reparentItemAction={reparentItemAction}
           moveItemAction={moveItemAction}
