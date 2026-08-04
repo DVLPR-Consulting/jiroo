@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NewItemButton } from "@/components/items/new-item-dialog";
@@ -98,5 +98,75 @@ describe("NewItemButton", () => {
     await user.click(screen.getByRole("button", { name: "Nouvel item" }));
 
     expect(screen.getByRole("combobox", { name: "Statut" })).toHaveValue("doing-id");
+  });
+
+  it("opens with C only when the shortcut is enabled", () => {
+    render(<NewItemButton {...dialogProps()} enableShortcut />);
+
+    fireEvent.keyDown(window, { key: "c" });
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("does not register the C shortcut by default", () => {
+    render(<NewItemButton {...dialogProps()} />);
+
+    fireEvent.keyDown(window, { key: "c" });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("ignores C while typing, with modifiers, when prevented, or while another dialog is open", () => {
+    const { rerender } = render(
+      <>
+        <input aria-label="Champ" />
+        <textarea aria-label="Zone de texte" />
+        <select aria-label="Sélection"><option>Option</option></select>
+        <div aria-label="Zone éditable" contentEditable />
+        <NewItemButton {...dialogProps()} enableShortcut />
+      </>,
+    );
+
+    for (const target of [
+      screen.getByRole("textbox", { name: "Champ" }),
+      screen.getByRole("textbox", { name: "Zone de texte" }),
+      screen.getByRole("combobox", { name: "Sélection" }),
+      screen.getByLabelText("Zone éditable"),
+    ]) {
+      fireEvent.keyDown(target, { key: "c" });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    }
+
+    for (const modifier of ["ctrlKey", "metaKey", "altKey", "shiftKey"] as const) {
+      fireEvent.keyDown(window, { key: "c", [modifier]: true });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    }
+
+    const preventedEvent = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "c",
+    });
+    preventedEvent.preventDefault();
+    window.dispatchEvent(preventedEvent);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    rerender(
+      <>
+        <div role="dialog" aria-label="Autre dialogue" />
+        <NewItemButton {...dialogProps()} enableShortcut />
+      </>,
+    );
+    fireEvent.keyDown(window, { key: "c" });
+    expect(screen.queryByRole("dialog", { name: "Nouvel item" })).not.toBeInTheDocument();
+  });
+
+  it("labels the enabled global trigger with its shortcut", () => {
+    render(<NewItemButton {...dialogProps()} enableShortcut />);
+
+    expect(screen.getByRole("button", { name: "Nouvel item" })).toHaveAttribute(
+      "title",
+      "Nouvel item (C)",
+    );
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createItemAction, softDeleteItemAction } from "@/app/actions/items";
@@ -42,6 +42,7 @@ export type NewItemButtonProps = {
   initialStatusId?: string;
   trigger?: ReactNode;
   onCreated?: (item: { id: string; key: string }) => void;
+  enableShortcut?: boolean;
 };
 
 // Shared field styling — matches Input's token-based look so native selects fit in.
@@ -56,6 +57,7 @@ export function NewItemButton({
   initialStatusId,
   trigger,
   onCreated,
+  enableShortcut = false,
 }: NewItemButtonProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -70,6 +72,35 @@ export function NewItemButton({
   const [statusId, setStatusId] = useState<string>(initialStatusId ?? "");
   const [priority, setPriority] = useState<Priority>(0);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enableShortcut) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      const target = event.target;
+      const isEditing =
+        target instanceof Element &&
+        Boolean(target.closest("input, textarea, select, [contenteditable]"));
+
+      if (
+        event.defaultPrevented ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.shiftKey ||
+        event.key.toLowerCase() !== "c" ||
+        isEditing ||
+        document.querySelector('[role="dialog"]')
+      ) {
+        return;
+      }
+
+      setOpen(true);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [enableShortcut]);
 
   const requiredParentType = allowedParentType(type);
   const parentOptions = useMemo(
@@ -166,7 +197,7 @@ export function NewItemButton({
     >
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button>
+          <Button title={enableShortcut ? "Nouvel item (C)" : undefined}>
             <Plus className="size-4" />
             Nouvel item
           </Button>

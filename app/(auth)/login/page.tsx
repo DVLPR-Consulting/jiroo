@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/client";
 import { AuthCard } from "@/components/auth/auth-card";
+import { LoginHelp } from "@/components/auth/login-help";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,6 +64,7 @@ export default function LoginPage() {
           {loading ? "Connexion…" : "Se connecter"}
         </Button>
       </form>
+      <LoginHelp />
       <p className="t-meta mt-6 text-center">Accès réservé · actions journalisées</p>
     </AuthCard>
   );

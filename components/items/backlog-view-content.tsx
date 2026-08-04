@@ -345,6 +345,7 @@ export async function BacklogViewContent({
           <NewItemButton
             backlogKey={backlog.key}
             {...createDialogProps}
+            enableShortcut
           />
         }
       />
