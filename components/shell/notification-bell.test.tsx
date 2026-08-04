@@ -145,26 +145,40 @@ describe("NotificationBell item navigation", () => {
   });
 
   it("composes same-backlog selection with current state, repeats, and an armed q", async () => {
-    renderSubject({ withFilter: true });
-    fireEvent.change(screen.getByRole("searchbox"), {
-      target: { value: "urgent" },
-    });
+    let runPendingQuery: (() => void) | undefined;
+    const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    try {
+      renderSubject({ withFilter: true });
+      timeoutSpy.mockImplementationOnce((handler) => {
+        runPendingQuery = () => {
+          if (typeof handler === "function") handler();
+        };
+        return 1 as unknown as ReturnType<typeof setTimeout>;
+      });
+      fireEvent.change(screen.getByRole("searchbox"), {
+        target: { value: "urgent" },
+      });
 
-    await selectNotification();
+      expect(timeoutSpy).toHaveBeenLastCalledWith(expect.any(Function), 300);
+      await selectNotification();
 
-    expect(mocks.markReadAction).toHaveBeenCalledWith({
-      id: "notification-demo-1",
-    });
-    expect(mocks.push).toHaveBeenLastCalledWith(
-      "/b/DEMO?view=board&v=saved&group=component&type=tache&tag=a&tag=b&item=DEMO-1",
-    );
+      expect(mocks.markReadAction).toHaveBeenCalledWith({
+        id: "notification-demo-1",
+      });
+      expect(mocks.push).toHaveBeenLastCalledWith(
+        "/b/DEMO?view=board&v=saved&group=component&type=tache&tag=a&tag=b&item=DEMO-1",
+      );
 
-    await waitFor(() =>
+      await act(async () => {
+        runPendingQuery?.();
+      });
       expect(mocks.replace).toHaveBeenLastCalledWith(
         "/b/DEMO?view=board&v=saved&group=component&type=tache&tag=a&tag=b&item=DEMO-1&q=urgent",
         { scroll: false },
-      ),
-    );
+      );
+    } finally {
+      timeoutSpy.mockRestore();
+    }
   });
 
   it("reopens a previously tombstoned item through the provider", async () => {
