@@ -109,8 +109,11 @@ export async function restoreItemAction(input: { id: string; backlogKey: string 
   let item: Awaited<ReturnType<typeof restoreItem>>;
   try {
     item = await restoreItem({ id: input.id }, actorId);
-  } catch {
-    return { ok: false as const, error: "Restauration impossible." };
+  } catch (e) {
+    const error = String(e).includes("Délai de restauration dépassé")
+      ? "Délai de restauration dépassé."
+      : "Restauration impossible.";
+    return { ok: false as const, error };
   }
   if (!item) return { ok: false as const, error: "Item introuvable." };
   revalidatePath(`/b/${input.backlogKey}`);

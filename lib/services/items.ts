@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { activities, backlogs, itemLabels, items, labels, statuses } from "@/lib/db/schema/domain";
 import { user } from "@/lib/db/schema/auth";
 import { nextItemKey } from "@/lib/items/key";
+import { canRestore } from "@/lib/items/trash";
 import { ROOT_LABEL, buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
 import { rankBetween, rankFirst, rankLast } from "@/lib/tree/rank";
@@ -623,6 +624,11 @@ export async function restoreItem(input: unknown, actorId: string) {
       .where(and(eq(items.id, id), isNotNull(items.deletedAt)))
       .for("update");
     if (!target) return null;
+
+    const now = new Date();
+    if (!canRestore(target.deletedAt!, now)) {
+      throw new Error("Délai de restauration dépassé.");
+    }
 
     if (target.parentId) {
       const [parent] = await tx

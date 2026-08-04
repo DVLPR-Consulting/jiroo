@@ -47,4 +47,13 @@ describe("restoreItemAction", () => {
     ).resolves.toEqual({ ok: false, error: "Restauration impossible." });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
+
+  it("surfaces the expired restore window without revalidating", async () => {
+    mocks.restoreItem.mockRejectedValue(new Error("Délai de restauration dépassé."));
+
+    await expect(
+      restoreItemAction({ id: "item-1", backlogKey: "DEMO" }),
+    ).resolves.toEqual({ ok: false, error: "Délai de restauration dépassé." });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
 });

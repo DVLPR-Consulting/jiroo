@@ -15,7 +15,8 @@ async function requireAdmin(): Promise<string> {
 
 function mapTrashError(e: unknown): string {
   const s = String(e);
-  // Surface the two meaningful French service errors verbatim.
+  // Surface meaningful French service errors verbatim.
+  if (s.includes("Délai de restauration dépassé")) return "Délai de restauration dépassé.";
   if (s.includes("Parent supprimé")) return "Parent supprimé : restaurez-le d'abord.";
   if (s.includes("introuvable dans la corbeille")) return "Item introuvable dans la corbeille.";
   return "Action impossible.";

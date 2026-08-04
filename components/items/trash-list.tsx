@@ -13,6 +13,7 @@ import { ItemKey } from "@/components/jiroo/item-key";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { StatusId } from "@/lib/design/constants";
+import { canRestore, restoreDeadline } from "@/lib/items/trash";
 import {
   Dialog,
   DialogContent,
@@ -106,6 +107,7 @@ function TrashRow({ item }: { item: TrashedItem }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [purgeOpen, setPurgeOpen] = useState(false);
+  const restorable = canRestore(item.deletedAt!, new Date());
 
   function handleRestore() {
     startTransition(async () => {
@@ -151,12 +153,18 @@ function TrashRow({ item }: { item: TrashedItem }) {
           supprimé {relativeTime(item.deletedAt!)}
         </span>
 
+        <span className="whitespace-nowrap text-xs text-muted-foreground">
+          {restorable
+            ? `Restaurable jusqu’au ${restoreDeadline(item.deletedAt!).toLocaleDateString("fr-FR")}`
+            : "Délai expiré"}
+        </span>
+
         {/* Actions */}
         <div className="flex shrink-0 items-center gap-1.5">
           <Button
             variant="outline"
             size="sm"
-            disabled={isPending}
+            disabled={isPending || !restorable}
             onClick={handleRestore}
           >
             Restaurer
