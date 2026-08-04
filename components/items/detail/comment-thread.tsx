@@ -188,7 +188,13 @@ function CommentItem({
           onDone={onEditDone}
         />
       ) : (
-        <CommentMarkdown body={comment.body} />
+        <CommentMarkdown
+          body={comment.body}
+          mentionNames={comment.mentions.flatMap((mentionId) => {
+            const mentionedUser = users.find((user) => user.id === mentionId);
+            return mentionedUser ? [mentionedUser.name] : [];
+          })}
+        />
       )}
 
       {/* Delete confirm dialog */}
