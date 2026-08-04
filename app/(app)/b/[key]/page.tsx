@@ -407,6 +407,7 @@ export default async function BacklogPage({
           backlogKey={key}
           items={boardCards}
           statuses={boardStatuses}
+          statusDomain={statusList}
           group={boardGroup}
           groupLabels={groupLabels}
           moveItemAction={moveItemAction}

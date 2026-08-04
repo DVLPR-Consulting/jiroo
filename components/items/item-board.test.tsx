@@ -87,6 +87,7 @@ describe("ItemBoard", () => {
           },
         ]}
         statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
         group="component"
         groupLabels={{
           "component-platform": "Plateforme",
@@ -117,6 +118,10 @@ describe("ItemBoard", () => {
           readyStatus,
           { id: "doing", name: "En cours", color: "#fa0", category: "in_progress", order: 1 },
         ]}
+        statusDomain={[
+          readyStatus,
+          { id: "doing", name: "En cours", color: "#fa0", category: "in_progress", order: 1 },
+        ]}
         group={null}
         groupLabels={{}}
         moveItemAction={vi.fn()}
@@ -141,6 +146,12 @@ describe("ItemBoard", () => {
           { id: "33333333-3333-4333-8333-333333333333", name: "En revue", color: "#86f", category: "in_progress", order: 2 },
           { id: "44444444-4444-4444-8444-444444444444", name: "Terminé", color: "#3a7", category: "done", order: 3 },
         ]}
+        statusDomain={[
+          { id: "11111111-1111-4111-8111-111111111111", name: "À faire", color: "#999", category: "todo", order: 0 },
+          { id: "22222222-2222-4222-8222-222222222222", name: "En cours", color: "#f90", category: "in_progress", order: 1 },
+          { id: "33333333-3333-4333-8333-333333333333", name: "En revue", color: "#86f", category: "in_progress", order: 2 },
+          { id: "44444444-4444-4444-8444-444444444444", name: "Terminé", color: "#3a7", category: "done", order: 3 },
+        ]}
         group={null}
         groupLabels={{}}
         moveItemAction={vi.fn()}
@@ -151,6 +162,34 @@ describe("ItemBoard", () => {
     for (const label of ["À faire", "En cours", "En revue", "Terminé"]) {
       expect(screen.getByRole("img", { name: label })).toBeVisible();
     }
+  });
+
+  it("keeps a filtered review column canonical using the complete status domain", () => {
+    const statusDomain = [
+      { id: "11111111-1111-4111-8111-111111111111", name: "À faire", color: "#999", category: "todo" as const, order: 0 },
+      { id: "22222222-2222-4222-8222-222222222222", name: "En cours", color: "#f90", category: "in_progress" as const, order: 1 },
+      { id: "33333333-3333-4333-8333-333333333333", name: "En revue", color: "#86f", category: "in_progress" as const, order: 2 },
+      { id: "44444444-4444-4444-8444-444444444444", name: "Terminé", color: "#3a7", category: "done" as const, order: 3 },
+    ];
+
+    render(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[]}
+        statuses={[statusDomain[2]!]}
+        statusDomain={statusDomain}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "En revue" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Créer dans En revue" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Créer dans En cours" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Créer dans À faire" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Créer dans Terminé" })).not.toBeInTheDocument();
   });
 
   it("updates priority without opening or dragging the card", async () => {
@@ -175,6 +214,7 @@ describe("ItemBoard", () => {
           },
         ]}
         statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
         group={null}
         groupLabels={{}}
         moveItemAction={moveItemAction}

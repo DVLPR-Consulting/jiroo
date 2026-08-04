@@ -319,7 +319,7 @@ function Column({
   colDomId,
   swimlane,
   cards,
-  statuses,
+  statusDomain,
   backlogKey,
   createDialogProps,
   isOver,
@@ -329,7 +329,7 @@ function Column({
   colDomId: string;
   swimlane: string;
   cards: BoardCard[];
-  statuses: Status[];
+  statusDomain: Status[];
   backlogKey: string;
   createDialogProps: BoardCreateDialogProps;
   isOver: boolean;
@@ -343,7 +343,7 @@ function Column({
   return (
     <div className="flex w-[296px] flex-none flex-col rounded-[var(--radius-lg)] border border-border bg-[var(--surface-2)]">
       <div className="flex items-center gap-2 px-3 py-2.5">
-        <StatusDot status={visualStatusId(status, statuses)} size={14} />
+        <StatusDot status={visualStatusId(status, statusDomain)} size={14} />
         <span className="text-[13px] font-medium">{status.name}</span>
         <span className="item-key ml-auto rounded-[var(--radius-sm)] bg-[var(--surface)] px-1.5 py-0.5">
           {cards.length}
@@ -394,6 +394,7 @@ export function ItemBoard({
   backlogKey,
   items,
   statuses,
+  statusDomain,
   group,
   groupLabels,
   moveItemAction,
@@ -402,6 +403,8 @@ export function ItemBoard({
 }: {
   backlogKey: string;
   items: BoardCard[];
+  /** Complete fixed status domain; `statuses` may be a filtered visible subset. */
+  statusDomain: Status[];
   statuses: Status[];
   group: BoardGroup;
   groupLabels: Record<string, string>;
@@ -633,7 +636,7 @@ export function ItemBoard({
                     colDomId={id}
                     swimlane=""
                     cards={columns[id] ?? []}
-                    statuses={statuses}
+                    statusDomain={statusDomain}
                     backlogKey={backlogKey}
                     createDialogProps={createDialogProps}
                     isOver={activeId !== null && overColId === id}
@@ -659,7 +662,7 @@ export function ItemBoard({
                           colDomId={id}
                           swimlane={sw}
                           cards={columns[id] ?? []}
-                          statuses={statuses}
+                          statusDomain={statusDomain}
                           backlogKey={backlogKey}
                           createDialogProps={createDialogProps}
                           isOver={activeId !== null && overColId === id}
