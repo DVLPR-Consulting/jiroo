@@ -283,9 +283,10 @@ describe("matchItem", () => {
     expect(matchItem(item({ type: "tache", priority: 4 }), f({ types: ["tache", "epic"], priorities: [3, 4] }))).toBe(true);
     expect(matchItem(item({ priority: 1 }), f({ priorities: [3, 4] }))).toBe(false);
   });
-  it("text is case- and accent-insensitive over title+description", () => {
+  it("text is case- and accent-insensitive over title+key only", () => {
     expect(matchItem(item({ title: "Générer" }), f({ q: "gener" }))).toBe(true);
-    expect(matchItem(item({ title: "X", description: "Récupération" }), f({ q: "recup" }))).toBe(true);
+    expect(matchItem(item({ title: "X", key: "CASS-1042" }), f({ q: "cass-1042" }))).toBe(true);
+    expect(matchItem(item({ title: "X", description: "Récupération" }), f({ q: "recup" }))).toBe(false);
     expect(matchItem(item({ title: "X", description: null }), f({ q: "zzz" }))).toBe(false);
   });
   it("assignee filter supports the 'none' (unassigned) token", () => {

@@ -184,7 +184,7 @@ export function matchItem(it: FilterItem, f: Filters): boolean {
   if (f.underIds.length && !it.ancestorIds.some((id) => f.underIds.includes(id))) return false;
   const q = f.q.trim();
   if (q) {
-    const hay = normalize(`${it.title} ${it.description ?? ""}`);
+    const hay = normalize(`${it.title} ${it.key}`);
     if (!hay.includes(normalize(q))) return false;
   }
   return true;
