@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2, X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
@@ -11,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { softDeleteItemAction } from "@/app/actions/items";
+import { restoreItemAction, softDeleteItemAction } from "@/app/actions/items";
 import { ActivityLog } from "@/components/items/detail/activity-log";
 import { CommentThread } from "@/components/items/detail/comment-thread";
 import { EditableTitle } from "@/components/items/detail/editable-title";
@@ -35,6 +36,7 @@ import type {
 } from "@/lib/db/schema/domain";
 import { LinksSection } from "@/components/items/detail/links-section";
 import { DevRefsSection } from "@/components/items/detail/dev-refs-section";
+import { toast } from "@/lib/toast";
 
 type ItemRow = typeof itemsTable.$inferSelect;
 type ActivityRow = typeof activitiesTable.$inferSelect;
@@ -83,6 +85,7 @@ export function ItemDetailPanel({
   candidates: { id: string; key: string; title: string; type: ItemType }[];
   refs: { id: string; url: string; kind: string; createdAt: Date | string }[];
 }) {
+  const router = useRouter();
   const viewUrl = useViewUrlState();
   const [tab, setTab] = useState<"detail" | "comments" | "activity">("detail");
   const [deleting, startDelete] = useTransition();
@@ -92,8 +95,22 @@ export function ItemDetailPanel({
   const handleDelete = () => {
     if (!window.confirm("Supprimer cet item et ses sous-items ?")) return;
     startDelete(async () => {
-      await softDeleteItemAction({ id: detail.id, backlogKey });
+      const result = await softDeleteItemAction({ id: detail.id, backlogKey });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
       viewUrl.push((params) => params.delete("item"));
+      toast.success("Item supprimé.", {
+        action: {
+          label: "Annuler",
+          run: async () => {
+            const undoResult = await restoreItemAction({ id: detail.id, backlogKey });
+            if (!undoResult.ok) throw new Error(undoResult.error);
+            router.refresh();
+          },
+        },
+      });
     });
   };
 

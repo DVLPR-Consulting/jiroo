@@ -93,15 +93,26 @@ export async function updateItemAction(input: UpdateItemActionInput) {
 
 export async function softDeleteItemAction(input: { id: string; backlogKey: string }) {
   const actorId = await requireWriter();
-  await softDeleteItem({ id: input.id }, actorId);
-  revalidatePath(`/b/${input.backlogKey}`);
-  revalidatePath("/trash");
-  return { ok: true as const };
+  try {
+    const item = await softDeleteItem({ id: input.id }, actorId);
+    if (!item) return { ok: false as const, error: "Item introuvable." };
+    revalidatePath(`/b/${input.backlogKey}`);
+    revalidatePath("/trash");
+    return { ok: true as const };
+  } catch {
+    return { ok: false as const, error: "Suppression impossible." };
+  }
 }
 
 export async function restoreItemAction(input: { id: string; backlogKey: string }) {
   const actorId = await requireWriter();
-  await restoreItem({ id: input.id }, actorId);
+  let item: Awaited<ReturnType<typeof restoreItem>>;
+  try {
+    item = await restoreItem({ id: input.id }, actorId);
+  } catch {
+    return { ok: false as const, error: "Restauration impossible." };
+  }
+  if (!item) return { ok: false as const, error: "Item introuvable." };
   revalidatePath(`/b/${input.backlogKey}`);
   revalidatePath("/trash");
   return { ok: true as const };

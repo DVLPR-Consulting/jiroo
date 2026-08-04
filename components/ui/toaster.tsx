@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
-import { subscribe, getSnapshot, dismiss } from "@/lib/toast";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { subscribe, getSnapshot, dismiss, toast } from "@/lib/toast";
 import type { Toast } from "@/lib/toast";
 
 // ---------------------------------------------------------------------------
@@ -9,12 +9,27 @@ import type { Toast } from "@/lib/toast";
 // ---------------------------------------------------------------------------
 
 function ToastCard({ toast: t }: { toast: Toast }) {
+  const [actionPending, setActionPending] = useState(false);
+
   useEffect(() => {
+    if (actionPending) return;
     const timer = setTimeout(() => dismiss(t.id), 4000);
     return () => clearTimeout(timer);
-  }, [t.id]);
+  }, [actionPending, t.id]);
 
   const isError = t.variant === "error";
+
+  async function handleAction() {
+    if (!t.action || actionPending) return;
+    setActionPending(true);
+    try {
+      await t.action.run();
+      dismiss(t.id);
+    } catch {
+      setActionPending(false);
+      toast.error("Annulation impossible.");
+    }
+  }
 
   return (
     <div
@@ -34,6 +49,16 @@ function ToastCard({ toast: t }: { toast: Toast }) {
       }
     >
       <span className="flex-1">{t.message}</span>
+      {t.action && (
+        <button
+          type="button"
+          onClick={handleAction}
+          disabled={actionPending}
+          className="shrink-0 rounded border border-current px-2 py-0.5 font-medium hover:bg-current/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-50"
+        >
+          {t.action.label}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => dismiss(t.id)}

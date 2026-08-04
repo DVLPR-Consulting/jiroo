@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import { createItemAction } from "@/app/actions/items";
+import { createItemAction, softDeleteItemAction } from "@/app/actions/items";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,6 +29,7 @@ import {
 } from "@/lib/design/constants";
 import { ITEM_TEMPLATES, getTemplate } from "@/lib/items/templates";
 import { allowedParentType } from "@/lib/tree/hierarchy";
+import { toast } from "@/lib/toast";
 
 type Item = { id: string; key: string; type: ItemType; title: string };
 type Status = { id: string; name: string };
@@ -134,9 +135,20 @@ export function NewItemButton({
         setError(result.error);
         return;
       }
-      onCreated?.(result.item);
+      const item = result.item;
+      onCreated?.(item);
       setOpen(false);
       reset();
+      toast.success("Item créé.", {
+        action: {
+          label: "Annuler",
+          run: async () => {
+            const undoResult = await softDeleteItemAction({ id: item.id, backlogKey });
+            if (!undoResult.ok) throw new Error(undoResult.error);
+            router.refresh();
+          },
+        },
+      });
       router.refresh();
     });
   }

@@ -1,10 +1,18 @@
 /** Dependency-free toast store. Framework-agnostic; no React import. */
 
+export type ToastAction = {
+  label: string;
+  run: () => void | Promise<void>;
+};
+
 export type Toast = {
   id: number;
   variant: "success" | "error";
   message: string;
+  action?: ToastAction;
 };
+
+type ToastOptions = { action?: ToastAction };
 
 // ---------------------------------------------------------------------------
 // Internal state
@@ -39,9 +47,16 @@ export function getSnapshot(): Toast[] {
 }
 
 /** Append a new toast, notify listeners, return the new id. */
-export function push(variant: Toast["variant"], message: string): number {
+export function push(
+  variant: Toast["variant"],
+  message: string,
+  options?: ToastOptions,
+): number {
   const id = nextId++;
-  toasts = [...toasts, { id, variant, message }];
+  const nextToast: Toast = options?.action
+    ? { id, variant, message, action: options.action }
+    : { id, variant, message };
+  toasts = [...toasts, nextToast];
   notify();
   return id;
 }
@@ -58,11 +73,11 @@ export function dismiss(id: number): void {
 // ---------------------------------------------------------------------------
 
 export const toast = {
-  success(message: string): number {
-    return push("success", message);
+  success(message: string, options?: ToastOptions): number {
+    return push("success", message, options);
   },
-  error(message: string): number {
-    return push("error", message);
+  error(message: string, options?: ToastOptions): number {
+    return push("error", message, options);
   },
 };
 

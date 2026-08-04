@@ -137,6 +137,36 @@ describe("subscribe", () => {
 // ---------------------------------------------------------------------------
 
 describe("toast", () => {
+  it("stores an optional action on a success toast", () => {
+    const run = vi.fn();
+
+    toast.success("Item créé.", { action: { label: "Annuler", run } });
+
+    expect(getSnapshot()[0]?.action).toEqual({ label: "Annuler", run });
+  });
+
+  it("preserves the exact toast shape when called without options", () => {
+    toast.success("All good");
+    toast.error("Something failed");
+
+    expect(getSnapshot()).toEqual([
+      { id: 1, variant: "success", message: "All good" },
+      { id: 2, variant: "error", message: "Something failed" },
+    ]);
+  });
+
+  it("clears action callbacks on reset", () => {
+    const run = vi.fn();
+    toast.success("Item créé.", { action: { label: "Annuler", run } });
+
+    __resetToastsForTest();
+    toast.success("After reset");
+
+    expect(getSnapshot()).toEqual([
+      { id: 1, variant: "success", message: "After reset" },
+    ]);
+  });
+
   it("toast.success sets variant success", () => {
     const id = toast.success("All good");
     const t = getSnapshot().find((x) => x.id === id);
