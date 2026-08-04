@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Restore a conventional SaaS sidebar that switches reliably between a 248 px navigation panel and a 64 px icon rail, preserves `Jiroo`/`J` branding, and places one directional toggle on the moving sidebar/content boundary.
+**Goal:** Restore a conventional SaaS sidebar that switches reliably between a 248 px navigation panel and a 64 px icon rail, preserves `Jiroo`/`J` branding, and exposes one shadcn-style trigger inside the content topbar.
 
-**Architecture:** `SidebarStateProvider` remains the persistence boundary and the single hydrated state source. `AppShellFrame` consumes that state directly for its explicit grid width and owns the toggle because it owns the moving boundary. `Sidebar` renders mutually exclusive `Jiroo` and `J` brand states but no toggle. Global `data-sidebar` presentation selectors remain removed so the root attribute seeds hydration but never competes with React after hydration.
+**Architecture:** `SidebarStateProvider` remains the persistence boundary and the single hydrated state source. `AppShellFrame` consumes that state only for its explicit grid width. `Sidebar` renders mutually exclusive `Jiroo` and `J` brand states but no toggle, while a focused client `SidebarTrigger` consumes the same context from the server-compatible `Topbar`. Global `data-sidebar` presentation selectors remain removed so the root attribute seeds hydration but never competes with React after hydration.
 
 **Tech Stack:** Next.js 16.2.7 App Router, React 19.2.4, TypeScript 5, Tailwind CSS 4, Lucide React, Vitest 4, React Testing Library.
 
@@ -13,8 +13,9 @@
 - Follow `docs/superpowers/specs/2026-08-04-jiroo-sidebar-collapse-design.md` exactly.
 - Read the local Next.js guides before editing: `node_modules/next/dist/docs/01-app/01-getting-started/05-server-and-client-components.md`, `11-css.md`, and `01-app/02-guides/testing/vitest.md`.
 - Keep the expanded width exactly `248px` and the collapsed width exactly `64px`.
-- Use one 32 by 32 px boundary toggle with exactly 8 px rounded corners: `ChevronLeft` when expanded and `ChevronRight` when collapsed.
-- Center the toggle on the sidebar/content divider and vertically align it with the brand header.
+- Use one compact 32 by 32 px ghost trigger inside the content topbar.
+- Use the same `PanelLeft` icon in both states, matching the supplied shadcn/ui reference.
+- Render a 16 px-high vertical separator after the trigger and before the breadcrumb so the content text is deliberately offset.
 - Render the full `Jiroo` wordmark when expanded and one accessible `J` monogram when collapsed.
 - Persist the preference under `jiroo-sidebar-collapsed` with string values `true | false`.
 - Preserve the root `data-sidebar="open|collapsed"` attribute as the pre-hydration seed and compatibility signal, but do not use it as a post-hydration presentation authority.
@@ -28,7 +29,10 @@
 
 - `components/shell/sidebar-state.tsx`: unchanged public context and persistence contract.
 - `components/shell/sidebar-state.test.tsx`: verifies persistence and the actual shell width transition through the context.
-- `components/shell/app-shell.tsx`: consumes `collapsed`/`toggle`, owns the explicit 248/64 px grid columns, and positions the directional toggle on the moving divider.
+- `components/shell/app-shell.tsx`: consumes `collapsed`, owns the explicit 248/64 px grid columns, and renders no toggle.
+- `components/shell/sidebar-trigger.tsx`: focused client component that consumes `toggle` and renders the accessible ghost `PanelLeft` control.
+- `components/shell/sidebar-trigger.test.tsx`: protects icon, action labels, and context-driven toggling.
+- `components/shell/topbar.tsx`: composes the trigger, vertical separator, breadcrumb, and existing actions in that order.
 - `components/shell/sidebar.tsx`: renders the expanded `Jiroo` wordmark or compact `J` monogram plus the matching panel or rail contents, but no collapse control.
 - `components/shell/sidebar.test.tsx`: protects brand, control, accessibility, and collapsed-content behavior.
 - `app/globals.css`: retains theme/density tokens but removes sidebar width and conditional-presentation selectors.
@@ -526,6 +530,9 @@ git commit -m "fix(shell): use directional sidebar toggle"
 
 ### Task 4: Move the toggle onto the shell boundary and restore compact branding
 
+**Status:** Completed in `2bddefb`; Task 5 removes the boundary control while
+preserving the `Jiroo`/`J` branding delivered here.
+
 **Files:**
 - Modify: `components/shell/sidebar-state.test.tsx:40-84`
 - Modify: `components/shell/sidebar.test.tsx:82-129`
@@ -729,7 +736,230 @@ git add components/shell/sidebar-state.test.tsx components/shell/sidebar.test.ts
 git commit -m "fix(shell): anchor toggle to sidebar boundary"
 ```
 
-### Task 5: Full regression and visual acceptance
+### Task 5: Move the trigger into the content topbar
+
+**Files:**
+- Create: `components/shell/topbar.test.tsx`
+- Create: `components/shell/sidebar-trigger.tsx`
+- Modify: `components/shell/sidebar-state.test.tsx:74-110`
+- Modify: `components/shell/app-shell.tsx:3-60`
+- Modify: `components/shell/topbar.tsx:1-31`
+
+**Interfaces:**
+- Consumes: `useSidebarState(): { collapsed: boolean; toggle(): void }`.
+- Produces: `SidebarTrigger(): React.JSX.Element`, one 32 px ghost
+  `PanelLeft` control with action-specific French labels.
+- Produces: `Topbar` ordered as trigger, separator, breadcrumb, then existing
+  right-aligned actions.
+- Preserves: exact 248/64 px shell widths, `Jiroo`/`J` branding, persistence,
+  notifications, search, theme control, navigation, and routing.
+
+- [ ] **Step 1: Replace the boundary test with a failing shell-ownership regression**
+
+In `components/shell/sidebar-state.test.tsx`, replace
+`places one square toggle on the moving sidebar boundary` with:
+
+```tsx
+it("does not place the collapse control on the sidebar boundary", () => {
+  render(
+    <AppShell sidebar={<Probe />} topbar={<header>Topbar</header>}>
+      Contenu
+    </AppShell>,
+  );
+
+  expect(
+    screen.queryByRole("button", { name: "Replier la barre latérale" }),
+  ).not.toBeInTheDocument();
+});
+```
+
+This catches any absolute shell-owned toggle. It fails against `2bddefb`
+because `AppShellFrame` currently renders that button.
+
+- [ ] **Step 2: Add a failing topbar composition and interaction test**
+
+Create `components/shell/topbar.test.tsx`:
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppShell } from "@/components/shell/app-shell";
+import { Topbar } from "@/components/shell/topbar";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/b/CASS",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+describe("Topbar", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.dataset.sidebar = "open";
+  });
+
+  it("places one compact sidebar trigger before the separator and breadcrumb", async () => {
+    const user = userEvent.setup();
+    render(
+      <AppShell
+        sidebar={<aside>Navigation</aside>}
+        topbar={
+          <Topbar
+            notifications={[]}
+            unreadCount={0}
+            backlogs={[
+              { id: "backlog-1", key: "CASS", name: "Cour de cassation" },
+            ]}
+            views={[]}
+          />
+        }
+      >
+        Contenu
+      </AppShell>,
+    );
+
+    const trigger = screen.getByRole("button", {
+      name: "Replier la barre latérale",
+    });
+    const topbar = trigger.closest('[data-slot="shell-topbar"]');
+
+    expect(trigger).toHaveClass("size-8");
+    expect(trigger).not.toHaveClass("absolute", "border", "shadow-sm");
+    expect(trigger.querySelector(".lucide-panel-left")).toBeInTheDocument();
+    expect(topbar?.children[0]).toBe(trigger);
+    expect(topbar?.children[1]).toHaveAttribute(
+      "data-slot",
+      "sidebar-trigger-separator",
+    );
+    expect(topbar?.children[2]).toHaveAttribute(
+      "data-slot",
+      "shell-breadcrumb",
+    );
+
+    await user.click(trigger);
+
+    expect(
+      screen.getByRole("button", { name: "Déplier la barre latérale" }),
+    ).toBeVisible();
+  });
+});
+```
+
+The literal child order protects the visible shadcn pattern supplied by the
+user. The click assertion exercises the real state provider rather than a
+mocked toggle.
+
+- [ ] **Step 3: Run the focused tests and verify RED**
+
+Run:
+
+```bash
+pnpm exec vitest run components/shell/sidebar-state.test.tsx components/shell/topbar.test.tsx
+```
+
+Expected: the shell test FAILS because the boundary button still exists, and
+the topbar test FAILS because no content-header trigger or separator exists.
+
+- [ ] **Step 4: Isolate the client trigger**
+
+Create `components/shell/sidebar-trigger.tsx`:
+
+```tsx
+"use client";
+
+import { PanelLeft } from "lucide-react";
+import { useSidebarState } from "@/components/shell/sidebar-state";
+
+export function SidebarTrigger() {
+  const { collapsed, toggle } = useSidebarState();
+  const label = collapsed
+    ? "Déplier la barre latérale"
+    : "Replier la barre latérale";
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={label}
+      title={label}
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)]"
+    >
+      <PanelLeft className="size-4" />
+    </button>
+  );
+}
+```
+
+The trigger keeps one neutral panel icon in both states like the supplied
+shadcn reference; only the accessible action label changes.
+
+- [ ] **Step 5: Compose the trigger and offset inside `Topbar`**
+
+Import `SidebarTrigger` in `components/shell/topbar.tsx` and replace the root
+opening plus breadcrumb with:
+
+```tsx
+<div
+  className="flex h-[52px] items-center gap-3 border-b border-border bg-[var(--surface)] px-4"
+  data-slot="shell-topbar"
+>
+  <SidebarTrigger />
+  <div
+    aria-hidden="true"
+    className="h-4 w-px shrink-0 bg-border"
+    data-slot="sidebar-trigger-separator"
+  />
+  <ShellBreadcrumb backlogs={backlogs} views={views} />
+```
+
+Keep the existing right-aligned search, notification, and theme actions after
+the breadcrumb. The 32 px trigger, two 12 px gaps, and 1 px separator create a
+57 px content-header offset without absolute positioning.
+
+- [ ] **Step 6: Remove the superseded boundary control from `AppShellFrame`**
+
+Remove the Lucide import, consume only `collapsed`, and replace the positioned
+sidebar cell and button with the direct grid child:
+
+```tsx
+const { collapsed } = useSidebarState();
+
+// Inside the grid:
+{sidebar}
+```
+
+Do not change provider nesting or the explicit grid-template columns.
+
+- [ ] **Step 7: Run focused and adjacent tests and verify GREEN**
+
+Run:
+
+```bash
+pnpm exec vitest run components/shell/sidebar-state.test.tsx components/shell/topbar.test.tsx components/shell/sidebar.test.tsx components/shell/shell-breadcrumb.test.tsx components/shell/search-modal.test.tsx components/shell/notification-bell.test.tsx
+```
+
+Expected: all focused and adjacent tests PASS.
+
+- [ ] **Step 8: Run task-level static checks**
+
+Run:
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Expected: both commands exit 0 without errors.
+
+- [ ] **Step 9: Commit the topbar trigger**
+
+```bash
+git add components/shell/sidebar-state.test.tsx components/shell/topbar.test.tsx components/shell/sidebar-trigger.tsx components/shell/app-shell.tsx components/shell/topbar.tsx
+git commit -m "fix(shell): move sidebar trigger into topbar"
+```
+
+### Task 6: Full regression and visual acceptance
 
 **Files:**
 - Verify: `components/shell/app-shell.tsx`
@@ -742,7 +972,7 @@ git commit -m "fix(shell): anchor toggle to sidebar boundary"
 - Verify: `app/globals.css`
 
 **Interfaces:**
-- Consumes: the Task 1 through Task 4 commits.
+- Consumes: the Task 1 through Task 5 commits.
 - Produces: verified 248 px expanded navigation and 64 px collapsed icon rail, persisted across reloads.
 
 - [ ] **Step 1: Run the complete automated verification gate**
@@ -767,8 +997,10 @@ desktop viewport:
 
 - the sidebar's computed width is 248 px;
 - the header reads `Jiroo` once;
-- exactly one square `ChevronLeft` control straddles the sidebar/content
-  divider and is vertically aligned with the brand;
+- exactly one compact `PanelLeft` trigger appears at the start of the content
+  topbar with no permanent border or shadow;
+- a short vertical separator follows the trigger, and the breadcrumb is visibly
+  offset after it;
 - the backlog badge/name, navigation labels/counts, saved-view groups, bottom
   actions, and complete user card are visible;
 - keyboard focus reaches the collapse control and its accessible name is
@@ -780,8 +1012,8 @@ Activate `Replier la barre latérale` and verify:
 
 - the main content expands as the sidebar's computed width becomes 64 px;
 - the top of the rail shows exactly one centered `J` monogram;
-- the same square boundary control follows the divider and shows exactly one
-  `ChevronRight` icon;
+- the content topbar trigger remains in the same position and keeps exactly one
+  `PanelLeft` icon;
 - `CASS`, the primary navigation icons, trash, administration, and the avatar
   are centered in the rail;
 - saved-view groups, names, counts, and user details are not visually present;
@@ -794,7 +1026,8 @@ Activate `Replier la barre latérale` and verify:
 Reload `/b/CASS` while collapsed. Confirm the first hydrated interactive state
 remains the 64 px rail with one `J` and no duplicate controls. Expand, reload
 again, and confirm the 248 px state with the complete `Jiroo` wordmark is
-restored.
+restored. In both states, confirm no control appears on the sidebar/content
+divider.
 
 - [ ] **Step 5: Inspect the final diff and branch state**
 
