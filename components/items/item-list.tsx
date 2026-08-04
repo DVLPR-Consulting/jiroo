@@ -125,6 +125,7 @@ function ItemRow({
   users,
   backlogKey,
   selectedKey,
+  canWrite,
 }: {
   item: ListItem;
   grouped: boolean;
@@ -132,6 +133,7 @@ function ItemRow({
   users: UserOption[];
   backlogKey: string;
   selectedKey?: string;
+  canWrite: boolean;
 }) {
   const viewUrl = useViewUrlState();
   const isSelected = item.key === selectedKey;
@@ -191,10 +193,16 @@ function ItemRow({
           backlogKey={backlogKey}
           statusId={item.statusId}
           statuses={statuses}
+          readOnly={!canWrite}
         />
       </td>
       <td className={CELL_CLASS} onClick={(event) => event.stopPropagation()}>
-        <InlinePriority itemId={item.id} backlogKey={backlogKey} priority={item.priority} />
+        <InlinePriority
+          itemId={item.id}
+          backlogKey={backlogKey}
+          priority={item.priority}
+          readOnly={!canWrite}
+        />
       </td>
       <td className={CELL_CLASS}>
         {item.labels.length > 0 ? (
@@ -216,6 +224,7 @@ function ItemRow({
           backlogKey={backlogKey}
           assigneeId={item.assigneeId}
           users={users}
+          readOnly={!canWrite}
         />
       </td>
     </tr>
@@ -234,6 +243,7 @@ export function ItemList({
   hasItems,
   clearFiltersHref,
   createDialogProps,
+  canWrite = true,
 }: {
   groups: Group[];
   grouped: boolean;
@@ -246,6 +256,7 @@ export function ItemList({
   hasItems?: boolean;
   clearFiltersHref?: string;
   createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses">;
+  canWrite?: boolean;
 }) {
   const viewUrl = useViewUrlState();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
@@ -290,7 +301,7 @@ export function ItemList({
                   Effacer les filtres
                 </Link>
               ) : null
-            ) : createDialogProps ? (
+            ) : canWrite && createDialogProps ? (
               <NewItemButton backlogKey={backlogKey} {...createDialogProps} />
             ) : null
           }
@@ -371,6 +382,7 @@ export function ItemList({
                     users={users}
                     backlogKey={backlogKey}
                     selectedKey={selectedKey}
+                    canWrite={canWrite}
                   />
                 ))}
             </tbody>

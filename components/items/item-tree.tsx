@@ -147,6 +147,7 @@ type ItemTreeProps = {
   hasItems?: boolean;
   clearFiltersHref?: string;
   createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses">;
+  canWrite?: boolean;
 };
 
 export function ItemTree({
@@ -161,6 +162,7 @@ export function ItemTree({
   hasItems,
   clearFiltersHref,
   createDialogProps,
+  canWrite = true,
 }: ItemTreeProps) {
   const viewUrl = useViewUrlState();
   const [treeItems, setTreeItems] = useState<TreeItem[]>(() => seed(items));
@@ -193,6 +195,7 @@ export function ItemTree({
   const roots = buildTree(treeItems);
 
   function onDragStart(e: DragEvent<HTMLDivElement>, item: TreeItem) {
+    if (!canWrite) return;
     setDragId(item.id);
     setError(null);
     dragDescendants.current = descendantIds(treeItems, item.id);
@@ -207,6 +210,7 @@ export function ItemTree({
   }
 
   function onDragOver(e: DragEvent<HTMLDivElement>, row: TreeItem) {
+    if (!canWrite) return;
     e.preventDefault();
     if (dragId === null) return;
     // Dropping a node onto itself or into its own subtree would create a cycle.
@@ -226,6 +230,7 @@ export function ItemTree({
   }
 
   function onDrop(e: DragEvent<HTMLDivElement>, targetId: string, zone: Zone) {
+    if (!canWrite) return;
     e.preventDefault();
     const id = dragId;
     if (id === null || id === targetId || dragDescendants.current.has(targetId)) {
@@ -344,11 +349,11 @@ export function ItemTree({
     return (
       <div key={node.id}>
         <div
-          draggable={!isContext}
-          onDragStart={isContext ? undefined : (e) => onDragStart(e, node)}
-          onDragEnd={isContext ? undefined : onDragEnd}
-          onDragOver={isContext ? undefined : (e) => onDragOver(e, node)}
-          onDrop={isContext ? undefined : (e) => onDrop(e, node.id, zone ?? "into")}
+          draggable={canWrite && !isContext}
+          onDragStart={!canWrite || isContext ? undefined : (e) => onDragStart(e, node)}
+          onDragEnd={!canWrite || isContext ? undefined : onDragEnd}
+          onDragOver={!canWrite || isContext ? undefined : (e) => onDragOver(e, node)}
+          onDrop={!canWrite || isContext ? undefined : (e) => onDrop(e, node.id, zone ?? "into")}
           onClick={isContext ? undefined : () => openItem(node.key)}
           onKeyDown={isContext ? undefined : (e) => {
             // Only the row itself activates; let the chevron button handle its own keys.
@@ -365,7 +370,7 @@ export function ItemTree({
           className={`group relative flex items-center gap-2 py-1.5 pr-3 text-sm transition-colors ${
             isContext
               ? "cursor-default"
-              : `cursor-grab active:cursor-grabbing ${isSelected ? "bg-[var(--accent-subtle)]" : "hover:bg-muted/50"}`
+              : `${canWrite ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${isSelected ? "bg-[var(--accent-subtle)]" : "hover:bg-muted/50"}`
           }`}
           style={{
             paddingLeft: 8 + node.depth * 20,
@@ -455,7 +460,7 @@ export function ItemTree({
                   Effacer les filtres
                 </Link>
               ) : null
-            ) : createDialogProps ? (
+            ) : canWrite && createDialogProps ? (
               <NewItemButton backlogKey={backlogKey} {...createDialogProps} />
             ) : null
           }

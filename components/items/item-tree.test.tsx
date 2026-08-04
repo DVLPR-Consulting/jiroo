@@ -198,4 +198,48 @@ describe("ItemTree", () => {
     expect(dataTransfer.effectAllowed).toBe("move");
     expect(dataTransfer.setData).toHaveBeenCalledWith("text/plain", "task-1");
   });
+
+  it("keeps viewer rows navigable without making them draggable", async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[item]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          canWrite={false}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    const row = screen.getByRole("button", { name: "DEMO-1 — Authentication" });
+    expect(row).toHaveAttribute("draggable", "false");
+    await user.click(screen.getByText("Authentication"));
+    expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=tree&item=DEMO-1");
+  });
+
+  it("does not offer creation to a viewer in an empty backlog", () => {
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          createDialogProps={{
+            backlogId: "backlog-id",
+            items: [],
+            statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
+          }}
+          canWrite={false}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Nouvel item" })).not.toBeInTheDocument();
+  });
 });

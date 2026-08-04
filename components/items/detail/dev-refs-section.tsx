@@ -37,10 +37,12 @@ export function DevRefsSection({
   itemId,
   backlogKey,
   refs,
+  canWrite = true,
 }: {
   itemId: string;
   backlogKey: string;
   refs: { id: string; url: string; kind: string; createdAt: Date | string }[];
+  canWrite?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -111,15 +113,17 @@ export function DevRefsSection({
                 >
                   {label}
                 </a>
-                <button
-                  type="button"
-                  aria-label={`Supprimer le lien ${label}`}
-                  disabled={pending}
-                  onClick={() => handleRemove(ref.id)}
-                  className="hidden size-5 flex-none items-center justify-center rounded text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground group-hover:flex disabled:opacity-40"
-                >
-                  <X className="size-3" />
-                </button>
+                {canWrite && (
+                  <button
+                    type="button"
+                    aria-label={`Supprimer le lien ${label}`}
+                    disabled={pending}
+                    onClick={() => handleRemove(ref.id)}
+                    className="hidden size-5 flex-none items-center justify-center rounded text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground group-hover:flex disabled:opacity-40"
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
               </div>
             );
           })}
@@ -127,7 +131,7 @@ export function DevRefsSection({
       )}
 
       {/* Add control */}
-      <div className="flex flex-col gap-1.5">
+      {canWrite && <div className="flex flex-col gap-1.5">
         <input
           type="url"
           value={url}
@@ -146,7 +150,7 @@ export function DevRefsSection({
         >
           {pending ? "Ajout…" : "Ajouter"}
         </button>
-      </div>
+      </div>}
     </div>
   );
 }

@@ -193,12 +193,14 @@ function SortableCard({
   swimlane,
   backlogKey,
   onOpen,
+  canWrite,
 }: {
   card: BoardCard;
   colDomId: string;
   swimlane: string;
   backlogKey: string;
   onOpen: (key: string) => void;
+  canWrite: boolean;
 }) {
   const {
     attributes,
@@ -211,6 +213,7 @@ function SortableCard({
   } = useSortable({
     id: card.id,
     data: { type: "card", columnId: colDomId, swimlane },
+    disabled: !canWrite,
   });
 
   return (
@@ -228,7 +231,8 @@ function SortableCard({
       <CardInner
         card={card}
         backlogKey={backlogKey}
-        dragHandle={
+        interactivePriority={canWrite}
+        dragHandle={canWrite ? (
           <button
             ref={setActivatorNodeRef}
             {...attributes}
@@ -240,7 +244,7 @@ function SortableCard({
           >
             <GripVertical aria-hidden size={14} />
           </button>
-        }
+        ) : undefined}
         onOpen={() => onOpen(card.key)}
       />
     </div>
@@ -369,6 +373,7 @@ function Column({
   createDialogProps,
   isOver,
   onOpen,
+  canWrite,
 }: {
   status: Status;
   colDomId: string;
@@ -379,10 +384,12 @@ function Column({
   createDialogProps: BoardCreateDialogProps;
   isOver: boolean;
   onOpen: (key: string) => void;
+  canWrite: boolean;
 }) {
   const { setNodeRef } = useDroppable({
     id: colDomId,
     data: { type: "column", columnId: colDomId, swimlane, statusId: status.id },
+    disabled: !canWrite,
   });
 
   return (
@@ -393,21 +400,23 @@ function Column({
         <span className="item-key ml-auto rounded-[var(--radius-sm)] bg-[var(--surface)] px-1.5 py-0.5">
           {cards.length}
         </span>
-        <NewItemButton
-          {...createDialogProps}
-          backlogKey={backlogKey}
-          initialStatusId={status.id}
-          trigger={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              aria-label={`Créer dans ${status.name}`}
-            >
-              <Plus />
-            </Button>
-          }
-        />
+        {canWrite && (
+          <NewItemButton
+            {...createDialogProps}
+            backlogKey={backlogKey}
+            initialStatusId={status.id}
+            trigger={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label={`Créer dans ${status.name}`}
+              >
+                <Plus />
+              </Button>
+            }
+          />
+        )}
       </div>
       <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
         <div
@@ -427,6 +436,7 @@ function Column({
               swimlane={swimlane}
               backlogKey={backlogKey}
               onOpen={onOpen}
+              canWrite={canWrite}
             />
           ))}
         </div>
@@ -447,6 +457,7 @@ export function ItemBoard({
   filtersActive = false,
   hasItems,
   clearFiltersHref,
+  canWrite = true,
 }: {
   backlogKey: string;
   items: BoardCard[];
@@ -460,6 +471,7 @@ export function ItemBoard({
   filtersActive?: boolean;
   hasItems?: boolean;
   clearFiltersHref?: string;
+  canWrite?: boolean;
 }) {
   const viewUrl = useViewUrlState();
   const dndId = useId();
@@ -502,6 +514,7 @@ export function ItemBoard({
   };
 
   function onDragStart(event: DragStartEvent) {
+    if (!canWrite) return;
     snapshot.current = columns;
     setError(null);
     const id = String(event.active.id);
@@ -511,6 +524,7 @@ export function ItemBoard({
 
   // onDragOver is the SOLE mutator of cross-column membership (placeholder jump).
   function onDragOver(event: DragOverEvent) {
+    if (!canWrite) return;
     const { active, over } = event;
     if (!over) return;
     const activeIdStr = String(active.id);
@@ -552,6 +566,7 @@ export function ItemBoard({
   }
 
   function onDragEnd(event: DragEndEvent) {
+    if (!canWrite) return;
     const { active, over } = event;
     const activeIdStr = String(active.id);
     setActiveId(null);
@@ -674,9 +689,9 @@ export function ItemBoard({
                   Effacer les filtres
                 </Link>
               ) : null
-            ) : (
+            ) : canWrite ? (
               <NewItemButton backlogKey={backlogKey} {...createDialogProps} />
-            )
+            ) : null
           }
         />
       </div>
@@ -698,9 +713,9 @@ export function ItemBoard({
         id={dndId}
         sensors={sensors}
         collisionDetection={closestCorners}
-        onDragStart={onDragStart}
-        onDragOver={onDragOver}
-        onDragEnd={onDragEnd}
+        onDragStart={canWrite ? onDragStart : undefined}
+        onDragOver={canWrite ? onDragOver : undefined}
+        onDragEnd={canWrite ? onDragEnd : undefined}
       >
         <div className="flex-1 overflow-x-auto p-4">
           {group === null ? (
@@ -719,6 +734,7 @@ export function ItemBoard({
                     createDialogProps={createDialogProps}
                     isOver={activeId !== null && overColId === id}
                     onOpen={openItem}
+                    canWrite={canWrite}
                   />
                 );
               })}
@@ -745,6 +761,7 @@ export function ItemBoard({
                           createDialogProps={createDialogProps}
                           isOver={activeId !== null && overColId === id}
                           onOpen={openItem}
+                          canWrite={canWrite}
                         />
                       );
                     })}
@@ -755,7 +772,7 @@ export function ItemBoard({
           )}
         </div>
         <DragOverlay modifiers={[restrictToWindowEdges]}>
-          {activeCard ? (
+          {canWrite && activeCard ? (
             <div
               className="rounded-[var(--radius-md)] border border-border bg-[var(--surface)] shadow-[var(--shadow-md)]"
               style={{ transform: "rotate(2deg)", width: 280, padding: "var(--card-pad)" }}

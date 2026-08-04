@@ -251,6 +251,39 @@ describe("ItemList", () => {
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
+  it("keeps rows navigable but renders item fields without editors for viewers", async () => {
+    const user = userEvent.setup();
+    renderList({ ...listProps(), canWrite: false });
+
+    const row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    expect(within(row).queryByRole("button", { name: /Statut/i })).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
+    expect(within(row).getByText("À faire")).toBeVisible();
+    expect(within(row).getByText("Marie Lemaire")).toBeVisible();
+
+    await user.click(within(row).getByText("Authentication"));
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/b/DEMO?view=list&item=DEMO-1&v=saved-view&q=auth",
+    );
+  });
+
+  it("does not offer creation to a viewer in an empty backlog", () => {
+    renderList({
+      ...listProps(),
+      groups: [{ key: "", label: "", items: [] }],
+      createDialogProps: {
+        backlogId: "backlog-id",
+        items: [],
+        statuses: [{ id: todoStatusId, name: "À faire" }],
+      },
+      canWrite: false,
+    });
+
+    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Nouvel item" })).not.toBeInTheDocument();
+  });
+
   it("collapses and restores a group only in the current component session", async () => {
     const user = userEvent.setup();
     renderList({ ...listProps(), grouped: true, groups });

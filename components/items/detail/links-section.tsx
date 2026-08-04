@@ -32,11 +32,13 @@ export function LinksSection({
   backlogKey,
   links,
   candidates,
+  canWrite = true,
 }: {
   itemId: string;
   backlogKey: string;
   links: LinkWithOther[];
   candidates: { id: string; key: string; title: string; type: ItemType }[];
+  canWrite?: boolean;
 }) {
   const router = useRouter();
   const viewUrl = useViewUrlState();
@@ -153,22 +155,24 @@ export function LinksSection({
                 <span className="truncate text-foreground">{link.other.title}</span>
               </Link>
               {/* Remove button */}
-              <button
-                type="button"
-                aria-label={`Supprimer le lien vers ${link.other.key}`}
-                disabled={pending}
-                onClick={() => handleRemove(link.id)}
-                className="hidden size-5 flex-none items-center justify-center rounded text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground group-hover:flex disabled:opacity-40"
-              >
-                <X className="size-3" />
-              </button>
+              {canWrite && (
+                <button
+                  type="button"
+                  aria-label={`Supprimer le lien vers ${link.other.key}`}
+                  disabled={pending}
+                  onClick={() => handleRemove(link.id)}
+                  className="hidden size-5 flex-none items-center justify-center rounded text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground group-hover:flex disabled:opacity-40"
+                >
+                  <X className="size-3" />
+                </button>
+              )}
             </div>
           ))}
         </div>
       ))}
 
       {/* Add-link form */}
-      <div className="flex flex-col gap-1.5">
+      {canWrite && <div className="flex flex-col gap-1.5">
         {/* Relation type select */}
         <select
           value={linkType}
@@ -241,7 +245,7 @@ export function LinksSection({
         >
           {pending ? "Ajout…" : "Ajouter le lien"}
         </button>
-      </div>
+      </div>}
     </div>
   );
 }

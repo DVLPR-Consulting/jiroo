@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Trash2, X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
+import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
+import { LabelPill } from "@/components/items/label-pill";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import {
   DropdownMenu,
@@ -26,8 +28,13 @@ import {
   DueDateField,
   LabelsField,
 } from "@/components/items/detail/field-editors";
-import { ITEM_TYPE_LABELS } from "@/lib/design/constants";
-import type { ItemType } from "@/lib/design/constants";
+import {
+  ITEM_KIND_LABELS,
+  ITEM_TYPE_LABELS,
+  PRIORITY_LABELS,
+  type ItemType,
+  type Priority,
+} from "@/lib/design/constants";
 import type { CommentRow } from "@/lib/services/comments";
 import type { LinkWithOther } from "@/lib/services/links";
 import type {
@@ -73,6 +80,7 @@ export function ItemDetailPanel({
   candidates,
   refs,
   parent,
+  canWrite = true,
 }: {
   detail: ItemRow;
   activities: ActivityRow[];
@@ -87,11 +95,18 @@ export function ItemDetailPanel({
   candidates: { id: string; key: string; title: string; type: ItemType }[];
   refs: { id: string; url: string; kind: string; createdAt: Date | string }[];
   parent?: { key: string; title: string };
+  canWrite?: boolean;
 }) {
   const router = useRouter();
   const viewUrl = useViewUrlState();
   const [tab, setTab] = useState<"detail" | "comments" | "activity">("detail");
   const [deleting, startDelete] = useTransition();
+  const status = statuses.find((option) => option.id === detail.statusId);
+  const priority = Math.min(4, Math.max(0, detail.priority)) as Priority;
+  const assignee = users.find((option) => option.id === detail.assigneeId);
+  const reporter = users.find((option) => option.id === detail.reporterId);
+  const selectedLabelIds = new Set(itemLabelIds);
+  const selectedLabels = backlogLabels.filter((label) => selectedLabelIds.has(label.id));
 
   const close = () => viewUrl.push((params) => params.delete("item"));
 
@@ -163,30 +178,32 @@ export function ItemDetailPanel({
               <Copy className="size-4" aria-hidden />
               Copier le lien
             </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Actions"
-                  className="rounded px-2 py-1 text-sm text-muted-foreground hover:bg-[var(--muted)]"
-                >
-                  …
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  disabled={deleting}
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    handleDelete();
-                  }}
-                  className="text-[var(--danger)] focus:text-[var(--danger)]"
-                >
-                  <Trash2 className="size-4" />
-                  {deleting ? "Suppression…" : "Supprimer l'item"}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {canWrite && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Actions"
+                    className="rounded px-2 py-1 text-sm text-muted-foreground hover:bg-[var(--muted)]"
+                  >
+                    …
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    disabled={deleting}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      handleDelete();
+                    }}
+                    className="text-[var(--danger)] focus:text-[var(--danger)]"
+                  >
+                    <Trash2 className="size-4" />
+                    {deleting ? "Suppression…" : "Supprimer l'item"}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <button
               type="button"
               aria-label="Fermer"
@@ -202,7 +219,12 @@ export function ItemDetailPanel({
         <div className="grid grid-cols-[1fr_220px]">
           {/* Main column */}
           <div className="flex min-w-0 flex-col gap-4 p-5">
-            <EditableTitle itemId={detail.id} backlogKey={backlogKey} title={detail.title} />
+            <EditableTitle
+              itemId={detail.id}
+              backlogKey={backlogKey}
+              title={detail.title}
+              readOnly={!canWrite}
+            />
 
             <div className="flex gap-1 border-b border-border">
               <button
@@ -245,6 +267,7 @@ export function ItemDetailPanel({
                 itemId={detail.id}
                 backlogKey={backlogKey}
                 description={detail.description}
+                readOnly={!canWrite}
               />
             )}
             {tab === "comments" && (
@@ -254,6 +277,7 @@ export function ItemDetailPanel({
                 comments={comments}
                 users={users.map((u) => ({ id: u.id, name: u.name }))}
                 currentUserId={currentUserId}
+                canWrite={canWrite}
               />
             )}
             {tab === "activity" && (
@@ -264,64 +288,104 @@ export function ItemDetailPanel({
           {/* Side column */}
           <div className="flex flex-col gap-4 border-l border-border bg-[var(--surface-2)] p-5">
             <Field label="Statut">
-              <StatusField
-                itemId={detail.id}
-                backlogKey={backlogKey}
-                statusId={detail.statusId}
-                statuses={statuses}
-              />
+              {canWrite ? (
+                <StatusField
+                  itemId={detail.id}
+                  backlogKey={backlogKey}
+                  statusId={detail.statusId}
+                  statuses={statuses}
+                />
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  <span
+                    aria-hidden
+                    className="size-2 rounded-full"
+                    style={{ background: status?.color ?? "var(--border-strong)" }}
+                  />
+                  {status?.name ?? detail.statusId}
+                </span>
+              )}
             </Field>
 
             <Field label="Priorité">
-              <PriorityField
-                itemId={detail.id}
-                backlogKey={backlogKey}
-                priority={detail.priority}
-              />
+              {canWrite ? (
+                <PriorityField
+                  itemId={detail.id}
+                  backlogKey={backlogKey}
+                  priority={detail.priority}
+                />
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  <PrioIcon priority={priority} />
+                  {PRIORITY_LABELS[priority]}
+                </span>
+              )}
             </Field>
 
             <Field label="Nature">
-              <KindField
-                itemId={detail.id}
-                backlogKey={backlogKey}
-                kind={detail.kind}
-              />
+              {canWrite ? (
+                <KindField
+                  itemId={detail.id}
+                  backlogKey={backlogKey}
+                  kind={detail.kind}
+                />
+              ) : ITEM_KIND_LABELS[detail.kind]}
             </Field>
 
             <Field label="Assigné">
-              <AssigneeField
-                itemId={detail.id}
-                backlogKey={backlogKey}
-                assigneeId={detail.assigneeId}
-                users={users}
-              />
+              {canWrite ? (
+                <AssigneeField
+                  itemId={detail.id}
+                  backlogKey={backlogKey}
+                  assigneeId={detail.assigneeId}
+                  users={users}
+                />
+              ) : assignee?.name ?? "Non assigné"}
             </Field>
 
             <Field label="Rapporteur">
-              <ReporterField
-                itemId={detail.id}
-                backlogKey={backlogKey}
-                reporterId={detail.reporterId}
-                users={users}
-              />
+              {canWrite ? (
+                <ReporterField
+                  itemId={detail.id}
+                  backlogKey={backlogKey}
+                  reporterId={detail.reporterId}
+                  users={users}
+                />
+              ) : reporter?.name ?? "—"}
             </Field>
 
             <Field label="Labels">
-              <LabelsField
-                itemId={detail.id}
-                backlogKey={backlogKey}
-                backlogId={detail.backlogId}
-                itemLabelIds={itemLabelIds}
-                backlogLabels={backlogLabels}
-              />
+              {canWrite ? (
+                <LabelsField
+                  itemId={detail.id}
+                  backlogKey={backlogKey}
+                  backlogId={detail.backlogId}
+                  itemLabelIds={itemLabelIds}
+                  backlogLabels={backlogLabels}
+                />
+              ) : selectedLabels.length > 0 ? (
+                <span className="flex flex-wrap gap-1">
+                  {selectedLabels.map((label) => (
+                    <LabelPill key={label.id} name={label.name} color={label.color} />
+                  ))}
+                </span>
+              ) : (
+                "Aucun label"
+              )}
             </Field>
 
             <Field label="Échéance">
-              <DueDateField
-                itemId={detail.id}
-                backlogKey={backlogKey}
-                dueDate={detail.dueDate}
-              />
+              {canWrite ? (
+                <DueDateField
+                  itemId={detail.id}
+                  backlogKey={backlogKey}
+                  dueDate={detail.dueDate}
+                />
+              ) : detail.dueDate ? (
+                dateFmt.format(new Date(detail.dueDate))
+              ) : (
+                "—"
+              )}
             </Field>
 
             <Field label="Liens">
@@ -330,6 +394,7 @@ export function ItemDetailPanel({
                 backlogKey={backlogKey}
                 links={links}
                 candidates={candidates}
+                canWrite={canWrite}
               />
             </Field>
 
@@ -338,6 +403,7 @@ export function ItemDetailPanel({
                 itemId={detail.id}
                 backlogKey={backlogKey}
                 refs={refs}
+                canWrite={canWrite}
               />
             </Field>
 

@@ -24,6 +24,7 @@ import {
 } from "@/lib/items/filter";
 import { PRIORITY_LABELS } from "@/lib/design/constants";
 import { getSession } from "@/lib/auth/session";
+import { canWriteItems, type Role } from "@/lib/auth/rbac";
 import { getViewById } from "@/lib/services/views";
 import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
 import { ViewBar } from "@/components/shell/view-bar";
@@ -74,6 +75,8 @@ export async function BacklogViewContent({
 
   const session = await getSession();
   const userId = session?.user.id ?? "";
+  const role = (session?.user as { role?: Role } | undefined)?.role;
+  const canWrite = role ? canWriteItems(role) : false;
 
   const VIEWS = ["board", "list", "tree"] as const;
   const view = (VIEWS as readonly string[]).includes(rawView ?? "")
@@ -341,13 +344,13 @@ export async function BacklogViewContent({
             sort={viewState.sort}
           />
         }
-        newItemSlot={
+        newItemSlot={canWrite ? (
           <NewItemButton
             backlogKey={backlog.key}
             {...createDialogProps}
             enableShortcut
           />
-        }
+        ) : null}
       />
       <FilterBar
         state={viewState}
@@ -385,6 +388,7 @@ export async function BacklogViewContent({
           hasItems={items.length > 0}
           clearFiltersHref={clearFiltersHref}
           createDialogProps={createDialogProps}
+          canWrite={canWrite}
         />
       )}
       {view === "board" && (
@@ -400,6 +404,7 @@ export async function BacklogViewContent({
           filtersActive={filtersOn}
           hasItems={items.length > 0}
           clearFiltersHref={clearFiltersHref}
+          canWrite={canWrite}
         />
       )}
       {view === "tree" && (
@@ -415,6 +420,7 @@ export async function BacklogViewContent({
           hasItems={items.length > 0}
           clearFiltersHref={clearFiltersHref}
           createDialogProps={createDialogProps}
+          canWrite={canWrite}
         />
       )}
       {itemKey && (
@@ -427,6 +433,7 @@ export async function BacklogViewContent({
             users={usersForFilter}
             statuses={statusList}
             items={items}
+            canWrite={canWrite}
           />
         </Suspense>
       )}

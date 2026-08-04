@@ -47,4 +47,34 @@ describe("CommentThread", () => {
     );
     expect(highlights[0]).not.toHaveTextContent("@Bob");
   });
+
+  it("renders comments without edit, delete, or compose controls for viewers", () => {
+    const comment: CommentRow = {
+      id: "comment-own",
+      authorId: "viewer-1",
+      authorName: "Nina Laurent",
+      body: "Commentaire existant",
+      mentions: [],
+      createdAt: new Date("2026-08-04T08:00:00Z"),
+      editedAt: null,
+      deletedAt: null,
+      deleted: false,
+    };
+
+    render(
+      <CommentThread
+        itemId="item-1"
+        backlogKey="CASS"
+        comments={[comment]}
+        users={[]}
+        currentUserId="viewer-1"
+        canWrite={false}
+      />,
+    );
+
+    expect(screen.getByText("Commentaire existant")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Modifier" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Supprimer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
 });

@@ -10,10 +10,12 @@ export function DescriptionEditor({
   itemId,
   backlogKey,
   description,
+  readOnly = false,
 }: {
   itemId: string;
   backlogKey: string;
   description: string | null;
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -85,6 +87,17 @@ export function DescriptionEditor({
             Annuler
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (readOnly) {
+    if (!description) {
+      return <p className="t-sm text-muted-foreground">Aucune description.</p>;
+    }
+    return (
+      <div className="text-sm leading-relaxed text-foreground [&_a]:text-[var(--primary)] [&_a]:underline [&_code]:rounded [&_code]:bg-[var(--muted)] [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-[var(--font-mono)] [&_code]:text-[0.85em] [&_h1]:t-h2 [&_h2]:t-h2 [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-2 [&_pre]:overflow-auto [&_pre]:rounded-[var(--radius)] [&_pre]:bg-[var(--muted)] [&_pre]:p-3 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
       </div>
     );
   }

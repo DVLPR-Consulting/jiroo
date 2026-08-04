@@ -187,6 +187,26 @@ describe("ItemDetailPanel header", () => {
     );
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
   });
+
+  it("keeps item details readable while hiding viewer mutation affordances", async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel {...baseProps} canWrite={false} />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.getByRole("heading", { name: detail.title })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Actions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ajouter une description" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ajouter le lien" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ajouter" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Commentaires" }));
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
 });
 
 describe("ItemDetailContent parent resolution", () => {

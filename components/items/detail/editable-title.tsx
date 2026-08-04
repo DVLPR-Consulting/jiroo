@@ -8,10 +8,12 @@ export function EditableTitle({
   itemId,
   backlogKey,
   title,
+  readOnly = false,
 }: {
   itemId: string;
   backlogKey: string;
   title: string;
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -54,6 +56,7 @@ export function EditableTitle({
       />
     );
   }
+  if (readOnly) return <h2 className="t-h1 px-1">{title}</h2>;
   return (
     <div>
       <h2

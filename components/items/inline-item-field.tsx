@@ -98,6 +98,8 @@ function EditorShell({ children }: { children: ReactNode }) {
 
 const triggerClass =
   "inline-flex min-h-7 max-w-full items-center gap-1.5 rounded px-1.5 py-1 text-xs text-muted-foreground outline-none hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60";
+const readOnlyClass =
+  "inline-flex min-h-7 max-w-full items-center gap-1.5 px-1.5 py-1 text-xs text-muted-foreground";
 
 const contentClass = "min-w-40";
 
@@ -106,15 +108,26 @@ export function InlineStatus({
   backlogKey,
   statusId,
   statuses,
+  readOnly = false,
 }: {
   itemId: string;
   backlogKey: string;
   statusId: string;
   statuses: StatusOption[];
+  readOnly?: boolean;
 }) {
   const { error, pending, update } = useInlineUpdate(itemId, backlogKey);
   const errorId = useId();
   const selected = statuses.find((status) => status.id === statusId);
+
+  if (readOnly) {
+    return (
+      <span className={readOnlyClass}>
+        {selected && <StatusDot status={visualStatusId(selected, statuses)} />}
+        <span className="truncate">{selected?.name ?? statusId}</span>
+      </span>
+    );
+  }
 
   return (
     <EditorShell>
@@ -160,14 +173,24 @@ export function InlinePriority({
   itemId,
   backlogKey,
   priority,
+  readOnly = false,
 }: {
   itemId: string;
   backlogKey: string;
   priority: number;
+  readOnly?: boolean;
 }) {
   const { error, pending, update } = useInlineUpdate(itemId, backlogKey);
   const errorId = useId();
   const selected = asPriority(priority);
+
+  if (readOnly) {
+    return (
+      <span className={readOnlyClass}>
+        <PrioIcon priority={selected} />
+      </span>
+    );
+  }
 
   return (
     <EditorShell>
@@ -213,16 +236,35 @@ export function InlineAssignee({
   backlogKey,
   assigneeId,
   users,
+  readOnly = false,
 }: {
   itemId: string;
   backlogKey: string;
   assigneeId: string | null;
   users: UserOption[];
+  readOnly?: boolean;
 }) {
   const { error, pending, update } = useInlineUpdate(itemId, backlogKey);
   const errorId = useId();
   const selected = users.find((user) => user.id === assigneeId);
   const label = selected?.name ?? "Non assigné";
+
+  if (readOnly) {
+    return (
+      <span className={readOnlyClass}>
+        {selected ? (
+          <InitialsAvatar name={selected.name} hue={hueFor(selected.id)} size={20} />
+        ) : (
+          <span
+            aria-hidden
+            className="size-5 rounded-full"
+            style={{ border: "1.5px dashed var(--border-strong)" }}
+          />
+        )}
+        <span className="truncate">{label}</span>
+      </span>
+    );
+  }
 
   return (
     <EditorShell>

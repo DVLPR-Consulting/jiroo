@@ -102,6 +102,7 @@ function CommentItem({
   users,
   isOwn,
   isEditing,
+  canWrite,
   onEditStart,
   onEditDone,
 }: {
@@ -111,6 +112,7 @@ function CommentItem({
   users: { id: string; name: string }[];
   isOwn: boolean;
   isEditing: boolean;
+  canWrite: boolean;
   onEditStart: () => void;
   onEditDone: () => void;
 }) {
@@ -147,7 +149,7 @@ function CommentItem({
         )}
 
         {/* Own comment affordances (always visible, not hover-only for accessibility) */}
-        {isOwn && !comment.deleted && (
+        {canWrite && isOwn && !comment.deleted && (
           <div className="ml-auto flex items-center gap-1">
             <button
               type="button"
@@ -176,7 +178,7 @@ function CommentItem({
         <p className="text-sm italic text-muted-foreground">
           Commentaire supprimé
         </p>
-      ) : isEditing ? (
+      ) : canWrite && isEditing ? (
         <CommentComposer
           itemId={itemId}
           backlogKey={backlogKey}
@@ -198,13 +200,15 @@ function CommentItem({
       )}
 
       {/* Delete confirm dialog */}
-      <DeleteCommentDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        pending={pending}
-        error={deleteError}
-        onConfirm={handleDelete}
-      />
+      {canWrite && (
+        <DeleteCommentDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          pending={pending}
+          error={deleteError}
+          onConfirm={handleDelete}
+        />
+      )}
     </div>
   );
 }
@@ -219,12 +223,14 @@ export function CommentThread({
   comments,
   users,
   currentUserId,
+  canWrite = true,
 }: {
   itemId: string;
   backlogKey: string;
   comments: CommentRow[];
   users: { id: string; name: string }[];
   currentUserId: string;
+  canWrite?: boolean;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -244,6 +250,7 @@ export function CommentThread({
               users={users}
               isOwn={c.authorId === currentUserId}
               isEditing={editingId === c.id}
+              canWrite={canWrite}
               onEditStart={() => setEditingId(c.id)}
               onEditDone={() => setEditingId(null)}
             />
@@ -252,14 +259,16 @@ export function CommentThread({
       )}
 
       {/* New comment composer — pinned at the bottom */}
-      <div className="border-t border-border pt-4">
-        <CommentComposer
-          itemId={itemId}
-          backlogKey={backlogKey}
-          users={users}
-          mode="create"
-        />
-      </div>
+      {canWrite && (
+        <div className="border-t border-border pt-4">
+          <CommentComposer
+            itemId={itemId}
+            backlogKey={backlogKey}
+            users={users}
+            mode="create"
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -377,6 +377,46 @@ describe("ItemBoard", () => {
     expect(handle).toHaveFocus();
   });
 
+  it("keeps cards readable but hides every mutation affordance for viewers", () => {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[editableCard]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+        canWrite={false}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "DEMO-1 — Authentication" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Créer dans Prêt" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Déplacer DEMO-1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
+  });
+
+  it("does not offer creation to a viewer in an empty backlog", () => {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+        canWrite={false}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Nouvel item" })).not.toBeInTheDocument();
+  });
+
   it("opens a card from its separate keyboard control", async () => {
     const user = userEvent.setup();
     const moveItemAction = vi.fn();
