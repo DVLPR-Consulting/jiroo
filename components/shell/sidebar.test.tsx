@@ -87,20 +87,39 @@ describe("Sidebar", () => {
     );
   });
 
-  it("keeps essential controls accessible when collapsed", () => {
+  it("renders one expanded brand and one collapse icon", () => {
+    renderSidebar();
+
+    const brand = screen.getByLabelText("Jiroo");
+    const toggle = screen.getByRole("button", {
+      name: "Replier la barre latérale",
+    });
+
+    expect(brand).toHaveTextContent(/^Jiroo$/);
+    expect(toggle.querySelectorAll("svg")).toHaveLength(1);
+    expect(screen.getByText("Vues perso")).toBeInTheDocument();
+  });
+
+  it("renders a compact accessible rail without open-only content", () => {
     document.documentElement.dataset.sidebar = "collapsed";
     renderSidebar();
 
+    const brand = screen.getByLabelText("Jiroo");
+    const toggle = screen.getByRole("button", {
+      name: "Déplier la barre latérale",
+    });
+
+    expect(brand).toHaveTextContent(/^J$/);
+    expect(toggle.querySelectorAll("svg")).toHaveLength(1);
     expect(screen.getByText("CASS")).toBeVisible();
+    expect(screen.queryByText("Vues perso")).not.toBeInTheDocument();
+    expect(screen.queryByText("Vues partagées")).not.toBeInTheDocument();
     expect(screen.getByText("Tous les items")).toHaveClass("sr-only");
     expect(screen.getByRole("link", { name: /Tous les items 42/ })).toHaveAttribute(
       "title",
       "Tous les items",
     );
-    expect(screen.getByRole("button", { name: "Déplier la barre latérale" })).toHaveAttribute(
-      "title",
-      "Déplier la barre latérale",
-    );
+    expect(toggle).toHaveAttribute("title", "Déplier la barre latérale");
   });
 
   it("routes the active-backlog all-items link through the shared authority", () => {

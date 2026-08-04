@@ -93,34 +93,6 @@
   --card-pad: 12px;
 }
 
-/* No-flash shell presentation: data-sidebar is set synchronously in <head>. */
-:root[data-sidebar="collapsed"] [data-sidebar-shell] { padding: 0.5rem; }
-:root[data-sidebar="collapsed"] [data-sidebar-brand] {
-  justify-content: space-between;
-  padding: 0;
-}
-:root[data-sidebar="collapsed"] [data-sidebar-backlog-trigger],
-:root[data-sidebar="collapsed"] [data-sidebar-user-trigger],
-:root[data-sidebar="collapsed"] [data-slot="nav-link"] {
-  justify-content: center;
-  padding-inline: 0;
-}
-:root[data-sidebar="collapsed"] [data-sidebar-label] {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
-}
-:root[data-sidebar="collapsed"] [data-sidebar-open-only],
-:root:not([data-sidebar="collapsed"]) [data-sidebar-collapsed-only] {
-  display: none;
-}
-
 [data-density="compact"] {
   --row-h: 32px;
   --card-pad: 9px;
