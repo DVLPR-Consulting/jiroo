@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Restore a conventional SaaS sidebar that switches reliably between a 248 px navigation panel and a 64 px icon rail without duplicate branding or controls.
+**Goal:** Restore a conventional SaaS sidebar that switches reliably between a 248 px navigation panel and a 64 px icon rail, using a Jira-like directional toggle without duplicate branding or controls.
 
-**Architecture:** `SidebarStateProvider` remains the persistence boundary and the single hydrated state source. `AppShellFrame` consumes that state directly for its explicit grid width, while `Sidebar` uses mutually exclusive React branches for open and collapsed content. Global `data-sidebar` presentation selectors are removed so the root attribute seeds hydration but no longer competes with React after hydration.
+**Architecture:** `SidebarStateProvider` remains the persistence boundary and the single hydrated state source. `AppShellFrame` consumes that state directly for its explicit grid width, while `Sidebar` uses mutually exclusive React branches for open and collapsed content. The expanded header pairs the wordmark with `ChevronLeft`; the compact rail omits branding and starts with a centered `ChevronRight`. Global `data-sidebar` presentation selectors are removed so the root attribute seeds hydration but no longer competes with React after hydration.
 
 **Tech Stack:** Next.js 16.2.7 App Router, React 19.2.4, TypeScript 5, Tailwind CSS 4, Lucide React, Vitest 4, React Testing Library.
 
@@ -13,6 +13,8 @@
 - Follow `docs/superpowers/specs/2026-08-04-jiroo-sidebar-collapse-design.md` exactly.
 - Read the local Next.js guides before editing: `node_modules/next/dist/docs/01-app/01-getting-started/05-server-and-client-components.md`, `11-css.md`, and `01-app/02-guides/testing/vitest.md`.
 - Keep the expanded width exactly `248px` and the collapsed width exactly `64px`.
+- Use one 32 px ghost toggle: `ChevronLeft` at the expanded header's top-right and `ChevronRight` centered at the top of the compact rail.
+- Do not render a wordmark or monogram in the compact rail.
 - Persist the preference under `jiroo-sidebar-collapsed` with string values `true | false`.
 - Preserve the root `data-sidebar="open|collapsed"` attribute as the pre-hydration seed and compatibility signal, but do not use it as a post-hydration presentation authority.
 - Preserve all routes, counts, backlog selection, saved views, role visibility, user actions, French copy, keyboard focus, and active-navigation behavior.
@@ -26,7 +28,7 @@
 - `components/shell/sidebar-state.tsx`: unchanged public context and persistence contract.
 - `components/shell/sidebar-state.test.tsx`: verifies persistence and the actual shell width transition through the context.
 - `components/shell/app-shell.tsx`: consumes `collapsed` and owns the explicit 248/64 px grid columns.
-- `components/shell/sidebar.tsx`: renders exactly one brand and one toggle icon for the active state, plus the open panel or compact rail contents.
+- `components/shell/sidebar.tsx`: renders the expanded wordmark and `ChevronLeft`, or the compact `ChevronRight` without branding, plus the matching panel or rail contents.
 - `components/shell/sidebar.test.tsx`: protects brand, control, accessibility, and collapsed-content behavior.
 - `app/globals.css`: retains theme/density tokens but removes sidebar width and conditional-presentation selectors.
 
@@ -369,7 +371,152 @@ git add components/shell/sidebar.test.tsx components/shell/sidebar.tsx app/globa
 git commit -m "fix(shell): render coherent sidebar states"
 ```
 
-### Task 3: Full regression and visual acceptance
+### Task 3: Use a standard directional toggle
+
+**Files:**
+- Modify: `components/shell/sidebar.test.tsx:89-124`
+- Modify: `components/shell/sidebar.tsx:3-101`
+
+**Interfaces:**
+- Consumes: `collapsed` and `toggle` from `useSidebarState()`.
+- Produces: expanded `Jiroo` plus `ChevronLeft`, or a brand-free compact header containing one centered `ChevronRight`.
+- Preserves: French accessible labels, native title tooltips, 248/64 px widths, persistence, navigation contents, and routing.
+
+- [ ] **Step 1: Change the expanded-state test to require `ChevronLeft`**
+
+In `components/shell/sidebar.test.tsx`, replace the expanded test with:
+
+```tsx
+it("renders the wordmark with one standard collapse chevron", () => {
+  renderSidebar();
+
+  const brand = screen.getByLabelText("Jiroo");
+  const toggle = screen.getByRole("button", {
+    name: "Replier la barre latérale",
+  });
+
+  expect(brand).toHaveTextContent(/^Jiroo$/);
+  expect(toggle.querySelectorAll("svg")).toHaveLength(1);
+  expect(toggle.querySelector(".lucide-chevron-left")).toBeInTheDocument();
+  expect(toggle).toHaveClass("size-8");
+  expect(screen.getByText("Vues perso")).toBeInTheDocument();
+});
+```
+
+The class assertion targets Lucide's public rendered icon name and catches a
+wrong directional glyph without mocking the icon library.
+
+- [ ] **Step 2: Change the compact-state test to reject branding and require a centered `ChevronRight`**
+
+Replace the brand/icon assertions at the start of the compact rail test with:
+
+```tsx
+const toggle = screen.getByRole("button", {
+  name: "Déplier la barre latérale",
+});
+
+expect(screen.queryByLabelText("Jiroo")).not.toBeInTheDocument();
+expect(toggle.querySelectorAll("svg")).toHaveLength(1);
+expect(toggle.querySelector(".lucide-chevron-right")).toBeInTheDocument();
+expect(toggle).toHaveClass("size-8");
+expect(toggle.parentElement).toHaveClass("justify-center");
+```
+
+Keep the existing assertions for `CASS`, hidden views, `sr-only` navigation
+labels, title tooltips, and accessible link names.
+
+- [ ] **Step 3: Run the focused test and verify RED**
+
+Run:
+
+```bash
+pnpm test -- components/shell/sidebar.test.tsx
+```
+
+Expected: FAIL because the current component renders `PanelLeftClose`,
+`PanelLeftOpen`, a 28 px button, and the `J` monogram in compact mode.
+
+- [ ] **Step 4: Replace the panel glyph imports with directional chevrons**
+
+Change the Lucide import in `components/shell/sidebar.tsx` to:
+
+```tsx
+import {
+  ChevronLeft,
+  ChevronRight,
+  Layers,
+  Settings,
+  Trash2,
+  User,
+} from "lucide-react";
+```
+
+- [ ] **Step 5: Render the expanded brand or compact toggle layout**
+
+Replace the sidebar header with:
+
+```tsx
+<div
+  className={cn(
+    "flex items-center",
+    collapsed ? "justify-center" : "justify-between px-2 py-1",
+  )}
+>
+  {!collapsed && (
+    <div aria-label="Jiroo" className="t-h2 overflow-hidden font-semibold">
+      <span aria-hidden="true">
+        Jir<span className="text-[var(--primary)]">oo</span>
+      </span>
+    </div>
+  )}
+  <button
+    type="button"
+    onClick={toggle}
+    aria-label={collapsed ? "Déplier la barre latérale" : "Replier la barre latérale"}
+    title={collapsed ? "Déplier la barre latérale" : "Replier la barre latérale"}
+    className="inline-flex size-8 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground"
+  >
+    {collapsed ? (
+      <ChevronRight className="size-4" />
+    ) : (
+      <ChevronLeft className="size-4" />
+    )}
+  </button>
+</div>
+```
+
+Do not move the backlog selector or any navigation items.
+
+- [ ] **Step 6: Run focused and adjacent tests and verify GREEN**
+
+Run:
+
+```bash
+pnpm test -- components/shell/sidebar.test.tsx components/shell/sidebar-state.test.tsx components/shell/sidebar-views.test.tsx components/shell/backlog-selector.test.tsx components/shell/user-card.test.tsx
+```
+
+Expected: all tests PASS, including width, persistence, saved-view navigation,
+backlog selection, and user actions.
+
+- [ ] **Step 7: Run task-level static checks**
+
+Run:
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Expected: both commands exit 0 without errors.
+
+- [ ] **Step 8: Commit the standard toggle**
+
+```bash
+git add components/shell/sidebar.test.tsx components/shell/sidebar.tsx
+git commit -m "fix(shell): use directional sidebar toggle"
+```
+
+### Task 4: Full regression and visual acceptance
 
 **Files:**
 - Verify: `components/shell/app-shell.tsx`
@@ -382,7 +529,7 @@ git commit -m "fix(shell): render coherent sidebar states"
 - Verify: `app/globals.css`
 
 **Interfaces:**
-- Consumes: the Task 1 and Task 2 commits.
+- Consumes: the Task 1, Task 2, and Task 3 commits.
 - Produces: verified 248 px expanded navigation and 64 px collapsed icon rail, persisted across reloads.
 
 - [ ] **Step 1: Run the complete automated verification gate**
@@ -407,7 +554,7 @@ desktop viewport:
 
 - the sidebar's computed width is 248 px;
 - the header reads `Jiroo` once;
-- exactly one collapse icon is visible at the header's far edge;
+- exactly one `ChevronLeft` icon is visible at the header's far edge;
 - the backlog badge/name, navigation labels/counts, saved-view groups, bottom
   actions, and complete user card are visible;
 - keyboard focus reaches the collapse control and its accessible name is
@@ -418,7 +565,8 @@ desktop viewport:
 Activate `Replier la barre latérale` and verify:
 
 - the main content expands as the sidebar's computed width becomes 64 px;
-- the header shows only `J` and exactly one expand icon;
+- the top of the rail shows no branding and exactly one centered
+  `ChevronRight` icon;
 - `CASS`, the primary navigation icons, trash, administration, and the avatar
   are centered in the rail;
 - saved-view groups, names, counts, and user details are not visually present;
@@ -429,19 +577,19 @@ Activate `Replier la barre latérale` and verify:
 - [ ] **Step 4: Verify persistence and absence of duplication**
 
 Reload `/b/CASS` while collapsed. Confirm the first hydrated interactive state
-remains the 64 px rail and that neither `JJiroo` nor two adjacent panel icons
-appear. Expand, reload again, and confirm the 248 px state is restored.
+remains the 64 px rail and that neither branding nor duplicate icons appear.
+Expand, reload again, and confirm the 248 px state is restored.
 
 - [ ] **Step 5: Inspect the final diff and branch state**
 
 Run:
 
 ```bash
-git diff HEAD~2..HEAD --check
-git diff HEAD~2..HEAD --stat
+git diff 9b395a4..HEAD --check
+git diff 9b395a4..HEAD --stat
 git status --short --branch
 ```
 
-Expected: no whitespace errors, the two implementation commits contain only the
-planned shell/test/CSS files, and the worktree is clean. The design and plan
-remain in their earlier documentation commits.
+Expected: no whitespace errors, the feature history since the original plan
+contains only the planned shell/test/CSS files plus the reviewed spec/plan
+refinements, and the worktree is clean.
