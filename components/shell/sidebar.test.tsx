@@ -87,18 +87,15 @@ describe("Sidebar", () => {
     );
   });
 
-  it("renders the wordmark with one standard collapse chevron", () => {
+  it("renders the complete wordmark without an internal collapse control", () => {
     renderSidebar();
 
     const brand = screen.getByLabelText("Jiroo");
-    const toggle = screen.getByRole("button", {
-      name: "Replier la barre latérale",
-    });
 
     expect(brand).toHaveTextContent(/^Jiroo$/);
-    expect(toggle.querySelectorAll("svg")).toHaveLength(1);
-    expect(toggle.querySelector(".lucide-chevron-left")).toBeInTheDocument();
-    expect(toggle).toHaveClass("size-8");
+    expect(
+      screen.queryByRole("button", { name: "Replier la barre latérale" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Vues perso")).toBeInTheDocument();
   });
 
@@ -106,15 +103,13 @@ describe("Sidebar", () => {
     document.documentElement.dataset.sidebar = "collapsed";
     renderSidebar();
 
-    const toggle = screen.getByRole("button", {
-      name: "Déplier la barre latérale",
-    });
+    const brand = screen.getByLabelText("Jiroo");
 
-    expect(screen.queryByLabelText("Jiroo")).not.toBeInTheDocument();
-    expect(toggle.querySelectorAll("svg")).toHaveLength(1);
-    expect(toggle.querySelector(".lucide-chevron-right")).toBeInTheDocument();
-    expect(toggle).toHaveClass("size-8");
-    expect(toggle.parentElement).toHaveClass("justify-center");
+    expect(brand).toHaveTextContent(/^J$/);
+    expect(brand).toHaveAttribute("title", "Jiroo");
+    expect(
+      screen.queryByRole("button", { name: "Déplier la barre latérale" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("CASS")).toBeVisible();
     expect(screen.queryByText("Vues perso")).not.toBeInTheDocument();
     expect(screen.queryByText("Vues partagées")).not.toBeInTheDocument();
@@ -123,7 +118,6 @@ describe("Sidebar", () => {
       "title",
       "Tous les items",
     );
-    expect(toggle).toHaveAttribute("title", "Déplier la barre latérale");
   });
 
   it("routes the active-backlog all-items link through the shared authority", () => {

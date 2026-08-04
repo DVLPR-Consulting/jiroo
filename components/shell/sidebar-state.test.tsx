@@ -73,6 +73,42 @@ describe("SidebarStateProvider", () => {
     });
   });
 
+  it("places one square toggle on the moving sidebar boundary", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <AppShell sidebar={<Probe />} topbar={<header>Topbar</header>}>
+        Contenu
+      </AppShell>,
+    );
+    const shell = container.firstElementChild;
+    const toggle = screen.getByRole("button", {
+      name: "Replier la barre latérale",
+    });
+
+    expect(toggle).toHaveClass(
+      "absolute",
+      "right-0",
+      "size-8",
+      "translate-x-1/2",
+      "rounded-[8px]",
+    );
+    expect(toggle.querySelector(".lucide-chevron-left")).toBeInTheDocument();
+
+    await user.click(toggle);
+
+    expect(shell).toHaveStyle({
+      gridTemplateColumns: "64px minmax(0,1fr)",
+    });
+    expect(
+      screen.getByRole("button", { name: "Déplier la barre latérale" }),
+    ).toHaveClass("right-0", "translate-x-1/2");
+    expect(
+      screen
+        .getByRole("button", { name: "Déplier la barre latérale" })
+        .querySelector(".lucide-chevron-right"),
+    ).toBeInTheDocument();
+  });
+
   it("shares one repeated-parameter URL authority across shell siblings", () => {
     render(
       <AppShell

@@ -1,14 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Layers,
-  Settings,
-  Trash2,
-  User,
-} from "lucide-react";
+import { Layers, Settings, Trash2, User } from "lucide-react";
 import { BacklogSelector } from "@/components/shell/backlog-selector";
 import { NavLink } from "@/components/shell/nav-link";
 import { useSidebarState } from "@/components/shell/sidebar-state";
@@ -36,7 +29,7 @@ export function Sidebar({
   user: { name: string; email: string; role: string };
   counts: ShellCounts;
 }) {
-  const { collapsed, toggle } = useSidebarState();
+  const { collapsed } = useSidebarState();
   const viewUrl = useViewUrlState();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -68,29 +61,22 @@ export function Sidebar({
       <div
         className={cn(
           "flex items-center",
-          collapsed ? "justify-center" : "justify-between px-2 py-1",
+          collapsed ? "h-12 justify-center" : "h-10 px-2",
         )}
       >
-        {!collapsed && (
-          <div aria-label="Jiroo" className="t-h2 overflow-hidden font-semibold">
+        <div
+          aria-label="Jiroo"
+          title={collapsed ? "Jiroo" : undefined}
+          className="t-h2 overflow-hidden font-semibold"
+        >
+          {collapsed ? (
+            <span aria-hidden="true">J</span>
+          ) : (
             <span aria-hidden="true">
               Jir<span className="text-[var(--primary)]">oo</span>
             </span>
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label={collapsed ? "Déplier la barre latérale" : "Replier la barre latérale"}
-          title={collapsed ? "Déplier la barre latérale" : "Replier la barre latérale"}
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground"
-        >
-          {collapsed ? (
-            <ChevronRight className="size-4" />
-          ) : (
-            <ChevronLeft className="size-4" />
           )}
-        </button>
+        </div>
       </div>
 
       <BacklogSelector
