@@ -24,12 +24,18 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { generateKeyBetween } from "fractional-indexing";
-import { Calendar } from "lucide-react";
+import { Calendar, Plus } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
+import { InlinePriority } from "@/components/items/inline-item-field";
 import { LabelPill } from "@/components/items/label-pill";
+import {
+  NewItemButton,
+  type NewItemButtonProps,
+} from "@/components/items/new-item-dialog";
+import { Button } from "@/components/ui/button";
 import { LABEL_HUES, type ItemKind, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
 import { KindIcon } from "@/components/icons/kind-icon";
 import { StatusDot } from "@/components/icons/status-dot";
@@ -62,6 +68,10 @@ export type BoardGroup = "assignee" | "priority" | "component" | "parent" | null
 
 type Status = { id: string; name: string; color: string; category: string };
 type Columns = Record<string, BoardCard[]>;
+export type BoardCreateDialogProps = Pick<
+  NewItemButtonProps,
+  "backlogId" | "items" | "statuses"
+>;
 
 // Column droppable id form: `col:<swimlaneKey>:<statusId>`. The swimlane key is
 // "" when the board is ungrouped, so the single-band path flows through the same
@@ -203,7 +213,15 @@ function formatDueDate(d: Date | string): string {
 }
 
 // Visual body shared by sortable cards and the drag overlay.
-function CardInner({ card }: { card: BoardCard; backlogKey: string }) {
+function CardInner({
+  card,
+  backlogKey,
+  interactivePriority = true,
+}: {
+  card: BoardCard;
+  backlogKey: string;
+  interactivePriority?: boolean;
+}) {
   return (
     <>
       <div className="flex items-center gap-1.5">
@@ -211,7 +229,15 @@ function CardInner({ card }: { card: BoardCard; backlogKey: string }) {
         <ItemKey value={card.key} />
         {card.kind && <KindIcon kind={card.kind} />}
         <span className="ml-auto">
-          <PrioIcon priority={asPriority(card.priority)} />
+          {interactivePriority ? (
+            <InlinePriority
+              itemId={card.id}
+              backlogKey={backlogKey}
+              priority={card.priority}
+            />
+          ) : (
+            <PrioIcon priority={asPriority(card.priority)} />
+          )}
         </span>
       </div>
       <p
@@ -276,6 +302,7 @@ function Column({
   swimlane,
   cards,
   backlogKey,
+  createDialogProps,
   isOver,
   onOpen,
 }: {
@@ -284,6 +311,7 @@ function Column({
   swimlane: string;
   cards: BoardCard[];
   backlogKey: string;
+  createDialogProps: BoardCreateDialogProps;
   isOver: boolean;
   onOpen: (key: string) => void;
 }) {
@@ -300,6 +328,21 @@ function Column({
         <span className="item-key ml-auto rounded-[var(--radius-sm)] bg-[var(--surface)] px-1.5 py-0.5">
           {cards.length}
         </span>
+        <NewItemButton
+          {...createDialogProps}
+          backlogKey={backlogKey}
+          initialStatusId={status.id}
+          trigger={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={`Créer dans ${status.name}`}
+            >
+              <Plus />
+            </Button>
+          }
+        />
       </div>
       <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
         <div
@@ -334,6 +377,7 @@ export function ItemBoard({
   group,
   groupLabels,
   moveItemAction,
+  createDialogProps,
   params,
 }: {
   backlogKey: string;
@@ -342,6 +386,7 @@ export function ItemBoard({
   group: BoardGroup;
   groupLabels: Record<string, string>;
   moveItemAction: typeof MoveItemAction;
+  createDialogProps: BoardCreateDialogProps;
   params?: Record<string, string>;
 }) {
   const router = useRouter();
@@ -569,6 +614,7 @@ export function ItemBoard({
                     swimlane=""
                     cards={columns[id] ?? []}
                     backlogKey={backlogKey}
+                    createDialogProps={createDialogProps}
                     isOver={activeId !== null && overColId === id}
                     onOpen={openItem}
                   />
@@ -593,6 +639,7 @@ export function ItemBoard({
                           swimlane={sw}
                           cards={columns[id] ?? []}
                           backlogKey={backlogKey}
+                          createDialogProps={createDialogProps}
                           isOver={activeId !== null && overColId === id}
                           onOpen={openItem}
                         />
@@ -610,7 +657,11 @@ export function ItemBoard({
               className="rounded-[var(--radius-md)] border border-border bg-[var(--surface)] shadow-[var(--shadow-md)]"
               style={{ transform: "rotate(2deg)", width: 280, padding: "var(--card-pad)" }}
             >
-              <CardInner card={activeCard} backlogKey={backlogKey} />
+              <CardInner
+                card={activeCard}
+                backlogKey={backlogKey}
+                interactivePriority={false}
+              />
             </div>
           ) : null}
         </DragOverlay>

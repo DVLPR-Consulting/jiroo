@@ -157,6 +157,16 @@ export default async function BacklogPage({
   const statusMap = Object.fromEntries(
     statusRows.map((s) => [s.id, { name: s.name, color: s.color }]),
   );
+  const createDialogProps = {
+    backlogId: backlog.id,
+    items: items.map((item) => ({
+      id: item.id,
+      key: item.key,
+      type: item.type,
+      title: item.title,
+    })),
+    statuses: statusRows.map((status) => ({ id: status.id, name: status.name })),
+  };
 
   const resultCount = filtersOn ? matchedIds.size : items.length;
 
@@ -349,10 +359,8 @@ export default async function BacklogPage({
         }
         newItemSlot={
           <NewItemButton
-            backlogId={backlog.id}
             backlogKey={backlog.key}
-            items={items.map((i) => ({ id: i.id, key: i.key, type: i.type, title: i.title }))}
-            statuses={statusRows.map((s) => ({ id: s.id, name: s.name }))}
+            {...createDialogProps}
           />
         }
       />
@@ -400,6 +408,7 @@ export default async function BacklogPage({
           group={boardGroup}
           groupLabels={groupLabels}
           moveItemAction={moveItemAction}
+          createDialogProps={createDialogProps}
           params={currentParams}
         />
       )}

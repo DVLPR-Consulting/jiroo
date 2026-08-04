@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createItemAction } from "@/app/actions/items";
@@ -33,6 +33,16 @@ import { allowedParentType } from "@/lib/tree/hierarchy";
 type Item = { id: string; key: string; type: ItemType; title: string };
 type Status = { id: string; name: string };
 
+export type NewItemButtonProps = {
+  backlogId: string;
+  backlogKey: string;
+  items: Item[];
+  statuses: Status[];
+  initialStatusId?: string;
+  trigger?: ReactNode;
+  onCreated?: (item: { id: string; key: string }) => void;
+};
+
 // Shared field styling — matches Input's token-based look so native selects fit in.
 const FIELD =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:bg-input/30";
@@ -42,12 +52,10 @@ export function NewItemButton({
   backlogKey,
   items,
   statuses,
-}: {
-  backlogId: string;
-  backlogKey: string;
-  items: Item[];
-  statuses: Status[];
-}) {
+  initialStatusId,
+  trigger,
+  onCreated,
+}: NewItemButtonProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -58,7 +66,7 @@ export function NewItemButton({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState<string>("");
   const [parentId, setParentId] = useState<string>("");
-  const [statusId, setStatusId] = useState<string>("");
+  const [statusId, setStatusId] = useState<string>(initialStatusId ?? "");
   const [priority, setPriority] = useState<Priority>(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,7 +83,7 @@ export function NewItemButton({
     setTitle("");
     setDescription("");
     setParentId("");
-    setStatusId("");
+    setStatusId(initialStatusId ?? "");
     setPriority(0);
     setError(null);
   }
@@ -126,6 +134,7 @@ export function NewItemButton({
         setError(result.error);
         return;
       }
+      onCreated?.(result.item);
       setOpen(false);
       reset();
       router.refresh();
@@ -144,12 +153,14 @@ export function NewItemButton({
       }}
     >
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="size-4" />
-          Nouvel item
-        </Button>
+        {trigger ?? (
+          <Button>
+            <Plus className="size-4" />
+            Nouvel item
+          </Button>
+        )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Nouvel item</DialogTitle>
         </DialogHeader>
