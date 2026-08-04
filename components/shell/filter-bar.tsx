@@ -106,7 +106,7 @@ export function FilterBar({
   const active = isFiltersActive(state.filters);
 
   return (
-    <div className="flex items-center gap-2 border-b border-border px-4 py-2">
+    <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
       <input
         type="search"
         value={text}
@@ -142,20 +142,20 @@ export function FilterBar({
         onClear={() => setFilters({ priorities: [] })}
       />
       <FilterMenu
-        label="Assigné"
-        options={assigneeOpts}
-        selected={state.filters.assignees}
-        onChange={(v) => setFilters({ assignees: v })}
-        activeLabel={activeLabel(assigneeOpts, state.filters.assignees)}
-        onClear={() => setFilters({ assignees: [] })}
-      />
-      <FilterMenu
         label="Label"
         options={labelOpts}
         selected={state.filters.labels}
         onChange={(v) => setFilters({ labels: v })}
         activeLabel={activeLabel(labelOpts, state.filters.labels)}
         onClear={() => setFilters({ labels: [] })}
+      />
+      <FilterMenu
+        label="Assigné"
+        options={assigneeOpts}
+        selected={state.filters.assignees}
+        onChange={(v) => setFilters({ assignees: v })}
+        activeLabel={activeLabel(assigneeOpts, state.filters.assignees)}
+        onClear={() => setFilters({ assignees: [] })}
       />
       <FilterMenu
         label="Nature"

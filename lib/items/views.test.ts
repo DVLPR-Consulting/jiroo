@@ -91,6 +91,18 @@ describe("columnsToViewState", () => {
     expect(displayMode).toBe("list");
   });
 
+  it("serializes and reloads a saved view with non-empty hierarchy ids", () => {
+    const state: ViewState = {
+      ...full,
+      filters: { ...full.filters, underIds: ["component-1", "epic-1"] },
+    };
+
+    const columns = viewStateToColumns(state, "tree");
+
+    expect(columns.filters.underIds).toEqual(["component-1", "epic-1"]);
+    expect(columnsToViewState(columns)).toEqual({ state, displayMode: "tree" });
+  });
+
   it("restores the empty state round-trip", () => {
     const cols = viewStateToColumns(empty, "board");
     const { state, displayMode } = columnsToViewState(cols);

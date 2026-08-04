@@ -66,7 +66,13 @@ export type BoardCard = {
 
 export type BoardGroup = "assignee" | "priority" | "component" | "parent" | null;
 
-type Status = { id: string; name: string; color: string; category: string };
+type Status = {
+  id: string;
+  name: string;
+  color: string;
+  category: "todo" | "in_progress" | "done";
+  order: number;
+};
 type Columns = Record<string, BoardCard[]>;
 export type BoardCreateDialogProps = Pick<
   NewItemButtonProps,
@@ -127,6 +133,18 @@ function byRank(a: BoardCard, b: BoardCard): number {
 // Clamp the DB integer priority into the 0..4 union PrioIcon expects.
 function asPriority(value: number): Priority {
   return Math.min(4, Math.max(0, value)) as Priority;
+}
+
+function visualStatusId(status: Status, statuses: Status[]): StatusId {
+  if (status.category === "todo") return "todo";
+  if (status.category === "done") return "done";
+
+  const progressStatuses = statuses
+    .filter((option) => option.category === "in_progress")
+    .sort((a, b) => a.order - b.order);
+  return progressStatuses.findIndex((option) => option.id === status.id) <= 0
+    ? "doing"
+    : "review";
 }
 
 // Stable per-name hue so a given assignee always gets the same avatar color.
@@ -301,6 +319,7 @@ function Column({
   colDomId,
   swimlane,
   cards,
+  statuses,
   backlogKey,
   createDialogProps,
   isOver,
@@ -310,6 +329,7 @@ function Column({
   colDomId: string;
   swimlane: string;
   cards: BoardCard[];
+  statuses: Status[];
   backlogKey: string;
   createDialogProps: BoardCreateDialogProps;
   isOver: boolean;
@@ -323,7 +343,7 @@ function Column({
   return (
     <div className="flex w-[296px] flex-none flex-col rounded-[var(--radius-lg)] border border-border bg-[var(--surface-2)]">
       <div className="flex items-center gap-2 px-3 py-2.5">
-        <StatusDot status={status.id as StatusId} size={14} />
+        <StatusDot status={visualStatusId(status, statuses)} size={14} />
         <span className="text-[13px] font-medium">{status.name}</span>
         <span className="item-key ml-auto rounded-[var(--radius-sm)] bg-[var(--surface)] px-1.5 py-0.5">
           {cards.length}
@@ -613,6 +633,7 @@ export function ItemBoard({
                     colDomId={id}
                     swimlane=""
                     cards={columns[id] ?? []}
+                    statuses={statuses}
                     backlogKey={backlogKey}
                     createDialogProps={createDialogProps}
                     isOver={activeId !== null && overColId === id}
@@ -638,6 +659,7 @@ export function ItemBoard({
                           colDomId={id}
                           swimlane={sw}
                           cards={columns[id] ?? []}
+                          statuses={statuses}
                           backlogKey={backlogKey}
                           createDialogProps={createDialogProps}
                           isOver={activeId !== null && overColId === id}

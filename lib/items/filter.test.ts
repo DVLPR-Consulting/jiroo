@@ -10,6 +10,9 @@ import {
   sortItems,
   enrichHierarchy,
   type ViewState,
+  type Filters,
+  type SortField,
+  type SortDir,
   type FilterItem,
   type HierarchyItem,
 } from "./filter";
@@ -137,6 +140,20 @@ describe("writeViewState ⇄ parseViewState round-trip", () => {
     expect(parseViewState(sp)).toEqual(state);
   });
 
+  it("round-trips non-empty hierarchy ids through the under URL parameter", () => {
+    const state: ViewState = {
+      ...empty,
+      filters: { ...empty.filters, underIds: ["component-1", "epic-1"] },
+    };
+    const sp = new URLSearchParams("view=tree");
+
+    writeViewState(sp, state);
+
+    expect(sp.get("under")).toBe("component-1,epic-1");
+    expect(parseViewState(sp)).toEqual(state);
+    expect(sp.get("view")).toBe("tree");
+  });
+
   it("omits the kind param when kind is empty", () => {
     const sp = new URLSearchParams("kind=bug");
     writeViewState(sp, empty);
@@ -177,7 +194,7 @@ describe("isFiltersActive", () => {
 });
 
 describe("matchItem", () => {
-  const f = (over = {}) => ({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [], ...over });
+  const f = (over: Partial<Filters> = {}): Filters => ({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [], ...over });
 
   it("matches everything when no filter is active", () => {
     expect(matchItem(item(), f())).toBe(true);
@@ -196,6 +213,71 @@ describe("matchItem", () => {
         f({ underIds: ["epic-1"] }),
       ),
     ).toBe(false);
+    expect(
+      matchItem(
+        item({ ancestorIds: ["component-1", "epic-1"] }),
+        f({ underIds: ["component-1"] }),
+      ),
+    ).toBe(true);
+    expect(
+      matchItem(
+        item({ id: "component-1", ancestorIds: [] }),
+        f({ underIds: ["component-1"] }),
+      ),
+    ).toBe(false);
+  });
+
+  it.each([
+    ["text", { q: "qr" }, { title: "Générer le QR", description: null }, { title: "Sans correspondance", description: null }],
+    ["type", { types: ["tache"] }, { type: "tache" }, { type: "epic" }],
+    ["status", { statusIds: ["s1"] }, { statusId: "s1" }, { statusId: "s2" }],
+    ["priority", { priorities: [2] }, { priority: 2 }, { priority: 4 }],
+    ["assignee", { assignees: ["u1"] }, { assigneeId: "u1" }, { assigneeId: "u2" }],
+    ["label", { labels: ["label-1"] }, { labelIds: ["label-1"] }, { labelIds: ["label-2"] }],
+    ["kind", { kind: ["feature"] }, { kind: "feature" }, { kind: "bug" }],
+    ["hierarchy", { underIds: ["component-1"] }, { ancestorIds: ["component-1"] }, { ancestorIds: ["other"] }],
+  ] satisfies Array<[
+    string,
+    Partial<Filters>,
+    Partial<FilterItem>,
+    Partial<FilterItem>,
+  ]>)("applies the %s facet independently", (_name, filters, matching, rejected) => {
+    expect(matchItem(item(matching), f(filters))).toBe(true);
+    expect(matchItem(item(rejected), f(filters))).toBe(false);
+  });
+
+  it("requires every active facet while accepting any selected value within each facet", () => {
+    const filters = f({
+      q: "qr",
+      types: ["epic", "tache"],
+      statusIds: ["s9", "s1"],
+      priorities: [4, 2],
+      assignees: ["none", "u1"],
+      labels: ["label-9", "label-1"],
+      kind: ["bug", "feature"],
+      underIds: ["epic-9", "component-1"],
+    });
+    const matching = item({
+      title: "Générer le QR",
+      type: "tache",
+      statusId: "s1",
+      priority: 2,
+      assigneeId: "u1",
+      labelIds: ["label-1"],
+      kind: "feature",
+      ancestorIds: ["component-1"],
+    });
+
+    expect(matchItem(matching, filters)).toBe(true);
+    expect([
+      item({ ...matching, title: "Sans correspondance", description: null }),
+      item({ ...matching, type: "composant" }),
+      item({ ...matching, statusId: "s2" }),
+      item({ ...matching, priority: 1 }),
+      item({ ...matching, assigneeId: "u2" }),
+      item({ ...matching, labelIds: ["label-2"] }),
+      item({ ...matching, kind: "feature", ancestorIds: ["other"] }),
+    ].every((candidate) => !matchItem(candidate, filters))).toBe(true);
   });
   it("ANDs across dimensions, ORs within one", () => {
     expect(matchItem(item({ type: "tache", priority: 4 }), f({ types: ["tache", "epic"], priorities: [3, 4] }))).toBe(true);
@@ -430,6 +512,30 @@ describe("sortItems", () => {
       "b", "c", "a", "d",
     ]);
   });
+
+  it.each([
+    ["key", "asc", ["c", "a", "b"]],
+    ["key", "desc", ["b", "a", "c"]],
+    ["title", "asc", ["b", "a", "c"]],
+    ["title", "desc", ["c", "a", "b"]],
+    ["status", "asc", ["b", "c", "a"]],
+    ["status", "desc", ["a", "b", "c"]],
+    ["priority", "asc", ["a", "c", "b"]],
+    ["priority", "desc", ["b", "c", "a"]],
+    ["dueDate", "asc", ["c", "a", "b"]],
+    ["dueDate", "desc", ["a", "c", "b"]],
+  ] satisfies Array<[SortField, SortDir, string[]]>) (
+    "sorts list field %s in %s order",
+    (field, dir, expected) => {
+      const listRows = [
+        item({ id: "a", key: "CASS-2", title: "Éclair", statusOrder: 2, priority: 1, dueDate: new Date("2026-02-01") }),
+        item({ id: "b", key: "CASS-10", title: "apple", statusOrder: 1, priority: 4, dueDate: null }),
+        item({ id: "c", key: "CASS-1", title: "Zebra", statusOrder: 1, priority: 2, dueDate: new Date("2026-01-15") }),
+      ];
+
+      expect(sortItems(listRows, { field, dir }).map((row) => row.id)).toEqual(expected);
+    },
+  );
   it("does not mutate the input array", () => {
     const copy = [...rows];
     sortItems(rows, { field: "priority", dir: "asc" });

@@ -48,13 +48,24 @@ function renderBar(state: ViewState = emptyState) {
 
 describe("FilterBar", () => {
   it("renders each inactive facet as a plus-prefixed chip", () => {
-    renderBar();
+    const { container } = renderBar();
 
     for (const label of ["Type", "Statut", "Priorité", "Label", "Assigné", "Nature", "Sous"]) {
       expect(screen.getByRole("button", { name: `+ ${label}` })).toHaveAttribute("data-active", "false");
     }
+    expect(
+      [...container.querySelectorAll<HTMLButtonElement>("button[data-active]")].map((button) =>
+        button.textContent?.trim(),
+      ),
+    ).toEqual(["+ Type", "+ Statut", "+ Priorité", "+ Label", "+ Assigné", "+ Nature", "+ Sous"]);
     expect(screen.queryByRole("combobox", { name: "Grouper par" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Trier par" })).not.toBeInTheDocument();
+  });
+
+  it("allows the filter controls to wrap instead of overflowing narrow content", () => {
+    const { container } = renderBar();
+
+    expect(container.firstElementChild).toHaveClass("flex-wrap");
   });
 
   it("shows the selected facet value and clears only that facet", async () => {
