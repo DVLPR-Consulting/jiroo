@@ -1,6 +1,9 @@
 "use client";
 
-import { SidebarStateProvider } from "@/components/shell/sidebar-state";
+import {
+  SidebarStateProvider,
+  useSidebarState,
+} from "@/components/shell/sidebar-state";
 import { RouteViewUrlStateProvider } from "@/components/shell/view-url-state";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -13,11 +16,13 @@ function AppShellFrame({
   topbar: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const { collapsed } = useSidebarState();
+
   return (
     <div
       className="grid h-screen overflow-hidden transition-[grid-template-columns] duration-150"
       style={{
-        gridTemplateColumns: "var(--sidebar-width, 248px) minmax(0,1fr)",
+        gridTemplateColumns: `${collapsed ? "64px" : "248px"} minmax(0,1fr)`,
       }}
     >
       {sidebar}

@@ -91,11 +91,7 @@
   /* Densité */
   --row-h: 38px;
   --card-pad: 12px;
-  --sidebar-width: 248px;
 }
-
-:root[data-sidebar="open"] { --sidebar-width: 248px; }
-:root[data-sidebar="collapsed"] { --sidebar-width: 64px; }
 
 /* No-flash shell presentation: data-sidebar is set synchronously in <head>. */
 :root[data-sidebar="collapsed"] [data-sidebar-shell] { padding: 0.5rem; }

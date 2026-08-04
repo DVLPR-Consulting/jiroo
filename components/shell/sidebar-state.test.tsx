@@ -52,16 +52,24 @@ describe("SidebarStateProvider", () => {
     expect(document.documentElement.dataset.sidebar).toBe("open");
   });
 
-  it("lets the pre-hydration root attribute control the shell width", () => {
-    document.documentElement.dataset.sidebar = "collapsed";
+  it("changes the actual shell column when the shared state toggles", async () => {
+    const user = userEvent.setup();
     const { container } = render(
-      <AppShell sidebar={<aside>Sidebar</aside>} topbar={<header>Topbar</header>}>
+      <AppShell sidebar={<Probe />} topbar={<header>Topbar</header>}>
         Contenu
       </AppShell>,
     );
+    const shell = container.firstElementChild;
 
-    expect(container.firstElementChild).toHaveStyle({
-      gridTemplateColumns: "var(--sidebar-width, 248px) minmax(0,1fr)",
+    expect(shell).toHaveStyle({
+      gridTemplateColumns: "248px minmax(0,1fr)",
+    });
+
+    await user.click(screen.getByRole("button", { name: "open" }));
+
+    expect(screen.getByRole("button", { name: "collapsed" })).toBeVisible();
+    expect(shell).toHaveStyle({
+      gridTemplateColumns: "64px minmax(0,1fr)",
     });
   });
 
