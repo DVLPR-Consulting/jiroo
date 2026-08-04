@@ -49,13 +49,7 @@ export default async function TrashPage() {
       </div>
 
       {/* Body */}
-      {items.length === 0 ? (
-        <div className="grid flex-1 place-items-center p-10 text-center">
-          <p className="t-sm text-muted-foreground">La corbeille est vide.</p>
-        </div>
-      ) : (
-        <TrashList groups={groups} />
-      )}
+      <TrashList groups={groups} />
     </div>
   );
 }

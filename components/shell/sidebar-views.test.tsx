@@ -155,4 +155,23 @@ describe("SidebarViews URL authority", () => {
     expect(link).toHaveAttribute("href", expectedHref);
     expect(mocks.push).not.toHaveBeenCalled();
   });
+
+  it("explains empty personal and shared saved-view collections", () => {
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"]]}>
+        <SidebarViews
+          views={[]}
+          userId="user-1"
+          backlogs={[
+            { id: "backlog-1", key: "DEMO", name: "Démo", color: "#2563eb" },
+          ]}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.getByText("Aucune vue personnelle")).toBeInTheDocument();
+    expect(screen.getByText("Enregistrez vos filtres pour les retrouver ici.")).toBeInTheDocument();
+    expect(screen.getByText("Aucune vue partagée")).toBeInTheDocument();
+    expect(screen.getByText("Les vues partagées avec l’équipe apparaîtront ici.")).toBeInTheDocument();
+  });
 });

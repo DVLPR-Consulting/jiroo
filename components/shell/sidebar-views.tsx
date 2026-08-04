@@ -1,8 +1,9 @@
 "use client";
 
 import { useParams, useSearchParams } from "next/navigation";
-import { User, Users } from "lucide-react";
+import { Bookmark, User, Users } from "lucide-react";
 import { NavLink } from "@/components/shell/nav-link";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import {
   partitionViews,
@@ -77,7 +78,12 @@ export function SidebarViews({
       </div>
       <div className="flex flex-col gap-0.5">
         {personal.length === 0 ? (
-          <div className="px-2 py-1 text-sm text-muted-foreground">Aucune vue</div>
+          <EmptyState
+            className="px-2 py-3 [&_h2]:text-sm [&_p]:text-xs"
+            icon={<Bookmark className="size-4" />}
+            title="Aucune vue personnelle"
+            description="Enregistrez vos filtres pour les retrouver ici."
+          />
         ) : (
           personal.map((v) => (
             <ViewLink
@@ -96,7 +102,12 @@ export function SidebarViews({
       </div>
       <div className="flex flex-col gap-0.5">
         {shared.length === 0 ? (
-          <div className="px-2 py-1 text-sm text-muted-foreground">Aucune vue</div>
+          <EmptyState
+            className="px-2 py-3 [&_h2]:text-sm [&_p]:text-xs"
+            icon={<Users className="size-4" />}
+            title="Aucune vue partagée"
+            description="Les vues partagées avec l’équipe apparaîtront ici."
+          />
         ) : (
           shared.map((v) => (
             <ViewLink

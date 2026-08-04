@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { restoreTrashedItemAction, purgeItemAction } from "@/app/actions/trash";
 import type { TrashedItem } from "@/lib/services/items";
@@ -9,6 +11,7 @@ import { TypeIcon } from "@/components/icons/type-icon";
 import { StatusDot } from "@/components/icons/status-dot";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { StatusId } from "@/lib/design/constants";
 import {
   Dialog,
@@ -186,6 +189,23 @@ function TrashRow({ item }: { item: TrashedItem }) {
 // ---------------------------------------------------------------------------
 
 export function TrashList({ groups }: TrashListProps) {
+  if (groups.length === 0) {
+    return (
+      <div className="grid flex-1 place-items-center p-10">
+        <EmptyState
+          icon={<Trash2 className="size-5" />}
+          title="Corbeille vide"
+          description="Les items supprimés apparaîtront ici pendant 30 jours."
+          action={
+            <Button asChild variant="outline">
+              <Link href="/">Voir les backlogs</Link>
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-auto">
       {groups.map(({ backlog, items }) => (

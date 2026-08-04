@@ -23,7 +23,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { generateKeyBetween } from "fractional-indexing";
-import { Calendar, GripVertical, Plus } from "lucide-react";
+import Link from "next/link";
+import { Calendar, GripVertical, Inbox, Plus, SearchX } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
@@ -35,6 +36,7 @@ import {
   type NewItemButtonProps,
 } from "@/components/items/new-item-dialog";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import { LABEL_HUES, type ItemKind, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
 import { KindIcon } from "@/components/icons/kind-icon";
@@ -442,6 +444,8 @@ export function ItemBoard({
   groupLabels,
   moveItemAction,
   createDialogProps,
+  filtersActive = false,
+  clearFiltersHref,
 }: {
   backlogKey: string;
   items: BoardCard[];
@@ -452,6 +456,8 @@ export function ItemBoard({
   groupLabels: Record<string, string>;
   moveItemAction: typeof MoveItemAction;
   createDialogProps: BoardCreateDialogProps;
+  filtersActive?: boolean;
+  clearFiltersHref?: string;
 }) {
   const viewUrl = useViewUrlState();
   const dndId = useId();
@@ -642,6 +648,36 @@ export function ItemBoard({
     } finally {
       pending.current--;
     }
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="grid flex-1 place-items-center p-10">
+        <EmptyState
+          icon={filtersActive ? <SearchX className="size-5" /> : <Inbox className="size-5" />}
+          title={filtersActive ? "Aucun résultat" : "Aucun item"}
+          description={
+            filtersActive
+              ? "Aucun item ne correspond aux filtres actifs."
+              : "Créez votre premier item pour commencer à organiser ce backlog."
+          }
+          action={
+            filtersActive ? (
+              clearFiltersHref ? (
+                <Link
+                  className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                  href={clearFiltersHref}
+                >
+                  Effacer les filtres
+                </Link>
+              ) : null
+            ) : (
+              <NewItemButton backlogKey={backlogKey} {...createDialogProps} />
+            )
+          }
+        />
+      </div>
+    );
   }
 
   return (

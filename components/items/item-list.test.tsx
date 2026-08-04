@@ -109,7 +109,7 @@ const initialUrlParams = {
   q: "auth",
 };
 
-function listProps() {
+function listProps(): React.ComponentProps<typeof ItemList> {
   return {
     groups,
     grouped: false,
@@ -135,6 +135,44 @@ describe("ItemList", () => {
     mocks.refresh.mockReset();
     mocks.replace.mockReset();
     mocks.updateItemAction.mockReset();
+  });
+
+  it("offers item creation when the list has no rows", async () => {
+    const user = userEvent.setup();
+    renderList({
+      ...listProps(),
+      groups: [{ key: "", label: "", items: [] }],
+      filtersActive: false,
+      clearFiltersHref: "/b/DEMO?view=list",
+      createDialogProps: {
+        backlogId: "backlog-id",
+        items: [],
+        statuses: [{ id: todoStatusId, name: "À faire" }],
+      },
+    });
+
+    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Créez votre premier item pour commencer à organiser ce backlog."),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("offers a shareable filter reset when the list has no matches", () => {
+    renderList({
+      ...listProps(),
+      groups: [{ key: "", label: "", items: [] }],
+      filtersActive: true,
+      clearFiltersHref: "/b/DEMO?view=list",
+    });
+
+    expect(screen.getByRole("heading", { name: "Aucun résultat" })).toBeInTheDocument();
+    expect(screen.getByText("Aucun item ne correspond aux filtres actifs.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Effacer les filtres" })).toHaveAttribute(
+      "href",
+      "/b/DEMO?view=list",
+    );
   });
 
   it("renders the dense list as a semantic table with sticky column headers", () => {

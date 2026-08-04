@@ -78,6 +78,58 @@ describe("ItemTree", () => {
     mocks.replace.mockReset();
   });
 
+  it("offers item creation when the tree has no rows", async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          filtersActive={false}
+          clearFiltersHref="/b/DEMO?view=tree"
+          createDialogProps={{
+            backlogId: "backlog-id",
+            items: [],
+            statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
+          }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Créez votre premier item pour commencer à organiser ce backlog."),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("offers a shareable filter reset when the tree has no matches", () => {
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"], ["q", "missing"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          filtersActive
+          clearFiltersHref="/b/DEMO?view=tree"
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Aucun résultat" })).toBeInTheDocument();
+    expect(screen.getByText("Aucun item ne correspond aux filtres actifs.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Effacer les filtres" })).toHaveAttribute(
+      "href",
+      "/b/DEMO?view=tree",
+    );
+  });
+
   it("renders complete row metadata without changing row opening or drag protocol", async () => {
     const user = userEvent.setup();
     render(

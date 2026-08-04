@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Inbox, SearchX } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { LabelPill } from "@/components/items/label-pill";
+import {
+  NewItemButton,
+  type NewItemButtonProps,
+} from "@/components/items/new-item-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { LABEL_HUES, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
 import { StatusDot as CanonicalStatusDot } from "@/components/icons/status-dot";
 import { useViewUrlState } from "@/components/shell/view-url-state";
@@ -137,6 +143,9 @@ type ItemTreeProps = {
   contextIds?: string[];
   reparentItemAction: typeof ReparentItemAction;
   moveItemAction: typeof MoveItemAction;
+  filtersActive?: boolean;
+  clearFiltersHref?: string;
+  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses">;
 };
 
 export function ItemTree({
@@ -147,6 +156,9 @@ export function ItemTree({
   contextIds = [],
   reparentItemAction,
   moveItemAction,
+  filtersActive = false,
+  clearFiltersHref,
+  createDialogProps,
 }: ItemTreeProps) {
   const viewUrl = useViewUrlState();
   const [treeItems, setTreeItems] = useState<TreeItem[]>(() => seed(items));
@@ -421,8 +433,30 @@ export function ItemTree({
 
   if (items.length === 0) {
     return (
-      <div className="grid flex-1 place-items-center p-10 text-center">
-        <p className="t-sm text-muted-foreground">Aucun item — créez-en un.</p>
+      <div className="grid flex-1 place-items-center p-10">
+        <EmptyState
+          icon={filtersActive ? <SearchX className="size-5" /> : <Inbox className="size-5" />}
+          title={filtersActive ? "Aucun résultat" : "Aucun item"}
+          description={
+            filtersActive
+              ? "Aucun item ne correspond aux filtres actifs."
+              : "Créez votre premier item pour commencer à organiser ce backlog."
+          }
+          action={
+            filtersActive ? (
+              clearFiltersHref ? (
+                <Link
+                  className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                  href={clearFiltersHref}
+                >
+                  Effacer les filtres
+                </Link>
+              ) : null
+            ) : createDialogProps ? (
+              <NewItemButton backlogKey={backlogKey} {...createDialogProps} />
+            ) : null
+          }
+        />
       </div>
     );
   }

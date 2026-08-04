@@ -86,6 +86,56 @@ describe("ItemBoard", () => {
     mocks.updateItemAction.mockReset();
   });
 
+  it("offers item creation when the board has no rows", async () => {
+    const user = userEvent.setup();
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+        filtersActive={false}
+        clearFiltersHref="/b/DEMO?view=board"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Créez votre premier item pour commencer à organiser ce backlog."),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("offers a shareable filter reset when the board has no matches", () => {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+        filtersActive
+        clearFiltersHref="/b/DEMO?view=board"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Aucun résultat" })).toBeInTheDocument();
+    expect(screen.getByText("Aucun item ne correspond aux filtres actifs.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Effacer les filtres" })).toHaveAttribute(
+      "href",
+      "/b/DEMO?view=board",
+    );
+    expect(screen.queryByRole("button", { name: "Nouvel item" })).not.toBeInTheDocument();
+  });
+
   it("places cards in their component lane and uses the unassigned fallback lane", () => {
     renderBoard(
       <ItemBoard
@@ -155,7 +205,7 @@ describe("ItemBoard", () => {
     renderBoard(
       <ItemBoard
         backlogKey="DEMO"
-        items={[]}
+        items={[editableCard]}
         statuses={[
           readyStatus,
           { id: "doing", name: "En cours", color: "#fa0", category: "in_progress", order: 1 },
@@ -181,7 +231,12 @@ describe("ItemBoard", () => {
     renderBoard(
       <ItemBoard
         backlogKey="DEMO"
-        items={[]}
+        items={[
+          { ...editableCard, id: "todo", key: "DEMO-1", statusId: "11111111-1111-4111-8111-111111111111" },
+          { ...editableCard, id: "doing", key: "DEMO-2", statusId: "22222222-2222-4222-8222-222222222222" },
+          { ...editableCard, id: "review", key: "DEMO-3", statusId: "33333333-3333-4333-8333-333333333333" },
+          { ...editableCard, id: "done", key: "DEMO-4", statusId: "44444444-4444-4444-8444-444444444444" },
+        ]}
         statuses={[
           { id: "11111111-1111-4111-8111-111111111111", name: "À faire", color: "#999", category: "todo", order: 0 },
           { id: "22222222-2222-4222-8222-222222222222", name: "En cours", color: "#f90", category: "in_progress", order: 1 },
@@ -217,7 +272,14 @@ describe("ItemBoard", () => {
     renderBoard(
       <ItemBoard
         backlogKey="DEMO"
-        items={[]}
+        items={[
+          {
+            ...editableCard,
+            id: "review",
+            key: "DEMO-3",
+            statusId: statusDomain[2]!.id,
+          },
+        ]}
         statuses={[statusDomain[2]!]}
         statusDomain={statusDomain}
         group={null}
