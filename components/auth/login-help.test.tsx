@@ -34,7 +34,7 @@ describe("LoginHelp", () => {
     expect(button).toHaveAttribute("aria-expanded", "true");
     expect(
       screen.getByText(
-        "Connectez-vous avec le mot de passe transmis, puis activez la 2FA dans Préférences.",
+        "Connectez-vous avec le mot de passe transmis : la configuration 2FA vous sera proposée avant l’accès à l’application.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();

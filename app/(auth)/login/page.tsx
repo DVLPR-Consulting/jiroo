@@ -20,14 +20,20 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await authClient.signIn.email({ email, password });
+    const { data, error } = await authClient.signIn.email({ email, password });
     setLoading(false);
     // If 2FA is required, the client twoFactor plugin redirects to /2fa via onTwoFactorRedirect.
     if (error) {
       setError("E-mail ou mot de passe incorrect.");
       return;
     }
-    router.push("/");
+    const requiresChallenge =
+      typeof data === "object" &&
+      data !== null &&
+      "twoFactorRedirect" in data &&
+      data.twoFactorRedirect === true;
+    if (requiresChallenge) return;
+    router.push("/2fa/enroll");
   }
 
   return (

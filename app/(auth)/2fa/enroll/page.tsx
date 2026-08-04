@@ -18,6 +18,8 @@ export default function EnrollPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [code, setCode] = useState("");
   const [attempt, setAttempt] = useState(0);
 
   async function startEnroll(e: React.FormEvent) {
@@ -40,11 +42,15 @@ export default function EnrollPage() {
     }
   }
 
-  async function confirm(code: string) {
+  async function confirm() {
+    if (!saved || !/^\d{6}$/.test(code) || verifying) return;
     setError(null);
+    setVerifying(true);
     const { error } = await authClient.twoFactor.verifyTotp({ code });
+    setVerifying(false);
     if (error) {
       setError("Code invalide. Réessayez.");
+      setCode("");
       setAttempt((a) => a + 1);
       return;
     }
@@ -99,10 +105,24 @@ export default function EnrollPage() {
           J&apos;ai enregistré mes codes de récupération
         </label>
 
-        <div className={saved ? "" : "pointer-events-none opacity-50"} aria-disabled={!saved}>
+        <div>
           <p className="t-sm mb-2 text-muted-foreground">Entrez un code de votre application pour activer :</p>
-          <OtpInput key={attempt} onComplete={confirm} autoFocus={false} />
+          <OtpInput
+            key={attempt}
+            onComplete={() => undefined}
+            onValueChange={setCode}
+            autoSubmit={false}
+            autoFocus={false}
+          />
         </div>
+        <Button
+          type="button"
+          className="w-full"
+          disabled={!saved || code.length !== 6 || verifying}
+          onClick={confirm}
+        >
+          {verifying ? "Activation…" : "Activer et continuer"}
+        </Button>
         {error && <p className="t-sm text-center" style={{ color: "var(--danger)" }}>{error}</p>}
       </div>
     </AuthCard>

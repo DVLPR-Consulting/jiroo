@@ -5,10 +5,14 @@ import { useRef, useState } from "react";
 export function OtpInput({
   length = 6,
   onComplete,
+  onValueChange,
+  autoSubmit = true,
   autoFocus = true,
 }: {
   length?: number;
   onComplete: (code: string) => void;
+  onValueChange?: (code: string) => void;
+  autoSubmit?: boolean;
   autoFocus?: boolean;
 }) {
   const [values, setValues] = useState<string[]>(() => Array<string>(length).fill(""));
@@ -17,7 +21,8 @@ export function OtpInput({
   function commit(next: string[]) {
     setValues(next);
     const code = next.join("");
-    if (code.length === length && !next.includes("")) onComplete(code);
+    onValueChange?.(code);
+    if (autoSubmit && code.length === length && !next.includes("")) onComplete(code);
   }
 
   function handleChange(i: number, raw: string) {
