@@ -30,8 +30,9 @@ icons can also become visible. The redesign removes this split authority.
 - The shell sidebar column is exactly 248 px wide.
 - The header renders one `Jiroo` wordmark, with the existing garnet accent on
   `oo`.
-- The header renders one `ChevronLeft` control at its top-right edge, labelled
-  `Replier la barre latérale`.
+- A 32 px square control with 8 px rounded corners straddles the boundary
+  between the sidebar and the content. It renders one `ChevronLeft` and is
+  labelled `Replier la barre latérale`.
 - The active backlog selector shows its badge, name, and dropdown affordance.
 - Primary navigation, personal and shared views, counts, trash,
   administration, and the user card retain their current behavior.
@@ -39,9 +40,10 @@ icons can also become visible. The redesign removes this split authority.
 ### Collapsed state
 
 - The shell sidebar column is exactly 64 px wide.
-- The wordmark and monogram are absent from the compact rail.
-- The rail begins with one centered `ChevronRight` control labelled
-  `Déplier la barre latérale`.
+- The full wordmark becomes one centered `J` monogram so the product identity
+  remains visible in the compact rail.
+- The same 32 px square boundary control moves with the sidebar edge and
+  renders one `ChevronRight`, labelled `Déplier la barre latérale`.
 - The active backlog selector shows only the backlog key badge.
 - Primary navigation, trash, administration, and the user avatar remain as
   centered icon controls.
@@ -76,15 +78,31 @@ of two explicit values:
 - expanded: `248px minmax(0,1fr)`;
 - collapsed: `64px minmax(0,1fr)`.
 
-The width transition remains short and affects the actual grid column.
+The width transition remains short and affects the actual grid column. The
+sidebar is wrapped in a positioned grid cell. That cell owns the collapse
+control because it owns the boundary the control straddles. The control is
+positioned at the cell's right edge, translated by half its width, and layered
+above the sidebar and content. It therefore moves with the grid column without
+separate position state or animation logic.
 
 ### `Sidebar`
 
-`Sidebar` renders the expanded wordmark and `ChevronLeft`, or the compact
-`ChevronRight` control, as mutually exclusive React branches. It does not
-pre-render both variants and depend on CSS to hide one. The same `collapsed`
-value controls child props, view-group rendering, padding, and accessible
-labels.
+`Sidebar` renders the expanded `Jiroo` wordmark or the compact `J` monogram as
+mutually exclusive React branches. It no longer owns the collapse control.
+The same `collapsed` value controls branding, child props, view-group
+rendering, padding, and accessible labels.
+
+### Boundary control
+
+- Size: exactly 32 by 32 px.
+- Shape: square with 8 px rounded corners, not circular.
+- Position: vertically aligned with the brand header and horizontally centered
+  on the sidebar/content divider.
+- Surface: opaque application surface with a visible border and subtle shadow,
+  so the control stays legible over both neighboring backgrounds.
+- Motion: no independent translation animation; the control follows the
+  sidebar grid edge during the existing 150 ms width transition.
+- Hit target and focus styles remain visible and usable by keyboard.
 
 ### Global CSS
 
@@ -96,6 +114,7 @@ density behavior remain unchanged.
 
 - The collapse control exposes the action it will perform, not the current
   state.
+- The compact `J` monogram retains the accessible product name `Jiroo`.
 - Collapsed icon controls keep `aria-label` and `title` text.
 - Hidden labels remain available to assistive technology only when required to
   name a control.
@@ -108,8 +127,12 @@ density behavior remain unchanged.
 Implementation follows TDD and adds regressions that fail if:
 
 - toggling does not change the actual shell grid from 248 px to 64 px;
-- the expanded header contains more than one wordmark or `ChevronLeft` icon;
-- the collapsed rail contains branding or more than one `ChevronRight` icon;
+- the expanded header does not contain exactly one `Jiroo` wordmark;
+- the collapsed rail does not contain exactly one `J` monogram for `Jiroo`;
+- the shell boundary does not contain exactly one square, rounded toggle;
+- the boundary toggle does not render the correct directional chevron;
+- the toggle is placed inside the sidebar header instead of straddling the
+  sidebar/content divider;
 - collapsed labels or view groups remain visibly rendered;
 - essential rail controls lose their accessible names;
 - the preference is not persisted or restored.
