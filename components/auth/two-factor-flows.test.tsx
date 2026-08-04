@@ -55,6 +55,8 @@ describe("parcours 2FA", () => {
           image: null,
           createdAt: new Date("2026-08-04T00:00:00Z"),
           updatedAt: new Date("2026-08-04T00:00:00Z"),
+          role: "contributor",
+          twoFactorEnabled: false,
         },
       },
       error: null,
@@ -66,6 +68,52 @@ describe("parcours 2FA", () => {
     await interaction.click(screen.getByRole("button", { name: "Se connecter" }));
 
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/2fa/enroll"));
+  });
+
+  it("routes an enrolled user with a trusted device directly to the app", async () => {
+    const interaction = userEvent.setup();
+    mocks.signInEmail.mockResolvedValue({
+      data: {
+        redirect: false,
+        token: "session-token",
+        url: undefined,
+        user: {
+          id: "user-1",
+          name: "Marie Martin",
+          email: "marie@example.test",
+          emailVerified: true,
+          image: null,
+          createdAt: new Date("2026-08-04T00:00:00Z"),
+          updatedAt: new Date("2026-08-04T00:00:00Z"),
+          role: "contributor",
+          twoFactorEnabled: true,
+        },
+      },
+      error: null,
+    });
+    render(<LoginPage />);
+
+    await interaction.type(screen.getByRole("textbox", { name: "E-mail" }), "marie@example.test");
+    await interaction.type(screen.getByLabelText("Mot de passe"), "secret-test");
+    await interaction.click(screen.getByRole("button", { name: "Se connecter" }));
+
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/"));
+  });
+
+  it("leaves the untrusted-device challenge redirect to the Better Auth client hook", async () => {
+    const interaction = userEvent.setup();
+    mocks.signInEmail.mockResolvedValue({
+      data: { twoFactorRedirect: true, twoFactorMethods: ["totp"] },
+      error: null,
+    });
+    render(<LoginPage />);
+
+    await interaction.type(screen.getByRole("textbox", { name: "E-mail" }), "marie@example.test");
+    await interaction.type(screen.getByLabelText("Mot de passe"), "secret-test");
+    await interaction.click(screen.getByRole("button", { name: "Se connecter" }));
+
+    await waitFor(() => expect(mocks.signInEmail).toHaveBeenCalledTimes(1));
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("renders an explicit Verify action on the TOTP challenge", () => {

@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { requireAppPageSession } from "@/lib/auth/session";
 import { listBacklogs } from "@/lib/services/backlogs";
 
 export default async function AppIndex() {
+  await requireAppPageSession();
   const [first] = await listBacklogs();
   if (first) redirect(`/b/${first.key}`);
   return (

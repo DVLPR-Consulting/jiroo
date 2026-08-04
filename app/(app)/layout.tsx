@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth/session";
+import { requireAppPageSession } from "@/lib/auth/session";
 import { listBacklogs } from "@/lib/services/backlogs";
 import { listVisibleViews } from "@/lib/services/views";
 import { unreadCount, listRecentNotifications } from "@/lib/services/notifications";
@@ -9,8 +8,7 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  const session = await requireAppPageSession();
   const [backlogs, views, notifCount, notifications, counts] = await Promise.all([
     listBacklogs(),
     listVisibleViews(session.user.id),

@@ -17,7 +17,9 @@ import { recentItemsAction } from "@/app/actions/search";
 describe("recentItemsAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getSession.mockResolvedValue({ user: { id: "viewer-1", role: "viewer" } });
+    mocks.getSession.mockResolvedValue({
+      user: { id: "viewer-1", role: "viewer", twoFactorEnabled: true },
+    });
     mocks.recentItems.mockResolvedValue([]);
   });
 

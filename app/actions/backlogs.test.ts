@@ -23,7 +23,9 @@ import { updateBacklogAction } from "@/app/actions/backlogs";
 describe("updateBacklogAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getSession.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    mocks.getSession.mockResolvedValue({
+      user: { id: "admin-1", role: "admin", twoFactorEnabled: true },
+    });
   });
 
   it("passes the admin actor and revalidates every affected route", async () => {

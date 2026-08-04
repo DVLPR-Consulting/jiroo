@@ -23,7 +23,7 @@ import {
   type FilterItem,
 } from "@/lib/items/filter";
 import { PRIORITY_LABELS } from "@/lib/design/constants";
-import { getSession } from "@/lib/auth/session";
+import { requireAppPageSession } from "@/lib/auth/session";
 import { canWriteItems, type Role } from "@/lib/auth/rbac";
 import { getViewById } from "@/lib/services/views";
 import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
@@ -73,9 +73,9 @@ export async function BacklogViewContent({
   });
   const viewState = parseViewState(new URLSearchParams(viewStateEntries));
 
-  const session = await getSession();
-  const userId = session?.user.id ?? "";
-  const role = (session?.user as { role?: Role } | undefined)?.role;
+  const session = await requireAppPageSession();
+  const userId = session.user.id;
+  const role = (session.user as { role?: Role }).role;
   const canWrite = role ? canWriteItems(role) : false;
 
   const VIEWS = ["board", "list", "tree"] as const;

@@ -21,7 +21,9 @@ import { createUserAction, setUserRoleAction } from "@/app/actions/users";
 describe("user admin actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getSession.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    mocks.getSession.mockResolvedValue({
+      user: { id: "admin-1", role: "admin", twoFactorEnabled: true },
+    });
   });
 
   it.each([

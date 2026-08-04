@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth/session";
+import { requireAppPageSession } from "@/lib/auth/session";
 import { listItemsAssignedTo } from "@/lib/services/items";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
@@ -43,9 +42,8 @@ function ItemRow({ row }: { row: Row }) {
 }
 
 export default async function MinePage() {
-  const session = await getSession();
-  const userId = session?.user.id;
-  if (!userId) redirect("/login");
+  const session = await requireAppPageSession();
+  const userId = session.user.id;
 
   const rows = await listItemsAssignedTo(userId);
 

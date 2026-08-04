@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { BacklogViewContent } from "@/components/items/backlog-view-content";
 import { BoardSkeleton, ListSkeleton } from "@/components/items/view-skeletons";
+import { requireAppPageSession } from "@/lib/auth/session";
 import { firstSearchParam, type RawSearchParams } from "@/lib/items/view-url-params";
 
 const VIEWS = ["board", "list", "tree"] as const;
@@ -13,6 +14,7 @@ export default async function BacklogPage({
   params: Promise<{ key: string }>;
   searchParams: Promise<RawSearchParams>;
 }) {
+  await requireAppPageSession();
   const requestedView = firstSearchParam((await searchParams).view);
   const view: View = VIEWS.includes(requestedView as View)
     ? (requestedView as View)

@@ -21,7 +21,9 @@ import { restoreTrashedItemAction } from "@/app/actions/trash";
 describe("restoreTrashedItemAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getSession.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    mocks.getSession.mockResolvedValue({
+      user: { id: "admin-1", role: "admin", twoFactorEnabled: true },
+    });
   });
 
   it("surfaces the expired restore window without revalidating", async () => {

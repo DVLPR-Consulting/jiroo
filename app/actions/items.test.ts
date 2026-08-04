@@ -26,7 +26,7 @@ describe("restoreItemAction", () => {
     vi.clearAllMocks();
     mocks.canWriteItems.mockReturnValue(true);
     mocks.getSession.mockResolvedValue({
-      user: { id: "writer-1", role: "contributor" },
+      user: { id: "writer-1", role: "contributor", twoFactorEnabled: true },
     });
   });
 

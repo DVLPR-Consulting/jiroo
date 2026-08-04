@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth/session";
+import { requireAppPageSession } from "@/lib/auth/session";
 import { listBacklogs } from "@/lib/services/backlogs";
 import { listAdminUsers } from "@/lib/services/users";
 import { AdminTabs, type AdminTab } from "@/components/admin/admin-tabs";
@@ -9,8 +9,8 @@ export default async function AdminPage({
 }: {
   searchParams: Promise<{ tab?: string | string[] }>;
 }) {
-  const session = await getSession();
-  const role = (session?.user as { role?: string } | undefined)?.role;
+  const session = await requireAppPageSession();
+  const role = (session.user as { role?: string }).role;
   if (role !== "admin") redirect("/");
   const [{ tab }, backlogs, users] = await Promise.all([
     searchParams,
@@ -30,7 +30,7 @@ export default async function AdminPage({
       <AdminTabs
         backlogs={backlogs}
         users={users}
-        currentUserId={session!.user.id}
+        currentUserId={session.user.id}
         activeTab={activeTab}
       />
     </div>

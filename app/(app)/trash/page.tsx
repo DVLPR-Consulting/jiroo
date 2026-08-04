@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth/session";
+import { requireAppPageSession } from "@/lib/auth/session";
 import { listTrashedItems } from "@/lib/services/items";
 import type { TrashedItem } from "@/lib/services/items";
 import { TrashList } from "@/components/items/trash-list";
@@ -26,8 +26,8 @@ function groupByBacklog(items: TrashedItem[]) {
 }
 
 export default async function TrashPage() {
-  const session = await getSession();
-  if ((session?.user as { role?: string } | undefined)?.role !== "admin") {
+  const session = await requireAppPageSession();
+  if ((session.user as { role?: string }).role !== "admin") {
     redirect("/");
   }
 

@@ -33,7 +33,15 @@ export default function LoginPage() {
       "twoFactorRedirect" in data &&
       data.twoFactorRedirect === true;
     if (requiresChallenge) return;
-    router.push("/2fa/enroll");
+    const alreadyEnrolled =
+      typeof data === "object" &&
+      data !== null &&
+      "user" in data &&
+      typeof data.user === "object" &&
+      data.user !== null &&
+      "twoFactorEnabled" in data.user &&
+      data.user.twoFactorEnabled === true;
+    router.push(alreadyEnrolled ? "/" : "/2fa/enroll");
   }
 
   return (

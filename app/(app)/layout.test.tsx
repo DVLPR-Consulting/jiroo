@@ -1,0 +1,87 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  authGetSession: vi.fn(),
+  headers: vi.fn(),
+  redirect: vi.fn(),
+  listBacklogs: vi.fn(),
+  listVisibleViews: vi.fn(),
+  unreadCount: vi.fn(),
+  listRecentNotifications: vi.fn(),
+  getShellCounts: vi.fn(),
+}));
+
+vi.mock("next/headers", () => ({ headers: mocks.headers }));
+vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
+vi.mock("@/lib/auth", () => ({
+  auth: { api: { getSession: mocks.authGetSession } },
+}));
+vi.mock("@/lib/services/backlogs", () => ({ listBacklogs: mocks.listBacklogs }));
+vi.mock("@/lib/services/views", () => ({ listVisibleViews: mocks.listVisibleViews }));
+vi.mock("@/lib/services/notifications", () => ({
+  unreadCount: mocks.unreadCount,
+  listRecentNotifications: mocks.listRecentNotifications,
+}));
+vi.mock("@/lib/services/shell", () => ({ getShellCounts: mocks.getShellCounts }));
+vi.mock("@/components/shell/app-shell", () => ({ AppShell: () => null }));
+vi.mock("@/components/shell/sidebar", () => ({ Sidebar: () => null }));
+vi.mock("@/components/shell/topbar", () => ({ Topbar: () => null }));
+
+import AppLayout from "@/app/(app)/layout";
+
+function authSession(twoFactorEnabled: boolean) {
+  return {
+    session: {
+      id: "session-1",
+      token: "token-1",
+      userId: "user-1",
+      expiresAt: new Date("2026-08-05T00:00:00Z"),
+      createdAt: new Date("2026-08-04T00:00:00Z"),
+      updatedAt: new Date("2026-08-04T00:00:00Z"),
+      ipAddress: null,
+      userAgent: null,
+    },
+    user: {
+      id: "user-1",
+      name: "Marie Martin",
+      email: "marie@example.test",
+      emailVerified: true,
+      image: null,
+      createdAt: new Date("2026-08-04T00:00:00Z"),
+      updatedAt: new Date("2026-08-04T00:00:00Z"),
+      role: "contributor",
+      twoFactorEnabled,
+    },
+  };
+}
+
+describe("AppLayout 2FA access guard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.headers.mockResolvedValue(new Headers());
+    mocks.redirect.mockImplementation((destination: string) => {
+      throw new Error(`redirect:${destination}`);
+    });
+    mocks.listBacklogs.mockResolvedValue([]);
+    mocks.listVisibleViews.mockResolvedValue([]);
+    mocks.unreadCount.mockResolvedValue(0);
+    mocks.listRecentNotifications.mockResolvedValue([]);
+    mocks.getShellCounts.mockResolvedValue({});
+  });
+
+  it("redirects direct app access to enrollment before loading app data", async () => {
+    mocks.authGetSession.mockResolvedValue(authSession(false));
+
+    await expect(AppLayout({ children: null })).rejects.toThrow("redirect:/2fa/enroll");
+    expect(mocks.redirect).toHaveBeenCalledWith("/2fa/enroll");
+    expect(mocks.listBacklogs).not.toHaveBeenCalled();
+  });
+
+  it("loads the shell for a fully enrolled session", async () => {
+    mocks.authGetSession.mockResolvedValue(authSession(true));
+
+    await expect(AppLayout({ children: null })).resolves.toBeTruthy();
+    expect(mocks.redirect).not.toHaveBeenCalled();
+    expect(mocks.listBacklogs).toHaveBeenCalledTimes(1);
+  });
+});
