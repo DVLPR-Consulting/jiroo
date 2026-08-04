@@ -23,6 +23,7 @@ import {
   groupItems,
   sortItems,
   withAncestors,
+  enrichHierarchy,
   type FilterItem,
 } from "@/lib/items/filter";
 import { PRIORITY_LABELS } from "@/lib/design/constants";
@@ -30,6 +31,7 @@ import { getSession } from "@/lib/auth/session";
 import { getViewById } from "@/lib/services/views";
 import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
 import { ViewBar } from "@/components/shell/view-bar";
+import { GroupControl } from "@/components/shell/group-control";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewActions } from "@/components/shell/view-actions";
 import { ItemList } from "@/components/items/item-list";
@@ -37,25 +39,41 @@ import { ItemBoard } from "@/components/items/item-board";
 import { ItemTree } from "@/components/items/item-tree";
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
 import { NewItemButton } from "@/components/items/new-item-dialog";
+import {
+  firstSearchParam,
+  type RawSearchParams,
+  type ViewUrlEntry,
+} from "@/lib/items/view-url-params";
+
+const VIEW_STATE_PARAM_KEYS = [
+  "q",
+  "type",
+  "status",
+  "prio",
+  "assignee",
+  "label",
+  "kind",
+  "under",
+  "group",
+  "sort",
+] as const;
 
 export default async function BacklogPage({
   params,
   searchParams,
 }: {
   params: Promise<{ key: string }>;
-  searchParams: Promise<Record<string, string | undefined>>;
+  searchParams: Promise<RawSearchParams>;
 }) {
   const { key } = await params;
   const sp = await searchParams;
-  const itemKey = sp.item;
-  const rawView = sp.view;
-  const viewState = parseViewState(
-    new URLSearchParams(
-      Object.entries(sp).filter(
-        (entry): entry is [string, string] => entry[1] != null,
-      ),
-    ),
-  );
+  const itemKey = firstSearchParam(sp.item);
+  const rawView = firstSearchParam(sp.view);
+  const viewStateEntries: ViewUrlEntry[] = VIEW_STATE_PARAM_KEYS.flatMap((name) => {
+    const value = firstSearchParam(sp[name]);
+    return value === undefined ? [] : [[name, value]];
+  });
+  const viewState = parseViewState(new URLSearchParams(viewStateEntries));
 
   const session = await getSession();
   const userId = session?.user.id ?? "";
@@ -70,7 +88,7 @@ export default async function BacklogPage({
 
   // Load and validate the active saved view from ?v=.
   // A stale, foreign, or inaccessible view id is silently treated as "no active view".
-  const v = sp.v;
+  const v = firstSearchParam(sp.v);
   const rawActiveView = v ? await getViewById(v) : null;
   const activeViewRow =
     rawActiveView &&
@@ -87,10 +105,15 @@ export default async function BacklogPage({
       displayMode: view as DisplayMode,
     });
 
-  const [items, labelPairs, blockedIds] = await Promise.all([
+  const [items, labelPairs, blockedIds, statusRows] = await Promise.all([
     listItems(backlog.id),
     listItemLabelPairs(backlog.id),
     blockedItemIds(backlog.id),
+    db
+      .select()
+      .from(statuses)
+      .where(eq(statuses.backlogId, backlog.id))
+      .orderBy(asc(statuses.order)),
   ]);
 
   // Set of item ids that are blocked by an unfinished item — used to drive the badge.
@@ -104,7 +127,8 @@ export default async function BacklogPage({
     labelsByItem.set(p.itemId, arr);
   }
 
-  const filterRows: FilterItem[] = items.map((i) => ({
+  const statusOrderById = new Map(statusRows.map((status) => [status.id, status.order]));
+  const filterRows: FilterItem[] = enrichHierarchy(items.map((i) => ({
     id: i.id,
     key: i.key,
     type: i.type,
@@ -122,7 +146,8 @@ export default async function BacklogPage({
     rank: i.rank,
     labelIds: (labelsByItem.get(i.id) ?? []).map((l) => l.id),
     kind: i.kind,
-  }));
+    statusOrder: statusOrderById.get(i.statusId) ?? 0,
+  })));
   const filtersOn = isFiltersActive(viewState.filters);
   const matchedIds = new Set(
     filterRows
@@ -138,21 +163,26 @@ export default async function BacklogPage({
     ? groupItems(listSorted, viewState.group)
     : [["", listSorted]];
 
-  const statusRows = await db
-    .select()
-    .from(statuses)
-    .where(eq(statuses.backlogId, backlog.id))
-    .orderBy(asc(statuses.order));
-
   const statusList = statusRows.map((s) => ({
     id: s.id,
     name: s.name,
     color: s.color,
     category: s.category,
+    order: s.order,
   }));
   const statusMap = Object.fromEntries(
     statusRows.map((s) => [s.id, { name: s.name, color: s.color }]),
   );
+  const createDialogProps = {
+    backlogId: backlog.id,
+    items: items.map((item) => ({
+      id: item.id,
+      key: item.key,
+      type: item.type,
+      title: item.title,
+    })),
+    statuses: statusRows.map((status) => ({ id: status.id, name: status.name })),
+  };
 
   const resultCount = filtersOn ? matchedIds.size : items.length;
 
@@ -168,6 +198,7 @@ export default async function BacklogPage({
     if (!viewState.group || key === "") return "";
     if (key === "none") {
       if (viewState.group === "assignee") return "Non assigné";
+      if (viewState.group === "component") return "Sans composant";
       if (viewState.group === "parent") return "Sans parent";
       return key; // priority/status never emit "none"
     }
@@ -178,6 +209,8 @@ export default async function BacklogPage({
         return userName.get(key) ?? key;
       case "priority":
         return PRIORITY_LABELS[Number(key) as 0 | 1 | 2 | 3 | 4] ?? key;
+      case "component":
+        return items.find((i) => i.id === key)?.title ?? key;
       case "parent":
         return items.find((i) => i.id === key)?.title ?? key;
     }
@@ -188,6 +221,7 @@ export default async function BacklogPage({
   for (const i of items) {
     if (i.parentId) childCount.set(i.parentId, (childCount.get(i.parentId) ?? 0) + 1);
   }
+  const filterRowById = new Map(filterRows.map((row) => [row.id, row]));
   // Jira-style mono-level board: cards are the working level (Tâche) only. Sous-tâches stay
   // nested under their tâche (shown as the subCount badge); Composant/Epic are structure,
   // navigated in the tree/list — never sibling cards next to their own children.
@@ -203,6 +237,7 @@ export default async function BacklogPage({
       rank: i.rank,
       assigneeId: i.assigneeId,
       parentId: i.parentId,
+      componentId: filterRowById.get(i.id)?.componentId ?? null,
       assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
       subCount: childCount.get(i.id) ?? 0,
       labels: labelsByItem.get(i.id) ?? [],
@@ -214,7 +249,12 @@ export default async function BacklogPage({
   // Board swimlanes: status is the columns, so it never groups the board. Build
   // the label for each band key the same way the board partitions its cards.
   const boardGroup =
-    viewState.group && viewState.group !== "status" ? viewState.group : null;
+    viewState.group === "assignee" ||
+    viewState.group === "priority" ||
+    viewState.group === "component" ||
+    viewState.group === "parent"
+      ? viewState.group
+      : null;
   const groupLabels: Record<string, string> = {};
   if (boardGroup) {
     for (const c of boardCards) {
@@ -223,13 +263,17 @@ export default async function BacklogPage({
           ? (c.assigneeId ?? "none")
           : boardGroup === "priority"
             ? String(c.priority)
-            : (c.parentId ?? "none");
+            : boardGroup === "component"
+              ? (c.componentId ?? "none")
+              : (c.parentId ?? "none");
       groupLabels[k] =
         k === "none"
           ? boardGroup === "assignee"
             ? "Non assigné"
-            : "Sans parent"
-          : boardGroup === "assignee"
+            : boardGroup === "component"
+              ? "Sans composant"
+              : "Sans parent"
+            : boardGroup === "assignee"
             ? (c.assigneeName ?? k)
             : boardGroup === "priority"
               ? PRIORITY_LABELS[Number(k) as 0 | 1 | 2 | 3 | 4]
@@ -259,20 +303,14 @@ export default async function BacklogPage({
             depth: i.depth,
             rank: i.rank,
             path: i.path,
+            labels: labelsByItem.get(i.id) ?? [],
+            assigneeId: i.assigneeId,
             assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
           }))
       : [];
 
   const detail = itemKey ? await getItemByKey(itemKey) : null;
   const showPanel = detail && detail.backlogId === backlog.id;
-
-  // Build currentParams: skip undefined and array values — bar always writes CSV params.
-  const currentParams: Record<string, string> = Object.fromEntries(
-    Object.entries(sp).filter(
-      (entry): entry is [string, string] =>
-        typeof entry[1] === "string",
-    ),
-  );
 
   // Reuse the already-fetched backlogLabelRows for the detail panel (avoids a second DB round-trip).
   const [activities, itemLabelIds, comments, links, refs] = showPanel
@@ -301,9 +339,12 @@ export default async function BacklogPage({
     <div className="flex h-full flex-col">
       <ViewBar
         view={view}
-        backlogKey={key}
-        itemKey={itemKey}
-        params={currentParams}
+        groupControlSlot={
+          <GroupControl
+            view={view as DisplayMode}
+            state={viewState}
+          />
+        }
         viewActionsSlot={
           <ViewActions
             backlogKey={key}
@@ -319,25 +360,26 @@ export default async function BacklogPage({
             filters={viewState.filters}
             group={viewState.group}
             sort={viewState.sort}
-            currentParams={currentParams}
           />
         }
         newItemSlot={
           <NewItemButton
-            backlogId={backlog.id}
             backlogKey={backlog.key}
-            items={items.map((i) => ({ id: i.id, key: i.key, type: i.type, title: i.title }))}
-            statuses={statusRows.map((s) => ({ id: s.id, name: s.name }))}
+            {...createDialogProps}
           />
         }
       />
       <FilterBar
-        view={view}
         state={viewState}
-        currentParams={currentParams}
         statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}
         users={usersForFilter.map((u) => ({ id: u.id, name: u.name }))}
         labels={backlogLabelRows.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
+        hierarchy={items.map((item) => ({
+          id: item.id,
+          key: item.key,
+          title: item.title,
+          type: item.type,
+        }))}
         resultCount={resultCount}
       />
       {view === "list" && (
@@ -346,16 +388,19 @@ export default async function BacklogPage({
             key,
             label: groupLabel(key),
             items: rows.map((r) => ({
-            ...r,
-            labels: labelsByItem.get(r.id) ?? [],
-            blocked: blockedSet.has(r.id),
-          })),
+              ...r,
+              dueDate: r.dueDate?.toISOString() ?? null,
+              assigneeName: r.assigneeId ? (userName.get(r.assigneeId) ?? null) : null,
+              labels: labelsByItem.get(r.id) ?? [],
+              blocked: blockedSet.has(r.id),
+            })),
           }))}
           grouped={viewState.group !== null}
-          statuses={statusMap}
+          statuses={statusList}
+          users={usersForFilter.map((user) => ({ id: user.id, name: user.name }))}
           backlogKey={key}
           selectedKey={itemKey}
-          params={currentParams}
+          currentSort={viewState.sort}
         />
       )}
       {view === "board" && (
@@ -363,10 +408,11 @@ export default async function BacklogPage({
           backlogKey={key}
           items={boardCards}
           statuses={boardStatuses}
+          statusDomain={statusList}
           group={boardGroup}
           groupLabels={groupLabels}
           moveItemAction={moveItemAction}
-          params={currentParams}
+          createDialogProps={createDialogProps}
         />
       )}
       {view === "tree" && (
@@ -374,11 +420,10 @@ export default async function BacklogPage({
           backlogKey={key}
           items={treeData}
           selectedKey={itemKey}
-          statuses={statusMap}
+          statuses={statusList}
           contextIds={[...contextIds]}
           reparentItemAction={reparentItemAction}
           moveItemAction={moveItemAction}
-          params={currentParams}
         />
       )}
       {showPanel && (

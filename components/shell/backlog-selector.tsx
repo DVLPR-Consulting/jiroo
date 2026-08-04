@@ -8,6 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useViewUrlState } from "@/components/shell/view-url-state";
+import { clearActiveBacklogViewParams } from "@/lib/items/views";
 
 type Backlog = { id: string; key: string; name: string; color: string };
 
@@ -22,6 +24,7 @@ export function BacklogSelector({
 }) {
   const params = useParams<{ key?: string }>();
   const router = useRouter();
+  const viewUrl = useViewUrlState();
 
   const routeKey = typeof params.key === "string" ? params.key.toUpperCase() : undefined;
   const activeKey = activeKeyOverride?.toUpperCase() ?? routeKey;
@@ -75,10 +78,20 @@ export function BacklogSelector({
       <DropdownMenuContent>
         {backlogs.map((b) => {
           const isActive = b.key.toUpperCase() === activeKey;
+          const isCurrentBacklogRoute =
+            isActive && routeKey?.toUpperCase() === b.key.toUpperCase();
           return (
             <DropdownMenuItem
               key={b.id}
-              onSelect={() => router.push(`/b/${b.key}`)}
+              onSelect={() => {
+                if (isCurrentBacklogRoute) {
+                  viewUrl.push(clearActiveBacklogViewParams, {
+                    authoritative: true,
+                  });
+                } else {
+                  router.push(`/b/${b.key}`);
+                }
+              }}
               className={isActive ? "bg-[var(--accent-subtle)] font-medium" : undefined}
             >
               <span

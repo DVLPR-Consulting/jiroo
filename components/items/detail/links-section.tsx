@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { StatusDot } from "@/components/icons/status-dot";
 import { ItemKey } from "@/components/jiroo/item-key";
+import { useViewUrlState } from "@/components/shell/view-url-state";
 import { LINK_TYPES, LINK_TYPE_META, groupLinksForDisplay } from "@/lib/items/links";
 import { addLinkAction, removeLinkAction } from "@/app/actions/links";
 import { toast } from "@/lib/toast";
@@ -38,6 +39,7 @@ export function LinksSection({
   candidates: { id: string; key: string; title: string; type: ItemType }[];
 }) {
   const router = useRouter();
+  const viewUrl = useViewUrlState();
   const [pending, startTransition] = useTransition();
 
   // Add-link form state
@@ -139,7 +141,11 @@ export function LinksSection({
               <StatusDot status={link.other.statusId as StatusId} />
               {/* TypeIcon + key + title — whole row links to the item */}
               <Link
-                href={`/b/${backlogKey}?item=${link.other.key}`}
+                href={viewUrl.href((params) => params.set("item", link.other.key))}
+                onNavigate={(event) => {
+                  event.preventDefault();
+                  viewUrl.push((params) => params.set("item", link.other.key));
+                }}
                 className="flex min-w-0 flex-1 items-center gap-1 text-sm hover:underline"
               >
                 <TypeIcon type={link.other.type} size={13} />

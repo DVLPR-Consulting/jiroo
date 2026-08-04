@@ -1,6 +1,7 @@
 "use client";
 
 import { SidebarStateProvider } from "@/components/shell/sidebar-state";
+import { RouteViewUrlStateProvider } from "@/components/shell/view-url-state";
 import { Toaster } from "@/components/ui/toaster";
 
 function AppShellFrame({
@@ -36,7 +37,9 @@ export function AppShell(props: {
 }) {
   return (
     <SidebarStateProvider>
-      <AppShellFrame {...props} />
+      <RouteViewUrlStateProvider>
+        <AppShellFrame {...props} />
+      </RouteViewUrlStateProvider>
     </SidebarStateProvider>
   );
 }

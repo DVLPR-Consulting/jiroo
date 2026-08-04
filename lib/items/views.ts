@@ -79,7 +79,7 @@ export function columnsToViewState(row: {
   // --- groupBy → group ---
   const group: GroupKey | null =
     typeof row.groupBy === "string" &&
-    (GROUP_KEYS as string[]).includes(row.groupBy)
+    ([...GROUP_KEYS, "parent"] as string[]).includes(row.groupBy)
       ? (row.groupBy as GroupKey)
       : null;
 
@@ -137,8 +137,12 @@ export function columnsToViewState(row: {
       )
     : [];
 
+  const underIds: string[] = Array.isArray(rawFilters.underIds)
+    ? (rawFilters.underIds as unknown[]).filter((id): id is string => typeof id === "string")
+    : [];
+
   const state: ViewState = {
-    filters: { q, types, statusIds, priorities, assignees, labels, kind },
+    filters: { q, types, statusIds, priorities, assignees, labels, kind, underIds },
     group,
     sort,
   };
@@ -185,6 +189,7 @@ export function isViewDirty(
   if (!sameSet(vs.filters.assignees, cs.filters.assignees)) return true;
   if (!sameSet(vs.filters.labels, cs.filters.labels)) return true;
   if (!sameSet(vs.filters.kind, cs.filters.kind)) return true;
+  if (!sameSet(vs.filters.underIds, cs.filters.underIds)) return true;
 
   return false;
 }
@@ -203,6 +208,36 @@ function sameSet<T extends string | number>(a: T[], b: T[]): boolean {
 // buildViewUrl
 // ---------------------------------------------------------------------------
 
+const ACTIVE_BACKLOG_VIEW_PARAM_KEYS = [
+  "q",
+  "type",
+  "status",
+  "prio",
+  "assignee",
+  "label",
+  "kind",
+  "under",
+  "group",
+  "sort",
+  "view",
+  "v",
+  "item",
+] as const;
+
+export function clearActiveBacklogViewParams(params: URLSearchParams): void {
+  for (const key of ACTIVE_BACKLOG_VIEW_PARAM_KEYS) params.delete(key);
+}
+
+export function applySavedViewParams(
+  params: URLSearchParams,
+  view: { id: string; state: ViewState; displayMode: DisplayMode },
+): void {
+  clearActiveBacklogViewParams(params);
+  writeViewState(params, view.state);
+  params.set("view", view.displayMode);
+  params.set("v", view.id);
+}
+
 /**
  * Builds the path + querystring that applies a saved view.
  * Reuses `writeViewState` to encode filters/group/sort, then appends
@@ -214,9 +249,7 @@ export function buildViewUrl(
 ): string {
   // Use a sorted URLSearchParams to guarantee deterministic output.
   const sp = new URLSearchParams();
-  writeViewState(sp, view.state);
-  sp.set("view", view.displayMode);
-  sp.set("v", view.id);
+  applySavedViewParams(sp, view);
   // Sort for determinism (URLSearchParams.sort() is spec-defined stable sort).
   sp.sort();
   const qs = sp.toString();
@@ -237,6 +270,7 @@ const filtersSchema = z.object({
   assignees: z.array(z.string()).default([]),
   labels: z.array(z.string()).default([]),
   kind: z.array(z.enum(ITEM_KINDS)).default([]),
+  underIds: z.array(z.string()).default([]),
 });
 
 const sortSchema = z

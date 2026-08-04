@@ -1,7 +1,7 @@
 import { ITEM_KINDS, ITEM_TYPES, PRIORITIES, type ItemKind, type ItemType } from "@/lib/design/constants";
 
-export type GroupKey = "status" | "assignee" | "priority" | "parent";
-export type SortField = "priority" | "dueDate" | "created" | "updated" | "key";
+export type GroupKey = "status" | "assignee" | "priority" | "component" | "parent";
+export type SortField = "priority" | "dueDate" | "created" | "updated" | "key" | "title" | "status";
 export type SortDir = "asc" | "desc";
 
 export type Filters = {
@@ -12,6 +12,7 @@ export type Filters = {
   assignees: string[]; // user ids; the literal "none" = unassigned
   labels: string[]; // label ids
   kind: ItemKind[]; // bug | feature — orthogonal to the hierarchy type
+  underIds: string[]; // item ids whose descendants should be included
 };
 
 export type ViewState = {
@@ -20,8 +21,10 @@ export type ViewState = {
   sort: { field: SortField; dir: SortDir } | null;
 };
 
-export const GROUP_KEYS: GroupKey[] = ["status", "assignee", "priority", "parent"];
-export const SORT_FIELDS: SortField[] = ["priority", "dueDate", "created", "updated", "key"];
+// `parent` remains a GroupKey so legacy saved views can still be decoded. New
+// controls should use only the entries in this list and never offer `parent`.
+export const GROUP_KEYS: Exclude<GroupKey, "parent">[] = ["status", "assignee", "priority", "component"];
+export const SORT_FIELDS: SortField[] = ["priority", "dueDate", "created", "updated", "key", "title", "status"];
 
 function csv(sp: URLSearchParams, key: string): string[] {
   const raw = sp.get(key);
@@ -37,7 +40,10 @@ export function parseViewState(sp: URLSearchParams): ViewState {
     .filter((p) => (PRIORITIES as readonly number[]).includes(p));
 
   const groupRaw = sp.get("group");
-  const group = groupRaw && (GROUP_KEYS as string[]).includes(groupRaw) ? (groupRaw as GroupKey) : null;
+  const group =
+    groupRaw && ([...GROUP_KEYS, "parent"] as string[]).includes(groupRaw)
+      ? (groupRaw as GroupKey)
+      : null;
 
   const sortRaw = sp.get("sort");
   let sort: ViewState["sort"] = null;
@@ -67,6 +73,7 @@ export function parseViewState(sp: URLSearchParams): ViewState {
       assignees: csv(sp, "assignee"),
       labels: csv(sp, "label"),
       kind,
+      underIds: csv(sp, "under"),
     },
     group,
     sort,
@@ -86,6 +93,7 @@ export function writeViewState(sp: URLSearchParams, state: ViewState): void {
   setOrDelete("assignee", filters.assignees.join(","));
   setOrDelete("label", filters.labels.join(","));
   setOrDelete("kind", filters.kind.join(","));
+  setOrDelete("under", filters.underIds.join(","));
   setOrDelete("group", group ?? "");
   setOrDelete("sort", sort ? `${sort.field}:${sort.dir}` : "");
 }
@@ -108,7 +116,37 @@ export type FilterItem = {
   updatedAt: Date;
   rank: string;
   labelIds: string[];
+  ancestorIds: string[];
+  componentId: string | null;
+  statusOrder: number;
 };
+
+export type HierarchyItem = Omit<FilterItem, "ancestorIds" | "componentId">;
+
+export function enrichHierarchy(items: HierarchyItem[]): FilterItem[] {
+  const idsByPath = new Map(items.map((item) => [item.path, item.id]));
+  const itemsById = new Map(items.map((item) => [item.id, item]));
+
+  return items.map((item) => {
+    const ancestorIds: string[] = [];
+    const lastSeparator = item.path.lastIndexOf(".");
+    let ancestorPath = lastSeparator === -1 ? "" : item.path.slice(0, lastSeparator);
+    while (ancestorPath) {
+      const ancestorId = idsByPath.get(ancestorPath);
+      if (ancestorId) ancestorIds.unshift(ancestorId);
+      ancestorPath = ancestorPath.slice(0, ancestorPath.lastIndexOf("."));
+    }
+
+    const componentId =
+      item.type === "composant"
+        ? item.id
+        : ancestorIds
+            .map((id) => itemsById.get(id))
+            .find((ancestor) => ancestor?.type === "composant")?.id ?? null;
+
+    return { ...item, ancestorIds, componentId };
+  });
+}
 
 export function isFiltersActive(f: Filters): boolean {
   return (
@@ -118,7 +156,8 @@ export function isFiltersActive(f: Filters): boolean {
     f.priorities.length > 0 ||
     f.assignees.length > 0 ||
     f.labels.length > 0 ||
-    f.kind.length > 0
+    f.kind.length > 0 ||
+    f.underIds.length > 0
   );
 }
 
@@ -142,6 +181,7 @@ export function matchItem(it: FilterItem, f: Filters): boolean {
   }
   // OR within the kind facet: item passes if its kind is one of the selected kinds.
   if (f.kind.length && !f.kind.includes(it.kind)) return false;
+  if (f.underIds.length && !it.ancestorIds.some((id) => f.underIds.includes(id))) return false;
   const q = f.q.trim();
   if (q) {
     const hay = normalize(`${it.title} ${it.description ?? ""}`);
@@ -171,6 +211,7 @@ export function groupItems(items: FilterItem[], group: GroupKey): Array<[string,
       case "status": return i.statusId;
       case "assignee": return i.assigneeId ?? "none";
       case "priority": return String(i.priority);
+      case "component": return i.componentId ?? "none";
       case "parent": return i.parentId ?? "none";
     }
   };
@@ -190,6 +231,8 @@ export function sortItems(items: FilterItem[], sort: { field: SortField; dir: So
       case "created": return (a.createdAt.getTime() - b.createdAt.getTime()) * sign;
       case "updated": return (a.updatedAt.getTime() - b.updatedAt.getTime()) * sign;
       case "key": return a.key.localeCompare(b.key, undefined, { numeric: true }) * sign;
+      case "title": return a.title.localeCompare(b.title, undefined, { sensitivity: "base" }) * sign;
+      case "status": return (a.statusOrder - b.statusOrder) * sign;
       case "dueDate": {
         // nulls always last, regardless of direction
         if (a.dueDate === null && b.dueDate === null) return 0;
@@ -199,5 +242,8 @@ export function sortItems(items: FilterItem[], sort: { field: SortField; dir: So
       }
     }
   };
-  return [...items].sort(cmp);
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => cmp(a.item, b.item) || a.index - b.index)
+    .map(({ item }) => item);
 }

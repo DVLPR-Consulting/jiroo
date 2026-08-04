@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useBacklogItemNavigation } from "@/components/shell/use-backlog-item-navigation";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -49,6 +50,7 @@ export function NotificationBell({
   unreadCount: number;
 }) {
   const router = useRouter();
+  const openBacklogItem = useBacklogItemNavigation();
   const [isPending, startTransition] = useTransition();
 
   // -------------------------------------------------------------------------
@@ -67,7 +69,7 @@ export function NotificationBell({
       const res = await markReadAction({ id: notification.id });
       if (!res.ok) console.error(res.error);
       if (notification.backlogKey && notification.itemKey) {
-        router.push(`/b/${notification.backlogKey}?item=${notification.itemKey}`);
+        openBacklogItem(notification.backlogKey, notification.itemKey);
       } else {
         router.refresh();
       }

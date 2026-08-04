@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as filterCore from "./filter";
 import {
   parseViewState,
   writeViewState,
@@ -7,12 +8,17 @@ import {
   withAncestors,
   groupItems,
   sortItems,
+  enrichHierarchy,
   type ViewState,
+  type Filters,
+  type SortField,
+  type SortDir,
   type FilterItem,
+  type HierarchyItem,
 } from "./filter";
 
 const empty: ViewState = {
-  filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [] },
+  filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] },
   group: null,
   sort: null,
 };
@@ -34,7 +40,7 @@ describe("parseViewState", () => {
         priorities: [3, 4],
         assignees: ["none", "u1"],
         labels: [],
-        kind: [],
+        kind: [], underIds: [],
       },
       group: "assignee",
       sort: { field: "priority", dir: "desc" },
@@ -59,6 +65,20 @@ describe("parseViewState", () => {
     expect(parseViewState(sp).filters.kind).toEqual(["bug"]);
   });
 
+  it("parses hierarchy, component grouping, and title sorting", () => {
+    const state = parseViewState(
+      new URLSearchParams("under=epic-1,component-1&group=component&sort=title:asc"),
+    );
+
+    expect(state.filters.underIds).toEqual(["epic-1", "component-1"]);
+    expect(state.group).toBe("component");
+    expect(state.sort).toEqual({ field: "title", dir: "asc" });
+  });
+
+  it("retains parent grouping when decoding a legacy saved URL", () => {
+    expect(parseViewState(new URLSearchParams("group=parent")).group).toBe("parent");
+  });
+
   it("filters out invalid kind values on parse", () => {
     const sp = new URLSearchParams("kind=bug,invalid,feature");
     expect(parseViewState(sp).filters.kind).toEqual(["bug", "feature"]);
@@ -72,7 +92,7 @@ describe("parseViewState", () => {
 describe("writeViewState ⇄ parseViewState round-trip", () => {
   it("round-trips a full state", () => {
     const state: ViewState = {
-      filters: { q: "abc", types: ["epic"], statusIds: ["s1"], priorities: [0], assignees: ["none"], labels: [], kind: [] },
+      filters: { q: "abc", types: ["epic"], statusIds: ["s1"], priorities: [0], assignees: ["none"], labels: [], kind: [], underIds: [] },
       group: "priority",
       sort: { field: "key", dir: "asc" },
     };
@@ -92,7 +112,7 @@ describe("writeViewState ⇄ parseViewState round-trip", () => {
 
   it("round-trips label ids", () => {
     const state: ViewState = {
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: ["id1", "id2"], kind: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: ["id1", "id2"], kind: [], underIds: [] },
       group: null,
       sort: null,
     };
@@ -110,7 +130,7 @@ describe("writeViewState ⇄ parseViewState round-trip", () => {
 
   it("round-trips kind param", () => {
     const state: ViewState = {
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: ["bug"] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: ["bug"], underIds: [] },
       group: null,
       sort: null,
     };
@@ -118,6 +138,20 @@ describe("writeViewState ⇄ parseViewState round-trip", () => {
     writeViewState(sp, state);
     expect(sp.get("kind")).toBe("bug");
     expect(parseViewState(sp)).toEqual(state);
+  });
+
+  it("round-trips non-empty hierarchy ids through the under URL parameter", () => {
+    const state: ViewState = {
+      ...empty,
+      filters: { ...empty.filters, underIds: ["component-1", "epic-1"] },
+    };
+    const sp = new URLSearchParams("view=tree");
+
+    writeViewState(sp, state);
+
+    expect(sp.get("under")).toBe("component-1,epic-1");
+    expect(parseViewState(sp)).toEqual(state);
+    expect(sp.get("view")).toBe("tree");
   });
 
   it("omits the kind param when kind is empty", () => {
@@ -132,30 +166,118 @@ const item = (over: Partial<FilterItem> = {}): FilterItem => ({
   statusId: "s1", priority: 2, assigneeId: "u1", parentId: "p1", path: "aa.bb",
   depth: 0,
   dueDate: null, createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-02"), rank: "a1",
-  labelIds: [],
+  labelIds: [], ancestorIds: [], componentId: null, statusOrder: 0,
   ...over,
 });
 
+const hierarchyItem = (over: Partial<FilterItem> = {}): HierarchyItem => {
+  const { ancestorIds, componentId, ...row } = item(over);
+  void ancestorIds;
+  void componentId;
+  return row;
+};
+
 describe("isFiltersActive", () => {
   it("is false for the empty filter set", () => {
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [] })).toBe(false);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] })).toBe(false);
   });
   it("is true when any dimension is set", () => {
-    expect(isFiltersActive({ q: "", types: ["tache"], statusIds: [], priorities: [], assignees: [], labels: [], kind: [] })).toBe(true);
-    expect(isFiltersActive({ q: "x", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: ["s1"], priorities: [], assignees: [], labels: [], kind: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [2], assignees: [], labels: [], kind: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: ["u1"], labels: [], kind: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: ["lbl-1"], kind: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: ["bug"] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: ["tache"], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "x", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: ["s1"], priorities: [], assignees: [], labels: [], kind: [], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [2], assignees: [], labels: [], kind: [], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: ["u1"], labels: [], kind: [], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: ["lbl-1"], kind: [], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: ["bug"], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: ["epic-1"] })).toBe(true);
   });
 });
 
 describe("matchItem", () => {
-  const f = (over = {}) => ({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], ...over });
+  const f = (over: Partial<Filters> = {}): Filters => ({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [], ...over });
 
   it("matches everything when no filter is active", () => {
     expect(matchItem(item(), f())).toBe(true);
+  });
+
+  it("matches descendants selected by the hierarchy facet, excluding the selected ancestor", () => {
+    expect(
+      matchItem(
+        item({ ancestorIds: ["component-1", "epic-1"] }),
+        f({ underIds: ["epic-1"] }),
+      ),
+    ).toBe(true);
+    expect(
+      matchItem(
+        item({ id: "epic-1", ancestorIds: ["component-1"] }),
+        f({ underIds: ["epic-1"] }),
+      ),
+    ).toBe(false);
+    expect(
+      matchItem(
+        item({ ancestorIds: ["component-1", "epic-1"] }),
+        f({ underIds: ["component-1"] }),
+      ),
+    ).toBe(true);
+    expect(
+      matchItem(
+        item({ id: "component-1", ancestorIds: [] }),
+        f({ underIds: ["component-1"] }),
+      ),
+    ).toBe(false);
+  });
+
+  it.each([
+    ["text", { q: "qr" }, { title: "Générer le QR", description: null }, { title: "Sans correspondance", description: null }],
+    ["type", { types: ["tache"] }, { type: "tache" }, { type: "epic" }],
+    ["status", { statusIds: ["s1"] }, { statusId: "s1" }, { statusId: "s2" }],
+    ["priority", { priorities: [2] }, { priority: 2 }, { priority: 4 }],
+    ["assignee", { assignees: ["u1"] }, { assigneeId: "u1" }, { assigneeId: "u2" }],
+    ["label", { labels: ["label-1"] }, { labelIds: ["label-1"] }, { labelIds: ["label-2"] }],
+    ["kind", { kind: ["feature"] }, { kind: "feature" }, { kind: "bug" }],
+    ["hierarchy", { underIds: ["component-1"] }, { ancestorIds: ["component-1"] }, { ancestorIds: ["other"] }],
+  ] satisfies Array<[
+    string,
+    Partial<Filters>,
+    Partial<FilterItem>,
+    Partial<FilterItem>,
+  ]>)("applies the %s facet independently", (_name, filters, matching, rejected) => {
+    expect(matchItem(item(matching), f(filters))).toBe(true);
+    expect(matchItem(item(rejected), f(filters))).toBe(false);
+  });
+
+  it("requires every active facet while accepting any selected value within each facet", () => {
+    const filters = f({
+      q: "qr",
+      types: ["epic", "tache"],
+      statusIds: ["s9", "s1"],
+      priorities: [4, 2],
+      assignees: ["none", "u1"],
+      labels: ["label-9", "label-1"],
+      kind: ["bug", "feature"],
+      underIds: ["epic-9", "component-1"],
+    });
+    const matching = item({
+      title: "Générer le QR",
+      type: "tache",
+      statusId: "s1",
+      priority: 2,
+      assigneeId: "u1",
+      labelIds: ["label-1"],
+      kind: "feature",
+      ancestorIds: ["component-1"],
+    });
+
+    expect(matchItem(matching, filters)).toBe(true);
+    expect([
+      item({ ...matching, title: "Sans correspondance", description: null }),
+      item({ ...matching, type: "composant" }),
+      item({ ...matching, statusId: "s2" }),
+      item({ ...matching, priority: 1 }),
+      item({ ...matching, assigneeId: "u2" }),
+      item({ ...matching, labelIds: ["label-2"] }),
+      item({ ...matching, kind: "feature", ancestorIds: ["other"] }),
+    ].every((candidate) => !matchItem(candidate, filters))).toBe(true);
   });
   it("ANDs across dimensions, ORs within one", () => {
     expect(matchItem(item({ type: "tache", priority: 4 }), f({ types: ["tache", "epic"], priorities: [3, 4] }))).toBe(true);
@@ -202,9 +324,9 @@ describe("matchItem", () => {
     expect(matchItem(item({ kind: "feature" }), f({ kind: ["bug"] }))).toBe(false);
   });
 
-  it("kind facet: inactive (kind: []) ignores item kind entirely", () => {
-    expect(matchItem(item({ kind: "feature" }), f({ kind: [] }))).toBe(true);
-    expect(matchItem(item({ kind: "bug" }), f({ kind: [] }))).toBe(true);
+  it("kind facet: inactive ignores item kind entirely", () => {
+    expect(matchItem(item({ kind: "feature" }), f({ kind: [], underIds: [] }))).toBe(true);
+    expect(matchItem(item({ kind: "bug" }), f({ kind: [], underIds: [] }))).toBe(true);
   });
 
   it("kind facet: OR within facet — both bug and feature selected matches any kind", () => {
@@ -270,6 +392,47 @@ describe("withAncestors", () => {
   });
 });
 
+describe("enrichHierarchy", () => {
+  it("exports the hierarchy enrichment helper", () => {
+    expect(filterCore).toHaveProperty("enrichHierarchy");
+  });
+
+  it("derives ordered ancestors and the owning component from self-inclusive paths", () => {
+    const rows = [
+      hierarchyItem({ id: "component-1", type: "composant", path: "component" }),
+      hierarchyItem({ id: "epic-1", type: "epic", path: "component.epic" }),
+      hierarchyItem({ id: "task-1", type: "tache", path: "component.epic.task" }),
+      hierarchyItem({ id: "root-1", type: "tache", path: "root" }),
+    ];
+
+    const enriched = enrichHierarchy(rows);
+
+    expect(enriched.find((row) => row.id === "task-1")).toMatchObject({
+      ancestorIds: ["component-1", "epic-1"],
+      componentId: "component-1",
+    });
+    expect(enriched.find((row) => row.id === "component-1")).toMatchObject({
+      ancestorIds: [],
+      componentId: "component-1",
+    });
+  });
+
+  it("groups a component and all of its descendants under that component", () => {
+    const rows = [
+      hierarchyItem({ id: "component-1", type: "composant", path: "component" }),
+      hierarchyItem({ id: "epic-1", type: "epic", path: "component.epic" }),
+      hierarchyItem({ id: "task-1", type: "tache", path: "component.epic.task" }),
+      hierarchyItem({ id: "root-1", type: "tache", path: "root" }),
+    ];
+    const enriched = enrichHierarchy(rows);
+
+    expect(groupItems(enriched, "component").map(([key, grouped]) => [key, grouped.map((row) => row.id)])).toEqual([
+      ["component-1", ["component-1", "epic-1", "task-1"]],
+      ["none", ["root-1"]],
+    ]);
+  });
+});
+
 describe("groupItems", () => {
   const rows = [
     item({ id: "a", assigneeId: "u1", priority: 4, parentId: "p1", statusId: "s1" }),
@@ -325,6 +488,54 @@ describe("sortItems", () => {
     ];
     expect(sortItems(updRows, { field: "updated", dir: "desc" }).map((r) => r.id)).toEqual(["b", "a", "c"]);
   });
+  it("sorts titles accent-insensitively and preserves the input order for equal titles", () => {
+    const titleRows = [
+      item({ id: "a", title: "Éclair" }),
+      item({ id: "b", title: "apple" }),
+      item({ id: "c", title: "Zebra" }),
+      item({ id: "d", title: "apple" }),
+    ];
+
+    expect(sortItems(titleRows, { field: "title", dir: "asc" }).map((row) => row.id)).toEqual([
+      "b", "d", "a", "c",
+    ]);
+  });
+  it("sorts statuses by their configured order and preserves equal-order input", () => {
+    const statusRows = [
+      item({ id: "a", statusOrder: 2 }),
+      item({ id: "b", statusOrder: 1 }),
+      item({ id: "c", statusOrder: 1 }),
+      item({ id: "d", statusOrder: 3 }),
+    ];
+
+    expect(sortItems(statusRows, { field: "status", dir: "asc" }).map((row) => row.id)).toEqual([
+      "b", "c", "a", "d",
+    ]);
+  });
+
+  it.each([
+    ["key", "asc", ["c", "a", "b"]],
+    ["key", "desc", ["b", "a", "c"]],
+    ["title", "asc", ["b", "a", "c"]],
+    ["title", "desc", ["c", "a", "b"]],
+    ["status", "asc", ["b", "c", "a"]],
+    ["status", "desc", ["a", "b", "c"]],
+    ["priority", "asc", ["a", "c", "b"]],
+    ["priority", "desc", ["b", "c", "a"]],
+    ["dueDate", "asc", ["c", "a", "b"]],
+    ["dueDate", "desc", ["a", "c", "b"]],
+  ] satisfies Array<[SortField, SortDir, string[]]>) (
+    "sorts list field %s in %s order",
+    (field, dir, expected) => {
+      const listRows = [
+        item({ id: "a", key: "CASS-2", title: "Éclair", statusOrder: 2, priority: 1, dueDate: new Date("2026-02-01") }),
+        item({ id: "b", key: "CASS-10", title: "apple", statusOrder: 1, priority: 4, dueDate: null }),
+        item({ id: "c", key: "CASS-1", title: "Zebra", statusOrder: 1, priority: 2, dueDate: new Date("2026-01-15") }),
+      ];
+
+      expect(sortItems(listRows, { field, dir }).map((row) => row.id)).toEqual(expected);
+    },
+  );
   it("does not mutate the input array", () => {
     const copy = [...rows];
     sortItems(rows, { field: "priority", dir: "asc" });

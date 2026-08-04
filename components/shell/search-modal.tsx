@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { searchAction } from "@/app/actions/search";
 import type { SearchResult } from "@/lib/services/search";
@@ -14,6 +13,7 @@ import {
 import { TypeIcon } from "@/components/icons/type-icon";
 import { StatusDot } from "@/components/icons/status-dot";
 import { ItemKey } from "@/components/jiroo/item-key";
+import { useBacklogItemNavigation } from "@/components/shell/use-backlog-item-navigation";
 import type { ItemType, StatusId } from "@/lib/design/constants";
 
 // ---------------------------------------------------------------------------
@@ -87,7 +87,7 @@ function highlightTitle(title: string, query: string): React.ReactNode {
 // ---------------------------------------------------------------------------
 
 export function SearchModal() {
-  const router = useRouter();
+  const openBacklogItem = useBacklogItemNavigation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -187,7 +187,7 @@ export function SearchModal() {
   // -------------------------------------------------------------------------
 
   function openResult(r: SearchResult) {
-    router.push(`/b/${r.backlogKey}?item=${r.key}`);
+    openBacklogItem(r.backlogKey, r.key);
     handleClose();
   }
 

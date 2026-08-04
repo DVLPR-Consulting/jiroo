@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ViewSaveDialog } from "@/components/shell/view-save-dialog";
+import { useViewUrlState } from "@/components/shell/view-url-state";
 import type { DisplayMode } from "@/lib/items/views";
 import type { Filters, GroupKey, SortDir, SortField } from "@/lib/items/filter";
 import { cn } from "@/lib/utils";
@@ -49,8 +50,6 @@ export type ViewActionsProps = {
   filters: Filters;
   group: GroupKey | null;
   sort: { field: SortField; dir: SortDir } | null;
-  /** The page's currentParams — already encode filters/group/sort/view. */
-  currentParams: Record<string, string>;
 };
 
 // ---------------------------------------------------------------------------
@@ -120,9 +119,9 @@ export function ViewActions({
   filters,
   group,
   sort,
-  currentParams,
 }: ViewActionsProps) {
   const router = useRouter();
+  const viewUrl = useViewUrlState();
   const [pending, startTransition] = useTransition();
 
   // Dialog open state
@@ -182,9 +181,7 @@ export function ViewActions({
       }
       setSaveAsOpen(false);
       // Navigate to the new view while preserving existing filter/group/sort params.
-      const sp = new URLSearchParams(currentParams);
-      sp.set("v", res.view.id);
-      router.push(`/b/${backlogKey}?${sp.toString()}`);
+      viewUrl.push((params) => params.set("v", res.view.id));
     });
   }
 
@@ -240,9 +237,7 @@ export function ViewActions({
       }
       setDeleteOpen(false);
       // Drop the v param, preserve everything else.
-      const sp = new URLSearchParams(currentParams);
-      sp.delete("v");
-      router.push(`/b/${backlogKey}?${sp.toString()}`);
+      viewUrl.push((params) => params.delete("v"));
     });
   }
 

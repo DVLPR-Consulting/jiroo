@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
+import { LabelPill } from "@/components/items/label-pill";
 import { LABEL_HUES, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
 import { StatusDot as CanonicalStatusDot } from "@/components/icons/status-dot";
+import { useViewUrlState } from "@/components/shell/view-url-state";
 import type {
   moveItemAction as MoveItemAction,
   reparentItemAction as ReparentItemAction,
@@ -25,10 +26,19 @@ export type TreeItem = {
   depth: number;
   rank: string;
   path: string;
+  labels: LabelChip[];
+  assigneeId: string | null;
   assigneeName?: string | null;
 };
 
-type StatusMap = Record<string, { name: string; color: string }>;
+type LabelChip = { id: string; name: string; color: string };
+type StatusOption = {
+  id: string;
+  name: string;
+  color: string;
+  category: "todo" | "in_progress" | "done";
+  order: number;
+};
 type Zone = "before" | "into" | "after";
 type Target = { id: string; zone: Zone };
 
@@ -37,11 +47,25 @@ function asPriority(value: number): Priority {
   return Math.min(4, Math.max(0, value)) as Priority;
 }
 
-// Stable per-name hue so a given assignee always gets the same avatar color.
-function hueFor(name: string): LabelHue {
+// Stable per-id hue so an assignee keeps the same avatar color if their name changes.
+function hueFor(value: string): LabelHue {
   let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) | 0;
   return LABEL_HUES[Math.abs(h) % LABEL_HUES.length]!;
+}
+
+function visualStatusId(status: StatusOption, statuses: StatusOption[]): StatusId {
+  if (status.category === "todo") return "todo";
+  if (status.category === "done") return "done";
+
+  // Backlogs own a fixed ordered pair of in-progress statuses. Their UUIDs
+  // differ per backlog, so domain order distinguishes doing from review.
+  const progressStatuses = statuses
+    .filter((option) => option.category === "in_progress")
+    .sort((a, b) => a.order - b.order);
+  return progressStatuses.findIndex((option) => option.id === status.id) <= 0
+    ? "doing"
+    : "review";
 }
 
 type TreeNode = TreeItem & { children: TreeNode[] };
@@ -94,35 +118,37 @@ function seed(items: TreeItem[]): TreeItem[] {
   return items.map((i) => ({ ...i }));
 }
 
-function StatusDotLocal({ statusId }: { statusId: string }) {
-  return <CanonicalStatusDot status={statusId as StatusId} />;
+function StatusDotLocal({
+  statusId,
+  statuses,
+}: {
+  statusId: string;
+  statuses: StatusOption[];
+}) {
+  const status = statuses.find((option) => option.id === statusId);
+  return status ? <CanonicalStatusDot status={visualStatusId(status, statuses)} /> : null;
 }
 
-// StatusMap is kept in the prop type for call-site compatibility.
-// StatusDot now derives its visual variant purely from node.statusId,
-// so the map is no longer destructured from props.
 type ItemTreeProps = {
   backlogKey: string;
   items: TreeItem[];
   selectedKey?: string;
-  /** Accepted for compatibility — no longer consumed inside this component. */
-  statuses?: StatusMap;
+  statuses: StatusOption[];
   contextIds?: string[];
   reparentItemAction: typeof ReparentItemAction;
   moveItemAction: typeof MoveItemAction;
-  params?: Record<string, string>;
 };
 
 export function ItemTree({
   backlogKey,
   items,
   selectedKey,
+  statuses,
   contextIds = [],
   reparentItemAction,
   moveItemAction,
-  params,
 }: ItemTreeProps) {
-  const router = useRouter();
+  const viewUrl = useViewUrlState();
   const [treeItems, setTreeItems] = useState<TreeItem[]>(() => seed(items));
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dragId, setDragId] = useState<string | null>(null);
@@ -289,9 +315,7 @@ export function ItemTree({
   }
 
   function openItem(key: string) {
-    const sp = new URLSearchParams(params ?? {});
-    sp.set("item", key);
-    router.push(`/b/${backlogKey}?${sp.toString()}`);
+    viewUrl.push((params) => params.set("item", key));
   }
 
   function renderNode(node: TreeNode): React.ReactNode {
@@ -358,18 +382,36 @@ export function ItemTree({
           <TypeIcon type={node.type} />
           <ItemKey value={node.key} />
           <span className="min-w-0 flex-1 truncate">{node.title}</span>
-          <span className="flex flex-none items-center gap-2">
-            <PrioIcon priority={asPriority(node.priority)} />
-            <StatusDotLocal statusId={node.statusId} />
-            {node.assigneeName ? (
-              <InitialsAvatar name={node.assigneeName} hue={hueFor(node.assigneeName)} size={20} />
-            ) : (
-              <span
-                aria-hidden
-                className="size-5 flex-none rounded-full"
-                style={{ border: "1.5px dashed var(--border-strong)" }}
-              />
+          <span className="flex min-w-0 max-w-[45%] flex-none items-center gap-2">
+            {node.labels.length > 0 && (
+              <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+                {node.labels.map((label) => (
+                  <LabelPill
+                    key={label.id}
+                    name={label.name}
+                    color={label.color}
+                    className="min-w-0 max-w-28 shrink truncate"
+                  />
+                ))}
+              </span>
             )}
+            <span className="flex flex-none items-center gap-2">
+              <PrioIcon priority={asPriority(node.priority)} />
+              <StatusDotLocal statusId={node.statusId} statuses={statuses} />
+              {node.assigneeName ? (
+                <InitialsAvatar
+                  name={node.assigneeName}
+                  hue={hueFor(node.assigneeId ?? node.assigneeName)}
+                  size={20}
+                />
+              ) : (
+                <span
+                  aria-hidden
+                  className="size-5 flex-none rounded-full"
+                  style={{ border: "1.5px dashed var(--border-strong)" }}
+                />
+              )}
+            </span>
           </span>
         </div>
         {hasKids && !isCollapsed && node.children.map((child) => renderNode(child))}
