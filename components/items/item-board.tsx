@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -24,7 +24,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { generateKeyBetween } from "fractional-indexing";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, GripVertical, Plus } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
@@ -198,7 +198,15 @@ function SortableCard({
   backlogKey: string;
   onOpen: (key: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: card.id,
     data: { type: "card", columnId: colDomId, swimlane },
   });
@@ -212,15 +220,27 @@ function SortableCard({
         opacity: isDragging ? 0.4 : 1,
         padding: "var(--card-pad)",
       }}
-      {...attributes}
-      {...listeners}
       onClick={() => onOpen(card.key)}
-      className="cursor-grab rounded-[var(--radius-md)] border border-border bg-[var(--surface)] shadow-[var(--shadow-xs)] active:cursor-grabbing"
-      role="button"
-      tabIndex={0}
-      aria-label={`${card.key} — ${card.title}`}
+      className="cursor-pointer rounded-[var(--radius-md)] border border-border bg-[var(--surface)] shadow-[var(--shadow-xs)]"
     >
-      <CardInner card={card} backlogKey={backlogKey} />
+      <CardInner
+        card={card}
+        backlogKey={backlogKey}
+        dragHandle={
+          <button
+            ref={setActivatorNodeRef}
+            {...attributes}
+            {...listeners}
+            type="button"
+            aria-label={`Déplacer ${card.key}`}
+            onClick={(event) => event.stopPropagation()}
+            className="inline-flex size-6 flex-none cursor-grab items-center justify-center rounded text-muted-foreground outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] active:cursor-grabbing"
+          >
+            <GripVertical aria-hidden size={14} />
+          </button>
+        }
+        onOpen={() => onOpen(card.key)}
+      />
     </div>
   );
 }
@@ -235,17 +255,40 @@ function CardInner({
   card,
   backlogKey,
   interactivePriority = true,
+  dragHandle,
+  onOpen,
 }: {
   card: BoardCard;
   backlogKey: string;
   interactivePriority?: boolean;
+  dragHandle?: ReactNode;
+  onOpen?: () => void;
 }) {
   return (
     <>
       <div className="flex items-center gap-1.5">
-        <TypeIcon type={card.type} size={14} />
-        <ItemKey value={card.key} />
-        {card.kind && <KindIcon kind={card.kind} />}
+        {dragHandle}
+        {onOpen ? (
+          <button
+            type="button"
+            aria-label={`${card.key} — ${card.title}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpen();
+            }}
+            className="inline-flex min-w-0 items-center gap-1.5 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          >
+            <TypeIcon type={card.type} size={14} />
+            <ItemKey value={card.key} />
+            {card.kind && <KindIcon kind={card.kind} />}
+          </button>
+        ) : (
+          <>
+            <TypeIcon type={card.type} size={14} />
+            <ItemKey value={card.key} />
+            {card.kind && <KindIcon kind={card.kind} />}
+          </>
+        )}
         <span className="ml-auto">
           {interactivePriority ? (
             <InlinePriority

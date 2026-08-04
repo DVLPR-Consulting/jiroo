@@ -12,6 +12,7 @@ import {
   InlineStatus,
 } from "@/components/items/inline-item-field";
 import { LabelPill } from "@/components/items/label-pill";
+import { useViewUrlState } from "@/components/shell/view-url-state";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
 import type { SortDir, SortField } from "@/lib/items/filter";
 
@@ -232,16 +233,16 @@ export function ItemList({
   currentSort: CurrentSort;
   currentParams: Record<string, string>;
 }) {
-  const router = useRouter();
+  const viewUrl = useViewUrlState();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const total = groups.reduce((count, group) => count + group.items.length, 0);
 
   function sortBy(field: SortField) {
     const direction: SortDir =
       currentSort?.field === field && currentSort.dir === "asc" ? "desc" : "asc";
-    const params = new URLSearchParams(currentParams);
-    params.set("sort", `${field}:${direction}`);
-    router.replace(`/b/${backlogKey}?${params.toString()}`, { scroll: false });
+    viewUrl.replace((params) => {
+      params.set("sort", `${field}:${direction}`);
+    }, { scroll: false });
   }
 
   function toggleGroup(key: string) {

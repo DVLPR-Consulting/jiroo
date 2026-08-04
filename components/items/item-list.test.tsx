@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemList } from "@/components/items/item-list";
+import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/b/DEMO",
   useRouter: () => ({
     push: mocks.push,
     refresh: mocks.refresh,
@@ -118,6 +120,14 @@ function listProps() {
   };
 }
 
+function renderList(props = listProps()) {
+  return render(
+    <ViewUrlStateProvider currentParams={props.currentParams}>
+      <ItemList {...props} />
+    </ViewUrlStateProvider>,
+  );
+}
+
 describe("ItemList", () => {
   beforeEach(() => {
     mocks.push.mockReset();
@@ -127,7 +137,7 @@ describe("ItemList", () => {
   });
 
   it("renders the dense list as a semantic table with sticky column headers", () => {
-    render(<ItemList {...listProps()} />);
+    renderList();
 
     expect(screen.getByRole("table")).toBeInTheDocument();
     for (const heading of ["Clé", "Titre", "Statut", "Prio", "Labels", "Échéance", "Assigné"]) {
@@ -140,7 +150,7 @@ describe("ItemList", () => {
   it("toggles title sorting while preserving unrelated URL parameters", async () => {
     const user = userEvent.setup();
     const props = listProps();
-    const { rerender } = render(<ItemList {...props} />);
+    const { rerender } = renderList(props);
 
     await user.click(screen.getByRole("button", { name: "Titre" }));
     expect(mocks.replace).toHaveBeenLastCalledWith(
@@ -149,11 +159,13 @@ describe("ItemList", () => {
     );
 
     rerender(
-      <ItemList
-        {...props}
-        currentSort={{ field: "title", dir: "asc" }}
-        currentParams={{ ...props.currentParams, sort: "title:asc" }}
-      />,
+      <ViewUrlStateProvider currentParams={{ ...props.currentParams, sort: "title:asc" }}>
+        <ItemList
+          {...props}
+          currentSort={{ field: "title", dir: "asc" }}
+          currentParams={{ ...props.currentParams, sort: "title:asc" }}
+        />
+      </ViewUrlStateProvider>,
     );
     await user.click(screen.getByRole("button", { name: "Titre" }));
     expect(mocks.replace).toHaveBeenLastCalledWith(
@@ -164,7 +176,7 @@ describe("ItemList", () => {
 
   it("opens a row from non-interactive content but isolates inline editor clicks", async () => {
     const user = userEvent.setup();
-    render(<ItemList {...listProps()} />);
+    renderList();
 
     await user.click(screen.getByText("Authentication"));
     expect(mocks.push).toHaveBeenCalledWith(
@@ -179,7 +191,7 @@ describe("ItemList", () => {
 
   it("collapses and restores a group only in the current component session", async () => {
     const user = userEvent.setup();
-    render(<ItemList {...listProps()} grouped groups={groups} />);
+    renderList({ ...listProps(), grouped: true, groups });
 
     const toggle = screen.getByRole("button", { name: /Plateforme.*1/ });
     expect(toggle).toHaveAttribute("aria-expanded", "true");

@@ -32,6 +32,7 @@ import { getViewById } from "@/lib/services/views";
 import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
 import { ViewBar } from "@/components/shell/view-bar";
 import { GroupControl } from "@/components/shell/group-control";
+import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewActions } from "@/components/shell/view-actions";
 import { ItemList } from "@/components/items/item-list";
@@ -328,7 +329,8 @@ export default async function BacklogPage({
       : statusList;
 
   return (
-    <div className="flex h-full flex-col">
+    <ViewUrlStateProvider currentParams={currentParams}>
+      <div className="flex h-full flex-col">
       <ViewBar
         view={view}
         backlogKey={key}
@@ -443,6 +445,7 @@ export default async function BacklogPage({
           refs={refs}
         />
       )}
-    </div>
+      </div>
+    </ViewUrlStateProvider>
   );
 }

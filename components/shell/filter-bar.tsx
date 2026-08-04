@@ -1,10 +1,11 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { FilterMenu, type Option } from "@/components/shell/filter-menu";
+import { useViewUrlState } from "@/components/shell/view-url-state";
 import {
+  parseViewState,
   writeViewState,
   isFiltersActive,
   type ViewState,
@@ -32,7 +33,6 @@ function activeLabel(options: Option[], selected: string[]): string | undefined 
 
 export function FilterBar({
   state,
-  currentParams,
   statuses,
   users,
   labels,
@@ -47,20 +47,18 @@ export function FilterBar({
   hierarchy: HierarchyOpt[];
   resultCount: number;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [, startTransition] = useTransition();
+  const viewUrl = useViewUrlState();
 
-  const push = (next: ViewState) => {
-    const sp = new URLSearchParams(currentParams);
-    writeViewState(sp, next);
-    startTransition(() =>
-      router.replace(`${pathname}?${sp.toString()}`, { scroll: false }),
-    );
-  };
+  const push = (update: (current: ViewState) => ViewState) =>
+    viewUrl.replace((params) => {
+      writeViewState(params, update(parseViewState(params)));
+    }, { scroll: false });
 
   const setFilters = (patch: Partial<Filters>) =>
-    push({ ...state, filters: { ...state.filters, ...patch } });
+    push((current) => ({
+      ...current,
+      filters: { ...current.filters, ...patch },
+    }));
 
   // Free-text field is controlled locally and debounced; URL-driven changes
   // (reset, browser Back) flow back in by syncing during render when the prop moves.
@@ -178,9 +176,10 @@ export function FilterBar({
         <button
           type="button"
           onClick={() => {
+            clearTimeout(qTimer.current);
             setText("");
-            push({
-              ...state,
+            push((current) => ({
+              ...current,
               filters: {
                 q: "",
                 types: [],
@@ -191,7 +190,7 @@ export function FilterBar({
                 kind: [],
                 underIds: [],
               },
-            });
+            }));
           }}
           className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
         >

@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { useViewUrlState } from "@/components/shell/view-url-state";
 import type { GroupKey, ViewState } from "@/lib/items/filter";
 
 type DisplayView = "board" | "list" | "tree";
@@ -20,14 +20,12 @@ const OPTIONS_BY_VIEW: Record<Exclude<DisplayView, "tree">, GroupOption[]> = {
 export function GroupControl({
   view,
   state,
-  currentParams,
 }: {
   view: DisplayView;
   state: ViewState;
   currentParams: Record<string, string>;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
+  const viewUrl = useViewUrlState();
 
   if (view === "tree") return null;
 
@@ -43,11 +41,11 @@ export function GroupControl({
         aria-label="Grouper par"
         value={value}
         onChange={(event) => {
-          const sp = new URLSearchParams(currentParams);
-          if (event.target.value) sp.set("group", event.target.value);
-          else sp.delete("group");
-          const query = sp.toString();
-          router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+          const group = event.target.value;
+          viewUrl.replace((params) => {
+            if (group) params.set("group", group);
+            else params.delete("group");
+          }, { scroll: false });
         }}
         className="h-7 rounded-[var(--radius-sm)] border border-border bg-[var(--surface)] px-2 text-xs text-foreground"
       >

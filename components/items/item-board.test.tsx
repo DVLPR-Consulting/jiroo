@@ -36,6 +36,34 @@ const createDialogProps = {
   ],
 };
 
+const editableCard = {
+  id: "task-a",
+  key: "DEMO-1",
+  type: "tache" as const,
+  title: "Authentication",
+  statusId: "ready",
+  priority: 2,
+  rank: "a",
+  assigneeId: null,
+  parentId: "epic-a",
+  componentId: "component-platform",
+};
+
+function renderEditableCard(moveItemAction = vi.fn()) {
+  return render(
+    <ItemBoard
+      backlogKey="DEMO"
+      items={[editableCard]}
+      statuses={[readyStatus]}
+      statusDomain={[readyStatus]}
+      group={null}
+      groupLabels={{}}
+      moveItemAction={moveItemAction}
+      createDialogProps={createDialogProps}
+    />,
+  );
+}
+
 describe("ItemBoard", () => {
   beforeEach(() => {
     mocks.createItemAction.mockReset();
@@ -196,34 +224,12 @@ describe("ItemBoard", () => {
     const user = userEvent.setup();
     const moveItemAction = vi.fn();
     mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: {} });
-    render(
-      <ItemBoard
-        backlogKey="DEMO"
-        items={[
-          {
-            id: "task-a",
-            key: "DEMO-1",
-            type: "tache",
-            title: "Authentication",
-            statusId: "ready",
-            priority: 2,
-            rank: "a",
-            assigneeId: null,
-            parentId: "epic-a",
-            componentId: "component-platform",
-          },
-        ]}
-        statuses={[readyStatus]}
-        statusDomain={[readyStatus]}
-        group={null}
-        groupLabels={{}}
-        moveItemAction={moveItemAction}
-        createDialogProps={createDialogProps}
-      />,
-    );
+    renderEditableCard(moveItemAction);
 
     const card = screen.getByRole("button", { name: "DEMO-1 — Authentication" });
-    await user.click(within(card).getByRole("button", { name: /Priorité.*Moyenne/i }));
+    const priority = screen.getByRole("button", { name: /Priorité.*Moyenne/i });
+    expect(card).not.toContainElement(priority);
+    await user.click(priority);
     await user.click(screen.getByRole("menuitem", { name: "Haute" }));
 
     expect(mocks.updateItemAction).toHaveBeenCalledWith({
@@ -234,5 +240,56 @@ describe("ItemBoard", () => {
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
     expect(mocks.push).not.toHaveBeenCalled();
     expect(moveItemAction).not.toHaveBeenCalled();
+  });
+
+  it("updates priority with Space and Enter without activating drag or opening the card", async () => {
+    const user = userEvent.setup();
+    const moveItemAction = vi.fn();
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: {} });
+    renderEditableCard(moveItemAction);
+
+    const priority = screen.getByRole("button", { name: /Priorité.*Moyenne/i });
+    expect(priority.parentElement?.closest('[role="button"]')).toBeNull();
+    priority.focus();
+    await user.keyboard("[Space]");
+
+    expect(screen.getAllByText("Authentication")).toHaveLength(1);
+    const highPriority = screen.getByRole("menuitem", { name: "Haute" });
+    highPriority.focus();
+    await user.keyboard("[Enter]");
+
+    expect(mocks.updateItemAction).toHaveBeenCalledWith({
+      id: "task-a",
+      backlogKey: "DEMO",
+      priority: 3,
+    });
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(moveItemAction).not.toHaveBeenCalled();
+  });
+
+  it("exposes a dedicated keyboard-focusable drag handle", () => {
+    renderEditableCard();
+
+    const handle = screen.getByRole("button", { name: "Déplacer DEMO-1" });
+    handle.focus();
+    expect(handle).toHaveFocus();
+  });
+
+  it("opens a card from its separate keyboard control", async () => {
+    const user = userEvent.setup();
+    const moveItemAction = vi.fn();
+    renderEditableCard(moveItemAction);
+
+    const openCard = screen.getByRole("button", { name: "DEMO-1 — Authentication" });
+    openCard.focus();
+    await user.keyboard("[Enter]");
+
+    expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?item=DEMO-1");
+    expect(moveItemAction).not.toHaveBeenCalled();
+
+    mocks.push.mockClear();
+    await user.click(screen.getByText("Authentication"));
+    expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?item=DEMO-1");
   });
 });

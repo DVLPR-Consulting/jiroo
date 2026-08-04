@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GroupControl } from "@/components/shell/group-control";
+import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 import type { ViewState } from "@/lib/items/filter";
 
 const mocks = vi.hoisted(() => ({
@@ -28,6 +29,17 @@ const emptyState: ViewState = {
   sort: null,
 };
 
+function renderControl(
+  control: React.ReactElement,
+  currentParams: Record<string, string>,
+) {
+  return render(
+    <ViewUrlStateProvider currentParams={currentParams}>
+      {control}
+    </ViewUrlStateProvider>,
+  );
+}
+
 describe("GroupControl", () => {
   beforeEach(() => {
     mocks.replace.mockReset();
@@ -35,19 +47,21 @@ describe("GroupControl", () => {
 
   it("sets component grouping while preserving the item, saved view, filters, and display mode", async () => {
     const user = userEvent.setup();
-    render(
+    const currentParams = {
+      item: "DEMO-42",
+      v: "saved-view",
+      q: "auth",
+      type: "tache",
+      status: "ready",
+      view: "board",
+    };
+    renderControl(
       <GroupControl
         view="board"
         state={emptyState}
-        currentParams={{
-          item: "DEMO-42",
-          v: "saved-view",
-          q: "auth",
-          type: "tache",
-          status: "ready",
-          view: "board",
-        }}
+        currentParams={currentParams}
       />,
+      currentParams,
     );
 
     await user.selectOptions(
@@ -64,12 +78,14 @@ describe("GroupControl", () => {
   });
 
   it("offers every supported board group except status", () => {
-    render(
+    const currentParams = { view: "board" };
+    renderControl(
       <GroupControl
         view="board"
         state={emptyState}
-        currentParams={{ view: "board" }}
+        currentParams={currentParams}
       />,
+      currentParams,
     );
 
     const options = screen.getAllByRole("option").map((option) => ({
@@ -87,12 +103,14 @@ describe("GroupControl", () => {
 
   it("offers status grouping in list view and deletes group when none is selected", async () => {
     const user = userEvent.setup();
-    render(
+    const currentParams = { item: "DEMO-42", view: "list", group: "status" };
+    renderControl(
       <GroupControl
         view="list"
         state={{ ...emptyState, group: "status" }}
-        currentParams={{ item: "DEMO-42", view: "list", group: "status" }}
+        currentParams={currentParams}
       />,
+      currentParams,
     );
 
     expect(screen.getByRole("option", { name: "Statut" })).toBeInTheDocument();
@@ -107,12 +125,14 @@ describe("GroupControl", () => {
   });
 
   it("renders no grouping control for tree view", () => {
-    render(
+    const currentParams = { view: "tree", group: "component" };
+    renderControl(
       <GroupControl
         view="tree"
         state={{ ...emptyState, group: "component" }}
-        currentParams={{ view: "tree", group: "component" }}
+        currentParams={currentParams}
       />,
+      currentParams,
     );
 
     expect(screen.queryByRole("combobox", { name: "Grouper par" })).not.toBeInTheDocument();
