@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ChevronsUpDown, ChevronRight } from "lucide-react";
 import { KindIcon } from "@/components/icons/kind-icon";
 import { TypeIcon } from "@/components/icons/type-icon";
@@ -113,7 +112,6 @@ function ItemRow({
   users,
   backlogKey,
   selectedKey,
-  currentParams,
 }: {
   item: ListItem;
   grouped: boolean;
@@ -121,15 +119,12 @@ function ItemRow({
   users: UserOption[];
   backlogKey: string;
   selectedKey?: string;
-  currentParams: Record<string, string>;
 }) {
-  const router = useRouter();
+  const viewUrl = useViewUrlState();
   const isSelected = item.key === selectedKey;
 
   function openItem() {
-    const params = new URLSearchParams(currentParams);
-    params.set("item", item.key);
-    router.push(`/b/${backlogKey}?${params.toString()}`);
+    viewUrl.push((params) => params.set("item", item.key));
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTableRowElement>) {
@@ -222,7 +217,6 @@ export function ItemList({
   backlogKey,
   selectedKey,
   currentSort,
-  currentParams,
 }: {
   groups: Group[];
   grouped: boolean;
@@ -231,7 +225,6 @@ export function ItemList({
   backlogKey: string;
   selectedKey?: string;
   currentSort: CurrentSort;
-  currentParams: Record<string, string>;
 }) {
   const viewUrl = useViewUrlState();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
@@ -334,7 +327,6 @@ export function ItemList({
                     users={users}
                     backlogKey={backlogKey}
                     selectedKey={selectedKey}
-                    currentParams={currentParams}
                   />
                 ))}
             </tbody>

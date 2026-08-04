@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
@@ -10,6 +9,7 @@ import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { LabelPill } from "@/components/items/label-pill";
 import { LABEL_HUES, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
 import { StatusDot as CanonicalStatusDot } from "@/components/icons/status-dot";
+import { useViewUrlState } from "@/components/shell/view-url-state";
 import type {
   moveItemAction as MoveItemAction,
   reparentItemAction as ReparentItemAction,
@@ -137,7 +137,6 @@ type ItemTreeProps = {
   contextIds?: string[];
   reparentItemAction: typeof ReparentItemAction;
   moveItemAction: typeof MoveItemAction;
-  params?: Record<string, string>;
 };
 
 export function ItemTree({
@@ -148,9 +147,8 @@ export function ItemTree({
   contextIds = [],
   reparentItemAction,
   moveItemAction,
-  params,
 }: ItemTreeProps) {
-  const router = useRouter();
+  const viewUrl = useViewUrlState();
   const [treeItems, setTreeItems] = useState<TreeItem[]>(() => seed(items));
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dragId, setDragId] = useState<string | null>(null);
@@ -317,9 +315,7 @@ export function ItemTree({
   }
 
   function openItem(key: string) {
-    const sp = new URLSearchParams(params ?? {});
-    sp.set("item", key);
-    router.push(`/b/${backlogKey}?${sp.toString()}`);
+    viewUrl.push((params) => params.set("item", key));
   }
 
   function renderNode(node: TreeNode): React.ReactNode {

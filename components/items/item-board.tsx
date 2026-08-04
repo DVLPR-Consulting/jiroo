@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -36,6 +35,7 @@ import {
   type NewItemButtonProps,
 } from "@/components/items/new-item-dialog";
 import { Button } from "@/components/ui/button";
+import { useViewUrlState } from "@/components/shell/view-url-state";
 import { LABEL_HUES, type ItemKind, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
 import { KindIcon } from "@/components/icons/kind-icon";
 import { StatusDot } from "@/components/icons/status-dot";
@@ -442,7 +442,6 @@ export function ItemBoard({
   groupLabels,
   moveItemAction,
   createDialogProps,
-  params,
 }: {
   backlogKey: string;
   items: BoardCard[];
@@ -453,9 +452,8 @@ export function ItemBoard({
   groupLabels: Record<string, string>;
   moveItemAction: typeof MoveItemAction;
   createDialogProps: BoardCreateDialogProps;
-  params?: Record<string, string>;
 }) {
-  const router = useRouter();
+  const viewUrl = useViewUrlState();
   const dndId = useId();
   // Swimlane bands in first-seen order ("none" last). When ungrouped, a single
   // band keyed "" reproduces the original layout exactly.
@@ -492,9 +490,7 @@ export function ItemBoard({
     : null;
 
   const openItem = (key: string) => {
-    const sp = new URLSearchParams(params ?? {});
-    sp.set("item", key);
-    router.push(`/b/${backlogKey}?${sp.toString()}`);
+    viewUrl.push((params) => params.set("item", key));
   };
 
   function onDragStart(event: DragStartEvent) {

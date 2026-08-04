@@ -5,18 +5,36 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
+  useSyncExternalStore,
   useTransition,
   type ReactNode,
 } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { ViewUrlEntry } from "@/lib/items/view-url-params";
 
 type ParamsMutation = (params: URLSearchParams) => void;
-type NavigationOptions = { scroll?: boolean };
+type NavigationOptions = { scroll?: boolean; authoritative?: boolean };
 
 type ViewUrlState = {
+  href: (mutate: ParamsMutation) => string;
+  push: (mutate: ParamsMutation, options?: NavigationOptions) => void;
   replace: (mutate: ParamsMutation, options?: NavigationOptions) => void;
+  getExternalRevision: () => number;
+  revision: number;
+};
+
+type AuthorityStore = {
+  version: number;
+  listeners: Set<() => void>;
+};
+
+type NavigationLedger = {
+  pathname: string;
+  nextGeneration: number;
+  origins: Map<string, number>;
 };
 
 const ViewUrlStateContext = createContext<ViewUrlState | null>(null);
@@ -27,64 +45,192 @@ function paramsKey(params: URLSearchParams): string {
   return normalized.toString();
 }
 
+function locationKey(pathname: string, params: URLSearchParams): string {
+  return `${pathname}?${paramsKey(params)}`;
+}
+
 export function ViewUrlStateProvider({
-  currentParams,
+  initialEntries,
   children,
 }: {
-  currentParams: Record<string, string>;
+  initialEntries: ViewUrlEntry[];
   children: ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [, startTransition] = useTransition();
-  const serverParams = new URLSearchParams(currentParams);
+  const serverParams = new URLSearchParams(initialEntries);
   const serverQuery = serverParams.toString();
-  const serverKey = paramsKey(serverParams);
+  const serverLocationKey = locationKey(pathname, serverParams);
   const latestParams = useRef(serverParams);
-  const lastServerKey = useRef(serverKey);
-  const pendingKeys = useRef(new Set<string>());
+  const lastServerLocation = useRef(serverLocationKey);
+  const navigationLedger = useRef<NavigationLedger>({
+    pathname,
+    nextGeneration: 0,
+    origins: new Map(),
+  });
+  const externalRevision = useRef(0);
+  const authorityStore = useRef<AuthorityStore | null>(null);
+  if (authorityStore.current === null) {
+    authorityStore.current = { version: 0, listeners: new Set() };
+  }
 
-  useEffect(() => {
-    if (serverKey !== lastServerKey.current) {
-      lastServerKey.current = serverKey;
-      if (!pendingKeys.current.delete(serverKey)) {
+  const subscribe = useCallback((listener: () => void) => {
+    const store = authorityStore.current!;
+    store.listeners.add(listener);
+    return () => store.listeners.delete(listener);
+  }, []);
+  const getSnapshot = useCallback(() => authorityStore.current!.version, []);
+  const getServerSnapshot = useCallback(() => 0, []);
+  const authorityVersion = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
+  const publish = useCallback(() => {
+    const store = authorityStore.current!;
+    store.version += 1;
+    for (const listener of [...store.listeners]) listener();
+  }, []);
+
+  useLayoutEffect(() => {
+    if (navigationLedger.current.pathname !== pathname) {
+      navigationLedger.current = {
+        pathname,
+        nextGeneration: 0,
+        origins: new Map(),
+      };
+      lastServerLocation.current = serverLocationKey;
+      latestParams.current = new URLSearchParams(serverQuery);
+      externalRevision.current += 1;
+      publish();
+      return;
+    }
+
+    if (serverLocationKey !== lastServerLocation.current) {
+      const latestLocationKey = locationKey(pathname, latestParams.current);
+      const isInternalOrigin = navigationLedger.current.origins.has(
+        serverLocationKey,
+      );
+
+      if (isInternalOrigin && serverLocationKey === latestLocationKey) {
+        lastServerLocation.current = serverLocationKey;
+      } else if (!isInternalOrigin) {
+        lastServerLocation.current = serverLocationKey;
         latestParams.current = new URLSearchParams(serverQuery);
-        pendingKeys.current.clear();
+        externalRevision.current += 1;
+        publish();
       }
     }
-  }, [serverKey, serverQuery]);
+  }, [initialEntries, pathname, publish, serverLocationKey, serverQuery]);
+
+  const href = useCallback(
+    (mutate: ParamsMutation) => {
+      const next = new URLSearchParams(latestParams.current);
+      mutate(next);
+      const query = next.toString();
+      return query ? `${pathname}?${query}` : pathname;
+    },
+    [pathname],
+  );
 
   useEffect(() => {
     function syncFromHistory() {
       const params = new URLSearchParams(window.location.search);
+      const historyPathname = window.location.pathname;
+      if (navigationLedger.current.pathname !== historyPathname) {
+        navigationLedger.current = {
+          pathname: historyPathname,
+          nextGeneration: 0,
+          origins: new Map(),
+        };
+      }
       latestParams.current = params;
-      lastServerKey.current = paramsKey(params);
-      pendingKeys.current.clear();
+      lastServerLocation.current = locationKey(historyPathname, params);
+      externalRevision.current += 1;
+      publish();
     }
 
     window.addEventListener("popstate", syncFromHistory);
     return () => window.removeEventListener("popstate", syncFromHistory);
-  }, []);
+  }, [publish]);
 
-  const replace = useCallback(
-    (mutate: ParamsMutation, options?: NavigationOptions) => {
+  const navigate = useCallback(
+    (method: "push" | "replace", mutate: ParamsMutation, options?: NavigationOptions) => {
+      const currentQuery = latestParams.current.toString();
       const next = new URLSearchParams(latestParams.current);
       mutate(next);
       latestParams.current = next;
-      pendingKeys.current.add(paramsKey(next));
       const query = next.toString();
+      if (query !== currentQuery) {
+        const ledger = navigationLedger.current;
+        ledger.nextGeneration += 1;
+        ledger.origins.set(
+          locationKey(pathname, next),
+          ledger.nextGeneration,
+        );
+      }
+      if (options?.authoritative) externalRevision.current += 1;
+      if (query !== currentQuery) {
+        publish();
+      }
       const href = query ? `${pathname}?${query}` : pathname;
-      startTransition(() => router.replace(href, options));
+      const routerOptions =
+        options?.scroll === undefined ? undefined : { scroll: options.scroll };
+      startTransition(() => {
+        if (method === "push") {
+          if (routerOptions) router.push(href, routerOptions);
+          else router.push(href);
+        } else if (routerOptions) {
+          router.replace(href, routerOptions);
+        } else {
+          router.replace(href);
+        }
+      });
     },
-    [pathname, router],
+    [pathname, publish, router],
   );
 
-  const value = useMemo(() => ({ replace }), [replace]);
+  const push = useCallback(
+    (mutate: ParamsMutation, options?: NavigationOptions) => {
+      navigate("push", mutate, options);
+    },
+    [navigate],
+  );
+
+  const replace = useCallback(
+    (mutate: ParamsMutation, options?: NavigationOptions) => {
+      navigate("replace", mutate, options);
+    },
+    [navigate],
+  );
+
+  const getExternalRevision = useCallback(() => externalRevision.current, []);
+
+  const value = useMemo(
+    () => ({ href, push, replace, getExternalRevision, revision: authorityVersion }),
+    [authorityVersion, getExternalRevision, href, push, replace],
+  );
 
   return (
     <ViewUrlStateContext.Provider value={value}>
       {children}
     </ViewUrlStateContext.Provider>
+  );
+}
+
+export function RouteViewUrlStateProvider({ children }: { children: ReactNode }) {
+  const searchParams = useSearchParams();
+  const query = searchParams.toString();
+  const initialEntries = useMemo(
+    () => Array.from(new URLSearchParams(query).entries()),
+    [query],
+  );
+
+  return (
+    <ViewUrlStateProvider initialEntries={initialEntries}>
+      {children}
+    </ViewUrlStateProvider>
   );
 }
 

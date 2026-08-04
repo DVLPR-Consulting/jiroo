@@ -102,6 +102,13 @@ const groups = [
   },
 ];
 
+const initialUrlParams = {
+  view: "list",
+  item: "DEMO-9",
+  v: "saved-view",
+  q: "auth",
+};
+
 function listProps() {
   return {
     groups,
@@ -111,18 +118,12 @@ function listProps() {
     backlogKey: "DEMO",
     selectedKey: undefined,
     currentSort: null,
-    currentParams: {
-      view: "list",
-      item: "DEMO-9",
-      v: "saved-view",
-      q: "auth",
-    },
   };
 }
 
 function renderList(props = listProps()) {
   return render(
-    <ViewUrlStateProvider currentParams={props.currentParams}>
+    <ViewUrlStateProvider initialEntries={Object.entries(initialUrlParams)}>
       <ItemList {...props} />
     </ViewUrlStateProvider>,
   );
@@ -159,11 +160,12 @@ describe("ItemList", () => {
     );
 
     rerender(
-      <ViewUrlStateProvider currentParams={{ ...props.currentParams, sort: "title:asc" }}>
+      <ViewUrlStateProvider
+        initialEntries={Object.entries({ ...initialUrlParams, sort: "title:asc" })}
+      >
         <ItemList
           {...props}
           currentSort={{ field: "title", dir: "asc" }}
-          currentParams={{ ...props.currentParams, sort: "title:asc" }}
         />
       </ViewUrlStateProvider>,
     );

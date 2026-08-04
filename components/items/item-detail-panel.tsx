@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Trash2, X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
+import { useViewUrlState } from "@/components/shell/view-url-state";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,17 +83,17 @@ export function ItemDetailPanel({
   candidates: { id: string; key: string; title: string; type: ItemType }[];
   refs: { id: string; url: string; kind: string; createdAt: Date | string }[];
 }) {
-  const router = useRouter();
+  const viewUrl = useViewUrlState();
   const [tab, setTab] = useState<"detail" | "comments" | "activity">("detail");
   const [deleting, startDelete] = useTransition();
 
-  const close = () => router.push(`/b/${backlogKey}`);
+  const close = () => viewUrl.push((params) => params.delete("item"));
 
   const handleDelete = () => {
     if (!window.confirm("Supprimer cet item et ses sous-items ?")) return;
     startDelete(async () => {
       await softDeleteItemAction({ id: detail.id, backlogKey });
-      router.push(`/b/${backlogKey}`);
+      viewUrl.push((params) => params.delete("item"));
     });
   };
 

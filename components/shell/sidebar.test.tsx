@@ -1,13 +1,40 @@
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { FilterBar } from "@/components/shell/filter-bar";
 import { Sidebar } from "@/components/shell/sidebar";
 import { SidebarStateProvider } from "@/components/shell/sidebar-state";
+import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
+
+const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ key: "CASS" }),
   usePathname: () => "/b/CASS",
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace, refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams("view=board"),
+}));
+
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    onNavigate,
+    ...props
+  }: {
+    children: React.ReactNode;
+    href: string;
+    onNavigate?: (event: { preventDefault: () => void }) => void;
+  }) => (
+    <a
+      {...props}
+      onClick={(event) => {
+        event.preventDefault();
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        onNavigate?.({ preventDefault: () => undefined });
+      }}
+    >
+      {children}
+    </a>
+  ),
 }));
 
 const props = {
@@ -20,10 +47,14 @@ const props = {
   counts: { allByBacklog: { CASS: 42 }, mine: 7, trash: 3 },
 };
 
-function renderSidebar() {
+function renderSidebar(
+  initialEntries: [string, string][] = [["view", "board"]],
+) {
   return render(
     <SidebarStateProvider>
-      <Sidebar {...props} />
+      <ViewUrlStateProvider initialEntries={initialEntries}>
+        <Sidebar {...props} />
+      </ViewUrlStateProvider>
     </SidebarStateProvider>,
   );
 }
@@ -32,6 +63,12 @@ describe("Sidebar", () => {
   beforeEach(() => {
     localStorage.clear();
     document.documentElement.dataset.sidebar = "open";
+    mocks.push.mockReset();
+    mocks.replace.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renders route-aware navigation and aggregate counts", () => {
@@ -64,5 +101,68 @@ describe("Sidebar", () => {
       "title",
       "Déplier la barre latérale",
     );
+  });
+
+  it("routes the active-backlog all-items link through the shared authority", () => {
+    renderSidebar([
+      ["view", "list"],
+      ["item", "CASS-1"],
+      ["q", "obsolete"],
+      ["tag", "a"],
+      ["tag", "b"],
+    ]);
+
+    const allItems = screen.getByRole("link", { name: /Tous les items 42/ });
+    expect(allItems).toHaveAttribute("href", "/b/CASS?tag=a&tag=b");
+    fireEvent.click(allItems);
+    expect(mocks.push).toHaveBeenCalledWith("/b/CASS?tag=a&tag=b");
+  });
+
+  it("cancels an armed query when all-items becomes authoritative", async () => {
+    vi.useFakeTimers();
+    render(
+      <SidebarStateProvider>
+        <ViewUrlStateProvider
+          initialEntries={[
+            ["view", "list"],
+            ["q", "old"],
+            ["tag", "a"],
+            ["tag", "b"],
+          ]}
+        >
+          <Sidebar {...props} />
+          <FilterBar
+            state={{
+              filters: {
+                q: "old",
+                types: [],
+                statusIds: [],
+                priorities: [],
+                assignees: [],
+                labels: [],
+                kind: [],
+                underIds: [],
+              },
+              group: null,
+              sort: null,
+            }}
+            statuses={[]}
+            users={[]}
+            labels={[]}
+            hierarchy={[]}
+            resultCount={1}
+          />
+        </ViewUrlStateProvider>
+      </SidebarStateProvider>,
+    );
+
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "obsolete" },
+    });
+    fireEvent.click(screen.getByRole("link", { name: /Tous les items 42/ }));
+    await act(async () => vi.advanceTimersByTime(300));
+
+    expect(mocks.push).toHaveBeenCalledWith("/b/CASS?tag=a&tag=b");
+    expect(mocks.replace).not.toHaveBeenCalled();
   });
 });

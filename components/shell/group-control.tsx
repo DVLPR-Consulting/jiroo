@@ -23,7 +23,6 @@ export function GroupControl({
 }: {
   view: DisplayView;
   state: ViewState;
-  currentParams: Record<string, string>;
 }) {
   const viewUrl = useViewUrlState();
 

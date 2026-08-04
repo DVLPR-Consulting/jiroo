@@ -1,15 +1,31 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/shell/app-shell";
 import {
   SidebarStateProvider,
   useSidebarState,
 } from "@/components/shell/sidebar-state";
+import { useViewUrlState } from "@/components/shell/view-url-state";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/b/CASS",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams("view=board&tag=a&tag=b"),
+}));
 
 function Probe() {
   const { collapsed, toggle } = useSidebarState();
   return <button onClick={toggle}>{collapsed ? "collapsed" : "open"}</button>;
+}
+
+function UrlProbe({ label, value }: { label: string; value: string }) {
+  const viewUrl = useViewUrlState();
+  return (
+    <a href={viewUrl.href((params) => params.set("probe", value))}>
+      {label}
+    </a>
+  );
 }
 
 describe("SidebarStateProvider", () => {
@@ -47,5 +63,25 @@ describe("SidebarStateProvider", () => {
     expect(container.firstElementChild).toHaveStyle({
       gridTemplateColumns: "var(--sidebar-width, 248px) minmax(0,1fr)",
     });
+  });
+
+  it("shares one repeated-parameter URL authority across shell siblings", () => {
+    render(
+      <AppShell
+        sidebar={<UrlProbe label="Sidebar URL" value="sidebar" />}
+        topbar={<header>Topbar</header>}
+      >
+        <UrlProbe label="Page URL" value="page" />
+      </AppShell>,
+    );
+
+    expect(screen.getByRole("link", { name: "Sidebar URL" })).toHaveAttribute(
+      "href",
+      "/b/CASS?view=board&tag=a&tag=b&probe=sidebar",
+    );
+    expect(screen.getByRole("link", { name: "Page URL" })).toHaveAttribute(
+      "href",
+      "/b/CASS?view=board&tag=a&tag=b&probe=page",
+    );
   });
 });

@@ -208,6 +208,36 @@ function sameSet<T extends string | number>(a: T[], b: T[]): boolean {
 // buildViewUrl
 // ---------------------------------------------------------------------------
 
+const ACTIVE_BACKLOG_VIEW_PARAM_KEYS = [
+  "q",
+  "type",
+  "status",
+  "prio",
+  "assignee",
+  "label",
+  "kind",
+  "under",
+  "group",
+  "sort",
+  "view",
+  "v",
+  "item",
+] as const;
+
+export function clearActiveBacklogViewParams(params: URLSearchParams): void {
+  for (const key of ACTIVE_BACKLOG_VIEW_PARAM_KEYS) params.delete(key);
+}
+
+export function applySavedViewParams(
+  params: URLSearchParams,
+  view: { id: string; state: ViewState; displayMode: DisplayMode },
+): void {
+  clearActiveBacklogViewParams(params);
+  writeViewState(params, view.state);
+  params.set("view", view.displayMode);
+  params.set("v", view.id);
+}
+
 /**
  * Builds the path + querystring that applies a saved view.
  * Reuses `writeViewState` to encode filters/group/sort, then appends
@@ -219,9 +249,7 @@ export function buildViewUrl(
 ): string {
   // Use a sorted URLSearchParams to guarantee deterministic output.
   const sp = new URLSearchParams();
-  writeViewState(sp, view.state);
-  sp.set("view", view.displayMode);
-  sp.set("v", view.id);
+  applySavedViewParams(sp, view);
   // Sort for determinism (URLSearchParams.sort() is spec-defined stable sort).
   sp.sort();
   const qs = sp.toString();

@@ -13,9 +13,11 @@ import { BacklogSelector } from "@/components/shell/backlog-selector";
 import { NavLink } from "@/components/shell/nav-link";
 import { useSidebarState } from "@/components/shell/sidebar-state";
 import { SidebarViews } from "@/components/shell/sidebar-views";
+import { useViewUrlState } from "@/components/shell/view-url-state";
 import { UserCard } from "@/components/shell/user-card";
 import type { SidebarViewRow } from "@/components/shell/sidebar-views";
 import { deriveShellContext } from "@/lib/items/shell";
+import { clearActiveBacklogViewParams } from "@/lib/items/views";
 import type { ShellCounts } from "@/lib/services/shell";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +37,7 @@ export function Sidebar({
   counts: ShellCounts;
 }) {
   const { collapsed, toggle } = useSidebarState();
+  const viewUrl = useViewUrlState();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const backlogKeys = new Map(backlogs.map((backlog) => [backlog.id, backlog.key]));
@@ -49,6 +52,11 @@ export function Sidebar({
   });
   const activeKey = context.activeBacklogKey?.toUpperCase();
   const allCount = activeKey ? counts.allByBacklog[activeKey] ?? 0 : 0;
+  const onActiveBacklogRoute =
+    activeKey !== undefined && pathname.toUpperCase() === `/B/${activeKey}`;
+  const allItemsHref = onActiveBacklogRoute
+    ? viewUrl.href(clearActiveBacklogViewParams)
+    : context.allItemsHref;
 
   return (
     <div
@@ -94,11 +102,21 @@ export function Sidebar({
 
       <div className="mt-2 flex flex-col gap-0.5">
         <NavLink
-          href={context.allItemsHref}
+          href={allItemsHref}
           active={context.activeNav === "all"}
           ariaLabel={`Tous les items ${allCount}`}
           collapsed={collapsed}
           title={collapsed ? "Tous les items" : undefined}
+          onNavigate={
+            onActiveBacklogRoute
+              ? (event) => {
+                  event.preventDefault();
+                  viewUrl.push(clearActiveBacklogViewParams, {
+                    authoritative: true,
+                  });
+                }
+              : undefined
+          }
         >
           <Layers className="size-4" />
           <span

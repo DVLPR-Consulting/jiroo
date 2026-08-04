@@ -32,7 +32,6 @@ import { getViewById } from "@/lib/services/views";
 import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
 import { ViewBar } from "@/components/shell/view-bar";
 import { GroupControl } from "@/components/shell/group-control";
-import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewActions } from "@/components/shell/view-actions";
 import { ItemList } from "@/components/items/item-list";
@@ -40,25 +39,41 @@ import { ItemBoard } from "@/components/items/item-board";
 import { ItemTree } from "@/components/items/item-tree";
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
 import { NewItemButton } from "@/components/items/new-item-dialog";
+import {
+  firstSearchParam,
+  type RawSearchParams,
+  type ViewUrlEntry,
+} from "@/lib/items/view-url-params";
+
+const VIEW_STATE_PARAM_KEYS = [
+  "q",
+  "type",
+  "status",
+  "prio",
+  "assignee",
+  "label",
+  "kind",
+  "under",
+  "group",
+  "sort",
+] as const;
 
 export default async function BacklogPage({
   params,
   searchParams,
 }: {
   params: Promise<{ key: string }>;
-  searchParams: Promise<Record<string, string | undefined>>;
+  searchParams: Promise<RawSearchParams>;
 }) {
   const { key } = await params;
   const sp = await searchParams;
-  const itemKey = sp.item;
-  const rawView = sp.view;
-  const viewState = parseViewState(
-    new URLSearchParams(
-      Object.entries(sp).filter(
-        (entry): entry is [string, string] => entry[1] != null,
-      ),
-    ),
-  );
+  const itemKey = firstSearchParam(sp.item);
+  const rawView = firstSearchParam(sp.view);
+  const viewStateEntries: ViewUrlEntry[] = VIEW_STATE_PARAM_KEYS.flatMap((name) => {
+    const value = firstSearchParam(sp[name]);
+    return value === undefined ? [] : [[name, value]];
+  });
+  const viewState = parseViewState(new URLSearchParams(viewStateEntries));
 
   const session = await getSession();
   const userId = session?.user.id ?? "";
@@ -73,7 +88,7 @@ export default async function BacklogPage({
 
   // Load and validate the active saved view from ?v=.
   // A stale, foreign, or inaccessible view id is silently treated as "no active view".
-  const v = sp.v;
+  const v = firstSearchParam(sp.v);
   const rawActiveView = v ? await getViewById(v) : null;
   const activeViewRow =
     rawActiveView &&
@@ -297,14 +312,6 @@ export default async function BacklogPage({
   const detail = itemKey ? await getItemByKey(itemKey) : null;
   const showPanel = detail && detail.backlogId === backlog.id;
 
-  // Build currentParams: skip undefined and array values — bar always writes CSV params.
-  const currentParams: Record<string, string> = Object.fromEntries(
-    Object.entries(sp).filter(
-      (entry): entry is [string, string] =>
-        typeof entry[1] === "string",
-    ),
-  );
-
   // Reuse the already-fetched backlogLabelRows for the detail panel (avoids a second DB round-trip).
   const [activities, itemLabelIds, comments, links, refs] = showPanel
     ? await Promise.all([
@@ -329,18 +336,13 @@ export default async function BacklogPage({
       : statusList;
 
   return (
-    <ViewUrlStateProvider currentParams={currentParams}>
-      <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col">
       <ViewBar
         view={view}
-        backlogKey={key}
-        itemKey={itemKey}
-        params={currentParams}
         groupControlSlot={
           <GroupControl
             view={view as DisplayMode}
             state={viewState}
-            currentParams={currentParams}
           />
         }
         viewActionsSlot={
@@ -358,7 +360,6 @@ export default async function BacklogPage({
             filters={viewState.filters}
             group={viewState.group}
             sort={viewState.sort}
-            currentParams={currentParams}
           />
         }
         newItemSlot={
@@ -370,7 +371,6 @@ export default async function BacklogPage({
       />
       <FilterBar
         state={viewState}
-        currentParams={currentParams}
         statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}
         users={usersForFilter.map((u) => ({ id: u.id, name: u.name }))}
         labels={backlogLabelRows.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
@@ -401,7 +401,6 @@ export default async function BacklogPage({
           backlogKey={key}
           selectedKey={itemKey}
           currentSort={viewState.sort}
-          currentParams={currentParams}
         />
       )}
       {view === "board" && (
@@ -414,7 +413,6 @@ export default async function BacklogPage({
           groupLabels={groupLabels}
           moveItemAction={moveItemAction}
           createDialogProps={createDialogProps}
-          params={currentParams}
         />
       )}
       {view === "tree" && (
@@ -426,7 +424,6 @@ export default async function BacklogPage({
           contextIds={[...contextIds]}
           reparentItemAction={reparentItemAction}
           moveItemAction={moveItemAction}
-          params={currentParams}
         />
       )}
       {showPanel && (
@@ -445,7 +442,6 @@ export default async function BacklogPage({
           refs={refs}
         />
       )}
-      </div>
-    </ViewUrlStateProvider>
+    </div>
   );
 }

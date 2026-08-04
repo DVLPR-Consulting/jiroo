@@ -34,7 +34,7 @@ function renderControl(
   currentParams: Record<string, string>,
 ) {
   return render(
-    <ViewUrlStateProvider currentParams={currentParams}>
+    <ViewUrlStateProvider initialEntries={Object.entries(currentParams)}>
       {control}
     </ViewUrlStateProvider>,
   );
@@ -59,7 +59,6 @@ describe("GroupControl", () => {
       <GroupControl
         view="board"
         state={emptyState}
-        currentParams={currentParams}
       />,
       currentParams,
     );
@@ -83,7 +82,6 @@ describe("GroupControl", () => {
       <GroupControl
         view="board"
         state={emptyState}
-        currentParams={currentParams}
       />,
       currentParams,
     );
@@ -108,7 +106,6 @@ describe("GroupControl", () => {
       <GroupControl
         view="list"
         state={{ ...emptyState, group: "status" }}
-        currentParams={currentParams}
       />,
       currentParams,
     );
@@ -130,7 +127,6 @@ describe("GroupControl", () => {
       <GroupControl
         view="tree"
         state={{ ...emptyState, group: "component" }}
-        currentParams={currentParams}
       />,
       currentParams,
     );

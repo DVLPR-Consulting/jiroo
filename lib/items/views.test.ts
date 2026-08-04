@@ -4,6 +4,8 @@ import {
   columnsToViewState,
   isViewDirty,
   buildViewUrl,
+  applySavedViewParams,
+  clearActiveBacklogViewParams,
   createViewInput,
   updateViewStateInput,
   renameViewInput,
@@ -429,6 +431,42 @@ describe("buildViewUrl", () => {
     const url1 = buildViewUrl(view, "/backlogs/b1");
     const url2 = buildViewUrl(view, "/backlogs/b1");
     expect(url1).toBe(url2);
+  });
+});
+
+describe("saved-view URL mutations", () => {
+  const staleParams = () =>
+    new URLSearchParams(
+      "q=old&type=epic&status=old&prio=4&assignee=old&label=old" +
+        "&kind=bug&under=old&group=status&sort=title%3Adesc" +
+        "&view=tree&v=view-old&item=DEMO-1&tag=a&tag=b",
+    );
+
+  it("replaces every known saved-view key and closes the selected item", () => {
+    const params = staleParams();
+
+    applySavedViewParams(params, {
+      id: "view-abc",
+      state: full,
+      displayMode: "list",
+    });
+
+    expect(params.toString()).toBe(
+      "tag=a&tag=b&q=bug&type=tache&status=s1%2Cs2&prio=0%2C2" +
+        "&assignee=u1%2Cnone&group=priority&sort=dueDate%3Aasc" +
+        "&view=list&v=view-abc",
+    );
+    expect(params.has("item")).toBe(false);
+    expect(params.getAll("tag")).toEqual(["a", "b"]);
+  });
+
+  it("clears all active-backlog view state without dropping unrelated repeats", () => {
+    const params = staleParams();
+
+    clearActiveBacklogViewParams(params);
+
+    expect(params.toString()).toBe("tag=a&tag=b");
+    expect(params.getAll("tag")).toEqual(["a", "b"]);
   });
 });
 

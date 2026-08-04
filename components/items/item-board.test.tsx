@@ -2,16 +2,23 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemBoard } from "@/components/items/item-board";
+import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
 const mocks = vi.hoisted(() => ({
   createItemAction: vi.fn(),
   push: vi.fn(),
   refresh: vi.fn(),
+  replace: vi.fn(),
   updateItemAction: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }),
+  usePathname: () => "/b/DEMO",
+  useRouter: () => ({
+    push: mocks.push,
+    refresh: mocks.refresh,
+    replace: mocks.replace,
+  }),
 }));
 
 vi.mock("@/app/actions/items", () => ({
@@ -49,8 +56,14 @@ const editableCard = {
   componentId: "component-platform",
 };
 
-function renderEditableCard(moveItemAction = vi.fn()) {
+function renderBoard(board: React.ReactElement) {
   return render(
+    <ViewUrlStateProvider initialEntries={[]}>{board}</ViewUrlStateProvider>,
+  );
+}
+
+function renderEditableCard(moveItemAction = vi.fn()) {
+  return renderBoard(
     <ItemBoard
       backlogKey="DEMO"
       items={[editableCard]}
@@ -69,11 +82,12 @@ describe("ItemBoard", () => {
     mocks.createItemAction.mockReset();
     mocks.push.mockReset();
     mocks.refresh.mockReset();
+    mocks.replace.mockReset();
     mocks.updateItemAction.mockReset();
   });
 
   it("places cards in their component lane and uses the unassigned fallback lane", () => {
-    render(
+    renderBoard(
       <ItemBoard
         backlogKey="DEMO"
         items={[
@@ -138,7 +152,7 @@ describe("ItemBoard", () => {
 
   it("opens each column create dialog with that column status selected", async () => {
     const user = userEvent.setup();
-    render(
+    renderBoard(
       <ItemBoard
         backlogKey="DEMO"
         items={[]}
@@ -164,7 +178,7 @@ describe("ItemBoard", () => {
   });
 
   it("maps UUID status metadata to canonical column-header icons", () => {
-    render(
+    renderBoard(
       <ItemBoard
         backlogKey="DEMO"
         items={[]}
@@ -200,7 +214,7 @@ describe("ItemBoard", () => {
       { id: "44444444-4444-4444-8444-444444444444", name: "Terminé", color: "#3a7", category: "done" as const, order: 3 },
     ];
 
-    render(
+    renderBoard(
       <ItemBoard
         backlogKey="DEMO"
         items={[]}

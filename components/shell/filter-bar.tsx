@@ -40,7 +40,6 @@ export function FilterBar({
   resultCount,
 }: {
   state: ViewState;
-  currentParams: Record<string, string>;
   statuses: StatusOpt[];
   users: UserOpt[];
   labels: LabelOpt[];
@@ -72,7 +71,12 @@ export function FilterBar({
   const qTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const scheduleQ = (value: string) => {
     clearTimeout(qTimer.current);
-    qTimer.current = setTimeout(() => setFilters({ q: value }), 300);
+    const scheduledAtRevision = viewUrl.getExternalRevision();
+    qTimer.current = setTimeout(() => {
+      if (viewUrl.getExternalRevision() === scheduledAtRevision) {
+        setFilters({ q: value });
+      }
+    }, 300);
   };
   useEffect(() => () => clearTimeout(qTimer.current), []);
 

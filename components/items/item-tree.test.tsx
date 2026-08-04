@@ -2,13 +2,16 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemTree } from "@/components/items/item-tree";
+import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
+  replace: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mocks.push }),
+  usePathname: () => "/b/DEMO",
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
 
 const reviewStatusId = "33333333-3333-4333-8333-333333333333";
@@ -72,19 +75,21 @@ const item = {
 describe("ItemTree", () => {
   beforeEach(() => {
     mocks.push.mockReset();
+    mocks.replace.mockReset();
   });
 
   it("renders complete row metadata without changing row opening or drag protocol", async () => {
     const user = userEvent.setup();
     render(
-      <ItemTree
-        backlogKey="DEMO"
-        items={[item]}
-        statuses={statuses}
-        reparentItemAction={vi.fn()}
-        moveItemAction={vi.fn()}
-        params={{ view: "tree", q: "auth" }}
-      />,
+      <ViewUrlStateProvider initialEntries={[["view", "tree"], ["q", "auth"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[item]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+        />
+      </ViewUrlStateProvider>,
     );
 
     expect(screen.getByRole("img", { name: "Urgent" })).toBeVisible();

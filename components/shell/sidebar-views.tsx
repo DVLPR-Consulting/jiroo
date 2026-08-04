@@ -3,7 +3,12 @@
 import { useParams, useSearchParams } from "next/navigation";
 import { User, Users } from "lucide-react";
 import { NavLink } from "@/components/shell/nav-link";
-import { partitionViews, columnsToViewState, buildViewUrl } from "@/lib/items/views";
+import { useViewUrlState } from "@/components/shell/view-url-state";
+import {
+  partitionViews,
+  columnsToViewState,
+  applySavedViewParams,
+} from "@/lib/items/views";
 
 // ---------------------------------------------------------------------------
 // SidebarViewRow
@@ -78,7 +83,6 @@ export function SidebarViews({
             <ViewLink
               key={v.id}
               view={v}
-              basePath={`/b/${activeBacklog.key}`}
               isActive={v.id === activeViewId}
             />
           ))
@@ -98,7 +102,6 @@ export function SidebarViews({
             <ViewLink
               key={v.id}
               view={v}
-              basePath={`/b/${activeBacklog.key}`}
               isActive={v.id === activeViewId}
             />
           ))
@@ -114,20 +117,25 @@ export function SidebarViews({
 
 function ViewLink({
   view,
-  basePath,
   isActive,
 }: {
   view: SidebarViewRow;
-  basePath: string;
   isActive: boolean;
 }) {
+  const viewUrl = useViewUrlState();
   const { state, displayMode } = columnsToViewState(view);
-  const href = buildViewUrl({ id: view.id, state, displayMode }, basePath);
+  const applyView = (params: URLSearchParams) =>
+    applySavedViewParams(params, { id: view.id, state, displayMode });
+  const href = viewUrl.href(applyView);
 
   return (
     <NavLink
       href={href}
       active={isActive}
+      onNavigate={(event) => {
+        event.preventDefault();
+        viewUrl.push(applyView, { authoritative: true });
+      }}
     >
       <span className="truncate">{view.name}</span>
     </NavLink>
