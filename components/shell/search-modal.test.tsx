@@ -197,6 +197,31 @@ describe("SearchModal item navigation", () => {
     expect(screen.getByRole("img", { name: "Marie Dupont" })).toBeInTheDocument();
   });
 
+  it("highlights a key-only query in the matching result", async () => {
+    renderSubject();
+
+    const option = await revealResult({
+      ...demoResult,
+      key: "CASS-39",
+      title: "Titre sans correspondance",
+    });
+
+    expect(option.querySelector(".item-key mark")).toHaveTextContent("CASS-39");
+  });
+
+  it("opens and closes the palette with Command/Ctrl+K", () => {
+    renderSubject();
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    expect(screen.getByRole("dialog")).toBeVisible();
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    expect(screen.getByRole("dialog")).toBeVisible();
+  });
+
   it("restores recent rows after the query is cleared", async () => {
     localStorage.setItem("jiroo-recent-items", JSON.stringify(["DEMO-2"]));
     mocks.recentItemsAction.mockResolvedValue({

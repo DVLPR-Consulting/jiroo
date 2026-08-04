@@ -13,7 +13,6 @@ import {
 import { TypeIcon } from "@/components/icons/type-icon";
 import { StatusDot } from "@/components/icons/status-dot";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
-import { ItemKey } from "@/components/jiroo/item-key";
 import { useBacklogItemNavigation } from "@/components/shell/use-backlog-item-navigation";
 import type { ItemType, StatusId } from "@/lib/design/constants";
 import {
@@ -25,7 +24,7 @@ import {
 // ---------------------------------------------------------------------------
 // Highlight helper
 //
-// Splits `title` at positions that match any term in `query` (case- and
+// Splits `value` at positions that match any term in `query` (case- and
 // accent-insensitive), wrapping matched substrings in a <mark> element.
 // Operates on plain strings and builds React nodes — no dangerouslySetInnerHTML.
 // ---------------------------------------------------------------------------
@@ -34,36 +33,36 @@ function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
 }
 
-function highlightTitle(title: string, query: string): React.ReactNode {
+function highlightMatches(value: string, query: string): React.ReactNode {
   const terms = query
     .trim()
     .split(/\s+/)
     .filter(Boolean)
     .sort((a, b) => b.length - a.length); // longest first for greedy matching
 
-  if (terms.length === 0) return title;
+  if (terms.length === 0) return value;
 
   // Build a regex that matches any term (case- and accent-insensitive via
   // normalized comparison). We iterate character-by-character to avoid regex
   // issues with accented characters in character classes.
-  const normTitle = normalize(title);
+  const normalizedValue = normalize(value);
   const segments: React.ReactNode[] = [];
   let cursor = 0;
 
-  while (cursor < title.length) {
+  while (cursor < value.length) {
     let matched = false;
     for (const term of terms) {
       const normTerm = normalize(term);
       if (normTerm.length === 0) continue;
-      // Check if normTitle at cursor starts with normTerm
-      if (normTitle.startsWith(normTerm, cursor)) {
-        // Push the highlighted segment (original casing from title)
+      // Check if the normalized value at cursor starts with normTerm.
+      if (normalizedValue.startsWith(normTerm, cursor)) {
+        // Push the highlighted segment with its original casing.
         segments.push(
           <mark
             key={cursor}
             className="bg-transparent font-semibold text-foreground"
           >
-            {title.slice(cursor, cursor + normTerm.length)}
+            {value.slice(cursor, cursor + normTerm.length)}
           </mark>,
         );
         cursor += normTerm.length;
@@ -73,14 +72,14 @@ function highlightTitle(title: string, query: string): React.ReactNode {
     }
     if (!matched) {
       // Accumulate plain text — find the next match start
-      let nextMatch = title.length;
+      let nextMatch = value.length;
       for (const term of terms) {
         const normTerm = normalize(term);
         if (normTerm.length === 0) continue;
-        const idx = normTitle.indexOf(normTerm, cursor);
+        const idx = normalizedValue.indexOf(normTerm, cursor);
         if (idx !== -1 && idx < nextMatch) nextMatch = idx;
       }
-      segments.push(title.slice(cursor, nextMatch));
+      segments.push(value.slice(cursor, nextMatch));
       cursor = nextMatch;
     }
   }
@@ -135,7 +134,11 @@ export function SearchModal() {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setOpen(true);
+        setOpen((current) => !current);
+        setQuery("");
+        setResponse({ requestId: 0, query: "", results: [] });
+        setActiveIndex(0);
+        latestRequestRef.current += 1;
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -346,11 +349,13 @@ export function SearchModal() {
                       <TypeIcon type={r.type as ItemType} />
 
                       {/* Item key */}
-                      <ItemKey value={r.key} />
+                      <span className="item-key">
+                        {highlightMatches(r.key, query)}
+                      </span>
 
                       {/* Title with highlight */}
                       <span className="min-w-0 flex-1 truncate text-sm">
-                        {highlightTitle(r.title, query)}
+                        {highlightMatches(r.title, query)}
                       </span>
 
                       {/* Backlog badge */}
