@@ -1,6 +1,8 @@
-import { and, asc, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { user } from "@/lib/db/schema/auth";
 import { backlogs, items, statuses } from "@/lib/db/schema/domain";
+import { readRecentKeys } from "@/lib/items/recent";
 import { isBlankQuery, toPrefixTsQuery } from "@/lib/items/search";
 
 // ---------------------------------------------------------------------------
@@ -16,6 +18,7 @@ export type SearchResult = {
   statusId: string;
   statusName: string;
   statusColor: string;
+  assigneeName: string | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -68,10 +71,12 @@ export async function searchItems(rawQuery: string, limit = 20): Promise<SearchR
       statusId: statuses.id,
       statusName: statuses.name,
       statusColor: statuses.color,
+      assigneeName: user.name,
     })
     .from(items)
     .innerJoin(backlogs, sql`${items.backlogId} = ${backlogs.id}`)
     .innerJoin(statuses, sql`${items.statusId} = ${statuses.id}`)
+    .leftJoin(user, eq(items.assigneeId, user.id))
     .where(and(isNull(items.deletedAt), textOrKeyCondition))
     .limit(limit);
 
@@ -85,4 +90,40 @@ export async function searchItems(rawQuery: string, limit = 20): Promise<SearchR
     sql`ts_rank(${items.search}, to_tsquery('french', ${tsq})) desc`,
     asc(items.key),
   );
+}
+
+export async function recentItems(keys: string[]): Promise<SearchResult[]> {
+  // Keep this DAL primitive bounded even when called outside its server action.
+  const requestedKeys = readRecentKeys(JSON.stringify(keys));
+  if (requestedKeys.length === 0) return [];
+
+  const rows = await db
+    .select({
+      id: items.id,
+      key: items.key,
+      type: items.type,
+      title: items.title,
+      backlogKey: backlogs.key,
+      statusId: statuses.id,
+      statusName: statuses.name,
+      statusColor: statuses.color,
+      assigneeName: user.name,
+    })
+    .from(items)
+    .innerJoin(backlogs, eq(items.backlogId, backlogs.id))
+    .innerJoin(statuses, eq(items.statusId, statuses.id))
+    .leftJoin(user, eq(items.assigneeId, user.id))
+    .where(
+      and(
+        inArray(items.key, requestedKeys),
+        isNull(items.deletedAt),
+        isNull(backlogs.archivedAt),
+      ),
+    );
+
+  const byKey = new Map(rows.map((row) => [row.key, row]));
+  return requestedKeys.flatMap((key) => {
+    const row = byKey.get(key);
+    return row ? [row] : [];
+  });
 }

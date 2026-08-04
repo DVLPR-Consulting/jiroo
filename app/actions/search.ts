@@ -1,7 +1,12 @@
 "use server";
 
 import { getSession } from "@/lib/auth/session";
-import { searchItems } from "@/lib/services/search";
+import { recentItems, searchItems } from "@/lib/services/search";
+import { z } from "zod";
+
+const recentKeysSchema = z
+  .array(z.string().regex(/^[A-Z]{2,6}-\d+$/))
+  .max(8);
 
 // ---------------------------------------------------------------------------
 // Auth helper — any authenticated user may search (global RBAC)
@@ -25,6 +30,20 @@ export async function searchAction(query: string) {
   await requireUser();
   try {
     return { ok: true as const, results: await searchItems(query) };
+  } catch {
+    return { ok: false as const, error: "Recherche impossible." };
+  }
+}
+
+export async function recentItemsAction(keys: string[]) {
+  await requireUser();
+  const parsed = recentKeysSchema.safeParse(keys);
+  if (!parsed.success) {
+    return { ok: false as const, error: "Recherche impossible." };
+  }
+
+  try {
+    return { ok: true as const, results: await recentItems(parsed.data) };
   } catch {
     return { ok: false as const, error: "Recherche impossible." };
   }

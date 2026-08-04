@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   replace: vi.fn(),
   refresh: vi.fn(),
+  recentItemsAction: vi.fn(),
   searchAction: vi.fn(),
 }));
 
@@ -29,6 +30,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/app/actions/search", () => ({
+  recentItemsAction: mocks.recentItemsAction,
   searchAction: mocks.searchAction,
 }));
 
@@ -56,6 +58,15 @@ const demoResult: SearchResult = {
   statusId: "ready",
   statusName: "Prêt",
   statusColor: "#999999",
+  assigneeName: null,
+};
+
+const recentResult: SearchResult = {
+  ...demoResult,
+  id: "item-demo-2",
+  key: "DEMO-2",
+  title: "Relire les récents",
+  assigneeName: "Marie Dupont",
 };
 
 const initialEntries: [string, string][] = [
@@ -130,10 +141,113 @@ describe("SearchModal item navigation", () => {
     mocks.push.mockReset();
     mocks.replace.mockReset();
     mocks.refresh.mockReset();
+    mocks.recentItemsAction.mockReset();
+    mocks.recentItemsAction.mockResolvedValue({ ok: true, results: [] });
     mocks.searchAction.mockReset();
+    localStorage.clear();
+  });
+
+  it("loads at most eight valid recent keys and renders their assignee", async () => {
+    localStorage.setItem(
+      "jiroo-recent-items",
+      JSON.stringify([
+        "DEMO-10",
+        "DEMO-9",
+        "DEMO-8",
+        "DEMO-7",
+        "DEMO-6",
+        "DEMO-5",
+        "DEMO-4",
+        "DEMO-3",
+        "DEMO-2",
+        "DEMO-10",
+        "demo-1",
+        { key: "DEMO-1", title: "Private title" },
+      ]),
+    );
+    mocks.recentItemsAction.mockResolvedValueOnce({
+      ok: true,
+      results: [recentResult],
+    });
+
+    renderSubject();
+    fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+    await act(async () => {});
+
+    expect(mocks.recentItemsAction).toHaveBeenCalledWith([
+      "DEMO-10",
+      "DEMO-9",
+      "DEMO-8",
+      "DEMO-7",
+      "DEMO-6",
+      "DEMO-5",
+      "DEMO-4",
+      "DEMO-3",
+    ]);
+    expect(screen.getByRole("heading", { name: "Récents" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /DEMO-2/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Marie Dupont" })).toBeInTheDocument();
+  });
+
+  it("restores recent rows after the query is cleared", async () => {
+    localStorage.setItem("jiroo-recent-items", JSON.stringify(["DEMO-2"]));
+    mocks.recentItemsAction.mockResolvedValue({
+      ok: true,
+      results: [recentResult],
+    });
+    mocks.searchAction.mockResolvedValueOnce({ ok: true, results: [demoResult] });
+
+    renderSubject();
+    fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+    await act(async () => {});
+
+    const input = screen.getByRole("textbox", { name: "Rechercher" });
+    fireEvent.change(input, { target: { value: "DEMO-1" } });
+    await act(async () => vi.advanceTimersByTime(150));
+    expect(screen.getByRole("option", { name: /DEMO-1/ })).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "" } });
+    await act(async () => {});
+
+    expect(mocks.recentItemsAction).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("heading", { name: "Récents" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /DEMO-2/ })).toBeInTheDocument();
+  });
+
+  it("records a recent keyboard selection before preserving URL navigation", async () => {
+    localStorage.setItem("jiroo-recent-items", JSON.stringify(["DEMO-2", "DEMO-1"]));
+    mocks.recentItemsAction.mockResolvedValueOnce({
+      ok: true,
+      results: [recentResult],
+    });
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+
+    renderSubject();
+    fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+    await act(async () => {});
+    setItem.mockClear();
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Rechercher" }), {
+      key: "Enter",
+    });
+
+    expect(localStorage.getItem("jiroo-recent-items")).toBe(
+      JSON.stringify(["DEMO-2", "DEMO-1"]),
+    );
+    expect(setItem).toHaveBeenCalledWith(
+      "jiroo-recent-items",
+      JSON.stringify(["DEMO-2", "DEMO-1"]),
+    );
+    expect(setItem.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.push.mock.invocationCallOrder[0]!,
+    );
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/b/DEMO?view=board&v=saved&group=component&type=tache&tag=a&tag=b&item=DEMO-2",
+    );
+    setItem.mockRestore();
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 

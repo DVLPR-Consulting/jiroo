@@ -1,4 +1,5 @@
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
+import { RecentItemTracker } from "@/components/items/recent-item-tracker";
 import type { ItemType } from "@/lib/design/constants";
 import { getBacklogByKey } from "@/lib/services/backlogs";
 import { listComments } from "@/lib/services/comments";
@@ -60,19 +61,22 @@ export async function ItemDetailContent({
   }));
 
   return (
-    <ItemDetailPanel
-      detail={detail}
-      activities={activities}
-      comments={comments}
-      currentUserId={currentUserId}
-      itemLabelIds={itemLabelIds}
-      backlogLabels={labels}
-      users={users}
-      statuses={statuses}
-      backlogKey={backlog.key}
-      links={links}
-      candidates={candidates}
-      refs={refs}
-    />
+    <>
+      <RecentItemTracker itemKey={detail.key} />
+      <ItemDetailPanel
+        detail={detail}
+        activities={activities}
+        comments={comments}
+        currentUserId={currentUserId}
+        itemLabelIds={itemLabelIds}
+        backlogLabels={labels}
+        users={users}
+        statuses={statuses}
+        backlogKey={backlog.key}
+        links={links}
+        candidates={candidates}
+        refs={refs}
+      />
+    </>
   );
 }

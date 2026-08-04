@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Search } from "lucide-react";
-import { searchAction } from "@/app/actions/search";
+import { recentItemsAction, searchAction } from "@/app/actions/search";
 import type { SearchResult } from "@/lib/services/search";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,9 +12,15 @@ import {
 } from "@/components/ui/dialog";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { StatusDot } from "@/components/icons/status-dot";
+import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { useBacklogItemNavigation } from "@/components/shell/use-backlog-item-navigation";
 import type { ItemType, StatusId } from "@/lib/design/constants";
+import {
+  readRecentKeys,
+  RECENT_ITEMS_STORAGE_KEY,
+  recordRecentKey,
+} from "@/lib/items/recent";
 
 // ---------------------------------------------------------------------------
 // Highlight helper
@@ -82,6 +88,23 @@ function highlightTitle(title: string, query: string): React.ReactNode {
   return <>{segments}</>;
 }
 
+function storedRecentKeys(): string[] {
+  try {
+    return readRecentKeys(localStorage.getItem(RECENT_ITEMS_STORAGE_KEY));
+  } catch {
+    return [];
+  }
+}
+
+function recordRecentItem(key: string): void {
+  try {
+    const keys = recordRecentKey(storedRecentKeys(), key);
+    localStorage.setItem(RECENT_ITEMS_STORAGE_KEY, JSON.stringify(keys));
+  } catch {
+    // Browser storage may be unavailable (privacy mode, policy, or quota).
+  }
+}
+
 // ---------------------------------------------------------------------------
 // SearchModal
 // ---------------------------------------------------------------------------
@@ -90,14 +113,15 @@ export function SearchModal() {
   const openBacklogItem = useBacklogItemNavigation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [response, setResponse] = useState<{
+    query: string;
+    results: SearchResult[];
+  }>({ query: "", results: [] });
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPending, startTransition] = useTransition();
 
-  // Stale-response guard: track the latest query string that was dispatched.
-  // When a response arrives, we compare its associated query to the ref value;
-  // if they don't match the response is for an older request and is discarded.
-  const latestQueryRef = useRef<string>("");
+  // Stale-response guard shared by recent and text-search requests.
+  const latestRequestRef = useRef(0);
 
   // Refs for scrolling active row into view
   const rowRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -118,75 +142,68 @@ export function SearchModal() {
   }, []);
 
   // -------------------------------------------------------------------------
-  // Debounced search — fires ~150 ms after the query stabilises.
-  //
-  // When query is blank we skip the action entirely; `displayResults` below
-  // is derived from both `query` and `results` so no setState is needed in
-  // the blank-query branch (avoids the react-hooks/set-state-in-effect lint
-  // error that fires when setState is called synchronously inside an effect).
+  // Blank queries resolve recent keys immediately. Text search remains
+  // debounced by ~150 ms. A monotonic request id discards responses made stale
+  // by typing, clearing, closing, or reopening the dialog.
   // -------------------------------------------------------------------------
 
   useEffect(() => {
-    const trimmed = query.trim();
+    if (!open) return;
 
-    // Blank query: update the stale-guard ref and let the timer expire so
-    // any in-flight response is discarded. State is not reset here — instead
-    // we derive `displayResults` from `query` in the render path below.
+    const trimmed = query.trim();
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
+
     if (!trimmed) {
-      latestQueryRef.current = "";
+      startTransition(async () => {
+        const res = await recentItemsAction(storedRecentKeys());
+        if (latestRequestRef.current !== requestId) return;
+
+        setResponse({ query: "", results: res.ok ? res.results : [] });
+        setActiveIndex(0);
+      });
       return;
     }
 
-    // Capture the query string this effect "owns"
     const thisQuery = trimmed;
-    latestQueryRef.current = thisQuery;
 
     const timer = setTimeout(() => {
-      // Bail out if a newer keystroke has already taken over
-      if (latestQueryRef.current !== thisQuery) return;
+      if (latestRequestRef.current !== requestId) return;
 
       startTransition(async () => {
         const res = await searchAction(thisQuery);
+        if (latestRequestRef.current !== requestId) return;
 
-        // Stale-response guard: discard if the user has typed further
-        if (latestQueryRef.current !== thisQuery) return;
-
-        if (res.ok) {
-          setResults(res.results);
-          setActiveIndex(0);
-        } else {
-          setResults([]);
-          setActiveIndex(0);
-        }
+        setResponse({ query: thisQuery, results: res.ok ? res.results : [] });
+        setActiveIndex(0);
       });
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [open, query]);
 
   // Reset row refs array length whenever results change (no setState — safe)
   useEffect(() => {
-    rowRefs.current = rowRefs.current.slice(0, results.length);
-  }, [results]);
+    rowRefs.current = rowRefs.current.slice(0, response.results.length);
+  }, [response.results]);
 
   // -------------------------------------------------------------------------
   // Derived state
   //
-  // When the query is blank we never call setResults([]) inside the effect
-  // (that would trip react-hooks/set-state-in-effect), so the previous
-  // `results` state may still hold stale rows. `displayResults` is the single
-  // source of truth for what is shown AND for keyboard navigation: blank query
-  // → empty list, so Enter/Arrow keys can never act on stale rows.
+  // Results carry the query that produced them. This keeps keyboard navigation
+  // from acting on stale recent/search rows while a new request is pending.
   // -------------------------------------------------------------------------
 
-  const isBlank = query.trim() === "";
-  const displayResults = isBlank ? [] : results;
+  const currentQuery = query.trim();
+  const isBlank = currentQuery === "";
+  const displayResults = response.query === currentQuery ? response.results : [];
 
   // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
 
   function openResult(r: SearchResult) {
+    recordRecentItem(r.key);
     openBacklogItem(r.backlogKey, r.key);
     handleClose();
   }
@@ -194,9 +211,9 @@ export function SearchModal() {
   function handleClose() {
     setOpen(false);
     setQuery("");
-    setResults([]);
+    setResponse({ query: "", results: [] });
     setActiveIndex(0);
-    latestQueryRef.current = "";
+    latestRequestRef.current += 1;
   }
 
   function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -237,6 +254,7 @@ export function SearchModal() {
 
       <Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : handleClose())}>
         <DialogContent
+          aria-describedby={undefined}
           showCloseButton={false}
           className="top-[20%] -translate-y-0 p-0 sm:max-w-lg gap-0 overflow-hidden"
         >
@@ -271,24 +289,23 @@ export function SearchModal() {
             aria-label="Résultats de recherche"
             className="max-h-[360px] overflow-y-auto"
           >
-            {/* Blank state */}
             {isBlank && (
-              <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-                Tapez pour rechercher (titre, description, clé).
-              </p>
+              <h2 className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Récents
+              </h2>
             )}
 
             {/* Pending state */}
-            {!isBlank && isPending && displayResults.length === 0 && (
+            {isPending && displayResults.length === 0 && (
               <p className="px-4 py-4 text-center text-sm text-muted-foreground">
-                Recherche…
+                {isBlank ? "Chargement…" : "Recherche…"}
               </p>
             )}
 
             {/* No results */}
-            {!isBlank && !isPending && displayResults.length === 0 && (
+            {!isPending && displayResults.length === 0 && (
               <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-                Aucun résultat.
+                {isBlank ? "Aucun item récent." : "Aucun résultat."}
               </p>
             )}
 
@@ -327,6 +344,10 @@ export function SearchModal() {
                       <span className="rounded bg-[var(--muted)] px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                         {r.backlogKey}
                       </span>
+
+                      {r.assigneeName && (
+                        <InitialsAvatar name={r.assigneeName} hue={3} size={22} />
+                      )}
 
                       {/* Status dot + name */}
                       <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
