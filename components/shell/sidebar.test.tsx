@@ -87,7 +87,7 @@ describe("Sidebar", () => {
     );
   });
 
-  it("renders one expanded brand and one collapse icon", () => {
+  it("renders the wordmark with one standard collapse chevron", () => {
     renderSidebar();
 
     const brand = screen.getByLabelText("Jiroo");
@@ -97,6 +97,8 @@ describe("Sidebar", () => {
 
     expect(brand).toHaveTextContent(/^Jiroo$/);
     expect(toggle.querySelectorAll("svg")).toHaveLength(1);
+    expect(toggle.querySelector(".lucide-chevron-left")).toBeInTheDocument();
+    expect(toggle).toHaveClass("size-8");
     expect(screen.getByText("Vues perso")).toBeInTheDocument();
   });
 
@@ -104,13 +106,15 @@ describe("Sidebar", () => {
     document.documentElement.dataset.sidebar = "collapsed";
     renderSidebar();
 
-    const brand = screen.getByLabelText("Jiroo");
     const toggle = screen.getByRole("button", {
       name: "Déplier la barre latérale",
     });
 
-    expect(brand).toHaveTextContent(/^J$/);
+    expect(screen.queryByLabelText("Jiroo")).not.toBeInTheDocument();
     expect(toggle.querySelectorAll("svg")).toHaveLength(1);
+    expect(toggle.querySelector(".lucide-chevron-right")).toBeInTheDocument();
+    expect(toggle).toHaveClass("size-8");
+    expect(toggle.parentElement).toHaveClass("justify-center");
     expect(screen.getByText("CASS")).toBeVisible();
     expect(screen.queryByText("Vues perso")).not.toBeInTheDocument();
     expect(screen.queryByText("Vues partagées")).not.toBeInTheDocument();

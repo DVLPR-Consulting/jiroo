@@ -2,9 +2,9 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import {
+  ChevronLeft,
+  ChevronRight,
   Layers,
-  PanelLeftClose,
-  PanelLeftOpen,
   Settings,
   Trash2,
   User,
@@ -67,34 +67,28 @@ export function Sidebar({
     >
       <div
         className={cn(
-          "flex items-center justify-between",
-          collapsed ? "" : "px-2 py-1",
+          "flex items-center",
+          collapsed ? "justify-center" : "justify-between px-2 py-1",
         )}
       >
-        <div
-          aria-label="Jiroo"
-          title={collapsed ? "Jiroo" : undefined}
-          className="t-h2 overflow-hidden font-semibold"
-        >
-          {collapsed ? (
-            <span aria-hidden="true">J</span>
-          ) : (
+        {!collapsed && (
+          <div aria-label="Jiroo" className="t-h2 overflow-hidden font-semibold">
             <span aria-hidden="true">
               Jir<span className="text-[var(--primary)]">oo</span>
             </span>
-          )}
-        </div>
+          </div>
+        )}
         <button
           type="button"
           onClick={toggle}
           aria-label={collapsed ? "Déplier la barre latérale" : "Replier la barre latérale"}
           title={collapsed ? "Déplier la barre latérale" : "Replier la barre latérale"}
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground"
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground"
         >
           {collapsed ? (
-            <PanelLeftOpen className="size-4" />
+            <ChevronRight className="size-4" />
           ) : (
-            <PanelLeftClose className="size-4" />
+            <ChevronLeft className="size-4" />
           )}
         </button>
       </div>
