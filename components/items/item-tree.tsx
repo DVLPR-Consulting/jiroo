@@ -144,6 +144,7 @@ type ItemTreeProps = {
   reparentItemAction: typeof ReparentItemAction;
   moveItemAction: typeof MoveItemAction;
   filtersActive?: boolean;
+  hasItems?: boolean;
   clearFiltersHref?: string;
   createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses">;
 };
@@ -157,6 +158,7 @@ export function ItemTree({
   reparentItemAction,
   moveItemAction,
   filtersActive = false,
+  hasItems,
   clearFiltersHref,
   createDialogProps,
 }: ItemTreeProps) {
@@ -432,18 +434,19 @@ export function ItemTree({
   }
 
   if (items.length === 0) {
+    const showNoResults = filtersActive && (hasItems ?? items.length > 0);
     return (
       <div className="grid flex-1 place-items-center p-10">
         <EmptyState
-          icon={filtersActive ? <SearchX className="size-5" /> : <Inbox className="size-5" />}
-          title={filtersActive ? "Aucun résultat" : "Aucun item"}
+          icon={showNoResults ? <SearchX className="size-5" /> : <Inbox className="size-5" />}
+          title={showNoResults ? "Aucun résultat" : "Aucun item"}
           description={
-            filtersActive
+            showNoResults
               ? "Aucun item ne correspond aux filtres actifs."
               : "Créez votre premier item pour commencer à organiser ce backlog."
           }
           action={
-            filtersActive ? (
+            showNoResults ? (
               clearFiltersHref ? (
                 <Link
                   className="text-sm font-medium text-primary underline-offset-4 hover:underline"

@@ -164,6 +164,7 @@ describe("ItemList", () => {
       ...listProps(),
       groups: [{ key: "", label: "", items: [] }],
       filtersActive: true,
+      hasItems: true,
       clearFiltersHref: "/b/DEMO?view=list",
     });
 
@@ -173,6 +174,27 @@ describe("ItemList", () => {
       "href",
       "/b/DEMO?view=list",
     );
+  });
+
+  it("keeps creation available when active filters belong to an empty backlog", async () => {
+    const user = userEvent.setup();
+    renderList({
+      ...listProps(),
+      groups: [{ key: "", label: "", items: [] }],
+      filtersActive: true,
+      hasItems: false,
+      clearFiltersHref: "/b/DEMO?view=list",
+      createDialogProps: {
+        backlogId: "backlog-id",
+        items: [],
+        statuses: [{ id: todoStatusId, name: "À faire" }],
+      },
+    });
+
+    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Effacer les filtres" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("renders the dense list as a semantic table with sticky column headers", () => {

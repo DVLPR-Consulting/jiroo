@@ -381,6 +381,7 @@ export async function BacklogViewContent({
           selectedKey={itemKey}
           currentSort={viewState.sort}
           filtersActive={filtersOn}
+          hasItems={items.length > 0}
           clearFiltersHref={clearFiltersHref}
           createDialogProps={createDialogProps}
         />
@@ -396,6 +397,7 @@ export async function BacklogViewContent({
           moveItemAction={moveItemAction}
           createDialogProps={createDialogProps}
           filtersActive={filtersOn}
+          hasItems={items.length > 0}
           clearFiltersHref={clearFiltersHref}
         />
       )}
@@ -409,6 +411,7 @@ export async function BacklogViewContent({
           reparentItemAction={reparentItemAction}
           moveItemAction={moveItemAction}
           filtersActive={filtersOn}
+          hasItems={items.length > 0}
           clearFiltersHref={clearFiltersHref}
           createDialogProps={createDialogProps}
         />

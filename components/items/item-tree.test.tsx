@@ -117,6 +117,7 @@ describe("ItemTree", () => {
           reparentItemAction={vi.fn()}
           moveItemAction={vi.fn()}
           filtersActive
+          hasItems
           clearFiltersHref="/b/DEMO?view=tree"
         />
       </ViewUrlStateProvider>,
@@ -128,6 +129,34 @@ describe("ItemTree", () => {
       "href",
       "/b/DEMO?view=tree",
     );
+  });
+
+  it("keeps creation available when active filters belong to an empty backlog", async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"], ["q", "missing"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          filtersActive
+          hasItems={false}
+          clearFiltersHref="/b/DEMO?view=tree"
+          createDialogProps={{
+            backlogId: "backlog-id",
+            items: [],
+            statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
+          }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Effacer les filtres" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("renders complete row metadata without changing row opening or drag protocol", async () => {

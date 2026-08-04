@@ -123,6 +123,7 @@ describe("ItemBoard", () => {
         moveItemAction={vi.fn()}
         createDialogProps={createDialogProps}
         filtersActive
+        hasItems
         clearFiltersHref="/b/DEMO?view=board"
       />,
     );
@@ -134,6 +135,30 @@ describe("ItemBoard", () => {
       "/b/DEMO?view=board",
     );
     expect(screen.queryByRole("button", { name: "Nouvel item" })).not.toBeInTheDocument();
+  });
+
+  it("keeps creation available when active filters belong to an empty backlog", async () => {
+    const user = userEvent.setup();
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+        filtersActive
+        hasItems={false}
+        clearFiltersHref="/b/DEMO?view=board"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Effacer les filtres" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("places cards in their component lane and uses the unassigned fallback lane", () => {
