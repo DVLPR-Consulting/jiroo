@@ -114,9 +114,10 @@ export function SearchModal() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState<{
+    requestId: number;
     query: string;
     results: SearchResult[];
-  }>({ query: "", results: [] });
+  }>({ requestId: 0, query: "", results: [] });
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPending, startTransition] = useTransition();
 
@@ -159,7 +160,11 @@ export function SearchModal() {
         const res = await recentItemsAction(storedRecentKeys());
         if (latestRequestRef.current !== requestId) return;
 
-        setResponse({ query: "", results: res.ok ? res.results : [] });
+        setResponse({
+          requestId,
+          query: "",
+          results: res.ok ? res.results : [],
+        });
         setActiveIndex(0);
       });
       return;
@@ -174,7 +179,11 @@ export function SearchModal() {
         const res = await searchAction(thisQuery);
         if (latestRequestRef.current !== requestId) return;
 
-        setResponse({ query: thisQuery, results: res.ok ? res.results : [] });
+        setResponse({
+          requestId,
+          query: thisQuery,
+          results: res.ok ? res.results : [],
+        });
         setActiveIndex(0);
       });
     }, 150);
@@ -190,13 +199,17 @@ export function SearchModal() {
   // -------------------------------------------------------------------------
   // Derived state
   //
-  // Results carry the query that produced them. This keeps keyboard navigation
-  // from acting on stale recent/search rows while a new request is pending.
+  // Results carry the request generation and query that produced them. Both
+  // must match before rows can render or participate in keyboard navigation.
   // -------------------------------------------------------------------------
 
   const currentQuery = query.trim();
   const isBlank = currentQuery === "";
-  const displayResults = response.query === currentQuery ? response.results : [];
+  const displayResults =
+    response.requestId === latestRequestRef.current &&
+    response.query === currentQuery
+      ? response.results
+      : [];
 
   // -------------------------------------------------------------------------
   // Helpers
@@ -211,7 +224,7 @@ export function SearchModal() {
   function handleClose() {
     setOpen(false);
     setQuery("");
-    setResponse({ query: "", results: [] });
+    setResponse({ requestId: 0, query: "", results: [] });
     setActiveIndex(0);
     latestRequestRef.current += 1;
   }

@@ -69,6 +69,14 @@ const recentResult: SearchResult = {
   assigneeName: "Marie Dupont",
 };
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 const initialEntries: [string, string][] = [
   ["view", "board"],
   ["v", "saved"],
@@ -212,6 +220,71 @@ describe("SearchModal item navigation", () => {
     expect(mocks.recentItemsAction).toHaveBeenCalledTimes(2);
     expect(screen.getByRole("heading", { name: "Récents" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /DEMO-2/ })).toBeInTheDocument();
+  });
+
+  it("hides old recent rows while a new blank-query request is pending", async () => {
+    const pendingSearch = deferred<{ ok: true; results: SearchResult[] }>();
+    const pendingRecent = deferred<{ ok: true; results: SearchResult[] }>();
+    localStorage.setItem("jiroo-recent-items", JSON.stringify(["DEMO-2"]));
+    mocks.recentItemsAction
+      .mockResolvedValueOnce({ ok: true, results: [recentResult] })
+      .mockReturnValueOnce(pendingRecent.promise);
+    mocks.searchAction.mockReturnValueOnce(pendingSearch.promise);
+
+    renderSubject();
+    fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+    await act(async () => {});
+    expect(screen.getByRole("option", { name: /DEMO-2/ })).toBeInTheDocument();
+
+    const input = screen.getByRole("textbox", { name: "Rechercher" });
+    fireEvent.change(input, { target: { value: "DEMO-1" } });
+    act(() => vi.advanceTimersByTime(150));
+    expect(mocks.searchAction).toHaveBeenCalledWith("DEMO-1");
+
+    fireEvent.change(input, { target: { value: "" } });
+
+    expect(screen.queryByRole("option", { name: /DEMO-2/ })).not.toBeInTheDocument();
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(mocks.push).not.toHaveBeenCalled();
+
+    await act(async () => {
+      pendingSearch.resolve({ ok: true, results: [demoResult] });
+      pendingRecent.resolve({ ok: true, results: [] });
+    });
+  });
+
+  it("hides an old A response when a new A request follows pending B", async () => {
+    const pendingB = deferred<{ ok: true; results: SearchResult[] }>();
+    const pendingSecondA = deferred<{ ok: true; results: SearchResult[] }>();
+    mocks.searchAction
+      .mockResolvedValueOnce({ ok: true, results: [demoResult] })
+      .mockReturnValueOnce(pendingB.promise)
+      .mockReturnValueOnce(pendingSecondA.promise);
+
+    renderSubject();
+    fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+    const input = screen.getByRole("textbox", { name: "Rechercher" });
+
+    fireEvent.change(input, { target: { value: "A" } });
+    await act(async () => vi.advanceTimersByTime(150));
+    expect(screen.getByRole("option", { name: /DEMO-1/ })).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "B" } });
+    act(() => vi.advanceTimersByTime(150));
+    expect(mocks.searchAction).toHaveBeenLastCalledWith("B");
+
+    fireEvent.change(input, { target: { value: "A" } });
+    act(() => vi.advanceTimersByTime(150));
+    expect(mocks.searchAction).toHaveBeenLastCalledWith("A");
+
+    expect(screen.queryByRole("option", { name: /DEMO-1/ })).not.toBeInTheDocument();
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(mocks.push).not.toHaveBeenCalled();
+
+    await act(async () => {
+      pendingB.resolve({ ok: true, results: [] });
+      pendingSecondA.resolve({ ok: true, results: [] });
+    });
   });
 
   it("records a recent keyboard selection before preserving URL navigation", async () => {
