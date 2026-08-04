@@ -15,7 +15,7 @@ export function SidebarTrigger() {
       onClick={toggle}
       aria-label={label}
       title={label}
-      className="inline-flex size-8 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)]"
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
     >
       <PanelLeft className="size-4" />
     </button>

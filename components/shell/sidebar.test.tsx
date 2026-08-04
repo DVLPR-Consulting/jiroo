@@ -90,7 +90,7 @@ describe("Sidebar", () => {
   it("renders the complete wordmark without an internal collapse control", () => {
     renderSidebar();
 
-    const brand = screen.getByLabelText("Jiroo");
+    const brand = screen.getByRole("img", { name: "Jiroo" });
 
     expect(brand).toHaveTextContent(/^Jiroo$/);
     expect(
@@ -103,7 +103,7 @@ describe("Sidebar", () => {
     document.documentElement.dataset.sidebar = "collapsed";
     renderSidebar();
 
-    const brand = screen.getByLabelText("Jiroo");
+    const brand = screen.getByRole("img", { name: "Jiroo" });
 
     expect(brand).toHaveTextContent(/^J$/);
     expect(brand).toHaveAttribute("title", "Jiroo");

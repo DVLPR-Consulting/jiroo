@@ -47,6 +47,7 @@ describe("Topbar", () => {
 
     expect(trigger).toHaveClass("size-8");
     expect(trigger).not.toHaveClass("absolute", "border", "shadow-sm");
+    expect(trigger).toHaveClass("focus-visible:ring-[var(--ring)]");
     expect(trigger.querySelector(".lucide-panel-left")).toBeInTheDocument();
     expect(topbar?.children[0]).toBe(trigger);
     expect(topbar?.children[1]).toHaveAttribute(

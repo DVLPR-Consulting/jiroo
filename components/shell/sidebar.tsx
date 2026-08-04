@@ -65,6 +65,7 @@ export function Sidebar({
         )}
       >
         <div
+          role="img"
           aria-label="Jiroo"
           title={collapsed ? "Jiroo" : undefined}
           className="t-h2 overflow-hidden font-semibold"
