@@ -30,9 +30,11 @@ icons can also become visible. The redesign removes this split authority.
 - The shell sidebar column is exactly 248 px wide.
 - The header renders one `Jiroo` wordmark, with the existing garnet accent on
   `oo`.
-- A 32 px square control with 8 px rounded corners straddles the boundary
-  between the sidebar and the content. It renders one `ChevronLeft` and is
-  labelled `Replier la barre latérale`.
+- The application topbar begins with one compact ghost control using the
+  standard `PanelLeft` icon. It is labelled `Replier la barre latérale`.
+- A short vertical separator follows the control before the breadcrumb, giving
+  the main-content text the same deliberate offset as the shadcn/ui sidebar
+  reference.
 - The active backlog selector shows its badge, name, and dropdown affordance.
 - Primary navigation, personal and shared views, counts, trash,
   administration, and the user card retain their current behavior.
@@ -42,8 +44,8 @@ icons can also become visible. The redesign removes this split authority.
 - The shell sidebar column is exactly 64 px wide.
 - The full wordmark becomes one centered `J` monogram so the product identity
   remains visible in the compact rail.
-- The same 32 px square boundary control moves with the sidebar edge and
-  renders one `ChevronRight`, labelled `Déplier la barre latérale`.
+- The topbar control remains in the same content-relative position, keeps the
+  `PanelLeft` icon, and is labelled `Déplier la barre latérale`.
 - The active backlog selector shows only the backlog key badge.
 - Primary navigation, trash, administration, and the user avatar remain as
   centered icon controls.
@@ -78,12 +80,9 @@ of two explicit values:
 - expanded: `248px minmax(0,1fr)`;
 - collapsed: `64px minmax(0,1fr)`.
 
-The width transition remains short and affects the actual grid column. The
-sidebar is wrapped in a positioned grid cell. That cell owns the collapse
-control because it owns the boundary the control straddles. The control is
-positioned at the cell's right edge, translated by half its width, and layered
-above the sidebar and content. It therefore moves with the grid column without
-separate position state or animation logic.
+The width transition remains short and affects the actual grid column.
+`AppShellFrame` no longer renders or positions the collapse control. It only
+owns layout and state scope.
 
 ### `Sidebar`
 
@@ -92,17 +91,27 @@ mutually exclusive React branches. It no longer owns the collapse control.
 The same `collapsed` value controls branding, child props, view-group
 rendering, padding, and accessible labels.
 
-### Boundary control
+### Topbar trigger
 
-- Size: exactly 32 by 32 px.
-- Shape: square with 8 px rounded corners, not circular.
-- Position: vertically aligned with the brand header and horizontally centered
-  on the sidebar/content divider.
-- Surface: opaque application surface with a visible border and subtle shadow,
-  so the control stays legible over both neighboring backgrounds.
-- Motion: no independent translation animation; the control follows the
-  sidebar grid edge during the existing 150 ms width transition.
-- Hit target and focus styles remain visible and usable by keyboard.
+The topbar begins with a focused client component that consumes
+`useSidebarState()` and renders one shadcn-style trigger:
+
+- Size: 32 by 32 px.
+- Shape: compact square with the application's standard rounded corners.
+- Presentation: ghost surface with no permanent border or shadow; the muted
+  hover surface supplies interaction feedback.
+- Icon: one `PanelLeft` glyph in both states, matching the supplied shadcn/ui
+  reference instead of using a directional chevron.
+- Position: inside the main-content topbar, followed by a 16 px-high vertical
+  separator and then the breadcrumb.
+- Layout: existing topbar gaps and padding reserve the trigger area, shifting
+  the breadcrumb and other content to the right without absolute positioning.
+- Keyboard focus and action-specific French accessible labels remain visible
+  and usable.
+
+`Topbar` remains a server-compatible composition component. The interactive
+trigger is isolated in its own client component so the whole topbar does not
+need to become a client boundary.
 
 ### Global CSS
 
@@ -129,10 +138,12 @@ Implementation follows TDD and adds regressions that fail if:
 - toggling does not change the actual shell grid from 248 px to 64 px;
 - the expanded header does not contain exactly one `Jiroo` wordmark;
 - the collapsed rail does not contain exactly one `J` monogram for `Jiroo`;
-- the shell boundary does not contain exactly one square, rounded toggle;
-- the boundary toggle does not render the correct directional chevron;
-- the toggle is placed inside the sidebar header instead of straddling the
-  sidebar/content divider;
+- the topbar does not begin with exactly one compact `PanelLeft` trigger;
+- the trigger gains a permanent border, shadow, or boundary positioning;
+- the separator and breadcrumb are not rendered after the trigger in that
+  order;
+- the toggle is placed inside the sidebar header or on the sidebar/content
+  divider instead of inside the topbar;
 - collapsed labels or view groups remain visibly rendered;
 - essential rail controls lose their accessible names;
 - the preference is not persisted or restored.
@@ -157,9 +168,11 @@ present, the sidebar starts expanded.
 
 ## Pattern References
 
-- Jira's current navigation places the control at the top-right when the
-  sidebar is open and at the top-left when it is closed:
-  `https://support.atlassian.com/navigation/docs/old-vs-new-navigation-in-jira/`.
+- The supplied shadcn/ui documentation-shell reference places a compact
+  `SidebarTrigger` inside the content header before a separator and breadcrumb.
+  The official component documentation treats `SidebarTrigger` as a separate
+  control that may be composed outside the sidebar:
+  `https://ui.shadcn.com/docs/components/aria/sidebar`.
 - The Material UI mini drawer documents the persistent full-panel/icon-rail
   pattern used here:
   `https://v5-0-6.mui.com/components/drawers/`.
