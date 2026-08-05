@@ -64,7 +64,7 @@ function useInlineUpdate(itemId: string, backlogKey: string) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function update(patch: UpdatePatch) {
+  function update(patch: UpdatePatch, onSuccess?: () => void) {
     setError(null);
     startTransition(async () => {
       const result = await updateItemAction({ id: itemId, backlogKey, ...patch });
@@ -72,6 +72,7 @@ function useInlineUpdate(itemId: string, backlogKey: string) {
         setError(result.error);
         return;
       }
+      onSuccess?.();
       router.refresh();
     });
   }
@@ -244,6 +245,7 @@ export function InlineEstimate({
 }) {
   const { error, pending, update } = useInlineUpdate(itemId, backlogKey);
   const errorId = useId();
+  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(estimatePoints === null ? "" : String(estimatePoints));
   const label = estimatePoints === null ? "Non estimé" : `${estimatePoints} pt`;
 
@@ -254,7 +256,9 @@ export function InlineEstimate({
   return (
     <EditorShell>
       <DropdownMenu
+        open={open}
         onOpenChange={(open) => {
+          setOpen(open);
           if (open) setDraft(estimatePoints === null ? "" : String(estimatePoints));
         }}
       >
@@ -281,7 +285,7 @@ export function InlineEstimate({
             onSubmit={(event) => {
               event.preventDefault();
               if (draft.trim() === "") return;
-              update({ estimatePoints: Number(draft) });
+              update({ estimatePoints: Number(draft) }, () => setOpen(false));
             }}
           >
             <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
@@ -313,7 +317,7 @@ export function InlineEstimate({
                 key={points}
                 className="justify-center px-1"
                 disabled={pending}
-                onSelect={() => update({ estimatePoints: points })}
+                onSelect={() => update({ estimatePoints: points }, () => setOpen(false))}
               >
                 {points}
               </DropdownMenuItem>
@@ -322,7 +326,7 @@ export function InlineEstimate({
           <button
             type="button"
             disabled={pending || estimatePoints === null}
-            onClick={() => update({ estimatePoints: null })}
+            onClick={() => update({ estimatePoints: null }, () => setOpen(false))}
             className="mt-2 w-full rounded px-2 py-1 text-left text-xs text-muted-foreground hover:bg-[var(--muted)] disabled:opacity-60"
           >
             Effacer l’estimation

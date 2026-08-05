@@ -27,6 +27,7 @@ import { KindIcon } from "@/components/icons/kind-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
+import { BulkItemToolbar } from "@/components/items/bulk-item-toolbar";
 import { InlineEstimate } from "@/components/items/inline-item-field";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -36,6 +37,12 @@ import {
   type ItemKind,
   type Priority,
 } from "@/lib/design/constants";
+import {
+  emptySelection,
+  reconcileSelection,
+  selectAllVisible,
+  toggleItemSelection,
+} from "@/lib/items/selection";
 
 type StatusOption = {
   id: string;
@@ -100,6 +107,8 @@ function BacklogRow({
   canWrite,
   manualOrder,
   mutationPending,
+  bulkSelected,
+  onToggleSelection,
 }: {
   item: BacklogItem;
   statuses: StatusOption[];
@@ -109,6 +118,8 @@ function BacklogRow({
   canWrite: boolean;
   manualOrder: boolean;
   mutationPending: boolean;
+  bulkSelected: boolean;
+  onToggleSelection: (id: string, extendRange: boolean) => void;
 }) {
   const viewUrl = useViewUrlState();
   const status = statuses.find((option) => option.id === item.statusId);
@@ -149,7 +160,7 @@ function BacklogRow({
         }
       }}
       className={`cursor-pointer transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)] ${
-        selectedKey === item.key ? "bg-[var(--accent-subtle)]" : ""
+        selectedKey === item.key || bulkSelected ? "bg-[var(--accent-subtle)]" : ""
       }`}
       style={{
         height: "var(--row-h)",
@@ -158,6 +169,25 @@ function BacklogRow({
         opacity: isDragging ? 0.45 : 1,
       }}
     >
+      {canWrite ? (
+        <td
+          className={`${CELL_CLASS} px-2 text-center`}
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={bulkSelected}
+            onChange={() => undefined}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleSelection(item.id, event.shiftKey);
+            }}
+            aria-label={`Sélectionner ${item.key}`}
+            className="size-4 cursor-pointer accent-[var(--primary)]"
+          />
+        </td>
+      ) : null}
       <td
         className={`${CELL_CLASS} px-1`}
         onClick={(event) => event.stopPropagation()}
@@ -273,6 +303,8 @@ export function ItemBacklog({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [mutationPending, setMutationPending] = useState(false);
   const [rankError, setRankError] = useState<string | null>(null);
+  const [selection, setSelection] = useState(emptySelection);
+  const [selectionScope, setSelectionScope] = useState<string | null>(null);
   const snapshot = useRef<BacklogItem[] | null>(null);
   const lastIncomingItems = useRef(visibleItems);
   const pendingIncomingItems = useRef<BacklogItem[] | null>(null);
@@ -308,6 +340,41 @@ export function ItemBacklog({
     (item) => item.estimatePoints === null,
   ).length;
   const showNoResults = filtersActive && (hasItems ?? displayedItems.length > 0);
+  const visibleIds = useMemo(
+    () => displayedItems.map((item) => item.id),
+    [displayedItems],
+  );
+  const visibleSignature = visibleIds.join("\u001f");
+  if (selectionScope !== visibleSignature) {
+    setSelectionScope(visibleSignature);
+    setSelection((current) => reconcileSelection(current, visibleIds));
+  }
+  const selectedItems = displayedItems.filter((item) =>
+    selection.selectedIds.has(item.id),
+  );
+  const allSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selection.selectedIds.has(id));
+  const partlySelected = selection.selectedIds.size > 0 && !allSelected;
+
+  function toggleSelection(id: string, extendRange: boolean) {
+    setSelection((current) =>
+      toggleItemSelection(current, visibleIds, id, extendRange),
+    );
+  }
+
+  function handleSelectionShortcut(event: React.KeyboardEvent<HTMLElement>) {
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, select, [contenteditable='true']")) {
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+      event.preventDefault();
+      setSelection(selectAllVisible(visibleIds));
+    } else if (event.key === "Escape" && selection.selectedIds.size > 0) {
+      event.preventDefault();
+      setSelection(emptySelection());
+    }
+  }
 
   function restoreFocus(itemId: string) {
     requestAnimationFrame(() => {
@@ -403,7 +470,11 @@ export function ItemBacklog({
   };
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="backlog-heading">
+    <section
+      className="flex min-h-0 flex-1 flex-col"
+      aria-labelledby="backlog-heading"
+      onKeyDown={canWrite ? handleSelectionShortcut : undefined}
+    >
       <header className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-border px-4 py-3">
         <h2 id="backlog-heading" className="t-h2">
           Backlog
@@ -479,6 +550,7 @@ export function ItemBacklog({
         <div className="min-h-0 flex-1 overflow-auto">
           <table className="w-full table-fixed border-separate border-spacing-0">
             <colgroup>
+              {canWrite ? <col className="w-10" /> : null}
               <col className="w-10" />
               <col className="w-32" />
               <col />
@@ -489,6 +561,24 @@ export function ItemBacklog({
             </colgroup>
             <thead className="sticky top-0 z-20">
               <tr>
+                {canWrite ? (
+                  <th scope="col" className={`${HEADER_CLASS} px-2 text-center`}>
+                    <input
+                      ref={(node) => {
+                        if (node) node.indeterminate = partlySelected;
+                      }}
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={() =>
+                        setSelection(
+                          allSelected ? emptySelection() : selectAllVisible(visibleIds),
+                        )
+                      }
+                      aria-label="Sélectionner toutes les tâches visibles"
+                      className="size-4 cursor-pointer accent-[var(--primary)]"
+                    />
+                  </th>
+                ) : null}
                 <th scope="col" className={HEADER_CLASS}>
                   <span className="sr-only">Ordre</span>
                 </th>
@@ -506,7 +596,7 @@ export function ItemBacklog({
                   <tr>
                     <th
                       scope="rowgroup"
-                      colSpan={7}
+                      colSpan={canWrite ? 8 : 7}
                       className="border-b border-border bg-[var(--surface-2)] px-3 py-2 text-left text-xs font-semibold"
                     >
                       {group.label} · {group.items.length}
@@ -528,12 +618,28 @@ export function ItemBacklog({
                       canWrite={canWrite}
                       manualOrder={manualOrder}
                       mutationPending={mutationPending}
+                      bulkSelected={selection.selectedIds.has(item.id)}
+                      onToggleSelection={toggleSelection}
                     />
                   ))}
                 </SortableContext>
               </tbody>
             ))}
           </table>
+          {canWrite && selectedItems.length > 0 ? (
+            <BulkItemToolbar
+              backlogId={backlogId}
+              backlogKey={backlogKey}
+              selectedItems={selectedItems.map((item) => ({
+                id: item.id,
+                type: item.type,
+              }))}
+              statuses={statuses}
+              users={users}
+              onClearSelection={() => setSelection(emptySelection())}
+              onMutationSuccess={() => router.refresh()}
+            />
+          ) : null}
         </div>
         </DndContext>
       )}

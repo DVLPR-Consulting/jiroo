@@ -464,6 +464,7 @@ export async function BacklogViewContent({
           grouped={viewState.group !== null}
           statuses={statusList}
           users={usersForFilter.map((user) => ({ id: user.id, name: user.name }))}
+          backlogId={backlog.id}
           backlogKey={key}
           selectedKey={itemKey}
           currentSort={viewState.sort}

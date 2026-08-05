@@ -7,6 +7,7 @@ import {
 } from "@/components/items/item-backlog";
 
 const mocks = vi.hoisted(() => ({
+  bulkUpdateItemsAction: vi.fn(),
   push: vi.fn(),
   rankBacklogItemAction: vi.fn(),
   refresh: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock("@/components/shell/view-url-state", () => ({
 }));
 
 vi.mock("@/app/actions/items", () => ({
+  bulkUpdateItemsAction: mocks.bulkUpdateItemsAction,
   rankBacklogItemAction: mocks.rankBacklogItemAction,
   updateItemAction: vi.fn(),
 }));
@@ -137,6 +139,7 @@ function mockBacklogGeometry() {
 
 describe("ItemBacklog", () => {
   beforeEach(() => {
+    mocks.bulkUpdateItemsAction.mockReset();
     mocks.push.mockReset();
     mocks.rankBacklogItemAction.mockReset();
     mocks.refresh.mockReset();
@@ -194,6 +197,73 @@ describe("ItemBacklog", () => {
     expect(
       screen.queryByRole("button", { name: /Déplacer DEMO-/ }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
+  it("selects one row, extends a range and exposes an indeterminate header", async () => {
+    const user = userEvent.setup();
+    render(<ItemBacklog {...props()} />);
+
+    await user.click(screen.getByRole("checkbox", { name: "Sélectionner DEMO-1" }));
+    const header = screen.getByRole("checkbox", { name: "Sélectionner toutes les tâches visibles" });
+    expect(header).toBePartiallyChecked();
+    await user.keyboard("{Shift>}");
+    await user.click(screen.getByRole("checkbox", { name: "Sélectionner DEMO-3" }));
+    await user.keyboard("{/Shift}");
+
+    expect(screen.getByText("3 items sélectionnés")).toBeVisible();
+    expect(header).toBeChecked();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("selects all through the header and clears with the explicit control", async () => {
+    const user = userEvent.setup();
+    render(<ItemBacklog {...props()} />);
+
+    const header = screen.getByRole("checkbox", { name: "Sélectionner toutes les tâches visibles" });
+    await user.click(header);
+    expect(screen.getByText("3 items sélectionnés")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Effacer la sélection" }));
+
+    expect(screen.queryByRole("region", { name: "Actions groupées" })).not.toBeInTheDocument();
+    expect(header).not.toBeChecked();
+  });
+
+  it("guards the select-all shortcut and clears selection with Escape", async () => {
+    const user = userEvent.setup();
+    render(<ItemBacklog {...props()} />);
+
+    const firstRow = screen.getByRole("row", { name: "DEMO-1 — Authentification" });
+    firstRow.focus();
+    await user.keyboard("{Control>}a{/Control}");
+    expect(screen.getByText("3 items sélectionnés")).toBeVisible();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("region", { name: "Actions groupées" })).not.toBeInTheDocument();
+
+    const estimate = within(firstRow).getByRole("button", { name: "Estimation : 3 pt" });
+    estimate.focus();
+    await user.keyboard("{Control>}a{/Control}");
+    expect(screen.queryByRole("region", { name: "Actions groupées" })).not.toBeInTheDocument();
+  });
+
+  it("reconciles selection when filtering removes a selected row", async () => {
+    const user = userEvent.setup();
+    const input = props();
+    const { rerender } = render(<ItemBacklog {...input} />);
+
+    await user.click(screen.getByRole("checkbox", { name: "Sélectionner DEMO-3" }));
+    expect(screen.getByText("1 item sélectionné")).toBeVisible();
+
+    rerender(
+      <ItemBacklog
+        {...input}
+        groups={[{ key: "", label: "", items: items.slice(0, 2) }]}
+        filtersActive
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Actions groupées" })).not.toBeInTheDocument(),
+    );
   });
 
   it("exposes one labelled drag handle per writable row", () => {

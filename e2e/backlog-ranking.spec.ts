@@ -8,7 +8,7 @@ const NETWORK_PATH =
 const SCREENSHOT_PATH =
   "audit/screenshots/FIXED-PARTIAL-BUG-JIR-015-backlog-ranked.png";
 
-test("classe une tâche au clavier et conserve l’ordre après rechargement", async ({
+test("classe à la souris, restaure au clavier et conserve chaque ordre", async ({
   page,
 }) => {
   const consoleLines: string[] = [];
@@ -55,21 +55,25 @@ test("classe une tâche au clavier et conserve l’ordre après rechargement", a
   );
   if (!movedKey) throw new Error("Clé de tâche introuvable sur la poignée.");
 
-  await firstHandle.focus();
-  await page.keyboard.press("Space");
-  await expect(
-    page.getByRole("status").filter({ hasText: `${movedKey}, position 1` }),
-  ).toBeVisible();
-  await page.keyboard.press("ArrowDown");
-  await expect(
-    page.getByRole("status").filter({ hasText: `${movedKey}, position 2` }),
-  ).toBeVisible();
   const rankResponse = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       new URL(response.url()).pathname === "/b/CASS",
   );
-  await page.keyboard.press("Space");
+  const origin = await firstHandle.boundingBox();
+  const destination = await handles.nth(1).boundingBox();
+  if (!origin || !destination) throw new Error("Géométrie de classement introuvable.");
+  await page.mouse.move(origin.x + origin.width / 2, origin.y + origin.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(origin.x + origin.width / 2, origin.y + origin.height, {
+    steps: 3,
+  });
+  await page.mouse.move(
+    destination.x + destination.width / 2,
+    destination.y + destination.height / 2,
+    { steps: 12 },
+  );
+  await page.mouse.up();
   const response = await rankResponse;
   expect(response.status()).toBeLessThan(400);
   await response.finished();
@@ -90,6 +94,33 @@ test("classe une tâche au clavier et conserve l’ordre après rechargement", a
     .poll(async () => rows.evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
     .toEqual(optimisticOrder);
 
+  const restoredHandle = page.getByRole("button", { name: `Déplacer ${movedKey}` });
+  await restoredHandle.focus();
+  await page.keyboard.press("Space");
+  await expect(
+    page.getByRole("status").filter({ hasText: `${movedKey}, position 2` }),
+  ).toBeVisible();
+  await page.keyboard.press("ArrowUp");
+  await expect(
+    page.getByRole("status").filter({ hasText: `${movedKey}, position 1` }),
+  ).toBeVisible();
+  const restoreResponse = page.waitForResponse(
+    (candidate) =>
+      candidate.request().method() === "POST" &&
+      new URL(candidate.url()).pathname === "/b/CASS",
+  );
+  await page.keyboard.press("Space");
+  const restored = await restoreResponse;
+  expect(restored.status()).toBeLessThan(400);
+  await restored.finished();
+  networkLines.push(
+    `[timing] POST restore ${restored.url()} ${Math.round(restored.request().timing().responseEnd)}ms`,
+  );
+  await page.reload();
+  await expect
+    .poll(async () => rows.evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
+    .toEqual(initialOrder);
+
   const navigation = await page.evaluate(() => {
     const entry = performance.getEntriesByType("navigation")[0] as
       | PerformanceNavigationTiming
@@ -103,7 +134,7 @@ test("classe une tâche au clavier et conserve l’ordre après rechargement", a
       : null;
   });
   consoleLines.push(`[performance] ${JSON.stringify(navigation)}`);
-  consoleLines.push(`[result] ${movedKey} persisted after reload`);
+  consoleLines.push(`[result] ${movedKey} persisted then restored after reload`);
 
   await mkdir("audit/console", { recursive: true });
   await mkdir("audit/network", { recursive: true });

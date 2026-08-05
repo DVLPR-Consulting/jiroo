@@ -186,6 +186,7 @@ describe("compact inline item editors", () => {
       estimatePoints: 2.5,
     });
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("spinbutton", { name: "Points" })).not.toBeInTheDocument();
   });
 
   it("renders zero as an explicit estimate", () => {
