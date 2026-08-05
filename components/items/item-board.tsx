@@ -49,6 +49,7 @@ import {
   createBoardAnnouncements,
   restoreCancelledColumns,
 } from "@/lib/items/board-dnd";
+import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
 
 export type BoardCard = {
   id: string;
@@ -85,8 +86,14 @@ type Status = {
 type Columns = Record<string, BoardCard[]>;
 export type BoardCreateDialogProps = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses"
+  "backlogId" | "items" | "statuses" | "sprintId" | "contextLabel"
 >;
+
+const sprintDateFormatter = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 
 // Column droppable id form: `col:<swimlaneKey>:<statusId>`. The swimlane key is
 // "" when the board is ungrouped, so the single-band path flows through the same
@@ -488,6 +495,9 @@ export function ItemBoard({
   hasItems,
   clearFiltersHref,
   canWrite = true,
+  activeSprint,
+  activeSprintMetrics,
+  backlogHref,
 }: {
   backlogKey: string;
   items: BoardCard[];
@@ -502,6 +512,10 @@ export function ItemBoard({
   hasItems?: boolean;
   clearFiltersHref?: string;
   canWrite?: boolean;
+  /** `undefined` preserves the legacy all-items board; `null` means no active sprint. */
+  activeSprint?: SprintSummary | null;
+  activeSprintMetrics?: SprintMetrics | null;
+  backlogHref?: string;
 }) {
   const viewUrl = useViewUrlState();
   const dndId = useId();
@@ -728,7 +742,30 @@ export function ItemBoard({
     }
   }
 
-  if (items.length === 0) {
+  if (activeSprint === null) {
+    return (
+      <div className="grid flex-1 place-items-center p-10">
+        <EmptyState
+          icon={<Calendar className="size-5" />}
+          title="Aucun sprint actif"
+          description="Planifiez puis démarrez un sprint depuis le Backlog pour afficher son travail ici."
+          action={
+            <Link
+              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+              href={backlogHref ?? `/b/${encodeURIComponent(backlogKey)}?view=backlog`}
+            >
+              Voir le Backlog
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (
+    items.length === 0 &&
+    (activeSprint === undefined || (filtersActive && (hasItems ?? false)))
+  ) {
     const showNoResults = filtersActive && (hasItems ?? items.length > 0);
     return (
       <div className="grid flex-1 place-items-center p-10">
@@ -761,6 +798,46 @@ export function ItemBoard({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {activeSprint && (
+        <header className="border-b border-border px-4 py-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="t-h2 truncate">{activeSprint.name}</h2>
+              {activeSprint.goal && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Objectif : {activeSprint.goal}
+                </p>
+              )}
+              {(activeSprint.plannedStartAt || activeSprint.plannedEndAt) && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {activeSprint.plannedStartAt
+                    ? sprintDateFormatter.format(activeSprint.plannedStartAt)
+                    : "Date de début non définie"}
+                  {" — "}
+                  {activeSprint.plannedEndAt
+                    ? sprintDateFormatter.format(activeSprint.plannedEndAt)
+                    : "Date de fin non définie"}
+                </p>
+              )}
+            </div>
+            {activeSprintMetrics && (
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 font-medium">
+                  {activeSprintMetrics.remainingPoints} pt restants
+                </span>
+                <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 font-medium">
+                  {activeSprintMetrics.completedPoints} pt terminés
+                </span>
+                {activeSprintMetrics.unestimatedCount > 0 && (
+                  <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 font-medium text-muted-foreground">
+                    {activeSprintMetrics.unestimatedCount} non estimé
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </header>
+      )}
       {error && (
         <div
           role="alert"

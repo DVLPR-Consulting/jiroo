@@ -222,13 +222,6 @@ export async function BacklogViewContent({
     statuses: statusRows.map((status) => ({ id: status.id, name: status.name })),
   };
 
-  const resultCount =
-    view === "backlog"
-      ? backlogResultCount
-      : filtersOn
-        ? matchedIds.size
-        : items.length;
-
   // Single user fetch reused by both the filter bar facet and assignee-name resolution.
   // Backlog labels fetched once and reused by the filter facet and (when open) the detail panel.
   const [usersForFilter, backlogLabelRows] = await Promise.all([
@@ -294,6 +287,11 @@ export async function BacklogViewContent({
     memberships: sprintSnapshot.memberships,
     items: [...planningItemById.values()],
   });
+  const activeSection = baseSprintSections.find((section) => section.kind === "active") ?? null;
+  const activeSprint = activeSection?.sprint ?? null;
+  const activeSprintItemIds = new Set(
+    activeSection?.items.map((item) => item.id) ?? [],
+  );
   const planningSections = baseSprintSections.map((section) => {
     const sectionIds = new Set(section.items.map((item) => item.id));
     const rows = filterRows.filter(
@@ -322,7 +320,12 @@ export async function BacklogViewContent({
   // nested under their tâche (shown as the subCount badge); Composant/Epic are structure,
   // navigated in the tree/list — never sibling cards next to their own children.
   const boardCards = items
-    .filter((i) => i.type === "tache" && isMatch(i.id))
+    .filter(
+      (i) =>
+        i.type === "tache" &&
+        activeSprintItemIds.has(i.id) &&
+        isMatch(i.id),
+    )
     .map((i) => ({
       id: i.id,
       key: i.key,
@@ -341,6 +344,14 @@ export async function BacklogViewContent({
       kind: i.kind,
       dueDate: i.dueDate,
     }));
+  const resultCount =
+    view === "backlog"
+      ? backlogResultCount
+      : view === "board"
+        ? boardCards.length
+        : filtersOn
+          ? matchedIds.size
+          : items.length;
 
   // Board swimlanes: status is the columns, so it never groups the board. Build
   // the label for each band key the same way the board partitions its cards.
@@ -412,6 +423,9 @@ export async function BacklogViewContent({
       ? statusList.filter((s) => viewState.filters.statusIds.includes(s.id))
       : statusList;
   const clearFiltersHref = `/b/${encodeURIComponent(key)}?${new URLSearchParams({ view }).toString()}`;
+  const backlogParams = new URLSearchParams(viewStateEntries);
+  backlogParams.set("view", "backlog");
+  const backlogHref = `/b/${encodeURIComponent(key)}?${backlogParams.toString()}`;
 
   return (
     <div className="flex h-full flex-col">
@@ -448,10 +462,13 @@ export async function BacklogViewContent({
             statuses={statusList}
           />
         ) : null}
-        newItemSlot={canWrite ? (
+        newItemSlot={canWrite && (view !== "board" || activeSprint !== null) ? (
           <NewItemButton
             backlogKey={backlog.key}
             {...createDialogProps}
+            {...(view === "board" && activeSprint
+              ? { sprintId: activeSprint.id, contextLabel: activeSprint.name }
+              : {})}
             enableShortcut
           />
         ) : null}
@@ -524,11 +541,19 @@ export async function BacklogViewContent({
           group={boardGroup}
           groupLabels={groupLabels}
           moveItemAction={moveItemAction}
-          createDialogProps={createDialogProps}
+          createDialogProps={{
+            ...createDialogProps,
+            ...(activeSprint
+              ? { sprintId: activeSprint.id, contextLabel: activeSprint.name }
+              : {}),
+          }}
           filtersActive={filtersOn}
-          hasItems={items.length > 0}
+          hasItems={(activeSection?.items.length ?? 0) > 0}
           clearFiltersHref={clearFiltersHref}
           canWrite={canWrite}
+          activeSprint={activeSprint}
+          activeSprintMetrics={activeSection?.metrics ?? null}
+          backlogHref={backlogHref}
         />
       )}
       {view === "tree" && (
