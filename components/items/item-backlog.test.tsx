@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   rankBacklogItemAction: vi.fn(),
   refresh: vi.fn(),
+  moveSprintItemAction: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -25,6 +26,10 @@ vi.mock("@/app/actions/items", () => ({
   bulkUpdateItemsAction: mocks.bulkUpdateItemsAction,
   rankBacklogItemAction: mocks.rankBacklogItemAction,
   updateItemAction: vi.fn(),
+}));
+vi.mock("@/app/actions/sprints", () => ({
+  moveSprintItemAction: mocks.moveSprintItemAction,
+  reorderSprintAction: vi.fn(),
 }));
 
 const todoId = "11111111-1111-4111-8111-111111111111";
@@ -114,6 +119,95 @@ function props(): React.ComponentProps<typeof ItemBacklog> {
   };
 }
 
+function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
+  const active = {
+    id: "sprint-active",
+    name: "Sprint actif",
+    goal: "Livrer l’authentification",
+    state: "active" as const,
+    rank: "a0",
+    capacityPoints: 8,
+    plannedStartAt: new Date("2026-08-01T09:00:00.000Z"),
+    plannedEndAt: new Date("2026-08-15T09:00:00.000Z"),
+    startedAt: new Date("2026-08-01T09:00:00.000Z"),
+    completedAt: null,
+  };
+  const future = {
+    ...active,
+    id: "sprint-future",
+    name: "Sprint futur",
+    goal: null,
+    state: "planned" as const,
+    rank: "b0",
+    startedAt: null,
+  };
+  return {
+    sections: [
+      {
+        id: active.id,
+        kind: "active" as const,
+        sprint: active,
+        metrics: {
+          itemCount: 1,
+          estimatedPoints: 3,
+          completedPoints: 0,
+          remainingPoints: 3,
+          unestimatedCount: 0,
+          capacityPoints: 8,
+          overCapacityPoints: 0,
+        },
+        items: [items[0]!],
+        groups: [{ key: "", label: "", items: [items[0]!] }],
+      },
+      {
+        id: future.id,
+        kind: "planned" as const,
+        sprint: future,
+        metrics: {
+          itemCount: 1,
+          estimatedPoints: 5,
+          completedPoints: 0,
+          remainingPoints: 5,
+          unestimatedCount: 0,
+          capacityPoints: 8,
+          overCapacityPoints: 0,
+        },
+        items: [items[1]!],
+        groups: [{ key: "", label: "", items: [items[1]!] }],
+      },
+      {
+        id: "backlog",
+        kind: "backlog" as const,
+        sprint: null,
+        metrics: {
+          itemCount: 1,
+          estimatedPoints: 0,
+          completedPoints: 0,
+          remainingPoints: 0,
+          unestimatedCount: 1,
+          capacityPoints: null,
+          overCapacityPoints: 0,
+        },
+        items: [items[2]!],
+        groups: [{ key: "", label: "", items: [items[2]!] }],
+      },
+    ],
+    sprints: [active, future],
+    grouped: false,
+    statuses,
+    users,
+    backlogKey: "DEMO",
+    backlogId: "11111111-1111-4111-8111-111111111111",
+    manualOrder: true,
+    rankItemAction: mocks.rankBacklogItemAction,
+    moveSprintItemAction: mocks.moveSprintItemAction,
+    filtersActive: false,
+    hasItems: true,
+    clearFiltersHref: "/b/DEMO?view=backlog",
+    canWrite: true,
+  };
+}
+
 function mockBacklogGeometry() {
   return vi
     .spyOn(HTMLElement.prototype, "getBoundingClientRect")
@@ -143,6 +237,95 @@ describe("ItemBacklog", () => {
     mocks.push.mockReset();
     mocks.rankBacklogItemAction.mockReset();
     mocks.refresh.mockReset();
+    mocks.moveSprintItemAction.mockReset();
+  });
+
+  it("renders active, planned, and unscheduled sections in Jira planning order", () => {
+    render(<ItemBacklog {...sprintProps()} />);
+
+    expect(screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent))
+      .toEqual(["Sprint actif", "Sprint futur", "Backlog"]);
+    expect(screen.getAllByRole("row", { name: /DEMO-/ }).map((row) => row.getAttribute("aria-label")))
+      .toEqual([
+        "DEMO-1 — Authentification",
+        "DEMO-2 — Session",
+        "DEMO-3 — Déconnexion",
+      ]);
+  });
+
+  it("removes hidden selections when a sprint section is collapsed", async () => {
+    const user = userEvent.setup();
+    render(<ItemBacklog {...sprintProps()} />);
+    await user.click(screen.getByRole("checkbox", { name: "Sélectionner DEMO-1" }));
+    expect(screen.getByText("1 item sélectionné")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Replier Sprint actif" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Actions groupées" }))
+        .not.toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("row", { name: "DEMO-1 — Authentification" }))
+      .not.toBeInTheDocument();
+    expect(screen.getByText("3 / 8 pt")).toBeVisible();
+  });
+
+  it("moves a task across sprint sections with target-section neighbors", async () => {
+    const user = userEvent.setup();
+    const geometry = mockBacklogGeometry();
+    mocks.moveSprintItemAction.mockResolvedValueOnce({
+      ok: true,
+      item: { ...items[0], rank: "aV" },
+    });
+    render(<ItemBacklog {...sprintProps()} />);
+
+    const handle = screen.getByRole("button", { name: "Déplacer DEMO-1" });
+    handle.focus();
+    await user.keyboard("[Space][ArrowDown][Space]");
+
+    await waitFor(() =>
+      expect(mocks.moveSprintItemAction).toHaveBeenCalledWith({
+        backlogKey: "DEMO",
+        backlogId: "11111111-1111-4111-8111-111111111111",
+        itemId: "item-1",
+        sprintId: "sprint-future",
+        beforeId: null,
+        afterId: "item-2",
+      }),
+    );
+    expect(mocks.rankBacklogItemAction).not.toHaveBeenCalled();
+    expect(mocks.refresh).toHaveBeenCalledOnce();
+    geometry.mockRestore();
+  });
+
+  it("restores section, aggregates, selection, and focus after a rejected cross-section move", async () => {
+    const user = userEvent.setup();
+    const geometry = mockBacklogGeometry();
+    mocks.moveSprintItemAction.mockResolvedValueOnce({
+      ok: false,
+      error: "Le voisin n’appartient pas à la section cible.",
+    });
+    const { container } = render(<ItemBacklog {...sprintProps()} />);
+    await user.click(screen.getByRole("checkbox", { name: "Sélectionner DEMO-1" }));
+    const handle = screen.getByRole("button", { name: "Déplacer DEMO-1" });
+    handle.focus();
+    await user.keyboard("[Space][ArrowDown][Space]");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Planification impossible.");
+    const activeSection = container.querySelector('[data-sprint-section="sprint-active"]')!;
+    const futureSection = container.querySelector('[data-sprint-section="sprint-future"]')!;
+    expect(within(activeSection as HTMLElement).getByRole("row", { name: "DEMO-1 — Authentification" }))
+      .toBeVisible();
+    expect(within(futureSection as HTMLElement).queryByRole("row", { name: "DEMO-1 — Authentification" }))
+      .not.toBeInTheDocument();
+    expect(within(activeSection as HTMLElement).getByText("3 / 8 pt")).toBeVisible();
+    expect(within(futureSection as HTMLElement).getByText("5 / 8 pt")).toBeVisible();
+    expect(screen.getByText("1 item sélectionné")).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Déplacer DEMO-1" })).toHaveFocus(),
+    );
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    geometry.mockRestore();
   });
 
   it("summarizes visible work and keeps the supplied rank order", () => {

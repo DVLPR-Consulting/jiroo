@@ -27,6 +27,10 @@ const statuses = [
 ];
 
 const users = [{ id: "marie", name: "Marie Lemaire" }];
+const sprints = [
+  { id: "55555555-5555-4555-8555-555555555555", name: "Sprint actif", state: "active" as const },
+  { id: "66666666-6666-4666-8666-666666666666", name: "Sprint futur", state: "planned" as const },
+];
 
 function props() {
   return {
@@ -38,6 +42,7 @@ function props() {
     ],
     statuses,
     users,
+    sprints,
     onClearSelection: vi.fn(),
     onMutationSuccess: vi.fn(),
   };
@@ -127,6 +132,29 @@ describe("BulkItemToolbar", () => {
       field: "estimatePoints",
       value: null,
     });
+  });
+
+  it("moves sorted selected tasks to Backlog, active, or planned sprints", async () => {
+    const user = userEvent.setup();
+    mocks.bulkUpdateItemsAction.mockResolvedValue({
+      ok: true,
+      changedCount: 2,
+      unchangedCount: 0,
+    });
+    render(<BulkItemToolbar {...props()} />);
+
+    await user.click(screen.getByRole("button", { name: "Modifier le sprint" }));
+    expect(screen.getByRole("menuitem", { name: "Backlog" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Sprint actif — Actif" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Sprint futur — Planifié" })).toBeVisible();
+    await user.click(screen.getByRole("menuitem", { name: "Sprint futur — Planifié" }));
+
+    await waitFor(() => expect(mocks.bulkUpdateItemsAction).toHaveBeenCalledWith({
+      backlogKey: "DEMO",
+      backlogId,
+      itemIds: [firstId, secondId],
+      patch: { field: "sprintId", value: sprints[1]!.id },
+    }));
   });
 
   it("disables estimation when the selection contains a structural item", () => {

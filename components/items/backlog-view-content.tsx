@@ -44,7 +44,8 @@ import {
   type RawSearchParams,
   type ViewUrlEntry,
 } from "@/lib/items/view-url-params";
-import { selectBacklogRows } from "@/lib/items/backlog-planning";
+import { buildSprintSections } from "@/lib/items/sprint-planning";
+import { listSprintsForBacklog } from "@/lib/services/sprints";
 
 const VIEW_STATE_PARAM_KEYS = [
   "q",
@@ -108,7 +109,7 @@ export async function BacklogViewContent({
       displayMode: view as DisplayMode,
     });
 
-  const [items, labelPairs, blockedIds, statusRows, statusCountRows] = await Promise.all([
+  const [items, labelPairs, blockedIds, statusRows, statusCountRows, sprintSnapshot] = await Promise.all([
     listItems(backlog.id),
     listItemLabelPairs(backlog.id),
     blockedItemIds(backlog.id),
@@ -125,6 +126,7 @@ export async function BacklogViewContent({
       .from(itemRowsTable)
       .where(eq(itemRowsTable.backlogId, backlog.id))
       .groupBy(itemRowsTable.statusId),
+    listSprintsForBacklog(backlog.id),
   ]);
 
   // Set of item ids that are blocked by an unfinished item — used to drive the badge.
@@ -177,15 +179,18 @@ export async function BacklogViewContent({
   const statusCategoryById = new Map(
     statusRows.map((status) => [status.id, status.category]),
   );
-  const backlogSorted = selectBacklogRows(
-    filterRows,
-    statusCategoryById,
-    isMatch,
-    viewState.sort,
+  const currentSprintItemIds = new Set(
+    sprintSnapshot.memberships
+      .filter((membership) => membership.leftAt === null)
+      .map((membership) => membership.itemId),
   );
-  const backlogGroups: Array<[string, typeof backlogSorted]> = viewState.group
-    ? groupItems(backlogSorted, viewState.group)
-    : [["", backlogSorted]];
+  const backlogResultCount = filterRows.filter(
+    (item) =>
+      item.type === "tache" &&
+      isMatch(item.id) &&
+      (currentSprintItemIds.has(item.id) ||
+        statusCategoryById.get(item.statusId) !== "done"),
+  ).length;
   const hasBacklogItems = filterRows.some(
     (item) =>
       item.type === "tache" &&
@@ -219,7 +224,7 @@ export async function BacklogViewContent({
 
   const resultCount =
     view === "backlog"
-      ? backlogSorted.length
+      ? backlogResultCount
       : filtersOn
         ? matchedIds.size
         : items.length;
@@ -261,6 +266,58 @@ export async function BacklogViewContent({
     if (i.parentId) childCount.set(i.parentId, (childCount.get(i.parentId) ?? 0) + 1);
   }
   const filterRowById = new Map(filterRows.map((row) => [row.id, row]));
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const planningItemById = new Map(
+    items
+      .filter((item) => item.type === "tache")
+      .map((item) => [
+        item.id,
+        {
+          id: item.id,
+          key: item.key,
+          title: item.title,
+          type: "tache" as const,
+          kind: item.kind,
+          statusId: item.statusId,
+          priority: item.priority,
+          estimatePoints: item.estimatePoints,
+          assigneeId: item.assigneeId,
+          assigneeName: item.assigneeId ? (userName.get(item.assigneeId) ?? null) : null,
+          rank: item.rank,
+          blocked: blockedSet.has(item.id),
+          done: statusCategoryById.get(item.statusId) === "done",
+        },
+      ]),
+  );
+  const baseSprintSections = buildSprintSections({
+    sprints: sprintSnapshot.sprints,
+    memberships: sprintSnapshot.memberships,
+    items: [...planningItemById.values()],
+  });
+  const planningSections = baseSprintSections.map((section) => {
+    const sectionIds = new Set(section.items.map((item) => item.id));
+    const rows = filterRows.filter(
+      (row) => row.type === "tache" && sectionIds.has(row.id) && isMatch(row.id),
+    );
+    const sorted = viewState.sort ? sortItems(rows, viewState.sort) : rows.sort((left, right) => {
+      const leftRank = itemById.get(left.id)?.rank ?? "";
+      const rightRank = itemById.get(right.id)?.rank ?? "";
+      return leftRank < rightRank ? -1 : leftRank > rightRank ? 1 : 0;
+    });
+    const groupedRows: Array<[string, typeof sorted]> = viewState.group
+      ? groupItems(sorted, viewState.group)
+      : [["", sorted]];
+    const visibleItems = sorted.map((row) => planningItemById.get(row.id)!);
+    return {
+      ...section,
+      items: visibleItems,
+      groups: groupedRows.map(([groupKey, groupRows]) => ({
+        key: groupKey,
+        label: groupLabel(groupKey),
+        items: groupRows.map((row) => planningItemById.get(row.id)!),
+      })),
+    };
+  });
   // Jira-style mono-level board: cards are the working level (Tâche) only. Sous-tâches stay
   // nested under their tâche (shown as the subCount badge); Composant/Epic are structure,
   // navigated in the tree/list — never sibling cards next to their own children.
@@ -414,26 +471,9 @@ export async function BacklogViewContent({
       />
       {view === "backlog" && (
         <ItemBacklog
-          groups={backlogGroups.map(([groupKey, rows]) => ({
-            key: groupKey,
-            label: groupLabel(groupKey),
-            items: rows.map((item) => ({
-              id: item.id,
-              key: item.key,
-              title: item.title,
-              type: item.type,
-              kind: item.kind,
-              statusId: item.statusId,
-              priority: item.priority,
-              estimatePoints: estimateByItem.get(item.id) ?? null,
-              assigneeId: item.assigneeId,
-              assigneeName: item.assigneeId
-                ? (userName.get(item.assigneeId) ?? null)
-                : null,
-              rank: item.rank,
-              blocked: blockedSet.has(item.id),
-            })),
-          }))}
+          sections={planningSections}
+          sprints={sprintSnapshot.sprints}
+          createDialogProps={createDialogProps}
           grouped={viewState.group !== null}
           statuses={statusList}
           users={usersForFilter.map((user) => ({ id: user.id, name: user.name }))}
