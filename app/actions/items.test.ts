@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   canWriteItems: vi.fn(),
   createItem: vi.fn(),
   getSession: vi.fn(),
+  rankBacklogItem: vi.fn(),
   revalidatePath: vi.fn(),
   restoreItem: vi.fn(),
   updateItem: vi.fn(),
@@ -16,6 +17,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/services/items", () => ({
   createItem: mocks.createItem,
   moveItem: vi.fn(),
+  rankBacklogItem: mocks.rankBacklogItem,
   reparentItem: vi.fn(),
   restoreItem: mocks.restoreItem,
   softDeleteItem: vi.fn(),
@@ -28,6 +30,7 @@ vi.mock("@/lib/services/item-bulk", () => ({
 import {
   bulkUpdateItemsAction,
   createItemAction,
+  rankBacklogItemAction,
   restoreItemAction,
   updateItemAction,
 } from "@/app/actions/items";
@@ -122,6 +125,78 @@ describe("item action validation", () => {
     ).resolves.toEqual({
       ok: false,
       error: "Seules les tâches peuvent être estimées.",
+    });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("rankBacklogItemAction", () => {
+  const input = {
+    backlogKey: "DEMO",
+    backlogId: "11111111-1111-4111-8111-111111111111",
+    id: "22222222-2222-4222-9222-222222222222",
+    beforeId: "33333333-3333-4333-8333-333333333333",
+    afterId: "44444444-4444-4444-8444-444444444444",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.canWriteItems.mockReturnValue(true);
+    mocks.getSession.mockResolvedValue({
+      user: { id: "writer-1", role: "contributor", twoFactorEnabled: true },
+    });
+  });
+
+  it("forwards neighbor ids from the authenticated writer and revalidates", async () => {
+    const item = { id: input.id, rank: "a1V" };
+    mocks.rankBacklogItem.mockResolvedValueOnce(item);
+
+    await expect(rankBacklogItemAction(input)).resolves.toEqual({ ok: true, item });
+    expect(mocks.rankBacklogItem).toHaveBeenCalledWith(
+      {
+        backlogId: input.backlogId,
+        id: input.id,
+        beforeId: input.beforeId,
+        afterId: input.afterId,
+      },
+      "writer-1",
+    );
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
+  });
+
+  it("rejects viewers before calling the service", async () => {
+    mocks.canWriteItems.mockReturnValue(false);
+    mocks.getSession.mockResolvedValueOnce({
+      user: { id: "viewer-1", role: "viewer", twoFactorEnabled: true },
+    });
+
+    await expect(rankBacklogItemAction(input)).rejects.toThrow("Forbidden");
+    expect(mocks.rankBacklogItem).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "Backlog introuvable.",
+    "L’item appartient à un autre backlog.",
+    "Seules les tâches du backlog peuvent être classées.",
+    "Voisin invalide pour ce backlog.",
+  ])("returns the safe domain error: %s", async (message) => {
+    mocks.rankBacklogItem.mockRejectedValueOnce(new Error(message));
+
+    await expect(rankBacklogItemAction(input)).resolves.toEqual({
+      ok: false,
+      error: message,
+    });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("collapses unknown failures without leaking internals", async () => {
+    mocks.rankBacklogItem.mockRejectedValueOnce(
+      new Error("postgres password=secret internal stack"),
+    );
+
+    await expect(rankBacklogItemAction(input)).resolves.toEqual({
+      ok: false,
+      error: "Classement impossible.",
     });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });

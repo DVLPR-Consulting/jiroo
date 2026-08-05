@@ -701,7 +701,7 @@ Les trois lignes observées sont création, `En cours à Audit preuve` et
 
 - **Gravité :** critique produit
 - **Priorité :** P0
-- **Statut :** ouvert
+- **Statut :** partiellement corrigé — rang, estimation, sélection et bulk edit livrés ; sprints/releases restants
 - **Fonctionnalité :** backlog produit / triage / planification
 
 ### Étapes de reproduction
@@ -783,6 +783,163 @@ preuve de priorisation.
 5. Conserver l'Arbre pour la hiérarchie et ne jamais présenter son parentage
    comme un classement de backlog.
 
+### Correction partielle vérifiée — incrément 06
+
+Une vue `Backlog` distincte expose désormais uniquement les tâches non
+terminées, leur statut, priorité, estimation et assigné. Le classement manuel
+clavier est persistant et est désactivé avec une explication quand un tri ou un
+groupement est actif. Chromium a déplacé une tâche, observé un POST 200 en
+141 ms, rechargé la page et retrouvé le même ordre. La console ne contient
+aucune erreur et toutes les réponses observées sont nominales.
+
+`BUG-JIR-015` reste partiellement ouvert : la sélection multiple et les actions
+groupées sont désormais validées dans Chromium, mais sprints/capacité et
+releases ne sont pas encore livrés.
+
+### Correction partielle complémentaire vérifiée — incrément 06 final
+
+Deux tâches adjacentes ont été sélectionnées par `Shift`, puis modifiées en
+masse sur statut, priorité, assigné et estimation. Les quatre POST ont répondu
+200 en 141 à 256 ms et les valeurs ont été observées sur chaque ligne. Un échec
+réseau injecté conserve les deux sélections et affiche
+`Modification groupée impossible.` ; le service transactionnel refuse tout lot
+partiellement invalide. Le rôle lecteur réel expose zéro checkbox et zéro barre
+bulk. Le classement a également été rejoué à la souris, restauré au clavier et
+vérifié après chaque rechargement.
+
+Preuves : [bulk](screenshots/FIXED-PARTIAL-BUG-JIR-015-bulk-edit.png),
+[points](screenshots/FIXED-PARTIAL-BUG-JIR-015-story-points.png),
+[rollback bulk](screenshots/EXPECTED-backlog-bulk-network-selection-retained.png)
+et [rollback classement](screenshots/EXPECTED-backlog-rank-network-rollback.png).
+
+## BUG-JIR-016 — Le classement Backlog provoque une divergence d’hydratation React
+
+- **Gravité :** majeure
+- **Priorité :** P1
+- **Statut :** corrigé et vérifié
+- **Fonctionnalité :** backlog / classement accessible / SSR
+
+### Étapes de reproduction
+
+1. Ouvrir `http://localhost:3000/b/CASS?view=backlog` dans un nouveau contexte
+   Chromium authentifié.
+2. Attendre l’hydratation de la vue et surveiller la console.
+3. Examiner `aria-describedby` sur les poignées `Déplacer CASS-*`.
+
+### Résultat obtenu
+
+React signale une divergence : le serveur rend `DndDescribedBy-1` et le client
+`DndDescribedBy-0`. React précise que l’attribut ne sera pas corrigé.
+
+### Résultat attendu
+
+Le HTML serveur et le premier rendu client doivent être identiques ; chaque
+poignée doit référencer les instructions DnD réellement présentes.
+
+### Impacts
+
+- **Utilisateur :** une technologie d’assistance peut recevoir une référence
+  d’instructions incohérente ou absente.
+- **Métier :** bruit console et baisse de confiance dans la stabilité SSR de la
+  fonctionnalité de planification.
+
+### Capture et cause probable
+
+Playwright a enregistré la divergence dans son artefact d’échec automatique.
+La preuve après correction est la [capture du Backlog classé](screenshots/FIXED-PARTIAL-BUG-JIR-015-backlog-ranked.png).
+Le `DndContext` utilisait un identifiant automatique dont la séquence différait
+entre serveur et client.
+
+### Correction appliquée et vérification
+
+Le contexte reçoit maintenant un identifiant stable dérivé du backlog.
+Playwright rejoue l’hydratation, le clavier et le rechargement avec 0 erreur
+console. [Console finale](console/2026-08-05-session-06-backlog-ranking-smoke-console.log).
+
+## BUG-JIR-017 — Le tri local des rangs fractionnels contredit l’ordre persistant
+
+- **Gravité :** critique
+- **Priorité :** P0
+- **Statut :** corrigé et vérifié
+- **Fonctionnalité :** backlog / classement manuel
+
+### Étapes de reproduction
+
+1. Ouvrir la vue Backlog avec des rangs fractionnels contenant majuscules et
+   minuscules, par exemple `aBV` et `aBl`.
+2. Déplacer la première tâche d’une position au clavier.
+3. Observer l’ordre optimiste, le POST 200, puis recharger la page.
+
+### Résultat obtenu
+
+La base persiste bien le nouveau rang et l’activité `move/rank`, mais la vue
+revient visuellement à l’ordre précédent. `localeCompare` classe `aBl` avant
+`aBV`, contrairement à l’ordre binaire requis par les rangs fractionnels.
+
+### Résultat attendu
+
+L’ordre affiché, l’ordre optimiste, l’ordre stocké et l’ordre après rechargement
+doivent être strictement identiques.
+
+### Impacts
+
+- **Utilisateur :** le PM croit qu’une priorité a été perdue ou ne peut pas
+  faire confiance au backlog.
+- **Métier :** défaut bloquant pour planifier un sprint ; les décisions
+  d’ordre semblent non persistantes malgré une mutation réussie.
+
+### Capture, cause et correction
+
+La preuve finale est la [capture après rechargement](screenshots/FIXED-PARTIAL-BUG-JIR-015-backlog-ranked.png), avec [console](console/2026-08-05-session-06-backlog-ranking-smoke-console.log) et [réseau](network/2026-08-05-session-06-backlog-ranking-smoke-requests.log).
+La cause était une collation linguistique appliquée à une clé technique. Le tri
+utilise désormais les comparaisons binaires `<` et `>` déjà employées par le
+Board. Un test de régression couvre explicitement `aBV < aBl`, et Playwright
+confirme la persistance après rechargement.
+
+## BUG-JIR-018 — Le menu d’estimation reste ouvert après un enregistrement réussi
+
+- **Gravité :** mineure
+- **Priorité :** P2
+- **Statut :** corrigé et vérifié
+- **Fonctionnalité :** Backlog / estimation inline
+
+### Étapes de reproduction
+
+1. Ouvrir `http://localhost:3000/b/CASS?view=backlog` comme contributeur.
+2. Ouvrir `Estimation : Non estimé` sur une tâche.
+3. Saisir `5`, puis cliquer sur `Enregistrer`.
+
+### Résultat obtenu
+
+La valeur de la ligne et les agrégats sont rafraîchis, mais le menu reste ouvert
+au-dessus du tableau. Aucun feedback ne distingue l’état encore éditable d’une
+mutation déjà terminée ; un clic supplémentaire hors du menu est nécessaire.
+
+### Résultat attendu
+
+Après confirmation serveur, le menu doit se fermer, rendre le tableau à nouveau
+accessible et replacer la valeur enregistrée sur le déclencheur. En cas
+d’erreur, il doit au contraire rester ouvert avec le message.
+
+### Impacts
+
+- **Utilisateur :** geste supplémentaire et doute sur la prise en compte de la
+  valeur.
+- **Métier :** faible isolément, mais répété pendant l’estimation d’un backlog.
+- **Accessibilité :** le contenu principal reste masqué par la modalité Radix
+  jusqu’à fermeture manuelle.
+
+### Cause, correction et preuve
+
+`InlineEstimate` ne contrôlait pas l’état `open` et la fonction de mutation ne
+permettait aucune action après succès. Un callback de succès ferme désormais le
+menu avant `router.refresh()` ; les erreurs n’appellent pas ce callback. Le test
+unitaire échouait avec le `spinbutton` encore présent, puis passe après
+correction. Playwright valide `5 → 0 → null` et exige la disparition du champ
+après chaque succès.
+
+Preuve : [état final sans menu](screenshots/FIXED-BUG-JIR-018-estimate-menu-closes.png).
+
 ## Diagnostics non classés comme bugs
 
 - Deux `POST /api/auth/two-factor/verify-totp` ont répondu `401 UNAUTHORIZED` lors de codes TOTP invalides générés par l'audit. Le troisième code, validé dans l'application d'authentification, a répondu 200. Le blocage et le message `Code invalide. Réessayez.` sont attendus.
@@ -824,3 +981,7 @@ La première collecte de remédiation contient les deux 401 TOTP historiques de 
 | BUG-JIR-012 | annonces françaises avec clé/titre/statut, sans UUID | Vitest + inspection Playwright de `aria-live` ; NVDA/VoiceOver restant |
 | BUG-JIR-013 | CRUD/ordre/couleur, invariants, migration occupée et permissions lecteur | Vitest + Playwright admin/lecteur ; [capture admin](screenshots/FIXED-BUG-JIR-013-gestion-colonnes-admin.png) |
 | BUG-JIR-014 | références historiques remplacées par le nom avant suppression | Vitest + Playwright sur `CASS-60` ; [capture](screenshots/FIXED-BUG-JIR-014-activite-migration-libelles-metier.png) |
+| BUG-JIR-015 (partiel) | rang, estimation, sélection et bulk edit livrés ; sprints/releases restent ouverts | Vitest services/composants + 7 scénarios Chromium |
+| BUG-JIR-016 | identifiant DnD stable entre SSR et client | Vitest + console Chromium sans erreur d’hydratation |
+| BUG-JIR-017 | comparaison binaire des rangs fractionnels | Vitest de régression + classement souris/clavier et reload |
+| BUG-JIR-018 | menu d’estimation fermé uniquement après succès | Vitest RED/GREEN + Playwright `5 → 0 → null` |

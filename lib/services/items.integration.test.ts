@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
-import { restoreItem, updateItem } from "@/lib/services/items";
+import { listItems, rankBacklogItem, restoreItem, updateItem } from "@/lib/services/items";
 
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 
@@ -233,6 +233,226 @@ describeDb("updateItem estimate transaction", () => {
       expect(audit).toEqual([]);
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
+
+async function createBacklogRankFixture() {
+  const [actor] = await db.select({ id: user.id }).from(user).limit(1);
+  if (!actor) throw new Error("Le seed doit contenir un utilisateur.");
+
+  const [backlog] = await db
+    .insert(backlogs)
+    .values({ key: randomBacklogKey(), name: "Classement backlog", color: "#475569" })
+    .returning();
+  const [status] = await db
+    .insert(statuses)
+    .values({
+      backlogId: backlog!.id,
+      name: "À faire",
+      category: "todo",
+      order: 0,
+      color: "#9aa0a6",
+    })
+    .returning();
+  const componentId = randomUUID();
+  const taskAId = randomUUID();
+  const taskBId = randomUUID();
+  const taskCId = randomUUID();
+  const subtaskId = randomUUID();
+  const componentPath = `root.${componentId.replaceAll("-", "")}`;
+  const taskRows: Array<[string, string, string]> = [
+    [taskAId, "A", "a1"],
+    [taskBId, "B", "a2"],
+    [taskCId, "C", "a3"],
+  ];
+  const rows = await db
+    .insert(items)
+    .values([
+      {
+        id: componentId,
+        key: `${backlog!.key}-1`,
+        type: "composant" as const,
+        backlogId: backlog!.id,
+        title: "Produit",
+        statusId: status!.id,
+        reporterId: actor.id,
+        rank: "a0",
+        path: componentPath,
+        depth: 0,
+      },
+      ...taskRows.map(([id, suffix, rank]) => ({
+        id,
+        key: `${backlog!.key}-${suffix}`,
+        type: "tache" as const,
+        backlogId: backlog!.id,
+        title: `Tâche ${suffix}`,
+        parentId: componentId,
+        statusId: status!.id,
+        reporterId: actor.id,
+        rank,
+        path: `${componentPath}.${id!.replaceAll("-", "")}`,
+        depth: 1,
+      })),
+      {
+        id: subtaskId,
+        key: `${backlog!.key}-S`,
+        type: "soustache" as const,
+        backlogId: backlog!.id,
+        title: "Sous-tâche",
+        parentId: taskAId,
+        statusId: status!.id,
+        reporterId: actor.id,
+        rank: "a4",
+        path: `${componentPath}.${taskAId.replaceAll("-", "")}.${subtaskId.replaceAll("-", "")}`,
+        depth: 2,
+      },
+    ])
+    .returning();
+
+  return {
+    actorId: actor.id,
+    backlog: backlog!,
+    component: rows.find((row) => row.id === componentId)!,
+    taskA: rows.find((row) => row.id === taskAId)!,
+    taskB: rows.find((row) => row.id === taskBId)!,
+    taskC: rows.find((row) => row.id === taskCId)!,
+    subtask: rows.find((row) => row.id === subtaskId)!,
+  };
+}
+
+describeDb("rankBacklogItem transaction", () => {
+  it("moves a task between task neighbors and records the persisted rank activity", async () => {
+    const fixture = await createBacklogRankFixture();
+
+    try {
+      await rankBacklogItem(
+        {
+          backlogId: fixture.backlog.id,
+          id: fixture.taskC.id,
+          beforeId: fixture.taskA.id,
+          afterId: fixture.taskB.id,
+        },
+        fixture.actorId,
+      );
+
+      const storedTaskIds = (await listItems(fixture.backlog.id))
+        .filter((item) => item.type === "tache")
+        .map((item) => item.id);
+      expect(storedTaskIds).toEqual([
+        fixture.taskA.id,
+        fixture.taskC.id,
+        fixture.taskB.id,
+      ]);
+      const audit = await db
+        .select({
+          action: activities.action,
+          field: activities.field,
+          oldValue: activities.oldValue,
+          newValue: activities.newValue,
+        })
+        .from(activities)
+        .where(eq(activities.itemId, fixture.taskC.id));
+      expect(audit).toEqual([
+        {
+          action: "move",
+          field: "rank",
+          oldValue: fixture.taskC.rank,
+          newValue: expect.any(String),
+        },
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlog.id));
+    }
+  });
+
+  it.each(["component", "subtask"] as const)(
+    "rejects a structural %s without changing its rank",
+    async (kind) => {
+      const fixture = await createBacklogRankFixture();
+      const target = kind === "component" ? fixture.component : fixture.subtask;
+
+      try {
+        await expect(
+          rankBacklogItem(
+            {
+              backlogId: fixture.backlog.id,
+              id: target.id,
+              beforeId: fixture.taskA.id,
+              afterId: fixture.taskB.id,
+            },
+            fixture.actorId,
+          ),
+        ).rejects.toThrow("Seules les tâches du backlog peuvent être classées.");
+        const [stored] = await db.select().from(items).where(eq(items.id, target.id));
+        expect(stored?.rank).toBe(target.rank);
+      } finally {
+        await db.delete(backlogs).where(eq(backlogs.id, fixture.backlog.id));
+      }
+    },
+  );
+
+  it("rejects deleted, structural and foreign neighbors atomically", async () => {
+    const fixture = await createBacklogRankFixture();
+    const [foreignBacklog] = await db
+      .insert(backlogs)
+      .values({ key: randomBacklogKey(), name: "Autre backlog", color: "#475569" })
+      .returning();
+    const [foreignStatus] = await db
+      .insert(statuses)
+      .values({
+        backlogId: foreignBacklog!.id,
+        name: "À faire",
+        category: "todo",
+        order: 0,
+        color: "#9aa0a6",
+      })
+      .returning();
+    const foreignId = randomUUID();
+    await db.insert(items).values({
+      id: foreignId,
+      key: `${foreignBacklog!.key}-1`,
+      type: "tache",
+      backlogId: foreignBacklog!.id,
+      title: "Étrangère",
+      parentId: null,
+      statusId: foreignStatus!.id,
+      reporterId: fixture.actorId,
+      rank: "a0",
+      path: `root.${foreignId.replaceAll("-", "")}`,
+      depth: 0,
+    });
+    await db
+      .update(items)
+      .set({ deletedAt: new Date() })
+      .where(eq(items.id, fixture.taskB.id));
+
+    try {
+      for (const neighborId of [
+        fixture.taskB.id,
+        fixture.component.id,
+        foreignId,
+      ]) {
+        await expect(
+          rankBacklogItem(
+            {
+              backlogId: fixture.backlog.id,
+              id: fixture.taskC.id,
+              beforeId: fixture.taskA.id,
+              afterId: neighborId,
+            },
+            fixture.actorId,
+          ),
+        ).rejects.toThrow("Voisin invalide pour ce backlog.");
+        const [stored] = await db
+          .select({ rank: items.rank })
+          .from(items)
+          .where(eq(items.id, fixture.taskC.id));
+        expect(stored?.rank).toBe(fixture.taskC.rank);
+      }
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlog.id));
+      await db.delete(backlogs).where(eq(backlogs.id, foreignBacklog!.id));
     }
   });
 });

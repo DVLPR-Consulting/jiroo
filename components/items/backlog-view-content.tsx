@@ -32,6 +32,7 @@ import { GroupControl } from "@/components/shell/group-control";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewActions } from "@/components/shell/view-actions";
 import { ItemList } from "@/components/items/item-list";
+import { ItemBacklog } from "@/components/items/item-backlog";
 import { ItemBoard } from "@/components/items/item-board";
 import { ItemTree } from "@/components/items/item-tree";
 import { ItemDetailContent } from "@/components/items/item-detail-content";
@@ -43,6 +44,7 @@ import {
   type RawSearchParams,
   type ViewUrlEntry,
 } from "@/lib/items/view-url-params";
+import { selectBacklogRows } from "@/lib/items/backlog-planning";
 
 const VIEW_STATE_PARAM_KEYS = [
   "q",
@@ -79,7 +81,7 @@ export async function BacklogViewContent({
   const role = (session.user as { role?: Role }).role;
   const canWrite = role ? canWriteItems(role) : false;
 
-  const VIEWS = ["board", "list", "tree"] as const;
+  const VIEWS = ["backlog", "board", "list", "tree"] as const;
   const view = (VIEWS as readonly string[]).includes(rawView ?? "")
     ? (rawView as string)
     : "board";
@@ -172,6 +174,24 @@ export async function BacklogViewContent({
     ? groupItems(listSorted, viewState.group)
     : [["", listSorted]];
 
+  const statusCategoryById = new Map(
+    statusRows.map((status) => [status.id, status.category]),
+  );
+  const backlogSorted = selectBacklogRows(
+    filterRows,
+    statusCategoryById,
+    isMatch,
+    viewState.sort,
+  );
+  const backlogGroups: Array<[string, typeof backlogSorted]> = viewState.group
+    ? groupItems(backlogSorted, viewState.group)
+    : [["", backlogSorted]];
+  const hasBacklogItems = filterRows.some(
+    (item) =>
+      item.type === "tache" &&
+      statusCategoryById.get(item.statusId) !== "done",
+  );
+
   const itemCountByStatus = new Map(
     statusCountRows.map(({ statusId, count }) => [statusId, Number(count)]),
   );
@@ -197,7 +217,12 @@ export async function BacklogViewContent({
     statuses: statusRows.map((status) => ({ id: status.id, name: status.name })),
   };
 
-  const resultCount = filtersOn ? matchedIds.size : items.length;
+  const resultCount =
+    view === "backlog"
+      ? backlogSorted.length
+      : filtersOn
+        ? matchedIds.size
+        : items.length;
 
   // Single user fetch reused by both the filter bar facet and assignee-name resolution.
   // Backlog labels fetched once and reused by the filter facet and (when open) the detail panel.
@@ -387,6 +412,41 @@ export async function BacklogViewContent({
         }))}
         resultCount={resultCount}
       />
+      {view === "backlog" && (
+        <ItemBacklog
+          groups={backlogGroups.map(([groupKey, rows]) => ({
+            key: groupKey,
+            label: groupLabel(groupKey),
+            items: rows.map((item) => ({
+              id: item.id,
+              key: item.key,
+              title: item.title,
+              type: item.type,
+              kind: item.kind,
+              statusId: item.statusId,
+              priority: item.priority,
+              estimatePoints: estimateByItem.get(item.id) ?? null,
+              assigneeId: item.assigneeId,
+              assigneeName: item.assigneeId
+                ? (userName.get(item.assigneeId) ?? null)
+                : null,
+              rank: item.rank,
+              blocked: blockedSet.has(item.id),
+            })),
+          }))}
+          grouped={viewState.group !== null}
+          statuses={statusList}
+          users={usersForFilter.map((user) => ({ id: user.id, name: user.name }))}
+          backlogKey={key}
+          backlogId={backlog.id}
+          selectedKey={itemKey}
+          filtersActive={filtersOn}
+          hasItems={hasBacklogItems}
+          clearFiltersHref={clearFiltersHref}
+          canWrite={canWrite}
+          manualOrder={viewState.sort === null && viewState.group === null}
+        />
+      )}
       {view === "list" && (
         <ItemList
           groups={listGroups.map(([key, rows]) => ({
@@ -404,6 +464,7 @@ export async function BacklogViewContent({
           grouped={viewState.group !== null}
           statuses={statusList}
           users={usersForFilter.map((user) => ({ id: user.id, name: user.name }))}
+          backlogId={backlog.id}
           backlogKey={key}
           selectedKey={itemKey}
           currentSort={viewState.sort}

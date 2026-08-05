@@ -306,3 +306,36 @@ un cycle ou une release. L'avantage différenciant doit être une planification
 compréhensible en moins de quinze minutes par une nouvelle équipe, avec calculs
 de capacité explicables et aucune configuration Jira-like avant le premier
 sprint.
+
+## Mise à jour — classement Backlog de l’incrément 06
+
+Jiroo couvre désormais le noyau du classement Jira : vue dédiée, rang persistant,
+drag clavier annoncé, ordre conservé après rechargement et estimation nullable
+visible. Sur ce sous-périmètre, l’implémentation est crédible et plus explicite
+que Jira quand un tri temporaire empêche le classement manuel.
+
+Jira, Linear, ClickUp, Azure DevOps et Plane restent devant sur la sélection en
+masse et la planification en sprint/cycle. GitHub Projects reste devant sur les
+champs et itérations configurables. Aucun crédit de parité globale n’est donc
+accordé avant la preuve navigateur des bulk actions, de la capacité et du cycle
+complet démarrage → exécution → clôture.
+
+## Mise à jour — sélection et bulk Backlog de l’incrément 06 final
+
+Jiroo rejoint désormais le socle Jira/Linear/ClickUp/Azure DevOps/Plane pour la
+sélection simple, par plage, globale et les mutations groupées de statut,
+priorité, assigné et estimation. La transaction tout-ou-rien et la sélection
+conservée après erreur sont des bases crédibles ; le rôle lecteur est
+explicitement protégé.
+
+Les concurrents restent devant : Jira et Azure DevOps enchaînent ces actions
+avec sprint/version ; Linear est plus riche en raccourcis et commandes ;
+ClickUp offre davantage d’actions bulk ; GitHub Projects applique des champs
+personnalisés et itérations ; Plane possède déjà cycles et modules. Jiroo ne
+peut donc revendiquer une parité Jira que sur la **fondation de triage PR1**, pas
+sur la gestion de produit de bout en bout.
+
+La meilleure voie de différenciation reste une barre volontairement limitée,
+transactionnelle et explicable, puis l’ajout du sprint comme cinquième action.
+Ajouter des dizaines d’actions avant capacité, engagement et clôture diluerait
+la priorité produit.

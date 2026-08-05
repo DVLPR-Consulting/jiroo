@@ -15,9 +15,9 @@ import {
 // DisplayMode
 // ---------------------------------------------------------------------------
 
-export type DisplayMode = "board" | "list" | "tree";
+export type DisplayMode = "backlog" | "board" | "list" | "tree";
 
-const DISPLAY_MODES = ["board", "list", "tree"] as const;
+const DISPLAY_MODES = ["backlog", "board", "list", "tree"] as const;
 
 // ---------------------------------------------------------------------------
 // Column types — the shape assigned to the `views` table columns
@@ -260,7 +260,7 @@ export function buildViewUrl(
 // Zod schemas
 // ---------------------------------------------------------------------------
 
-const displayModeSchema = z.enum(["board", "list", "tree"]);
+const displayModeSchema = z.enum(DISPLAY_MODES);
 
 const filtersSchema = z.object({
   q: z.string().default(""),

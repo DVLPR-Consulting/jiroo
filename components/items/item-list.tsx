@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
@@ -13,6 +14,7 @@ import {
 import { KindIcon } from "@/components/icons/kind-icon";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
+import { BulkItemToolbar } from "@/components/items/bulk-item-toolbar";
 import {
   InlineAssignee,
   InlineEstimate,
@@ -28,6 +30,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
 import type { SortDir, SortField } from "@/lib/items/filter";
+import {
+  emptySelection,
+  reconcileSelection,
+  selectAllVisible,
+  toggleItemSelection,
+} from "@/lib/items/selection";
 
 type LabelChip = { id: string; name: string; color: string };
 type UserOption = { id: string; name: string };
@@ -128,6 +136,8 @@ function ItemRow({
   backlogKey,
   selectedKey,
   canWrite,
+  bulkSelected,
+  onToggleSelection,
 }: {
   item: ListItem;
   grouped: boolean;
@@ -136,6 +146,8 @@ function ItemRow({
   backlogKey: string;
   selectedKey?: string;
   canWrite: boolean;
+  bulkSelected: boolean;
+  onToggleSelection: (id: string, extendRange: boolean) => void;
 }) {
   const viewUrl = useViewUrlState();
   const isSelected = item.key === selectedKey;
@@ -159,10 +171,29 @@ function ItemRow({
       onClick={openItem}
       onKeyDown={handleKeyDown}
       className={`cursor-pointer transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)] ${
-        isSelected ? "bg-[var(--accent-subtle)]" : ""
+        isSelected || bulkSelected ? "bg-[var(--accent-subtle)]" : ""
       }`}
       style={{ height: "var(--row-h)" }}
     >
+      {canWrite ? (
+        <td
+          className={`${CELL_CLASS} px-2 text-center`}
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={bulkSelected}
+            onChange={() => undefined}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleSelection(item.id, event.shiftKey);
+            }}
+            aria-label={`Sélectionner ${item.key}`}
+            className="size-4 cursor-pointer accent-[var(--primary)]"
+          />
+        </td>
+      ) : null}
       <td className={`${CELL_CLASS} whitespace-nowrap`}>
         <span className="inline-flex items-center gap-1.5">
           <TypeIcon type={item.type} />
@@ -250,6 +281,7 @@ export function ItemList({
   grouped,
   statuses,
   users,
+  backlogId,
   backlogKey,
   selectedKey,
   currentSort,
@@ -263,6 +295,7 @@ export function ItemList({
   grouped: boolean;
   statuses: StatusOption[];
   users: UserOption[];
+  backlogId: string;
   backlogKey: string;
   selectedKey?: string;
   currentSort: CurrentSort;
@@ -272,9 +305,54 @@ export function ItemList({
   createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses">;
   canWrite?: boolean;
 }) {
+  const router = useRouter();
   const viewUrl = useViewUrlState();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
+  const [selection, setSelection] = useState(emptySelection);
+  const [selectionScope, setSelectionScope] = useState<string | null>(null);
   const total = groups.reduce((count, group) => count + group.items.length, 0);
+  const visibleItems = useMemo(
+    () =>
+      groups.flatMap((group) =>
+        grouped && collapsedGroups.has(group.key) ? [] : group.items,
+      ),
+    [collapsedGroups, grouped, groups],
+  );
+  const visibleIds = useMemo(
+    () => visibleItems.map((item) => item.id),
+    [visibleItems],
+  );
+  const visibleSignature = visibleIds.join("\u001f");
+  if (selectionScope !== visibleSignature) {
+    setSelectionScope(visibleSignature);
+    setSelection((current) => reconcileSelection(current, visibleIds));
+  }
+  const selectedItems = visibleItems.filter((item) =>
+    selection.selectedIds.has(item.id),
+  );
+  const allSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selection.selectedIds.has(id));
+  const partlySelected = selection.selectedIds.size > 0 && !allSelected;
+
+  function toggleSelection(id: string, extendRange: boolean) {
+    setSelection((current) =>
+      toggleItemSelection(current, visibleIds, id, extendRange),
+    );
+  }
+
+  function handleSelectionShortcut(event: React.KeyboardEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, select, [contenteditable='true']")) {
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+      event.preventDefault();
+      setSelection(selectAllVisible(visibleIds));
+    } else if (event.key === "Escape" && selection.selectedIds.size > 0) {
+      event.preventDefault();
+      setSelection(emptySelection());
+    }
+  }
 
   function sortBy(field: SortField) {
     const direction: SortDir =
@@ -325,9 +403,13 @@ export function ItemList({
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto">
+    <div
+      className="min-h-0 flex-1 overflow-auto"
+      onKeyDown={canWrite ? handleSelectionShortcut : undefined}
+    >
       <table className="w-full table-fixed border-separate border-spacing-0">
         <colgroup>
+          {canWrite ? <col className="w-10" /> : null}
           <col className="w-32" />
           <col />
           <col className="w-40" />
@@ -339,6 +421,24 @@ export function ItemList({
         </colgroup>
         <thead className="sticky top-0 z-20">
           <tr>
+            {canWrite ? (
+              <th scope="col" className={`${HEADER_CLASS} px-2 text-center`}>
+                <input
+                  ref={(node) => {
+                    if (node) node.indeterminate = partlySelected;
+                  }}
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() =>
+                    setSelection(
+                      allSelected ? emptySelection() : selectAllVisible(visibleIds),
+                    )
+                  }
+                  aria-label="Sélectionner tous les items visibles"
+                  className="size-4 cursor-pointer accent-[var(--primary)]"
+                />
+              </th>
+            ) : null}
             <SortableHeader field="key" currentSort={currentSort} onSort={sortBy}>
               Clé
             </SortableHeader>
@@ -367,7 +467,7 @@ export function ItemList({
                 <tr>
                   <th
                     scope="rowgroup"
-                    colSpan={8}
+                    colSpan={canWrite ? 9 : 8}
                     className="sticky top-8 z-10 border-b border-border bg-[var(--surface-2)] px-3 py-1.5 text-left"
                   >
                     <button
@@ -399,12 +499,28 @@ export function ItemList({
                     backlogKey={backlogKey}
                     selectedKey={selectedKey}
                     canWrite={canWrite}
+                    bulkSelected={selection.selectedIds.has(item.id)}
+                    onToggleSelection={toggleSelection}
                   />
                 ))}
             </tbody>
           );
         })}
       </table>
+      {canWrite && selectedItems.length > 0 ? (
+        <BulkItemToolbar
+          backlogId={backlogId}
+          backlogKey={backlogKey}
+          selectedItems={selectedItems.map((item) => ({
+            id: item.id,
+            type: item.type,
+          }))}
+          statuses={statuses}
+          users={users}
+          onClearSelection={() => setSelection(emptySelection())}
+          onMutationSuccess={() => router.refresh()}
+        />
+      ) : null}
     </div>
   );
 }

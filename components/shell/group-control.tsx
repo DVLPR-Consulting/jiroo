@@ -3,7 +3,7 @@
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import type { GroupKey, ViewState } from "@/lib/items/filter";
 
-type DisplayView = "board" | "list" | "tree";
+type DisplayView = "backlog" | "board" | "list" | "tree";
 type GroupOption = { value: Exclude<GroupKey, "parent"> | ""; label: string };
 
 const NONE: GroupOption = { value: "", label: "Aucun" };
@@ -13,6 +13,7 @@ const COMPONENT: GroupOption = { value: "component", label: "Composant" };
 const STATUS: GroupOption = { value: "status", label: "Statut" };
 
 const OPTIONS_BY_VIEW: Record<Exclude<DisplayView, "tree">, GroupOption[]> = {
+  backlog: [STATUS, PRIORITY, ASSIGNEE, COMPONENT, NONE],
   board: [PRIORITY, ASSIGNEE, COMPONENT, NONE],
   list: [STATUS, PRIORITY, ASSIGNEE, COMPONENT, NONE],
 };

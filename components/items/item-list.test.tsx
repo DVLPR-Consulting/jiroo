@@ -5,6 +5,7 @@ import { ItemList } from "@/components/items/item-list";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
 const mocks = vi.hoisted(() => ({
+  bulkUpdateItemsAction: vi.fn(),
   push: vi.fn(),
   refresh: vi.fn(),
   replace: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/app/actions/items", () => ({
+  bulkUpdateItemsAction: mocks.bulkUpdateItemsAction,
   updateItemAction: mocks.updateItemAction,
 }));
 
@@ -116,6 +118,7 @@ function listProps(): React.ComponentProps<typeof ItemList> {
     grouped: false,
     statuses,
     users,
+    backlogId: "backlog-id",
     backlogKey: "DEMO",
     selectedKey: undefined,
     currentSort: null,
@@ -132,6 +135,7 @@ function renderList(props = listProps()) {
 
 describe("ItemList", () => {
   beforeEach(() => {
+    mocks.bulkUpdateItemsAction.mockReset();
     mocks.push.mockReset();
     mocks.refresh.mockReset();
     mocks.replace.mockReset();
@@ -281,10 +285,62 @@ describe("ItemList", () => {
     expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
     expect(within(row).getByText("À faire")).toBeVisible();
     expect(within(row).getByText("Marie Lemaire")).toBeVisible();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
 
     await user.click(within(row).getByText("Authentication"));
     expect(mocks.push).toHaveBeenCalledWith(
       "/b/DEMO?view=list&item=DEMO-1&v=saved-view&q=auth",
+    );
+  });
+
+  it("selects a visible range without opening item detail", async () => {
+    const user = userEvent.setup();
+    renderList();
+
+    await user.click(screen.getByRole("checkbox", { name: "Sélectionner DEMO-1" }));
+    const header = screen.getByRole("checkbox", { name: "Sélectionner tous les items visibles" });
+    expect(header).toBePartiallyChecked();
+    await user.keyboard("{Shift>}");
+    await user.click(screen.getByRole("checkbox", { name: "Sélectionner DEMO-2" }));
+    await user.keyboard("{/Shift}");
+
+    expect(screen.getByText("2 items sélectionnés")).toBeVisible();
+    expect(header).toBeChecked();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("supports guarded keyboard select-all and Escape", async () => {
+    const user = userEvent.setup();
+    renderList();
+
+    const row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    row.focus();
+    await user.keyboard("{Meta>}a{/Meta}");
+    expect(screen.getByText("2 items sélectionnés")).toBeVisible();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("region", { name: "Actions groupées" })).not.toBeInTheDocument();
+
+    const priority = within(row).getByRole("button", { name: /Priorité.*Moyenne/i });
+    priority.focus();
+    await user.keyboard("{Meta>}a{/Meta}");
+    expect(screen.queryByRole("region", { name: "Actions groupées" })).not.toBeInTheDocument();
+  });
+
+  it("reconciles selection when visible list results change", async () => {
+    const user = userEvent.setup();
+    const input = listProps();
+    const { rerender } = renderList(input);
+
+    await user.click(screen.getByRole("checkbox", { name: "Sélectionner DEMO-2" }));
+    expect(screen.getByText("1 item sélectionné")).toBeVisible();
+    rerender(
+      <ViewUrlStateProvider initialEntries={Object.entries(initialUrlParams)}>
+        <ItemList {...input} groups={[groups[0]!]} filtersActive />
+      </ViewUrlStateProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Actions groupées" })).not.toBeInTheDocument(),
     );
   });
 

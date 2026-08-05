@@ -1,0 +1,6 @@
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[error] Failed to load resource: net::ERR_FAILED
+[error] Failed to load resource: net::ERR_FAILED
+[expected] rank POST aborted; CASS-38 rolled back
+[expected] bulk POST aborted; selection retained

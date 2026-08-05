@@ -10,6 +10,7 @@ import type { BulkItemPatch } from "@/lib/validation/bulk-item";
 import {
   createItem,
   moveItem,
+  rankBacklogItem,
   reparentItem,
   restoreItem,
   softDeleteItem,
@@ -181,6 +182,42 @@ type ReparentItemActionInput = {
   beforeId?: string | null;
   afterId?: string | null;
 };
+
+type RankBacklogItemActionInput = {
+  backlogKey: string;
+  backlogId: string;
+  id: string;
+  beforeId: string | null;
+  afterId: string | null;
+};
+
+const RANK_DOMAIN_ERRORS = [
+  "Backlog introuvable.",
+  "L’item appartient à un autre backlog.",
+  "Seules les tâches du backlog peuvent être classées.",
+  "Voisin invalide pour ce backlog.",
+] as const;
+
+export async function rankBacklogItemAction(input: RankBacklogItemActionInput) {
+  const actorId = await requireWriter();
+  const { backlogKey, ...data } = input;
+  try {
+    const item = await rankBacklogItem(data, actorId);
+    if (!item) return { ok: false as const, error: "Item introuvable." };
+    revalidatePath(`/b/${backlogKey}`);
+    return { ok: true as const, item };
+  } catch (error) {
+    const validationError = mapZodActionError(error);
+    if (validationError) return { ok: false as const, ...validationError };
+    const message = error instanceof Error ? error.message : "";
+    return {
+      ok: false as const,
+      error:
+        RANK_DOMAIN_ERRORS.find((candidate) => candidate === message) ??
+        "Classement impossible.",
+    };
+  }
+}
 
 function mapMoveError(e: unknown): string {
   const s = String(e);

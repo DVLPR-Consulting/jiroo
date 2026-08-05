@@ -8,7 +8,7 @@ import { canRestore } from "@/lib/items/trash";
 import { ROOT_LABEL, buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
 import { rankBetween, rankFirst, rankLast } from "@/lib/tree/rank";
-import { createItemSchema, idInputSchema, moveItemSchema, reparentItemSchema, updateItemSchema } from "@/lib/validation/item";
+import { createItemSchema, idInputSchema, moveItemSchema, rankBacklogItemSchema, reparentItemSchema, updateItemSchema } from "@/lib/validation/item";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -637,6 +637,89 @@ export async function moveItem(input: unknown, actorId: string) {
         .where(eq(items.id, cur.id))
         .returning();
       await tx.insert(activities).values(acts);
+      return updated!;
+    }),
+  );
+}
+
+export async function rankBacklogItem(input: unknown, actorId: string) {
+  const data = rankBacklogItemSchema.parse(input);
+  return withRetry(() =>
+    db.transaction(async (tx) => {
+      const [backlog] = await tx
+        .select({ id: backlogs.id })
+        .from(backlogs)
+        .where(eq(backlogs.id, data.backlogId))
+        .for("update");
+      if (!backlog) throw new Error("Backlog introuvable.");
+
+      const [current] = await tx
+        .select()
+        .from(items)
+        .where(and(eq(items.id, data.id), isNull(items.deletedAt)))
+        .for("update");
+      if (!current) return null;
+      if (current.backlogId !== backlog.id) {
+        throw new Error("L’item appartient à un autre backlog.");
+      }
+      if (current.type !== "tache") {
+        throw new Error("Seules les tâches du backlog peuvent être classées.");
+      }
+
+      const neighborIds = [data.beforeId, data.afterId].filter(
+        (id): id is string => id !== null,
+      );
+      if (neighborIds.length > 0) {
+        const neighbors = await tx
+          .select({
+            id: items.id,
+            backlogId: items.backlogId,
+            type: items.type,
+            deletedAt: items.deletedAt,
+            rank: items.rank,
+          })
+          .from(items)
+          .where(inArray(items.id, neighborIds))
+          .orderBy(asc(items.rank))
+          .for("update");
+        const byId = new Map(neighbors.map((neighbor) => [neighbor.id, neighbor]));
+        for (const neighborId of neighborIds) {
+          const neighbor = byId.get(neighborId);
+          if (
+            !neighbor ||
+            neighbor.deletedAt !== null ||
+            neighbor.backlogId !== backlog.id ||
+            neighbor.type !== "tache"
+          ) {
+            throw new Error("Voisin invalide pour ce backlog.");
+          }
+        }
+      }
+
+      const newRank = await rankAtDrop(
+        tx,
+        backlog.id,
+        current.id,
+        data.beforeId,
+        data.afterId,
+      );
+      if (newRank === current.rank) return current;
+
+      const [updated] = await tx
+        .update(items)
+        .set({ rank: newRank, updatedAt: new Date() })
+        .where(eq(items.id, current.id))
+        .returning();
+      await tx.insert(activities).values(
+        activityRow(
+          current.id,
+          actorId,
+          "move",
+          "rank",
+          current.rank,
+          newRank,
+        ),
+      );
       return updated!;
     }),
   );
