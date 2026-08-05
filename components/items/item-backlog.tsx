@@ -874,7 +874,10 @@ function SprintItemBacklog({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const visibleItems = useMemo(
-    () => renderedSections.flatMap((section) => (expanded[section.id] ? section.items : [])),
+    () =>
+      renderedSections.flatMap((section) =>
+        (expanded[section.id] ?? true) ? section.items : [],
+      ),
     [expanded, renderedSections],
   );
   const visibleIds = useMemo(() => visibleItems.map((item) => item.id), [visibleItems]);
@@ -1094,7 +1097,8 @@ function SprintItemBacklog({
       >
         <div className="min-h-0 flex-1 overflow-auto">
           {renderedSections.map((section) => {
-            const sectionVisibleIds = expanded[section.id]
+            const sectionExpanded = expanded[section.id] ?? true;
+            const sectionVisibleIds = sectionExpanded
               ? section.items.map((item) => item.id)
               : [];
             const selectedCount = sectionVisibleIds.filter((id) => selection.selectedIds.has(id)).length;
@@ -1117,7 +1121,7 @@ function SprintItemBacklog({
                   kind={section.kind}
                   sprint={section.sprint}
                   metrics={section.metrics as SprintMetrics}
-                  expanded={expanded[section.id] ?? true}
+                  expanded={sectionExpanded}
                   onExpandedChange={(next) =>
                     setExpanded((current) => ({ ...current, [section.id]: next }))
                   }
@@ -1178,7 +1182,7 @@ function SprintItemBacklog({
                     </>
                   }
                 />
-                {expanded[section.id] ? (
+                {sectionExpanded ? (
                   section.items.length > 0 ? (
                     <SectionTable
                       section={section}

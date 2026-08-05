@@ -253,6 +253,24 @@ describe("ItemBacklog", () => {
       ]);
   });
 
+  it("renders a task added to an existing sprint after server props refresh", async () => {
+    const next = sprintProps();
+    if (!("sections" in next)) throw new Error("Sections de sprint attendues.");
+    const withoutFutureSprint = {
+      ...next,
+      sections: next.sections.filter((section) => section.id !== "sprint-future"),
+    };
+    const { rerender } = render(<ItemBacklog {...withoutFutureSprint} />);
+    expect(screen.queryByRole("row", { name: "DEMO-2 — Session" }))
+      .not.toBeInTheDocument();
+
+    rerender(<ItemBacklog {...next} />);
+
+    expect(
+      await screen.findByRole("row", { name: "DEMO-2 — Session" }),
+    ).toBeVisible();
+  });
+
   it("removes hidden selections when a sprint section is collapsed", async () => {
     const user = userEvent.setup();
     render(<ItemBacklog {...sprintProps()} />);
