@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import Link from "next/link";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/shell/app-shell";
 import {
@@ -7,6 +8,7 @@ import {
   useSidebarState,
 } from "@/components/shell/sidebar-state";
 import { useViewUrlState } from "@/components/shell/view-url-state";
+import { SidebarTrigger } from "@/components/shell/sidebar-trigger";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/b/CASS",
@@ -28,10 +30,24 @@ function UrlProbe({ label, value }: { label: string; value: string }) {
   );
 }
 
+function installMatchMedia(matches: boolean) {
+  vi.stubGlobal("matchMedia", vi.fn((query: string) => ({
+    matches,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })));
+}
+
 describe("SidebarStateProvider", () => {
   beforeEach(() => {
     localStorage.clear();
     delete document.documentElement.dataset.sidebar;
+    installMatchMedia(false);
   });
 
   it("hydrates from the anti-flash attribute and persists toggles", async () => {
@@ -103,5 +119,59 @@ describe("SidebarStateProvider", () => {
       "href",
       "/b/CASS?view=board&tag=a&tag=b&probe=page",
     );
+  });
+
+  it("uses one content column and opens the sidebar as a modal drawer on mobile", async () => {
+    installMatchMedia(true);
+    const user = userEvent.setup();
+    const { container } = render(
+      <AppShell
+        sidebar={<aside>Navigation mobile</aside>}
+        topbar={<SidebarTrigger />}
+      >
+        Contenu
+      </AppShell>,
+    );
+
+    expect(container.firstElementChild).toHaveStyle({
+      gridTemplateColumns: "minmax(0,1fr)",
+    });
+    expect(screen.queryByText("Navigation mobile")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ouvrir la navigation" }));
+    expect(
+      screen.getByRole("dialog", { name: "Navigation principale" }),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
+    expect(
+      screen.queryByRole("dialog", { name: "Navigation principale" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("closes the mobile drawer after ordinary navigation but preserves modified clicks", async () => {
+    installMatchMedia(true);
+    const user = userEvent.setup();
+    render(
+      <AppShell
+        sidebar={
+          <Link href="/b/CASS" onClick={(event) => event.preventDefault()}>
+            Tous les items
+          </Link>
+        }
+        topbar={<SidebarTrigger />}
+      >
+        Contenu
+      </AppShell>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Ouvrir la navigation" }));
+    fireEvent.click(screen.getByRole("link", { name: "Tous les items" }), {
+      ctrlKey: true,
+    });
+    expect(screen.getByRole("dialog", { name: "Navigation principale" })).toBeVisible();
+
+    fireEvent.click(screen.getByRole("link", { name: "Tous les items" }));
+    expect(
+      screen.queryByRole("dialog", { name: "Navigation principale" }),
+    ).not.toBeInTheDocument();
   });
 });

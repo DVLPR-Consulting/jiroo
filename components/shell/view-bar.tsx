@@ -27,8 +27,8 @@ export function ViewBar({
   const viewUrl = useViewUrlState();
 
   return (
-    <div className="flex h-[46px] items-center gap-3 border-b border-border px-4">
-      <div className="inline-flex rounded-md border border-border p-0.5">
+    <div className="flex min-h-[46px] flex-wrap items-center gap-3 border-b border-border px-4 py-2">
+      <div className="inline-flex shrink-0 rounded-md border border-border p-0.5">
         {TABS.map(([v, label]) => {
           const href = viewUrl.href((params) => params.set("view", v));
           const active = view === v;
@@ -52,9 +52,14 @@ export function ViewBar({
           );
         })}
       </div>
-      {groupControlSlot}
-      {viewActionsSlot}
-      <div className="ml-auto flex items-center gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
+        {groupControlSlot}
+        {viewActionsSlot}
+      </div>
+      <div
+        data-slot="primary-actions"
+        className="ml-auto flex shrink-0 items-center gap-3"
+      >
         <DensityToggle />
         {newItemSlot}
       </div>
