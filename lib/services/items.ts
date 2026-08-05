@@ -463,6 +463,9 @@ export async function updateItem(input: unknown, actorId: string) {
     if (lockedBacklogId && cur.backlogId !== lockedBacklogId) {
       throw new Error("Le backlog de l'item a changé pendant la mutation.");
     }
+    if (data.estimatePoints !== undefined && cur.type !== "tache") {
+      throw new Error("Seules les tâches peuvent être estimées.");
+    }
 
     const patch: Partial<typeof items.$inferInsert> = {};
     const acts: (typeof activities.$inferInsert)[] = [];
@@ -478,6 +481,22 @@ export async function updateItem(input: unknown, actorId: string) {
     if (data.priority !== undefined && data.priority !== cur.priority) {
       patch.priority = data.priority;
       acts.push(activityRow(cur.id, actorId, "update", "priority", String(cur.priority), String(data.priority)));
+    }
+    if (data.estimatePoints !== undefined) {
+      const nextEstimate = data.estimatePoints ?? null;
+      if (nextEstimate !== cur.estimatePoints) {
+        patch.estimatePoints = nextEstimate;
+        acts.push(
+          activityRow(
+            cur.id,
+            actorId,
+            "update",
+            "estimate_points",
+            cur.estimatePoints === null ? null : String(cur.estimatePoints),
+            nextEstimate === null ? null : String(nextEstimate),
+          ),
+        );
+      }
     }
     if (data.kind !== undefined && data.kind !== cur.kind) {
       patch.kind = data.kind;

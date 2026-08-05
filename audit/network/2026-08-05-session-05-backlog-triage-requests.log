@@ -1,0 +1,6 @@
+34. [POST] http://localhost:3000/b/CASS?view=list => [200] OK
+35. [GET] http://localhost:3000/b/CASS?view=list&_rsc=iT519xyN5stMqaac => [200] OK
+36. [POST] http://localhost:3000/b/CASS?view=list => [200] OK
+37. [GET] http://localhost:3000/b/CASS?view=list&_rsc=iT519xyN5stMqaac => [200] OK
+
+Note: 33 static requests not shown, run with "static" option to see them.

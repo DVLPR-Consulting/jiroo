@@ -54,6 +54,21 @@ describe("updateItemSchema", () => {
     const parsed = updateItemSchema.parse({ id: BID });
     expect(parsed).not.toHaveProperty("reporterId");
   });
+  it("accepts null, zero, integer and decimal story points", () => {
+    for (const estimatePoints of [null, 0, 1, 5, 13, 2.5, 999.99]) {
+      expect(updateItemSchema.parse({ id: BID, estimatePoints }).estimatePoints).toBe(
+        estimatePoints,
+      );
+    }
+  });
+  it("rejects negative, over-precision and oversized story points", () => {
+    for (const estimatePoints of [-1, 1.001, 1000, Number.NaN]) {
+      expect(updateItemSchema.safeParse({ id: BID, estimatePoints }).success).toBe(false);
+    }
+  });
+  it("leaves story points untouched when omitted", () => {
+    expect(updateItemSchema.parse({ id: BID })).not.toHaveProperty("estimatePoints");
+  });
 });
 
 describe("idInputSchema", () => {

@@ -141,6 +141,74 @@ export function PriorityField({
   );
 }
 
+export function EstimateField({
+  itemId,
+  backlogKey,
+  estimatePoints,
+}: {
+  itemId: string;
+  backlogKey: string;
+  estimatePoints: number | null;
+}) {
+  const field = useOptimisticFieldUpdate({
+    value: estimatePoints,
+    itemId,
+    backlogKey,
+    toPatch: (next) => ({ estimatePoints: next }),
+  });
+  const [draft, setDraft] = useState(
+    estimatePoints === null ? "" : String(estimatePoints),
+  );
+
+  return (
+    <div>
+      <form
+        className="flex items-center gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (draft.trim() === "") return;
+          field.update(Number(draft));
+        }}
+      >
+        <input
+          type="number"
+          min={0}
+          max={999.99}
+          step={0.01}
+          value={draft}
+          disabled={field.pending}
+          onChange={(event) => setDraft(event.target.value)}
+          aria-label="Points"
+          aria-busy={field.pending}
+          className={selectClass}
+        />
+        <button
+          type="submit"
+          disabled={field.pending || draft.trim() === ""}
+          className="shrink-0 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-[var(--muted)] disabled:opacity-60"
+        >
+          Enregistrer
+        </button>
+        {field.value !== null && (
+          <button
+            type="button"
+            aria-label="Effacer l’estimation"
+            onClick={() => {
+              setDraft("");
+              field.update(null);
+            }}
+            disabled={field.pending}
+            className="shrink-0 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-[var(--muted)] disabled:opacity-60"
+          >
+            Effacer
+          </button>
+        )}
+      </form>
+      <FieldError error={field.error} />
+    </div>
+  );
+}
+
 export function KindField({
   itemId,
   backlogKey,

@@ -5,6 +5,8 @@ import { type Role, canWriteItems } from "@/lib/auth/rbac";
 import { getSession } from "@/lib/auth/session";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
 import { mapZodActionError } from "@/lib/validation/action-error";
+import { bulkUpdateItems } from "@/lib/services/item-bulk";
+import type { BulkItemPatch } from "@/lib/validation/bulk-item";
 import {
   createItem,
   moveItem,
@@ -36,6 +38,7 @@ type UpdateItemActionInput = {
   description?: string | null;
   statusId?: string;
   priority?: number;
+  estimatePoints?: number | null;
   assigneeId?: string | null;
   reporterId?: string;
   dueDate?: string | null;
@@ -61,6 +64,21 @@ function mapCreateError(e: unknown): string {
   if (s.includes("Parent")) return "Parent introuvable.";
   if (s.includes("label") || s.includes("Label")) return "Label invalide pour ce backlog.";
   return "Création impossible.";
+}
+
+const BULK_DOMAIN_ERRORS = [
+  "Backlog introuvable.",
+  "Un ou plusieurs items sont introuvables.",
+  "Tous les items doivent appartenir au backlog.",
+  "Statut invalide pour ce backlog.",
+  "Assigné introuvable.",
+  "Seules les tâches peuvent être estimées.",
+] as const;
+
+function mapBulkError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  return BULK_DOMAIN_ERRORS.find((candidate) => candidate === message)
+    ?? "Modification groupée impossible.";
 }
 
 export async function createItemAction(input: CreateItemActionInput) {
@@ -90,10 +108,31 @@ export async function updateItemAction(input: UpdateItemActionInput) {
     const s = String(e);
     const error = s.includes("Statut invalide")
       ? "Statut invalide pour ce backlog."
+      : s.includes("Seules les tâches")
+        ? "Seules les tâches peuvent être estimées."
       : s.includes("label") || s.includes("Label")
         ? "Label invalide pour ce backlog."
         : "Mise à jour impossible.";
     return { ok: false as const, error };
+  }
+}
+
+export async function bulkUpdateItemsAction(input: {
+  backlogKey: string;
+  backlogId: string;
+  itemIds: string[];
+  patch: BulkItemPatch;
+}) {
+  const actorId = await requireWriter();
+  const { backlogKey, ...serviceInput } = input;
+  try {
+    const result = await bulkUpdateItems(serviceInput, actorId);
+    revalidatePath(`/b/${backlogKey}`);
+    return { ok: true as const, ...result };
+  } catch (error) {
+    const validationError = mapZodActionError(error);
+    if (validationError) return { ok: false as const, ...validationError };
+    return { ok: false as const, error: mapBulkError(error) };
   }
 }
 

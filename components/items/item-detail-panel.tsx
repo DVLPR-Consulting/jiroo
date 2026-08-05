@@ -28,6 +28,7 @@ import { DescriptionEditor } from "@/components/items/detail/description-editor"
 import {
   StatusField,
   PriorityField,
+  EstimateField,
   KindField,
   AssigneeField,
   ReporterField,
@@ -364,6 +365,22 @@ export function ItemDetailPanel({
                 </span>
               )}
             </Field>
+
+            {detail.type === "tache" && (
+              <Field label="Points">
+                {canWrite ? (
+                  <EstimateField
+                    itemId={detail.id}
+                    backlogKey={backlogKey}
+                    estimatePoints={detail.estimatePoints}
+                  />
+                ) : detail.estimatePoints === null ? (
+                  "Non estimé"
+                ) : (
+                  `${detail.estimatePoints} pts`
+                )}
+              </Field>
+            )}
 
             <Field label="Nature">
               {canWrite ? (

@@ -76,6 +76,7 @@ function item(
     title,
     statusId: todoStatusId,
     priority: 2,
+    estimatePoints: null,
     depth: 0,
     dueDate: "2026-08-12T00:00:00.000Z",
     assigneeId: "marie",
@@ -201,7 +202,7 @@ describe("ItemList", () => {
     renderList();
 
     expect(screen.getByRole("table")).toBeInTheDocument();
-    for (const heading of ["Clé", "Titre", "Statut", "Prio", "Labels", "Échéance", "Assigné"]) {
+    for (const heading of ["Clé", "Titre", "Statut", "Prio", "Points", "Labels", "Échéance", "Assigné"]) {
       expect(screen.getByRole("columnheader", { name: heading })).toBeInTheDocument();
     }
     expect(screen.getByRole("columnheader", { name: "Clé" }).closest("thead")).toHaveClass("sticky");
@@ -248,6 +249,25 @@ describe("ItemList", () => {
     mocks.push.mockClear();
     const row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
     await user.click(within(row).getByRole("button", { name: /Priorité.*Moyenne/i }));
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("edits a task estimate without opening the row", async () => {
+    const user = userEvent.setup();
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: {} });
+    renderList();
+
+    const row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    await user.click(within(row).getByRole("button", { name: "Estimation : Non estimé" }));
+    const input = screen.getByRole("spinbutton", { name: "Points" });
+    await user.type(input, "3");
+    await user.click(screen.getByRole("button", { name: "Enregistrer l’estimation" }));
+
+    expect(mocks.updateItemAction).toHaveBeenCalledWith({
+      id: "item-1",
+      backlogKey: "DEMO",
+      estimatePoints: 3,
+    });
     expect(mocks.push).not.toHaveBeenCalled();
   });
 

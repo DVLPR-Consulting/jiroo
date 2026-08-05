@@ -6,6 +6,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgSequence,
   pgTable,
   primaryKey,
@@ -69,6 +70,11 @@ export const items = pgTable(
       .notNull()
       .references(() => statuses.id),
     priority: integer("priority").notNull().default(0),
+    estimatePoints: numeric("estimate_points", {
+      precision: 5,
+      scale: 2,
+      mode: "number",
+    }),
     assigneeId: text("assignee_id").references(() => user.id, { onDelete: "set null" }),
     reporterId: text("reporter_id")
       .notNull()
@@ -97,6 +103,10 @@ export const items = pgTable(
     check(
       "items_path_self_inclusive",
       sql`subpath(${t.path}, nlevel(${t.path}) - 1)::text = replace(${t.id}::text, '-', '')`,
+    ),
+    check(
+      "items_estimate_points_range",
+      sql`${t.estimatePoints} is null or (${t.estimatePoints} >= 0 and ${t.estimatePoints} <= 999.99)`,
     ),
   ],
 );

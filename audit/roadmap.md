@@ -183,3 +183,70 @@ interdite et ne permet aucune divergence entre UI, serveur et reporting.
 3. Hiérarchie, dépendances et exécution multi-utilisateur.
 4. Reporting, recherche, notifications et intégrations.
 5. Responsive et performance transverses en fin d'audit.
+
+## Mise à jour prioritaire — incrément 05 du 5 août 2026
+
+### P0 — Transformer la Liste en backlog planifiable
+
+**État : absent, `BUG-JIR-015` ouvert.**
+
+**Pourquoi :** une priorité catégorielle ne détermine pas l'ordre relatif du
+travail. Sans rang et sans sélection multiple, le PM ne peut ni ordonner le
+prochain sprint ni traiter efficacement un lot d'items.
+
+**Livrable :** champ de rang persistant par backlog, vue `Backlog` dédiée,
+réordonnancement souris/clavier, sélection par checkbox/plage/tout le résultat
+filtré et bulk edit de statut, priorité, assigné, estimation, cycle et release.
+
+**Acceptation :** ordre identique après reload et pour deux utilisateurs ; tris
+temporaires sans destruction du rang ; déplacement clavier annoncé ; 100 items
+sélectionnés et modifiés en une opération transactionnelle avec résumé d'impact
+et rollback d'erreur.
+
+### P0 — Ajouter estimation et cycles/sprints
+
+**Livrable :** estimation activable par backlog avec échelle configurable,
+cycles nommés et datés, backlog vs cycle actif, objectif, capacité, items non
+estimés, démarrage/clôture et report explicite des items incomplets.
+
+**Acceptation :** préparer un cycle, voir somme/capacité, démarrer, exécuter sur
+le board, terminer et reporter/refuser chaque item restant ; activité et
+historique cohérents après reload et concurrence.
+
+### P0 — Ajouter releases/versions
+
+**Livrable :** version avec nom, date cible et état ; affectation unitaire ou en
+masse ; progression calculée ; vue des éléments prêts, terminés et bloqués ;
+notes de release manuelles avant automatisation CI/CD.
+
+**Acceptation :** créer une version, y planifier des items, visualiser sa
+progression, la publier puis retrouver exactement ce qui a été livré.
+
+### Quick wins avant le modèle complet
+
+1. Afficher une colonne `Estimation` nullable et le filtre `Non estimé`.
+2. Ajouter les checkboxes et une barre bulk limitée à priorité, statut et
+   assigné sur les Server Actions existantes.
+3. Nommer explicitement le DnD de l'Arbre `Déplacer sous…` pour éviter de le
+   confondre avec un classement.
+4. Renommer la vue actuelle `Liste des items` lorsque la future vue `Backlog`
+   sera ajoutée.
+
+### Ordre de réalisation recommandé
+
+1. Rang persistant et réordonnancement accessible.
+2. Sélection multiple et bulk edit.
+3. Estimation et agrégats.
+4. Cycles/sprints et capacité.
+5. Releases/versions.
+6. Reporting de vélocité, burndown et prévision après accumulation de données
+   fiables.
+
+### Note produit pour un incrément ultérieur — dépôts et pull requests
+
+Ajouter une intégration de dépôt GitHub/GitLab permettant de connecter un ou
+plusieurs repositories au backlog, de lier automatiquement une PR à un item via
+sa clé (`CASS-123`) ou manuellement, puis d'afficher branche, auteur, état de la
+PR, reviews, checks CI, merge et déploiement. Cette intégration devra alimenter
+l'activité de l'item et les releases sans considérer `Done` comme synonyme de
+« livré ».

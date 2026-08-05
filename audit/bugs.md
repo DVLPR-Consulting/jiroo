@@ -697,6 +697,92 @@ supprimé cette colonne avec remplacement par `En cours`, puis a relu l'activit�
 Les trois lignes observées sont création, `En cours à Audit preuve` et
 `Audit preuve à En cours`. Aucun UUID n'est visible.
 
+## BUG-JIR-015 — La vue Liste ne permet pas de planifier un backlog produit
+
+- **Gravité :** critique produit
+- **Priorité :** P0
+- **Statut :** ouvert
+- **Fonctionnalité :** backlog produit / triage / planification
+
+### Étapes de reproduction
+
+1. Ouvrir `http://localhost:3000/b/CASS?view=list` en administrateur.
+2. Examiner les colonnes, les lignes et les contrôles de la liste.
+3. Tenter de sélectionner plusieurs items ou de les classer manuellement.
+4. Ouvrir `Nouvel item`, puis le détail de `CASS-58`.
+5. Ouvrir la vue `Arbre`, glisser `CASS-58` sur son frère `CASS-57` et observer
+   le résultat.
+6. Ouvrir `/admin`, puis `Modifier` le backlog `CASS`.
+
+### Résultat obtenu
+
+- Le tableau expose `Clé`, `Titre`, `Statut`, `Prio`, `Labels`, `Échéance` et
+  `Assigné`, mais aucun rang, estimation, cycle/sprint ou release/version.
+- Le DOM interactif contient 0 checkbox, 0 sélection de ligne et 0 poignée de
+  classement dans la Liste : aucune modification en masse n'est possible.
+- Le tri par titre et le groupement par priorité fonctionnent, mais trier n'est
+  pas prioriser : aucune position métier persistante n'est manipulable.
+- L'Arbre est déplaçable, mais le dépôt sur un frère tente de modifier le parent,
+  affiche `Parent invalide pour ce type.` et conserve exactement le même ordre.
+- Les formulaires de création, détail et administration n'exposent ni
+  estimation, ni cycle, ni release, ni capacité.
+- La navigation ne propose que Tous les items, Mes items, vues, corbeille et
+  administration ; aucun backlog séparé, sprint/cycle ou release n'est
+  découvrable.
+
+### Résultat attendu
+
+Une équipe produit doit pouvoir conserver un backlog distinct du travail en
+cours, classer les items selon leur ordre métier, les estimer, sélectionner un
+ensemble pour le modifier, les affecter à un cycle/sprint et à une release, puis
+visualiser la capacité et ce qui entre réellement en exécution.
+
+### Impacts
+
+- **Utilisateur :** le PM peut enregistrer des tickets, mais doit revenir à un
+  tableur ou à un autre outil pour prioriser et préparer un sprint.
+- **Métier :** Jiroo ne peut pas remplacer Jira/Linear sur la gestion de produit
+  de bout en bout ; adoption équipe et migration sont bloquées.
+- **Données :** la priorité à cinq niveaux ne remplace pas un rang relatif ; deux
+  items `Haute` restent impossibles à ordonner de façon autoritaire.
+
+### Preuves
+
+- [Liste sans champs de planification](screenshots/BUG-JIR-015-liste-sans-planification-backlog.png)
+- [Création sans estimation, cycle ou release](screenshots/BUG-JIR-015-creation-sans-estimation-cycle-release.png)
+- [Arbre de parentage sans rang de backlog](screenshots/BUG-JIR-015-arbre-hierarchie-sans-rang-backlog.png)
+- [Administration sans planification](screenshots/BUG-JIR-015-administration-sans-planification.png)
+- [Console Playwright](console/2026-08-05-session-05-backlog-triage-console.log)
+- [Réseau Playwright](network/2026-08-05-session-05-backlog-triage-requests.log)
+
+### Gravité, performance et observabilité
+
+La mutation unitaire de priorité fonctionne et a été restaurée en environ
+110 ms avec un POST 200. Le tri titre a été observé autour de 271 ms. La session
+cumule 0 erreur et 0 avertissement console ; les requêtes nominales observées
+répondent 200. Il s'agit donc d'une lacune de modèle produit, pas d'une panne
+technique du tableau actuel.
+
+### Cause probable
+
+Le modèle visible est centré sur les propriétés d'un item et son statut de
+workflow. Aucun concept de rang relatif, estimation, itération, release ou
+opération sur une sélection n'est exposé à l'interface. Le DnD de l'Arbre est
+spécialisé dans la relation parent/enfant et ne peut pas être réutilisé comme
+preuve de priorisation.
+
+### Correction proposée
+
+1. Ajouter un rang persistant par backlog avec réordonnancement souris et
+   clavier, indépendant des tris temporaires.
+2. Ajouter sélection multiple et bulk edit pour statut, priorité, assigné,
+   estimation, cycle et release.
+3. Introduire une estimation configurable, puis cycles/sprints avec capacité et
+   une séparation explicite backlog / cycle actif.
+4. Introduire releases/versions avec date cible, état et progression.
+5. Conserver l'Arbre pour la hiérarchie et ne jamais présenter son parentage
+   comme un classement de backlog.
+
 ## Diagnostics non classés comme bugs
 
 - Deux `POST /api/auth/two-factor/verify-totp` ont répondu `401 UNAUTHORIZED` lors de codes TOTP invalides générés par l'audit. Le troisième code, validé dans l'application d'authentification, a répondu 200. Le blocage et le message `Code invalide. Réessayez.` sont attendus.
@@ -711,6 +797,8 @@ Journaux : incrément 01 [console](console/2026-08-04-session-01-console.log) / 
 Incrément 03 : [console complète](console/2026-08-05-session-03-dnd-transitions-console.log) / [réseau complet](network/2026-08-05-session-03-dnd-transitions-requests.log) ; session finale propre [console](console/2026-08-05-session-03-dnd-transitions-clean-console.log) / [réseau](network/2026-08-05-session-03-dnd-transitions-clean-requests.log). Les `net::ERR_FAILED` du journal complet sont les deux échecs volontairement injectés pour vérifier le rollback ; le parcours nominal final contient 0 erreur et 0 avertissement.
 
 Incrément 04 : constat initial [console](console/2026-08-05-session-04-workflow-columns-console-final.log) / [réseau](network/2026-08-05-session-04-workflow-columns-requests-final.log) ; scénario de migration [console](console/2026-08-05-session-04-workflow-columns-runtime-console.log) / [réseau](network/2026-08-05-session-04-workflow-columns-runtime-requests.log) ; remédiation finale [console](console/2026-08-05-session-04-remediation-final-console.log) / [réseau](network/2026-08-05-session-04-remediation-final-requests.log).
+
+Incrément 05 : backlog/triage [console](console/2026-08-05-session-05-backlog-triage-console.log) / [réseau](network/2026-08-05-session-05-backlog-triage-requests.log). La collecte contient 0 erreur et 0 avertissement ; les deux POST de mutation de priorité et leurs rafraîchissements GET répondent 200.
 
 ## Journal de résolution — 4 août 2026
 

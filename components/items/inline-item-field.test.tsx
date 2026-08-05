@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   InlineAssignee,
+  InlineEstimate,
   InlinePriority,
   InlineStatus,
 } from "@/components/items/inline-item-field";
@@ -164,5 +165,32 @@ describe("compact inline item editors", () => {
       assigneeId: null,
     });
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
+  });
+
+  it("distinguishes an unestimated task from zero and sends a decimal estimate", async () => {
+    const user = userEvent.setup();
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: {} });
+    render(
+      <InlineEstimate itemId="item-4" backlogKey="DEMO" estimatePoints={null} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Estimation : Non estimé" }));
+    const input = screen.getByRole("spinbutton", { name: "Points" });
+    await user.clear(input);
+    await user.type(input, "2.5");
+    await user.click(screen.getByRole("button", { name: "Enregistrer l’estimation" }));
+
+    expect(mocks.updateItemAction).toHaveBeenCalledWith({
+      id: "item-4",
+      backlogKey: "DEMO",
+      estimatePoints: 2.5,
+    });
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
+  });
+
+  it("renders zero as an explicit estimate", () => {
+    render(<InlineEstimate itemId="item-5" backlogKey="DEMO" estimatePoints={0} />);
+
+    expect(screen.getByRole("button", { name: "Estimation : 0 pt" })).toBeVisible();
   });
 });
