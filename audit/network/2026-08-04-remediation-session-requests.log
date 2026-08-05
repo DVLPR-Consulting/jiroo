@@ -1,0 +1,22 @@
+63. [GET] http://localhost:3000/b/CASS?item=CASS-57&_rsc=J_59D5WJwA6rJthS => [200] OK
+64. [GET] http://localhost:3000/b/CASS?_rsc=J_59D5WJwA6rJthS => [200] OK
+65. [GET] http://localhost:3000/b/CASS?_rsc=D3M9SuaNwLXDi3wH => [200] OK
+66. [GET] http://localhost:3000/b/CASS?item=CASS-57&_rsc=J_59D5WJwA6rJthS => [200] OK
+67. [POST] http://localhost:3000/b/CASS?item=CASS-57 => [200] OK
+68. [GET] http://localhost:3000/b/CASS?item=CASS-57&_rsc=iT519xyN5stMqaac => [200] OK
+69. [POST] http://localhost:3000/b/CASS?item=CASS-57 => [200] OK
+70. [GET] http://localhost:3000/b/CASS?item=CASS-57&_rsc=iT519xyN5stMqaac => [200] OK
+71. [POST] http://localhost:3000/b/CASS?item=CASS-57 => [200] OK
+72. [GET] http://localhost:3000/b/CASS?item=CASS-57&_rsc=iT519xyN5stMqaac => [200] OK
+73. [POST] http://localhost:3000/b/CASS?item=CASS-57 => [200] OK
+74. [GET] http://localhost:3000/b/CASS?item=CASS-57&_rsc=iT519xyN5stMqaac => [200] OK
+75. [POST] http://localhost:3000/b/CASS?item=CASS-57 => [200] OK
+76. [GET] http://localhost:3000/b/CASS?item=CASS-57&_rsc=iT519xyN5stMqaac => [200] OK
+77. [POST] http://localhost:3000/b/CASS?item=CASS-57 => [200] OK
+78. [GET] http://localhost:3000/b/CASS?item=CASS-57&_rsc=iT519xyN5stMqaac => [200] OK
+79. [POST] http://localhost:3000/b/CASS?item=CASS-57 => [200] OK
+80. [GET] http://localhost:3000/b/CASS?item=CASS-57&_rsc=iT519xyN5stMqaac => [200] OK
+81. [GET] http://localhost:3000/b/CASS?_rsc=J_59D5WJwA6rJthS => [200] OK
+82. [GET] http://localhost:3000/b/CASS?_rsc=D3M9SuaNwLXDi3wH => [200] OK
+
+Note: 62 static requests not shown, run with "static" option to see them.

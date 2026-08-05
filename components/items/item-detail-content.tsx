@@ -72,6 +72,7 @@ export async function ItemDetailContent({
     <>
       <RecentItemTracker itemKey={detail.key} />
       <ItemDetailPanel
+        key={detail.id}
         detail={detail}
         activities={activities}
         comments={comments}

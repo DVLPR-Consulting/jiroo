@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createItemAction, softDeleteItemAction } from "@/app/actions/items";
@@ -30,6 +38,7 @@ import {
 import { ITEM_TEMPLATES, getTemplate } from "@/lib/items/templates";
 import { allowedParentType } from "@/lib/tree/hierarchy";
 import { toast } from "@/lib/toast";
+import { ITEM_TITLE_MAX } from "@/lib/validation/item";
 
 type Item = { id: string; key: string; type: ItemType; title: string };
 type Status = { id: string; name: string };
@@ -72,6 +81,10 @@ export function NewItemButton({
   const [statusId, setStatusId] = useState<string>(initialStatusId ?? "");
   const [priority, setPriority] = useState<Priority>(0);
   const [error, setError] = useState<string | null>(null);
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const titleCounterId = useId();
+  const titleErrorId = useId();
 
   useEffect(() => {
     if (!enableShortcut) return;
@@ -95,6 +108,7 @@ export function NewItemButton({
         return;
       }
 
+      event.preventDefault();
       setOpen(true);
     }
 
@@ -118,6 +132,7 @@ export function NewItemButton({
     setStatusId(initialStatusId ?? "");
     setPriority(0);
     setError(null);
+    setTitleError(null);
   }
 
   function handleTemplateChange(id: string) {
@@ -150,6 +165,7 @@ export function NewItemButton({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setTitleError(null);
     startTransition(async () => {
       const result = await createItemAction({
         backlogKey,
@@ -163,7 +179,11 @@ export function NewItemButton({
         priority,
       });
       if (!result.ok) {
-        setError(result.error);
+        const fieldError =
+          "fieldErrors" in result ? result.fieldErrors?.title?.[0] : undefined;
+        setTitleError(fieldError ?? null);
+        setError(fieldError ? null : result.error);
+        if (fieldError) titleRef.current?.focus();
         return;
       }
       const item = result.item;
@@ -244,12 +264,34 @@ export function NewItemButton({
           <div className="space-y-2">
             <Label htmlFor="item-title">Titre</Label>
             <Input
+              ref={titleRef}
               id="item-title"
               value={title}
               placeholder="ex. Page de connexion"
-              onChange={(e) => setTitle(e.target.value)}
+              maxLength={ITEM_TITLE_MAX}
+              aria-invalid={titleError ? true : undefined}
+              aria-describedby={`${titleCounterId}${titleError ? ` ${titleErrorId}` : ""}`}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (titleError) setTitleError(null);
+              }}
               autoFocus
             />
+            <div className="flex items-start justify-between gap-3">
+              <span
+                id={titleErrorId}
+                className="t-sm text-destructive"
+                role={titleError ? "alert" : undefined}
+              >
+                {titleError}
+              </span>
+              <span
+                id={titleCounterId}
+                className="ml-auto text-xs tabular-nums text-muted-foreground"
+              >
+                {title.length} / {ITEM_TITLE_MAX}
+              </span>
+            </div>
           </div>
 
           {parentRequired && (

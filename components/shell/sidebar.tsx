@@ -29,7 +29,8 @@ export function Sidebar({
   user: { name: string; email: string; role: string };
   counts: ShellCounts;
 }) {
-  const { collapsed } = useSidebarState();
+  const { collapsed: desktopCollapsed, mobile } = useSidebarState();
+  const collapsed = mobile ? false : desktopCollapsed;
   const viewUrl = useViewUrlState();
   const pathname = usePathname();
   const searchParams = useSearchParams();

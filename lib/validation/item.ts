@@ -1,9 +1,21 @@
 import { z } from "zod";
 import { ITEM_KINDS, ITEM_TYPES } from "@/lib/design/constants";
 
+export const ITEM_TITLE_MAX = 200;
+export const ITEM_DESCRIPTION_MAX = 20_000;
+
 const itemType = z.enum(ITEM_TYPES);
-const title = z.string().trim().min(1, "Le titre est requis.").max(200, "Titre trop long (200 max).");
-const description = z.string().trim().max(20_000).nullable().optional();
+const title = z
+  .string()
+  .trim()
+  .min(1, "Le titre est requis.")
+  .max(ITEM_TITLE_MAX, "Titre trop long (200 max).");
+const description = z
+  .string()
+  .trim()
+  .max(ITEM_DESCRIPTION_MAX, "Description trop longue (20 000 max).")
+  .nullable()
+  .optional();
 const priority = z.number().int().min(0, "Priorité invalide.").max(4, "Priorité invalide.");
 // user.id is TEXT (better-auth), NOT a uuid — keep it a plain string.
 const assigneeId = z.string().nullable().optional();

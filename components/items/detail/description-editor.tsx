@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { updateItemAction } from "@/app/actions/items";
+import { ITEM_DESCRIPTION_MAX } from "@/lib/validation/item";
 
 export function DescriptionEditor({
   itemId,
@@ -22,6 +23,9 @@ export function DescriptionEditor({
   const [value, setValue] = useState(description ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const counterId = useId();
+  const errorId = useId();
 
   function start() {
     setValue(description ?? "");
@@ -44,7 +48,10 @@ export function DescriptionEditor({
         description: next,
       });
       if (!res.ok) {
-        setError(res.error);
+        const fieldError =
+          "fieldErrors" in res ? res.fieldErrors?.description?.[0] : undefined;
+        setError(fieldError ?? res.error);
+        editorRef.current?.focus();
         return;
       }
       setEditing(false);
@@ -56,19 +63,33 @@ export function DescriptionEditor({
     return (
       <div className="flex flex-col gap-2">
         <textarea
+          ref={editorRef}
           autoFocus
+          aria-label="Description (Markdown supporté)…"
+          aria-invalid={Boolean(error)}
+          aria-describedby={`${counterId}${error ? ` ${errorId}` : ""}`}
+          maxLength={ITEM_DESCRIPTION_MAX}
           rows={8}
           className="w-full resize-y rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-sm leading-relaxed text-foreground outline-none focus:border-[var(--ring)]"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setError(null);
+          }}
           placeholder="Description (Markdown supporté)…"
           disabled={pending}
         />
-        {error && (
-          <p className="t-sm" style={{ color: "var(--danger)" }}>
-            {error}
-          </p>
-        )}
+        <div className="flex items-start justify-between gap-3 text-xs text-muted-foreground">
+          <span id={counterId}>
+            {value.length.toLocaleString("fr-FR").replace(/\u202f/g, " ")} /{" "}
+            {ITEM_DESCRIPTION_MAX.toLocaleString("fr-FR").replace(/\u202f/g, " ")}
+          </span>
+          {error && (
+            <span id={errorId} role="alert" className="text-right text-[var(--danger)]">
+              {error}
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <button
             type="button"
@@ -76,7 +97,7 @@ export function DescriptionEditor({
             disabled={pending}
             className="rounded-[var(--radius)] bg-[var(--primary)] px-3 py-1.5 text-sm font-medium text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)] disabled:opacity-60"
           >
-            Enregistrer
+            {pending ? "Enregistrement…" : "Enregistrer"}
           </button>
           <button
             type="button"

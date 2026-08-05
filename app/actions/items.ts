@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { type Role, canWriteItems } from "@/lib/auth/rbac";
 import { getSession } from "@/lib/auth/session";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
+import { mapZodActionError } from "@/lib/validation/action-error";
 import {
   createItem,
   moveItem,
@@ -70,6 +71,8 @@ export async function createItemAction(input: CreateItemActionInput) {
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, item };
   } catch (e) {
+    const validationError = mapZodActionError(e);
+    if (validationError) return { ok: false as const, ...validationError };
     return { ok: false as const, error: mapCreateError(e) };
   }
 }
@@ -82,6 +85,8 @@ export async function updateItemAction(input: UpdateItemActionInput) {
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, item };
   } catch (e) {
+    const validationError = mapZodActionError(e);
+    if (validationError) return { ok: false as const, ...validationError };
     const s = String(e);
     const error = s.includes("Statut invalide")
       ? "Statut invalide pour ce backlog."

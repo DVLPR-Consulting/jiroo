@@ -188,6 +188,55 @@ describe("ItemDetailPanel header", () => {
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
   });
 
+  it("names the detail as a dialog and closes through Escape", async () => {
+    const user = userEvent.setup();
+    const returnTarget = document.createElement("button");
+    returnTarget.textContent = "Item déclencheur";
+    document.body.append(returnTarget);
+    returnTarget.focus();
+    const rendered = renderPanel();
+
+    const dialog = screen.getByRole("dialog", {
+      name: `${detail.key} — ${detail.title}`,
+    });
+    expect(dialog).toBeVisible();
+    await user.keyboard("{Escape}");
+
+    expect(mocks.push).toHaveBeenCalled();
+    expect(dialog).not.toBeInTheDocument();
+    expect(returnTarget).toHaveFocus();
+    rendered.unmount();
+    returnTarget.remove();
+  });
+
+  it("uses a single-column mobile-first grid and a desktop side column", () => {
+    renderPanel();
+
+    expect(
+      screen.getByRole("dialog", { name: `${detail.key} — ${detail.title}` }),
+    ).toHaveClass("w-screen");
+    expect(screen.getByTestId("item-detail-grid")).toHaveClass(
+      "grid-cols-1",
+      "md:grid-cols-[1fr_220px]",
+    );
+  });
+
+  it("cancels title editing with Escape without closing the detail dialog", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(screen.getByRole("button", { name: `Renommer ${detail.key}` }));
+    expect(screen.getByRole("textbox", { name: "Titre de l’item" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+
+    expect(
+      screen.getByRole("dialog", { name: `${detail.key} — ${detail.title}` }),
+    ).toBeVisible();
+    expect(screen.queryByRole("textbox", { name: "Titre de l’item" }))
+      .not.toBeInTheDocument();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
   it("keeps item details readable while hiding viewer mutation affordances", async () => {
     const user = userEvent.setup();
     render(

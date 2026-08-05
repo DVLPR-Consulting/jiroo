@@ -161,7 +161,7 @@ export function LinksSection({
                   aria-label={`Supprimer le lien vers ${link.other.key}`}
                   disabled={pending}
                   onClick={() => handleRemove(link.id)}
-                  className="hidden size-5 flex-none items-center justify-center rounded text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground group-hover:flex disabled:opacity-40"
+                  className="pointer-events-none inline-flex size-5 flex-none items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-[var(--muted)] hover:text-foreground group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 disabled:opacity-40"
                 >
                   <X className="size-3" />
                 </button>
