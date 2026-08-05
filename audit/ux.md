@@ -287,3 +287,28 @@ Défauts :
    frères est ajouté.
 5. Rendre visibles capacité, somme des estimations et items non estimés avant
    le démarrage d'un cycle.
+
+## Backlog classé — incrément 06 du 5 août 2026
+
+### Résultat observé
+
+- L’onglet `Backlog` est explicite et accessible en un clic depuis le même
+  contexte que Board/Liste/Arbre.
+- Les tâches terminées et les éléments structurels sont exclus ; quatre tâches
+  planifiables sont observées sur `CASS`.
+- Chaque ligne expose clé, titre, statut, priorité, points et assigné, avec un
+  total de points et un compteur d’items non estimés.
+- Une poignée nommée `Déplacer <clé>` permet `Espace`, flèches, `Espace` et
+  annonce la position en français. L’ordre est conservé après reload.
+- Quand un tri ou groupement est actif, les poignées disparaissent et une
+  explication indique comment retrouver l’ordre manuel.
+
+### Mesures et dette restante
+
+Le POST de classement est observé à **141 ms** ; après rechargement,
+`DOMContentLoaded` est à **176 ms** et `load` à **318 ms** en développement.
+Console, réseau et HTTP sont propres. Le parcours clavier est validé dans
+Chromium ; le pointeur/souris, le rollback réseau, le rôle lecteur réel et une
+liste volumineuse restent à rejouer dans cette fonctionnalité. Surtout, aucune
+checkbox ni barre bulk n’est encore visible : le coût de triage par lot reste
+celui constaté dans l’incrément 05.

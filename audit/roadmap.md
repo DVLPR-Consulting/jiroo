@@ -188,7 +188,10 @@ interdite et ne permet aucune divergence entre UI, serveur et reporting.
 
 ### P0 — Transformer la Liste en backlog planifiable
 
-**État : absent, `BUG-JIR-015` ouvert.**
+**État : en cours, `BUG-JIR-015` partiellement corrigé.** La vue dédiée, le rang
+persistant, l’estimation nullable et le classement clavier sont implémentés. La
+sélection multiple et la barre d’actions groupées restent le prochain bloc de
+PR1.
 
 **Pourquoi :** une priorité catégorielle ne détermine pas l'ordre relatif du
 travail. Sans rang et sans sélection multiple, le PM ne peut ni ordonner le
@@ -241,6 +244,16 @@ progression, la publier puis retrouver exactement ce qui a été livré.
 5. Releases/versions.
 6. Reporting de vélocité, burndown et prévision après accumulation de données
    fiables.
+
+### État de livraison après incrément 06
+
+1. ~~Rang persistant et réordonnancement clavier~~ — validé par Playwright ;
+   souris et panne réseau à compléter dans la matrice finale.
+2. Sélection multiple et bulk edit — prochain lot.
+3. ~~Estimation nullable et agrégats de Backlog~~ — implémentés ; matrice
+   d’édition navigateur finale restante.
+4. Cycles/sprints et capacité — non commencé.
+5. Releases/versions — non commencé.
 
 ### Note produit pour un incrément ultérieur — dépôts et pull requests
 

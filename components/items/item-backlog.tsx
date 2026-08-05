@@ -463,6 +463,7 @@ export function ItemBacklog({
         </div>
       ) : (
         <DndContext
+          id={`backlog-rank-${backlogId}`}
           sensors={sensors}
           accessibility={{
             announcements,

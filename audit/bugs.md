@@ -701,7 +701,7 @@ Les trois lignes observées sont création, `En cours à Audit preuve` et
 
 - **Gravité :** critique produit
 - **Priorité :** P0
-- **Statut :** ouvert
+- **Statut :** partiellement corrigé — rang et estimation livrés ; bulk edit et sprints restants
 - **Fonctionnalité :** backlog produit / triage / planification
 
 ### Étapes de reproduction
@@ -782,6 +782,102 @@ preuve de priorisation.
 4. Introduire releases/versions avec date cible, état et progression.
 5. Conserver l'Arbre pour la hiérarchie et ne jamais présenter son parentage
    comme un classement de backlog.
+
+### Correction partielle vérifiée — incrément 06
+
+Une vue `Backlog` distincte expose désormais uniquement les tâches non
+terminées, leur statut, priorité, estimation et assigné. Le classement manuel
+clavier est persistant et est désactivé avec une explication quand un tri ou un
+groupement est actif. Chromium a déplacé une tâche, observé un POST 200 en
+141 ms, rechargé la page et retrouvé le même ordre. La console ne contient
+aucune erreur et toutes les réponses observées sont nominales.
+
+`BUG-JIR-015` reste partiellement ouvert : sélection multiple, actions groupées,
+sprints/capacité et releases ne sont pas encore validés dans le navigateur.
+
+## BUG-JIR-016 — Le classement Backlog provoque une divergence d’hydratation React
+
+- **Gravité :** majeure
+- **Priorité :** P1
+- **Statut :** corrigé et vérifié
+- **Fonctionnalité :** backlog / classement accessible / SSR
+
+### Étapes de reproduction
+
+1. Ouvrir `http://localhost:3000/b/CASS?view=backlog` dans un nouveau contexte
+   Chromium authentifié.
+2. Attendre l’hydratation de la vue et surveiller la console.
+3. Examiner `aria-describedby` sur les poignées `Déplacer CASS-*`.
+
+### Résultat obtenu
+
+React signale une divergence : le serveur rend `DndDescribedBy-1` et le client
+`DndDescribedBy-0`. React précise que l’attribut ne sera pas corrigé.
+
+### Résultat attendu
+
+Le HTML serveur et le premier rendu client doivent être identiques ; chaque
+poignée doit référencer les instructions DnD réellement présentes.
+
+### Impacts
+
+- **Utilisateur :** une technologie d’assistance peut recevoir une référence
+  d’instructions incohérente ou absente.
+- **Métier :** bruit console et baisse de confiance dans la stabilité SSR de la
+  fonctionnalité de planification.
+
+### Capture et cause probable
+
+Playwright a enregistré la divergence dans son artefact d’échec automatique.
+La preuve après correction est la [capture du Backlog classé](screenshots/FIXED-PARTIAL-BUG-JIR-015-backlog-ranked.png).
+Le `DndContext` utilisait un identifiant automatique dont la séquence différait
+entre serveur et client.
+
+### Correction appliquée et vérification
+
+Le contexte reçoit maintenant un identifiant stable dérivé du backlog.
+Playwright rejoue l’hydratation, le clavier et le rechargement avec 0 erreur
+console. [Console finale](console/2026-08-05-session-06-backlog-ranking-smoke-console.log).
+
+## BUG-JIR-017 — Le tri local des rangs fractionnels contredit l’ordre persistant
+
+- **Gravité :** critique
+- **Priorité :** P0
+- **Statut :** corrigé et vérifié
+- **Fonctionnalité :** backlog / classement manuel
+
+### Étapes de reproduction
+
+1. Ouvrir la vue Backlog avec des rangs fractionnels contenant majuscules et
+   minuscules, par exemple `aBV` et `aBl`.
+2. Déplacer la première tâche d’une position au clavier.
+3. Observer l’ordre optimiste, le POST 200, puis recharger la page.
+
+### Résultat obtenu
+
+La base persiste bien le nouveau rang et l’activité `move/rank`, mais la vue
+revient visuellement à l’ordre précédent. `localeCompare` classe `aBl` avant
+`aBV`, contrairement à l’ordre binaire requis par les rangs fractionnels.
+
+### Résultat attendu
+
+L’ordre affiché, l’ordre optimiste, l’ordre stocké et l’ordre après rechargement
+doivent être strictement identiques.
+
+### Impacts
+
+- **Utilisateur :** le PM croit qu’une priorité a été perdue ou ne peut pas
+  faire confiance au backlog.
+- **Métier :** défaut bloquant pour planifier un sprint ; les décisions
+  d’ordre semblent non persistantes malgré une mutation réussie.
+
+### Capture, cause et correction
+
+La preuve finale est la [capture après rechargement](screenshots/FIXED-PARTIAL-BUG-JIR-015-backlog-ranked.png), avec [console](console/2026-08-05-session-06-backlog-ranking-smoke-console.log) et [réseau](network/2026-08-05-session-06-backlog-ranking-smoke-requests.log).
+La cause était une collation linguistique appliquée à une clé technique. Le tri
+utilise désormais les comparaisons binaires `<` et `>` déjà employées par le
+Board. Un test de régression couvre explicitement `aBV < aBl`, et Playwright
+confirme la persistance après rechargement.
 
 ## Diagnostics non classés comme bugs
 

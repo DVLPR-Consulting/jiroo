@@ -22,5 +22,7 @@ export function selectBacklogRows(
 
   return sort
     ? sortItems(eligible, sort)
-    : [...eligible].sort((left, right) => left.rank.localeCompare(right.rank));
+    : [...eligible].sort((left, right) =>
+        left.rank < right.rank ? -1 : left.rank > right.rank ? 1 : 0,
+      );
 }

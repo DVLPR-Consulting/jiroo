@@ -306,3 +306,16 @@ un cycle ou une release. L'avantage différenciant doit être une planification
 compréhensible en moins de quinze minutes par une nouvelle équipe, avec calculs
 de capacité explicables et aucune configuration Jira-like avant le premier
 sprint.
+
+## Mise à jour — classement Backlog de l’incrément 06
+
+Jiroo couvre désormais le noyau du classement Jira : vue dédiée, rang persistant,
+drag clavier annoncé, ordre conservé après rechargement et estimation nullable
+visible. Sur ce sous-périmètre, l’implémentation est crédible et plus explicite
+que Jira quand un tri temporaire empêche le classement manuel.
+
+Jira, Linear, ClickUp, Azure DevOps et Plane restent devant sur la sélection en
+masse et la planification en sprint/cycle. GitHub Projects reste devant sur les
+champs et itérations configurables. Aucun crédit de parité globale n’est donc
+accordé avant la preuve navigateur des bulk actions, de la capacité et du cycle
+complet démarrage → exécution → clôture.

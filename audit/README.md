@@ -77,7 +77,7 @@ quoi livrer et quand.
 
 ## Niveau d'avancement de l'audit
 
-**Environ 40 %.** Ce pourcentage mesure la couverture de l'audit, pas la qualité
+**Environ 42 %.** Ce pourcentage mesure la couverture de l'audit, pas la qualité
 du produit. Les parcours création, détail, transitions, colonnes et
 backlog/triage ont été audités en profondeur. Les cycles/sprints, releases,
 dépendances, reporting, collaboration, recherche, sécurité complète et charge
@@ -87,7 +87,7 @@ restent à auditer.
 |---|---|
 | Création et édition d'items | Audité et remédié sur le périmètre observé |
 | Board, transitions et colonnes | Audité et largement remédié |
-| Backlog produit et triage | Audité ; lacune P0 ouverte |
+| Backlog produit et triage | Audité ; vue, rang et estimation remédiés, bulk/sprints encore ouverts |
 | Cycles/sprints, capacité et releases | Non audité fonctionnellement ; aucun point d'entrée découvert |
 | Hiérarchie et dépendances | Partiel : arbre découvert, comportement de parentage observé |
 | Vues, recherche et reporting | Découvert seulement |
@@ -579,3 +579,45 @@ requests aux items, avec checks CI, merge, déploiement et traçabilité de rele
    du backlog vers l'exécution.
 3. Ajouter les **releases/versions**, puis relier dates, progression et éléments
    livrés.
+
+## Fin de session — incrément 06 partiel : vue Backlog et classement
+
+### Score provisoire du pilotage produit
+
+**62/100 — confiance élevée sur le classement clavier, faible sur la
+planification complète.** La vue Backlog, le rang et l’estimation réduisent
+l’écart constaté à l’incrément 05. Le score reste limité par l’absence de bulk
+UI, sprints/capacité et releases.
+
+### Ce qui a été testé
+
+- Onglet Backlog, tâches non terminées, champs de planification, compteurs de
+  points et items non estimés.
+- Classement clavier avec annonces françaises, mutation POST, ordre optimiste
+  et persistance après rechargement.
+- Tri binaire des rangs fractionnels, dont le cas réel `aBV` / `aBl`.
+- Hydratation SSR/client du contexte DnD avec identifiant stable.
+- Tests complets Vitest : 734 passés ; tests transactionnels ciblés PostgreSQL :
+  10 passés ; TypeScript et ESLint verts.
+- Playwright Chromium : 1 scénario passé, 0 erreur console, 0 échec réseau,
+  0 réponse HTTP en erreur ; POST 141 ms, `DOMContentLoaded` 176 ms, load 318 ms.
+
+Preuves : [capture](screenshots/FIXED-PARTIAL-BUG-JIR-015-backlog-ranked.png),
+[console](console/2026-08-05-session-06-backlog-ranking-smoke-console.log) et
+[réseau](network/2026-08-05-session-06-backlog-ranking-smoke-requests.log).
+
+### Ce qui reste à tester
+
+Dans PR1 : classement souris, annulation/rollback réseau, rôle lecteur réel,
+édition d’estimation, sélection multiple, plage, tout sélectionner et chaque
+action bulk. Ensuite : sprints, capacité, démarrage, board du sprint actif et
+clôture. Le responsive reste volontairement en fin d’audit.
+
+### Trois priorités absolues pour la prochaine session
+
+1. Implémenter et casser la sélection multiple, la sélection par plage et le
+   verrouillage pendant mutation.
+2. Brancher et auditer les bulk actions statut, priorité, assigné, estimation
+   et sprint, avec rollback transactionnel.
+3. Terminer la matrice Playwright PR1 : souris, lecteur, filtres/tri/groupement,
+   panne réseau, performances et reload.

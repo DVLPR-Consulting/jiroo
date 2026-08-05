@@ -68,4 +68,21 @@ describe("selectBacklogRows", () => {
 
     expect(selected.map((item) => item.id)).toEqual(["1", "5", "2"]);
   });
+
+  it("uses binary fractional-rank order instead of locale collation", () => {
+    const selected = selectBacklogRows(
+      [
+        row("lowercase-rank", "Après", { rank: "aBl" }),
+        row("uppercase-rank", "Avant", { rank: "aBV" }),
+      ],
+      categories,
+      () => true,
+      null,
+    );
+
+    expect(selected.map((item) => item.id)).toEqual([
+      "uppercase-rank",
+      "lowercase-rank",
+    ]);
+  });
 });
