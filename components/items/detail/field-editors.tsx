@@ -1,8 +1,6 @@
 "use client";
 
 import { useTransition, useState } from "react";
-import { useRouter } from "next/navigation";
-import { updateItemAction } from "@/app/actions/items";
 import { createLabelAction } from "@/app/actions/labels";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { LabelPill } from "@/components/items/label-pill";
@@ -22,34 +20,11 @@ import {
   type ItemKind,
   type Priority,
 } from "@/lib/design/constants";
+import { useOptimisticFieldUpdate } from "@/components/items/detail/use-optimistic-field-update";
 
 type StatusLite = { id: string; name: string; color: string; category: string };
 type UserLite = { id: string; name: string; email: string };
 type LabelLite = { id: string; name: string; color: string };
-
-type UpdatePatch = Omit<Parameters<typeof updateItemAction>[0], "id" | "backlogKey">;
-
-// Shared driver: runs the action in a transition then refreshes; tracks
-// pending + a transient error string surfaced by each editor.
-function useFieldUpdate(itemId: string, backlogKey: string) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  function run(patch: UpdatePatch) {
-    setError(null);
-    startTransition(async () => {
-      const res = await updateItemAction({ id: itemId, backlogKey, ...patch });
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      router.refresh();
-    });
-  }
-
-  return { pending, error, run };
-}
 
 function FieldError({ error }: { error: string | null }) {
   if (!error) return null;
@@ -89,8 +64,13 @@ export function StatusField({
   statusId: string;
   statuses: StatusLite[];
 }) {
-  const { pending, error, run } = useFieldUpdate(itemId, backlogKey);
-  const selected = statuses.find((s) => s.id === statusId);
+  const { value, pending, error, update } = useOptimisticFieldUpdate({
+    value: statusId,
+    itemId,
+    backlogKey,
+    toPatch: (next) => ({ statusId: next }),
+  });
+  const selected = statuses.find((s) => s.id === value);
 
   return (
     <div>
@@ -102,10 +82,11 @@ export function StatusField({
         />
         <select
           className={selectClass}
-          value={statusId}
+          value={value}
           disabled={pending}
-          onChange={(e) => run({ statusId: e.target.value })}
+          onChange={(e) => update(e.target.value)}
           aria-label="Statut"
+          aria-busy={pending}
         >
           {statuses.map((s) => (
             <option key={s.id} value={s.id}>
@@ -128,18 +109,25 @@ export function PriorityField({
   backlogKey: string;
   priority: number;
 }) {
-  const { pending, error, run } = useFieldUpdate(itemId, backlogKey);
+  const field = useOptimisticFieldUpdate({
+    value: priority,
+    itemId,
+    backlogKey,
+    toPatch: (next) => ({ priority: next }),
+  });
+  const selected = asPriority(field.value);
 
   return (
     <div>
       <div className="flex items-center gap-2">
-        <PrioIcon priority={asPriority(priority)} />
+        <PrioIcon priority={selected} />
         <select
           className={selectClass}
-          value={String(asPriority(priority))}
-          disabled={pending}
-          onChange={(e) => run({ priority: Number(e.target.value) })}
+          value={String(selected)}
+          disabled={field.pending}
+          onChange={(e) => field.update(Number(e.target.value))}
           aria-label="Priorité"
+          aria-busy={field.pending}
         >
           {PRIORITIES.map((p) => (
             <option key={p} value={p}>
@@ -148,7 +136,7 @@ export function PriorityField({
           ))}
         </select>
       </div>
-      <FieldError error={error} />
+      <FieldError error={field.error} />
     </div>
   );
 }
@@ -162,16 +150,22 @@ export function KindField({
   backlogKey: string;
   kind: ItemKind;
 }) {
-  const { pending, error, run } = useFieldUpdate(itemId, backlogKey);
+  const field = useOptimisticFieldUpdate({
+    value: kind,
+    itemId,
+    backlogKey,
+    toPatch: (next) => ({ kind: next }),
+  });
 
   return (
     <div>
       <select
         className={selectClass}
-        value={kind}
-        disabled={pending}
-        onChange={(e) => run({ kind: e.target.value as ItemKind })}
+        value={field.value}
+        disabled={field.pending}
+        onChange={(e) => field.update(e.target.value as ItemKind)}
         aria-label="Nature"
+        aria-busy={field.pending}
       >
         {ITEM_KINDS.map((k) => (
           <option key={k} value={k}>
@@ -179,7 +173,7 @@ export function KindField({
           </option>
         ))}
       </select>
-      <FieldError error={error} />
+      <FieldError error={field.error} />
     </div>
   );
 }
@@ -195,16 +189,22 @@ export function AssigneeField({
   assigneeId: string | null;
   users: UserLite[];
 }) {
-  const { pending, error, run } = useFieldUpdate(itemId, backlogKey);
+  const field = useOptimisticFieldUpdate({
+    value: assigneeId,
+    itemId,
+    backlogKey,
+    toPatch: (next) => ({ assigneeId: next }),
+  });
 
   return (
     <div>
       <select
         className={selectClass}
-        value={assigneeId ?? ""}
-        disabled={pending}
-        onChange={(e) => run({ assigneeId: e.target.value || null })}
+        value={field.value ?? ""}
+        disabled={field.pending}
+        onChange={(e) => field.update(e.target.value || null)}
         aria-label="Assigné"
+        aria-busy={field.pending}
       >
         <option value="">Non assigné</option>
         {users.map((u) => (
@@ -213,7 +213,7 @@ export function AssigneeField({
           </option>
         ))}
       </select>
-      <FieldError error={error} />
+      <FieldError error={field.error} />
     </div>
   );
 }
@@ -229,16 +229,22 @@ export function ReporterField({
   reporterId: string;
   users: UserLite[];
 }) {
-  const { pending, error, run } = useFieldUpdate(itemId, backlogKey);
+  const field = useOptimisticFieldUpdate({
+    value: reporterId,
+    itemId,
+    backlogKey,
+    toPatch: (next) => ({ reporterId: next }),
+  });
 
   return (
     <div>
       <select
         className={selectClass}
-        value={reporterId}
-        disabled={pending}
-        onChange={(e) => run({ reporterId: e.target.value })}
+        value={field.value}
+        disabled={field.pending}
+        onChange={(e) => field.update(e.target.value)}
         aria-label="Rapporteur"
+        aria-busy={field.pending}
       >
         {users.map((u) => (
           <option key={u.id} value={u.id}>
@@ -246,7 +252,7 @@ export function ReporterField({
           </option>
         ))}
       </select>
-      <FieldError error={error} />
+      <FieldError error={field.error} />
     </div>
   );
 }
@@ -260,8 +266,12 @@ export function DueDateField({
   backlogKey: string;
   dueDate: Date | string | null;
 }) {
-  const { pending, error, run } = useFieldUpdate(itemId, backlogKey);
-  const value = toDateInputValue(dueDate);
+  const field = useOptimisticFieldUpdate({
+    value: toDateInputValue(dueDate),
+    itemId,
+    backlogKey,
+    toPatch: (next) => ({ dueDate: next || null }),
+  });
 
   return (
     <div>
@@ -269,23 +279,24 @@ export function DueDateField({
         <input
           type="date"
           className={selectClass}
-          value={value}
-          disabled={pending}
-          onChange={(e) => run({ dueDate: e.target.value || null })}
+          value={field.value}
+          disabled={field.pending}
+          onChange={(e) => field.update(e.target.value)}
           aria-label="Échéance"
+          aria-busy={field.pending}
         />
-        {value && (
+        {field.value && (
           <button
             type="button"
-            onClick={() => run({ dueDate: null })}
-            disabled={pending}
+            onClick={() => field.update("")}
+            disabled={field.pending}
             className="shrink-0 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-[var(--muted)] disabled:opacity-60"
           >
             Effacer
           </button>
         )}
       </div>
-      <FieldError error={error} />
+      <FieldError error={field.error} />
     </div>
   );
 }
@@ -311,12 +322,17 @@ export function LabelsField({
   itemLabelIds: string[];
   backlogLabels: LabelLite[];
 }) {
-  const { pending, error, run } = useFieldUpdate(itemId, backlogKey);
+  const field = useOptimisticFieldUpdate({
+    value: itemLabelIds,
+    itemId,
+    backlogKey,
+    toPatch: (next) => ({ labelIds: next }),
+  });
   const [query, setQuery] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, startCreate] = useTransition();
 
-  const selectedSet = new Set(itemLabelIds);
+  const selectedSet = new Set(field.value);
   const selected = backlogLabels.filter((l) => selectedSet.has(l.id));
 
   // Filter by query (case/accent-insensitive).
@@ -336,7 +352,7 @@ export function LabelsField({
     const next = new Set(selectedSet);
     if (next.has(labelId)) next.delete(labelId);
     else next.add(labelId);
-    run({ labelIds: Array.from(next) });
+    field.update(Array.from(next));
   }
 
   function handleCreate() {
@@ -352,7 +368,7 @@ export function LabelsField({
       // Assign the newly-created label immediately.
       const next = new Set(selectedSet);
       next.add(res.label.id);
-      run({ labelIds: Array.from(next) });
+      field.update(Array.from(next));
       setQuery("");
     });
   }
@@ -363,8 +379,9 @@ export function LabelsField({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            disabled={pending}
+            disabled={field.pending}
             aria-label="Labels"
+            aria-busy={field.pending}
             className="flex min-h-8 w-full flex-wrap items-center gap-1.5 rounded-[var(--radius)] border border-border bg-[var(--surface)] px-2 py-1 text-left text-sm outline-none hover:border-[var(--border-strong)] focus:border-[var(--ring)] disabled:opacity-60"
           >
             {selected.length > 0 ? (
@@ -397,7 +414,7 @@ export function LabelsField({
               <DropdownMenuCheckboxItem
                 key={l.id}
                 checked={selectedSet.has(l.id)}
-                disabled={pending}
+                disabled={field.pending}
                 onSelect={(e) => e.preventDefault()}
                 onCheckedChange={() => toggle(l.id)}
               >
@@ -421,7 +438,7 @@ export function LabelsField({
             <>
               {filtered.length > 0 && <DropdownMenuSeparator />}
               <DropdownMenuItem
-                disabled={creating || pending}
+                disabled={creating || field.pending}
                 onSelect={(e) => {
                   e.preventDefault();
                   handleCreate();
@@ -433,7 +450,7 @@ export function LabelsField({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-      <FieldError error={error} />
+      <FieldError error={field.error} />
       <FieldError error={createError} />
     </div>
   );

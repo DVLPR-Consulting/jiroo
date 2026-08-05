@@ -35,7 +35,7 @@ describe("ReporterField", () => {
     mocks.updateItemAction.mockReset();
   });
 
-  it("sends the selected required reporter and stays pessimistic while saving", async () => {
+  it("shows the selected reporter immediately and confirms after the action", async () => {
     const user = userEvent.setup();
     const update = deferred<{ ok: true; item: object }>();
     mocks.updateItemAction.mockReturnValueOnce(update.promise);
@@ -59,14 +59,15 @@ describe("ReporterField", () => {
       reporterId: "better-auth-nora",
     });
     expect(select).toBeDisabled();
-    expect(select).toHaveValue("better-auth-marie");
+    expect(select).toHaveValue("better-auth-nora");
+    expect(select).toHaveAttribute("aria-busy", "true");
     expect(mocks.refresh).not.toHaveBeenCalled();
 
     update.resolve({ ok: true, item: {} });
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
   });
 
-  it("shows the action error and does not refresh", async () => {
+  it("rolls back the optimistic reporter on failure", async () => {
     const user = userEvent.setup();
     mocks.updateItemAction.mockResolvedValueOnce({
       ok: false,
@@ -87,6 +88,9 @@ describe("ReporterField", () => {
     );
 
     expect(await screen.findByText("Mise à jour impossible.")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Rapporteur" })).toHaveValue(
+      "better-auth-marie",
+    );
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 });
