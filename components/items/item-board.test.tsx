@@ -282,7 +282,7 @@ describe("ItemBoard", () => {
     );
 
     for (const label of ["À faire", "En cours", "En revue", "Terminé"]) {
-      expect(screen.getByRole("img", { name: label })).toBeVisible();
+      expect(screen.getAllByRole("img", { name: label })[0]).toBeVisible();
     }
   });
 
@@ -314,7 +314,7 @@ describe("ItemBoard", () => {
       />,
     );
 
-    expect(screen.getByRole("img", { name: "En revue" })).toBeVisible();
+    expect(screen.getAllByRole("img", { name: "En revue" })[0]).toBeVisible();
     expect(screen.getByRole("button", { name: "Créer dans En revue" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Créer dans En cours" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Créer dans À faire" })).not.toBeInTheDocument();
@@ -377,6 +377,12 @@ describe("ItemBoard", () => {
     expect(handle).toHaveFocus();
   });
 
+  it("offers a direct status menu on every writable card", () => {
+    renderEditableCard();
+
+    expect(screen.getByRole("button", { name: "Statut : Prêt" })).toBeInTheDocument();
+  });
+
   it("keeps cards readable but hides every mutation affordance for viewers", () => {
     renderBoard(
       <ItemBoard
@@ -396,6 +402,7 @@ describe("ItemBoard", () => {
     expect(screen.queryByRole("button", { name: "Créer dans Prêt" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Déplacer DEMO-1" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Statut :/i })).not.toBeInTheDocument();
   });
 
   it("does not offer creation to a viewer in an empty backlog", () => {

@@ -164,3 +164,79 @@ Défauts :
 4. Remonter statut, priorité, assigné et échéance près du titre ; grouper les propriétés secondaires et statiques.
 5. Ajouter historique/restauration de description et diff des valeurs dans l'activité.
 6. Introduire un feedback optimiste cohérent avec état `Enregistrement…`, succès persistant bref et restauration en cas d'échec.
+
+## Fonctionnalité auditée : drag & drop et transitions de statut
+
+### Efficacité mesurée
+
+| Parcours | Interactions minimales observées | Résultat |
+|---|---:|---|
+| Changer le statut depuis le détail | 1 sélection | Fonctionnel ; stabilisation locale mesurée entre 178 et 267 ms |
+| Déplacer au clavier vers la colonne suivante | `Espace`, deux flèches, `Espace` | Persiste correctement, mais les annonces ne permettent pas de comprendre la destination |
+| Annuler un drag clavier | `Échap` | Annonce l'annulation, mais peut laisser un déplacement fantôme |
+| Déplacer horizontalement à la souris | saisir + glisser + relâcher | Geste direct, mais destination non fiable dès que l'auto-scroll s'active |
+| Changer le statut à 390 px depuis le détail | ouverture + 1 sélection | Contrôle pleine largeur (333 px) dans un dialogue 390 × 844, utilisable |
+
+### Points solides
+
+- La poignée est un vrai bouton focusable, avec `aria-label`, `aria-roledescription=sortable` et instructions clavier.
+- Le sélecteur de statut expose `aria-busy`, se désactive pendant la mutation et empêche les changements concurrents.
+- Un échec réseau restaure la valeur et affiche `Déplacement impossible.` ou `Mise à jour impossible.`.
+- Le lecteur ne voit aucune poignée ni action de création : les permissions sont cohérentes avec une surface read-only.
+- Le board reste dans un scroller dédié à 390 px ; il ne recrée pas le débordement global corrigé lors de la remédiation.
+
+### Défauts UX
+
+- La manipulation directe est mensongère quand le board défile : la cible se déplace sous le pointeur et une autre colonne est persistée.
+- La poignée visible ne mesure que 24 × 24 px ; son curseur `grab` aide à la souris, mais aucun tooltip n'apparaît après une seconde de survol.
+- À 390 px, la première colonne tient dans le viewport et la suivante n'est visible que sur environ 66 px. Le drag dépend donc fortement de l'auto-scroll, précisément défectueux.
+- Les annonces vocales sont en anglais et composées d'UUID ; le clavier est présent techniquement mais non compréhensible.
+- Les flèches naviguent entre cartes/zones de dépôt sans annoncer de noms. Deux pressions droites peuvent être nécessaires pour changer d'une seule colonne ; `droite + bas` a projeté la carte jusqu'à `Terminé`.
+- Aucune action `Annuler` après persistance, aucun historique de transition exploitable et aucune limite WIP.
+
+### Permissions observées
+
+- Administrateur : poignée, drag, création par colonne et sélecteur de statut disponibles.
+- Lecteur réel `Audit DnD Lecteur` : 0 poignée `Déplacer`, 0 `Nouvel item`, 0 `Créer dans…`; lecture des cartes conservée.
+- Le contexte lecteur n'a produit aucune erreur console ni réponse HTTP en échec.
+
+### Recommandations UX prioritaires — transitions
+
+1. Corriger la stabilité de destination avant toute optimisation visuelle ; afficher en permanence `Déplacer vers : <statut>` pendant le geste.
+2. Sur mobile, proposer un menu de statut sur la carte et considérer le drag comme raccourci secondaire.
+3. Ajouter un undo après succès, avec annonce accessible et durée suffisante.
+4. Localiser la région live et annoncer clé, titre, colonne, position, annulation et erreur.
+5. Agrandir la zone interactive à 44 px et ajouter un tooltip, sans augmenter la densité visuelle.
+6. Ajouter limites WIP, règles de transition et raison de blocage directement dans la colonne cible.
+
+## Workflow et colonnes — constat initial du 5 août 2026
+
+- **Découvrabilité : échec total.** Aucun bouton, menu contextuel, affordance en
+  fin de board ou lien d'administration ne permet d'ajouter une colonne.
+- Les boutons `+` des en-têtes signifient uniquement `Créer dans <statut>` ;
+  leur répétition peut faire croire que le board est configurable alors qu'ils
+  ne modifient jamais sa structure.
+- L'administration annonce seulement « backlogs, utilisateurs et rôles » et le
+  formulaire `Modifier le backlog` ne contient que clé, nom et couleur.
+- Coût actuel pour une équipe dont le flux diffère : capacité impossible, pas
+  simplement trop de clics.
+- Cible UX : action explicite `Colonnes` sur le board, ajout en deux clics
+  maximum, ordre modifiable au clavier, erreurs de suppression liées à la ligne
+  concernée et aperçu clair du nombre d'items à migrer.
+
+## Workflow et colonnes — après remédiation du 5 août 2026
+
+- L'action `Colonnes` est visible dans la barre primaire du board : le défaut de
+  découvrabilité bloquant est corrigé sur desktop.
+- Le gestionnaire rend visibles nom, catégorie et nombre d'items ; une
+  suppression occupée explique l'impact et bloque la confirmation tant qu'aucune
+  destination n'est choisie.
+- Les derniers statuts initial et terminé sont désactivés avec une explication,
+  ce qui évite une erreur tardive après saisie.
+- Un doublon conserve le formulaire et affiche `Un statut portant ce nom existe
+  déjà.` au lieu de fermer silencieusement.
+- Le statut mobile est désormais modifiable depuis la carte en deux gestes ; le
+  drag n'est plus l'unique voie de transition rapide à 390 px.
+- Dette restante : réordonner par flèches devient laborieux au-delà de 6 à 8
+  colonnes ; aucun undo, aperçu global, archivage ou mode brouillon ; poignée
+  DnD toujours 24 px sans tooltip ; gestionnaire non réaudité sur mobile.

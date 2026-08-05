@@ -1,0 +1,13 @@
+Playwright — 2026-08-05 — Chromium 1800 × 987 — CASS-58
+
+Après chaque Flèche droite pendant le drag clavier :
+1. CASS-58 — Audit — création clavier user story déplacé vers À faire.
+2. CASS-58 — Audit — création clavier user story déplacé vers À faire.
+3. CASS-58 — Audit — création clavier user story déplacé vers En cours.
+4. CASS-58 — Audit — création clavier user story déplacé vers En revue.
+5. CASS-58 — Audit — création clavier user story déplacé vers Terminé.
+
+Après Échap :
+Déplacement de CASS-58 — Audit — création clavier user story annulé. Position d’origine restaurée.
+
+Constat : annonces françaises, clé/titre/statut métier présents, aucun UUID.

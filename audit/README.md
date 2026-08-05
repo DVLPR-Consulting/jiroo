@@ -28,6 +28,34 @@
 | Permissions | 88/100 | Comportement admin/lecteur déjà prouvé, inchangé par la remédiation |
 | Performance locale | 67/100 | Feedback optimiste < 100 ms observé avec latence réseau simulée ; p95 production inconnu |
 
+## Score global provisoire — après incrément 03
+
+**61/100 — confiance élevée sur création, détail et transitions ; faible sur les fonctionnalités non encore auditées.** La qualité des mutations de statut hors drag est bonne, mais le board ne peut pas être considéré fiable tant qu'un dépôt horizontal peut persister une colonne différente de celle visée.
+
+| Dimension | Score | Preuve principale |
+|---|---:|---|
+| Couverture fonctionnelle observée | 66/100 | Changement de statut par sélecteur et drag, ordre, clavier et lecteur observés ; workflows/WIP/undo absents |
+| Fiabilité et feedback | 52/100 | Rollback réseau correct, mais mauvaise destination réellement persistée sur desktop et mobile |
+| Efficacité UX | 61/100 | Mutation directe rapide ; poignée petite, sans tooltip, et navigation clavier imprévisible |
+| Accessibilité | 55/100 | Poignée focusable et instructions présentes ; annulation incohérente et région live inutilisable |
+| Responsive | 58/100 | Board scrollable à 390 px et détail de statut utilisable ; auto-scroll du drag mobile dangereux |
+| Permissions | 92/100 | Lecteur réel : 0 poignée, 0 création globale ou par colonne, aucun échec console/HTTP |
+| Performance locale | 76/100 | Sélecteur de statut stabilisé en 178–267 ms ; requête lente verrouille le contrôle avec `aria-busy` |
+
+## Score global provisoire — après incrément 04 et remédiation
+
+**70/100 — confiance élevée sur création, détail, transitions et colonnes ; faible sur le pilotage produit encore non audité.** Jiroo dispose maintenant d'un workflow local configurable et sûr, mais n'atteint pas la parité Jira tant que backlog produit, cycles, estimation, releases, dépendances, reporting et règles de transition ne sont pas prouvés.
+
+| Dimension | Score | Preuve principale |
+|---|---:|---|
+| Couverture fonctionnelle observée | 74/100 | CRUD/ordre/couleur des colonnes et migration occupée prouvés ; règles, WIP et workflows partagés absents |
+| Fiabilité et feedback | 76/100 | Migration transactionnelle, invariants todo/done, doublons refusés et historique stable ; matrice DnD longue non rejouée |
+| Efficacité UX | 70/100 | Action `Colonnes` découvrable sur le board et statut mobile en deux gestes ; pas d'undo ni de configuration en masse |
+| Accessibilité | 70/100 | Annulation cohérente et annonces DnD métier en français ; validation NVDA/VoiceOver restante |
+| Responsive | 64/100 | Menu de statut sur carte vérifié à 390 × 844 ; gestion des colonnes et tactile natif non audités sur mobile |
+| Permissions | 94/100 | Lecteur réel : 0 gestion de colonnes, 0 création, 0 drag ; `/admin` redirige sans erreur HTTP |
+| Performance locale | 76/100 | Mutations nominales sans erreur HTTP ; budget et p95 du gestionnaire de colonnes non mesurés |
+
 ## Périmètre de l'incrément 01
 
 - Date : 4 août 2026, Europe/Berlin.
@@ -43,6 +71,32 @@
 - Données : audit sur `CASS-57`, relation temporaire vers `CASS-58`, label et référence GitHub temporaires ; état métier de `CASS-57` restauré en fin de session.
 - Permissions : compte `Audit Lecteur` créé via l'administration, 2FA enrôlée, contrôle read-only réalisé ; session finale restaurée sur l'administrateur.
 - Fonctionnalité auditée : **panneau de détail et édition d'un item**.
+
+## Périmètre de l'incrément 03
+
+- Date : 5 août 2026, Europe/Berlin.
+- Environnement : `http://localhost:3000`, Chromium piloté exclusivement par Playwright, desktop 1200 × 943 et mobile 390 × 844.
+- Donnée de test : `CASS-58`, restaurée dans `À faire` à la fin de la session.
+- Permissions : administrateur et compte réel `Audit DnD Lecteur` dans un contexte navigateur isolé ; 0 poignée de drag et 0 action de création pour le lecteur.
+- Scénarios négatifs : latence de 900 ms, double mutation bloquée, échec réseau injecté et rollback, annulation clavier, colonnes vides/remplies et auto-scroll horizontal.
+- Fonctionnalité auditée : **drag & drop et transitions de statut**.
+
+## Périmètre de l'incrément 04 — terminé
+
+- Date : 5 août 2026, Europe/Berlin.
+- Environnement : `http://localhost:3000`, Chromium piloté par Playwright,
+  desktop 1800 × 987.
+- Fonctionnalité auditée : **configuration du workflow, des statuts et des
+  colonnes**.
+- Preuve initiale : aucune action de gestion sur le board ; création et édition
+  d'un backlog limitées à clé, nom et couleur ; 0 erreur console observée.
+- Verdict initial : fonctionnalité absente,
+  [BUG-JIR-013](bugs.md#bug-jir-013--impossible-de-créer-ou-configurer-une-colonne-de-workflow),
+  P0 produit.
+- Remédiation vérifiée : création, renommage, couleur, ordre, rechargement,
+  doublon, invariants, suppression vide/occupée, migration, activité et rôle
+  lecteur. `BUG-JIR-013` est corrigé ; `BUG-JIR-014`, découvert pendant la
+  migration, est également corrigé.
 
 ## Fonctionnalités découvertes
 
@@ -131,21 +185,93 @@ Une fonctionnalité simplement découverte n'est **pas** considérée terminée.
 - liens natifs vers branches/commits/builds/déploiements avec synchronisation ;
 - sous-items éditables depuis la surface détail et vue structurée des dépendances.
 
+## Couverture fonctionnelle — drag & drop et transitions
+
+### Fonctionnalités terminées et prouvées
+
+- changement de statut par glisser-déposer et par sélecteur dans le détail ;
+- déplacement clavier par poignée focusable, `Espace` et flèches ;
+- ordre dans une colonne envoyé avec `beforeId`/`afterId` ;
+- persistance après rechargement lors d'un dépôt nominal ;
+- rollback sur échec réseau avec toast `Déplacement impossible.` ;
+- rollback du sélecteur avec toast `Mise à jour impossible.` ;
+- contrôle de statut désactivé et `aria-busy=true` pendant une requête lente, empêchant une seconde mutation concurrente ;
+- changement nominal local stabilisé en 178 à 267 ms ;
+- lecteur sans poignée ni action de création, dans un compte réel et sans erreur console/HTTP.
+- `Échap` restaure immédiatement le snapshot initial sans mutation serveur ;
+- annonces clavier localisées avec clé, titre et statut métier, sans UUID ;
+- dépôt souris vers une colonne vide correctement persisté après rechargement ;
+- menu de statut directement sur la carte mobile, mutation puis restauration
+  vérifiées à 390 × 844.
+
+### Fonctionnalités incomplètes
+
+- la poignée mesure 24 × 24 px, sans tooltip visible, sous la cible tactile recommandée ;
+- la navigation clavier entre colonnes reste peu prévisible sans repère visuel
+  permanent ;
+- aucune confirmation/undo après un changement réussi ;
+- aucune indication visuelle persistante de destination pendant l'auto-scroll ;
+- correction de la collision prouvée sur un scénario desktop seulement, sans
+  matrice longue ni tactile natif.
+
+### Fonctionnalités manquantes
+
+- workflows et transitions configurables avec conditions/validateurs ;
+- limites WIP et signal de dépassement ;
+- changement de statut en masse ;
+- historique détaillé des transitions et temps passé par statut ;
+- annulation utilisateur après persistance ;
+- contrôle de concurrence multi-utilisateur et signal de conflit.
+
+## Couverture fonctionnelle — workflow, statuts et colonnes
+
+### Fonctionnalités terminées et prouvées
+
+- quatre statuts créés automatiquement par backlog ;
+- ordre des statuts persistant et partagé par les vues ;
+- catégories métier `todo`, `in_progress` et `done` reflétées par les icônes et
+  la date de clôture ;
+- création d'un item directement dans un statut existant.
+- action `Colonnes` découvrable depuis le board pour l'administrateur ;
+- création, renommage, catégorie, couleur et réordonnancement persistants ;
+- refus des noms dupliqués sans perdre le formulaire ;
+- protection du dernier statut `todo` et du dernier statut `done` ;
+- suppression occupée avec destination obligatoire et migration transactionnelle ;
+- historique conservé avec noms métier même après suppression d'un statut ;
+- lecteur réel sans administration de colonnes, création ni drag.
+
+### Fonctionnalités incomplètes
+
+- la notion de workflow se limite à un changement libre de statut, sans règles,
+  conditions, validateurs ni explication d'un refus ;
+- une colonne et un statut sont confondus, sans possibilité de regrouper
+  plusieurs statuts dans une colonne ;
+- pas d'archivage : une colonne doit être conservée ou supprimée ;
+- pas d'aperçu global d'impact ni d'historique des changements de configuration ;
+- le gestionnaire n'a pas encore été validé en responsive ni avec un lecteur
+  d'écran réel.
+
+### Fonctionnalités manquantes
+
+- transitions autorisées, conditions, validateurs et post-actions ;
+- limites WIP, Definition of Done et règles de sortie ;
+- workflows réutilisables ou partageables entre backlogs ;
+- mapping de plusieurs statuts vers une même colonne ;
+- brouillon, aperçu d'impact et publication atomique d'un workflow complet.
+
 ## Top bugs
 
-1. [BUG-JIR-003](bugs.md#bug-jir-003--action-de-création-hors-écran-sur-mobile) — création inaccessible à 390 px, **P0**.
-2. [BUG-JIR-006](bugs.md#bug-jir-006--le-panneau-de-détail-devient-illisible-sur-mobile) — détail écrasé en colonne de ~98 px, **P0 mobile**.
-3. [BUG-JIR-007](bugs.md#bug-jir-007--les-actions-de-suppression-de-liens-sont-inaccessibles-au-clavier) — données impossibles à corriger au clavier, **P1**.
-4. [BUG-JIR-005](bugs.md#bug-jir-005--une-description-trop-longue-est-rejetée-avec-une-erreur-générique) — limite de description invisible et erreur inexploitable, **P1**.
-5. [BUG-JIR-001](bugs.md#bug-jir-001--le-raccourci-c-injecte-c-dans-le-titre) — raccourci `C` corrompt le titre, **P1**.
+1. [BUG-JIR-011](bugs.md#bug-jir-011--lauto-défilement-horizontal-enregistre-une-colonne-différente-de-celle-visée) — corrigé sur le scénario desktop, mais la matrice de 50 dépôts et le tactile natif restent à exécuter.
+2. [BUG-JIR-012](bugs.md#bug-jir-012--les-annonces-du-drag-clavier-exposent-des-uuid-internes-en-anglais) — corrigé dans la région live Playwright, validation NVDA/VoiceOver restante.
+3. Aucun bug P0 ouvert dans le périmètre réaudité ; cette absence ne couvre pas les fonctionnalités encore non auditées.
 
 ## Top problèmes UX
 
-1. Le responsive est cassé sur les deux surfaces auditées : shell hors écran et panneau détail illisible.
-2. Plusieurs actions critiques sont cachées au survol ou attachées à des éléments non interactifs.
-3. Les erreurs de longueur sont génériques à la création comme à l'édition.
-4. Le feedback des mutations n'est pas assez instantané ni stable pour inspirer confiance.
-5. Le composeur minimal impose un enrichissement immédiat dans une surface détail elle-même peu accessible.
+1. Une poignée de 24 px sans tooltip reste peu découvrable et insuffisante en tactile.
+2. La réorganisation des colonnes repose sur des flèches répétées, sans drag, aperçu ni publication groupée.
+3. Aucun undo n'est proposé après une transition ou une migration administrative.
+4. WIP, raisons de blocage et règles de transition manquent pour transformer le board en outil de pilotage fiable.
+5. Le gestionnaire ne distingue pas encore clairement statut métier et colonne de visualisation.
 
 ## Top améliorations produit
 
@@ -155,6 +281,8 @@ Une fonctionnalité simplement découverte n'est **pas** considérée terminée.
 4. Ajouter une création continue (« créer un autre ») et une détection de doublons.
 5. Concevoir un véritable shell mobile, pas seulement une version desktop débordante.
 6. Repenser le détail autour des propriétés fréquentes, sections repliables, historique/diff et clavier complet.
+7. Remplacer le drag mobile comme voie principale par un menu `Changer le statut`, tout en conservant un drag précis en raccourci.
+8. Ajouter destination annoncée, undo, limites WIP et transitions configurables.
 
 ## Quick Wins
 
@@ -169,6 +297,11 @@ Une fonctionnalité simplement découverte n'est **pas** considérée terminée.
 - rendre le renommage explicite via un bouton `Renommer`/crayon focusable ;
 - gérer `Échap`, `aria-labelledby`, focus initial et retour au déclencheur sur le panneau ;
 - passer la grille détail à une colonne sous le breakpoint mobile.
+- localiser les annonces DnD et remplacer les UUID par clé, titre, colonne et position ;
+- restaurer le snapshot d'origine sur `onDragCancel` ;
+- porter la cible de la poignée à 44 px sans agrandir visuellement l'icône et ajouter un tooltip `Déplacer` ;
+- afficher le nom de la colonne cible dans un badge flottant pendant le drag ;
+- réduire la zone et la vitesse initiale d'auto-scroll horizontal.
 
 ## Dette technique visible
 
@@ -181,6 +314,10 @@ Une fonctionnalité simplement découverte n'est **pas** considérée terminée.
 - Le panneau est une modale construite manuellement avec backdrop + `aside`, sans primitive d'accessibilité ni handler clavier.
 - Les actions de retrait utilisent `display:none` hors `group-hover`, ce qui les retire de l'arbre d'accessibilité.
 - La grille `1fr 220px` et la largeur 620/92vw sont codées sans breakpoint.
+- Le modèle DnD mélange projection locale, collision et état canonique : une annulation peut laisser une projection fantôme.
+- Les identifiants techniques sont utilisés comme texte accessible par défaut.
+- Le statut envoyé est dérivé de la cible courante après auto-scroll sans garde-fou prouvant qu'elle correspond à l'intention initialement visible.
+- Aucun test navigateur de régression ne couvre drag horizontal, auto-scroll, annulation ou région live.
 
 ## Dette UX
 
@@ -194,6 +331,10 @@ Une fonctionnalité simplement découverte n'est **pas** considérée terminée.
 - panneau superposé sans modèle clavier standard ;
 - propriétés non groupées et activité sans diff ;
 - feedback de mutation dépendant du refresh, parfois lent ou transitoirement incohérent.
+- drag présenté comme manipulation directe alors que la cible peut se déplacer sous le pointeur ;
+- poignée non expliquée visuellement et cible tactile trop petite ;
+- feedback lecteur d'écran non localisé et non métier ;
+- absence d'undo et de voie mobile explicite hors drag.
 
 ## Historique des audits
 
@@ -224,6 +365,39 @@ Une fonctionnalité simplement découverte n'est **pas** considérée terminée.
 - Propriétés du détail rendues optimistes avec `aria-busy`, confirmation, rollback et protection contre valeur serveur périmée.
 - Vérification technique : 77 fichiers de tests, 663 tests réussis, 9 ignorés ; TypeScript, ESLint et build Next.js réussis.
 - Session Chromium propre : 0 erreur console, 0 avertissement, aucune réponse HTTP en échec.
+
+### 2026-08-05 — Incrément 03
+
+- Audit complet du drag & drop et des transitions de statut sur desktop et viewport 390 × 844.
+- Dépôt nominal, persistance, ordre, sélecteur, latence, verrouillage concurrent et deux rollbacks réseau vérifiés.
+- Compte `Audit DnD Lecteur` créé et enrôlé en 2FA dans un contexte Playwright isolé ; aucune mutation du board exposée.
+- Trois bugs enregistrés (`BUG-JIR-010` à `BUG-JIR-012`), dont un P0 d'intégrité du workflow.
+- `CASS-58` restaurée dans `À faire` ; session admin finale propre avec 0 erreur et 0 avertissement.
+
+### 2026-08-05 — Incrément 04 et remédiation board/workflow
+
+- Audit initial des colonnes : aucune configuration disponible, création de
+  `BUG-JIR-013` P0 produit.
+- Implémentation et vérification Playwright du cycle créer, renommer, colorer,
+  réordonner, recharger et supprimer une colonne vide ou occupée.
+- Migration transactionnelle vers un statut choisi, invariants `todo`/`done`,
+  refus des doublons et activité sans UUID après suppression.
+- `BUG-JIR-014` découvert pendant le scénario de migration, corrigé puis rejoué
+  sur `CASS-60` avec deux libellés métier stables.
+- Revue de concurrence : verrouillage unifié `backlog → statuts → items` pour
+  préserver `closedAt`, second drag bloqué pendant un commit et suppression
+  initialement vide devenue occupée rendue récupérable avec le compte exact.
+- Les deux courses UI ont été rejouées dans Chromium : 1 seul `POST` sous 900 ms
+  de latence malgré une seconde tentative de drag ; le dialogue de suppression
+  a basculé de « vide » à « 1 item » avec destination obligatoire sans fermeture.
+- Régression DnD : annulation clavier restaurée, annonces françaises, dépôt
+  souris vers `En revue` persisté et menu de statut mobile validé à 390 × 844.
+- Compte réel `Audit Workflow Lecteur` créé et enrôlé en 2FA : aucune mutation
+  du board exposée et accès `/admin` redirigé.
+- Vérification technique : 82 fichiers de tests réussis, 682 tests réussis et
+  15 ignorés ; TypeScript, ESLint, `git diff --check` et build Next.js 16.2.7
+  avec webpack réussis. Le build Turbopack par défaut ne peut pas être certifié
+  dans cette sandbox, qui refuse son port interne et l'accès à Google Fonts.
 
 ## Fin de session — incrément 02
 
@@ -261,3 +435,47 @@ Les corrections responsive doivent encore être rejouées à 320, 768 et 1024 px
 1. Auditer le **drag & drop et les transitions de statut**, avec rollback, permissions et concurrence.
 2. Auditer **filtres, groupements et vues enregistrées**, y compris URL, partage et états vides.
 3. Auditer les **commentaires et l'activité** de bout en bout, avec édition/suppression, permissions et notifications.
+
+## Fin de session — incrément 03
+
+### Ce qui a été testé
+
+Drag souris et clavier, dépôt inter/intra-colonne, persistance après rechargement, annulation `Échap`, auto-scroll horizontal desktop/mobile, statut depuis le détail, latence normale et simulée, verrouillage de concurrence, échecs réseau et rollback, annonces accessibles, découvrabilité de la poignée et rôle lecteur réel. Les captures, transcriptions console et requêtes ont été archivées.
+
+### Ce qui reste à tester
+
+Filtres/groupements/vues enregistrées, commentaires/activité approfondis, Liste/Arbre, recherche, notifications, Mes items, corbeille, administration complète, préférences, thème, authentification/2FA complète, charge de boards volumineux et concurrence multi-utilisateur réelle. Le drag tactile natif reste à rejouer dans un contexte Playwright `hasTouch` dédié.
+
+### Trois priorités absolues pour la prochaine session
+
+1. Corriger et réauditer **BUG-JIR-011** avant toute autre évolution du board.
+2. Corriger **BUG-JIR-010** et **BUG-JIR-012**, puis ajouter la régression Playwright clavier/auto-scroll.
+3. Une fois le board fiable, auditer **filtres, groupements et vues enregistrées**, y compris URL, partage et états vides.
+
+## Fin de session — incrément 04 et remédiation
+
+### Ce qui a été testé
+
+Configuration des colonnes par administrateur, persistance après rechargement,
+ordre, couleur, catégorie, doublon, protection des derniers statuts initial et
+terminé, suppression vide/occupée, migration d'item, cohérence de l'activité,
+droits d'un lecteur réel, redirection `/admin`, annulation DnD clavier, annonce
+live française, dépôt souris desktop et statut mobile à 390 × 844. Les preuves
+console, réseau et captures sont archivées.
+
+### Ce qui reste à tester
+
+La configuration mobile du workflow, NVDA/VoiceOver, la matrice de 50 dépôts par
+colonne, le tactile natif et les mutations forgées de rôle restent à rejouer.
+Pour la gestion produit de bout en bout : backlog/triage, cycles ou sprints,
+estimations, releases, dépendances, vues enregistrées, reporting, recherche,
+notifications et concurrence multi-utilisateur ne sont pas encore validés.
+
+### Trois priorités absolues pour la prochaine session
+
+1. Auditer le **backlog produit et le triage** : capture, priorisation, estimation,
+   classement, bulk edit et passage vers l'exécution.
+2. Auditer les **cycles/sprints et releases** de bout en bout, ou constater leur
+   absence avec un écart Jira explicite.
+3. Auditer **hiérarchie et dépendances** : epic → tâche → sous-tâche, blocages,
+   progression et visibilité cross-équipe.

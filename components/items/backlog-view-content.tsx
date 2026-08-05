@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { statuses } from "@/lib/db/schema/domain";
+import { items as itemRowsTable, statuses } from "@/lib/db/schema/domain";
 import { getBacklogByKey } from "@/lib/services/backlogs";
 import {
   listItemLabelPairs,
@@ -37,6 +37,7 @@ import { ItemTree } from "@/components/items/item-tree";
 import { ItemDetailContent } from "@/components/items/item-detail-content";
 import { DetailPanelSkeleton } from "@/components/items/view-skeletons";
 import { NewItemButton } from "@/components/items/new-item-dialog";
+import { StatusManagerDialog } from "@/components/statuses/status-manager-dialog";
 import {
   firstSearchParam,
   type RawSearchParams,
@@ -105,7 +106,7 @@ export async function BacklogViewContent({
       displayMode: view as DisplayMode,
     });
 
-  const [items, labelPairs, blockedIds, statusRows] = await Promise.all([
+  const [items, labelPairs, blockedIds, statusRows, statusCountRows] = await Promise.all([
     listItems(backlog.id),
     listItemLabelPairs(backlog.id),
     blockedItemIds(backlog.id),
@@ -114,6 +115,14 @@ export async function BacklogViewContent({
       .from(statuses)
       .where(eq(statuses.backlogId, backlog.id))
       .orderBy(asc(statuses.order)),
+    db
+      .select({
+        statusId: itemRowsTable.statusId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(itemRowsTable)
+      .where(eq(itemRowsTable.backlogId, backlog.id))
+      .groupBy(itemRowsTable.statusId),
   ]);
 
   // Set of item ids that are blocked by an unfinished item — used to drive the badge.
@@ -163,12 +172,16 @@ export async function BacklogViewContent({
     ? groupItems(listSorted, viewState.group)
     : [["", listSorted]];
 
+  const itemCountByStatus = new Map(
+    statusCountRows.map(({ statusId, count }) => [statusId, Number(count)]),
+  );
   const statusList = statusRows.map((s) => ({
     id: s.id,
     name: s.name,
     color: s.color,
     category: s.category,
     order: s.order,
+    itemCount: itemCountByStatus.get(s.id) ?? 0,
   }));
   const statusMap = Object.fromEntries(
     statusRows.map((s) => [s.id, { name: s.name, color: s.color }]),
@@ -344,6 +357,14 @@ export async function BacklogViewContent({
             sort={viewState.sort}
           />
         }
+        workflowSlot={view === "board" && role === "admin" ? (
+          <StatusManagerDialog
+            key={statusList.map((status) => `${status.id}:${status.order}:${status.name}:${status.category}:${status.itemCount}`).join("|")}
+            backlogId={backlog.id}
+            backlogKey={backlog.key}
+            statuses={statusList}
+          />
+        ) : null}
         newItemSlot={canWrite ? (
           <NewItemButton
             backlogKey={backlog.key}

@@ -372,6 +372,331 @@ Utiliser une primitive Sheet/Dialog accessible ou implémenter explicitement `Es
 - lecteur d'écran annonce type et titre du panneau ;
 - aucun focus ne reste derrière le backdrop si le panneau est modal.
 
+## BUG-JIR-010 — `Échap` annule le drag clavier mais laisse la carte dans une autre colonne
+
+- **Gravité :** majeure
+- **Priorité :** P1
+- **Statut :** corrigé et vérifié le 5 août 2026
+- **Fonctionnalité :** board / drag & drop clavier
+
+### Étapes de reproduction
+
+1. Ouvrir `http://localhost:3000/b/CASS` avec un rôle administrateur.
+2. Donner le focus à `Déplacer CASS-58`.
+3. Appuyer sur `Espace`, puis trois fois sur `Flèche droite`.
+4. Appuyer sur `Échap` pour annuler.
+
+### Résultat obtenu
+
+La région live annonce que le déplacement est annulé, aucune requête `POST` n'est envoyée, mais `CASS-58` apparaît dans `En revue`. Un rechargement replace la carte dans `À faire`, ce qui prouve que l'état affiché était un déplacement fantôme non persisté.
+
+### Résultat attendu
+
+`Échap` doit restaurer immédiatement et exactement la colonne et la position d'origine, sans mutation serveur ni divergence visuelle.
+
+### Impacts
+
+- **Utilisateur :** le board affiche un état faux jusqu'au prochain rafraîchissement ; l'utilisateur ne sait plus si l'annulation a fonctionné.
+- **Métier :** perte de confiance dans le board et risque de décisions prises sur un statut qui n'existe pas en base.
+
+### Preuve
+
+- [Capture Playwright après annulation](screenshots/BUG-JIR-010-dnd-clavier-echap-deplacement-fantome.png)
+- Observation Playwright : `avant=À faire`, `après Échap=En revue`, `POST=0`, puis `après reload=À faire`.
+
+### Cause probable
+
+La projection locale utilisée pendant le drag réordonne ou re-parente déjà la carte. Le handler d'annulation arrête le capteur et annonce l'annulation, mais ne restaure pas le snapshot d'origine du board.
+
+### Correction proposée
+
+Conserver `{statusId, beforeId, afterId}` au démarrage du drag et restaurer ce snapshot sur `onDragCancel`. Aucun état canonique ne doit être dérivé de la position de l'overlay après annulation.
+
+### Critères de vérification
+
+- `Échap` restaure colonne et ordre à l'identique ;
+- aucune requête de mutation n'est envoyée ;
+- aucune carte dupliquée ou déplacée ne subsiste ;
+- résultat identique avec clavier, souris et tactile après annulation.
+
+### Vérification du correctif
+
+Playwright a repris `CASS-58` dans `À faire`, déclenché le drag clavier, déplacé
+la projection puis envoyé `Échap`. La région live a annoncé
+`Déplacement de CASS-58 … annulé. Position d’origine restaurée.` ; la carte est
+restée dans `À faire` immédiatement puis après rechargement. Aucun `POST` de
+mutation n'a été émis. La restauration tactile native reste hors de ce verdict.
+
+## BUG-JIR-011 — L'auto-défilement horizontal enregistre une colonne différente de celle visée
+
+- **Gravité :** critique
+- **Priorité :** P0
+- **Statut :** corrigé, non-régression partielle vérifiée le 5 août 2026
+- **Fonctionnalité :** board / drag & drop horizontal
+
+### Étapes de reproduction — desktop
+
+1. Ouvrir le board à 1200 × 943 avec `CASS-58` dans `À faire`.
+2. Saisir sa poignée et déplacer le pointeur au centre de la zone vide `En revue`.
+3. Relâcher.
+
+### Étapes de reproduction — mobile
+
+1. Ouvrir le board à 390 × 844, scroller horizontal à zéro.
+2. Saisir `CASS-58` dans `À faire`.
+3. Déplacer le pointeur vers la partie visible de `En cours`, autour de `x=350`.
+4. Relâcher.
+
+### Résultat obtenu
+
+- Desktop : la cible calculée avant le geste était `En revue`, mais la carte est persistée dans `Terminé`.
+- Mobile : le pointeur visait `En cours`, le scroller passe automatiquement de `0` à environ `224,5 px`, puis la carte est persistée dans `En revue`.
+- Les requêtes répondent 200 : il ne s'agit pas d'un simple artefact visuel, la mauvaise valeur de statut est enregistrée.
+
+### Résultat attendu
+
+La colonne mise en évidence au moment du dépôt doit être la colonne persistée. L'auto-scroll ne doit jamais déplacer silencieusement une autre cible sous un pointeur immobile.
+
+### Impacts
+
+- **Utilisateur :** une tâche peut être déclarée en revue ou terminée sans intention ; le résultat paraît légitime et peut passer inaperçu.
+- **Métier :** corruption sémantique du workflow, reporting faux, notifications/automatisations déclenchées sur le mauvais statut et risque d'incident opérationnel.
+
+### Preuve
+
+- [Capture desktop — cible En revue, résultat Terminé](screenshots/BUG-JIR-011-dnd-cible-en-revue-resultat-termine.png)
+- [Capture mobile — cible En cours, résultat En revue](screenshots/BUG-JIR-011-mobile-dnd-en-cours-resultat-en-revue.png)
+- [Requêtes observées](network/BUG-JIR-011-wrong-drop-destination.txt)
+
+### Cause probable
+
+Le capteur d'auto-scroll continue à faire défiler le conteneur pendant que le pointeur reste près du bord. La détection de collision est recalculée sur la nouvelle géométrie et valide la colonne désormais sous le pointeur, sans verrouillage ni feedback assez visible sur ce changement de cible.
+
+### Correction proposée
+
+Limiter l'auto-scroll à une zone de bord étroite avec accélération progressive, recalculer les coordonnées dans le repère du scroller et afficher un surlignage/label de destination impossible à confondre. Au dépôt, valider la destination annoncée lors de la dernière frame stable ; proposer une alternative `Changer le statut` sans drag sur mobile.
+
+### Critères de vérification
+
+- 50 dépôts Playwright consécutifs vers chaque colonne, à 390 et 1200 px, produisent exactement le statut visé ;
+- le statut envoyé correspond au label de la cible visuellement active ;
+- aucun changement de cible après immobilisation du pointeur sans feedback visible ;
+- tests avec colonnes vides, remplies, partiellement visibles et scroll horizontal non nul.
+
+### Vérification du correctif
+
+La collision donne désormais priorité à la position réelle du pointeur et
+l'auto-scroll utilise une zone plus étroite avec accélération réduite. Dans le
+scénario Playwright rejoué à 1800 × 987, un dépôt souris de `CASS-58` depuis
+`À faire` vers la zone vide `En revue` a positionné la carte sous `En revue` et
+le rechargement a confirmé la même destination persistée. La matrice de 50
+dépôts par colonne et le contexte tactile natif ne sont pas encore exécutés :
+ce bug ne doit donc pas être considéré définitivement clos sous charge ou sur
+tactile.
+
+## BUG-JIR-012 — Les annonces du drag clavier exposent des UUID internes en anglais
+
+- **Gravité :** majeure (accessibilité)
+- **Priorité :** P1
+- **Statut :** corrigé, validation lecteur d'écran réel restante
+- **Fonctionnalité :** board / lecteur d'écran
+
+### Étapes de reproduction
+
+1. Donner le focus à `Déplacer CASS-58`.
+2. Appuyer sur `Espace`, puis utiliser les flèches et déposer ou annuler.
+3. Lire le contenu de la région `role=status`.
+
+### Résultat obtenu
+
+Les annonces ressemblent à `Draggable item ad1a… was moved over droppable area 7890…` et `Dragging was cancelled…`. Elles sont en anglais et identifient carte et destination avec des UUID internes. Le lecteur d'écran n'entend ni `CASS-58`, ni le titre, ni `En cours`/`En revue`.
+
+### Résultat attendu
+
+Des annonces métier en français, par exemple : `CASS-58, Audit — création clavier user story, déplacé vers En cours, position 2 sur 3` puis `Déplacement annulé, retour dans À faire`.
+
+### Impacts
+
+- **Utilisateur :** une personne utilisant un lecteur d'écran ne peut pas connaître la destination ni confirmer le résultat du geste.
+- **Métier :** la fonctionnalité clavier existe techniquement mais n'est pas exploitable de façon autonome ; risque de non-conformité accessibilité.
+
+### Preuve
+
+- [Transcription de la région live](console/BUG-JIR-012-dnd-live-region.txt)
+- La poignée expose pourtant une instruction clavier correcte via `aria-describedby`, ce qui confirme que le défaut se situe dans le feedback, pas dans l'absence totale de parcours clavier.
+
+### Cause probable
+
+Les annonces par défaut du moteur de drag & drop utilisent les identifiants techniques comme labels accessibles ; aucune fonction d'annonce localisée ne les remplace avec les clés et noms métier.
+
+### Correction proposée
+
+Fournir des annonces personnalisées et localisées pour prise, déplacement, dépôt et annulation. Utiliser la clé/titre de l'item, le nom de colonne et la position. Ajouter des tests de région live sans UUID ni chaîne anglaise.
+
+### Critères de vérification
+
+- toutes les annonces sont en français et sans UUID ;
+- la carte, la colonne, la position et le résultat sont identifiables ;
+- annulation et erreur réseau sont annoncées distinctement ;
+- parcours complet validé avec NVDA ou VoiceOver en plus du test Playwright.
+
+### Vérification du correctif
+
+La région live observée par Playwright annonce désormais en français la clé,
+le titre et le nom métier du statut. L'annulation de `CASS-58` a produit
+`Déplacement de CASS-58 — Audit — création clavier user story annulé. Position
+d’origine restaurée.` sans UUID ni chaîne anglaise. La validation manuelle avec
+NVDA ou VoiceOver reste nécessaire avant clôture accessibilité.
+
+- [Transcription Playwright après correction](console/FIXED-BUG-JIR-012-dnd-live-region-fr.txt)
+
+## BUG-JIR-013 — Impossible de créer ou configurer une colonne de workflow
+
+- **Gravité :** critique produit
+- **Priorité :** P0
+- **Statut :** corrigé et vérifié le 5 août 2026
+- **Fonctionnalité :** board / administration du workflow
+
+### Étapes de reproduction
+
+1. Ouvrir `http://localhost:3000/b/CASS` avec un rôle administrateur.
+2. Examiner la barre d'actions, les quatre en-têtes de colonne et l'espace situé après `Terminé`.
+3. Ouvrir `Administration`, puis `Backlogs`.
+4. Ouvrir successivement `Nouveau backlog` et `Modifier` pour le backlog `CASS`.
+
+### Résultat obtenu
+
+Le board expose uniquement la création d'un item dans les quatre colonnes fixes
+`À faire`, `En cours`, `En revue` et `Terminé`. Il n'existe aucune action pour
+ajouter, renommer, réordonner ou supprimer une colonne. Dans l'administration,
+les formulaires de backlog ne proposent que clé, nom et couleur ; aucune section
+de statuts ou workflow n'est disponible.
+
+### Résultat attendu
+
+Un administrateur doit pouvoir adapter le flux de chaque backlog : créer et
+nommer un statut/une colonne, choisir sa catégorie métier et sa couleur,
+réordonner le board, puis supprimer une colonne avec migration sûre des items.
+Cette capacité doit être découvrable directement depuis le board.
+
+### Impacts
+
+- **Utilisateur :** une équipe ne peut pas représenter son vrai processus
+  (`À valider`, `Bloqué`, `Prêt pour livraison`, etc.) et doit détourner les
+  quatre statuts imposés.
+- **Métier :** Jiroo ne peut pas remplacer Jira pour piloter un produit de bout
+  en bout ; adoption B2B, migration et segmentation par équipe sont bloquées.
+
+### Preuves
+
+- [Board sans action d'ajout](screenshots/BUG-JIR-013-board-sans-action-ajouter-colonne.png)
+- [Création de backlog sans workflow](screenshots/BUG-JIR-013-creation-backlog-sans-configuration-workflow.png)
+- [Console Playwright](console/2026-08-05-session-04-workflow-columns-console-final.log)
+- [Réseau Playwright](network/2026-08-05-session-04-workflow-columns-requests-final.log)
+
+### Cause probable
+
+Le produit crée automatiquement quatre statuts lors de la création d'un backlog
+et les affiche dans leur ordre persistant, mais aucune mutation de statut ni
+interface de configuration n'est exposée. Le stockage est donc partiellement
+préparé, tandis que le service et l'UX restent figés.
+
+### Correction proposée
+
+Faire du statut persistant la source d'une colonne configurable par backlog.
+Ajouter des mutations transactionnelles de création, édition, ordre et
+suppression avec remplacement obligatoire pour une colonne occupée, puis une
+action `Colonnes` visible sur le board et réservée aux administrateurs.
+
+### Critères de vérification
+
+- cycle complet créer → renommer → réordonner → recharger réellement persisté ;
+- nouvelle colonne disponible dans Board, Liste, Arbre, filtres et formulaires ;
+- suppression occupée impossible sans destination, puis migration sans perte ;
+- au moins un statut initial et un statut terminé restent garantis ;
+- contributeur et lecteur sans action de configuration ni mutation forgée ;
+- aucune erreur JavaScript ou HTTP inattendue pendant le scénario Playwright.
+
+### Vérification du correctif
+
+Le cycle Playwright a créé `Prêt audit`, rechargé le board, renommé la colonne
+en `Prêt livraison`, changé sa couleur et son ordre, puis créé `CASS-59` dans
+cette colonne. La suppression a exigé une destination, migré l'item vers
+`En cours` et retiré la colonne sans perte. Un doublon `En cours` a été refusé
+avec un message explicite ; les derniers statuts `todo` et `done` sont protégés.
+Un compte réel `Audit Workflow Lecteur`, enrôlé en 2FA dans un contexte isolé,
+voit 0 bouton `Colonnes`, 0 création et 0 poignée ; `/admin` le redirige vers le
+board. Console, avertissements et réponses HTTP en échec : 0 sur ce parcours.
+
+Preuves après correction :
+
+- [Gestion des colonnes côté administrateur](screenshots/FIXED-BUG-JIR-013-gestion-colonnes-admin.png)
+- [Board lecteur sans administration du workflow](screenshots/FIXED-BUG-JIR-013-lecteur-sans-gestion-colonnes.png)
+- [Console finale](console/2026-08-05-session-04-remediation-final-console.log)
+- [Réseau final](network/2026-08-05-session-04-remediation-final-requests.log)
+
+## BUG-JIR-014 — La suppression d'une colonne expose son UUID dans l'activité
+
+- **Gravité :** majeure
+- **Priorité :** P1
+- **Statut :** corrigé et vérifié le 5 août 2026
+- **Fonctionnalité :** workflow / migration / journal d'activité
+
+### Étapes de reproduction
+
+1. Créer une colonne `Prêt livraison`.
+2. Créer ou déplacer un item dans cette colonne.
+3. Supprimer la colonne en choisissant `En cours` comme destination.
+4. Ouvrir l'item, onglet `Activité`.
+
+### Résultat obtenu
+
+L'événement affiche initialement `Administrateur a changé le statut de
+<UUID> à En cours`. Après une première correction limitée au nouvel événement
+de migration, l'événement antérieur `En cours → <UUID>` restait lui aussi
+illisible dès que le statut référencé avait été supprimé.
+
+### Résultat attendu
+
+Le journal doit rester intelligible après suppression : les deux événements
+doivent conserver les libellés métier, par exemple `En cours → Audit preuve`
+puis `Audit preuve → En cours`, sans dépendre d'une ligne de statut encore
+présente.
+
+### Impacts
+
+- **Utilisateur :** l'historique ne permet plus de comprendre le chemin réel de
+  l'item ni de mener une investigation.
+- **Métier :** la piste d'audit devient ambiguë précisément lors d'une mutation
+  administrative à fort impact ; support, conformité et analyse des incidents
+  perdent une preuve exploitable.
+
+### Preuve
+
+- [Avant correction — UUID dans l'activité](screenshots/BUG-JIR-014-activite-migration-colonne-affiche-uuid.png)
+- [Après correction — libellés métier conservés](screenshots/FIXED-BUG-JIR-014-activite-migration-libelles-metier.png)
+- [Console du scénario initial](console/2026-08-05-session-04-workflow-columns-runtime-console.log)
+- [Réseau du scénario initial](network/2026-08-05-session-04-workflow-columns-runtime-requests.log)
+
+### Cause probable
+
+Les événements de changement de statut stockaient les UUID comme anciennes et
+nouvelles valeurs, puis l'interface résolvait leur libellé à partir des statuts
+encore existants. La suppression rendait cette résolution impossible.
+
+### Correction appliquée
+
+La migration enregistre désormais directement les noms stables. Avant de
+supprimer un statut, la transaction remplace aussi ses UUID déjà référencés dans
+les activités historiques par son nom, puis migre les items et compacte l'ordre.
+
+### Vérification du correctif
+
+Playwright a créé `CASS-60` dans `En cours`, l'a déplacé vers `Audit preuve`, a
+supprimé cette colonne avec remplacement par `En cours`, puis a relu l'activité.
+Les trois lignes observées sont création, `En cours à Audit preuve` et
+`Audit preuve à En cours`. Aucun UUID n'est visible.
+
 ## Diagnostics non classés comme bugs
 
 - Deux `POST /api/auth/two-factor/verify-totp` ont répondu `401 UNAUTHORIZED` lors de codes TOTP invalides générés par l'audit. Le troisième code, validé dans l'application d'authentification, a répondu 200. Le blocage et le message `Code invalide. Réessayez.` sont attendus.
@@ -382,6 +707,10 @@ Utiliser une primitive Sheet/Dialog accessible ou implémenter explicitement `Es
 - Aucun échec HTTP inattendu ni exception JavaScript n'a été observé pendant l'édition nominale. Les `401` TOTP visibles dans le journal cumulé proviennent des essais invalides de l'incrément 01, pas de l'édition d'item.
 
 Journaux : incrément 01 [console](console/2026-08-04-session-01-console.log) / [réseau](network/2026-08-04-session-01-requests.log) ; incrément 02 [console](console/2026-08-04-session-02-console.log) / [réseau](network/2026-08-04-session-02-requests.log).
+
+Incrément 03 : [console complète](console/2026-08-05-session-03-dnd-transitions-console.log) / [réseau complet](network/2026-08-05-session-03-dnd-transitions-requests.log) ; session finale propre [console](console/2026-08-05-session-03-dnd-transitions-clean-console.log) / [réseau](network/2026-08-05-session-03-dnd-transitions-clean-requests.log). Les `net::ERR_FAILED` du journal complet sont les deux échecs volontairement injectés pour vérifier le rollback ; le parcours nominal final contient 0 erreur et 0 avertissement.
+
+Incrément 04 : constat initial [console](console/2026-08-05-session-04-workflow-columns-console-final.log) / [réseau](network/2026-08-05-session-04-workflow-columns-requests-final.log) ; scénario de migration [console](console/2026-08-05-session-04-workflow-columns-runtime-console.log) / [réseau](network/2026-08-05-session-04-workflow-columns-runtime-requests.log) ; remédiation finale [console](console/2026-08-05-session-04-remediation-final-console.log) / [réseau](network/2026-08-05-session-04-remediation-final-requests.log).
 
 ## Journal de résolution — 4 août 2026
 
@@ -397,3 +726,13 @@ Journaux : incrément 01 [console](console/2026-08-04-session-01-console.log) / 
 | BUG-JIR-009 | dialogue Radix nommé, fermeture immédiate par `Escape`, URL nettoyée et focus restauré au déclencheur | Vitest + Chromium desktop/mobile |
 
 La première collecte de remédiation contient les deux 401 TOTP historiques de la session déjà ouverte. Une seconde session Playwright isolée confirme **0 erreur, 0 avertissement et uniquement des réponses 200** : [console propre](console/2026-08-04-remediation-clean-console.log), [réseau propre](network/2026-08-04-remediation-clean-requests.log). La relation temporaire `CASS-57` → `CASS-58` créée pour vérifier BUG-JIR-007 a été retirée après la capture.
+
+## Journal de résolution — 5 août 2026
+
+| Bug | Correctif vérifié | Niveau de preuve |
+|---|---|---|
+| BUG-JIR-010 | snapshot restauré sur `onDragCancel`, DOM et base restent dans `À faire` | Vitest + Playwright clavier + reload |
+| BUG-JIR-011 | collision pointeur prioritaire et auto-scroll réduit ; cible vide `En revue` réellement persistée | Vitest + Playwright souris + reload ; matrice longue restante |
+| BUG-JIR-012 | annonces françaises avec clé/titre/statut, sans UUID | Vitest + inspection Playwright de `aria-live` ; NVDA/VoiceOver restant |
+| BUG-JIR-013 | CRUD/ordre/couleur, invariants, migration occupée et permissions lecteur | Vitest + Playwright admin/lecteur ; [capture admin](screenshots/FIXED-BUG-JIR-013-gestion-colonnes-admin.png) |
+| BUG-JIR-014 | références historiques remplacées par le nom avant suppression | Vitest + Playwright sur `CASS-60` ; [capture](screenshots/FIXED-BUG-JIR-014-activite-migration-libelles-metier.png) |

@@ -1,0 +1,15 @@
+Transcription Playwright de la région `role=status` — 5 août 2026
+
+Prise et premier déplacement :
+Draggable item ad1a4673-2148-4558-986c-2f86a616ed7b was moved over droppable area 78900f39-df05-4136-afec-bec2a1b38982.
+
+Dépôt :
+Draggable item ad1a4673-2148-4558-986c-2f86a616ed7b was dropped over droppable area ad1a4673-2148-4558-986c-2f86a616ed7b
+
+Annulation :
+Dragging was cancelled. Draggable item ad1a4673-2148-4558-986c-2f86a616ed7b was dropped.
+
+Instruction `aria-describedby` observée sur la poignée :
+To pick up a draggable item, press the space bar. While dragging, use the arrow keys to move the item. Press space again to drop the item in its new position, or press escape to cancel.
+
+Défaut : anglais intégral et UUID internes ; aucun libellé CASS-58, titre ou nom de colonne.
