@@ -1,0 +1,23 @@
+25. [POST] http://localhost:3000/api/auth/sign-in/email => [200] OK
+26. [GET] http://localhost:3000/2fa/enroll?_rsc=qYT2Wy2QR8kXuUU6 => [200] OK
+33. [POST] http://localhost:3000/api/auth/two-factor/enable => [200] OK
+34. [POST] http://localhost:3000/api/auth/two-factor/verify-totp => [401] UNAUTHORIZED
+35. [POST] http://localhost:3000/api/auth/two-factor/verify-totp => [401] UNAUTHORIZED
+36. [POST] http://localhost:3000/api/auth/two-factor/verify-totp => [200] OK
+37. [GET] http://localhost:3000/?_rsc=0kLibjdYyZ6MNn6M => [200] OK
+50. [GET] http://localhost:3000/b/CASS?_rsc=I4RkyBImxO06sTpg => [200] OK
+51. [GET] http://localhost:3000/b/CASS?_rsc=I4RkyBImxO06sTpg => [200] OK
+62. [POST] http://localhost:3000/b/CASS => [200] OK
+63. [POST] http://localhost:3000/b/CASS => [200] OK
+64. [GET] http://localhost:3000/b/CASS?_rsc=iT519xyN5stMqaac => [200] OK
+65. [GET] http://localhost:3000/b/CASS?item=CASS-57&_rsc=J_59D5WJwA6rJthS => [200] OK
+66. [POST] http://localhost:3000/b/CASS?item=CASS-57 => [200] OK
+67. [GET] http://localhost:3000/b/CASS?item=CASS-57&_rsc=iT519xyN5stMqaac => [200] OK
+68. [GET] http://localhost:3000/b/CASS?_rsc=J_59D5WJwA6rJthS => [200] OK
+69. [GET] http://localhost:3000/b/CASS?_rsc=D3M9SuaNwLXDi3wH => [200] OK
+70. [GET] http://localhost:3000/b/CASS?item=CASS-58&_rsc=J_59D5WJwA6rJthS => [200] OK
+71. [GET] http://localhost:3000/b/CASS?_rsc=J_59D5WJwA6rJthS => [200] OK
+72. [GET] http://localhost:3000/b/CASS?_rsc=D3M9SuaNwLXDi3wH => [200] OK
+73. [POST] http://localhost:3000/b/CASS => [200] OK
+
+Note: 52 static requests not shown, run with "static" option to see them.

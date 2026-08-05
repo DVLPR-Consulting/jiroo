@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Local audit evidence containing TOTP enrollment secrets and recovery codes
+/audit/screenshots/BUG-JIR-001-2fa-activation-failure.png

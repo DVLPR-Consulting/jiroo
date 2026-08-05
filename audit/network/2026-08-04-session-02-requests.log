@@ -1,0 +1,4 @@
+35. [POST] http://localhost:3000/b/CASS?item=CASS-57 => [200] OK
+36. [GET] http://localhost:3000/b/CASS?item=CASS-57&_rsc=iT519xyN5stMqaac => [200] OK
+
+Note: 34 static requests not shown, run with "static" option to see them.
