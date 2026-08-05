@@ -108,6 +108,38 @@ describe("NewItemButton", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
+  it("consumes C before opening a dialog with an empty title", () => {
+    render(<NewItemButton {...dialogProps()} enableShortcut />);
+
+    const notCancelled = fireEvent.keyDown(window, { key: "c" });
+
+    expect(notCancelled).toBe(false);
+    expect(screen.getByRole("textbox", { name: "Titre" })).toHaveValue("");
+  });
+
+  it("announces the title limit and renders the server field error", async () => {
+    const user = userEvent.setup();
+    mocks.createItemAction.mockResolvedValueOnce({
+      ok: false,
+      error: "Titre trop long (200 max).",
+      fieldErrors: { title: ["Titre trop long (200 max)."] },
+    });
+    render(<NewItemButton {...dialogProps()} />);
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+
+    const title = screen.getByRole("textbox", { name: "Titre" });
+    expect(title).toHaveAttribute("maxlength", "200");
+    expect(screen.getByText("0 / 200")).toBeVisible();
+
+    await user.type(title, "Titre valide");
+    await user.click(screen.getByRole("button", { name: /Créer$/ }));
+
+    expect(await screen.findByText("Titre trop long (200 max)."))
+      .toBeVisible();
+    expect(title).toHaveAttribute("aria-invalid", "true");
+    expect(title).toHaveFocus();
+  });
+
   it("does not register the C shortcut by default", () => {
     render(<NewItemButton {...dialogProps()} />);
 

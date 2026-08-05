@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Trash2, X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
@@ -14,6 +14,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { restoreItemAction, softDeleteItemAction } from "@/app/actions/items";
 import { ActivityLog } from "@/components/items/detail/activity-log";
 import { CommentThread } from "@/components/items/detail/comment-thread";
@@ -99,6 +105,14 @@ export function ItemDetailPanel({
 }) {
   const router = useRouter();
   const viewUrl = useViewUrlState();
+  const [open, setOpen] = useState(true);
+  const returnFocusRef = useRef<HTMLElement | null>(
+    typeof document !== "undefined" &&
+      document.activeElement instanceof HTMLElement &&
+      document.activeElement !== document.body
+      ? document.activeElement
+      : null,
+  );
   const [tab, setTab] = useState<"detail" | "comments" | "activity">("detail");
   const [deleting, startDelete] = useTransition();
   const status = statuses.find((option) => option.id === detail.statusId);
@@ -142,14 +156,38 @@ export function ItemDetailPanel({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex animate-in fade-in-0 justify-end bg-black/30 duration-150"
-      onClick={close}
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) close();
+      }}
     >
-      <aside
-        className="h-full w-[620px] max-w-[92vw] animate-in slide-in-from-right overflow-auto border-l border-border bg-[var(--surface)] shadow-lg duration-200"
-        onClick={(e) => e.stopPropagation()}
+      <DialogContent
+        variant="sheet-right"
+        showCloseButton={false}
+        aria-describedby={undefined}
+        className="bg-[var(--surface)] shadow-lg"
+        onCloseAutoFocus={(event) => {
+          const returnTarget = returnFocusRef.current;
+          if (returnTarget?.isConnected) {
+            event.preventDefault();
+            returnTarget.focus();
+          }
+        }}
+        onEscapeKeyDown={(event) => {
+          const target = event.target;
+          if (
+            target instanceof Element &&
+            target.matches('[aria-label="Titre de l’item"]')
+          ) {
+            event.preventDefault();
+          }
+        }}
       >
+        <DialogTitle className="sr-only">
+          {detail.key} — {detail.title}
+        </DialogTitle>
         {/* Header */}
         <header className="flex items-center gap-2 border-b border-border px-4 py-3">
           <TypeIcon type={detail.type} />
@@ -204,23 +242,28 @@ export function ItemDetailPanel({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            <button
-              type="button"
-              aria-label="Fermer"
-              onClick={close}
-              className="rounded p-1 text-muted-foreground hover:bg-[var(--muted)]"
-            >
-              <X className="size-4" />
-            </button>
+            <DialogClose asChild>
+              <button
+                type="button"
+                aria-label="Fermer"
+                className="rounded p-1 text-muted-foreground hover:bg-[var(--muted)]"
+              >
+                <X className="size-4" />
+              </button>
+            </DialogClose>
           </div>
         </header>
 
         {/* Body: 2-column grid */}
-        <div className="grid grid-cols-[1fr_220px]">
+        <div
+          data-testid="item-detail-grid"
+          className="grid grid-cols-1 md:grid-cols-[1fr_220px]"
+        >
           {/* Main column */}
           <div className="flex min-w-0 flex-col gap-4 p-5">
             <EditableTitle
               itemId={detail.id}
+              itemKey={detail.key}
               backlogKey={backlogKey}
               title={detail.title}
               readOnly={!canWrite}
@@ -286,7 +329,7 @@ export function ItemDetailPanel({
           </div>
 
           {/* Side column */}
-          <div className="flex flex-col gap-4 border-l border-border bg-[var(--surface-2)] p-5">
+          <div className="flex flex-col gap-4 border-t border-border bg-[var(--surface-2)] p-5 md:border-t-0 md:border-l">
             <Field label="Statut">
               {canWrite ? (
                 <StatusField
@@ -414,7 +457,7 @@ export function ItemDetailPanel({
             </div>
           </div>
         </div>
-      </aside>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

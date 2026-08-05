@@ -51,17 +51,29 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  variant = "center",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  variant?: "center" | "sheet-right" | "sheet-left"
 }) {
+  const variantClassName = {
+    center:
+      "top-1/2 left-1/2 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl p-4 sm:max-w-sm data-open:zoom-in-95 data-closed:zoom-out-95",
+    "sheet-right":
+      "inset-y-0 right-0 h-dvh w-screen overflow-y-auto border-l p-0 md:w-[620px] md:max-w-[92vw] data-open:slide-in-from-right data-closed:slide-out-to-right motion-reduce:animate-none",
+    "sheet-left":
+      "inset-y-0 left-0 h-dvh w-[248px] max-w-[85vw] overflow-y-auto border-r p-0 data-open:slide-in-from-left data-closed:slide-out-to-left motion-reduce:animate-none",
+  }[variant]
+
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed z-50 bg-popover text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          variantClassName,
           className
         )}
         {...props}
