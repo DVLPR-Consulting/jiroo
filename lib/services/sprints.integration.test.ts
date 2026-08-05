@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -212,7 +212,12 @@ describeDb("sprint planning services", () => {
           newValue: activities.newValue,
         })
         .from(activities)
-        .where(eq(activities.field, "sprint"))
+        .where(
+          and(
+            eq(activities.field, "sprint"),
+            inArray(activities.itemId, [firstTask.id, secondTask.id]),
+          ),
+        )
         .orderBy(asc(activities.at));
       expect(audit).toHaveLength(4);
       expect(audit).toEqual(
