@@ -157,3 +157,112 @@ Sources officielles : [Meet the new work item detail page](https://plane.so/blog
 - Panneau monocolonne utile à 320–480 px, deux colonnes seulement quand la largeur le permet.
 - Titre et description avec historique/diff/restauration.
 - Propriétés groupées/configurables par type et rôle, relations extensibles et références de développement structurées.
+
+---
+
+# Benchmark — drag & drop et transitions de statut
+
+## Verdict
+
+Jiroo possède plus de fondations qu'un simple prototype : statut par drag ou sélecteur, ordre, clavier, rollback et permissions. Mais **il est actuellement derrière les six concurrents sur la confiance opérationnelle**, car une mauvaise colonne peut être persistée. Linear est la meilleure référence pour l'alternative clavier ; Jira et Plane pour les transitions gouvernées ; Azure DevOps pour WIP/Definition of Done ; GitHub Projects et ClickUp pour le groupement flexible.
+
+## Comparaison synthétique
+
+| Produit | Qui fait mieux et pourquoi | Comment Jiroo pourrait faire mieux |
+|---|---|---|
+| Jira | Jira bloque les déplacements sans transition valide et explique que le workflow/les conditions empêchent le mouvement | Afficher les destinations autorisées et la raison d'un refus avant le dépôt, avec un modèle de workflow plus simple que Jira |
+| Linear | Linear offre sélection, navigation, commande `S`, menu de commandes et raccourcis de réordonnancement ; le drag n'est pas l'unique voie | Faire du menu de statut clavier/mobile la voie fiable et conserver le drag comme accélérateur précis |
+| ClickUp | ClickUp groupe le board par statut, assigné, tag, échéance ou priorité et permet les changements en masse | Étendre le drag aux groupements seulement après avoir sécurisé collision, permissions et rollback |
+| Azure DevOps | Azure permet de déplacer entre colonnes, réordonner, configurer WIP, colonnes scindées et Definition of Done | Ajouter WIP et critères de sortie légers, visibles au moment du dépôt |
+| GitHub Projects | GitHub applique la valeur du groupe lors du dépôt, quel que soit le champ de groupement, et conserve plusieurs layouts/vues | Généraliser le moteur de groupe avec une correspondance stricte entre cible visible et valeur écrite |
+| Plane | Plane combine cinq layouts, bulk operations, workflow/approbations et journal de chaque transition avec time-in-state | Dépasser Plane sur accessibilité et mobile, puis ajouter gouvernance et historique sans alourdir le geste quotidien |
+
+## Détail par concurrent
+
+### Jira
+
+Jira ne traite pas toutes les colonnes comme librement accessibles : le drag dépend des transitions et conditions du workflow. Son message d'échec indique qu'un élément empêche le passage au statut et renvoie vers la configuration.
+
+Source officielle : [Unable to drag and drop issues between columns](https://support.atlassian.com/jira/kb/unable-to-drag-and-drop-issues-between-the-columns-on-the-board/).
+
+**Opportunité Jiroo :** proposer des règles compréhensibles directement dans la cible — `Revue impossible : assigné requis` — sans imposer l'administration complexe de Jira.
+
+### Linear
+
+Linear permet de naviguer et sélectionner les issues au clavier, d'ouvrir la commande de statut et de réordonner sans long drag. Lors d'un changement via raccourci ou menu, l'issue va en haut de la colonne ; la souris conserve la position choisie.
+
+Sources officielles : [Board layout](https://linear.app/docs/board-layout), [Select issues](https://linear.app/docs/select-issues).
+
+**Opportunité Jiroo :** garder la poignée accessible, mais ajouter un raccourci de statut explicite qui annonce les noms de colonnes. Un geste clavier ne devrait jamais exiger de deviner combien de flèches traversent cartes et colonnes.
+
+### ClickUp
+
+ClickUp positionne le board comme une surface drag & drop et permet de grouper par statut, assigné, tags, échéance ou priorité, avec sous-groupes et actions en masse.
+
+Source officielle : [List view vs Board view](https://help.clickup.com/hc/en-us/articles/6310314670359-List-view-vs-Board-view).
+
+**Opportunité Jiroo :** ne pas multiplier les groupements tant que la destination n'est pas fiable. Ensuite, offrir moins d'options que ClickUp, mais une collision plus prédictible et accessible.
+
+### Azure DevOps
+
+Azure Boards permet les déplacements avant/arrière, le réordonnancement vertical, les limites WIP, les colonnes scindées et la Definition of Done. Le dépassement WIP est signalé visuellement.
+
+Sources officielles : [Manage columns on your board](https://learn.microsoft.com/en-us/azure/devops/boards/boards/add-columns?view=azure-devops), [Kanban quickstart](https://learn.microsoft.com/azure/devops/boards/boards/kanban-quickstart?view=azure-devops).
+
+**Opportunité Jiroo :** ajouter un WIP minimaliste et des critères de sortie dans les en-têtes, avec avertissement avant mutation plutôt qu'un board purement décoratif.
+
+### GitHub Projects
+
+GitHub Projects applique automatiquement la valeur d'un groupe lors d'un drag : déplacer de `In progress` à `Done` modifie le champ `Status`. Le même modèle s'applique à d'autres champs groupables.
+
+Sources officielles : [Customizing the table layout](https://docs.github.com/en/issues/planning-and-tracking-with-projects/customizing-views-in-your-project/customizing-the-table-layout), [Quickstart for Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/quickstart-for-projects).
+
+**Opportunité Jiroo :** formaliser `cible visible = valeur écrite` comme invariant testé, puis réutiliser ce moteur pour priorité/assigné/composant.
+
+### Plane
+
+Plane expose plusieurs layouts, bulk operations, workflows/approbations et un journal de chaque transition avec auteur, timestamp et time-in-state.
+
+Sources officielles : [Work items](https://plane.so/work-items), [New work-item detail view, custom relations and more](https://plane.so/blog/new-work-item-detail-view-custom-relations-and-more), [Plane documentation](https://docs.plane.so/).
+
+**Opportunité Jiroo :** viser une exécution plus nette : mobile sans drag obligatoire, annonces françaises exemplaires et historique compact. La gouvernance peut venir ensuite.
+
+## Cible recommandée pour Jiroo
+
+1. invariant absolu entre cible active, payload et état rechargé ;
+2. changement de statut accessible hors drag en deux gestes maximum ;
+3. undo de 5 à 10 secondes après succès ;
+4. WIP et règles de transition avec raison visible ;
+5. historique des transitions et time-in-state ;
+6. p95 de confirmation serveur inférieur à 800 ms, feedback local inférieur à 100 ms.
+
+---
+
+# Benchmark — configuration du workflow et des colonnes
+
+## Verdict
+
+Après remédiation, Jiroo couvre le socle backlog-local : création, renommage,
+catégorie, couleur, ordre et suppression transactionnelle avec migration. Il ne
+rattrape toutefois aucun des six concurrents sur la profondeur de workflow :
+transitions, WIP, mapping statut/colonne, modèles, héritage et gouvernance restent
+absents. Son avantage observable est une suppression occupée explicite et sûre,
+pas une parité Jira.
+
+| Produit | Qui fait mieux et pourquoi | Cible Jiroo |
+|---|---|---|
+| Jira | Workflows, transitions, statuts et mapping vers les colonnes sont configurables | Offrir d'abord un modèle backlog-local beaucoup plus simple, puis ajouter règles et mapping |
+| Linear | Les statuts d'équipe sont configurables, ordonnés et regroupés par catégorie | Égaler la rapidité de configuration avec des catégories explicites et une UX française plus accessible |
+| ClickUp | Statuts personnalisés par espace/dossier/liste et nombreux modèles | Éviter la cascade complexe, mais permettre duplication et héritage explicites plus tard |
+| Azure DevOps | Colonnes, WIP, split columns et Definition of Done | Ajouter WIP et critères de sortie après la gestion sûre des colonnes |
+| GitHub Projects | Champ Status et groupes configurables par vue | Séparer plus tard statut métier et représentation de board, sans perdre la simplicité actuelle |
+| Plane | États configurables par groupe, cycles et workflows modernes | Dépasser Plane sur migration sûre, clavier et feedback d'impact |
+
+## Comment Jiroo peut faire mieux
+
+Commencer par un invariant lisible : une colonne correspond à un statut du
+backlog, toutes les mutations sont transactionnelles et aucune suppression ne
+perd un item. Ensuite seulement, introduire plusieurs statuts par colonne,
+transitions, WIP et workflows partagés. Cette progression peut être plus claire
+que l'administration Jira, mais elle ne doit pas être présentée comme une parité
+Jira avant l'arrivée des règles et schémas réutilisables.

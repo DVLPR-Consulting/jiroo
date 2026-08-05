@@ -6,7 +6,6 @@ import {
   DragOverlay,
   KeyboardSensor,
   PointerSensor,
-  closestCorners,
   useDroppable,
   useSensor,
   useSensors,
@@ -29,7 +28,7 @@ import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
-import { InlinePriority } from "@/components/items/inline-item-field";
+import { InlinePriority, InlineStatus } from "@/components/items/inline-item-field";
 import { LabelPill } from "@/components/items/label-pill";
 import {
   NewItemButton,
@@ -42,6 +41,14 @@ import { LABEL_HUES, type ItemKind, type ItemType, type LabelHue, type Priority,
 import { KindIcon } from "@/components/icons/kind-icon";
 import { StatusDot } from "@/components/icons/status-dot";
 import type { moveItemAction as MoveItemAction } from "@/app/actions/items";
+import {
+  BOARD_AUTO_SCROLL,
+  BOARD_SCREEN_READER_INSTRUCTIONS,
+  boardDragDisabled,
+  boardCollisionDetection,
+  createBoardAnnouncements,
+  restoreCancelledColumns,
+} from "@/lib/items/board-dnd";
 
 export type BoardCard = {
   id: string;
@@ -192,15 +199,19 @@ function SortableCard({
   colDomId,
   swimlane,
   backlogKey,
+  statusDomain,
   onOpen,
   canWrite,
+  dragDisabled,
 }: {
   card: BoardCard;
   colDomId: string;
   swimlane: string;
   backlogKey: string;
+  statusDomain: Status[];
   onOpen: (key: string) => void;
   canWrite: boolean;
+  dragDisabled: boolean;
 }) {
   const {
     attributes,
@@ -212,8 +223,8 @@ function SortableCard({
     isDragging,
   } = useSortable({
     id: card.id,
-    data: { type: "card", columnId: colDomId, swimlane },
-    disabled: !canWrite,
+    data: { type: "card", columnId: colDomId, swimlane, key: card.key, title: card.title },
+    disabled: boardDragDisabled(canWrite, dragDisabled ? 1 : 0),
   });
 
   return (
@@ -232,6 +243,14 @@ function SortableCard({
         card={card}
         backlogKey={backlogKey}
         interactivePriority={canWrite}
+        mobileStatus={canWrite ? (
+          <InlineStatus
+            itemId={card.id}
+            backlogKey={backlogKey}
+            statusId={card.statusId}
+            statuses={statusDomain}
+          />
+        ) : undefined}
         dragHandle={canWrite ? (
           <button
             ref={setActivatorNodeRef}
@@ -262,12 +281,14 @@ function CardInner({
   backlogKey,
   interactivePriority = true,
   dragHandle,
+  mobileStatus,
   onOpen,
 }: {
   card: BoardCard;
   backlogKey: string;
   interactivePriority?: boolean;
   dragHandle?: ReactNode;
+  mobileStatus?: ReactNode;
   onOpen?: () => void;
 }) {
   return (
@@ -359,6 +380,11 @@ function CardInner({
           />
         )}
       </div>
+      {mobileStatus ? (
+        <div className="mt-1.5 border-t border-border pt-1.5 md:hidden">
+          {mobileStatus}
+        </div>
+      ) : null}
     </>
   );
 }
@@ -374,6 +400,7 @@ function Column({
   isOver,
   onOpen,
   canWrite,
+  dragDisabled,
 }: {
   status: Status;
   colDomId: string;
@@ -385,6 +412,7 @@ function Column({
   isOver: boolean;
   onOpen: (key: string) => void;
   canWrite: boolean;
+  dragDisabled: boolean;
 }) {
   const { setNodeRef } = useDroppable({
     id: colDomId,
@@ -435,8 +463,10 @@ function Column({
               colDomId={colDomId}
               swimlane={swimlane}
               backlogKey={backlogKey}
+              statusDomain={statusDomain}
               onOpen={onOpen}
               canWrite={canWrite}
+              dragDisabled={dragDisabled}
             />
           ))}
         </div>
@@ -488,6 +518,7 @@ export function ItemBoard({
   // The full column dom id currently hovered (used for the drop highlight).
   const [overColId, setOverColId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mutationPending, setMutationPending] = useState(false);
   const snapshot = useRef<Columns | null>(null);
   const pending = useRef(0);
 
@@ -495,10 +526,10 @@ export function ItemBoard({
   // active and nothing is in flight — otherwise a mid-drag revalidate would
   // clobber the optimistic state.
   useEffect(() => {
-    if (activeId === null && pending.current === 0) {
+    if (activeId === null && !mutationPending && pending.current === 0) {
       setColumns(groupByCell(items, statuses, swimlanes, group));
     }
-  }, [items, statuses, swimlanes, group, activeId]);
+  }, [items, statuses, swimlanes, group, activeId, mutationPending]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -508,13 +539,26 @@ export function ItemBoard({
   const activeCard = activeId
     ? (Object.values(columns).flat().find((c) => c.id === activeId) ?? null)
     : null;
+  const announcements = useMemo(() => {
+    const itemLabels = new Map(items.map((card) => [card.id, `${card.key} — ${card.title}`]));
+    const destinationLabels = new Map<string, string>();
+    for (const [columnId, cards] of Object.entries(columns)) {
+      const statusName = statusDomain.find(
+        (status) => status.id === parseColId(columnId).statusId,
+      )?.name;
+      if (!statusName) continue;
+      destinationLabels.set(columnId, statusName);
+      for (const card of cards) destinationLabels.set(card.id, statusName);
+    }
+    return createBoardAnnouncements(itemLabels, destinationLabels);
+  }, [columns, items, statusDomain]);
 
   const openItem = (key: string) => {
     viewUrl.push((params) => params.set("item", key));
   };
 
   function onDragStart(event: DragStartEvent) {
-    if (!canWrite) return;
+    if (boardDragDisabled(canWrite, pending.current)) return;
     snapshot.current = columns;
     setError(null);
     const id = String(event.active.id);
@@ -522,9 +566,17 @@ export function ItemBoard({
     setOverColId(findColumn(columns, id));
   }
 
+  function onDragCancel() {
+    if (boardDragDisabled(canWrite, pending.current)) return;
+    setColumns((current) => restoreCancelledColumns(snapshot.current, current));
+    snapshot.current = null;
+    setActiveId(null);
+    setOverColId(null);
+  }
+
   // onDragOver is the SOLE mutator of cross-column membership (placeholder jump).
   function onDragOver(event: DragOverEvent) {
-    if (!canWrite) return;
+    if (boardDragDisabled(canWrite, pending.current)) return;
     const { active, over } = event;
     if (!over) return;
     const activeIdStr = String(active.id);
@@ -566,7 +618,7 @@ export function ItemBoard({
   }
 
   function onDragEnd(event: DragEndEvent) {
-    if (!canWrite) return;
+    if (boardDragDisabled(canWrite, pending.current)) return;
     const { active, over } = event;
     const activeIdStr = String(active.id);
     setActiveId(null);
@@ -630,23 +682,31 @@ export function ItemBoard({
       ),
     }));
 
-    void commit({
-      id: activeIdStr,
-      toStatusId,
-      movedCols,
-      beforeId: before?.id ?? null,
-      afterId: after?.id ?? null,
-    });
+    snapshot.current = null;
+    void commit(
+      {
+        id: activeIdStr,
+        toStatusId,
+        movedCols,
+        beforeId: before?.id ?? null,
+        afterId: after?.id ?? null,
+      },
+      base,
+    );
   }
 
-  async function commit(args: {
-    id: string;
-    toStatusId: string;
-    movedCols: boolean;
-    beforeId: string | null;
-    afterId: string | null;
-  }) {
+  async function commit(
+    args: {
+      id: string;
+      toStatusId: string;
+      movedCols: boolean;
+      beforeId: string | null;
+      afterId: string | null;
+    },
+    rollbackColumns: Columns,
+  ) {
     pending.current++;
+    setMutationPending(true);
     try {
       const res = await moveItemAction({
         backlogKey,
@@ -656,14 +716,15 @@ export function ItemBoard({
         afterId: args.afterId,
       });
       if (!res.ok) {
-        if (snapshot.current) setColumns(snapshot.current);
+        setColumns(rollbackColumns);
         setError(res.error);
       }
     } catch {
-      if (snapshot.current) setColumns(snapshot.current);
+      setColumns(rollbackColumns);
       setError("Déplacement impossible.");
     } finally {
       pending.current--;
+      if (pending.current === 0) setMutationPending(false);
     }
   }
 
@@ -712,10 +773,16 @@ export function ItemBoard({
       <DndContext
         id={dndId}
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={boardCollisionDetection}
+        autoScroll={BOARD_AUTO_SCROLL}
+        accessibility={{
+          announcements,
+          screenReaderInstructions: BOARD_SCREEN_READER_INSTRUCTIONS,
+        }}
         onDragStart={canWrite ? onDragStart : undefined}
         onDragOver={canWrite ? onDragOver : undefined}
         onDragEnd={canWrite ? onDragEnd : undefined}
+        onDragCancel={canWrite ? onDragCancel : undefined}
       >
         <div className="flex-1 overflow-x-auto p-4">
           {group === null ? (
@@ -735,6 +802,7 @@ export function ItemBoard({
                     isOver={activeId !== null && overColId === id}
                     onOpen={openItem}
                     canWrite={canWrite}
+                    dragDisabled={mutationPending}
                   />
                 );
               })}
@@ -762,6 +830,7 @@ export function ItemBoard({
                           isOver={activeId !== null && overColId === id}
                           onOpen={openItem}
                           canWrite={canWrite}
+                          dragDisabled={mutationPending}
                         />
                       );
                     })}

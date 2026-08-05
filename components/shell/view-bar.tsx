@@ -15,6 +15,7 @@ export function ViewBar({
   view,
   groupControlSlot,
   viewActionsSlot,
+  workflowSlot,
   newItemSlot,
 }: {
   view: string;
@@ -22,6 +23,8 @@ export function ViewBar({
   groupControlSlot?: React.ReactNode;
   /** Rendered after grouping, before the ml-auto cluster. */
   viewActionsSlot?: React.ReactNode;
+  /** Backlog workflow management, shown only when the caller authorizes it. */
+  workflowSlot?: React.ReactNode;
   newItemSlot?: React.ReactNode;
 }) {
   const viewUrl = useViewUrlState();
@@ -60,6 +63,7 @@ export function ViewBar({
         data-slot="primary-actions"
         className="ml-auto flex shrink-0 items-center gap-3"
       >
+        {workflowSlot}
         <DensityToggle />
         {newItemSlot}
       </div>

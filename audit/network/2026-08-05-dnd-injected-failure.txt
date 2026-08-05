@@ -1,0 +1,11 @@
+Scénario Playwright d'échec contrôlé — 5 août 2026
+
+- état initial de CASS-58 : En cours
+- geste : drag vers À faire
+- requête interceptée : POST http://localhost:3000/b/CASS
+- corps :
+[{"backlogKey":"CASS","id":"ad1a4673-2148-4558-986c-2f86a616ed7b","statusId":"4b9a5c94-759d-4125-aef8-258574f11e32","beforeId":"78900f39-df05-4136-afec-bec2a1b38982","afterId":null}]
+- réponse : connexion volontairement interrompue par Playwright (`net::ERR_FAILED`), aucune réponse serveur
+- résultat UI : rollback immédiat vers En cours et toast `Déplacement impossible.`
+
+Ce `ERR_FAILED` est une preuve de test négatif, pas une panne nominale de Jiroo.

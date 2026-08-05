@@ -1,0 +1,14 @@
+35. [POST] http://localhost:3000/b/CASS => [200] OK
+36. [GET] http://localhost:3000/b/CASS?_rsc=iT519xyN5stMqaac => [200] OK
+37. [POST] http://localhost:3000/b/CASS => [200] OK
+38. [GET] http://localhost:3000/b/CASS?_rsc=iT519xyN5stMqaac => [200] OK
+39. [GET] http://localhost:3000/b/CASS?view=list&_rsc=J_59D5WJwA6rJthS => [200] OK
+40. [POST] http://localhost:3000/b/CASS?view=list => [200] OK
+41. [GET] http://localhost:3000/b/CASS?view=list&_rsc=iT519xyN5stMqaac => [200] OK
+42. [GET] http://localhost:3000/b/CASS?view=board&_rsc=J_59D5WJwA6rJthS => [200] OK
+43. [POST] http://localhost:3000/b/CASS?view=board => [200] OK
+44. [GET] http://localhost:3000/b/CASS?view=board&_rsc=iT519xyN5stMqaac => [200] OK
+45. [GET] http://localhost:3000/b/CASS?view=list&_rsc=J_59D5WJwA6rJthS => [200] OK
+46. [GET] http://localhost:3000/b/CASS?view=list&item=CASS-60&_rsc=J_59D5WJwA6rJthS => [200] OK
+
+Note: 34 static requests not shown, run with "static" option to see them.

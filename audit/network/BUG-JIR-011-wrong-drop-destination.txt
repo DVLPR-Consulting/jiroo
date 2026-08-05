@@ -1,0 +1,18 @@
+Preuves Playwright — 5 août 2026
+
+Desktop 1200 × 943
+- cible sélectionnée avant le geste : corps de colonne En revue
+- résultat visible et persisté : Terminé
+- POST /b/CASS -> 200
+- corps observé :
+[{"backlogKey":"CASS","id":"ad1a4673-2148-4558-986c-2f86a616ed7b","statusId":"b505269c-7f3f-4222-893d-af1289a80953","beforeId":null,"afterId":"3986587b-59be-4cdd-9b95-180d085bf196"}]
+
+Mobile 390 × 844
+- cible visée : partie visible de En cours, pointeur x=350
+- scrollLeft observé pendant le geste : environ 224,5 px
+- résultat visible et persisté : En revue
+- POST /b/CASS -> 200
+- corps observé :
+[{"backlogKey":"CASS","id":"ad1a4673-2148-4558-986c-2f86a616ed7b","statusId":"a7c785a0-3046-4a3d-a3f2-1859f63c2d2d","beforeId":null,"afterId":null}]
+
+Les identifiants de statut ont été rapprochés des libellés par observation des options du sélecteur Statut dans le navigateur.

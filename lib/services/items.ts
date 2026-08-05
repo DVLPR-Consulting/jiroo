@@ -173,6 +173,26 @@ async function resolveStatusInBacklog(
   return s;
 }
 
+// Workflow mutations lock the backlog before touching statuses/items. Status
+// changes on items must use the same order so a concurrent status
+// recategorization cannot leave closedAt out of sync with the final category.
+async function lockBacklogForItemStatusMutation(
+  tx: Tx,
+  itemId: string,
+): Promise<string | null> {
+  const [itemRef] = await tx
+    .select({ backlogId: items.backlogId })
+    .from(items)
+    .where(and(eq(items.id, itemId), isNull(items.deletedAt)));
+  if (!itemRef) return null;
+  const [backlog] = await tx
+    .select({ id: backlogs.id })
+    .from(backlogs)
+    .where(eq(backlogs.id, itemRef.backlogId))
+    .for("update");
+  return backlog?.id ?? null;
+}
+
 const RETRYABLE_PG_CODES = new Set(["40P01", "40001", "23505"]);
 
 // Retry a transaction on Postgres deadlock (40P01), serialization (40001),
@@ -313,7 +333,8 @@ export async function createItem(input: unknown, actorId: string) {
       const [backlog] = await tx
         .select({ id: backlogs.id, key: backlogs.key })
         .from(backlogs)
-        .where(eq(backlogs.id, data.backlogId));
+        .where(eq(backlogs.id, data.backlogId))
+        .for("update");
       if (!backlog) throw new Error("Backlog introuvable.");
 
       let parentPath: string | null = null;
@@ -428,12 +449,20 @@ export async function createItem(input: unknown, actorId: string) {
 export async function updateItem(input: unknown, actorId: string) {
   const data = updateItemSchema.parse(input);
   return db.transaction(async (tx) => {
+    const lockedBacklogId =
+      data.statusId === undefined
+        ? null
+        : await lockBacklogForItemStatusMutation(tx, data.id);
+    if (data.statusId !== undefined && !lockedBacklogId) return null;
     const [cur] = await tx
       .select()
       .from(items)
       .where(and(eq(items.id, data.id), isNull(items.deletedAt)))
       .for("update");
     if (!cur) return null;
+    if (lockedBacklogId && cur.backlogId !== lockedBacklogId) {
+      throw new Error("Le backlog de l'item a changé pendant la mutation.");
+    }
 
     const patch: Partial<typeof items.$inferInsert> = {};
     const acts: (typeof activities.$inferInsert)[] = [];
@@ -549,12 +578,20 @@ export async function moveItem(input: unknown, actorId: string) {
   const data = moveItemSchema.parse(input);
   return withRetry(() =>
     db.transaction(async (tx) => {
+      const lockedBacklogId =
+        data.statusId === undefined
+          ? null
+          : await lockBacklogForItemStatusMutation(tx, data.id);
+      if (data.statusId !== undefined && !lockedBacklogId) return null;
       const [cur] = await tx
         .select()
         .from(items)
         .where(and(eq(items.id, data.id), isNull(items.deletedAt)))
         .for("update");
       if (!cur) return null;
+      if (lockedBacklogId && cur.backlogId !== lockedBacklogId) {
+        throw new Error("Le backlog de l'item a changé pendant la mutation.");
+      }
 
       const patch: Partial<typeof items.$inferInsert> = {};
       const acts: (typeof activities.$inferInsert)[] = [];

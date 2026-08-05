@@ -1,0 +1,4 @@
+30. [GET] http://localhost:3000/admin?tab=users&_rsc=-7PuhLiXcbTpMX3A => [200] OK
+31. [POST] http://localhost:3000/admin?tab=users => [200] OK
+
+Note: 29 static requests not shown, run with "static" option to see them.

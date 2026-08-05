@@ -1,6 +1,6 @@
 # Roadmap priorisée issue de l'audit
 
-## État après remédiation du 4 août 2026
+## État après remédiations des 4 et 5 août 2026
 
 | Chantier | État | Preuve |
 |---|---|---|
@@ -10,6 +10,9 @@
 | Accessibilité du détail P1 | Terminé sur le périmètre observé | Dialogue Radix, `Escape`, focus restauré, renommage et retraits clavier |
 | Feedback des propriétés P1 | Terminé sur les propriétés du détail | Optimisme immédiat, `aria-busy`, confirmation, rollback et protection contre prop périmée |
 | Composeur enrichi P1 | Non commencé | Description, assigné, labels et échéance manquent toujours à la création |
+| Fiabilité drag horizontal P0 | Corrigé, matrice longue restante | Dépôt desktop vers colonne vide correctement persisté après reload |
+| Drag clavier accessible P1 | Corrigé dans Playwright | Snapshot restauré sur `Échap`, annonces françaises sans UUID ; NVDA/VoiceOver restant |
+| Colonnes configurables P0 produit | Terminé sur le périmètre backlog-local | CRUD, ordre, couleur, invariants, migration occupée, activité stable et rôle lecteur prouvés |
 
 Les sections ci-dessous conservent la roadmap issue de l'audit initial. Les cinq premiers chantiers corrigés ne doivent pas être confondus avec une validation globale du shell à tous les breakpoints ni avec une parité concurrentielle.
 
@@ -107,3 +110,76 @@ Les sections ci-dessous conservent la roadmap issue de l'audit initial. Les cinq
 3. Feedback des mutations et composeur enrichi P1.
 4. Architecture détail, modèles et brouillons P2.
 5. QA navigateur P2 en parallèle de chaque livraison.
+
+## Mise à jour prioritaire — incrément 03 du 5 août 2026
+
+### P0 — Garantir que la colonne déposée est la colonne persistée
+
+**Pourquoi :** le drag horizontal a enregistré `Terminé` alors que `En revue` était visée sur desktop, puis `En revue` alors que `En cours` était visée à 390 px. C'est une atteinte à l'intégrité métier, pas un défaut cosmétique.
+
+**Livrable :** coordonnées corrigées par rapport au scroller, auto-scroll borné, cible stable et explicitement nommée, validation de cohérence avant mutation, alternative mobile par menu de statut.
+
+**Acceptation :** matrice Playwright 390/768/1200 px, scroll nul/non nul, colonnes vides/remplies ; 50 dépôts consécutifs par cible sans divergence entre cible active, `statusId` envoyé et résultat après reload.
+
+### P1 — Rendre annulation et annonces clavier fiables
+
+**Pourquoi :** `Échap` peut laisser un faux statut local et le lecteur d'écran n'entend que des UUID en anglais.
+
+**Livrable :** snapshot restauré sur annulation, annonces françaises métier, position dans la colonne, feedback distinct pour succès/annulation/rollback.
+
+**Acceptation :** aucune requête sur annulation, DOM identique avant/après, aucune chaîne anglaise ou UUID dans `role=status`, validation VoiceOver/NVDA.
+
+### P1 — Ajouter une voie sûre hors drag
+
+**Pourquoi :** le drag est coûteux et fragile sur petit écran, et ne doit pas être l'unique geste rapide depuis le board.
+
+**Livrable :** menu `Changer le statut` sur chaque carte, clavier et tactile, avec destinations autorisées et raisons de blocage.
+
+**Acceptation :** changement en deux gestes maximum sur mobile, focus restauré, feedback optimiste/rollback identique au détail.
+
+### P2 — Gouverner le flux
+
+**Livrable :** limites WIP configurables, transitions/règles, undo après succès, historique et time-in-state.
+
+**Acceptation :** dépassement WIP signalé avant dépôt, transition interdite expliquée, undo fiable, audit de chaque changement avec ancienne/nouvelle valeur.
+
+## Ordre actualisé
+
+1. Backlog produit et triage : priorisation, estimation, bulk edit et passage vers l'exécution.
+2. Cycles/sprints, capacité et releases.
+3. Hiérarchie, dépendances et progression d'epic.
+4. Filtres/groupements/vues enregistrées et reporting.
+5. WIP, règles de workflow, undo et time-in-state.
+
+## Mise à jour prioritaire — incrément 04 du 5 août 2026
+
+### P0 — Rendre les colonnes configurables par backlog
+
+**État : terminé et vérifié par Playwright le 5 août 2026.**
+
+**Pourquoi :** les quatre statuts sont imposés et aucune équipe ne peut adapter
+Jiroo à son processus réel. La gestion de produit de bout en bout est bloquée.
+
+**Livrable :** création, édition, catégorie, couleur, ordre et suppression sûre
+d'un statut/colonne ; migration transactionnelle des items ; action `Colonnes`
+directement sur le board ; administration réservée au rôle admin.
+
+**Acceptation :** cycle complet vérifié par Playwright et après rechargement,
+propagation à toutes les vues, aucune perte d'item, permissions UI et serveur,
+console/réseau propres.
+
+### P1 — Ajouter la gouvernance de workflow
+
+**Livrable :** transitions permises, conditions simples, raison visible d'un
+refus, WIP et Definition of Done.
+
+**Acceptation :** le board explique avant le dépôt pourquoi une transition est
+interdite et ne permet aucune divergence entre UI, serveur et reporting.
+
+### Ordre fonctionnel révisé
+
+1. ~~Colonnes/statuts configurables et sécurité des migrations~~ — terminé.
+2. Backlog, cycles/sprints, estimations et releases — prochaine priorité.
+3. Hiérarchie, dépendances et exécution multi-utilisateur.
+4. Reporting, recherche, notifications et intégrations.
+5. Responsive et performance transverses en fin d'audit.
