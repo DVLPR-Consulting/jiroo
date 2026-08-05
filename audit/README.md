@@ -721,15 +721,19 @@ vélocité et de signalement des changements de périmètre actif.
   sous-tâche ouverte avec sa clé métier et transaction inchangée ;
 - drag souris vers une section vide, répété **5/5**, et rollback d'un drag
   inter-section après panne ;
-- matrice Playwright Chromium : **7 scénarios passés en 29,4 s**. Les parcours
-  nominaux n'ont produit aucune erreur console ou HTTP. Quatre
+- matrice Playwright Chromium complète PR1 + PR2 : **14 scénarios passés en
+  42,8 s**, dont les 7 scénarios sprint. Les parcours nominaux n'ont produit
+  aucune erreur console ou HTTP. Quatre
   `net::ERR_FAILED` sont injectés et attendus : bulk sprint, drag, démarrage et
   clôture.
 
-Mesures locales finales : création sprint 181–256 ms, création de tâche
-225–392 ms, démarrage 221 ms, création Board 331 ms, drag Board 574 ms,
-clôture 313 ms et bulk sprint 341 ms. Chargement mesuré :
-`DOMContentLoaded` 420 ms, load 426 ms.
+Mesures locales finales : création sprint 204–208 ms, création de tâche
+175–278 ms, démarrage 260 ms, drag Board 492 ms, clôture 238 ms et bulk sprint
+301 ms. Chargement mesuré : `DOMContentLoaded` 304 ms, load 391 ms.
+
+Vérification technique finale : **804 tests unitaires/composants**, **38 tests
+d'intégration PostgreSQL**, typecheck, lint et build Next.js 16 de production
+passés.
 
 Preuves : [Board sans sprint](screenshots/FIXED-PARTIAL-BUG-JIR-015-board-sans-sprint-actif.png),
 [Board actif](screenshots/FIXED-PARTIAL-BUG-JIR-015-board-sprint-actif.png),

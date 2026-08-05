@@ -819,7 +819,8 @@ sprint unique, limite le Board au périmètre actif, crée et déplace une tâch
 puis clôture vers Backlog, sprint existant ou nouveau sprint. Une sous-tâche
 ouverte bloque atomiquement la clôture avec sa clé. Les rejets réseau de bulk,
 drag, démarrage et clôture conservent l'état utile. Le lecteur ne possède aucun
-contrôle de mutation. La matrice finale compte 7 scénarios passés en 29,4 s.
+contrôle de mutation. La matrice finale PR1 + PR2 compte 14 scénarios passés en
+42,8 s, dont 7 pour le cycle sprint.
 
 `BUG-JIR-015` reste ouvert uniquement sur la partie releases/versions et sur le
 reporting de livraison associé. Les rapports de sprint sont une lacune P0

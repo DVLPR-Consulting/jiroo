@@ -3,4 +3,4 @@
 [result] plage CASS-38 → CASS-39, 4 mutations bulk persistées
 [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 [log] [HMR] connected
-[performance] {"domContentLoadedMs":289,"loadMs":290,"responseStartMs":80}
+[performance] {"domContentLoadedMs":363,"loadMs":363,"responseStartMs":110}

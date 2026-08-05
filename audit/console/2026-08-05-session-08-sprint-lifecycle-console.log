@@ -6,13 +6,13 @@
 [log] [HMR] connected
 [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 [log] [HMR] connected
-[timing] create sprint 1 181ms
-[timing] create Audit sprint — tâche terminée 392ms
-[timing] create Audit sprint — tâche reportée 225ms
-[timing] create sprint 2 256ms
-[timing] start sprint 221ms
-[timing] create from board 331ms
-[timing] board drag 574ms
-[timing] complete sprint 313ms
-[performance] {"responseStartMs":163,"domContentLoadedMs":420,"loadMs":426}
+[timing] create sprint 1 204ms
+[timing] create Audit sprint — tâche terminée 239ms
+[timing] create Audit sprint — tâche reportée 278ms
+[timing] create sprint 2 208ms
+[timing] start sprint 260ms
+[timing] create from board 175ms
+[timing] board drag 492ms
+[timing] complete sprint 238ms
+[performance] {"responseStartMs":128,"domContentLoadedMs":304,"loadMs":391}
 [result] cycle planification → sprint actif → board → clôture persisté
