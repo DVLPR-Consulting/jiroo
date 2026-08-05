@@ -109,9 +109,23 @@ export const moveSprintItemSchema = z
     beforeId: id.nullable().default(null),
     afterId: id.nullable().default(null),
   })
-  .refine((data) => data.beforeId === null || data.beforeId !== data.afterId, {
-    path: ["afterId"],
-    message: "Voisins de dépôt invalides.",
+  .superRefine((data, context) => {
+    if (data.beforeId !== null && data.beforeId === data.afterId) {
+      context.addIssue({
+        code: "custom",
+        path: ["afterId"],
+        message: "Voisins de dépôt invalides.",
+      });
+    }
+    for (const field of ["beforeId", "afterId"] as const) {
+      if (data[field] === data.itemId) {
+        context.addIssue({
+          code: "custom",
+          path: [field],
+          message: "Un item ne peut pas être son propre voisin.",
+        });
+      }
+    }
   });
 
 export const startSprintSchema = z

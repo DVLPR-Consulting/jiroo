@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assignSprintItemsSchema,
   completeSprintSchema,
+  moveSprintItemSchema,
   startSprintSchema,
   updateSprintSchema,
 } from "@/lib/validation/sprint";
@@ -48,6 +49,18 @@ describe("sprint validation", () => {
         backlogId,
         sprintId,
         itemIds: [itemId, itemId],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects an item used as its own drop neighbor", () => {
+    expect(
+      moveSprintItemSchema.safeParse({
+        backlogId,
+        itemId,
+        sprintId,
+        beforeId: itemId,
+        afterId: null,
       }).success,
     ).toBe(false);
   });

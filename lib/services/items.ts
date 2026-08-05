@@ -5,6 +5,7 @@ import { activities, backlogs, itemLabels, items, labels, statuses } from "@/lib
 import { user } from "@/lib/db/schema/auth";
 import { nextItemKey } from "@/lib/items/key";
 import { canRestore } from "@/lib/items/trash";
+import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
 import { ROOT_LABEL, buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
 import { rankBetween, rankFirst, rankLast } from "@/lib/tree/rank";
@@ -439,6 +440,14 @@ export async function createItem(input: unknown, actorId: string) {
       }
 
       await tx.insert(activities).values(activityRow(id, actorId, "create", null, null, key));
+
+      if (data.sprintId) {
+        await assignItemsToSprintInTx(
+          tx,
+          { backlogId: data.backlogId, itemIds: [id], sprintId: data.sprintId },
+          actorId,
+        );
+      }
 
       return item!;
     }),

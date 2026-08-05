@@ -31,6 +31,16 @@ describe("createItemSchema", () => {
     expect(r.priority).toBe(0);
     expect(r.statusId).toBeUndefined();
   });
+  it("retains an optional contextual sprint assignment", () => {
+    const sprintId = "33333333-3333-4333-8333-333333333333";
+    const parsed = createItemSchema.parse({
+      ...base,
+      type: "tache",
+      parentId: PID,
+      sprintId,
+    });
+    expect(parsed.sprintId).toBe(sprintId);
+  });
   it("rejects an empty or too-long title", () => {
     expect(createItemSchema.safeParse({ ...base, title: "", type: "composant", parentId: null }).success).toBe(false);
     expect(createItemSchema.safeParse({ ...base, title: "x".repeat(201), type: "composant", parentId: null }).success).toBe(false);
