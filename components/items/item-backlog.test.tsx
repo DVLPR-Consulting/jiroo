@@ -1,4 +1,5 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ItemBacklog,
@@ -7,6 +8,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
+  rankBacklogItemAction: vi.fn(),
   refresh: vi.fn(),
 }));
 
@@ -19,6 +21,7 @@ vi.mock("@/components/shell/view-url-state", () => ({
 }));
 
 vi.mock("@/app/actions/items", () => ({
+  rankBacklogItemAction: mocks.rankBacklogItemAction,
   updateItemAction: vi.fn(),
 }));
 
@@ -99,6 +102,9 @@ function props(): React.ComponentProps<typeof ItemBacklog> {
     statuses,
     users,
     backlogKey: "DEMO",
+    backlogId: "11111111-1111-4111-8111-111111111111",
+    manualOrder: true,
+    rankItemAction: mocks.rankBacklogItemAction,
     filtersActive: false,
     hasItems: true,
     clearFiltersHref: "/b/DEMO?view=backlog",
@@ -106,9 +112,33 @@ function props(): React.ComponentProps<typeof ItemBacklog> {
   };
 }
 
+function mockBacklogGeometry() {
+  return vi
+    .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+    .mockImplementation(function getBacklogRect(this: HTMLElement) {
+      const labelledRow = this.closest("tr[aria-label]") as HTMLElement | null;
+      const row = labelledRow ?? (this.matches("tr[aria-label]") ? this : null);
+      const key = row?.getAttribute("aria-label")?.split(" — ")[0];
+      const index = key ? ["DEMO-1", "DEMO-2", "DEMO-3"].indexOf(key) : 0;
+      const top = Math.max(index, 0) * 40;
+      return {
+        x: 0,
+        y: top,
+        width: 800,
+        height: 40,
+        top,
+        right: 800,
+        bottom: top + 40,
+        left: 0,
+        toJSON: () => undefined,
+      };
+    });
+}
+
 describe("ItemBacklog", () => {
   beforeEach(() => {
     mocks.push.mockReset();
+    mocks.rankBacklogItemAction.mockReset();
     mocks.refresh.mockReset();
   });
 
@@ -164,6 +194,128 @@ describe("ItemBacklog", () => {
     expect(
       screen.queryByRole("button", { name: /Déplacer DEMO-/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("exposes one labelled drag handle per writable row", () => {
+    render(<ItemBacklog {...props()} />);
+
+    expect(
+      screen.getAllByRole("button", { name: /Déplacer DEMO-/ }),
+    ).toHaveLength(3);
+    expect(
+      screen.getByRole("button", { name: "Déplacer DEMO-1" }),
+    ).toBeVisible();
+  });
+
+  it("moves a row with the keyboard and submits server-derived neighbors", async () => {
+    const user = userEvent.setup();
+    const geometry = mockBacklogGeometry();
+    mocks.rankBacklogItemAction.mockResolvedValueOnce({
+      ok: true,
+      item: { ...items[0], rank: "bV" },
+    });
+    render(<ItemBacklog {...props()} />);
+
+    const handle = screen.getByRole("button", { name: "Déplacer DEMO-1" });
+    handle.focus();
+    await user.keyboard("[Space][ArrowDown][Space]");
+
+    await waitFor(() =>
+      expect(mocks.rankBacklogItemAction).toHaveBeenCalledWith({
+        backlogKey: "DEMO",
+        backlogId: "11111111-1111-4111-8111-111111111111",
+        id: "item-1",
+        beforeId: "item-2",
+        afterId: "item-3",
+      }),
+    );
+    expect(mocks.refresh).toHaveBeenCalledOnce();
+    geometry.mockRestore();
+  });
+
+  it("cancels a keyboard drag without submitting or changing order", async () => {
+    const user = userEvent.setup();
+    const geometry = mockBacklogGeometry();
+    render(<ItemBacklog {...props()} />);
+
+    const handle = screen.getByRole("button", { name: "Déplacer DEMO-1" });
+    handle.focus();
+    await user.keyboard("[Space][ArrowDown][Escape]");
+
+    expect(mocks.rankBacklogItemAction).not.toHaveBeenCalled();
+    expect(
+      screen
+        .getAllByRole("row")
+        .filter((row) => row.hasAttribute("aria-label"))
+        .map((row) => row.getAttribute("aria-label")),
+    ).toEqual([
+      "DEMO-1 — Authentification",
+      "DEMO-2 — Session",
+      "DEMO-3 — Déconnexion",
+    ]);
+    geometry.mockRestore();
+  });
+
+  it("blocks a second ranking while the first request is pending", async () => {
+    const user = userEvent.setup();
+    const geometry = mockBacklogGeometry();
+    let resolveRank!: (value: { ok: true; item: BacklogItem }) => void;
+    mocks.rankBacklogItemAction.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRank = resolve;
+        }),
+    );
+    render(<ItemBacklog {...props()} />);
+
+    const firstHandle = screen.getByRole("button", { name: "Déplacer DEMO-1" });
+    firstHandle.focus();
+    await user.keyboard("[Space][ArrowDown][Space]");
+    await waitFor(() => expect(mocks.rankBacklogItemAction).toHaveBeenCalledOnce());
+    for (const handle of screen.getAllByRole("button", { name: /Déplacer DEMO-/ })) {
+      expect(handle).toBeDisabled();
+    }
+
+    resolveRank({ ok: true, item: { ...items[0]!, rank: "bV" } });
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
+    expect(mocks.rankBacklogItemAction).toHaveBeenCalledOnce();
+    geometry.mockRestore();
+  });
+
+  it("rolls back a rejected rank, restores focus and announces the failure", async () => {
+    const user = userEvent.setup();
+    const geometry = mockBacklogGeometry();
+    mocks.rankBacklogItemAction.mockResolvedValueOnce({
+      ok: false,
+      error: "Voisin invalide pour ce backlog.",
+    });
+    render(<ItemBacklog {...props()} />);
+
+    const handle = screen.getByRole("button", { name: "Déplacer DEMO-1" });
+    handle.focus();
+    await user.keyboard("[Space][ArrowDown][Space]");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Classement impossible.",
+    );
+    expect(
+      screen.getByRole("button", { name: "Déplacer DEMO-1" }),
+    ).toHaveFocus();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    geometry.mockRestore();
+  });
+
+  it("disables manual ranking when a sort or group is active", () => {
+    render(<ItemBacklog {...props()} manualOrder={false} />);
+
+    expect(
+      screen.queryByRole("button", { name: /Déplacer DEMO-/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Effacez le tri ou le groupement pour modifier l’ordre manuel.",
+      ),
+    ).toBeVisible();
   });
 
   it("distinguishes an empty backlog from an empty filtered result", () => {

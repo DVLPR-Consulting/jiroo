@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createItemSchema, idInputSchema, moveItemSchema, reparentItemSchema, updateItemSchema } from "@/lib/validation/item";
+import { createItemSchema, idInputSchema, moveItemSchema, rankBacklogItemSchema, reparentItemSchema, updateItemSchema } from "@/lib/validation/item";
 
 const BID = "11111111-1111-4111-8111-111111111111";
 const PID = "22222222-2222-4222-9222-222222222222";
@@ -96,6 +96,41 @@ describe("moveItemSchema", () => {
   });
   it("rejects equal non-null before/after", () => {
     expect(moveItemSchema.safeParse({ id: UA, beforeId: UB, afterId: UB }).success).toBe(false);
+  });
+});
+
+describe("rankBacklogItemSchema", () => {
+  it("accepts explicit null bounds", () => {
+    expect(
+      rankBacklogItemSchema.safeParse({
+        backlogId: UA,
+        id: UB,
+        beforeId: null,
+        afterId: null,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects equal non-null neighbors", () => {
+    expect(
+      rankBacklogItemSchema.safeParse({
+        backlogId: UA,
+        id: UB,
+        beforeId: UC,
+        afterId: UC,
+      }).success,
+    ).toBe(false);
+  });
+
+  it.each(["beforeId", "afterId"])("rejects the moved item as %s", (bound) => {
+    expect(
+      rankBacklogItemSchema.safeParse({
+        backlogId: UA,
+        id: UB,
+        beforeId: bound === "beforeId" ? UB : null,
+        afterId: bound === "afterId" ? UB : null,
+      }).success,
+    ).toBe(false);
   });
 });
 

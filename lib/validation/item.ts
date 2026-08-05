@@ -82,6 +82,32 @@ export const moveItemSchema = z
     path: ["afterId"],
   });
 
+export const rankBacklogItemSchema = z
+  .object({
+    backlogId: z.uuid("Backlog invalide."),
+    id: z.uuid("Item invalide."),
+    beforeId: z.uuid("Voisin précédent invalide.").nullable().default(null),
+    afterId: z.uuid("Voisin suivant invalide.").nullable().default(null),
+  })
+  .superRefine((data, context) => {
+    if (data.beforeId !== null && data.beforeId === data.afterId) {
+      context.addIssue({
+        code: "custom",
+        message: "Voisins de dépôt invalides.",
+        path: ["afterId"],
+      });
+    }
+    for (const field of ["beforeId", "afterId"] as const) {
+      if (data[field] === data.id) {
+        context.addIssue({
+          code: "custom",
+          message: "Un item ne peut pas être son propre voisin.",
+          path: [field],
+        });
+      }
+    }
+  });
+
 export const reparentItemSchema = z
   .object({
     id: z.uuid(),
@@ -97,4 +123,5 @@ export const reparentItemSchema = z
 export type CreateItemInput = z.infer<typeof createItemSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 export type MoveItemInput = z.infer<typeof moveItemSchema>;
+export type RankBacklogItemInput = z.infer<typeof rankBacklogItemSchema>;
 export type ReparentItemInput = z.infer<typeof reparentItemSchema>;

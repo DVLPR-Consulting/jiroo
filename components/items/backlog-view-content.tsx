@@ -438,11 +438,13 @@ export async function BacklogViewContent({
           statuses={statusList}
           users={usersForFilter.map((user) => ({ id: user.id, name: user.name }))}
           backlogKey={key}
+          backlogId={backlog.id}
           selectedKey={itemKey}
           filtersActive={filtersOn}
           hasItems={hasBacklogItems}
           clearFiltersHref={clearFiltersHref}
           canWrite={canWrite}
+          manualOrder={viewState.sort === null && viewState.group === null}
         />
       )}
       {view === "list" && (
