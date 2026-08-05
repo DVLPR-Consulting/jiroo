@@ -350,7 +350,8 @@ One deterministic desktop Chromium matrix must:
 1. create and edit a planned sprint;
 2. assign tasks by drag and bulk command;
 3. prove point totals, unestimated count, and over-capacity warning;
-4. collapse and reopen sprint sections without losing aggregates or selection;
+4. collapse and reopen sprint sections without corrupting aggregates or
+   leaving hidden items selected;
 5. start the sprint and prove that the Board contains only its tasks;
 6. change active scope and prove the warning/history behavior;
 7. transition at least one task to `done`;
