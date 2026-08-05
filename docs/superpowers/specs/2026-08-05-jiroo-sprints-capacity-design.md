@@ -63,6 +63,8 @@ sprint after seeing an explicit warning.
 - Sprint-specific workflows or status mappings.
 - Reopening a completed sprint.
 - Deleting a completed sprint.
+- User-configurable row density and field visibility; Jira-inspired compact
+  defaults are included, while advanced table personalization is deferred.
 - A responsive/mobile redesign; desktop remains the primary audit target.
 
 ## Domain model
@@ -143,6 +145,30 @@ a capacity denominator.
 `Créer un sprint` creates a planned sprint with a generated editable name. A
 writer can then edit its name, goal, dates, and capacity. Empty states explain
 how to add work rather than presenting a blank container.
+
+### Jira-inspired item table
+
+Jiroo keeps semantic table rows rather than copying Jira's card markup, but
+adopts the current Jira Backlog's useful desktop planning patterns:
+
+- sprint and Backlog sections are collapsible and have a distinct sticky
+  section header;
+- the default row is compact and optimized for scanning a large backlog;
+- columns appear in this order: selection, rank handle, type and key, title,
+  status, priority, story points, and assignee;
+- sprint is not repeated as a column because the containing section is the
+  authoritative sprint context;
+- editable fields remain directly editable in the row;
+- selecting the item key opens the existing detail panel without leaving the
+  planning surface;
+- selected rows keep the existing contextual bulk toolbar, extended with the
+  Sprint command;
+- collapsed sections retain task, point, unestimated, and capacity summaries;
+- section and table empty states provide an explicit next action.
+
+The first PR2 implementation uses one deliberate compact default. Jira-like
+density selection, configurable visible fields, full-screen mode, and resizable
+columns are separate UX work after the end-to-end sprint lifecycle is proven.
 
 ### Planning interactions
 
@@ -318,17 +344,18 @@ One deterministic desktop Chromium matrix must:
 1. create and edit a planned sprint;
 2. assign tasks by drag and bulk command;
 3. prove point totals, unestimated count, and over-capacity warning;
-4. start the sprint and prove that the Board contains only its tasks;
-5. change active scope and prove the warning/history behavior;
-6. transition at least one task to `done`;
-7. block completion with an incomplete subtask;
-8. resolve the blocker and complete with each destination variant across
+4. collapse and reopen sprint sections without losing aggregates or selection;
+5. start the sprint and prove that the Board contains only its tasks;
+6. change active scope and prove the warning/history behavior;
+7. transition at least one task to `done`;
+8. block completion with an incomplete subtask;
+9. resolve the blocker and complete with each destination variant across
    isolated scenarios;
-9. reload after every lifecycle transition and prove persistence;
-10. prove viewer read-only behavior;
-11. inject a rank, assignment, start, and completion failure and prove exact
+10. reload after every lifecycle transition and prove persistence;
+11. prove viewer read-only behavior;
+12. inject a rank, assignment, start, and completion failure and prove exact
     rollback;
-12. capture console errors, network failures, HTTP errors, timings, and named
+13. capture console errors, network failures, HTTP errors, timings, and named
     screenshots under `/audit`.
 
 Nominal scenarios require zero JavaScript errors, zero failed requests, and
