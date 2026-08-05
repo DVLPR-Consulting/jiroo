@@ -30,6 +30,7 @@ type CreateItemActionInput = {
   dueDate?: string | null;
   labelIds?: string[];
   kind?: ItemKind;
+  sprintId?: string | null;
 };
 
 type UpdateItemActionInput = {
@@ -58,6 +59,13 @@ async function requireWriter(): Promise<string> {
 function mapCreateError(e: unknown): string {
   const s = String(e);
   if (s.includes("unique")) return "Cette clé est déjà utilisée.";
+  if (s.includes("Sprint introuvable")) return "Sprint introuvable.";
+  if (s.includes("sprint appartient à un autre backlog")) {
+    return "Le sprint appartient à un autre backlog.";
+  }
+  if (s.includes("sprint terminé")) {
+    return "Un sprint terminé ne peut plus recevoir d’items.";
+  }
   if (s.includes("Hiérarchie")) return "Parent invalide pour ce type.";
   if (s.includes("autre backlog")) return "Le parent appartient à un autre backlog.";
   if (s.includes("Statut invalide")) return "Statut invalide pour ce backlog.";
@@ -74,6 +82,10 @@ const BULK_DOMAIN_ERRORS = [
   "Statut invalide pour ce backlog.",
   "Assigné introuvable.",
   "Seules les tâches peuvent être estimées.",
+  "Sprint introuvable.",
+  "Le sprint appartient à un autre backlog.",
+  "Un sprint terminé ne peut plus recevoir d’items.",
+  "Seules les tâches peuvent être planifiées dans un sprint.",
 ] as const;
 
 function mapBulkError(error: unknown): string {

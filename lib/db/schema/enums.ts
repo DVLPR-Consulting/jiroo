@@ -15,3 +15,14 @@ export const notificationTypeEnum = pgEnum("notification_type", ["mention", "ass
 export const displayModeEnum = pgEnum("display_mode", ["backlog", "board", "list", "tree"]);
 export const linkTypeEnum = pgEnum("link_type", ["blocks", "relates", "duplicates"]);
 export const refKindEnum = pgEnum("ref_kind", ["pr", "commit", "branch", "repo", "other"]);
+export const sprintStateEnum = pgEnum("sprint_state", [
+  "planned",
+  "active",
+  "completed",
+]);
+export const sprintOutcomeEnum = pgEnum("sprint_outcome", [
+  "completed",
+  "removed",
+  "carried_to_backlog",
+  "carried_to_sprint",
+]);

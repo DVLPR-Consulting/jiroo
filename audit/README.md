@@ -77,7 +77,7 @@ quoi livrer et quand.
 
 ## Niveau d'avancement de l'audit
 
-**Environ 46 %.** Ce pourcentage mesure la couverture de l'audit, pas la qualité
+**Environ 56 %.** Ce pourcentage mesure la couverture de l'audit, pas la qualité
 du produit. Les parcours création, détail, transitions, colonnes et
 backlog/triage ont été audités en profondeur. Les cycles/sprints, releases,
 dépendances, reporting, collaboration, recherche, sécurité complète et charge
@@ -88,7 +88,8 @@ restent à auditer.
 | Création et édition d'items | Audité et remédié sur le périmètre observé |
 | Board, transitions et colonnes | Audité et largement remédié |
 | Backlog produit et triage | Audité ; vue, rang, estimation, sélection et bulk remédiés, sprints/releases encore ouverts |
-| Cycles/sprints, capacité et releases | Non audité fonctionnellement ; aucun point d'entrée découvert |
+| Cycles/sprints et capacité | Audités et remédiés sur le cycle principal ; variantes de clôture et concurrence à compléter |
+| Releases/versions | Non auditées ; aucun point d'entrée observé |
 | Hiérarchie et dépendances | Partiel : arbre découvert, comportement de parentage observé |
 | Vues, recherche et reporting | Découvert seulement |
 | Collaboration et notifications | Non audité |
@@ -679,3 +680,86 @@ multi-breakpoints reste volontairement à la fin.
    puis prouver démarrage et clôture dans Playwright.
 3. Ajouter les **releases/versions** et commencer le pilotage de livraison,
    avant reporting de vélocité et intégration dépôt/PR.
+
+## Fin de session — incrément 08 : sprints et capacité
+
+### Score global provisoire
+
+**78/100 — confiance élevée sur le cycle sprint et ses cas limites principaux.**
+Jiroo permet désormais de planifier, démarrer, exécuter et clôturer un sprint.
+Le score reste plafonné par l'absence de releases, de rapport de sprint, de
+vélocité et de signalement des changements de périmètre actif.
+
+| Dimension | Score | Preuve principale |
+|---|---:|---|
+| Couverture fonctionnelle observée | 82/100 | Drag/bulk, capacité, Board actif et trois destinations de clôture prouvés |
+| Fiabilité et feedback | 88/100 | Cycle persistant, rollbacks réseau, collation binaire et mutations transactionnelles |
+| Efficacité UX | 77/100 | Sections compactes repliables et Board contextualisé ; tâche encore artificiellement liée à un Epic |
+| Accessibilité | 82/100 | Contrôles nommés, rôle lecteur protégé et nom accessible de création corrigé |
+| Responsive | 64/100 | Inchangé : audit volontairement desktop-first |
+| Permissions | 95/100 | Lecteur réel : métadonnées visibles, zéro contrôle de mutation sur Backlog et Board |
+| Performance locale | 81/100 | Mutations principales observées entre 192 et 540 ms en développement |
+
+### Ce qui a été testé
+
+- création de deux sprints, nom, objectif, dates, capacité et agrégats ;
+- création contextuelle et affectation groupée d'une plage de deux tâches ;
+- repli/réouverture des sections et persistance après rechargement ;
+- démarrage d'un sprint unique, redirection vers son Board et exclusion réelle
+  des tâches du backlog ;
+- création depuis le Board actif et transition réelle d'une carte par drag ;
+- clôture avec report d'une tâche incomplète vers un sprint planifié, historique
+  de membership et retour du Board à l'état vide ;
+- absence de sprint actif avec conservation des paramètres d'URL ;
+- POST de démarrage interrompu : message français, dialogue et état planifié
+  conservés ;
+- compte lecteur réel : consultation Backlog/Board sans checkbox, drag, création
+  ou action de cycle ;
+- dépassement de capacité recalculé `3 → 0 → 1 pt` sans bloquer artificiellement
+  le démarrage ;
+- clôture vers Backlog, sprint existant et nouveau sprint unique ; blocage d'une
+  sous-tâche ouverte avec sa clé métier et transaction inchangée ;
+- drag souris vers une section vide, répété **5/5**, et rollback d'un drag
+  inter-section après panne ;
+- matrice Playwright Chromium complète PR1 + PR2 : **14 scénarios passés en
+  42,8 s**, dont les 7 scénarios sprint. Les parcours nominaux n'ont produit
+  aucune erreur console ou HTTP. Quatre
+  `net::ERR_FAILED` sont injectés et attendus : bulk sprint, drag, démarrage et
+  clôture.
+
+Mesures locales finales : création sprint 204–208 ms, création de tâche
+175–278 ms, démarrage 260 ms, drag Board 492 ms, clôture 238 ms et bulk sprint
+301 ms. Chargement mesuré : `DOMContentLoaded` 304 ms, load 391 ms.
+
+Vérification technique finale : **804 tests unitaires/composants**, **38 tests
+d'intégration PostgreSQL**, typecheck, lint et build Next.js 16 de production
+passés.
+
+Preuves : [Board sans sprint](screenshots/FIXED-PARTIAL-BUG-JIR-015-board-sans-sprint-actif.png),
+[Board actif](screenshots/FIXED-PARTIAL-BUG-JIR-015-board-sprint-actif.png),
+[clôture](screenshots/FIXED-PARTIAL-BUG-JIR-015-cloture-sprint.png),
+[variantes de clôture](screenshots/FIXED-PARTIAL-BUG-JIR-015-cloture-variantes.png),
+[capacité dépassée](screenshots/FIXED-PARTIAL-BUG-JIR-015-capacite-depassee.png),
+[planification bulk](screenshots/FIXED-PARTIAL-BUG-JIR-015-planification-sprint-bulk.png),
+[lecteur](screenshots/FIXED-PARTIAL-BUG-JIR-015-sprint-lecteur.png),
+[échec réseau attendu](screenshots/EXPECTED-sprint-start-network-error.png),
+[console nominale](console/2026-08-05-session-08-sprint-lifecycle-console.log)
+et [réseau nominal](network/2026-08-05-session-08-sprint-lifecycle-requests.log).
+
+### Ce qui reste à tester
+
+Les dates invalides, le clavier vers une section vide, les changements de scope
+du sprint actif et la concurrence de deux responsables restent à rejouer dans
+Chromium. Les releases/versions, rapports de sprint, vélocité, burndown et
+prévision sont absents. La contrainte imposant un Epic parent à toute tâche est
+un écart Jira important. Le responsive multi-breakpoints reste volontairement
+en fin d'audit.
+
+### Trois priorités absolues pour la prochaine session
+
+1. Ajouter et auditer les **releases/versions** de la planification à la
+   publication.
+2. Ajouter le **rapport de sprint**, la vélocité et un premier burndown fondé
+   sur l'historique désormais persistant.
+3. Concevoir l'**intégration dépôt/PR** pour relier exécution technique, checks
+   CI et release sans confondre `Terminé` avec `Livré`.

@@ -64,6 +64,13 @@
       "when": 1785921913367,
       "tag": "0008_jira_backlog_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785932517685,
+      "tag": "0009_jira_sprints",
+      "breakpoints": true
     }
   ]
 }

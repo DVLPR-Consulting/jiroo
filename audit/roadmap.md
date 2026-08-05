@@ -278,3 +278,78 @@ sa clé (`CASS-123`) ou manuellement, puis d'afficher branche, auteur, état de 
 PR, reviews, checks CI, merge et déploiement. Cette intégration devra alimenter
 l'activité de l'item et les releases sans considérer `Done` comme synonyme de
 « livré ».
+
+## Objectif explicite — atteindre le niveau Jira sur la planification et le pilotage
+
+L'objectif validé le 5 août 2026 n'est plus un MVP générique : Jiroo doit
+atteindre la profondeur utile de Jira sur **releases/versions**, **rapport de
+sprint et vélocité** et **flexibilité de planification**. Chaque capacité ne
+sera déclarée terminée qu'après preuve Playwright, données historiques
+rejouables et comparaison au comportement Jira documenté.
+
+### P0 — Releases/versions au niveau Jira
+
+**Livrable de parité :** version nommée avec description, responsable, date de
+début, date cible et états planifiée/publiée/archivée ; champ version sur les
+items ; affectation unitaire, bulk et depuis le Backlog ; filtres Board/Backlog ;
+progression par statut ; liste des éléments non terminés ; confirmation de
+publication ; historique et permissions. Plusieurs versions par item doivent
+être une décision explicite, Jira les autorisant via `Fix versions`.
+
+**Livrable différenciant :** readiness lisible avant publication, notes de
+release éditables, travail connexe et, après intégration Git, alertes `Terminé`
+avec PR ouverte, checks rouges ou déploiement absent.
+
+**Acceptation Playwright :** créer une version, planifier un lot, modifier une
+date, filtrer le Backlog et le Board, constater la progression, tenter de
+publier avec un item incomplet, publier, vérifier l'historique et les droits,
+puis retrouver toutes les données après reload et dans un second contexte.
+
+### P0 — Rapport de sprint, vélocité et burndown fiables
+
+**Prérequis données déjà livré :** snapshot de membership, dates réelles,
+estimations et historique d'ajout/report. Il faut compléter l'événementiel pour
+les entrées/sorties et changements d'estimation pendant le sprint.
+
+**Livrable de parité :**
+
+- rapport par sprint : objectif, engagement initial, terminé, incomplet,
+  reporté, ajouté/retiré après démarrage et évolution des estimations ;
+- vélocité sur plusieurs sprints : engagé vs terminé, moyenne et historique,
+  avec règle d'inclusion explicite ;
+- burndown : idéal vs restant, changements de périmètre et journal triable ;
+- sélection du sprint, états vides, explication des calculs et lien vers chaque
+  item source.
+
+**Acceptation Playwright :** construire trois sprints aux résultats différents,
+ajouter/retirer/réestimer en cours de sprint, clôturer, puis vérifier chaque
+barre, total, point de courbe et ligne du rapport contre les événements stockés.
+Les résultats doivent rester identiques après reload et indépendants de l'état
+actuel d'un item reporté.
+
+### P0 — Flexibilité de planification comparable à Jira
+
+**Livrable :** drag et bulk entre Backlog, sprints futurs et sprint actif ; rang
+persistant dans chaque section ; avertissement de capacité avant engagement ;
+scope change explicite après démarrage ; création de tâche sans Epic obligatoire ;
+édition rapide sprint/estimation/version ; filtres et vues conservant leur URL ;
+aucun sprint parallèle tant qu'un besoin réel ne le justifie.
+
+**Acceptation Playwright :** déplacer une sélection et une carte entre toutes
+les destinations, annuler, injecter une panne, dépasser la capacité, modifier
+le sprint actif et vérifier le scope change, puis répéter avec contributeur et
+lecteur. Aucun classement ne doit changer après reload ou filtre temporaire.
+
+### Ordre de livraison recommandé
+
+1. Releases/versions et affectation depuis le Backlog.
+2. Journal complet des changements de périmètre sprint.
+3. Rapport de sprint et vélocité engagée/terminée.
+4. Burndown et prévision de release.
+5. Intégration dépôt/PR, readiness et notes de release assistées.
+
+Références Jira officielles : [releases et versions](https://support.atlassian.com/jira-software-cloud/docs/enable-releases-and-versions/),
+[rapport de sprint](https://support.atlassian.com/jira-software-cloud/docs/view-and-understand-the-sprint-report/),
+[rapports disponibles](https://support.atlassian.com/jira-software-cloud/docs/generate-a-report/),
+[burndown](https://support.atlassian.com/jira-software-cloud/docs/what-is-the-sprint-burndown-report/)
+et [planification d'un sprint](https://support.atlassian.com/jira-software-cloud/docs/plan-a-sprint/).

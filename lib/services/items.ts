@@ -1,10 +1,12 @@
 import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import { binaryTextOrder } from "@/lib/db/order";
 import { activities, backlogs, itemLabels, items, labels, statuses } from "@/lib/db/schema/domain";
 import { user } from "@/lib/db/schema/auth";
 import { nextItemKey } from "@/lib/items/key";
 import { canRestore } from "@/lib/items/trash";
+import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
 import { ROOT_LABEL, buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
 import { rankBetween, rankFirst, rankLast } from "@/lib/tree/rank";
@@ -49,7 +51,7 @@ export function listItems(backlogId: string) {
     .select()
     .from(items)
     .where(and(eq(items.backlogId, backlogId), isNull(items.deletedAt)))
-    .orderBy(asc(items.depth), asc(items.rank), asc(items.key));
+    .orderBy(asc(items.depth), asc(binaryTextOrder(items.rank)), asc(items.key));
 }
 
 export async function getItemById(id: string) {
@@ -128,7 +130,7 @@ export function listItemsAssignedTo(userId: string) {
         isNull(backlogs.archivedAt),
       ),
     )
-    .orderBy(asc(backlogs.name), asc(items.rank), asc(items.key));
+    .orderBy(asc(backlogs.name), asc(binaryTextOrder(items.rank)), asc(items.key));
 }
 
 // ---- private helpers (tx) ----
@@ -257,7 +259,7 @@ export async function rankAtDrop(
       .select({ id: items.id, rank: items.rank })
       .from(items)
       .where(and(groupBase, inArray(items.id, wanted)))
-      .orderBy(asc(items.rank))
+      .orderBy(asc(binaryTextOrder(items.rank)))
       .for("update");
     for (const r of rows) byId.set(r.id, r.rank);
   }
@@ -269,8 +271,8 @@ export async function rankAtDrop(
     const [r] = await tx
       .select({ rank: items.rank })
       .from(items)
-      .where(and(groupBase, sql`${items.rank} < ${after}`))
-      .orderBy(desc(items.rank))
+      .where(and(groupBase, sql`${binaryTextOrder(items.rank)} < ${after}`))
+      .orderBy(desc(binaryTextOrder(items.rank)))
       .limit(1)
       .for("update");
     before = r?.rank ?? null;
@@ -278,8 +280,8 @@ export async function rankAtDrop(
     const [r] = await tx
       .select({ rank: items.rank })
       .from(items)
-      .where(and(groupBase, sql`${items.rank} > ${before}`))
-      .orderBy(asc(items.rank))
+      .where(and(groupBase, sql`${binaryTextOrder(items.rank)} > ${before}`))
+      .orderBy(asc(binaryTextOrder(items.rank)))
       .limit(1)
       .for("update");
     after = r?.rank ?? null;
@@ -299,7 +301,7 @@ export async function rankAtDrop(
       .select({ rank: items.rank })
       .from(items)
       .where(groupBase)
-      .orderBy(desc(items.rank))
+      .orderBy(desc(binaryTextOrder(items.rank)))
       .limit(1)
       .for("update");
     return rankLast(last?.rank ?? null);
@@ -313,8 +315,14 @@ export async function rankAtDrop(
     const [mid] = await tx
       .select({ rank: items.rank })
       .from(items)
-      .where(and(groupBase, sql`${items.rank} > ${before}`, sql`${items.rank} < ${after}`))
-      .orderBy(asc(items.rank))
+      .where(
+        and(
+          groupBase,
+          sql`${binaryTextOrder(items.rank)} > ${before}`,
+          sql`${binaryTextOrder(items.rank)} < ${after}`,
+        ),
+      )
+      .orderBy(asc(binaryTextOrder(items.rank)))
       .limit(1)
       .for("update");
     if (mid) return rankBetween(before, mid.rank);
@@ -390,7 +398,7 @@ export async function createItem(input: unknown, actorId: string) {
         .select({ rank: items.rank })
         .from(items)
         .where(eq(items.backlogId, data.backlogId))
-        .orderBy(desc(items.rank))
+        .orderBy(desc(binaryTextOrder(items.rank)))
         .limit(1)
         .for("update");
       const rank = rankLast(lastInBacklog?.rank ?? null);
@@ -439,6 +447,14 @@ export async function createItem(input: unknown, actorId: string) {
       }
 
       await tx.insert(activities).values(activityRow(id, actorId, "create", null, null, key));
+
+      if (data.sprintId) {
+        await assignItemsToSprintInTx(
+          tx,
+          { backlogId: data.backlogId, itemIds: [id], sprintId: data.sprintId },
+          actorId,
+        );
+      }
 
       return item!;
     }),
@@ -680,7 +696,7 @@ export async function rankBacklogItem(input: unknown, actorId: string) {
           })
           .from(items)
           .where(inArray(items.id, neighborIds))
-          .orderBy(asc(items.rank))
+          .orderBy(asc(binaryTextOrder(items.rank)))
           .for("update");
         const byId = new Map(neighbors.map((neighbor) => [neighbor.id, neighbor]));
         for (const neighborId of neighborIds) {

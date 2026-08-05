@@ -52,6 +52,8 @@ export type NewItemButtonProps = {
   trigger?: ReactNode;
   onCreated?: (item: { id: string; key: string }) => void;
   enableShortcut?: boolean;
+  sprintId?: string | null;
+  contextLabel?: string;
 };
 
 // Shared field styling — matches Input's token-based look so native selects fit in.
@@ -67,13 +69,16 @@ export function NewItemButton({
   trigger,
   onCreated,
   enableShortcut = false,
+  sprintId,
+  contextLabel,
 }: NewItemButtonProps) {
   const router = useRouter();
+  const contextualTask = contextLabel !== undefined;
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
 
   const [templateId, setTemplateId] = useState<string>("");
-  const [type, setType] = useState<ItemType>("composant");
+  const [type, setType] = useState<ItemType>(contextualTask ? "tache" : "composant");
   const [kind, setKind] = useState<ItemKind>("feature");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState<string>("");
@@ -124,7 +129,7 @@ export function NewItemButton({
 
   function reset() {
     setTemplateId("");
-    setType("composant");
+    setType(contextualTask ? "tache" : "composant");
     setKind("feature");
     setTitle("");
     setDescription("");
@@ -177,6 +182,7 @@ export function NewItemButton({
         description: description || null,
         statusId: statusId || undefined,
         priority,
+        ...(contextualTask ? { sprintId: sprintId ?? null } : {}),
       });
       if (!result.ok) {
         const fieldError =
@@ -225,7 +231,9 @@ export function NewItemButton({
       </DialogTrigger>
       <DialogContent aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>Nouvel item</DialogTitle>
+          <DialogTitle>
+            {contextualTask ? `Nouvelle tâche — ${contextLabel}` : "Nouvel item"}
+          </DialogTitle>
         </DialogHeader>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
@@ -251,6 +259,7 @@ export function NewItemButton({
               id="item-type"
               className={FIELD}
               value={type}
+              disabled={contextualTask}
               onChange={(e) => handleTypeChange(e.target.value as ItemType)}
             >
               {ITEM_TYPES.map((t) => (
@@ -372,7 +381,7 @@ export function NewItemButton({
           {error && <p className="t-sm text-destructive">{error}</p>}
 
           <DialogFooter>
-            <Button type="submit" disabled={submitDisabled}>
+            <Button type="submit" disabled={submitDisabled} aria-label="Créer">
               <TypeIcon type={type} size={14} />
               Créer
             </Button>

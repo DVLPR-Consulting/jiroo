@@ -27,6 +27,11 @@ export type BulkStatusOption = {
 };
 
 export type BulkUserOption = { id: string; name: string };
+export type BulkSprintOption = {
+  id: string;
+  name: string;
+  state: "planned" | "active";
+};
 
 type MutationResult = { changedCount: number; unchangedCount: number };
 
@@ -36,6 +41,7 @@ export type BulkItemToolbarProps = {
   selectedItems: Array<{ id: string; type: ItemType }>;
   statuses: BulkStatusOption[];
   users: BulkUserOption[];
+  sprints?: BulkSprintOption[];
   onClearSelection: () => void;
   onMutationSuccess: (result: MutationResult) => void;
 };
@@ -52,6 +58,7 @@ export function BulkItemToolbar({
   selectedItems,
   statuses,
   users,
+  sprints,
   onClearSelection,
   onMutationSuccess,
 }: BulkItemToolbarProps) {
@@ -194,6 +201,40 @@ export function BulkItemToolbar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {sprints ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pending || !tasksOnly}
+              className={triggerClass}
+              aria-label="Modifier le sprint"
+            >
+              Sprint <ChevronDown aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem
+              onSelect={() => applyPatch({ field: "sprintId", value: null })}
+            >
+              Backlog
+            </DropdownMenuItem>
+            {sprints.map((sprint) => (
+              <DropdownMenuItem
+                key={sprint.id}
+                onSelect={() =>
+                  applyPatch({ field: "sprintId", value: sprint.id })
+                }
+              >
+                {sprint.name} — {sprint.state === "active" ? "Actif" : "Planifié"}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
 
       <div className="flex items-center gap-1">
         <Input

@@ -71,6 +71,32 @@ describe("item action validation", () => {
     });
   });
 
+  it("forwards a contextual sprint when creating a task", async () => {
+    const sprintId = "33333333-3333-4333-8333-333333333333";
+    mocks.createItem.mockResolvedValueOnce({ id: "item-1", sprintId });
+
+    await expect(
+      createItemAction({
+        backlogKey: "DEMO",
+        backlogId: "11111111-1111-4111-8111-111111111111",
+        type: "tache",
+        parentId: "22222222-2222-4222-9222-222222222222",
+        title: "Créée dans le sprint",
+        sprintId,
+      }),
+    ).resolves.toEqual({ ok: true, item: { id: "item-1", sprintId } });
+    expect(mocks.createItem).toHaveBeenCalledWith(
+      {
+        backlogId: "11111111-1111-4111-8111-111111111111",
+        type: "tache",
+        parentId: "22222222-2222-4222-9222-222222222222",
+        title: "Créée dans le sprint",
+        sprintId,
+      },
+      "writer-1",
+    );
+  });
+
   it("preserves update description validation as a field error", async () => {
     const parsed = updateItemSchema.safeParse({
       id: "22222222-2222-4222-9222-222222222222",
@@ -313,6 +339,10 @@ describe("bulkUpdateItemsAction", () => {
     "Statut invalide pour ce backlog.",
     "Assigné introuvable.",
     "Seules les tâches peuvent être estimées.",
+    "Sprint introuvable.",
+    "Le sprint appartient à un autre backlog.",
+    "Un sprint terminé ne peut plus recevoir d’items.",
+    "Seules les tâches peuvent être planifiées dans un sprint.",
   ])("returns the safe domain error: %s", async (message) => {
     mocks.bulkUpdateItems.mockRejectedValueOnce(new Error(message));
 

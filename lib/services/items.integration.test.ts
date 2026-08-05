@@ -1,12 +1,25 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
-import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
-import { listItems, rankBacklogItem, restoreItem, updateItem } from "@/lib/services/items";
+import {
+  activities,
+  backlogs,
+  items,
+  sprintItems,
+  sprints,
+  statuses,
+} from "@/lib/db/schema/domain";
+import {
+  createItem,
+  listItems,
+  rankBacklogItem,
+  restoreItem,
+  updateItem,
+} from "@/lib/services/items";
 
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 
@@ -130,8 +143,173 @@ async function createUpdateFixture(reporterId?: string) {
     })
     .returning();
 
-  return { actorId: actor.id, backlogId: backlog!.id, item: item! };
+  return {
+    actorId: actor.id,
+    backlogId: backlog!.id,
+    item: item!,
+  };
 }
+
+describeDb("createItem sprint transaction", () => {
+  it("creates a task and its contextual sprint membership atomically", async () => {
+    const fixture = await createTaskUpdateFixture();
+    const [sprint] = await db
+      .insert(sprints)
+      .values({
+        backlogId: fixture.backlogId,
+        name: "Sprint contextuel",
+        rank: "a0",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    try {
+      const created = await createItem(
+        {
+          backlogId: fixture.backlogId,
+          title: "Créée depuis le sprint",
+          type: "tache",
+          parentId: fixture.epicId,
+          sprintId: sprint!.id,
+        },
+        fixture.actorId,
+      );
+
+      const [membership] = await db
+        .select({
+          sprintId: sprintItems.sprintId,
+          itemId: sprintItems.itemId,
+          leftAt: sprintItems.leftAt,
+        })
+        .from(sprintItems)
+        .where(eq(sprintItems.itemId, created.id));
+      expect(membership).toEqual({
+        sprintId: sprint!.id,
+        itemId: created.id,
+        leftAt: null,
+      });
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("rolls back the item for a completed or foreign sprint", async () => {
+    const fixture = await createTaskUpdateFixture();
+    const completedAt = new Date();
+    const [completedSprint] = await db
+      .insert(sprints)
+      .values({
+        backlogId: fixture.backlogId,
+        name: "Sprint terminé",
+        rank: "a0",
+        state: "completed",
+        startedAt: new Date(completedAt.getTime() - 60_000),
+        completedAt,
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    const [foreignBacklog] = await db
+      .insert(backlogs)
+      .values({
+        key: randomBacklogKey(),
+        name: "Backlog sprint étranger",
+        color: "#475569",
+      })
+      .returning();
+    const [foreignSprint] = await db
+      .insert(sprints)
+      .values({
+        backlogId: foreignBacklog!.id,
+        name: "Sprint étranger",
+        rank: "a0",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+
+    try {
+      await expect(
+        createItem(
+          {
+            backlogId: fixture.backlogId,
+            title: "Refusée sprint terminé",
+            type: "tache",
+            parentId: fixture.epicId,
+            sprintId: completedSprint!.id,
+          },
+          fixture.actorId,
+        ),
+      ).rejects.toThrow("Un sprint terminé ne peut plus recevoir d’items.");
+      await expect(
+        createItem(
+          {
+            backlogId: fixture.backlogId,
+            title: "Refusée sprint étranger",
+            type: "tache",
+            parentId: fixture.epicId,
+            sprintId: foreignSprint!.id,
+          },
+          fixture.actorId,
+        ),
+      ).rejects.toThrow("Le sprint appartient à un autre backlog.");
+
+      const rolledBack = await db
+        .select({ title: items.title })
+        .from(items)
+        .where(
+          and(
+            eq(items.backlogId, fixture.backlogId),
+            inArray(items.title, [
+              "Refusée sprint terminé",
+              "Refusée sprint étranger",
+            ]),
+          ),
+        );
+      expect(rolledBack).toEqual([]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+      await db.delete(backlogs).where(eq(backlogs.id, foreignBacklog!.id));
+    }
+  });
+});
+
+describeDb("createItem binary rank ordering", () => {
+  it("appends after lowercase ranks when the database locale sorts uppercase last", async () => {
+    const fixture = await createUpdateFixture();
+    const seeded = [
+      { id: randomUUID(), key: "2", rank: "aZ" },
+      { id: randomUUID(), key: "3", rank: "aa" },
+    ];
+    await db.insert(items).values(
+      seeded.map((row) => ({
+        id: row.id,
+        key: `${row.key}${fixture.item.key}`,
+        type: "composant" as const,
+        backlogId: fixture.backlogId,
+        title: `Rang ${row.rank}`,
+        statusId: fixture.item.statusId,
+        reporterId: fixture.actorId,
+        rank: row.rank,
+        path: `root.${row.id.replaceAll("-", "")}`,
+        depth: 0,
+      })),
+    );
+
+    try {
+      const created = await createItem(
+        {
+          backlogId: fixture.backlogId,
+          title: "Après aa",
+          type: "composant",
+          parentId: null,
+        },
+        fixture.actorId,
+      );
+
+      expect(created.rank > "aa").toBe(true);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
 
 async function createTaskUpdateFixture() {
   const [actor] = await db.select({ id: user.id }).from(user).limit(1);
@@ -152,6 +330,7 @@ async function createTaskUpdateFixture() {
     })
     .returning();
   const componentId = randomUUID();
+  const epicId = randomUUID();
   const taskId = randomUUID();
   const componentPath = `root.${componentId.replaceAll("-", "")}`;
   await db.insert(items).values({
@@ -166,24 +345,44 @@ async function createTaskUpdateFixture() {
     path: componentPath,
     depth: 0,
   });
+  const epicPath = `${componentPath}.${epicId.replaceAll("-", "")}`;
+  await db.insert(items).values({
+    id: epicId,
+    key: `${backlog!.key}-2`,
+    type: "epic",
+    backlogId: backlog!.id,
+    title: "Epic estimable",
+    parentId: componentId,
+    statusId: status!.id,
+    reporterId: actor.id,
+    rank: "a1",
+    path: epicPath,
+    depth: 1,
+  });
   const [item] = await db
     .insert(items)
     .values({
       id: taskId,
-      key: `${backlog!.key}-2`,
+      key: `${backlog!.key}-3`,
       type: "tache",
       backlogId: backlog!.id,
       title: "Travail estimable",
-      parentId: componentId,
+      parentId: epicId,
       statusId: status!.id,
       reporterId: actor.id,
-      rank: "a1",
-      path: `${componentPath}.${taskId.replaceAll("-", "")}`,
-      depth: 1,
+      rank: "a2",
+      path: `${epicPath}.${taskId.replaceAll("-", "")}`,
+      depth: 2,
     })
     .returning();
 
-  return { actorId: actor.id, backlogId: backlog!.id, item: item! };
+  return {
+    actorId: actor.id,
+    backlogId: backlog!.id,
+    componentId,
+    epicId,
+    item: item!,
+  };
 }
 
 describeDb("updateItem estimate transaction", () => {

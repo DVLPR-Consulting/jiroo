@@ -1,11 +1,18 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
-import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
+import {
+  activities,
+  backlogs,
+  items,
+  sprintItems,
+  sprints,
+  statuses,
+} from "@/lib/db/schema/domain";
 import { bulkUpdateItems } from "@/lib/services/item-bulk";
 
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
@@ -331,6 +338,99 @@ describeDb("bulkUpdateItems transaction", () => {
         .from(items)
         .where(inArray(items.id, [fixture.taskAId, fixture.componentId]));
       expect(stored.map((row) => row.estimatePoints)).toEqual([null, null]);
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("assigns and clears a sprint through the shared historical membership transaction", async () => {
+    const fixture = await createBulkFixture();
+    try {
+      const [sprint] = await db
+        .insert(sprints)
+        .values({
+          backlogId: fixture.backlogId,
+          name: "Sprint bulk",
+          rank: "a0",
+          createdBy: fixture.actorId,
+        })
+        .returning();
+
+      await expect(
+        bulkUpdateItems(
+          {
+            backlogId: fixture.backlogId,
+            itemIds: [fixture.taskAId, fixture.taskBId],
+            patch: { field: "sprintId", value: sprint!.id },
+          },
+          fixture.actorId,
+        ),
+      ).resolves.toEqual({ changedCount: 2, unchangedCount: 0 });
+      await expect(
+        bulkUpdateItems(
+          {
+            backlogId: fixture.backlogId,
+            itemIds: [fixture.taskAId],
+            patch: { field: "sprintId", value: null },
+          },
+          fixture.actorId,
+        ),
+      ).resolves.toEqual({ changedCount: 1, unchangedCount: 0 });
+
+      const current = await db
+        .select({ itemId: sprintItems.itemId })
+        .from(sprintItems)
+        .where(
+          and(
+            inArray(sprintItems.itemId, [fixture.taskAId, fixture.taskBId]),
+            isNull(sprintItems.leftAt),
+          ),
+        );
+      expect(current).toEqual([{ itemId: fixture.taskBId }]);
+      const history = await db
+        .select({ outcome: sprintItems.outcome, leftAt: sprintItems.leftAt })
+        .from(sprintItems)
+        .where(eq(sprintItems.itemId, fixture.taskAId));
+      expect(history[0]).toMatchObject({ outcome: "removed" });
+      expect(history[0]?.leftAt).toBeInstanceOf(Date);
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("rolls back sprint bulk assignment when one selected item is structural", async () => {
+    const fixture = await createBulkFixture();
+    try {
+      const [sprint] = await db
+        .insert(sprints)
+        .values({
+          backlogId: fixture.backlogId,
+          name: "Sprint rollback",
+          rank: "a0",
+          createdBy: fixture.actorId,
+        })
+        .returning();
+
+      await expect(
+        bulkUpdateItems(
+          {
+            backlogId: fixture.backlogId,
+            itemIds: [fixture.taskAId, fixture.componentId],
+            patch: { field: "sprintId", value: sprint!.id },
+          },
+          fixture.actorId,
+        ),
+      ).rejects.toThrow("Seules les tâches peuvent être planifiées dans un sprint.");
+      const current = await db
+        .select({ id: sprintItems.id })
+        .from(sprintItems)
+        .where(
+          and(
+            inArray(sprintItems.itemId, [fixture.taskAId, fixture.componentId]),
+            isNull(sprintItems.leftAt),
+          ),
+        );
+      expect(current).toEqual([]);
     } finally {
       await cleanupFixture(fixture);
     }

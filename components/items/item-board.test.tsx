@@ -56,6 +56,28 @@ const editableCard = {
   componentId: "component-platform",
 };
 
+const activeSprint = {
+  id: "sprint-active",
+  name: "Sprint paiement",
+  goal: "livrer le paiement invité",
+  state: "active" as const,
+  rank: "a0",
+  capacityPoints: 13,
+  plannedStartAt: new Date("2026-08-01T09:00:00.000Z"),
+  plannedEndAt: new Date("2026-08-15T09:00:00.000Z"),
+  startedAt: new Date("2026-08-01T09:00:00.000Z"),
+  completedAt: null,
+};
+const activeMetrics = {
+  itemCount: 2,
+  estimatedPoints: 13,
+  completedPoints: 5,
+  remainingPoints: 8,
+  unestimatedCount: 1,
+  capacityPoints: 13,
+  overCapacityPoints: 0,
+};
+
 function renderBoard(board: React.ReactElement) {
   return render(
     <ViewUrlStateProvider initialEntries={[]}>{board}</ViewUrlStateProvider>,
@@ -84,6 +106,85 @@ describe("ItemBoard", () => {
     mocks.refresh.mockReset();
     mocks.replace.mockReset();
     mocks.updateItemAction.mockReset();
+  });
+
+  it("identifies the active sprint and its execution metrics above the board", () => {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[editableCard]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+        activeSprint={activeSprint}
+        activeSprintMetrics={activeMetrics}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Sprint paiement" })).toBeVisible();
+    expect(screen.getByText("Objectif : livrer le paiement invité")).toBeVisible();
+    expect(screen.getByText("8 pt restants")).toBeVisible();
+    expect(screen.getByText("5 pt terminés")).toBeVisible();
+    expect(screen.getByText("1 non estimé")).toBeVisible();
+    expect(screen.getByText("Authentication")).toBeVisible();
+  });
+
+  it("creates new board work directly in the active sprint", async () => {
+    const user = userEvent.setup();
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[editableCard]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={{
+          ...createDialogProps,
+          sprintId: activeSprint.id,
+          contextLabel: activeSprint.name,
+        }}
+        activeSprint={activeSprint}
+        activeSprintMetrics={activeMetrics}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Créer dans Prêt" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Nouvelle tâche — Sprint paiement" }),
+    ).toBeVisible();
+  });
+
+  it("shows a Backlog CTA and zero workflow columns when no sprint is active", () => {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+        activeSprint={null}
+        activeSprintMetrics={null}
+        backlogHref="/b/DEMO?view=backlog&q=paiement"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Aucun sprint actif" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Voir le Backlog" })).toHaveAttribute(
+      "href",
+      "/b/DEMO?view=backlog&q=paiement",
+    );
+    expect(screen.queryByText("Prêt")).not.toBeInTheDocument();
+    expect(screen.queryByText("Aucun item")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Nouvel item" })).not.toBeInTheDocument();
   });
 
   it("offers item creation when the board has no rows", async () => {
