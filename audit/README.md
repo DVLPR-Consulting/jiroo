@@ -77,7 +77,7 @@ quoi livrer et quand.
 
 ## Niveau d'avancement de l'audit
 
-**Environ 42 %.** Ce pourcentage mesure la couverture de l'audit, pas la qualité
+**Environ 46 %.** Ce pourcentage mesure la couverture de l'audit, pas la qualité
 du produit. Les parcours création, détail, transitions, colonnes et
 backlog/triage ont été audités en profondeur. Les cycles/sprints, releases,
 dépendances, reporting, collaboration, recherche, sécurité complète et charge
@@ -87,7 +87,7 @@ restent à auditer.
 |---|---|
 | Création et édition d'items | Audité et remédié sur le périmètre observé |
 | Board, transitions et colonnes | Audité et largement remédié |
-| Backlog produit et triage | Audité ; vue, rang et estimation remédiés, bulk/sprints encore ouverts |
+| Backlog produit et triage | Audité ; vue, rang, estimation, sélection et bulk remédiés, sprints/releases encore ouverts |
 | Cycles/sprints, capacité et releases | Non audité fonctionnellement ; aucun point d'entrée découvert |
 | Hiérarchie et dépendances | Partiel : arbre découvert, comportement de parentage observé |
 | Vues, recherche et reporting | Découvert seulement |
@@ -621,3 +621,61 @@ clôture. Le responsive reste volontairement en fin d’audit.
    et sprint, avec rollback transactionnel.
 3. Terminer la matrice Playwright PR1 : souris, lecteur, filtres/tri/groupement,
    panne réseau, performances et reload.
+
+## Fin de session — incrément 06 final : fondation Backlog PR1
+
+### Score provisoire du pilotage produit
+
+**70/100 — confiance élevée sur la fondation Backlog PR1.** Jiroo couvre
+désormais le rang manuel, les estimations nullables, la sélection simple/par
+plage/globale et le triage groupé transactionnel. Il reste derrière Jira tant
+que sprints, capacité, board du sprint actif et releases ne sont pas livrés.
+
+### Ce qui a été testé
+
+- Sélection visible permanente, clic individuel, `Shift` par plage, checkbox
+  globale et état indéterminé.
+- `Ctrl/Cmd+A` limité à la surface de travail, `Échap`, isolation des éditeurs
+  inline, réconciliation après filtre et remise à zéro au changement de vue.
+- Bulk statut, priorité, assigné et estimation sur deux tâches, avec compteurs
+  modifiés/inchangés, valeurs visibles et restauration de l’état d’audit.
+- Estimation unitaire `5 → 0 → null`, fermeture du menu après succès et
+  distinction explicite entre zéro et non estimé.
+- Classement souris persistant, restauration clavier persistante, blocage avec
+  tri/groupement, conservation de `view=backlog` après rechargement.
+- Deux POST interrompus volontairement : classement exactement restauré,
+  sélection bulk conservée et messages français sûrs.
+- Compte réel `Audit Playwright Lecteur` : 0 poignée, 0 checkbox, 0 éditeur
+  d’estimation, 0 barre bulk et aucune mutation.
+- Matrice Playwright Chromium finale : **7 scénarios passés en 12,8 s**.
+  Scénario nominal : 0 erreur console, 0 échec réseau, 0 réponse HTTP ≥ 400.
+  Échecs injectés : deux `net::ERR_FAILED` attendus, expliqués et isolés.
+- Mesures bulk locales : priorité 256 ms, statut 240 ms, assigné 221 ms,
+  estimation 141 ms. Rechargement : `DOMContentLoaded` 289 ms, load 290 ms.
+
+Preuves : [bulk edit](screenshots/FIXED-PARTIAL-BUG-JIR-015-bulk-edit.png),
+[points](screenshots/FIXED-PARTIAL-BUG-JIR-015-story-points.png),
+[classement](screenshots/FIXED-PARTIAL-BUG-JIR-015-backlog-ranked.png),
+[console nominale](console/2026-08-05-session-06-backlog-foundation-console.log),
+[réseau nominal](network/2026-08-05-session-06-backlog-foundation-requests.log),
+[console d’échec injecté](console/2026-08-05-session-06-backlog-foundation-failure-console.log)
+et [réseau d’échec injecté](network/2026-08-05-session-06-backlog-foundation-failure-requests.log).
+
+### Ce qui reste à tester
+
+La vérification technique complète de PR1 est passée : **755 tests unitaires
+et composants**, **17 tests d’intégration avec base**, typecheck, lint et build
+Next.js de production. Fonctionnellement, le prochain manque bloquant est le
+cycle sprint : création, objectif, dates, capacité, engagement, démarrage,
+board du sprint actif, clôture et report des tâches incomplètes. Releases,
+reporting et hiérarchie/dépendances approfondies suivent. Le responsive
+multi-breakpoints reste volontairement à la fin.
+
+### Trois priorités absolues pour la prochaine session
+
+1. Ajouter les **sprints** avec nom, objectif, dates, capacité et états
+   planifié/actif/terminé.
+2. Faire du **board le board du sprint actif**, sans sprint parallèle en V1,
+   puis prouver démarrage et clôture dans Playwright.
+3. Ajouter les **releases/versions** et commencer le pilotage de livraison,
+   avant reporting de vélocité et intégration dépôt/PR.

@@ -188,10 +188,10 @@ interdite et ne permet aucune divergence entre UI, serveur et reporting.
 
 ### P0 — Transformer la Liste en backlog planifiable
 
-**État : en cours, `BUG-JIR-015` partiellement corrigé.** La vue dédiée, le rang
-persistant, l’estimation nullable et le classement clavier sont implémentés. La
-sélection multiple et la barre d’actions groupées restent le prochain bloc de
-PR1.
+**État : fondation PR1 terminée et vérifiée ; `BUG-JIR-015` reste partiellement
+corrigé jusqu’aux sprints/releases.** La vue dédiée, le rang persistant,
+l’estimation nullable, la sélection multiple et les actions groupées sont
+validés dans Chromium.
 
 **Pourquoi :** une priorité catégorielle ne détermine pas l'ordre relatif du
 travail. Sans rang et sans sélection multiple, le PM ne peut ni ordonner le
@@ -247,13 +247,28 @@ progression, la publier puis retrouver exactement ce qui a été livré.
 
 ### État de livraison après incrément 06
 
-1. ~~Rang persistant et réordonnancement clavier~~ — validé par Playwright ;
-   souris et panne réseau à compléter dans la matrice finale.
-2. Sélection multiple et bulk edit — prochain lot.
-3. ~~Estimation nullable et agrégats de Backlog~~ — implémentés ; matrice
-   d’édition navigateur finale restante.
+1. ~~Rang persistant et réordonnancement souris/clavier~~ — validé avec reload
+   et rollback réseau.
+2. ~~Sélection multiple et bulk edit~~ — statut, priorité, assigné et
+   estimation validés, y compris sélection conservée en échec.
+3. ~~Estimation nullable et agrégats de Backlog~~ — `5`, `0` et `null` validés
+   dans le navigateur.
 4. Cycles/sprints et capacité — non commencé.
 5. Releases/versions — non commencé.
+
+### Prochain incrément P0 — sprints et capacité (PR2)
+
+**Ordre impératif :** modèle de sprint → planification → démarrage → board actif
+→ clôture/report. Aucun sprint parallèle en V1.
+
+**Livrable :** nom, objectif, dates, capacité, état planifié/actif/terminé,
+affectation unitaire et bulk, somme des points, items non estimés, confirmation
+de démarrage et choix explicite pour chaque item incomplet à la clôture.
+
+**Acceptation Playwright :** créer un sprint, y placer des tâches du Backlog,
+vérifier capacité et dépassement, démarrer, constater que le board n’affiche que
+le sprint actif, terminer, reporter/refuser les incomplets, puis retrouver le
+même état après reload avec activité, console et réseau propres.
 
 ### Note produit pour un incrément ultérieur — dépôts et pull requests
 

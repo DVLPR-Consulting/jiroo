@@ -312,3 +312,41 @@ Chromium ; le pointeur/souris, le rollback réseau, le rôle lecteur réel et un
 liste volumineuse restent à rejouer dans cette fonctionnalité. Surtout, aucune
 checkbox ni barre bulk n’est encore visible : le coût de triage par lot reste
 celui constaté dans l’incrément 05.
+
+## Backlog sélectionnable et bulk — incrément 06 final du 5 août 2026
+
+### Résultat observé
+
+- Les checkboxes sont visibles en permanence sur desktop. Cette décision est
+  plus découvrable qu’un contrôle exclusivement au survol et évite de confondre
+  la sélection avec l’icône bleue du type Tâche.
+- Un clic sélectionne sans ouvrir le détail ; `Shift` crée une plage continue
+  depuis l’ancre stable. La checkbox d’en-tête expose visuellement et
+  sémantiquement l’état indéterminé.
+- `Ctrl/Cmd+A` fonctionne quand une ligne a le focus, mais ne capture pas le
+  raccourci dans un bouton, input, select, lien ou zone éditable. `Échap` vide
+  la sélection.
+- La barre sticky nomme le nombre sélectionné et rend statut, priorité, assigné
+  et estimation immédiatement disponibles. Une sélection de deux lignes puis
+  quatre modifications demande 2 gestes de sélection et 2 gestes par champ,
+  au lieu de huit éditions de ligne indépendantes.
+- L’échec réseau bulk conserve la sélection et le message est actionnable ;
+  l’utilisateur peut réessayer sans reconstruire sa plage.
+- La sélection Liste ne fuit pas vers Backlog et les items retirés par un
+  filtre ne restent pas sélectionnés en mémoire.
+- Le menu d’estimation restait ouvert après succès (`BUG-JIR-018`) ; il se ferme
+  désormais après confirmation, mais reste ouvert en erreur.
+
+### Mesures et dette restante
+
+Les quatre mutations bulk ont répondu en **141 à 256 ms** en développement.
+Le parcours nominal ne produit aucune erreur console, réseau ou HTTP. Deux
+`net::ERR_FAILED` sont exclusivement les interruptions Playwright injectées et
+provoquent les rollbacks attendus.
+
+Dette UX restante : la barre devient dense sous 1 000 px et n’a pas encore été
+réauditée en responsive ; aucun undo après succès ; pas de sélection des 500
+items d’un résultat paginé/virtualisé ; aucune commande bulk sprint/release ;
+la proximité visuelle entre l’icône bleue Tâche et une checkbox cochée mérite
+une vérification utilisateur, même si la vraie sélection est maintenant dans
+une colonne dédiée.

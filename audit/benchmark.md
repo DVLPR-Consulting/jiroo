@@ -319,3 +319,23 @@ masse et la planification en sprint/cycle. GitHub Projects reste devant sur les
 champs et itérations configurables. Aucun crédit de parité globale n’est donc
 accordé avant la preuve navigateur des bulk actions, de la capacité et du cycle
 complet démarrage → exécution → clôture.
+
+## Mise à jour — sélection et bulk Backlog de l’incrément 06 final
+
+Jiroo rejoint désormais le socle Jira/Linear/ClickUp/Azure DevOps/Plane pour la
+sélection simple, par plage, globale et les mutations groupées de statut,
+priorité, assigné et estimation. La transaction tout-ou-rien et la sélection
+conservée après erreur sont des bases crédibles ; le rôle lecteur est
+explicitement protégé.
+
+Les concurrents restent devant : Jira et Azure DevOps enchaînent ces actions
+avec sprint/version ; Linear est plus riche en raccourcis et commandes ;
+ClickUp offre davantage d’actions bulk ; GitHub Projects applique des champs
+personnalisés et itérations ; Plane possède déjà cycles et modules. Jiroo ne
+peut donc revendiquer une parité Jira que sur la **fondation de triage PR1**, pas
+sur la gestion de produit de bout en bout.
+
+La meilleure voie de différenciation reste une barre volontairement limitée,
+transactionnelle et explicable, puis l’ajout du sprint comme cinquième action.
+Ajouter des dizaines d’actions avant capacité, engagement et clôture diluerait
+la priorité produit.

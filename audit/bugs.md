@@ -701,7 +701,7 @@ Les trois lignes observées sont création, `En cours à Audit preuve` et
 
 - **Gravité :** critique produit
 - **Priorité :** P0
-- **Statut :** partiellement corrigé — rang et estimation livrés ; bulk edit et sprints restants
+- **Statut :** partiellement corrigé — rang, estimation, sélection et bulk edit livrés ; sprints/releases restants
 - **Fonctionnalité :** backlog produit / triage / planification
 
 ### Étapes de reproduction
@@ -792,8 +792,25 @@ groupement est actif. Chromium a déplacé une tâche, observé un POST 200 en
 141 ms, rechargé la page et retrouvé le même ordre. La console ne contient
 aucune erreur et toutes les réponses observées sont nominales.
 
-`BUG-JIR-015` reste partiellement ouvert : sélection multiple, actions groupées,
-sprints/capacité et releases ne sont pas encore validés dans le navigateur.
+`BUG-JIR-015` reste partiellement ouvert : la sélection multiple et les actions
+groupées sont désormais validées dans Chromium, mais sprints/capacité et
+releases ne sont pas encore livrés.
+
+### Correction partielle complémentaire vérifiée — incrément 06 final
+
+Deux tâches adjacentes ont été sélectionnées par `Shift`, puis modifiées en
+masse sur statut, priorité, assigné et estimation. Les quatre POST ont répondu
+200 en 141 à 256 ms et les valeurs ont été observées sur chaque ligne. Un échec
+réseau injecté conserve les deux sélections et affiche
+`Modification groupée impossible.` ; le service transactionnel refuse tout lot
+partiellement invalide. Le rôle lecteur réel expose zéro checkbox et zéro barre
+bulk. Le classement a également été rejoué à la souris, restauré au clavier et
+vérifié après chaque rechargement.
+
+Preuves : [bulk](screenshots/FIXED-PARTIAL-BUG-JIR-015-bulk-edit.png),
+[points](screenshots/FIXED-PARTIAL-BUG-JIR-015-story-points.png),
+[rollback bulk](screenshots/EXPECTED-backlog-bulk-network-selection-retained.png)
+et [rollback classement](screenshots/EXPECTED-backlog-rank-network-rollback.png).
 
 ## BUG-JIR-016 — Le classement Backlog provoque une divergence d’hydratation React
 
@@ -879,6 +896,50 @@ utilise désormais les comparaisons binaires `<` et `>` déjà employées par le
 Board. Un test de régression couvre explicitement `aBV < aBl`, et Playwright
 confirme la persistance après rechargement.
 
+## BUG-JIR-018 — Le menu d’estimation reste ouvert après un enregistrement réussi
+
+- **Gravité :** mineure
+- **Priorité :** P2
+- **Statut :** corrigé et vérifié
+- **Fonctionnalité :** Backlog / estimation inline
+
+### Étapes de reproduction
+
+1. Ouvrir `http://localhost:3000/b/CASS?view=backlog` comme contributeur.
+2. Ouvrir `Estimation : Non estimé` sur une tâche.
+3. Saisir `5`, puis cliquer sur `Enregistrer`.
+
+### Résultat obtenu
+
+La valeur de la ligne et les agrégats sont rafraîchis, mais le menu reste ouvert
+au-dessus du tableau. Aucun feedback ne distingue l’état encore éditable d’une
+mutation déjà terminée ; un clic supplémentaire hors du menu est nécessaire.
+
+### Résultat attendu
+
+Après confirmation serveur, le menu doit se fermer, rendre le tableau à nouveau
+accessible et replacer la valeur enregistrée sur le déclencheur. En cas
+d’erreur, il doit au contraire rester ouvert avec le message.
+
+### Impacts
+
+- **Utilisateur :** geste supplémentaire et doute sur la prise en compte de la
+  valeur.
+- **Métier :** faible isolément, mais répété pendant l’estimation d’un backlog.
+- **Accessibilité :** le contenu principal reste masqué par la modalité Radix
+  jusqu’à fermeture manuelle.
+
+### Cause, correction et preuve
+
+`InlineEstimate` ne contrôlait pas l’état `open` et la fonction de mutation ne
+permettait aucune action après succès. Un callback de succès ferme désormais le
+menu avant `router.refresh()` ; les erreurs n’appellent pas ce callback. Le test
+unitaire échouait avec le `spinbutton` encore présent, puis passe après
+correction. Playwright valide `5 → 0 → null` et exige la disparition du champ
+après chaque succès.
+
+Preuve : [état final sans menu](screenshots/FIXED-BUG-JIR-018-estimate-menu-closes.png).
+
 ## Diagnostics non classés comme bugs
 
 - Deux `POST /api/auth/two-factor/verify-totp` ont répondu `401 UNAUTHORIZED` lors de codes TOTP invalides générés par l'audit. Le troisième code, validé dans l'application d'authentification, a répondu 200. Le blocage et le message `Code invalide. Réessayez.` sont attendus.
@@ -920,3 +981,7 @@ La première collecte de remédiation contient les deux 401 TOTP historiques de 
 | BUG-JIR-012 | annonces françaises avec clé/titre/statut, sans UUID | Vitest + inspection Playwright de `aria-live` ; NVDA/VoiceOver restant |
 | BUG-JIR-013 | CRUD/ordre/couleur, invariants, migration occupée et permissions lecteur | Vitest + Playwright admin/lecteur ; [capture admin](screenshots/FIXED-BUG-JIR-013-gestion-colonnes-admin.png) |
 | BUG-JIR-014 | références historiques remplacées par le nom avant suppression | Vitest + Playwright sur `CASS-60` ; [capture](screenshots/FIXED-BUG-JIR-014-activite-migration-libelles-metier.png) |
+| BUG-JIR-015 (partiel) | rang, estimation, sélection et bulk edit livrés ; sprints/releases restent ouverts | Vitest services/composants + 7 scénarios Chromium |
+| BUG-JIR-016 | identifiant DnD stable entre SSR et client | Vitest + console Chromium sans erreur d’hydratation |
+| BUG-JIR-017 | comparaison binaire des rangs fractionnels | Vitest de régression + classement souris/clavier et reload |
+| BUG-JIR-018 | menu d’estimation fermé uniquement après succès | Vitest RED/GREEN + Playwright `5 → 0 → null` |
