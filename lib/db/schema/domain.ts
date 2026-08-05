@@ -24,6 +24,8 @@ import {
   linkTypeEnum,
   notificationTypeEnum,
   refKindEnum,
+  sprintOutcomeEnum,
+  sprintStateEnum,
   statusCategoryEnum,
 } from "./enums";
 import { ltree, tsvector } from "./types";
@@ -39,6 +41,57 @@ export const backlogs = pgTable("backlogs", {
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const sprints = pgTable(
+  "sprints",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    backlogId: uuid("backlog_id")
+      .notNull()
+      .references(() => backlogs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    goal: text("goal"),
+    state: sprintStateEnum("state").notNull().default("planned"),
+    rank: text("rank").notNull(),
+    capacityPoints: numeric("capacity_points", {
+      precision: 5,
+      scale: 2,
+      mode: "number",
+    }),
+    plannedStartAt: timestamp("planned_start_at", { withTimezone: true }),
+    plannedEndAt: timestamp("planned_end_at", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("sprints_backlog_rank_idx").on(t.backlogId, t.rank),
+    uniqueIndex("sprints_backlog_name_idx").on(t.backlogId, sql`lower(${t.name})`),
+    uniqueIndex("sprints_one_active_per_backlog_idx")
+      .on(t.backlogId)
+      .where(sql`${t.state} = 'active'`),
+    check(
+      "sprints_capacity_points_range",
+      sql`${t.capacityPoints} is null or (${t.capacityPoints} >= 0 and ${t.capacityPoints} <= 999.99)`,
+    ),
+    check(
+      "sprints_planned_dates_order",
+      sql`${t.plannedEndAt} is null or (${t.plannedStartAt} is not null and ${t.plannedEndAt} > ${t.plannedStartAt})`,
+    ),
+    check(
+      "sprints_state_dates_consistent",
+      sql`(
+        (${t.state} = 'planned' and ${t.startedAt} is null and ${t.completedAt} is null)
+        or (${t.state} = 'active' and ${t.startedAt} is not null and ${t.completedAt} is null)
+        or (${t.state} = 'completed' and ${t.startedAt} is not null and ${t.completedAt} is not null and ${t.completedAt} >= ${t.startedAt})
+      )`,
+    ),
+  ],
+);
 
 export const statuses = pgTable("statuses", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -107,6 +160,68 @@ export const items = pgTable(
     check(
       "items_estimate_points_range",
       sql`${t.estimatePoints} is null or (${t.estimatePoints} >= 0 and ${t.estimatePoints} <= 999.99)`,
+    ),
+  ],
+);
+
+export const sprintItems = pgTable(
+  "sprint_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sprintId: uuid("sprint_id")
+      .notNull()
+      .references(() => sprints.id, { onDelete: "cascade" }),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+    joinedBy: text("joined_by")
+      .notNull()
+      .references(() => user.id),
+    estimateAtJoin: numeric("estimate_at_join", {
+      precision: 5,
+      scale: 2,
+      mode: "number",
+    }),
+    estimateAtStart: numeric("estimate_at_start", {
+      precision: 5,
+      scale: 2,
+      mode: "number",
+    }),
+    leftAt: timestamp("left_at", { withTimezone: true }),
+    outcome: sprintOutcomeEnum("outcome"),
+    destinationSprintId: uuid("destination_sprint_id").references(
+      () => sprints.id,
+      { onDelete: "restrict" },
+    ),
+  },
+  (t) => [
+    index("sprint_items_sprint_idx").on(t.sprintId),
+    index("sprint_items_item_idx").on(t.itemId),
+    uniqueIndex("sprint_items_one_current_item_idx")
+      .on(t.itemId)
+      .where(sql`${t.leftAt} is null`),
+    check(
+      "sprint_items_estimate_at_join_range",
+      sql`${t.estimateAtJoin} is null or (${t.estimateAtJoin} >= 0 and ${t.estimateAtJoin} <= 999.99)`,
+    ),
+    check(
+      "sprint_items_estimate_at_start_range",
+      sql`${t.estimateAtStart} is null or (${t.estimateAtStart} >= 0 and ${t.estimateAtStart} <= 999.99)`,
+    ),
+    check(
+      "sprint_items_outcome_consistent",
+      sql`(
+        (${t.leftAt} is null and ${t.outcome} is null and ${t.destinationSprintId} is null)
+        or (${t.leftAt} is not null and ${t.outcome} is not null)
+      )`,
+    ),
+    check(
+      "sprint_items_destination_consistent",
+      sql`(
+        (${t.outcome} = 'carried_to_sprint' and ${t.destinationSprintId} is not null)
+        or (${t.outcome} is distinct from 'carried_to_sprint' and ${t.destinationSprintId} is null)
+      )`,
     ),
   ],
 );
