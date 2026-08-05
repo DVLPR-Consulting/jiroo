@@ -86,6 +86,42 @@ describe("NewItemButton", () => {
     expect(mocks.refresh).toHaveBeenCalledOnce();
   });
 
+  it("creates a task in the supplied sprint context", async () => {
+    const user = userEvent.setup();
+    mocks.createItemAction.mockResolvedValueOnce({
+      ok: true,
+      item: { id: "item-id", key: "DEMO-8" },
+    });
+    render(
+      <NewItemButton
+        {...dialogProps()}
+        items={[
+          { id: "epic-id", key: "DEMO-2", type: "epic", title: "Paiement" },
+        ]}
+        sprintId="33333333-3333-4333-8333-333333333333"
+        contextLabel="Sprint paiement"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    expect(screen.getByRole("heading", { name: "Nouvelle tâche — Sprint paiement" }))
+      .toBeVisible();
+    expect(screen.getByRole("combobox", { name: "Type" })).toHaveValue("tache");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Parent" }), "epic-id");
+    await user.type(screen.getByRole("textbox", { name: "Titre" }), "Paiement invité");
+    await user.click(screen.getByRole("button", { name: /Créer$/ }));
+
+    await waitFor(() =>
+      expect(mocks.createItemAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "tache",
+          parentId: "epic-id",
+          sprintId: "33333333-3333-4333-8333-333333333333",
+        }),
+      ),
+    );
+  });
+
   it("restores the supplied initial status after close and reopen", async () => {
     const user = userEvent.setup();
     render(<NewItemButton {...dialogProps()} initialStatusId="doing-id" />);
