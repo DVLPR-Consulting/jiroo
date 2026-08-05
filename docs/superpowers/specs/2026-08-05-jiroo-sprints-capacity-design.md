@@ -178,6 +178,8 @@ A writer may:
 - drag a task between planned sprints;
 - move selected tasks using a new `Sprint` command in the bulk toolbar;
 - choose `Backlog` in that command to remove current sprint assignment.
+- create a task contextually inside a sprint section or the unscheduled
+  Backlog; the new task inherits that section's current assignment.
 
 Moving work into or out of an active sprint is allowed but visibly described as
 a scope change. The service records it in the historical membership and item
@@ -226,6 +228,10 @@ planned and the dialog retains the user's input with a French error.
 The Board displays only live tasks with a current membership in the active
 sprint. Existing workflow columns, filters, grouping, ranking, transitions,
 permissions, and item detail continue to work within that scope.
+
+Creating a task from an active-sprint Board assigns it to that active sprint in
+the same database transaction. A successful creation must never make the new
+task disappear because it was accidentally left unscheduled.
 
 The Board header identifies the active sprint and exposes its goal, dates,
 progress, total points, remaining points, and unestimated count. Progress uses
