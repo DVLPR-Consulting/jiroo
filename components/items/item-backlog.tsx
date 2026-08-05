@@ -62,6 +62,7 @@ import {
   selectAllVisible,
   toggleItemSelection,
 } from "@/lib/items/selection";
+import { sprintBacklogCollisionDetection } from "@/lib/items/sprint-dnd";
 import type {
   SprintMetrics,
   SprintPlanningSection,
@@ -1091,6 +1092,7 @@ function SprintItemBacklog({
       <DndContext
         id={`sprint-backlog-${backlogId}`}
         sensors={sensors}
+        collisionDetection={sprintBacklogCollisionDetection}
         onDragStart={manualOrder && canWrite ? handleDragStart : undefined}
         onDragEnd={manualOrder && canWrite ? handleDragEnd : undefined}
         onDragCancel={manualOrder && canWrite ? handleDragCancel : undefined}

@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { binaryTextOrder } from "@/lib/db/order";
 import {
   activities,
   backlogs,
@@ -63,7 +64,7 @@ export async function listSprintsForBacklog(backlogId: string) {
       .select()
       .from(sprints)
       .where(eq(sprints.backlogId, backlogId))
-      .orderBy(asc(sprints.rank)),
+      .orderBy(asc(binaryTextOrder(sprints.rank))),
     db
       .select({
         id: sprintItems.id,
@@ -93,7 +94,7 @@ export async function createSprint(input: unknown, actorId: string) {
       .select({ name: sprints.name, rank: sprints.rank })
       .from(sprints)
       .where(eq(sprints.backlogId, data.backlogId))
-      .orderBy(desc(sprints.rank));
+      .orderBy(desc(binaryTextOrder(sprints.rank)));
     const name = nextSprintName(existing.map((row) => row.name));
     const [created] = await tx
       .insert(sprints)

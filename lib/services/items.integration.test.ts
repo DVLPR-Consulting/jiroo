@@ -271,6 +271,46 @@ describeDb("createItem sprint transaction", () => {
   });
 });
 
+describeDb("createItem binary rank ordering", () => {
+  it("appends after lowercase ranks when the database locale sorts uppercase last", async () => {
+    const fixture = await createUpdateFixture();
+    const seeded = [
+      { id: randomUUID(), key: "2", rank: "aZ" },
+      { id: randomUUID(), key: "3", rank: "aa" },
+    ];
+    await db.insert(items).values(
+      seeded.map((row) => ({
+        id: row.id,
+        key: `${row.key}${fixture.item.key}`,
+        type: "composant" as const,
+        backlogId: fixture.backlogId,
+        title: `Rang ${row.rank}`,
+        statusId: fixture.item.statusId,
+        reporterId: fixture.actorId,
+        rank: row.rank,
+        path: `root.${row.id.replaceAll("-", "")}`,
+        depth: 0,
+      })),
+    );
+
+    try {
+      const created = await createItem(
+        {
+          backlogId: fixture.backlogId,
+          title: "Après aa",
+          type: "composant",
+          parentId: null,
+        },
+        fixture.actorId,
+      );
+
+      expect(created.rank > "aa").toBe(true);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
+
 async function createTaskUpdateFixture() {
   const [actor] = await db.select({ id: user.id }).from(user).limit(1);
   if (!actor) throw new Error("Le seed doit contenir un utilisateur.");

@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { binaryTextOrder } from "@/lib/db/order";
 import {
   activities,
   backlogs,
@@ -315,7 +316,7 @@ export async function completeSprint(
         .select({ rank: sprints.rank })
         .from(sprints)
         .where(eq(sprints.backlogId, data.backlogId))
-        .orderBy(desc(sprints.rank))
+        .orderBy(desc(binaryTextOrder(sprints.rank)))
         .limit(1)
         .for("update");
       const [created] = await tx
