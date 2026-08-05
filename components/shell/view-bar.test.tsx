@@ -1,9 +1,49 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ViewBar } from "@/components/shell/view-bar";
 
+const mocks = vi.hoisted(() => ({ push: vi.fn() }));
+
 vi.mock("@/components/shell/view-url-state", () => ({
-  useViewUrlState: () => ({ href: () => "/b/CASS?view=board", push: vi.fn() }),
+  useViewUrlState: () => {
+    const initial = new URLSearchParams(
+      "item=CASS-42&q=auth&view=board&tag=alpha&tag=beta",
+    );
+    return {
+      href: (mutate: (params: URLSearchParams) => void) => {
+        const params = new URLSearchParams(initial);
+        mutate(params);
+        return `/b/CASS?${params.toString()}`;
+      },
+      push: (mutate: (params: URLSearchParams) => void) => {
+        const params = new URLSearchParams(initial);
+        mutate(params);
+        mocks.push(`/b/CASS?${params.toString()}`);
+      },
+    };
+  },
+}));
+
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    onNavigate,
+    ...props
+  }: {
+    children: React.ReactNode;
+    href: string;
+    onNavigate?: (event: { preventDefault: () => void }) => void;
+  }) => (
+    <a
+      {...props}
+      onClick={(event) => {
+        event.preventDefault();
+        onNavigate?.({ preventDefault: () => undefined });
+      }}
+    >
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("@/components/theme/density-toggle", () => ({
@@ -11,6 +51,10 @@ vi.mock("@/components/theme/density-toggle", () => ({
 }));
 
 describe("ViewBar", () => {
+  beforeEach(() => {
+    mocks.push.mockReset();
+  });
+
   it("wraps secondary controls while keeping creation in the primary cluster", () => {
     const { container } = render(
       <ViewBar
@@ -27,5 +71,21 @@ describe("ViewBar", () => {
     expect(screen.getByRole("button", { name: "Nouvel item" }).closest(
       '[data-slot="primary-actions"]',
     )).not.toBeNull();
+  });
+
+  it("opens Backlog while preserving unrelated URL state", () => {
+    render(<ViewBar view="board" />);
+
+    const backlogLink = screen.getByRole("link", { name: "Backlog" });
+    expect(backlogLink).toHaveAttribute(
+      "href",
+      "/b/CASS?item=CASS-42&q=auth&view=backlog&tag=alpha&tag=beta",
+    );
+
+    fireEvent.click(backlogLink);
+
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/b/CASS?item=CASS-42&q=auth&view=backlog&tag=alpha&tag=beta",
+    );
   });
 });

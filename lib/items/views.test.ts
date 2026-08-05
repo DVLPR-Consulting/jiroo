@@ -70,6 +70,12 @@ describe("viewStateToColumns", () => {
     expect(viewStateToColumns(empty, "tree").displayMode).toBe("tree");
   });
 
+  it("stores backlog as a first-class display mode", () => {
+    expect(
+      viewStateToColumns(empty, "backlog" as DisplayMode).displayMode,
+    ).toBe("backlog");
+  });
+
   it("preserves priority 0 in filters (regression guard)", () => {
     const state: ViewState = {
       filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], kind: [], underIds: [] },
@@ -110,6 +116,17 @@ describe("columnsToViewState", () => {
     const { state, displayMode } = columnsToViewState(cols);
     expect(state).toEqual(empty);
     expect(displayMode).toBe("board");
+  });
+
+  it("restores a saved backlog display mode", () => {
+    const { displayMode } = columnsToViewState({
+      displayMode: "backlog",
+      groupBy: null,
+      filters: {},
+      sort: "manual",
+    });
+
+    expect(displayMode).toBe("backlog");
   });
 
   it("maps the 'manual' sentinel back to sort: null", () => {
@@ -539,7 +556,7 @@ describe("createViewInput", () => {
   });
 
   it("accepts all valid displayMode values", () => {
-    for (const mode of ["board", "list", "tree"]) {
+    for (const mode of ["backlog", "board", "list", "tree"]) {
       const result = createViewInput.safeParse({
         name: "ok",
         backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
@@ -603,6 +620,15 @@ describe("updateViewStateInput", () => {
   it("accepts a state-only payload", () => {
     const result = updateViewStateInput.safeParse(validState);
     expect(result.success).toBe(true);
+  });
+
+  it("accepts backlog as the saved state display mode", () => {
+    expect(
+      updateViewStateInput.safeParse({
+        ...validState,
+        displayMode: "backlog",
+      }).success,
+    ).toBe(true);
   });
 
   it("strips a stray name field instead of carrying it through", () => {

@@ -205,7 +205,7 @@ export function withAncestors(items: FilterItem[], matchedIds: Set<string>): Set
 
 // Partition into [key, items][] preserving first-seen order. Label resolution
 // (status name, user name, priority label, parent title) belongs to the caller.
-export function groupItems(items: FilterItem[], group: GroupKey): Array<[string, FilterItem[]]> {
+export function groupItems<T extends FilterItem>(items: T[], group: GroupKey): Array<[string, T[]]> {
   const keyOf = (i: FilterItem): string => {
     switch (group) {
       case "status": return i.statusId;
@@ -215,7 +215,7 @@ export function groupItems(items: FilterItem[], group: GroupKey): Array<[string,
       case "parent": return i.parentId ?? "none";
     }
   };
-  const map = new Map<string, FilterItem[]>();
+  const map = new Map<string, T[]>();
   for (const i of items) {
     const k = keyOf(i);
     (map.get(k) ?? map.set(k, []).get(k)!).push(i);
@@ -223,7 +223,7 @@ export function groupItems(items: FilterItem[], group: GroupKey): Array<[string,
   return [...map.entries()];
 }
 
-export function sortItems(items: FilterItem[], sort: { field: SortField; dir: SortDir }): FilterItem[] {
+export function sortItems<T extends FilterItem>(items: T[], sort: { field: SortField; dir: SortDir }): T[] {
   const sign = sort.dir === "asc" ? 1 : -1;
   const cmp = (a: FilterItem, b: FilterItem): number => {
     switch (sort.field) {

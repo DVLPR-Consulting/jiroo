@@ -6,6 +6,7 @@ import { useViewUrlState } from "@/components/shell/view-url-state";
 import { cn } from "@/lib/utils";
 
 const TABS = [
+  ["backlog", "Backlog"],
   ["board", "Board"],
   ["list", "Liste"],
   ["tree", "Arbre"],

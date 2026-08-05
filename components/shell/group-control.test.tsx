@@ -121,6 +121,22 @@ describe("GroupControl", () => {
     );
   });
 
+  it("offers the complete grouping selector in backlog view", () => {
+    renderControl(
+      <GroupControl
+        view="backlog"
+        state={emptyState}
+      />,
+      { view: "backlog" },
+    );
+
+    expect(
+      screen.getAllByRole("option").map((option) =>
+        (option as HTMLOptionElement).value,
+      ),
+    ).toEqual(["status", "priority", "assignee", "component", ""]);
+  });
+
   it("renders no grouping control for tree view", () => {
     const currentParams = { view: "tree", group: "component" };
     renderControl(
