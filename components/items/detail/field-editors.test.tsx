@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ReporterField } from "@/components/items/detail/field-editors";
+import { EstimateField, ReporterField } from "@/components/items/detail/field-editors";
 
 const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
@@ -92,5 +92,28 @@ describe("ReporterField", () => {
       "better-auth-marie",
     );
     expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("EstimateField", () => {
+  beforeEach(() => {
+    mocks.refresh.mockReset();
+    mocks.updateItemAction.mockReset();
+  });
+
+  it("shows zero and clears it to a null estimate", async () => {
+    const user = userEvent.setup();
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: {} });
+    render(<EstimateField itemId="item-2" backlogKey="DEMO" estimatePoints={0} />);
+
+    expect(screen.getByRole("spinbutton", { name: "Points" })).toHaveValue(0);
+    await user.click(screen.getByRole("button", { name: "Effacer l’estimation" }));
+
+    expect(mocks.updateItemAction).toHaveBeenCalledWith({
+      id: "item-2",
+      backlogKey: "DEMO",
+      estimatePoints: null,
+    });
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
   });
 });

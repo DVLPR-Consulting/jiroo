@@ -56,6 +56,45 @@
 | Permissions | 94/100 | Lecteur réel : 0 gestion de colonnes, 0 création, 0 drag ; `/admin` redirige sans erreur HTTP |
 | Performance locale | 76/100 | Mutations nominales sans erreur HTTP ; budget et p95 du gestionnaire de colonnes non mesurés |
 
+## Score global provisoire — après incrément 05
+
+**58/100 — confiance élevée sur le socle opérationnel et le backlog produit.**
+La baisse depuis 70/100 ne traduit pas une régression du board : elle vient de
+l'élargissement du périmètre. Le score précédent était explicitement faible en
+confiance sur le pilotage produit. Or le navigateur prouve maintenant que la
+vue `Liste` est un inventaire triable, pas un backlog permettant de décider
+quoi livrer et quand.
+
+| Dimension | Score | Preuve principale |
+|---|---:|---|
+| Couverture fonctionnelle observée | 48/100 | Tri, groupement, filtres et édition unitaire présents ; rang, estimation, cycles/sprints, releases et bulk edit absents |
+| Fiabilité et feedback | 78/100 | Priorité changée puis restaurée en 110 ms, deux POST 200, aucune erreur console |
+| Efficacité UX | 52/100 | Triage unitaire rapide, mais planifier ou modifier plusieurs items est impossible |
+| Accessibilité | 68/100 | Tableau et menus nommés ; aucune sélection multiple ni commande clavier de classement à évaluer |
+| Responsive | 64/100 | Non réaudité dans cet incrément volontairement desktop-first |
+| Permissions | 94/100 | Inchangé ; aucun nouveau mécanisme de planification à gouverner |
+| Performance locale | 78/100 | Tri observé à ~271 ms et mutation de priorité confirmée en ~110 ms en développement |
+
+## Niveau d'avancement de l'audit
+
+**Environ 40 %.** Ce pourcentage mesure la couverture de l'audit, pas la qualité
+du produit. Les parcours création, détail, transitions, colonnes et
+backlog/triage ont été audités en profondeur. Les cycles/sprints, releases,
+dépendances, reporting, collaboration, recherche, sécurité complète et charge
+restent à auditer.
+
+| Domaine | Avancement |
+|---|---|
+| Création et édition d'items | Audité et remédié sur le périmètre observé |
+| Board, transitions et colonnes | Audité et largement remédié |
+| Backlog produit et triage | Audité ; lacune P0 ouverte |
+| Cycles/sprints, capacité et releases | Non audité fonctionnellement ; aucun point d'entrée découvert |
+| Hiérarchie et dépendances | Partiel : arbre découvert, comportement de parentage observé |
+| Vues, recherche et reporting | Découvert seulement |
+| Collaboration et notifications | Non audité |
+| Administration, sécurité et concurrence | Partiel |
+| Responsive multi-breakpoints et charge | À reprendre en fin d'audit |
+
 ## Périmètre de l'incrément 01
 
 - Date : 4 août 2026, Europe/Berlin.
@@ -97,6 +136,19 @@
   doublon, invariants, suppression vide/occupée, migration, activité et rôle
   lecteur. `BUG-JIR-013` est corrigé ; `BUG-JIR-014`, découvert pendant la
   migration, est également corrigé.
+
+## Périmètre de l'incrément 05 — backlog produit et triage
+
+- Date : 5 août 2026, Europe/Berlin.
+- Environnement : `http://localhost:3000`, Chromium piloté par Playwright,
+  desktop.
+- Fonctionnalité auditée : **prioriser et préparer le travail avant exécution**.
+- Scénarios : liste, tri et persistance dans l'URL, groupement, structure du
+  tableau, sélection multiple, classement manuel, propriétés de création et de
+  détail, arbre et parentage, administration, mutation unitaire de priorité,
+  console, réseau et performance locale.
+- Verdict : triage unitaire fonctionnel ; backlog de planification absent.
+  `BUG-JIR-015` ouvert en P0 produit.
 
 ## Fonctionnalités découvertes
 
@@ -399,6 +451,23 @@ Une fonctionnalité simplement découverte n'est **pas** considérée terminée.
   avec webpack réussis. Le build Turbopack par défaut ne peut pas être certifié
   dans cette sandbox, qui refuse son port interne et l'accès à Google Fonts.
 
+### 2026-08-05 — Incrément 05 backlog produit et triage
+
+- Vue Liste vérifiée avec 11 items : tri titre ascendant/descendant persistant
+  dans l'URL, groupement par priorité et mutation inline de priorité.
+- Le tableau expose exactement `Clé`, `Titre`, `Statut`, `Prio`, `Labels`,
+  `Échéance`, `Assigné` ; 0 checkbox, 0 ligne sélectionnable en masse et 0
+  poignée de classement.
+- L'arbre expose 11 éléments déplaçables, mais le dépôt sur un frère tente un
+  parentage, affiche `Parent invalide pour ce type.` et laisse l'ordre inchangé.
+- Création, détail, navigation et administration vérifiés : aucun champ ni point
+  d'entrée pour estimation, cycle/sprint, release/version ou capacité.
+- Priorité de `CASS-58` changée vers `Basse` puis restaurée à `Aucune` ; POST
+  200 et retour visible mesuré à environ 110 ms.
+- `BUG-JIR-015` créé avec quatre captures ; console finale : 0 erreur, 0
+  avertissement ; réseau nominal : deux mutations POST 200 et rafraîchissements
+  GET 200.
+
 ## Fin de session — incrément 02
 
 ### Ce qui a été testé
@@ -479,3 +548,34 @@ notifications et concurrence multi-utilisateur ne sont pas encore validés.
    absence avec un écart Jira explicite.
 3. Auditer **hiérarchie et dépendances** : epic → tâche → sous-tâche, blocages,
    progression et visibilité cross-équipe.
+
+## Fin de session — incrément 05 backlog produit et triage
+
+### Ce qui a été testé
+
+Liste desktop, tri et persistance URL, groupement par priorité, colonnes
+disponibles, absence de sélection multiple, mutation inline de priorité avec
+restauration, création, propriétés du détail, navigation, administration et
+arbre. Le déplacement de l'arbre a été cassé volontairement avec des types et
+des cibles incompatibles pour distinguer parentage et classement. Console,
+réseau, performance et captures ont été archivés.
+
+### Ce qui reste à tester
+
+Les filtres combinés et vues enregistrées seront audités comme fonctionnalité
+séparée. Il reste surtout à auditer puis construire cycles/sprints, capacité,
+estimations, releases, dépendances, progression d'epic, reporting, recherche,
+notifications, collaboration et concurrence multi-utilisateur. Le responsive
+multi-breakpoints reste volontairement repoussé à la fin.
+
+Note produit enregistrée pour plus tard : connecter des dépôts et lier les pull
+requests aux items, avec checks CI, merge, déploiement et traçabilité de release.
+
+### Trois priorités absolues pour la prochaine session
+
+1. Concevoir puis implémenter le **socle de backlog planifiable** : rang
+   persistant, réordonnancement manuel et sélection/bulk edit.
+2. Ajouter les **estimations et cycles/sprints**, avec capacité et passage clair
+   du backlog vers l'exécution.
+3. Ajouter les **releases/versions**, puis relier dates, progression et éléments
+   livrés.

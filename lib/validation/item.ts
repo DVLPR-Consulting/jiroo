@@ -20,6 +20,15 @@ const priority = z.number().int().min(0, "Priorité invalide.").max(4, "Priorit�
 // user.id is TEXT (better-auth), NOT a uuid — keep it a plain string.
 const assigneeId = z.string().nullable().optional();
 const reporterId = z.string().min(1, "Rapporteur requis.").optional();
+export const estimatePointsSchema = z
+  .number({ error: "Estimation invalide." })
+  .finite("Estimation invalide.")
+  .min(0, "L’estimation doit être positive.")
+  .max(999.99, "L’estimation ne peut pas dépasser 999,99 points.")
+  .refine((value) => Number.isInteger(value * 100), {
+    message: "L’estimation accepte au maximum deux décimales.",
+  })
+  .nullable();
 // Map ''/null → null so an empty "no due date" field doesn't coerce to Invalid Date.
 const dueDate = z
   .preprocess((v) => (v === "" || v == null ? null : v), z.coerce.date().nullable())
@@ -54,6 +63,7 @@ export const updateItemSchema = z.object({
   kind: z.enum(ITEM_KINDS).optional(),
   assigneeId,
   reporterId,
+  estimatePoints: estimatePointsSchema.optional(),
   dueDate,
   labelIds: z.array(z.uuid()).optional(),
 });

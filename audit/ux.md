@@ -240,3 +240,50 @@ Défauts :
 - Dette restante : réordonner par flèches devient laborieux au-delà de 6 à 8
   colonnes ; aucun undo, aperçu global, archivage ou mode brouillon ; poignée
   DnD toujours 24 px sans tooltip ; gestionnaire non réaudité sur mobile.
+
+## Backlog produit et triage — incrément 05 du 5 août 2026
+
+### Ce qui fonctionne
+
+- Passer de Board à Liste ou Arbre prend un clic et conserve le contexte du
+  backlog.
+- Le tri par titre et le groupement par priorité sont explicites et persistés
+  dans l'URL.
+- Statut, priorité et assigné sont éditables directement dans la Liste.
+- La priorité de `CASS-58` a été changée puis restaurée en deux gestes par
+  mutation, avec feedback visible et confirmation serveur en ~110 ms.
+- L'Arbre rend la hiérarchie compacte et refuse un parent incompatible avec un
+  message compréhensible.
+
+### Défauts UX et coût utilisateur
+
+- La vue s'appelle `Liste` et le menu `Tous les items`, ce qui est honnête :
+  aucun point d'entrée ne promet un vrai backlog. Le défaut est produit avant
+  d'être cosmétique.
+- Les tris automatiques donnent une impression de priorisation, mais aucun
+  ordre métier stable n'est modifiable. Pour départager deux items de même
+  priorité, le nombre d'interactions utiles est **infini : tâche impossible**.
+- 11 lignes sont affichées sans aucune checkbox. Modifier cinq priorités exige
+  au minimum dix gestes et cinq mutations séparées, contre une sélection et une
+  action groupée chez les concurrents.
+- L'Arbre et la Liste emploient des interactions différentes sans explication :
+  dans l'Arbre, déposer sur une ligne signifie « devenir enfant », pas « placer
+  avant/après ». Le message d'erreur explique l'invalidité du parent, mais pas
+  la sémantique du geste avant son exécution.
+- Estimation, cycle/sprint et release sont absents à la fois de la création, du
+  détail, de la liste et de l'administration. Ils ne sont donc ni difficiles à
+  découvrir ni cachés : ils ne sont pas observables.
+
+### Recommandations UX prioritaires
+
+1. Créer une vue `Backlog` dédiée, séparée du board d'exécution, avec rang
+   manuel par défaut et ligne d'insertion visible.
+2. Afficher des checkboxes au survol et au focus, `Shift` pour une plage,
+   `Cmd/Ctrl+A` sur le résultat filtré et une barre d'actions groupées.
+3. Ajouter estimation, cycle et release comme colonnes configurables et
+   propriétés rapides, sans alourdir systématiquement le composeur.
+4. Conserver `Arbre` pour le parentage, avec indicateur explicite « Déplacer
+   sous… » ; utiliser une poignée/zone distincte si le réordonnancement de
+   frères est ajouté.
+5. Rendre visibles capacité, somme des estimations et items non estimés avant
+   le démarrage d'un cycle.

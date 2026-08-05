@@ -266,3 +266,43 @@ perd un item. Ensuite seulement, introduire plusieurs statuts par colonne,
 transitions, WIP et workflows partagés. Cette progression peut être plus claire
 que l'administration Jira, mais elle ne doit pas être présentée comme une parité
 Jira avant l'arrivée des règles et schémas réutilisables.
+
+---
+
+# Benchmark — backlog produit et triage
+
+## Verdict
+
+Les six concurrents font mieux que Jiroo sur la préparation du travail. Jira et
+Azure DevOps proposent les chaînes les plus complètes ; Linear est la référence
+de vitesse ; ClickUp domine les opérations en masse ; GitHub Projects fournit
+les briques configurables ; Plane couvre déjà cycles, releases, estimations et
+bulk operations. Jiroo n'a pour l'instant qu'une liste filtrable et un triage
+unitaire rapide.
+
+| Produit | Capacité officielle pertinente | Qui fait mieux / cible Jiroo |
+|---|---|---|
+| Jira | Backlog Scrum avec rang DnD, sprints, versions, estimation et bulk edit | Jira fait nettement mieux ; Jiroo doit couvrir le chemin rang → estimation → sprint → release sans reprendre sa complexité d'administration |
+| Linear | Ordre manuel souris/clavier, sélection multiple, estimations, cycles automatiques, triage dédié et releases | Linear fait mieux en vitesse ; viser les mêmes raccourcis avec des décisions de capacité plus visibles |
+| ClickUp | Liste avec sélection/bulk toolbar, sprints, sprint points ou temps estimé | ClickUp fait mieux en volume ; proposer moins d'actions, mais les rendre cohérentes et rapides |
+| Azure DevOps | Product/portfolio/sprint backlogs, Stack Rank, bulk update, effort, forecast et velocity | Azure DevOps fait mieux en planification ; viser d'abord un seul backlog d'équipe lisible avec capacité fiable |
+| GitHub Projects | Table/board/roadmap, champs personnalisés, iteration field, priorité et estimation configurables | GitHub fait mieux en flexibilité ; Jiroo peut faire mieux avec des concepts produit natifs et moins de configuration préalable |
+| Plane | Cycles, modules, releases, estimations et bulk operations documentés | Plane fait mieux sur le socle open source ; Jiroo doit égaler ce minimum avant de revendiquer la gestion de produit de bout en bout |
+
+## Sources officielles
+
+- Jira : [Use your Scrum backlog](https://support.atlassian.com/jira-software-cloud/docs/use-your-scrum-backlog/), [Rank a work item](https://support.atlassian.com/jira-software-cloud/docs/rank-an-issue/), [Enable sprints](https://support.atlassian.com/jira-software-cloud/docs/enable-sprints/), [Releases and versions](https://support.atlassian.com/jira-software-cloud/docs/enable-releases-and-versions/), [Bulk actions from the backlog](https://support.atlassian.com/jira-software-cloud/docs/edit-multiple-issues-at-once-from-the-backlog/).
+- Linear : [Select issues](https://linear.app/docs/select-issues), [Estimates](https://linear.app/docs/estimates), [Cycles](https://linear.app/docs/use-cycles), [Triage](https://linear.app/docs/triage), [Releases](https://linear.app/docs/releases).
+- ClickUp : [List view](https://help.clickup.com/hc/en-us/articles/6310260883351-Intro-to-List-view), [Bulk Action Toolbar](https://help.clickup.com/hc/en-us/articles/6309768265495-Manage-tasks-with-the-Bulk-Action-Toolbar), [Run a sprint](https://help.clickup.com/hc/en-us/articles/6304342064151-Run-a-sprint).
+- Azure DevOps : [Use backlogs to manage projects](https://learn.microsoft.com/en-us/azure/devops/boards/backlogs/backlogs-overview?view=azure-devops), [Create and manage your product backlog](https://learn.microsoft.com/en-us/azure/devops/boards/backlogs/create-your-backlog?view=azure-devops).
+- GitHub Projects : [Planning and tracking with Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects), [Projects quickstart](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/quickstart-for-projects), [Iteration fields](https://docs.github.com/en/issues/planning-and-tracking-with-projects/understanding-fields/about-iteration-fields).
+- Plane : [Documentation](https://docs.plane.so/), [Cycles API](https://developers.plane.so/api-reference/cycle/overview), [Work item estimates](https://developers.plane.so/api-reference/issue/overview).
+
+## Comment Jiroo pourrait faire mieux
+
+Ne pas construire six écrans séparés. Une seule vue Backlog peut réunir rang
+persistant, sélection multiple, estimation et affectation par glisser-déposer à
+un cycle ou une release. L'avantage différenciant doit être une planification
+compréhensible en moins de quinze minutes par une nouvelle équipe, avec calculs
+de capacité explicables et aucune configuration Jira-like avant le premier
+sprint.

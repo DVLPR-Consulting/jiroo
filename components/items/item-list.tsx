@@ -15,6 +15,7 @@ import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import {
   InlineAssignee,
+  InlineEstimate,
   InlinePriority,
   InlineStatus,
 } from "@/components/items/inline-item-field";
@@ -46,6 +47,7 @@ export type ListItem = {
   title: string;
   statusId: string;
   priority: number;
+  estimatePoints: number | null;
   depth: number;
   dueDate: string | null;
   assigneeId: string | null;
@@ -204,6 +206,18 @@ function ItemRow({
           readOnly={!canWrite}
         />
       </td>
+      <td className={CELL_CLASS} onClick={(event) => event.stopPropagation()}>
+        {item.type === "tache" ? (
+          <InlineEstimate
+            itemId={item.id}
+            backlogKey={backlogKey}
+            estimatePoints={item.estimatePoints}
+            readOnly={!canWrite}
+          />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </td>
       <td className={CELL_CLASS}>
         {item.labels.length > 0 ? (
           <span className="flex min-w-0 flex-wrap gap-1">
@@ -318,6 +332,7 @@ export function ItemList({
           <col />
           <col className="w-40" />
           <col className="w-16" />
+          <col className="w-24" />
           <col className="w-48" />
           <col className="w-32" />
           <col className="w-44" />
@@ -336,6 +351,7 @@ export function ItemList({
             <SortableHeader field="priority" currentSort={currentSort} onSort={sortBy}>
               Prio
             </SortableHeader>
+            <th scope="col" className={HEADER_CLASS}>Points</th>
             <th scope="col" className={HEADER_CLASS}>Labels</th>
             <SortableHeader field="dueDate" currentSort={currentSort} onSort={sortBy}>
               Échéance
@@ -351,7 +367,7 @@ export function ItemList({
                 <tr>
                   <th
                     scope="rowgroup"
-                    colSpan={7}
+                    colSpan={8}
                     className="sticky top-8 z-10 border-b border-border bg-[var(--surface-2)] px-3 py-1.5 text-left"
                   >
                     <button

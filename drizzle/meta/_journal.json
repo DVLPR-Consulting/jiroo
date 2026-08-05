@@ -57,6 +57,13 @@
       "when": 1780653527964,
       "tag": "0007_conscious_korvac",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785921913367,
+      "tag": "0008_jira_backlog_foundation",
+      "breakpoints": true
     }
   ]
 }

@@ -133,6 +133,110 @@ async function createUpdateFixture(reporterId?: string) {
   return { actorId: actor.id, backlogId: backlog!.id, item: item! };
 }
 
+async function createTaskUpdateFixture() {
+  const [actor] = await db.select({ id: user.id }).from(user).limit(1);
+  if (!actor) throw new Error("Le seed doit contenir un utilisateur.");
+
+  const [backlog] = await db
+    .insert(backlogs)
+    .values({ key: randomBacklogKey(), name: "Estimation", color: "#475569" })
+    .returning();
+  const [status] = await db
+    .insert(statuses)
+    .values({
+      backlogId: backlog!.id,
+      name: "À faire",
+      category: "todo",
+      order: 0,
+      color: "#9aa0a6",
+    })
+    .returning();
+  const componentId = randomUUID();
+  const taskId = randomUUID();
+  const componentPath = `root.${componentId.replaceAll("-", "")}`;
+  await db.insert(items).values({
+    id: componentId,
+    key: `${backlog!.key}-1`,
+    type: "composant",
+    backlogId: backlog!.id,
+    title: "Produit",
+    statusId: status!.id,
+    reporterId: actor.id,
+    rank: "a0",
+    path: componentPath,
+    depth: 0,
+  });
+  const [item] = await db
+    .insert(items)
+    .values({
+      id: taskId,
+      key: `${backlog!.key}-2`,
+      type: "tache",
+      backlogId: backlog!.id,
+      title: "Travail estimable",
+      parentId: componentId,
+      statusId: status!.id,
+      reporterId: actor.id,
+      rank: "a1",
+      path: `${componentPath}.${taskId.replaceAll("-", "")}`,
+      depth: 1,
+    })
+    .returning();
+
+  return { actorId: actor.id, backlogId: backlog!.id, item: item! };
+}
+
+describeDb("updateItem estimate transaction", () => {
+  it("updates and clears a task estimate with readable activity", async () => {
+    const fixture = await createTaskUpdateFixture();
+
+    try {
+      await updateItem({ id: fixture.item.id, estimatePoints: 5 }, fixture.actorId);
+      const updated = await updateItem(
+        { id: fixture.item.id, estimatePoints: null },
+        fixture.actorId,
+      );
+
+      expect(updated?.estimatePoints).toBeNull();
+      const audit = await db
+        .select({
+          field: activities.field,
+          oldValue: activities.oldValue,
+          newValue: activities.newValue,
+        })
+        .from(activities)
+        .where(eq(activities.itemId, fixture.item.id))
+        .orderBy(asc(activities.at), asc(activities.id));
+      expect(audit).toEqual([
+        { field: "estimate_points", oldValue: null, newValue: "5" },
+        { field: "estimate_points", oldValue: "5", newValue: null },
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("rejects estimates on structural items without changing their activity", async () => {
+    const fixture = await createUpdateFixture();
+
+    try {
+      await expect(
+        updateItem({ id: fixture.item.id, estimatePoints: 3 }, fixture.actorId),
+      ).rejects.toThrow("Seules les tâches peuvent être estimées.");
+
+      const [stored] = await db.select().from(items).where(eq(items.id, fixture.item.id));
+      expect(stored?.estimatePoints).toBeNull();
+      const audit = await db
+        .select({ id: activities.id })
+        .from(activities)
+        .where(eq(activities.itemId, fixture.item.id));
+      expect(audit).toEqual([]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
+
 describeDb("updateItem reporter transaction", () => {
   it("updates an existing reporter and writes the reporter audit", async () => {
     const reporterId = `reporter-${randomUUID()}`;

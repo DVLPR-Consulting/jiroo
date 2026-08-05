@@ -206,6 +206,7 @@ export async function BacklogViewContent({
     listLabelsForBacklog(backlog.id),
   ]);
   const userName = new Map(usersForFilter.map((u) => [u.id, u.name]));
+  const estimateByItem = new Map(items.map((item) => [item.id, item.estimatePoints]));
 
   const groupLabel = (key: string): string => {
     if (!viewState.group || key === "") return "";
@@ -393,6 +394,7 @@ export async function BacklogViewContent({
             label: groupLabel(key),
             items: rows.map((r) => ({
               ...r,
+              estimatePoints: estimateByItem.get(r.id) ?? null,
               dueDate: r.dueDate?.toISOString() ?? null,
               assigneeName: r.assigneeId ? (userName.get(r.assigneeId) ?? null) : null,
               labels: labelsByItem.get(r.id) ?? [],

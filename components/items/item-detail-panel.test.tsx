@@ -73,6 +73,7 @@ const detail: Parameters<typeof ItemDetailPanel>[0]["detail"] = {
   parentId: "33333333-3333-4333-8333-333333333333",
   statusId: "44444444-4444-4444-8444-444444444444",
   priority: 2,
+  estimatePoints: null,
   assigneeId: null,
   reporterId: "better-auth-marie",
   rank: "a1",
@@ -110,10 +111,19 @@ const baseProps = {
   refs: [],
 };
 
-function renderPanel(parent?: { key: string; title: string }) {
+function renderPanel(
+  parent?: { key: string; title: string },
+  detailOverride = detail,
+  canWrite = true,
+) {
   return render(
     <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
-      <ItemDetailPanel {...baseProps} parent={parent} />
+      <ItemDetailPanel
+        {...baseProps}
+        detail={detailOverride}
+        parent={parent}
+        canWrite={canWrite}
+      />
     </ViewUrlStateProvider>,
   );
 }
@@ -152,6 +162,31 @@ describe("ItemDetailPanel header", () => {
     const breadcrumb = screen.getByRole("navigation", { name: "Fil d’Ariane" });
     expect(breadcrumb).toHaveTextContent(/^CASS-2$/);
     expect(within(breadcrumb).queryByText("PARENT-1")).not.toBeInTheDocument();
+  });
+
+  it("shows story points only for tasks", () => {
+    const { rerender } = renderPanel();
+    expect(screen.queryByText("Points")).not.toBeInTheDocument();
+
+    rerender(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          detail={{ ...detail, type: "tache", estimatePoints: 5 }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.getByText("Points")).toBeVisible();
+    expect(screen.getByRole("spinbutton", { name: "Points" })).toHaveValue(5);
+  });
+
+  it("renders task points as text for a viewer", () => {
+    renderPanel(undefined, { ...detail, type: "tache", estimatePoints: 5 }, false);
+
+    expect(screen.getByText("Points")).toBeVisible();
+    expect(screen.getByText("5 pts")).toBeVisible();
+    expect(screen.queryByRole("spinbutton", { name: "Points" })).not.toBeInTheDocument();
   });
 
   it("copies the exact current href and confirms success", async () => {

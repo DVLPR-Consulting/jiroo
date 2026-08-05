@@ -231,6 +231,109 @@ export function InlinePriority({
   );
 }
 
+export function InlineEstimate({
+  itemId,
+  backlogKey,
+  estimatePoints,
+  readOnly = false,
+}: {
+  itemId: string;
+  backlogKey: string;
+  estimatePoints: number | null;
+  readOnly?: boolean;
+}) {
+  const { error, pending, update } = useInlineUpdate(itemId, backlogKey);
+  const errorId = useId();
+  const [draft, setDraft] = useState(estimatePoints === null ? "" : String(estimatePoints));
+  const label = estimatePoints === null ? "Non estimé" : `${estimatePoints} pt`;
+
+  if (readOnly) {
+    return <span className={readOnlyClass}>{label}</span>;
+  }
+
+  return (
+    <EditorShell>
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (open) setDraft(estimatePoints === null ? "" : String(estimatePoints));
+        }}
+      >
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            disabled={pending}
+            aria-label={`Estimation : ${label}`}
+            aria-describedby={error ? errorId : undefined}
+            className={triggerClass}
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            {label}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          className="w-56 p-2"
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <form
+            className="flex items-end gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (draft.trim() === "") return;
+              update({ estimatePoints: Number(draft) });
+            }}
+          >
+            <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
+              Points
+              <input
+                type="number"
+                min={0}
+                max={999.99}
+                step={0.01}
+                value={draft}
+                disabled={pending}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => event.stopPropagation()}
+                className="w-full rounded border border-border bg-[var(--surface)] px-2 py-1 text-sm text-foreground outline-none focus:border-[var(--ring)]"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={pending || draft.trim() === ""}
+              aria-label="Enregistrer l’estimation"
+              className="rounded bg-[var(--primary)] px-2 py-1 text-xs text-white disabled:opacity-60"
+            >
+              Enregistrer
+            </button>
+          </form>
+          <div className="mt-2 grid grid-cols-6 gap-1" aria-label="Estimations rapides">
+            {[1, 2, 3, 5, 8, 13].map((points) => (
+              <DropdownMenuItem
+                key={points}
+                className="justify-center px-1"
+                disabled={pending}
+                onSelect={() => update({ estimatePoints: points })}
+              >
+                {points}
+              </DropdownMenuItem>
+            ))}
+          </div>
+          <button
+            type="button"
+            disabled={pending || estimatePoints === null}
+            onClick={() => update({ estimatePoints: null })}
+            className="mt-2 w-full rounded px-2 py-1 text-left text-xs text-muted-foreground hover:bg-[var(--muted)] disabled:opacity-60"
+          >
+            Effacer l’estimation
+          </button>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <InlineError id={errorId} error={error} />
+    </EditorShell>
+  );
+}
+
 export function InlineAssignee({
   itemId,
   backlogKey,
