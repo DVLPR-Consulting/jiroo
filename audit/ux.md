@@ -350,3 +350,54 @@ items d’un résultat paginé/virtualisé ; aucune commande bulk sprint/release
 la proximité visuelle entre l’icône bleue Tâche et une checkbox cochée mérite
 une vérification utilisateur, même si la vraie sélection est maintenant dans
 une colonne dédiée.
+
+## Planification par sprint — incrément 08 du 5 août 2026
+
+### Résultat observé
+
+- La vue Backlog sépare clairement sprint actif, sprints planifiés et backlog,
+  avec compteurs d'items, points, non estimés et capacité.
+- Une plage sélectionnée est affectée à un sprint en une action bulk ; l'ordre
+  et la section persistent après rechargement.
+- Les sections sont compactes et repliables. Le défaut où une nouvelle section
+  paraissait ouverte tout en masquant son contenu (`BUG-JIR-019`) est corrigé.
+- Le démarrage affiche objectif, dates et capacité, puis mène au Board qui ne
+  contient que le sprint actif. Sans sprint actif, le Board explique l'état au
+  lieu d'exposer le backlog comme travail engagé.
+- La clôture quantifie terminé/incomplet et exige une destination. Le report
+  vers un sprint planifié est visible immédiatement et reste historisé.
+- Un rejet réseau conserve le dialogue et les valeurs avec un message français
+  (`BUG-JIR-020`). Le lecteur voit les informations mais aucun contrôle.
+
+### Dette UX et écart Jira
+
+- Le drag direct Backlog → sprint est disponible et persistant. Sa collision
+  vers une section vide a dû être rendue prioritaire après un résultat
+  intermittent ; le sens inverse, les sections remplies et le clavier restent
+  à compléter dans Chromium.
+- Une tâche créée dans un sprint exige encore un Epic parent. Cette contrainte
+  n'existe pas pour une tâche standard Jira et alourdit artificiellement la
+  capture : le bouton reste désactivé sans explication centrale tant que le
+  parent manque.
+- La capacité et son dépassement sont recalculés immédiatement et prouvés dans
+  Chromium ; aucune recommandation n'est encore fondée sur la vélocité passée.
+- Le sprint actif accepte des changements, mais l'interface ne signale pas
+  encore clairement qu'ils modifient le scope engagé.
+- Aucun rapport ne permet d'expliquer engagement, terminé, ajouté, retiré ou
+  reporté. L'historique existe dans les données, pas dans l'expérience.
+- Releases/versions absentes : `Terminé` reste le dernier horizon visible alors
+  qu'il ne prouve ni publication ni livraison.
+
+### Recommandations prioritaires
+
+1. Compléter le drag entre toutes les sections et sa voie clavier, puis rendre
+   les changements du sprint actif explicitement marqués `Ajouté après
+   démarrage`.
+2. Autoriser une tâche sans Epic, tout en conservant le parentage comme option
+   rapide et filtrable.
+3. Construire le rapport de sprint depuis les événements : chaque métrique doit
+   ouvrir les items exacts qui la composent.
+4. Afficher vélocité et capacité ensemble pour éclairer l'engagement, jamais
+   comme une cible de performance individuelle.
+5. Ajouter les versions dans la même surface de planification et une page
+   release centrée sur la readiness réelle.

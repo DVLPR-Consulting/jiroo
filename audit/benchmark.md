@@ -339,3 +339,49 @@ La meilleure voie de différenciation reste une barre volontairement limitée,
 transactionnelle et explicable, puis l’ajout du sprint comme cinquième action.
 Ajouter des dizaines d’actions avant capacité, engagement et clôture diluerait
 la priorité produit.
+
+---
+
+# Benchmark — sprints, releases et reporting après incrément 08
+
+## Verdict
+
+Jiroo rejoint le socle Scrum de Jira sur le cycle principal : sprints futurs,
+objectif, dates, capacité, planification bulk, sprint actif unique, Board
+contextualisé et report des incomplets vers un sprint existant. Il ne rejoint
+pas encore Jira sur la **flexibilité** ni sur le **pilotage** : pas de drag entre
+sections, tâche toujours dépendante d'un Epic, aucun rapport de sprint,
+vélocité, burndown, version ou release.
+
+| Capacité | Jira observé dans la documentation | Jiroo observé | Verdict |
+|---|---|---|---|
+| Planification Backlog | ordre, multi-sélection et déplacement rapide vers Board/sprint | ordre, bulk et drag souris vers sprint persistants | socle proche ; raccourcis et scope actif en retrait |
+| Démarrage | nom, dates, objectif puis page du sprint actif | mêmes données, capacité explicite et Board actif | proche sur le flux principal |
+| Changement de scope | ajouts/retraits actifs tracés dans les rapports | membership historique partiel, aucun rapport | incomplet |
+| Clôture | incomplets vers Backlog ou nouveau sprint | Backlog, sprint existant et nouveau sprint prouvés ; sous-tâche ouverte bloquante | proche sur les destinations |
+| Rapport de sprint | terminé, incomplet, scope ajouté et estimations modifiées | aucun écran | manquant P0 |
+| Vélocité/burndown | historique engagé/terminé et restant dans le temps | aucun écran | manquant P0 |
+| Releases | versions, dates, responsable, progression, filtres et données de développement | aucun modèle visible | manquant P0 |
+
+Jira considère les ajouts et retraits après démarrage comme des changements de
+périmètre visibles dans les rapports. Son rapport distingue notamment les items
+terminés, incomplets, ajoutés et les estimations modifiées ; le burndown conserve
+un journal du scope. Ses versions ajoutent dates, responsable, progression,
+filtres et informations de développement. Jiroo doit conserver ces distinctions
+dans ses données avant de dessiner les graphiques.
+
+## Comment Jiroo pourrait faire mieux que Jira
+
+Jiroo ne gagnera pas en copiant la densité d'administration Jira. Il peut
+atteindre la même puissance décisionnelle avec des calculs explicables : chaque
+barre et point de courbe ouvre la liste exacte des items et événements qui le
+composent ; capacité, scope change et readiness sont visibles directement dans
+le Backlog ; une release ne peut jamais masquer une PR ouverte ou un déploiement
+absent. La simplicité n'est acceptable que si la couverture métier reste égale.
+
+Sources officielles Jira : [Backlog](https://support.atlassian.com/jira-software-cloud/docs/enable-the-backlog/),
+[démarrage et clôture](https://support.atlassian.com/jira-software-cloud/docs/plan-a-sprint/),
+[rapport de sprint](https://support.atlassian.com/jira-software-cloud/docs/view-and-understand-the-sprint-report/),
+[burndown](https://support.atlassian.com/jira-software-cloud/docs/what-is-the-sprint-burndown-report/),
+[catalogue des rapports](https://support.atlassian.com/jira-software-cloud/docs/generate-a-report/)
+et [releases/versions](https://support.atlassian.com/jira-software-cloud/docs/enable-releases-and-versions/).

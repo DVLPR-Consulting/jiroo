@@ -701,7 +701,7 @@ Les trois lignes observées sont création, `En cours à Audit preuve` et
 
 - **Gravité :** critique produit
 - **Priorité :** P0
-- **Statut :** partiellement corrigé — rang, estimation, sélection et bulk edit livrés ; sprints/releases restants
+- **Statut :** partiellement corrigé — backlog et cycle sprint principal livrés ; releases restantes
 - **Fonctionnalité :** backlog produit / triage / planification
 
 ### Étapes de reproduction
@@ -793,8 +793,8 @@ groupement est actif. Chromium a déplacé une tâche, observé un POST 200 en
 aucune erreur et toutes les réponses observées sont nominales.
 
 `BUG-JIR-015` reste partiellement ouvert : la sélection multiple et les actions
-groupées sont désormais validées dans Chromium, mais sprints/capacité et
-releases ne sont pas encore livrés.
+groupées sont désormais validées dans Chromium. Le cycle sprint principal est
+également livré à l'incrément 08 ; les releases ne sont pas encore livrées.
 
 ### Correction partielle complémentaire vérifiée — incrément 06 final
 
@@ -811,6 +811,24 @@ Preuves : [bulk](screenshots/FIXED-PARTIAL-BUG-JIR-015-bulk-edit.png),
 [points](screenshots/FIXED-PARTIAL-BUG-JIR-015-story-points.png),
 [rollback bulk](screenshots/EXPECTED-backlog-bulk-network-selection-retained.png)
 et [rollback classement](screenshots/EXPECTED-backlog-rank-network-rollback.png).
+
+### Correction partielle complémentaire vérifiée — incrément 08 sprints
+
+Chromium crée et planifie par drag ou bulk, calcule la capacité, démarre un
+sprint unique, limite le Board au périmètre actif, crée et déplace une tâche,
+puis clôture vers Backlog, sprint existant ou nouveau sprint. Une sous-tâche
+ouverte bloque atomiquement la clôture avec sa clé. Les rejets réseau de bulk,
+drag, démarrage et clôture conservent l'état utile. Le lecteur ne possède aucun
+contrôle de mutation. La matrice finale compte 7 scénarios passés en 29,4 s.
+
+`BUG-JIR-015` reste ouvert uniquement sur la partie releases/versions et sur le
+reporting de livraison associé. Les rapports de sprint sont une lacune P0
+distincte de pilotage, désormais inscrite à la roadmap.
+
+Preuves : [planification](screenshots/FIXED-PARTIAL-BUG-JIR-015-planification-sprint-bulk.png),
+[capacité](screenshots/FIXED-PARTIAL-BUG-JIR-015-capacite-depassee.png),
+[Board actif](screenshots/FIXED-PARTIAL-BUG-JIR-015-board-sprint-actif.png) et
+[variantes de clôture](screenshots/FIXED-PARTIAL-BUG-JIR-015-cloture-variantes.png).
 
 ## BUG-JIR-016 — Le classement Backlog provoque une divergence d’hydratation React
 
@@ -940,6 +958,205 @@ après chaque succès.
 
 Preuve : [état final sans menu](screenshots/FIXED-BUG-JIR-018-estimate-menu-closes.png).
 
+## BUG-JIR-019 — Un sprint créé après le rendu paraît ouvert mais masque ses tâches
+
+- **Gravité :** majeure
+- **Priorité :** P1
+- **Statut :** corrigé et vérifié le 5 août 2026
+- **Fonctionnalité :** Backlog / sections de sprint
+
+### Étapes de reproduction
+
+1. Ouvrir `/b/CASS?view=backlog` sans section `Sprint 1` déjà rendue.
+2. Cliquer sur `Créer un sprint`.
+3. Créer une tâche dans ce sprint depuis l'action contextuelle.
+4. Observer l'icône de section et chercher la nouvelle ligne.
+
+### Résultat obtenu et attendu
+
+L'en-tête affiche le chevron ouvert et le compteur augmente, mais le corps de
+la section reste absent. La tâche doit apparaître immédiatement dans une
+section dont l'état visuel et le contenu sont cohérents.
+
+### Impacts
+
+- **Utilisateur :** la création semble avoir échoué ou la tâche semble perdue.
+- **Métier :** perte de confiance au moment de préparer le sprint ; risque de
+  doublons créés pour compenser.
+- **Accessibilité :** l'état développé annoncé ne correspond pas au contenu.
+
+### Cause, correction et preuve
+
+L'en-tête calculait l'état initial avec `expanded[id] ?? true`, tandis que le
+corps testait directement `expanded[id]`. Un identifiant apparu après le rendu
+était donc visuellement ouvert mais logiquement fermé. La visibilité utilise
+maintenant le même défaut `true` partout, avec un test de régression. Le
+scénario Playwright de planification crée, replie, rouvre puis recharge la
+section avec les deux lignes visibles.
+
+Preuve : [section persistée](screenshots/FIXED-PARTIAL-BUG-JIR-015-planification-sprint-bulk.png),
+[console](console/2026-08-05-session-08-sprint-planning-console.log) et
+[réseau](network/2026-08-05-session-08-sprint-planning-requests.log).
+
+## BUG-JIR-020 — Un rejet réseau ferme le flux de démarrage sans explication exploitable
+
+- **Gravité :** majeure
+- **Priorité :** P1
+- **Statut :** corrigé et vérifié le 5 août 2026
+- **Fonctionnalité :** sprint / démarrage et clôture
+
+### Étapes de reproduction
+
+1. Ouvrir un sprint planifié dans le Backlog.
+2. Cliquer sur `Démarrer`, compléter le dialogue et confirmer.
+3. Interrompre le POST de la Server Action.
+
+### Résultat obtenu et attendu
+
+La promesse rejetée n'était pas interceptée par le dialogue : le composant
+perdait son flux contrôlé au lieu d'offrir une reprise. Le dialogue doit rester
+ouvert, expliquer l'échec, conserver les valeurs et ne modifier ni l'URL ni
+l'état du sprint.
+
+### Impacts
+
+- **Utilisateur :** doute sur le démarrage réel et ressaisie potentielle.
+- **Métier :** un responsable peut croire le sprint engagé alors qu'il reste
+  planifié ; support et risque d'exécution hors cycle.
+- **Données :** la transaction serveur reste sûre, mais l'UI ne le rendait pas
+  vérifiable.
+
+### Cause, correction et preuve
+
+Les composants traitaient les réponses `{ ok: false }`, mais pas les rejets de
+transport. Les deux Server Actions de cycle sont maintenant protégées par
+`try/catch` ; les messages `Démarrage impossible.` et `Clôture impossible.`
+restent dans leur dialogue. Playwright interrompt le POST de démarrage, vérifie
+le message et confirme directement que `state=planned` et `startedAt=null`.
+La clôture partage le correctif et son POST a également été interrompu dans
+Chromium : dialogue visible, message français et sprint toujours actif.
+
+Preuve : [capture](screenshots/EXPECTED-sprint-start-network-error.png),
+[console](console/2026-08-05-session-08-sprint-lifecycle-failure-console.log)
+et [requête interrompue](network/2026-08-05-session-08-sprint-lifecycle-failure-requests.log).
+
+## BUG-JIR-021 — L'icône du type pollue le nom accessible du bouton Créer
+
+- **Gravité :** mineure
+- **Priorité :** P2
+- **Statut :** corrigé et vérifié le 5 août 2026
+- **Fonctionnalité :** création contextuelle / accessibilité
+
+### Étapes de reproduction
+
+1. Depuis une section de sprint, ouvrir `Créer dans <sprint>`.
+2. Choisir le type `Tâche` ou `Composant`.
+3. Inspecter le nom accessible du bouton de soumission.
+
+### Résultat obtenu et attendu
+
+Le bouton était nommé `Tâche Créer` ou `Composant Créer`, car l'icône exposait
+son propre libellé. L'action doit être annoncée simplement `Créer`, le type
+étant déjà identifié par son champ.
+
+### Impacts
+
+- **Utilisateur :** commandes vocales et recherche par rôle/nom moins
+  prévisibles.
+- **Métier :** dette d'accessibilité sur une action fréquente.
+
+### Cause, correction et preuve
+
+Le composant `TypeIcon` participait au calcul du nom du bouton. Un
+`aria-label="Créer"` fixe désormais le nom public, couvert par un matcher
+strict et par le scénario Playwright de création contextuelle.
+
+Preuve fonctionnelle : [Board actif après création](screenshots/FIXED-PARTIAL-BUG-JIR-015-board-sprint-actif.png).
+
+## BUG-JIR-022 — Une section sprint vide n'est pas une cible DnD fiable
+
+- **Gravité :** critique
+- **Priorité :** P0
+- **Statut :** corrigé et vérifié le 5 août 2026
+- **Fonctionnalité :** Backlog / planification par drag
+
+### Étapes de reproduction
+
+1. Créer un sprint vide puis stabiliser la vue Backlog.
+2. Saisir une tâche par sa poignée et viser l'en-tête du sprint vide.
+3. Relâcher et répéter le scénario cinq fois en surveillant POST, DOM et base.
+
+### Résultat obtenu et attendu
+
+Avant correction, seulement deux répétitions sur cinq plaçaient la tâche visée
+dans le sprint. La collision pouvait conserver la ligne dans le Backlog ou
+choisir une ligne traversée, malgré un POST 200. La section réellement pointée
+doit être la destination autoritaire et la bonne tâche doit être persistée.
+
+### Impacts
+
+- **Utilisateur :** mauvaise tâche planifiée ou geste apparemment ignoré.
+- **Métier :** engagement de sprint incorrect et métriques de capacité fausses.
+- **Données :** une mutation nominale peut écrire un classement différent de
+  l'intention visible sans erreur HTTP.
+
+### Cause, correction et preuve
+
+La détection par recouvrement comparait le rectangle déplacé aux lignes
+traversées. Une stratégie dédiée utilise maintenant la position du pointeur :
+elle préfère une ligne précise lorsqu'elle est réellement pointée, sinon la
+section vide sous le pointeur ; le clavier conserve un fallback géométrique.
+Trois tests unitaires couvrent les priorités et Playwright obtient **5/5**
+placements corrects, puis reload et membership cohérents. Un échec réseau
+injecté restaure aussi DOM et base.
+
+Preuves : [état final](screenshots/FIXED-PARTIAL-BUG-JIR-015-planification-sprint-bulk.png),
+[rollback](screenshots/EXPECTED-sprint-planning-network-rollback.png),
+[console](console/2026-08-05-session-08-sprint-planning-console.log) et
+[réseau](network/2026-08-05-session-08-sprint-planning-requests.log).
+
+## BUG-JIR-023 — La collation SQL peut générer un rang déjà occupé et bloquer la création
+
+- **Gravité :** critique
+- **Priorité :** P0
+- **Statut :** corrigé et vérifié le 5 août 2026
+- **Fonctionnalité :** création / classement / persistance
+
+### Étapes de reproduction
+
+1. Obtenir dans un backlog des rangs fractionnels `aZ` et `aa` après plusieurs
+   replanifications.
+2. Créer une nouvelle tâche depuis le Board ou le Backlog.
+3. Observer le dialogue, la requête et l'index `items_backlog_rank_idx`.
+
+### Résultat obtenu et attendu
+
+PostgreSQL sélectionnait `aZ` comme dernier rang selon sa collation locale ; le
+générateur binaire produisait alors `aa`, déjà occupé. L'insert échouait sur
+l'index unique et l'UI affichait seulement `Création impossible.`. Le même ordre
+binaire doit être utilisé dans le navigateur, les services et toutes les
+requêtes SQL de rang.
+
+### Impacts
+
+- **Utilisateur :** création impossible après un historique de classement
+  pourtant valide.
+- **Métier :** blocage P0 du cycle de planification et risque de support
+  difficile à reproduire sur un backlog neuf.
+- **Données :** aucune corruption grâce à l'index, mais disponibilité perdue.
+
+### Cause, correction et preuve
+
+Les comparaisons JavaScript utilisaient déjà `<`/`>`, mais les `ORDER BY` et
+bounds SQL héritaient de la locale de la base. Un helper applique désormais
+`COLLATE "C"` à toutes les lectures, recherches de voisins et queues de rang
+items/sprints. Le test d'intégration reproduit exactement le conflit `aZ`/`aa` :
+RED avec contrainte `23505`, puis GREEN avec un rang strictement après `aa`.
+La matrice Playwright complète recrée ensuite toutes les tâches sans erreur.
+
+Preuve navigateur : [cycle nominal](screenshots/FIXED-PARTIAL-BUG-JIR-015-board-sprint-actif.png)
+et [console propre](console/2026-08-05-session-08-sprint-lifecycle-console.log).
+
 ## Diagnostics non classés comme bugs
 
 - Deux `POST /api/auth/two-factor/verify-totp` ont répondu `401 UNAUTHORIZED` lors de codes TOTP invalides générés par l'audit. Le troisième code, validé dans l'application d'authentification, a répondu 200. Le blocage et le message `Code invalide. Réessayez.` sont attendus.
@@ -981,7 +1198,12 @@ La première collecte de remédiation contient les deux 401 TOTP historiques de 
 | BUG-JIR-012 | annonces françaises avec clé/titre/statut, sans UUID | Vitest + inspection Playwright de `aria-live` ; NVDA/VoiceOver restant |
 | BUG-JIR-013 | CRUD/ordre/couleur, invariants, migration occupée et permissions lecteur | Vitest + Playwright admin/lecteur ; [capture admin](screenshots/FIXED-BUG-JIR-013-gestion-colonnes-admin.png) |
 | BUG-JIR-014 | références historiques remplacées par le nom avant suppression | Vitest + Playwright sur `CASS-60` ; [capture](screenshots/FIXED-BUG-JIR-014-activite-migration-libelles-metier.png) |
-| BUG-JIR-015 (partiel) | rang, estimation, sélection et bulk edit livrés ; sprints/releases restent ouverts | Vitest services/composants + 7 scénarios Chromium |
+| BUG-JIR-015 (partiel) | backlog et cycle sprint principal livrés ; releases restent ouvertes | Vitest services/composants + 14 scénarios Chromium PR1/PR2 |
 | BUG-JIR-016 | identifiant DnD stable entre SSR et client | Vitest + console Chromium sans erreur d’hydratation |
 | BUG-JIR-017 | comparaison binaire des rangs fractionnels | Vitest de régression + classement souris/clavier et reload |
 | BUG-JIR-018 | menu d’estimation fermé uniquement après succès | Vitest RED/GREEN + Playwright `5 → 0 → null` |
+| BUG-JIR-019 | état développé cohérent pour les sections apparues après rendu | Vitest + Playwright création/repli/reload |
+| BUG-JIR-020 | rejets transport interceptés, dialogue et données conservés | Vitest + Playwright POST interrompu + contrôle DB |
+| BUG-JIR-021 | nom accessible strict `Créer` malgré l'icône de type | Vitest + création contextuelle Playwright |
+| BUG-JIR-022 | collision pointeur priorisant ligne exacte ou section vide | Vitest + Playwright souris 5/5 + rollback |
+| BUG-JIR-023 | collation SQL binaire sur tous les rangs items/sprints | intégration PostgreSQL RED/GREEN + 7 scénarios Chromium |
