@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
+import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
 import {
   bulkUpdateItemsSchema,
   type BulkItemPatch,
@@ -56,6 +57,8 @@ function activityForPatch(
         oldValue: row.statusId,
         newValue: patch.value,
       };
+    case "sprintId":
+      throw new Error("Le patch sprint doit utiliser la transaction d’appartenance.");
   }
 }
 
@@ -81,6 +84,18 @@ export async function bulkUpdateItems(input: unknown, actorId: string) {
     }
     if (selected.some((row) => row.backlogId !== data.backlogId)) {
       throw new Error("Tous les items doivent appartenir au backlog.");
+    }
+
+    if (data.patch.field === "sprintId") {
+      return assignItemsToSprintInTx(
+        tx,
+        {
+          backlogId: data.backlogId,
+          itemIds: data.itemIds,
+          sprintId: data.patch.value,
+        },
+        actorId,
+      );
     }
 
     let destinationStatus:

@@ -20,6 +20,10 @@ export const bulkItemPatchSchema = z.discriminatedUnion("field", [
     value: z.string().min(1, "Assigné invalide.").nullable(),
   }),
   z.object({ field: z.literal("estimatePoints"), value: estimatePointsSchema }),
+  z.object({
+    field: z.literal("sprintId"),
+    value: z.uuid("Sprint invalide.").nullable(),
+  }),
 ]);
 
 export const bulkUpdateItemsSchema = z.object({

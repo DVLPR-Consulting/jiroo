@@ -4,6 +4,7 @@ import { bulkUpdateItemsSchema } from "@/lib/validation/bulk-item";
 const BACKLOG_ID = "11111111-1111-4111-8111-111111111111";
 const ITEM_ID = "22222222-2222-4222-9222-222222222222";
 const STATUS_ID = "33333333-3333-4333-8333-333333333333";
+const SPRINT_ID = "44444444-4444-4444-8444-444444444444";
 
 function input(patch: unknown, itemIds = [ITEM_ID]) {
   return { backlogId: BACKLOG_ID, itemIds, patch };
@@ -19,6 +20,8 @@ describe("bulkUpdateItemsSchema", () => {
       { field: "estimatePoints", value: 5 },
       { field: "estimatePoints", value: 0 },
       { field: "estimatePoints", value: null },
+      { field: "sprintId", value: SPRINT_ID },
+      { field: "sprintId", value: null },
     ]) {
       expect(bulkUpdateItemsSchema.safeParse(input(patch)).success).toBe(true);
     }
@@ -48,6 +51,7 @@ describe("bulkUpdateItemsSchema", () => {
       input({ field: "estimatePoints", value: -1 }),
       input({ field: "estimatePoints", value: 1.001 }),
       input({ field: "estimatePoints", value: 1000 }),
+      input({ field: "sprintId", value: "bad" }),
       input({ field: "unsupported", value: "x" }),
       input({ field: "priority" }),
     ]) {
