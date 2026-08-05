@@ -93,22 +93,26 @@ export function StartSprintDialog({
     event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await startSprintAction({
-        backlogKey,
-        backlogId,
-        id: sprint.id,
-        name,
-        goal: goal.trim() || null,
-        startAt: new Date(startAt).toISOString(),
-        endAt: new Date(endAt).toISOString(),
-        capacityPoints: capacity === "" ? null : Number(capacity),
-      });
-      if (!result.ok) {
-        setError(result.error);
-        return;
+      try {
+        const result = await startSprintAction({
+          backlogKey,
+          backlogId,
+          id: sprint.id,
+          name,
+          goal: goal.trim() || null,
+          startAt: new Date(startAt).toISOString(),
+          endAt: new Date(endAt).toISOString(),
+          capacityPoints: capacity === "" ? null : Number(capacity),
+        });
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        setOpen(false);
+        router.push(`/b/${backlogKey}?view=board`);
+      } catch {
+        setError("Démarrage impossible.");
       }
-      setOpen(false);
-      router.push(`/b/${backlogKey}?view=board`);
     });
   }
 
@@ -213,24 +217,28 @@ export function CompleteSprintDialog({
     setError(null);
     setItemKeys([]);
     startTransition(async () => {
-      const destinationInput = destination === "backlog"
-        ? ({ type: "backlog" } as const)
-        : destination === "new"
-          ? ({ type: "new_sprint", name: newSprintName } as const)
-          : ({ type: "existing_sprint", sprintId: destination.slice("existing:".length) } as const);
-      const result = await completeSprintAction({
-        backlogKey,
-        backlogId,
-        id: sprint.id,
-        destination: destinationInput,
-      });
-      if (!result.ok) {
-        setError(result.error);
-        if ("itemKeys" in result) setItemKeys(result.itemKeys ?? []);
-        return;
+      try {
+        const destinationInput = destination === "backlog"
+          ? ({ type: "backlog" } as const)
+          : destination === "new"
+            ? ({ type: "new_sprint", name: newSprintName } as const)
+            : ({ type: "existing_sprint", sprintId: destination.slice("existing:".length) } as const);
+        const result = await completeSprintAction({
+          backlogKey,
+          backlogId,
+          id: sprint.id,
+          destination: destinationInput,
+        });
+        if (!result.ok) {
+          setError(result.error);
+          if ("itemKeys" in result) setItemKeys(result.itemKeys ?? []);
+          return;
+        }
+        setOpen(false);
+        router.refresh();
+      } catch {
+        setError("Clôture impossible.");
       }
-      setOpen(false);
-      router.refresh();
     });
   }
 

@@ -98,6 +98,19 @@ describe("sprint lifecycle dialogs", () => {
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
+  it("reports a rejected start request without closing or navigating", async () => {
+    const user = userEvent.setup();
+    mocks.startSprintAction.mockRejectedValueOnce(new Error("network"));
+    render(<StartSprintDialog {...base} />);
+
+    await user.click(screen.getByRole("button", { name: "Démarrer Sprint paiement" }));
+    await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
+
+    expect(await screen.findByText("Démarrage impossible.")).toBeVisible();
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
   it("recalculates the over-capacity warning while capacity is edited", async () => {
     const user = userEvent.setup();
     render(<StartSprintDialog {...base} />);
@@ -184,5 +197,31 @@ describe("sprint lifecycle dialogs", () => {
     );
     expect(mocks.refresh).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("reports a rejected completion request and retains the destination", async () => {
+    const user = userEvent.setup();
+    mocks.completeSprintAction.mockRejectedValueOnce(new Error("network"));
+    const futureId = "44444444-4444-4444-8444-444444444444";
+    render(
+      <CompleteSprintDialog
+        {...base}
+        sprint={{ ...sprint, state: "active" }}
+        plannedSprints={[{ id: futureId, name: "Sprint suivant" }]}
+        completedMetrics={{ ...metrics, itemCount: 1, estimatedPoints: 5 }}
+        incompleteMetrics={{ ...metrics, itemCount: 2, estimatedPoints: 8 }}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Clôturer Sprint paiement" }));
+    const destination = screen.getByRole("combobox", {
+      name: "Destination des tâches incomplètes",
+    });
+    await user.selectOptions(destination, `existing:${futureId}`);
+    await user.click(screen.getByRole("button", { name: "Confirmer la clôture" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Clôture impossible.");
+    expect(destination).toHaveValue(`existing:${futureId}`);
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(mocks.refresh).not.toHaveBeenCalled();
   });
 });

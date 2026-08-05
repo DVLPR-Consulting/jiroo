@@ -381,7 +381,7 @@ export function NewItemButton({
           {error && <p className="t-sm text-destructive">{error}</p>}
 
           <DialogFooter>
-            <Button type="submit" disabled={submitDisabled}>
+            <Button type="submit" disabled={submitDisabled} aria-label="Créer">
               <TypeIcon type={type} size={14} />
               Créer
             </Button>

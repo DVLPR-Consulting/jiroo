@@ -65,6 +65,7 @@ describe("NewItemButton", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    expect(screen.getByRole("button", { name: /^Créer$/ })).toBeVisible();
     await user.type(screen.getByRole("textbox", { name: "Titre" }), "Carte créée");
     await user.click(screen.getByRole("button", { name: /Créer$/ }));
 
