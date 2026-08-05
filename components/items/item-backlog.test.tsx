@@ -316,6 +316,20 @@ describe("ItemBacklog", () => {
     geometry.mockRestore();
   });
 
+  it("keeps the global Backlog selection name and contextualizes sprint headers", () => {
+    render(<ItemBacklog {...sprintProps()} />);
+
+    expect(
+      screen.getByRole("checkbox", { name: "Sélectionner toutes les tâches visibles" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("checkbox", { name: "Sélectionner toutes les tâches de Sprint actif" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("checkbox", { name: "Sélectionner toutes les tâches de Sprint futur" }),
+    ).toBeVisible();
+  });
+
   it("restores section, aggregates, selection, and focus after a rejected cross-section move", async () => {
     const user = userEvent.setup();
     const geometry = mockBacklogGeometry();

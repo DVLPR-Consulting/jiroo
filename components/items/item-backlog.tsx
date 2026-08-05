@@ -770,7 +770,11 @@ function SectionTable({
                 type="checkbox"
                 checked={allVisibleSelected}
                 onChange={onToggleAll}
-                aria-label={`Sélectionner toutes les tâches de ${section.sprint?.name ?? "Backlog"}`}
+                aria-label={
+                  section.sprint
+                    ? `Sélectionner toutes les tâches de ${section.sprint.name}`
+                    : "Sélectionner toutes les tâches visibles"
+                }
                 className="size-4 cursor-pointer accent-[var(--primary)]"
               />
             </th>
@@ -922,6 +926,34 @@ function SprintItemBacklog({
     });
   }
 
+  const announcements = {
+    onDragStart({ active }: DragStartEvent) {
+      const item = visibleItems.find((candidate) => candidate.id === String(active.id));
+      return item ? `${item.key} saisi pour planification.` : "Tâche saisie pour planification.";
+    },
+    onDragOver({ active, over }: DragOverEvent) {
+      const item = visibleItems.find((candidate) => candidate.id === String(active.id));
+      const position = over
+        ? visibleItems.findIndex((candidate) => candidate.id === String(over.id)) + 1
+        : 0;
+      return item && position > 0
+        ? `${item.key}, position ${position} sur ${visibleItems.length}.`
+        : undefined;
+    },
+    onDragEnd({ active, over }: DragEndEvent) {
+      const item = visibleItems.find((candidate) => candidate.id === String(active.id));
+      const position = over
+        ? visibleItems.findIndex((candidate) => candidate.id === String(over.id)) + 1
+        : 0;
+      return item && position > 0
+        ? `${item.key} déposé en position ${position} sur ${visibleItems.length}.`
+        : "Planification annulée.";
+    },
+    onDragCancel() {
+      return "Planification annulée.";
+    },
+  };
+
   function sectionWithItems(
     section: SprintBacklogSection,
     nextItems: BacklogItem[],
@@ -1005,7 +1037,11 @@ function SprintItemBacklog({
       : null;
     setRenderedSections(nextSections);
     setMutationPending(true);
-    const mutation = sourceIndex === targetIndex
+    const sameSection = sourceIndex === targetIndex;
+    const failureMessage = sameSection
+      ? "Classement impossible."
+      : "Planification impossible.";
+    const mutation = sameSection
       ? rankItemAction({
           backlogKey,
           backlogId,
@@ -1025,7 +1061,7 @@ function SprintItemBacklog({
       .then((result) => {
         if (!result.ok) {
           setRenderedSections(rollback);
-          setRankError("Planification impossible.");
+          setRankError(failureMessage);
           restoreFocus(movedId);
           return;
         }
@@ -1033,7 +1069,7 @@ function SprintItemBacklog({
       })
       .catch(() => {
         setRenderedSections(rollback);
-        setRankError("Planification impossible.");
+        setRankError(failureMessage);
         restoreFocus(movedId);
       })
       .finally(() => setMutationPending(false));
@@ -1093,6 +1129,13 @@ function SprintItemBacklog({
         id={`sprint-backlog-${backlogId}`}
         sensors={sensors}
         collisionDetection={sprintBacklogCollisionDetection}
+        accessibility={{
+          announcements,
+          screenReaderInstructions: {
+            draggable:
+              "Appuyez sur espace pour saisir une tâche, utilisez les flèches verticales, puis espace pour déposer ou Échap pour annuler.",
+          },
+        }}
         onDragStart={manualOrder && canWrite ? handleDragStart : undefined}
         onDragEnd={manualOrder && canWrite ? handleDragEnd : undefined}
         onDragCancel={manualOrder && canWrite ? handleDragCancel : undefined}
