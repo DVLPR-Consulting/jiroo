@@ -1,4 +1,5 @@
 import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
+import { browseAccessPredicate } from "@/lib/auth/accessible-backlogs";
 import { db } from "@/lib/db";
 import { backlogs, items } from "@/lib/db/schema/domain";
 
@@ -24,7 +25,13 @@ export async function getShellCounts(userId: string): Promise<ShellCounts> {
       .select({ backlogKey: backlogs.key, count: count() })
       .from(items)
       .innerJoin(backlogs, eq(items.backlogId, backlogs.id))
-      .where(isNull(items.deletedAt))
+      .where(
+        and(
+          isNull(items.deletedAt),
+          isNull(backlogs.archivedAt),
+          browseAccessPredicate(userId),
+        ),
+      )
       .groupBy(backlogs.key),
     db
       .select({ count: count() })
@@ -35,9 +42,14 @@ export async function getShellCounts(userId: string): Promise<ShellCounts> {
           eq(items.assigneeId, userId),
           isNull(items.deletedAt),
           isNull(backlogs.archivedAt),
+          browseAccessPredicate(userId),
         ),
       ),
-    db.select({ count: count() }).from(items).where(isNotNull(items.deletedAt)),
+    db
+      .select({ count: count() })
+      .from(items)
+      .innerJoin(backlogs, eq(items.backlogId, backlogs.id))
+      .where(and(isNotNull(items.deletedAt), browseAccessPredicate(userId))),
   ]);
 
   return {

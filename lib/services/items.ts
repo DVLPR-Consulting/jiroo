@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { browseAccessPredicate } from "@/lib/auth/accessible-backlogs";
 import { db } from "@/lib/db";
 import { binaryTextOrder } from "@/lib/db/order";
 import { activities, backlogs, itemLabels, items, labels, statuses } from "@/lib/db/schema/domain";
@@ -20,11 +21,11 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type TrashedItem = Awaited<ReturnType<typeof listTrashedItems>>[number];
 
 /**
- * Returns all soft-deleted items across every backlog, ordered by deletion date
- * (most recent first), then by backlog name and item key for stable grouping.
- * Cross-backlog — admin only (enforced at the action layer).
+ * Returns soft-deleted items from backlogs the authenticated user may browse,
+ * ordered by deletion date (most recent first), then by backlog name and item
+ * key for stable grouping. Access is enforced in SQL before materialization.
  */
-export function listTrashedItems() {
+export function listTrashedItems(userId: string) {
   return db
     .select({
       id: items.id,
@@ -42,7 +43,7 @@ export function listTrashedItems() {
     .from(items)
     .innerJoin(backlogs, eq(items.backlogId, backlogs.id))
     .innerJoin(statuses, eq(items.statusId, statuses.id))
-    .where(isNotNull(items.deletedAt))
+    .where(and(isNotNull(items.deletedAt), browseAccessPredicate(userId)))
     .orderBy(desc(items.deletedAt), asc(backlogs.name), asc(items.key));
 }
 
@@ -54,13 +55,31 @@ export function listItems(backlogId: string) {
     .orderBy(asc(items.depth), asc(binaryTextOrder(items.rank)), asc(items.key));
 }
 
-export async function getItemById(id: string) {
-  const [row] = await db.select().from(items).where(and(eq(items.id, id), isNull(items.deletedAt)));
+export async function getItemByIdForBacklog(id: string, backlogId: string) {
+  const [row] = await db
+    .select()
+    .from(items)
+    .where(
+      and(
+        eq(items.id, id),
+        eq(items.backlogId, backlogId),
+        isNull(items.deletedAt),
+      ),
+    );
   return row ?? null;
 }
 
-export async function getItemByKey(key: string) {
-  const [row] = await db.select().from(items).where(and(eq(items.key, key), isNull(items.deletedAt)));
+export async function getItemByKeyForBacklog(key: string, backlogId: string) {
+  const [row] = await db
+    .select()
+    .from(items)
+    .where(
+      and(
+        eq(items.key, key),
+        eq(items.backlogId, backlogId),
+        isNull(items.deletedAt),
+      ),
+    );
   return row ?? null;
 }
 
@@ -128,6 +147,7 @@ export function listItemsAssignedTo(userId: string) {
         eq(items.assigneeId, userId),
         isNull(items.deletedAt),
         isNull(backlogs.archivedAt),
+        browseAccessPredicate(userId),
       ),
     )
     .orderBy(asc(backlogs.name), asc(binaryTextOrder(items.rank)), asc(items.key));

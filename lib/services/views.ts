@@ -1,6 +1,7 @@
-import { and, asc, eq, or } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, or } from "drizzle-orm";
+import { browseAccessPredicate } from "@/lib/auth/accessible-backlogs";
 import { db } from "@/lib/db";
-import { views } from "@/lib/db/schema/domain";
+import { backlogs, views } from "@/lib/db/schema/domain";
 import {
   canMutateView,
   partitionViews,
@@ -34,9 +35,15 @@ export type { ViewRow };
  */
 export async function listVisibleViews(userId: string) {
   return db
-    .select()
+    .select(getTableColumns(views))
     .from(views)
-    .where(or(eq(views.ownerId, userId), eq(views.shared, true)))
+    .innerJoin(backlogs, eq(views.backlogId, backlogs.id))
+    .where(
+      and(
+        or(eq(views.ownerId, userId), eq(views.shared, true)),
+        browseAccessPredicate(userId),
+      ),
+    )
     .orderBy(asc(views.name));
 }
 
@@ -51,12 +58,14 @@ export async function listViews(
   userId: string,
 ): Promise<{ personal: ViewRow[]; shared: ViewRow[] }> {
   const rows = await db
-    .select()
+    .select(getTableColumns(views))
     .from(views)
+    .innerJoin(backlogs, eq(views.backlogId, backlogs.id))
     .where(
       and(
         eq(views.backlogId, backlogId),
         or(eq(views.ownerId, userId), eq(views.shared, true)),
+        browseAccessPredicate(userId),
       ),
     )
     .orderBy(asc(views.name));
@@ -65,8 +74,19 @@ export async function listViews(
 }
 
 /** Returns the view row for `id`, or `null` if it does not exist. */
-export async function getViewById(id: string) {
-  const [row] = await db.select().from(views).where(eq(views.id, id));
+export async function getViewByIdForUser(id: string, userId: string) {
+  const [row] = await db
+    .select(getTableColumns(views))
+    .from(views)
+    .innerJoin(backlogs, eq(views.backlogId, backlogs.id))
+    .where(
+      and(
+        eq(views.id, id),
+        or(eq(views.ownerId, userId), eq(views.shared, true)),
+        browseAccessPredicate(userId),
+      ),
+    )
+    .limit(1);
   return row ?? null;
 }
 

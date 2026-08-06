@@ -1,4 +1,8 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
+import {
+  browseAccessPredicate,
+  listAccessibleBacklogs,
+} from "@/lib/auth/accessible-backlogs";
 import { db } from "@/lib/db";
 import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
 import { STATUS_CATEGORY, type StatusId } from "@/lib/design/constants";
@@ -13,16 +17,30 @@ export const DEFAULT_STATUSES: { id: StatusId; name: string; color: string }[] =
   { id: "done", name: "Terminé", color: "#3aa675" },
 ];
 
-export function listBacklogs(opts?: { includeArchived?: boolean }) {
-  return db
-    .select()
-    .from(backlogs)
-    .where(opts?.includeArchived ? undefined : isNull(backlogs.archivedAt))
-    .orderBy(asc(backlogs.name));
+export function listBacklogsForUser(
+  userId: string,
+  opts?: { includeArchived?: boolean },
+) {
+  return listAccessibleBacklogs(userId, opts);
 }
 
-export async function getBacklogByKey(key: string) {
-  const [b] = await db.select().from(backlogs).where(eq(backlogs.key, key.toUpperCase()));
+export async function getBacklogByKeyForUser(key: string, userId: string) {
+  const [b] = await db
+    .select({
+      id: backlogs.id,
+      key: backlogs.key,
+      name: backlogs.name,
+      color: backlogs.color,
+      archivedAt: backlogs.archivedAt,
+    })
+    .from(backlogs)
+    .where(
+      and(
+        eq(backlogs.key, key.toUpperCase()),
+        browseAccessPredicate(userId),
+      ),
+    )
+    .limit(1);
   return b ?? null;
 }
 

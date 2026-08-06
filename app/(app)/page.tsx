@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { requireAppPageSession } from "@/lib/auth/session";
-import { listBacklogs } from "@/lib/services/backlogs";
+import { listBacklogsForUser } from "@/lib/services/backlogs";
 
 export default async function AppIndex() {
-  await requireAppPageSession();
-  const [first] = await listBacklogs();
+  const session = await requireAppPageSession();
+  const [first] = await listBacklogsForUser(session.user.id);
   if (first) redirect(`/b/${first.key}`);
   return (
     <div className="grid h-full place-items-center p-10 text-center">

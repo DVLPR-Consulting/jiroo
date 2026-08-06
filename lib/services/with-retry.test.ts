@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { withRetry } from "@/lib/services/items";
 
+vi.mock("server-only", () => ({}));
+
 describe("withRetry", () => {
   it("retries on a retryable PG code then succeeds", async () => {
     const fn = vi.fn();

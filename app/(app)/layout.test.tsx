@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   authGetSession: vi.fn(),
   headers: vi.fn(),
   redirect: vi.fn(),
-  listBacklogs: vi.fn(),
+  listBacklogsForUser: vi.fn(),
   listVisibleViews: vi.fn(),
   unreadCount: vi.fn(),
   listRecentNotifications: vi.fn(),
@@ -16,7 +16,9 @@ vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: mocks.authGetSession } },
 }));
-vi.mock("@/lib/services/backlogs", () => ({ listBacklogs: mocks.listBacklogs }));
+vi.mock("@/lib/services/backlogs", () => ({
+  listBacklogsForUser: mocks.listBacklogsForUser,
+}));
 vi.mock("@/lib/services/views", () => ({ listVisibleViews: mocks.listVisibleViews }));
 vi.mock("@/lib/services/notifications", () => ({
   unreadCount: mocks.unreadCount,
@@ -62,7 +64,7 @@ describe("AppLayout 2FA access guard", () => {
     mocks.redirect.mockImplementation((destination: string) => {
       throw new Error(`redirect:${destination}`);
     });
-    mocks.listBacklogs.mockResolvedValue([]);
+    mocks.listBacklogsForUser.mockResolvedValue([]);
     mocks.listVisibleViews.mockResolvedValue([]);
     mocks.unreadCount.mockResolvedValue(0);
     mocks.listRecentNotifications.mockResolvedValue([]);
@@ -74,7 +76,7 @@ describe("AppLayout 2FA access guard", () => {
 
     await expect(AppLayout({ children: null })).rejects.toThrow("redirect:/2fa/enroll");
     expect(mocks.redirect).toHaveBeenCalledWith("/2fa/enroll");
-    expect(mocks.listBacklogs).not.toHaveBeenCalled();
+    expect(mocks.listBacklogsForUser).not.toHaveBeenCalled();
   });
 
   it("loads the shell for a fully enrolled session", async () => {
@@ -82,6 +84,6 @@ describe("AppLayout 2FA access guard", () => {
 
     await expect(AppLayout({ children: null })).resolves.toBeTruthy();
     expect(mocks.redirect).not.toHaveBeenCalled();
-    expect(mocks.listBacklogs).toHaveBeenCalledTimes(1);
+    expect(mocks.listBacklogsForUser).toHaveBeenCalledWith("user-1");
   });
 });

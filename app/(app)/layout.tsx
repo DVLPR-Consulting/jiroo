@@ -1,5 +1,5 @@
 import { requireAppPageSession } from "@/lib/auth/session";
-import { listBacklogs } from "@/lib/services/backlogs";
+import { listBacklogsForUser } from "@/lib/services/backlogs";
 import { listVisibleViews } from "@/lib/services/views";
 import { unreadCount, listRecentNotifications } from "@/lib/services/notifications";
 import { getShellCounts } from "@/lib/services/shell";
@@ -10,7 +10,7 @@ import { Topbar } from "@/components/shell/topbar";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAppPageSession();
   const [backlogs, views, notifCount, notifications, counts] = await Promise.all([
-    listBacklogs(),
+    listBacklogsForUser(session.user.id),
     listVisibleViews(session.user.id),
     unreadCount(session.user.id),
     listRecentNotifications(session.user.id),

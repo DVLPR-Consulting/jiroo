@@ -2,8 +2,9 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
 import { items as itemRowsTable, statuses } from "@/lib/db/schema/domain";
-import { getBacklogByKey } from "@/lib/services/backlogs";
+import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
 import {
   listItemLabelPairs,
   listItems,
@@ -24,8 +25,7 @@ import {
 } from "@/lib/items/filter";
 import { PRIORITY_LABELS } from "@/lib/design/constants";
 import { requireAppPageSession } from "@/lib/auth/session";
-import { canWriteItems, type Role } from "@/lib/auth/rbac";
-import { getViewById } from "@/lib/services/views";
+import { getViewByIdForUser } from "@/lib/services/views";
 import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
 import { ViewBar } from "@/components/shell/view-bar";
 import { GroupControl } from "@/components/shell/group-control";
@@ -79,21 +79,24 @@ export async function BacklogViewContent({
 
   const session = await requireAppPageSession();
   const userId = session.user.id;
-  const role = (session.user as { role?: Role }).role;
-  const canWrite = role ? canWriteItems(role) : false;
 
   const VIEWS = ["backlog", "board", "list", "tree"] as const;
   const view = (VIEWS as readonly string[]).includes(rawView ?? "")
     ? (rawView as string)
     : "board";
 
-  const backlog = await getBacklogByKey(key);
+  const backlog = await getBacklogByKeyForUser(key, userId);
   if (!backlog || backlog.archivedAt) notFound();
+  const capabilities = await getBacklogCapabilities(userId, backlog.id);
+  if (!capabilities) notFound();
+  // Preserve the existing coarse downstream write contract with an effective
+  // capability; create and workflow already consume their exact booleans.
+  const canWrite = capabilities.editItems;
 
   // Load and validate the active saved view from ?v=.
   // A stale, foreign, or inaccessible view id is silently treated as "no active view".
   const v = firstSearchParam(sp.v);
-  const rawActiveView = v ? await getViewById(v) : null;
+  const rawActiveView = v ? await getViewByIdForUser(v, userId) : null;
   const activeViewRow =
     rawActiveView &&
     rawActiveView.backlogId === backlog.id &&
@@ -454,7 +457,7 @@ export async function BacklogViewContent({
             sort={viewState.sort}
           />
         }
-        workflowSlot={view === "board" && role === "admin" ? (
+        workflowSlot={view === "board" && capabilities.manageWorkflow ? (
           <StatusManagerDialog
             key={statusList.map((status) => `${status.id}:${status.order}:${status.name}:${status.category}:${status.itemCount}`).join("|")}
             backlogId={backlog.id}
@@ -462,7 +465,7 @@ export async function BacklogViewContent({
             statuses={statusList}
           />
         ) : null}
-        newItemSlot={canWrite && (view !== "board" || activeSprint !== null) ? (
+        newItemSlot={capabilities.createItems && (view !== "board" || activeSprint !== null) ? (
           <NewItemButton
             backlogKey={backlog.key}
             {...createDialogProps}

@@ -1,4 +1,5 @@
 import { and, asc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
+import { browseAccessPredicate } from "@/lib/auth/accessible-backlogs";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { backlogs, items, statuses } from "@/lib/db/schema/domain";
@@ -40,7 +41,11 @@ export type SearchResult = {
 //   - ORDER: key-prefix matches first, then ts_rank (desc), then key (asc).
 // ---------------------------------------------------------------------------
 
-export async function searchItems(rawQuery: string, limit = 20): Promise<SearchResult[]> {
+export async function searchItems(
+  userId: string,
+  rawQuery: string,
+  limit = 20,
+): Promise<SearchResult[]> {
   if (isBlankQuery(rawQuery)) return [];
 
   const tsq = toPrefixTsQuery(rawQuery);
@@ -77,7 +82,14 @@ export async function searchItems(rawQuery: string, limit = 20): Promise<SearchR
     .innerJoin(backlogs, sql`${items.backlogId} = ${backlogs.id}`)
     .innerJoin(statuses, sql`${items.statusId} = ${statuses.id}`)
     .leftJoin(user, eq(items.assigneeId, user.id))
-    .where(and(isNull(items.deletedAt), textOrKeyCondition))
+    .where(
+      and(
+        isNull(items.deletedAt),
+        isNull(backlogs.archivedAt),
+        browseAccessPredicate(userId),
+        textOrKeyCondition,
+      ),
+    )
     .limit(limit);
 
   if (tsq === "") {
@@ -92,7 +104,10 @@ export async function searchItems(rawQuery: string, limit = 20): Promise<SearchR
   );
 }
 
-export async function recentItems(keys: string[]): Promise<SearchResult[]> {
+export async function recentItems(
+  userId: string,
+  keys: string[],
+): Promise<SearchResult[]> {
   // Keep this DAL primitive bounded even when called outside its server action.
   const requestedKeys = readRecentKeys(JSON.stringify(keys));
   if (requestedKeys.length === 0) return [];
@@ -118,6 +133,7 @@ export async function recentItems(keys: string[]): Promise<SearchResult[]> {
         inArray(items.key, requestedKeys),
         isNull(items.deletedAt),
         isNull(backlogs.archivedAt),
+        browseAccessPredicate(userId),
       ),
     );
 

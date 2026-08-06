@@ -2,11 +2,35 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
+import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
 import { user } from "@/lib/db/schema/auth";
-import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
-import { updateBacklog } from "@/lib/services/backlogs";
+import {
+  activities,
+  backlogs,
+  items,
+  permissionGrants,
+  statuses,
+} from "@/lib/db/schema/domain";
+import {
+  getBacklogByKeyForUser,
+  listBacklogsForUser,
+  updateBacklog,
+} from "@/lib/services/backlogs";
+import { listItemsAssignedTo, listTrashedItems } from "@/lib/services/items";
+import { listRecentNotifications, unreadCount } from "@/lib/services/notifications";
+import {
+  createReadVisibilityFixture,
+  deleteReadVisibilityFixture,
+} from "@/lib/services/read-visibility.integration-fixture";
+import {
+  getViewByIdForUser,
+  listVisibleViews,
+  listViews,
+} from "@/lib/services/views";
+
+vi.mock("server-only", () => ({}));
 
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 
@@ -162,6 +186,100 @@ describeDb("updateBacklog transaction", () => {
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlog.id));
       await db.delete(backlogs).where(eq(backlogs.id, conflict!.id));
+    }
+  });
+});
+
+describeDb("browse-filtered product reads", () => {
+  it("hides inaccessible backlogs, mine, trash, views, and notifications", async () => {
+    const fixture = await createReadVisibilityFixture("Lectures produit");
+
+    try {
+      await expect(listBacklogsForUser(fixture.actorA)).resolves.toEqual([
+        expect.objectContaining({ id: fixture.backlogA.id }),
+      ]);
+      await expect(listBacklogsForUser(fixture.actorB)).resolves.toEqual([
+        expect.objectContaining({ id: fixture.backlogB.id }),
+      ]);
+      expect((await listBacklogsForUser(fixture.admin)).map((row) => row.id)).toEqual(
+        expect.arrayContaining([fixture.backlogA.id, fixture.backlogB.id]),
+      );
+      expect(
+        (await listBacklogsForUser(fixture.platformAdmin)).map((row) => row.id),
+      ).toEqual(expect.arrayContaining([fixture.backlogA.id, fixture.backlogB.id]));
+
+      await expect(
+        getBacklogByKeyForUser(fixture.backlogB.key, fixture.actorA),
+      ).resolves.toBeNull();
+      await expect(
+        getBacklogByKeyForUser(fixture.backlogB.key, fixture.admin),
+      ).resolves.toMatchObject({ id: fixture.backlogB.id });
+
+      await db.insert(permissionGrants).values({
+        scope: "backlog",
+        permissionSchemeId: fixture.schemeIds[0],
+        permissionKey: "create_items",
+        principalType: "user",
+        userId: fixture.actorA,
+      });
+      await expect(
+        getBacklogCapabilities(fixture.actorA, fixture.backlogA.id),
+      ).resolves.toEqual({
+        createItems: true,
+        editItems: false,
+        transitionItems: false,
+        scheduleItems: false,
+        assignItems: false,
+        manageSprints: false,
+        manageWorkflow: false,
+        manageMembers: false,
+      });
+      await expect(
+        getBacklogCapabilities(fixture.actorA, fixture.backlogB.id),
+      ).resolves.toBeNull();
+      await expect(
+        getBacklogCapabilities(fixture.admin, fixture.backlogB.id),
+      ).resolves.toEqual({
+        createItems: true,
+        editItems: true,
+        transitionItems: true,
+        scheduleItems: true,
+        assignItems: true,
+        manageSprints: true,
+        manageWorkflow: true,
+        manageMembers: true,
+      });
+
+      await expect(listItemsAssignedTo(fixture.actorA)).resolves.toEqual([
+        expect.objectContaining({ id: fixture.liveA.id, backlogId: fixture.backlogA.id }),
+      ]);
+      await expect(listTrashedItems(fixture.actorA)).resolves.toEqual([
+        expect.objectContaining({ id: fixture.trashA.id }),
+      ]);
+      expect((await listTrashedItems(fixture.admin)).map((row) => row.id)).toEqual(
+        expect.arrayContaining([fixture.trashA.id, fixture.trashB.id]),
+      );
+
+      await expect(listVisibleViews(fixture.actorA)).resolves.toEqual([
+        expect.objectContaining({ id: fixture.viewA.id, backlogId: fixture.backlogA.id }),
+      ]);
+      await expect(listViews(fixture.backlogB.id, fixture.actorA)).resolves.toEqual({
+        personal: [],
+        shared: [],
+      });
+      await expect(getViewByIdForUser(fixture.viewB.id, fixture.actorA)).resolves.toBeNull();
+      expect((await listVisibleViews(fixture.admin)).map((row) => row.id)).toEqual(
+        expect.arrayContaining([fixture.viewA.id, fixture.viewB.id]),
+      );
+
+      await expect(unreadCount(fixture.actorA)).resolves.toBe(1);
+      await expect(listRecentNotifications(fixture.actorA, 1)).resolves.toEqual([
+        expect.objectContaining({ itemKey: fixture.liveA.key, backlogKey: fixture.backlogA.key }),
+      ]);
+      await expect(unreadCount(fixture.admin)).resolves.toBe(2);
+      await expect(unreadCount(fixture.platformAdmin)).resolves.toBe(2);
+    } finally {
+      await deleteReadVisibilityFixture(fixture);
     }
   });
 });

@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   updateItemAction: vi.fn(),
-  getItemByKey: vi.fn(),
+  getItemByKeyForBacklog: vi.fn(),
   getItemLabelIds: vi.fn(),
   listActivities: vi.fn(),
   listComments: vi.fn(),
@@ -65,7 +65,7 @@ vi.mock("@/lib/toast", () => ({
 }));
 
 vi.mock("@/lib/services/items", () => ({
-  getItemByKey: mocks.getItemByKey,
+  getItemByKeyForBacklog: mocks.getItemByKeyForBacklog,
   getItemLabelIds: mocks.getItemLabelIds,
   listActivities: mocks.listActivities,
 }));
@@ -315,7 +315,7 @@ describe("ItemDetailPanel header", () => {
 
 describe("ItemDetailContent parent resolution", () => {
   it("derives the parent breadcrumb from the items already loaded by the view", async () => {
-    mocks.getItemByKey.mockResolvedValueOnce(detail);
+    mocks.getItemByKeyForBacklog.mockResolvedValueOnce(detail);
     mocks.getItemLabelIds.mockResolvedValueOnce([]);
     mocks.listActivities.mockResolvedValueOnce([]);
     mocks.listComments.mockResolvedValueOnce([]);
@@ -339,7 +339,6 @@ describe("ItemDetailContent parent resolution", () => {
         name: "Caisse",
         color: "#475569",
         archivedAt: null,
-        createdAt: new Date("2026-08-01T09:00:00.000Z"),
       },
       users: baseProps.users,
       statuses: [
@@ -362,6 +361,10 @@ describe("ItemDetailContent parent resolution", () => {
       </ViewUrlStateProvider>,
     );
 
+    expect(mocks.getItemByKeyForBacklog).toHaveBeenCalledWith(
+      detail.key,
+      detail.backlogId,
+    );
     expect(screen.getByRole("navigation", { name: "Fil d’Ariane" })).toHaveTextContent(
       "PARENT-1 / CASS-2",
     );

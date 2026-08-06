@@ -8,7 +8,6 @@ import { user } from "@/lib/db/schema/auth";
 import { backlogs, views } from "@/lib/db/schema/domain";
 import {
   deleteView,
-  getViewById,
   renameView,
   setShared,
   updateView,
@@ -23,6 +22,11 @@ const managerId = `views-manager-${fixtureId}`;
 
 let backlogId = "";
 let viewId = "";
+
+async function readFixtureView(id: string) {
+  const [row] = await db.select().from(views).where(eq(views.id, id));
+  return row ?? null;
+}
 
 const viewState = {
   displayMode: "board" as const,
@@ -108,7 +112,7 @@ describeDb("shared view mutation override", () => {
   ])(
     "rejects a stale shared proof before $operation when the locked row became private",
     async ({ mutate }) => {
-      const staleProof = await getViewById(viewId);
+      const staleProof = await readFixtureView(viewId);
       expect(staleProof).toMatchObject({ shared: true, ownerId });
 
       await db.update(views).set({ shared: false }).where(eq(views.id, viewId));
@@ -116,7 +120,7 @@ describeDb("shared view mutation override", () => {
       await expect(mutate()).rejects.toThrow(
         "Action réservée au propriétaire de la vue.",
       );
-      await expect(getViewById(viewId)).resolves.toMatchObject({
+      await expect(readFixtureView(viewId)).resolves.toMatchObject({
         shared: false,
         ownerId,
       });

@@ -4,7 +4,12 @@ import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { backlogs, statuses } from "@/lib/db/schema/domain";
 import { createBacklog } from "@/lib/services/backlogs";
-import { createItem, getItemById, listActivities, moveItem } from "@/lib/services/items";
+import {
+  createItem,
+  getItemByIdForBacklog,
+  listActivities,
+  moveItem,
+} from "@/lib/services/items";
 
 let passed = 0;
 let failed = 0;
@@ -108,7 +113,7 @@ async function main() {
     // --- no-op: moveItem on E2 with its SAME status and no neighbors that change its rank.
     // E2 keeps its current statusId and gets no neighbors → rankAtDrop appends against the live
     // tail; E2 is already the group tail here, so its rank is unchanged → no new activity.
-    const e2Cur = await getItemById(e2.id);
+    const e2Cur = await getItemByIdForBacklog(e2.id, tb.id);
     if (!e2Cur) throw new Error("E2 introuvable pour le test no-op.");
     const noopActsBefore = (await listActivities(e2.id)).length;
     const noop = await moveItem({ id: e2.id, statusId: e2Cur.statusId }, actorId);

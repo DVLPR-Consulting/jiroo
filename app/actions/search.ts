@@ -27,23 +27,23 @@ async function requireUser(): Promise<string> {
 // ---------------------------------------------------------------------------
 
 export async function searchAction(query: string) {
-  await requireUser();
+  const userId = await requireUser();
   try {
-    return { ok: true as const, results: await searchItems(query) };
+    return { ok: true as const, results: await searchItems(userId, query) };
   } catch {
     return { ok: false as const, error: "Recherche impossible." };
   }
 }
 
 export async function recentItemsAction(keys: string[]) {
-  await requireUser();
+  const userId = await requireUser();
   const parsed = recentKeysSchema.safeParse(keys);
   if (!parsed.success) {
     return { ok: false as const, error: "Recherche impossible." };
   }
 
   try {
-    return { ok: true as const, results: await recentItems(parsed.data) };
+    return { ok: true as const, results: await recentItems(userId, parsed.data) };
   } catch {
     return { ok: false as const, error: "Recherche impossible." };
   }

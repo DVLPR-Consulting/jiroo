@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, eq, exists, isNull, or, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { checkPermission } from "@/lib/auth/authorization";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
@@ -29,7 +30,7 @@ const browseMembership = alias(groupMembers, "accessible_browse_membership");
 const roleActor = alias(backlogRoleActors, "accessible_role_actor");
 const roleMembership = alias(groupMembers, "accessible_role_membership");
 
-function browseAccessPredicate(userId: string): SQL {
+export function browseAccessPredicate(userId: string): SQL {
   const adminMembershipExists = exists(
     db
       .select({ id: adminMembership.id })
@@ -125,6 +126,52 @@ function browseAccessPredicate(userId: string): SQL {
         ),
       ),
   );
+}
+
+export type BacklogCapabilities = {
+  createItems: boolean;
+  editItems: boolean;
+  transitionItems: boolean;
+  scheduleItems: boolean;
+  assignItems: boolean;
+  manageSprints: boolean;
+  manageWorkflow: boolean;
+  manageMembers: boolean;
+};
+
+const CAPABILITY_PERMISSIONS = {
+  createItems: "create_items",
+  editItems: "edit_items",
+  transitionItems: "transition_items",
+  scheduleItems: "schedule_items",
+  assignItems: "assign_items",
+  manageSprints: "manage_sprints",
+  manageWorkflow: "manage_workflows",
+  manageMembers: "manage_members",
+} as const;
+
+export async function getBacklogCapabilities(
+  userId: string,
+  backlogId: string,
+): Promise<BacklogCapabilities | null> {
+  const browse = await checkPermission({
+    actorId: userId,
+    permission: "browse_backlog",
+    scope: { type: "backlog", backlogId },
+  });
+  if (!browse.allowed) return null;
+
+  const entries = await Promise.all(
+    Object.entries(CAPABILITY_PERMISSIONS).map(async ([capability, permission]) => {
+      const decision = await checkPermission({
+        actorId: userId,
+        permission,
+        scope: { type: "backlog", backlogId },
+      });
+      return [capability, decision.allowed] as const;
+    }),
+  );
+  return Object.fromEntries(entries) as BacklogCapabilities;
 }
 
 export async function listAccessibleBacklogIds(userId: string): Promise<string[]> {
