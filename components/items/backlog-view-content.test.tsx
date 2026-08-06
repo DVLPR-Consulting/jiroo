@@ -150,6 +150,7 @@ describe("BacklogViewContent read boundary", () => {
         canScheduleItems: false,
         canAssignItems: true,
         canManageSprints: false,
+        canBulkChangeItems: true,
       },
     },
     {
@@ -160,6 +161,7 @@ describe("BacklogViewContent read boundary", () => {
         canEditItems: false,
         canTransitionItems: true,
         canAssignItems: true,
+        canBulkChangeItems: true,
       },
     },
     {
@@ -197,6 +199,7 @@ describe("BacklogViewContent read boundary", () => {
       manageSprints: false,
       manageWorkflow: true,
       manageMembers: false,
+      bulkChangeItems: true,
     });
 
     render(
@@ -227,6 +230,7 @@ describe("BacklogViewContent read boundary", () => {
       manageSprints: false,
       manageWorkflow: false,
       manageMembers: false,
+      bulkChangeItems: true,
     });
 
     render(

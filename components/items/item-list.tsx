@@ -232,7 +232,7 @@ function ItemRow({
           backlogKey={backlogKey}
           statusId={item.statusId}
           statuses={statuses}
-          readOnly={!canTransitionItems}
+          readOnly={!canEditItems || !canTransitionItems}
         />
       </td>
       <td className={CELL_CLASS} onClick={(event) => event.stopPropagation()}>
@@ -275,7 +275,7 @@ function ItemRow({
           backlogKey={backlogKey}
           assigneeId={item.assigneeId}
           users={users}
-          readOnly={!canAssignItems}
+          readOnly={!canEditItems || !canAssignItems}
         />
       </td>
     </tr>
@@ -299,6 +299,7 @@ export function ItemList({
   canEditItems = true,
   canTransitionItems = true,
   canAssignItems = true,
+  canBulkChangeItems = true,
 }: {
   groups: Group[];
   grouped: boolean;
@@ -316,6 +317,7 @@ export function ItemList({
   canEditItems?: boolean;
   canTransitionItems?: boolean;
   canAssignItems?: boolean;
+  canBulkChangeItems?: boolean;
 }) {
   const router = useRouter();
   const viewUrl = useViewUrlState();
@@ -345,7 +347,8 @@ export function ItemList({
   const allSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selection.selectedIds.has(id));
   const partlySelected = selection.selectedIds.size > 0 && !allSelected;
-  const canSelectItems = canEditItems || canTransitionItems || canAssignItems;
+  const canSelectItems =
+    canBulkChangeItems && (canEditItems || canTransitionItems || canAssignItems);
 
   function toggleSelection(id: string, extendRange: boolean) {
     setSelection((current) =>
@@ -537,6 +540,7 @@ export function ItemList({
           canTransitionItems={canTransitionItems}
           canAssignItems={canAssignItems}
           canScheduleItems={false}
+          canBulkChangeItems={canBulkChangeItems}
           onClearSelection={() => setSelection(emptySelection())}
           onMutationSuccess={() => router.refresh()}
         />

@@ -137,6 +137,7 @@ export type BacklogCapabilities = {
   manageSprints: boolean;
   manageWorkflow: boolean;
   manageMembers: boolean;
+  bulkChangeItems: boolean;
 };
 
 const CAPABILITY_PERMISSIONS = {
@@ -161,17 +162,27 @@ export async function getBacklogCapabilities(
   });
   if (!browse.allowed) return null;
 
-  const entries = await Promise.all(
-    Object.entries(CAPABILITY_PERMISSIONS).map(async ([capability, permission]) => {
-      const decision = await checkPermission({
-        actorId: userId,
-        permission,
-        scope: { type: "backlog", backlogId },
-      });
-      return [capability, decision.allowed] as const;
+  const [entries, bulkDecision] = await Promise.all([
+    Promise.all(
+      Object.entries(CAPABILITY_PERMISSIONS).map(async ([capability, permission]) => {
+        const decision = await checkPermission({
+          actorId: userId,
+          permission,
+          scope: { type: "backlog", backlogId },
+        });
+        return [capability, decision.allowed] as const;
+      }),
+    ),
+    checkPermission({
+      actorId: userId,
+      permission: "bulk_change_items",
+      scope: { type: "global" },
     }),
-  );
-  return Object.fromEntries(entries) as BacklogCapabilities;
+  ]);
+  return {
+    ...Object.fromEntries(entries),
+    bulkChangeItems: bulkDecision.allowed,
+  } as BacklogCapabilities;
 }
 
 export async function listAccessibleBacklogIds(userId: string): Promise<string[]> {

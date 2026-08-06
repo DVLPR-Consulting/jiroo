@@ -233,6 +233,7 @@ describeDb("browse-filtered product reads", () => {
         manageSprints: false,
         manageWorkflow: false,
         manageMembers: false,
+        bulkChangeItems: false,
       });
       await expect(
         getBacklogCapabilities(fixture.actorA, fixture.backlogB.id),
@@ -248,6 +249,7 @@ describeDb("browse-filtered product reads", () => {
         manageSprints: true,
         manageWorkflow: true,
         manageMembers: true,
+        bulkChangeItems: true,
       });
 
       await expect(listItemsAssignedTo(fixture.actorA)).resolves.toEqual([

@@ -509,6 +509,7 @@ export async function BacklogViewContent({
           canAssignItems={capabilities.assignItems}
           canScheduleItems={capabilities.scheduleItems}
           canManageSprints={capabilities.manageSprints}
+          canBulkChangeItems={capabilities.bulkChangeItems}
           manualOrder={viewState.sort === null && viewState.group === null}
         />
       )}
@@ -541,6 +542,7 @@ export async function BacklogViewContent({
           canEditItems={capabilities.editItems}
           canTransitionItems={capabilities.transitionItems}
           canAssignItems={capabilities.assignItems}
+          canBulkChangeItems={capabilities.bulkChangeItems}
         />
       )}
       {view === "board" && (

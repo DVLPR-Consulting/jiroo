@@ -254,7 +254,7 @@ function SortableCard({
         card={card}
         backlogKey={backlogKey}
         interactivePriority={canEditItems}
-        mobileStatus={canTransitionItems ? (
+        mobileStatus={canEditItems && canTransitionItems ? (
           <InlineStatus
             itemId={card.id}
             backlogKey={backlogKey}
@@ -392,7 +392,7 @@ function CardInner({
         )}
       </div>
       {mobileStatus ? (
-        <div className="mt-1.5 border-t border-border pt-1.5 md:hidden">
+        <div className="mt-1.5 border-t border-border pt-1.5">
           {mobileStatus}
         </div>
       ) : null}

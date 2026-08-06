@@ -310,6 +310,7 @@ function LegacyItemBacklog({
   canTransitionItems = true,
   canAssignItems = true,
   canScheduleItems = true,
+  canBulkChangeItems = true,
   manualOrder = false,
   rankItemAction = rankBacklogItemAction,
 }: {
@@ -329,6 +330,7 @@ function LegacyItemBacklog({
   canAssignItems?: boolean;
   canScheduleItems?: boolean;
   canManageSprints?: boolean;
+  canBulkChangeItems?: boolean;
   manualOrder?: boolean;
   rankItemAction?: RankItemAction;
 }) {
@@ -393,8 +395,9 @@ function LegacyItemBacklog({
   const allSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selection.selectedIds.has(id));
   const partlySelected = selection.selectedIds.size > 0 && !allSelected;
-  const canSelectItems =
-    canEditItems || canTransitionItems || canAssignItems || canScheduleItems;
+  const canSelectItems = canBulkChangeItems && (
+    canEditItems || canTransitionItems || canAssignItems || canScheduleItems
+  );
 
   function toggleSelection(id: string, extendRange: boolean) {
     setSelection((current) =>
@@ -682,6 +685,7 @@ function LegacyItemBacklog({
               canTransitionItems={canTransitionItems}
               canAssignItems={canAssignItems}
               canScheduleItems={canScheduleItems}
+              canBulkChangeItems={canBulkChangeItems}
               onClearSelection={() => setSelection(emptySelection())}
               onMutationSuccess={() => router.refresh()}
             />
@@ -709,6 +713,7 @@ type SharedBacklogProps = {
   canAssignItems?: boolean;
   canScheduleItems?: boolean;
   canManageSprints?: boolean;
+  canBulkChangeItems?: boolean;
   manualOrder?: boolean;
   rankItemAction?: RankItemAction;
 };
@@ -893,6 +898,7 @@ function SprintItemBacklog({
   canAssignItems = true,
   canScheduleItems = true,
   canManageSprints = true,
+  canBulkChangeItems = true,
   manualOrder = false,
   rankItemAction = rankBacklogItemAction,
   moveSprintItemAction = defaultMoveSprintItemAction,
@@ -909,8 +915,9 @@ function SprintItemBacklog({
   const [mutationPending, setMutationPending] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [rankError, setRankError] = useState<string | null>(null);
-  const canSelectItems =
-    canEditItems || canTransitionItems || canAssignItems || canScheduleItems;
+  const canSelectItems = canBulkChangeItems && (
+    canEditItems || canTransitionItems || canAssignItems || canScheduleItems
+  );
   const sectionSnapshot = useRef<SprintBacklogSection[] | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -1320,6 +1327,7 @@ function SprintItemBacklog({
               canTransitionItems={canTransitionItems}
               canAssignItems={canAssignItems}
               canScheduleItems={canScheduleItems}
+              canBulkChangeItems={canBulkChangeItems}
               onClearSelection={() => setSelection(emptySelection())}
               onMutationSuccess={() => router.refresh()}
             />

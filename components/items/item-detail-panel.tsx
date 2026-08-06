@@ -336,7 +336,7 @@ export function ItemDetailPanel({
           {/* Side column */}
           <div className="flex flex-col gap-4 border-t border-border bg-[var(--surface-2)] p-5 md:border-t-0 md:border-l">
             <Field label="Statut">
-              {canTransitionItems ? (
+              {canEditItems && canTransitionItems ? (
                 <StatusField
                   itemId={detail.id}
                   backlogKey={backlogKey}
@@ -397,7 +397,7 @@ export function ItemDetailPanel({
             </Field>
 
             <Field label="Assigné">
-              {canAssignItems ? (
+              {canEditItems && canAssignItems ? (
                 <AssigneeField
                   itemId={detail.id}
                   backlogKey={backlogKey}

@@ -319,7 +319,7 @@ describe("ItemDetailPanel header", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("maps detail content, status, and assignee controls to disjoint capabilities", () => {
+  it("requires edit plus the exact status or assignee capability", () => {
     const denied = {
       canEditItems: false,
       canTransitionItems: false,
@@ -342,20 +342,48 @@ describe("ItemDetailPanel header", () => {
         <ItemDetailPanel {...baseProps} {...denied} canTransitionItems />
       </ViewUrlStateProvider>,
     );
-    expect(screen.getByRole("combobox", { name: "Statut" })).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: `Renommer ${detail.key}` })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Priorité" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
     transitioned.unmount();
 
-    render(
+    const editedAndTransitioned = render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          {...denied}
+          canEditItems
+          canTransitionItems
+        />
+      </ViewUrlStateProvider>,
+    );
+    expect(screen.getByRole("combobox", { name: "Statut" })).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
+    editedAndTransitioned.unmount();
+
+    const assigned = render(
       <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel {...baseProps} {...denied} canAssignItems />
       </ViewUrlStateProvider>,
     );
-    expect(screen.getByRole("combobox", { name: "Assigné" })).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Priorité" })).not.toBeInTheDocument();
+    assigned.unmount();
+
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          {...denied}
+          canEditItems
+          canAssignItems
+        />
+      </ViewUrlStateProvider>,
+    );
+    expect(screen.getByRole("combobox", { name: "Assigné" })).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
   });
 });
 

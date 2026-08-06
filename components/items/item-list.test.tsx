@@ -299,7 +299,7 @@ describe("ItemList", () => {
     );
   });
 
-  it("maps list editors to disjoint edit, transition, and assign capabilities", () => {
+  it("requires edit plus transition or assign for inline update editors", () => {
     const base = {
       ...listProps(),
       canCreateItems: false,
@@ -310,17 +310,37 @@ describe("ItemList", () => {
 
     const transitioned = renderList({ ...base, canTransitionItems: true });
     let row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
-    expect(within(row).getByRole("button", { name: /Statut/i })).toBeVisible();
+    expect(within(row).queryByRole("button", { name: /Statut/i })).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
     transitioned.unmount();
 
+    const editedAndTransitioned = renderList({
+      ...base,
+      canEditItems: true,
+      canTransitionItems: true,
+    });
+    row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    expect(within(row).getByRole("button", { name: /Statut/i })).toBeVisible();
+    expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
+    editedAndTransitioned.unmount();
+
     const assigned = renderList({ ...base, canAssignItems: true });
     row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
-    expect(within(row).getByRole("button", { name: /Assigné/i })).toBeVisible();
+    expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /Statut/i })).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
     assigned.unmount();
+
+    const editedAndAssigned = renderList({
+      ...base,
+      canEditItems: true,
+      canAssignItems: true,
+    });
+    row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    expect(within(row).getByRole("button", { name: /Assigné/i })).toBeVisible();
+    expect(within(row).queryByRole("button", { name: /Statut/i })).not.toBeInTheDocument();
+    editedAndAssigned.unmount();
 
     renderList({ ...base, canEditItems: true });
     row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });

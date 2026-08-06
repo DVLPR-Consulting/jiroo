@@ -46,6 +46,7 @@ export type BulkItemToolbarProps = {
   canTransitionItems?: boolean;
   canAssignItems?: boolean;
   canScheduleItems?: boolean;
+  canBulkChangeItems?: boolean;
   onClearSelection: () => void;
   onMutationSuccess: (result: MutationResult) => void;
 };
@@ -67,6 +68,7 @@ export function BulkItemToolbar({
   canTransitionItems = true,
   canAssignItems = true,
   canScheduleItems = true,
+  canBulkChangeItems = true,
   onClearSelection,
   onMutationSuccess,
 }: BulkItemToolbarProps) {
@@ -123,7 +125,7 @@ export function BulkItemToolbar({
         {selectedItems.length} {selectedItems.length === 1 ? "item sélectionné" : "items sélectionnés"}
       </span>
 
-      {canTransitionItems ? <DropdownMenu>
+      {canBulkChangeItems && canTransitionItems ? <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
@@ -155,7 +157,7 @@ export function BulkItemToolbar({
         </DropdownMenuContent>
       </DropdownMenu> : null}
 
-      {canEditItems ? <DropdownMenu>
+      {canBulkChangeItems && canEditItems ? <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
@@ -180,7 +182,7 @@ export function BulkItemToolbar({
         </DropdownMenuContent>
       </DropdownMenu> : null}
 
-      {canAssignItems ? <DropdownMenu>
+      {canBulkChangeItems && canAssignItems ? <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
@@ -210,7 +212,7 @@ export function BulkItemToolbar({
         </DropdownMenuContent>
       </DropdownMenu> : null}
 
-      {canScheduleItems && sprints ? (
+      {canBulkChangeItems && canScheduleItems && sprints ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -244,7 +246,7 @@ export function BulkItemToolbar({
         </DropdownMenu>
       ) : null}
 
-      {canEditItems ? <div className="flex items-center gap-1">
+      {canBulkChangeItems && canEditItems ? <div className="flex items-center gap-1">
         <Input
           type="number"
           min="0"
@@ -296,7 +298,7 @@ export function BulkItemToolbar({
         {pending ? <Loader2 aria-hidden className="animate-spin" /> : <X aria-hidden />}
       </Button>
 
-      {canEditItems && !tasksOnly ? (
+      {canBulkChangeItems && canEditItems && !tasksOnly ? (
         <span className="basis-full text-xs text-muted-foreground">
           L’estimation groupée est réservée aux tâches.
         </span>

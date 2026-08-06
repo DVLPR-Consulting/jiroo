@@ -508,9 +508,18 @@ describe("ItemBoard", () => {
     scheduled.unmount();
 
     const transitioned = renderBoard(<ItemBoard {...base} canTransitionItems />);
-    expect(screen.getByRole("button", { name: "Statut : Prêt" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Statut : Prêt" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Déplacer DEMO-1" })).not.toBeInTheDocument();
     transitioned.unmount();
+
+    const editedAndTransitioned = renderBoard(
+      <ItemBoard {...base} canEditItems canTransitionItems />,
+    );
+    const statusControl = screen.getByRole("button", { name: "Statut : Prêt" });
+    expect(statusControl).toBeVisible();
+    expect(statusControl.parentElement?.parentElement).not.toHaveClass("md:hidden");
+    expect(screen.queryByRole("button", { name: "Déplacer DEMO-1" })).not.toBeInTheDocument();
+    editedAndTransitioned.unmount();
 
     const edited = renderBoard(<ItemBoard {...base} canEditItems />);
     expect(screen.getByRole("button", { name: /Priorité.*Moyenne/i })).toBeVisible();
