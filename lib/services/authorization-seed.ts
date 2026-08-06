@@ -1,8 +1,7 @@
 import { eq } from "drizzle-orm";
 import {
-  BACKLOG_PERMISSION_KEYS,
   GLOBAL_PERMISSION_KEYS,
-  type BacklogPermissionKey,
+  PROTECTED_ROLE_PERMISSION_KEYS,
 } from "@/lib/auth/permissions";
 import { db } from "@/lib/db";
 import {
@@ -26,26 +25,6 @@ const PROTECTED_ROLES = [
   { key: MEMBERS_ROLE_KEY, name: "Membre" },
   { key: VIEWERS_ROLE_KEY, name: "Lecteur" },
 ] as const;
-
-const MEMBER_PERMISSION_KEYS = [
-  "browse_backlog",
-  "create_items",
-  "edit_items",
-  "transition_items",
-  "schedule_items",
-  "assign_items",
-  "assignable_user",
-  "add_comments",
-  "edit_own_comments",
-  "delete_own_comments",
-  "link_items",
-] satisfies BacklogPermissionKey[];
-
-const ROLE_PERMISSION_KEYS: Record<(typeof PROTECTED_ROLES)[number]["key"], BacklogPermissionKey[]> = {
-  [ADMINISTRATORS_ROLE_KEY]: BACKLOG_PERMISSION_KEYS,
-  [MEMBERS_ROLE_KEY]: MEMBER_PERMISSION_KEYS,
-  [VIEWERS_ROLE_KEY]: ["browse_backlog"],
-};
 
 export type SeedAuthorizationDefaultsInput = {
   platformAdministratorIds: string[];
@@ -139,7 +118,7 @@ export async function seedAuthorizationDefaults(
       .onConflictDoNothing();
 
     const defaultRoleGrants = PROTECTED_ROLES.flatMap((role) =>
-      ROLE_PERMISSION_KEYS[role.key].map((permissionKey) => ({
+      PROTECTED_ROLE_PERMISSION_KEYS[role.key].map((permissionKey) => ({
         scope: "backlog" as const,
         permissionSchemeId: defaultScheme.id,
         permissionKey,

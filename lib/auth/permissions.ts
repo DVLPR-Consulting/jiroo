@@ -90,6 +90,27 @@ export const BACKLOG_PERMISSION_KEYS = Object.keys(
   BACKLOG_PERMISSION_DEFINITIONS,
 ) as BacklogPermissionKey[];
 
+export const PROTECTED_ROLE_PERMISSION_KEYS = {
+  administrators: BACKLOG_PERMISSION_KEYS,
+  members: [
+    "browse_backlog",
+    "create_items",
+    "edit_items",
+    "transition_items",
+    "schedule_items",
+    "assign_items",
+    "assignable_user",
+    "add_comments",
+    "edit_own_comments",
+    "delete_own_comments",
+    "link_items",
+  ],
+  viewers: ["browse_backlog"],
+} as const satisfies Record<
+  "administrators" | "members" | "viewers",
+  readonly BacklogPermissionKey[]
+>;
+
 export const PERMISSION_DEFINITIONS = {
   ...GLOBAL_PERMISSION_DEFINITIONS,
   ...BACKLOG_PERMISSION_DEFINITIONS,
