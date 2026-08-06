@@ -87,7 +87,8 @@ returns all matching paths for explanation but treats one match as sufficient.
 The current `admin` account role becomes the bootstrap platform-administrator
 capability. Platform administrators bypass backlog permission schemes so that
 configuration errors cannot make the instance unrecoverable. This bypass is
-always included in permission explanations and every use is auditable. The
+always included in permission explanations, and every mutating use appends a
+security audit event. The
 legacy `contributor` and `viewer` values cease to authorize backlog operations
 after migration.
 
