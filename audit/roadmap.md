@@ -367,6 +367,12 @@ et [planification d'un sprint](https://support.atlassian.com/jira-software-cloud
 - cinq identités 2FA réelles et matrice Chromium 10/10, intégrée à une
   régression complète 24/24.
 
+La revue de preuve impose désormais trois invariants de harnais : reset de base
+avec opt-in + destination locale autorisée, serveur Next isolé sur `:3100` sans
+réutilisation, et artefacts JUnit/journaux portant un run-id non écrasable. La
+preuve d’isolation n’accorde aucun rôle protégé au membre testé ; le chemin
+groupe → rôle personnalisé est le seul qui explique son accès à CASS.
+
 La permission `manage_releases` est volontairement disponible avant son
 consommateur produit. Elle ne constitue pas une livraison de Releases.
 
@@ -391,8 +397,9 @@ clavier, lecteur d’écran et responsive 390/768/1024/1440 sont rejoués.
 
 ### P1 — Durcir la matrice d’autorisation
 
-**Livrable :** exécution CI des cinq sessions 2FA, parallélisation sûre des
-fixtures, volumétrie groupes/rôles/grants et concurrence à plus de deux éditeurs.
+**Livrable :** exécution CI des cinq sessions 2FA sur une base dédiée
+`jiroo_e2e`, parallélisation sûre des fixtures, volumétrie groupes/rôles/grants
+et concurrence à plus de deux éditeurs.
 
 **Acceptation :** zéro fuite cross-backlog, zéro donnée interdite dans les
 payloads RSC, temps et seuils documentés, artefacts automatiques uniquement sur

@@ -770,43 +770,59 @@ en fin d'audit.
 
 **82/100 — confiance élevée sur l’autorisation et le cycle sprint, plus faible
 sur le pilotage produit restant.** Le gain depuis 78 vient d’une matrice réelle
-à cinq identités, d’un setup 2FA autonome et de preuves UI/serveur/base sur les
-schémas partagés. Il ne crédite aucune interface Releases, encore absente.
+à cinq identités, d’un setup 2FA autonome et de preuves causales UI/serveur/base
+sur les schémas partagés. Après revue, ce score est conservé uniquement parce
+que le rôle protégé parasite a été retiré, les mutations `browse_backlog` sont
+effectuées dans l’UI et les invariants de non-mutation sont vérifiés en base. Il
+ne crédite aucune interface Releases, encore absente.
 
 | Dimension | Score | Preuve principale |
 |---|---:|---|
 | Couverture fonctionnelle observée | 84/100 | Groupes, rôles, grants, schémas, concurrence et dix scénarios multi-utilisateurs |
-| Fiabilité et feedback | 92/100 | Refus Server Action structuré, conflit stale récupérable et historique append-only |
+| Fiabilité et feedback | 92/100 | Payload forgé sans mutation métier/audit, conflit stale récupérable et historique exact append-only |
 | Efficacité UX | 80/100 | Mode Simple, mode Avancé et Assistant explicitent les sources de droit |
 | Accessibilité | 86/100 | Un seul `main`, contrôles nommés et surfaces interdites absentes |
 | Responsive | 64/100 | Inchangé : matrice permissions desktop Chromium |
-| Permissions | 98/100 | Cinq comptes 2FA, isolation CASS/LABS et contrôle UI + serveur + données |
-| Performance locale | 84/100 | Mutations 30–297 ms ; navigations/reloads 136–525 ms en développement |
+| Permissions | 98/100 | Cinq comptes 2FA, rôle personnalisé seul en CASS, refus LABS et contrôles UI + serveur + données |
+| Performance locale | 84/100 | Mutations 23–247 ms ; navigations/reloads 380–1 002 ms en développement isolé |
 
 ### Ce qui a été testé
 
-- setup Playwright autonome : base applicative remise à zéro, exactement cinq
-  comptes, enrôlement TOTP réel, sessions séparées et fixtures CASS/LABS ;
+- setup Playwright autonome : reset refusé sans opt-in explicite, hôte local et
+  nom de base autorisé ; exactement cinq comptes, enrôlement TOTP réel, sessions
+  `0600` séparées et fixtures CASS/LABS ;
 - création UI d’un groupe, d’un rôle personnalisé et d’un clone de schéma ;
-- portée backlog d’une occupation de groupe/rôle malgré un schéma partagé ;
+- portée backlog du seul chemin `Membre E2E → Équipe delivery → Spécialiste
+  delivery` dans CASS, sans rôle direct/protégé, puis refus dans LABS ;
 - explication des grants direct, groupe et rôle par l’Assistant ;
-- rejeu par un lecteur d’une Server Action capturée, refusé côté serveur avec
-  une erreur structurée et sans mutation ;
+- rejeu par un lecteur d’une Server Action capturée, reciblée vers un nom neuf
+  qui aurait muté sans garde : erreur structurée, compte de groupes et historique
+  strictement identiques avant/après ;
 - spécialiste autorisé à gérer les sprints, sans édition d’item ni workflow ;
 - `manage_releases` expliqué sans inventer de page ou contrôle Releases ;
-- retrait de `browse_backlog` répercuté sur navigation, recherche, récents,
-  notifications et accès URL direct ;
+- ajout puis retrait de `browse_backlog` depuis la matrice UI dans un second
+  contexte admin, répercutés sur navigation, recherche, récents, contenu du
+  panneau notifications et accès URL direct ;
 - conflit de version entre deux éditeurs d’un schéma partagé, puis récupération
   après reload ;
-- deux mutations navigateur inscrites dans un historique de sécurité strictement
-  append-only ; persistance après reload et dans un second contexte utilisateur.
+- baseline exacte de l’historique `group_created`, deux mutations navigateur,
+  exactement deux événements supplémentaires retrouvés par cible/valeur/
+  corrélation et premier événement byte-for-byte inchangé après le second ;
+  persistance après reload et dans un second contexte utilisateur.
 
-La matrice dédiée passe **10/10 en 17,1 s**. La régression Chromium complète
-passe **24/24 en 1,1 min**. Chaque scénario permissions conserve son journal
-[console](console/2026-08-06-permission-schemes-01-create-group-role-scheme-console.log)
-et [réseau](network/2026-08-06-permission-schemes-01-create-group-role-scheme-network.log) ;
-les neuf paires suivantes portent le même préfixe daté. Aucun parcours nominal
-ne contient d’erreur console, de requête échouée ou de réponse HTTP inattendue.
+Playwright lance son propre serveur depuis ce worktree sur `:3100`, avec
+`.next-e2e`, sans réutiliser le serveur manuel `:3000`. La matrice dédiée passe
+**10/10 en 27,1 s** et la régression Chromium complète **24/24 en 58,6 s**.
+Les preuves JUnit immuables sont le [run dédié](runs/20260806-review-r1-permissions-01-junit.xml)
+et le [run complet](runs/20260806-review-r1-chromium-01-junit.xml). Chaque
+scénario permissions conserve aussi ses journaux uniques, par exemple
+[console](console/20260806-review-r1-permissions-01-permission-schemes-01-create-group-role-scheme-console.log)
+et [réseau](network/20260806-review-r1-permissions-01-permission-schemes-01-create-group-role-scheme-network.log).
+Aucun parcours nominal ne contient d’erreur console, de requête échouée ou de
+réponse HTTP inattendue.
+
+Le détail finding par finding est conservé dans le
+[registre de revue Task 9 round 1/5](reviews/2026-08-06-task9-review-r1.md).
 
 ### Bugs et dette observés
 

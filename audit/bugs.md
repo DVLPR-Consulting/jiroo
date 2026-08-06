@@ -1195,7 +1195,8 @@ alors cette permission supplémentaire et l’UI masque ajout/retrait. Les tests
 d’action, composant et intégration couvrent le refus et la propagation des
 backlogs concernés.
 
-Preuve navigateur : [contrôles protégés absents](screenshots/BUG-JIR-024-protected-admin-group-membership-controls.png).
+Preuves navigateur : [AVANT — contrôles d’ajout/retrait exposés](screenshots/BUG-JIR-024-protected-admin-group-membership-controls.png)
+et [APRÈS — mêmes contrôles absents sous le compte limité `manage_users_groups`](screenshots/20260806-review-r1-permissions-01-FIXED-BUG-JIR-024-protected-admin-group-membership-controls.png).
 
 ## BUG-JIR-025 — Les usages d’un rôle produisent des clés React dupliquées
 
@@ -1228,8 +1229,9 @@ parcours nominal d’administration ne produit aucune erreur console.
 
 ### Cause, correction et preuve
 
-- [Capture Playwright](screenshots/BUG-JIR-025-duplicate-project-role-blocker-keys.png)
-- [Console du scénario](console/2026-08-06-permission-schemes-01-create-group-role-scheme-console.log)
+- [Capture initiale du parcours, sur l’onglet Schémas — contexte seulement](screenshots/BUG-JIR-025-duplicate-project-role-blocker-keys.png)
+- [APRÈS — écran Rôles et blockers du rôle Spécialiste](screenshots/20260806-review-r1-permissions-01-FIXED-BUG-JIR-025-project-role-blockers-clean-console.png)
+- [Console propre du scénario Rôles](console/20260806-review-r1-permissions-01-permission-schemes-01-create-group-role-scheme-console.log)
 
 `ProjectRoleAdmin` utilisait le texte du blocker comme clé React. Le service
 retourne légitimement deux dépendances de même libellé lorsque le rôle est
@@ -1266,7 +1268,7 @@ la page enfant doit utiliser un conteneur neutre sous le `main` du shell.
 ### Cause, correction et preuve
 
 - [Capture Playwright](screenshots/BUG-JIR-026-nested-main-access-settings.png)
-- [Console du scénario](console/2026-08-06-permission-schemes-03-permission-helper-console.log)
+- [Console du scénario](console/20260806-review-r1-permissions-01-permission-schemes-03-permission-helper-console.log)
 
 `AppShell` rend déjà le landmark principal. `AccessPage` ajoutait un second
 élément `<main>` sans tenir compte de ce parent structurel. La page utilise

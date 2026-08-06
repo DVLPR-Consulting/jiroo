@@ -396,7 +396,11 @@ Jiroo atteint le socle Jira utile à une petite instance : permissions globales
 et backlog, groupes, utilisateurs directs, rôles de projet, schémas partagés,
 mode simple, explication des droits et refus serveur. Sa matrice navigateur est
 plus explicite que les audits précédents : cinq identités 2FA prouvent la portée
-réelle, pas seulement la présence ou l’absence d’un bouton.
+réelle, pas seulement la présence ou l’absence d’un bouton. La preuve causale
+retire tout rôle protégé du membre testé : son accès CASS vient uniquement du
+groupe occupant le rôle personnalisé, tandis que LABS reste inaccessible. Le
+grant de consultation est aussi ajouté puis retiré dans la matrice UI avant de
+contrôler toutes les surfaces du second utilisateur.
 
 Jira reste devant sur l’étendue des permissions et de leurs consommateurs :
 versions/releases, composants, automatisations et administration à grande

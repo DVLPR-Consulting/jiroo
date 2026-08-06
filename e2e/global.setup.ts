@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { createHmac } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { chmod, mkdir, rm } from "node:fs/promises";
 import { request, type FullConfig } from "@playwright/test";
 import { asc, eq, sql } from "drizzle-orm";
 import { auth } from "../lib/auth";
@@ -18,6 +18,7 @@ import {
 import { STATUS_CATEGORY } from "../lib/design/constants";
 import {
   addGroupMember,
+  addGlobalPermissionGrant,
   addSchemeGrant,
   assignBacklogRoleActor,
   associatePermissionScheme,
@@ -27,12 +28,12 @@ import {
   setBacklogAccessMode,
 } from "../lib/services/authorization-admin";
 import {
-  MEMBERS_ROLE_KEY,
   seedAuthorizationDefaults,
   VIEWERS_ROLE_KEY,
 } from "../lib/services/authorization-seed";
 import { buildPath, childDepth } from "../lib/tree/path";
 import { rankLast } from "../lib/tree/rank";
+import { assertE2eResetAllowed } from "../scripts/e2e-reset-guard";
 
 const PASSWORD = process.env.JIROO_PLAYWRIGHT_PASSWORD ?? "Audit-Local-2026!";
 
@@ -72,6 +73,10 @@ function generateTotp(secret: string, now = Date.now()): string {
 }
 
 async function resetBrowserDatabase() {
+  assertE2eResetAllowed({
+    allowReset: process.env.JIROO_ALLOW_E2E_RESET,
+    databaseUrl: process.env.DATABASE_URL,
+  });
   await db.execute(sql.raw(`
     TRUNCATE TABLE
       "security_audit_events",
@@ -146,6 +151,7 @@ async function createStorageState({
   }
 
   await authRequest.storageState({ path });
+  await chmod(path, 0o600);
   await authRequest.dispose();
   return enrolledUser.id;
 }
@@ -221,11 +227,14 @@ async function seedPermissionFixtures(accountIds: Record<AccountKey, string>, ca
     if (!role) throw new Error(`Rôle ${key} introuvable.`);
     return role.id;
   };
-  await assignBacklogRoleActor({ backlogId: cassId, projectRoleId: roleId(MEMBERS_ROLE_KEY), principal: { type: "user", userId: accountIds.member } }, accountIds.admin, "e2e-seed-member");
   await assignBacklogRoleActor({ backlogId: cassId, projectRoleId: roleId(VIEWERS_ROLE_KEY), principal: { type: "user", userId: accountIds.reader } }, accountIds.admin, "e2e-seed-reader");
 
   const group = await createGroup({ name: "Équipe delivery" }, accountIds.admin, "e2e-seed-group");
   await addGroupMember({ groupId: group.id, userId: accountIds.member }, accountIds.admin, "e2e-seed-group-member");
+  await addGlobalPermissionGrant({
+    permission: "manage_users_groups",
+    principal: { type: "user", userId: accountIds.member },
+  }, accountIds.admin, "e2e-seed-limited-group-manager");
   const specialistRole = await createProjectRole({ name: "Spécialiste delivery", description: "Sprints et futures releases, sans édition d’item." }, accountIds.admin, "e2e-seed-role");
 
   const [cassConfig] = await db.select({ schemeId: backlogPermissionConfigs.permissionSchemeId }).from(backlogPermissionConfigs).where(eq(backlogPermissionConfigs.backlogId, cassId));
@@ -258,6 +267,7 @@ async function seedPermissionFixtures(accountIds: Record<AccountKey, string>, ca
 export default async function globalSetup(config: FullConfig) {
   const baseURL = config.projects[0]?.use.baseURL;
   if (typeof baseURL !== "string") throw new Error("Playwright baseURL manquante.");
+  await rm(".playwright/.auth", { recursive: true, force: true });
   await mkdir(".playwright/.auth", { recursive: true });
   await resetBrowserDatabase();
 

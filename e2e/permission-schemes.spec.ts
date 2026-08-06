@@ -1,21 +1,23 @@
 import "dotenv/config";
 
+import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { expect, test, type Browser, type Page, type Request } from "@playwright/test";
+import { expect, test, type Browser, type Locator, type Page, type Request } from "@playwright/test";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
 import {
   backlogPermissionConfigs,
+  backlogRoleActors,
+  backlogs,
+  groupMembers,
   items,
   notifications,
   permissionSchemes,
+  projectRoles,
   securityAuditEvents,
+  userGroups,
 } from "../lib/db/schema/domain";
-import {
-  addSchemeGrant,
-  removeSchemeGrant,
-} from "../lib/services/authorization-admin";
 
 const AUTH = {
   admin: ".playwright/.auth/platform-admin.json",
@@ -25,13 +27,16 @@ const AUTH = {
   noAccess: ".playwright/.auth/no-access.json",
 } as const;
 
+const RUN_ID = process.env.JIROO_E2E_RUN_ID ?? "local-untracked";
+const PERSIST_SCENARIO_LOGS = process.env.JIROO_E2E_PERSIST_SCENARIO_LOGS === "1";
+const CAPTURE_REVIEW_BUGS = process.env.JIROO_E2E_CAPTURE_REVIEW_BUGS === "1";
+
 type AuditCapture = {
   consoleLines: string[];
   consoleErrors: string[];
   networkLines: string[];
   requestFailures: string[];
   httpErrors: string[];
-  expectedHttp: Array<(status: number, url: URL) => boolean>;
 };
 
 function observe(page: Page, label: string): AuditCapture {
@@ -41,7 +46,6 @@ function observe(page: Page, label: string): AuditCapture {
     networkLines: [`[scenario] ${label}`],
     requestFailures: [],
     httpErrors: [],
-    expectedHttp: [],
   };
   page.on("console", (message) => {
     const line = `[${message.type()}] ${message.text()}`;
@@ -60,11 +64,9 @@ function observe(page: Page, label: string): AuditCapture {
   });
   page.on("response", (response) => {
     const status = response.status();
-    const url = new URL(response.url());
-    const expected = capture.expectedHttp.some((predicate) => predicate(status, url));
-    const line = `${expected ? "EXPECTED " : ""}${status} ${response.request().method()} ${response.url()}`;
+    const line = `${status} ${response.request().method()} ${response.url()}`;
     capture.networkLines.push(line);
-    if (status >= 400 && !expected) capture.httpErrors.push(line);
+    if (status >= 400) capture.httpErrors.push(line);
   });
   return capture;
 }
@@ -77,23 +79,38 @@ async function timed<T>(capture: AuditCapture, label: string, operation: () => P
 }
 
 async function persistAudit(slug: string, captures: AuditCapture[]) {
-  await mkdir("audit/console", { recursive: true });
-  await mkdir("audit/network", { recursive: true });
+  const root = PERSIST_SCENARIO_LOGS ? "audit" : `.playwright/evidence/${RUN_ID}`;
+  await mkdir(`${root}/console`, { recursive: true });
+  await mkdir(`${root}/network`, { recursive: true });
   const consoleLines = captures.flatMap((capture) => capture.consoleLines);
   const networkLines = captures.flatMap((capture) => capture.networkLines);
   await writeFile(
-    `audit/console/2026-08-06-permission-schemes-${slug}-console.log`,
+    `${root}/console/${RUN_ID}-permission-schemes-${slug}-console.log`,
     `${consoleLines.join("\n")}\n`,
-    "utf8",
+    { encoding: "utf8", flag: "wx" },
   );
   await writeFile(
-    `audit/network/2026-08-06-permission-schemes-${slug}-network.log`,
+    `${root}/network/${RUN_ID}-permission-schemes-${slug}-network.log`,
     `${networkLines.join("\n")}\n`,
-    "utf8",
+    { encoding: "utf8", flag: "wx" },
   );
   expect(captures.flatMap((capture) => capture.consoleErrors), "Erreurs JavaScript/console").toEqual([]);
   expect(captures.flatMap((capture) => capture.requestFailures), "Requêtes réseau échouées").toEqual([]);
   expect(captures.flatMap((capture) => capture.httpErrors), "Réponses HTTP 4xx/5xx inattendues").toEqual([]);
+}
+
+async function captureReviewScreenshot(target: Page | Locator, bugId: string) {
+  const root = CAPTURE_REVIEW_BUGS
+    ? "audit/screenshots"
+    : `.playwright/evidence/${RUN_ID}/screenshots`;
+  await mkdir(root, { recursive: true });
+  const path = `${root}/${RUN_ID}-FIXED-${bugId}.png`;
+  if (CAPTURE_REVIEW_BUGS && existsSync(path)) {
+    throw new Error(`La preuve Playwright ${path} existe déjà ; choisissez un run-id unique.`);
+  }
+  await target.screenshot({
+    path,
+  });
 }
 
 function audited(
@@ -116,11 +133,15 @@ async function fixtureIds() {
   const [cass] = await db.select({ id: backlogPermissionConfigs.backlogId, schemeId: backlogPermissionConfigs.permissionSchemeId })
     .from(backlogPermissionConfigs)
     .innerJoin(permissionSchemes, eq(backlogPermissionConfigs.permissionSchemeId, permissionSchemes.id))
-    .where(eq(permissionSchemes.key, "e2e-shared-permission-scheme"));
+    .innerJoin(backlogs, eq(backlogPermissionConfigs.backlogId, backlogs.id))
+    .where(and(
+      eq(permissionSchemes.key, "e2e-shared-permission-scheme"),
+      eq(backlogs.key, "CASS"),
+    ));
   const [noAccess] = await db.select({ id: user.id }).from(user).where(eq(user.email, "no-access@jiroo.local"));
-  const [admin] = await db.select({ id: user.id }).from(user).where(eq(user.email, "platform-admin@jiroo.local"));
-  if (!cass || !noAccess || !admin) throw new Error("Fixtures de permissions Playwright introuvables.");
-  return { cassBacklogId: cass.id, schemeId: cass.schemeId, noAccessId: noAccess.id, adminId: admin.id };
+  const [member] = await db.select({ id: user.id }).from(user).where(eq(user.email, "member@jiroo.local"));
+  if (!cass || !noAccess || !member) throw new Error("Fixtures de permissions Playwright introuvables.");
+  return { cassBacklogId: cass.id, schemeId: cass.schemeId, noAccessId: noAccess.id, memberId: member.id };
 }
 
 async function selectHelper(page: Page, userLabel: string, permissionLabel: string) {
@@ -150,7 +171,7 @@ test.use({ storageState: AUTH.admin });
 audited(
   "1. crée un groupe, un rôle personnalisé et un clone de schéma",
   "01-create-group-role-scheme",
-  async ({ page, captures }) => {
+  async ({ page, browser, captures }) => {
     const capture = observe(page, "création groupe + rôle + schéma");
     captures.push(capture);
     await timed(capture, "navigation groupes", () => page.goto("/admin?tab=groups"));
@@ -163,6 +184,9 @@ audited(
     await page.getByRole("textbox", { name: "Description du nouveau rôle" }).fill("Créé par Chromium");
     await timed(capture, "création rôle", () => page.getByRole("button", { name: "Créer le rôle" }).click());
     await expect(page.getByRole("region", { name: "Pilote navigateur" })).toBeVisible();
+    const specialistRole = page.getByRole("region", { name: "Spécialiste delivery" });
+    await expect(specialistRole).toContainText("Affectation dans Cour de cassation");
+    await captureReviewScreenshot(specialistRole, "BUG-JIR-025-project-role-blockers-clean-console");
 
     await timed(capture, "navigation schémas", () => page.goto("/admin?tab=schemes"));
     await page.getByRole("button", { name: "Cloner Schéma de permissions par défaut" }).click();
@@ -170,6 +194,18 @@ audited(
     await dialog.getByRole("textbox", { name: "Nom du clone" }).fill("Schéma navigateur");
     await timed(capture, "clonage schéma", () => dialog.getByRole("button", { name: "Cloner" }).click());
     await expect(page.getByRole("heading", { name: "Schéma navigateur" })).toBeVisible();
+
+    const limitedContext = await browser.newContext({ storageState: AUTH.member });
+    const limited = await limitedContext.newPage();
+    const limitedCapture = observe(limited, "gestionnaire de groupes limité");
+    captures.push(limitedCapture);
+    await limited.goto("/admin?tab=groups");
+    const protectedGroup = limited.getByRole("region", { name: "Administrateurs de la plateforme" });
+    await expect(protectedGroup).toBeVisible();
+    await expect(protectedGroup.getByRole("button", { name: /^Retirer / })).toHaveCount(0);
+    await expect(protectedGroup.getByRole("combobox", { name: "Ajouter un membre" })).toHaveCount(0);
+    await captureReviewScreenshot(limited, "BUG-JIR-024-protected-admin-group-membership-controls");
+    await limitedContext.close();
   },
 );
 
@@ -177,6 +213,48 @@ audited(
   "2. isole le grant de rôle et l’occupation de groupe à un seul backlog",
   "02-backlog-isolation",
   async ({ browser, captures }) => {
+    const ids = await fixtureIds();
+    const directRoles = await db.select({ name: projectRoles.name, protected: projectRoles.protected })
+      .from(backlogRoleActors)
+      .innerJoin(projectRoles, eq(backlogRoleActors.projectRoleId, projectRoles.id))
+      .where(and(
+        eq(backlogRoleActors.backlogId, ids.cassBacklogId),
+        eq(backlogRoleActors.actorType, "user"),
+        eq(backlogRoleActors.userId, ids.memberId),
+      ));
+    expect(directRoles, "Le membre testé ne doit avoir aucun rôle direct ou protégé").toEqual([]);
+
+    const cassGroupRoles = await db.select({
+      group: userGroups.name,
+      role: projectRoles.name,
+      roleProtected: projectRoles.protected,
+    })
+      .from(backlogRoleActors)
+      .innerJoin(projectRoles, eq(backlogRoleActors.projectRoleId, projectRoles.id))
+      .innerJoin(userGroups, eq(backlogRoleActors.groupId, userGroups.id))
+      .innerJoin(groupMembers, eq(groupMembers.groupId, userGroups.id))
+      .where(and(
+        eq(backlogRoleActors.backlogId, ids.cassBacklogId),
+        eq(backlogRoleActors.actorType, "group"),
+        eq(groupMembers.userId, ids.memberId),
+      ));
+    expect(cassGroupRoles).toEqual([{
+      group: "Équipe delivery",
+      role: "Spécialiste delivery",
+      roleProtected: false,
+    }]);
+
+    const labsGroupRoles = await db.select({ id: backlogRoleActors.id })
+      .from(backlogRoleActors)
+      .innerJoin(backlogs, eq(backlogRoleActors.backlogId, backlogs.id))
+      .innerJoin(groupMembers, eq(backlogRoleActors.groupId, groupMembers.groupId))
+      .where(and(
+        eq(backlogs.key, "LABS"),
+        eq(backlogRoleActors.actorType, "group"),
+        eq(groupMembers.userId, ids.memberId),
+      ));
+    expect(labsGroupRoles, "Le rôle de groupe doit rester local à CASS").toEqual([]);
+
     const context = await browser.newContext({ storageState: AUTH.member });
     const page = await context.newPage();
     const capture = observe(page, "isolation CASS/LABS");
@@ -214,6 +292,8 @@ audited(
   "4. rejette une Server Action forgée par le lecteur",
   "04-reader-forged-action",
   async ({ page, browser, captures }) => {
+    const sourceName = "Source action administrateur";
+    const forgedTargetName = "Cible action lecteur unique";
     const adminCapture = observe(page, "capture action administrateur");
     captures.push(adminCapture);
     await page.goto("/admin?tab=groups");
@@ -221,10 +301,17 @@ audited(
     page.on("request", (request) => {
       if (request.method() === "POST" && request.headers()["next-action"] && !actionRequest) actionRequest = request;
     });
-    await page.getByRole("textbox", { name: "Nom du nouveau groupe" }).fill("Source action forgée");
+    await page.getByRole("textbox", { name: "Nom du nouveau groupe" }).fill(sourceName);
     await timed(adminCapture, "action source", () => page.getByRole("button", { name: "Créer le groupe" }).click());
-    await expect(page.getByRole("region", { name: "Source action forgée" })).toBeVisible();
+    await expect(page.getByRole("region", { name: sourceName })).toBeVisible();
     expect(actionRequest).toBeDefined();
+
+    const sourceBody = actionRequest!.postData() ?? "";
+    const forgedBody = sourceBody.replaceAll(sourceName, forgedTargetName);
+    expect(forgedBody, "Le payload capturé doit cibler un nom neuf").not.toBe(sourceBody);
+    const groupsBefore = await db.select({ id: userGroups.id, name: userGroups.name }).from(userGroups);
+    expect(groupsBefore.filter((group) => group.name === forgedTargetName)).toEqual([]);
+    const auditBefore = await db.select().from(securityAuditEvents).orderBy(asc(securityAuditEvents.createdAt));
 
     const readerContext = await browser.newContext({ storageState: AUTH.reader });
     const reader = await readerContext.newPage();
@@ -237,11 +324,18 @@ audited(
     }, {
       url: actionRequest!.url(),
       headers: Object.fromEntries(Object.entries(actionRequest!.headers()).filter(([key]) => ["accept", "content-type", "next-action", "next-router-state-tree"].includes(key))),
-      body: actionRequest!.postData() ?? "",
+      body: forgedBody,
     }));
     expect(replay.status).toBe(200);
     expect(replay.text).toContain("Vous n’avez pas la permission");
     expect(replay.text).toContain("Gérer les utilisateurs et les groupes");
+
+    const groupsAfter = await db.select({ id: userGroups.id, name: userGroups.name }).from(userGroups);
+    expect(groupsAfter).toEqual(groupsBefore);
+    expect(groupsAfter.filter((group) => group.name === forgedTargetName)).toEqual([]);
+    const auditAfter = await db.select().from(securityAuditEvents).orderBy(asc(securityAuditEvents.createdAt));
+    expect(auditAfter).toEqual(auditBefore);
+    expect(auditAfter.filter((event) => JSON.stringify(event.newValue).includes(forgedTargetName))).toEqual([]);
     await readerContext.close();
   },
 );
@@ -290,42 +384,53 @@ audited(
   "07-browse-removal",
   async ({ browser, captures }) => {
     const ids = await fixtureIds();
-    const [scheme] = await db.select({ version: permissionSchemes.version }).from(permissionSchemes).where(eq(permissionSchemes.id, ids.schemeId));
-    if (!scheme) throw new Error("Schéma partagé introuvable.");
-    const grant = await addSchemeGrant({
-      schemeId: ids.schemeId,
-      permission: "browse_backlog",
-      principal: { type: "user", userId: ids.noAccessId },
-      expectedVersion: scheme.version,
-      expectedAffectedBacklogIds: (await db.select({ id: backlogPermissionConfigs.backlogId }).from(backlogPermissionConfigs).where(eq(backlogPermissionConfigs.permissionSchemeId, ids.schemeId))).map((entry) => entry.id).sort(),
-    }, ids.adminId, "e2e-browse-removal-add");
     const [cassItem] = await db.select({ id: items.id, key: items.key }).from(items).where(eq(items.backlogId, ids.cassBacklogId)).orderBy(asc(items.key)).limit(1);
     if (!cassItem) throw new Error("Item CASS introuvable.");
     await db.insert(notifications).values({ userId: ids.noAccessId, type: "mention", itemId: cassItem.id });
 
+    const adminContext = await browser.newContext({ storageState: AUTH.admin });
+    const admin = await adminContext.newPage();
+    const adminCapture = observe(admin, "mutation browse par matrice UI");
+    captures.push(adminCapture);
+    await admin.goto(`/admin?tab=schemes&scheme=${ids.schemeId}`);
+    await expect(admin.getByRole("dialog", { name: "Matrice de Schéma partagé E2E" })).toBeVisible();
+    await timed(adminCapture, "ajout browse via UI", () => addMatrixGrant(admin, "Consulter le backlog", "Sans accès E2E"));
+    const removeBrowse = admin.getByRole("button", { name: "Retirer Sans accès E2E de Consulter le backlog" });
+    await expect(removeBrowse).toBeVisible();
+
     const context = await browser.newContext({ storageState: AUTH.noAccess });
     const page = await context.newPage();
-    const capture = observe(page, "suppression browse");
+    const capture = observe(page, "visibilité utilisateur avant/après browse");
     captures.push(capture);
     await page.goto("/b/CASS");
     await page.evaluate((key) => localStorage.setItem("jiroo-recent-items", JSON.stringify([key])), cassItem.key);
     await page.reload();
     await expect(page.getByText("Cour de cassation", { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /Notifications \(1 non lues\)/ })).toBeVisible();
+    const unreadNotifications = page.getByRole("button", { name: "Notifications (1 non lues)" });
+    await expect(unreadNotifications).toBeVisible();
+    await unreadNotifications.click();
+    await expect(page.getByRole("menu")).toContainText(cassItem.key);
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Rechercher" }).click();
     await expect(page.getByRole("option", { name: new RegExp(cassItem.key) })).toBeVisible();
     await page.keyboard.press("Escape");
 
-    await removeSchemeGrant({
-      schemeId: ids.schemeId,
-      grantId: grant.id,
-      expectedVersion: grant.version,
-      expectedAffectedBacklogIds: (await db.select({ id: backlogPermissionConfigs.backlogId }).from(backlogPermissionConfigs).where(eq(backlogPermissionConfigs.permissionSchemeId, ids.schemeId))).map((entry) => entry.id).sort(),
-    }, ids.adminId, "e2e-browse-removal-remove");
+    await timed(adminCapture, "retrait browse via UI", () => removeBrowse.click());
+    const confirmation = admin.getByRole("dialog", { name: "Modifier un schéma partagé" });
+    await expect(confirmation).toBeVisible();
+    await confirmation.getByRole("button", { name: "Confirmer la modification" }).click();
+    await expect(removeBrowse).toHaveCount(0);
 
     await timed(capture, "rechargement après retrait browse", () => page.goto("/"));
     await expect(page.getByText("Cour de cassation", { exact: true })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Notifications" })).toBeVisible();
+    const emptyNotifications = page.getByRole("button", { name: "Notifications", exact: true });
+    await expect(emptyNotifications).toBeVisible();
+    await emptyNotifications.click();
+    const notificationMenu = page.getByRole("menu");
+    await expect(notificationMenu).toContainText("Aucune notification.");
+    await expect(notificationMenu).not.toContainText(cassItem.key);
+    await expect(notificationMenu).not.toContainText("Cour de cassation");
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Rechercher" }).click();
     await expect(page.getByText("Aucun item récent.")).toBeVisible();
     await page.getByRole("textbox", { name: "Rechercher" }).fill(cassItem.key);
@@ -335,6 +440,7 @@ audited(
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", { name: "404" })).toBeVisible();
     await context.close();
+    await adminContext.close();
   },
 );
 
@@ -376,20 +482,60 @@ audited(
     const capture = observe(page, "historique immuable");
     captures.push(capture);
     await page.goto("/admin?tab=groups");
-    await page.getByRole("textbox", { name: "Nom du nouveau groupe" }).fill("Historique navigateur A");
+    const baseline = await db.select().from(securityAuditEvents)
+      .where(eq(securityAuditEvents.action, "group_created"))
+      .orderBy(asc(securityAuditEvents.createdAt));
+
+    const firstName = "Historique navigateur A";
+    await page.getByRole("textbox", { name: "Nom du nouveau groupe" }).fill(firstName);
     await timed(capture, "événement historique A", () => page.getByRole("button", { name: "Créer le groupe" }).click());
-    await expect(page.getByRole("region", { name: "Historique navigateur A" })).toBeVisible();
-    const [firstEvent] = await db.select().from(securityAuditEvents).where(and(eq(securityAuditEvents.action, "group_created"), eq(securityAuditEvents.actorLabel, "Administrateur E2E"))).orderBy(asc(securityAuditEvents.createdAt)).limit(1);
-    expect(firstEvent).toBeDefined();
+    await expect(page.getByRole("region", { name: firstName })).toBeVisible();
+    const [firstGroup] = await db.select({ id: userGroups.id }).from(userGroups).where(eq(userGroups.name, firstName));
+    expect(firstGroup).toBeDefined();
+    const afterFirst = await db.select().from(securityAuditEvents)
+      .where(eq(securityAuditEvents.action, "group_created"))
+      .orderBy(asc(securityAuditEvents.createdAt));
+    expect(afterFirst).toHaveLength(baseline.length + 1);
+    const firstMatches = afterFirst.filter((event) => event.targetId === firstGroup!.id);
+    expect(firstMatches).toHaveLength(1);
+    const firstEvent = firstMatches[0]!;
+    expect(firstEvent).toMatchObject({
+      actorLabel: "Administrateur E2E",
+      action: "group_created",
+      scope: "global",
+      targetType: "group",
+      targetId: firstGroup!.id,
+      newValue: { name: firstName },
+    });
+    expect(firstEvent.requestCorrelationId).not.toHaveLength(0);
     const snapshot = JSON.stringify(firstEvent);
 
-    await page.getByRole("textbox", { name: "Nom du nouveau groupe" }).fill("Historique navigateur B");
+    const secondName = "Historique navigateur B";
+    await page.getByRole("textbox", { name: "Nom du nouveau groupe" }).fill(secondName);
     await timed(capture, "événement historique B", () => page.getByRole("button", { name: "Créer le groupe" }).click());
-    await expect(page.getByRole("region", { name: "Historique navigateur B" })).toBeVisible();
+    await expect(page.getByRole("region", { name: secondName })).toBeVisible();
+    const [secondGroup] = await db.select({ id: userGroups.id }).from(userGroups).where(eq(userGroups.name, secondName));
+    expect(secondGroup).toBeDefined();
+    const afterSecond = await db.select().from(securityAuditEvents)
+      .where(eq(securityAuditEvents.action, "group_created"))
+      .orderBy(asc(securityAuditEvents.createdAt));
+    expect(afterSecond).toHaveLength(baseline.length + 2);
+    const secondMatches = afterSecond.filter((event) => event.targetId === secondGroup!.id);
+    expect(secondMatches).toHaveLength(1);
+    const secondEvent = secondMatches[0]!;
+    expect(secondEvent).toMatchObject({
+      actorLabel: "Administrateur E2E",
+      action: "group_created",
+      scope: "global",
+      targetType: "group",
+      targetId: secondGroup!.id,
+      newValue: { name: secondName },
+    });
+    expect(secondEvent.requestCorrelationId).not.toHaveLength(0);
+    expect(secondEvent.requestCorrelationId).not.toBe(firstEvent.requestCorrelationId);
+
     const [sameEvent] = await db.select().from(securityAuditEvents).where(eq(securityAuditEvents.id, firstEvent!.id));
     expect(JSON.stringify(sameEvent)).toBe(snapshot);
-    const events = await db.select({ id: securityAuditEvents.id }).from(securityAuditEvents).where(eq(securityAuditEvents.action, "group_created"));
-    expect(events.length).toBeGreaterThanOrEqual(2);
   },
 );
 

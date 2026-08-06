@@ -411,9 +411,12 @@ une colonne dédiée.
 - L’Assistant de permissions répond par utilisateur, backlog et permission, puis
   distingue clairement droit direct, héritage de groupe et rôle de projet.
 - Un même schéma peut servir CASS et LABS sans rendre globale l’occupation d’un
-  rôle : le membre autorisé dans CASS reste refusé dans LABS.
-- Le retrait de `browse_backlog` retire CASS de toutes les surfaces de découverte
-  et l’URL directe explique le refus sans dévoiler le backlog.
+  rôle : le membre sans rôle direct/protégé reçoit la capacité exclusivement via
+  le groupe et le rôle personnalisé de CASS, puis reste refusé dans LABS.
+- L’ajout puis le retrait de `browse_backlog` depuis la matrice UI ajoutent puis
+  retirent CASS de toutes les surfaces de découverte. Après retrait, le bouton
+  s’appelle exactement `Notifications`, le panneau est vide et l’URL directe
+  explique le refus sans dévoiler le backlog.
 - Le conflit de deux éditeurs est explicite et récupérable par rechargement ; le
   premier enregistrement n’est ni écrasé ni masqué.
 - La page Accès expose désormais un seul landmark `main`. Les contrôles de
@@ -421,10 +424,11 @@ une colonne dédiée.
 
 ### Mesures et dette restante
 
-Les mutations UI observées répondent en **30 à 297 ms** ; les explications de
-permission en **74 à 184 ms** ; navigations et rechargements en **136 à 525 ms**
-sur le serveur local de développement. Les dix scénarios sont propres côté
-console/réseau/HTTP.
+Les mutations UI observées répondent en **23 à 247 ms** ; les explications de
+permission en **69 à 128 ms** ; navigations et rechargements en **380 à
+1 002 ms** sur le serveur local isolé. Les dix scénarios sont propres côté
+console/réseau/HTTP ; leurs durées individuelles et la durée totale sont
+conservées dans le rapport JUnit immuable du run.
 
 L’administration reste dense et desktop-first. La source exacte d’un droit est
 lisible, mais l’historique append-only n’a pas encore de timeline UI filtrable.
