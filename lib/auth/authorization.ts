@@ -67,13 +67,21 @@ async function loadActor(actorId: string): Promise<Actor | null> {
   return actor ?? null;
 }
 
-async function loadBacklogSchemeId(backlogId: string): Promise<string | null> {
-  const [config] = await db
+type BacklogAuthorizationContext = { permissionSchemeId: string | null };
+
+async function loadBacklogAuthorizationContext(
+  backlogId: string,
+): Promise<BacklogAuthorizationContext | null> {
+  const [context] = await db
     .select({ permissionSchemeId: backlogPermissionConfigs.permissionSchemeId })
-    .from(backlogPermissionConfigs)
-    .where(eq(backlogPermissionConfigs.backlogId, backlogId))
+    .from(backlogs)
+    .leftJoin(
+      backlogPermissionConfigs,
+      eq(backlogPermissionConfigs.backlogId, backlogs.id),
+    )
+    .where(eq(backlogs.id, backlogId))
     .limit(1);
-  return config?.permissionSchemeId ?? null;
+  return context ?? null;
 }
 
 function groupMembershipExists(actorId: string) {
@@ -247,21 +255,28 @@ export async function checkPermission(
   const actor = await loadActor(input.actorId);
   if (!actor) return deniedUnknown(input);
 
-  const platformAdministrator = await isPlatformAdministrator(actor);
   let permissionSchemeId: string | undefined;
   if (input.scope.type === "backlog") {
-    permissionSchemeId = (await loadBacklogSchemeId(input.scope.backlogId)) ?? undefined;
+    const context = await loadBacklogAuthorizationContext(input.scope.backlogId);
+    if (!context) return deniedUnknown(input);
+    permissionSchemeId = context.permissionSchemeId ?? undefined;
   }
 
-  const matches = await loadGrantMatches({
-    actor,
-    permission,
-    scope: input.scope,
-    permissionSchemeId,
-  });
+  const platformAdministrator = await isPlatformAdministrator(actor);
+  const matches =
+    input.scope.type === "backlog" && !permissionSchemeId
+      ? []
+      : await loadGrantMatches({
+          actor,
+          permission,
+          scope: input.scope,
+          permissionSchemeId,
+        });
   const hasBrowse =
     input.scope.type === "global" || permission === "browse_backlog"
       ? true
+      : !permissionSchemeId
+        ? false
       : (
           await loadGrantMatches({
             actor,

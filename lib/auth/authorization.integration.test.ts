@@ -44,6 +44,7 @@ const ids = {
 let backlogAId = "";
 let backlogBId = "";
 let backlogCId = "";
+let unconfiguredBacklogId = "";
 let schemeAId = "";
 let schemeBId = "";
 let schemeCId = "";
@@ -63,17 +64,19 @@ describeDb("server-only authorization resolver", () => {
       })),
     );
 
-    const [backlogA, backlogB, backlogC] = await db
+    const [backlogA, backlogB, backlogC, unconfiguredBacklog] = await db
       .insert(backlogs)
       .values([
         { key: `A${slug.slice(0, 5)}`.toUpperCase(), name: "Autorisations A" },
         { key: `B${slug.slice(5, 10)}`.toUpperCase(), name: "Autorisations B" },
         { key: `C${slug.slice(10, 15)}`.toUpperCase(), name: "Autorisations C" },
+        { key: `U${slug.slice(15, 20)}`.toUpperCase(), name: "Autorisations sans config" },
       ])
       .returning({ id: backlogs.id });
     backlogAId = backlogA!.id;
     backlogBId = backlogB!.id;
     backlogCId = backlogC!.id;
+    unconfiguredBacklogId = unconfiguredBacklog!.id;
 
     const [schemeA, schemeB, schemeC] = await db
       .insert(permissionSchemes)
@@ -200,8 +203,17 @@ describeDb("server-only authorization resolver", () => {
   });
 
   afterAll(async () => {
-    if (backlogAId && backlogBId && backlogCId) {
-      await db.delete(backlogs).where(inArray(backlogs.id, [backlogAId, backlogBId, backlogCId]));
+    if (backlogAId && backlogBId && backlogCId && unconfiguredBacklogId) {
+      await db
+        .delete(backlogs)
+        .where(
+          inArray(backlogs.id, [
+            backlogAId,
+            backlogBId,
+            backlogCId,
+            unconfiguredBacklogId,
+          ]),
+        );
     }
     if (schemeAId && schemeBId && schemeCId) {
       await db
@@ -345,6 +357,32 @@ describeDb("server-only authorization resolver", () => {
         actorId: ids.admin,
         permission: "manage_workflows",
         scope: { type: "backlog", backlogId: backlogBId },
+      }),
+    ).resolves.toMatchObject({
+      allowed: true,
+      reasons: [{ type: "platform_administrator" }],
+    });
+  });
+
+  it("denies an administrator when the backlog scope does not exist", async () => {
+    await expect(
+      checkPermission({
+        actorId: ids.admin,
+        permission: "manage_workflows",
+        scope: { type: "backlog", backlogId: randomUUID() },
+      }),
+    ).resolves.toMatchObject({
+      allowed: false,
+      reasons: [{ type: "no_matching_grant" }],
+    });
+  });
+
+  it("keeps the administrator recovery bypass for an existing backlog without config", async () => {
+    await expect(
+      checkPermission({
+        actorId: ids.admin,
+        permission: "manage_workflows",
+        scope: { type: "backlog", backlogId: unconfiguredBacklogId },
       }),
     ).resolves.toMatchObject({
       allowed: true,

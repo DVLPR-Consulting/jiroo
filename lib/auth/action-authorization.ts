@@ -1,7 +1,11 @@
 import "server-only";
 
 import { eq } from "drizzle-orm";
-import { requirePermission, ResourceNotFoundError } from "@/lib/auth/authorization";
+import {
+  PermissionDeniedError,
+  requirePermission,
+  ResourceNotFoundError,
+} from "@/lib/auth/authorization";
 import type { BacklogPermissionKey } from "@/lib/auth/permissions";
 import { db } from "@/lib/db";
 import { backlogs, items, sprints, statuses, views } from "@/lib/db/schema/domain";
@@ -26,11 +30,26 @@ async function authorizeResource(input: {
   if (!input.backlogId) {
     throw new ResourceNotFoundError(input.resourceType, input.resourceId);
   }
-  await requirePermission({
-    actorId: input.actorId,
-    permission: input.permission,
-    scope: { type: "backlog", backlogId: input.backlogId },
-  });
+  try {
+    await requirePermission({
+      actorId: input.actorId,
+      permission: "browse_backlog",
+      scope: { type: "backlog", backlogId: input.backlogId },
+    });
+  } catch (error) {
+    if (error instanceof PermissionDeniedError) {
+      throw new ResourceNotFoundError(input.resourceType, input.resourceId);
+    }
+    throw error;
+  }
+
+  if (input.permission !== "browse_backlog") {
+    await requirePermission({
+      actorId: input.actorId,
+      permission: input.permission,
+      scope: { type: "backlog", backlogId: input.backlogId },
+    });
+  }
   return { backlogId: input.backlogId, resourceId: input.resourceId };
 }
 
