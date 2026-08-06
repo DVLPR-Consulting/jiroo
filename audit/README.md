@@ -876,6 +876,19 @@ propriétaire par lien atomique exclusif; un test lance réellement deux process
 Playwright avec le même run ID. Le run ci-dessus reste la preuve Chromium de
 `e07fa2f` et n'est pas présenté comme une preuve navigateur des corrections.
 
+Après fermeture des quatre findings Important, la preuve finale complète est le
+run immuable `20260806-task10-final-chromium-02` sur `f891d2c` :
+[JUnit 24/24](runs/20260806-task10-final-chromium-02-junit.xml) et
+[manifeste de provenance](runs/20260806-task10-final-chromium-02-manifest.json).
+Ses 60 fichiers sont tous run-scoped : 20 journaux console, 20 journaux réseau,
+18 captures, JUnit et manifeste. Les parcours nominaux ne contiennent aucune
+erreur console/page/requête, aucun échec réseau et aucun statut HTTP 4xx/5xx.
+Les six `ERR_FAILED` sont limités aux trois journaux de rollback injecté. Les
+scans ne trouvent ni motif de secret générique ni identité PostgreSQL brute.
+Le premier essai `20260806-task10-final-chromium-01` est conservé comme diagnostic
+(22 réussites, 2 erreurs) : les sélecteurs E2E attendaient encore les anciens
+libellés avec email. Il n'est pas cité comme preuve d'acceptation.
+
 Le détail finding par finding est conservé dans le
 [registre de revue Task 9 round 1/5](reviews/2026-08-06-task9-review-r1.md) et le
 [registre round 2/5](reviews/2026-08-06-task9-review-r2.md). Le durcissement
