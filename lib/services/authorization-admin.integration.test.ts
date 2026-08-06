@@ -1,9 +1,10 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, like } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { appendPlatformAdministratorBypassEvent } from "@/lib/auth/authorization";
+import { PROTECTED_ROLE_PERMISSION_KEYS } from "@/lib/auth/permissions";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
@@ -62,6 +63,8 @@ let backlogBKey = "";
 let backlogCKey = "";
 let sharedSchemeId = "";
 let privateSchemeId = "";
+const protectedRoleIds = new Map<string, string>();
+const createdBacklogIds: string[] = [];
 const createdGroupIds: string[] = [];
 const createdRoleIds: string[] = [];
 const createdSchemeIds: string[] = [];
@@ -82,6 +85,66 @@ async function createIsolatedScheme(name: string): Promise<string> {
     .returning({ id: permissionSchemes.id });
   createdSchemeIds.push(scheme!.id);
   return scheme!.id;
+}
+
+async function createCanonicalScheme(name: string): Promise<string> {
+  const schemeId = await createIsolatedScheme(name);
+  await db.insert(permissionGrants).values(
+    Object.entries(PROTECTED_ROLE_PERMISSION_KEYS).flatMap(([roleKey, permissions]) =>
+      permissions.map((permissionKey) => ({
+        scope: "backlog" as const,
+        permissionSchemeId: schemeId,
+        permissionKey,
+        principalType: "project_role" as const,
+        projectRoleId: protectedRoleIds.get(roleKey)!,
+      })),
+    ),
+  );
+  return schemeId;
+}
+
+async function createConfiguredBacklog(
+  schemeId: string,
+  mode: "simple" | "advanced",
+  name: string,
+) {
+  const key = `R${randomUUID().replaceAll("-", "").slice(0, 5)}`.toUpperCase();
+  const [backlog] = await db
+    .insert(backlogs)
+    .values({ key, name })
+    .returning({ id: backlogs.id, key: backlogs.key });
+  createdBacklogIds.push(backlog!.id);
+  await db.insert(backlogPermissionConfigs).values({
+    backlogId: backlog!.id,
+    permissionSchemeId: schemeId,
+    accessMode: mode,
+  });
+  await db.insert(backlogRoleActors).values({
+    backlogId: backlog!.id,
+    projectRoleId: protectedRoleIds.get("administrators")!,
+    actorType: "user",
+    userId: actorId,
+  });
+  return backlog!;
+}
+
+function withTimeout<T>(promise: Promise<T>, milliseconds = 5_000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error(`Opération concurrente bloquée plus de ${milliseconds} ms.`)),
+      milliseconds,
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
 }
 
 describeDb("transactional authorization administration", () => {
@@ -110,12 +173,13 @@ describeDb("transactional authorization administration", () => {
       },
     ]);
 
-    const [administratorRole] = await db
-      .select({ id: projectRoles.id })
+    const protectedRoles = await db
+      .select({ id: projectRoles.id, key: projectRoles.key })
       .from(projectRoles)
-      .where(eq(projectRoles.key, "administrators"));
-    if (!administratorRole) throw new Error("Le seed doit contenir le rôle Administrateur.");
-    administratorRoleId = administratorRole.id;
+      .where(inArray(projectRoles.key, ["administrators", "members", "viewers"]));
+    for (const role of protectedRoles) protectedRoleIds.set(role.key, role.id);
+    if (protectedRoleIds.size !== 3) throw new Error("Le seed doit contenir les trois rôles protégés.");
+    administratorRoleId = protectedRoleIds.get("administrators")!;
 
     const [sharedScheme, privateScheme] = await db
       .insert(permissionSchemes)
@@ -154,6 +218,7 @@ describeDb("transactional authorization administration", () => {
     backlogAKey = backlogA!.key;
     backlogBKey = backlogB!.key;
     backlogCKey = backlogC!.key;
+    createdBacklogIds.push(backlogAId, backlogBId, backlogCId);
 
     await db.insert(backlogPermissionConfigs).values([
       { backlogId: backlogAId, permissionSchemeId: sharedSchemeId, accessMode: "advanced" },
@@ -183,8 +248,16 @@ describeDb("transactional authorization administration", () => {
   });
 
   afterAll(async () => {
-    if (backlogAId) {
-      await db.delete(backlogs).where(inArray(backlogs.id, [backlogAId, backlogBId, backlogCId]));
+    await db
+      .delete(securityAuditEvents)
+      .where(like(securityAuditEvents.requestCorrelationId, correlation("%")));
+    const remainingFixtureEvents = await db
+      .select({ id: securityAuditEvents.id })
+      .from(securityAuditEvents)
+      .where(like(securityAuditEvents.requestCorrelationId, correlation("%")));
+    if (remainingFixtureEvents.length > 0) throw new Error("Le teardown a conservé des audits Task 4.");
+    if (createdBacklogIds.length > 0) {
+      await db.delete(backlogs).where(inArray(backlogs.id, createdBacklogIds));
     }
     if (createdSchemeIds.length > 0) {
       await db.delete(permissionSchemes).where(inArray(permissionSchemes.id, createdSchemeIds));
@@ -542,7 +615,7 @@ describeDb("transactional authorization administration", () => {
     ).toEqual([{ action: "backlog_permission_scheme_associated" }]);
   });
 
-  it("rejects removal of the last platform administrator", async () => {
+  it("keeps bootstrap administrators effective when their grant membership is removed", async () => {
     const [platformGroup] = await db
       .select({ id: userGroups.id })
       .from(userGroups)
@@ -553,14 +626,26 @@ describeDb("transactional authorization administration", () => {
       .from(groupMembers)
       .where(eq(groupMembers.groupId, platformGroup.id));
     expect(members).toHaveLength(1);
+    const [bootstrap] = await db
+      .select({ role: user.role })
+      .from(user)
+      .where(eq(user.id, members[0]!.userId));
+    expect(bootstrap?.role).toBe("admin");
 
-    await expect(
-      removeGroupMember(
-        { groupId: platformGroup.id, userId: members[0]!.userId },
-        actorId,
-        correlation("last-platform-admin"),
-      ),
-    ).rejects.toThrow("Le dernier administrateur de la plateforme ne peut pas être retiré.");
+    try {
+      await expect(
+        removeGroupMember(
+          { groupId: platformGroup.id, userId: members[0]!.userId },
+          actorId,
+          correlation("bootstrap-membership-remove"),
+        ),
+      ).resolves.toMatchObject({ groupId: platformGroup.id, userId: members[0]!.userId });
+    } finally {
+      await db
+        .insert(groupMembers)
+        .values({ groupId: platformGroup.id, userId: members[0]!.userId })
+        .onConflictDoNothing();
+    }
   });
 
   it("rejects removal of the last effective backlog administrator", async () => {
@@ -630,4 +715,412 @@ describeDb("transactional authorization administration", () => {
       "Le mode Simple est indisponible : ce schéma contient des autorisations avancées.",
     );
   });
+
+  it("accepts a private scheme only when its protected-role matrix is exactly canonical", async () => {
+    const schemeId = await createCanonicalScheme("Canonique Task 4");
+    const backlog = await createConfiguredBacklog(schemeId, "advanced", "Canonique Task 4");
+
+    await expect(
+      setBacklogAccessMode(
+        { backlogId: backlog.id, mode: "simple" },
+        actorId,
+        correlation("simple-canonical"),
+      ),
+    ).resolves.toMatchObject({ backlogId: backlog.id, mode: "simple" });
+  });
+
+  it.each(["added", "removed", "moved"] as const)(
+    "rejects Simple mode when a protected-role permission is %s",
+    async (mutation) => {
+      const schemeId = await createCanonicalScheme(`Matrice ${mutation} Task 4`);
+      const backlog = await createConfiguredBacklog(
+        schemeId,
+        "advanced",
+        `Matrice ${mutation} Task 4`,
+      );
+
+      if (mutation === "added") {
+        await db.insert(permissionGrants).values({
+          scope: "backlog",
+          permissionSchemeId: schemeId,
+          permissionKey: "delete_items",
+          principalType: "project_role",
+          projectRoleId: protectedRoleIds.get("viewers")!,
+        });
+      } else if (mutation === "removed") {
+        await db
+          .delete(permissionGrants)
+          .where(
+            and(
+              eq(permissionGrants.permissionSchemeId, schemeId),
+              eq(permissionGrants.permissionKey, "browse_backlog"),
+              eq(permissionGrants.projectRoleId, protectedRoleIds.get("administrators")!),
+            ),
+          );
+      } else {
+        await db
+          .delete(permissionGrants)
+          .where(
+            and(
+              eq(permissionGrants.permissionSchemeId, schemeId),
+              eq(permissionGrants.permissionKey, "create_items"),
+              eq(permissionGrants.projectRoleId, protectedRoleIds.get("members")!),
+            ),
+          );
+        await db.insert(permissionGrants).values({
+          scope: "backlog",
+          permissionSchemeId: schemeId,
+          permissionKey: "create_items",
+          principalType: "project_role",
+          projectRoleId: protectedRoleIds.get("viewers")!,
+        });
+      }
+
+      await expect(
+        setBacklogAccessMode(
+          { backlogId: backlog.id, mode: "simple" },
+          actorId,
+          correlation(`simple-matrix-${mutation}`),
+        ),
+      ).rejects.toThrow(
+        "Le mode Simple est indisponible : ce schéma contient des autorisations avancées.",
+      );
+    },
+  );
+
+  it("blocks direct grant additions and removals that would corrupt an active Simple scheme", async () => {
+    const addSchemeId = await createCanonicalScheme("Simple ajout Task 4");
+    await createConfiguredBacklog(addSchemeId, "simple", "Simple ajout Task 4");
+
+    await expect(
+      addSchemeGrant(
+        {
+          schemeId: addSchemeId,
+          permission: "delete_items",
+          principal: { type: "user", userId: memberId },
+          expectedVersion: 1,
+        },
+        actorId,
+        correlation("simple-direct-add"),
+      ),
+    ).rejects.toThrow(
+      "Le mode Simple est indisponible : ce schéma contient des autorisations avancées.",
+    );
+    expect(await storedVersion(addSchemeId)).toBe(1);
+
+    const removeSchemeId = await createCanonicalScheme("Simple retrait Task 4");
+    await createConfiguredBacklog(removeSchemeId, "simple", "Simple retrait Task 4");
+    const [grant] = await db
+      .select({ id: permissionGrants.id })
+      .from(permissionGrants)
+      .where(
+        and(
+          eq(permissionGrants.permissionSchemeId, removeSchemeId),
+          eq(permissionGrants.permissionKey, "create_items"),
+          eq(permissionGrants.projectRoleId, protectedRoleIds.get("members")!),
+        ),
+      );
+
+    await expect(
+      removeSchemeGrant(
+        { schemeId: removeSchemeId, grantId: grant!.id, expectedVersion: 1 },
+        actorId,
+        correlation("simple-direct-remove"),
+      ),
+    ).rejects.toThrow(
+      "Le mode Simple est indisponible : ce schéma contient des autorisations avancées.",
+    );
+    expect(await storedVersion(removeSchemeId)).toBe(1);
+  });
+
+  it("blocks associations that make a Simple configuration shared or non-canonical", async () => {
+    const sourceSchemeId = await createCanonicalScheme("Simple source Task 4");
+    const simpleBacklog = await createConfiguredBacklog(
+      sourceSchemeId,
+      "simple",
+      "Simple source Task 4",
+    );
+    const advancedSchemeId = await createIsolatedScheme("Schéma avancé direct Task 4");
+    await db.insert(permissionGrants).values([
+      {
+        scope: "backlog",
+        permissionSchemeId: advancedSchemeId,
+        permissionKey: "browse_backlog",
+        principalType: "user",
+        userId: actorId,
+      },
+      {
+        scope: "backlog",
+        permissionSchemeId: advancedSchemeId,
+        permissionKey: "administer_backlog",
+        principalType: "user",
+        userId: actorId,
+      },
+    ]);
+
+    await expect(
+      associatePermissionScheme(
+        { backlogId: simpleBacklog.id, schemeId: advancedSchemeId },
+        actorId,
+        correlation("simple-associate-advanced"),
+      ),
+    ).rejects.toThrow(
+      "Le mode Simple est indisponible : ce schéma contient des autorisations avancées.",
+    );
+
+    const sharingSchemeId = await createCanonicalScheme("Simple partage Task 4");
+    await createConfiguredBacklog(sharingSchemeId, "simple", "Simple propriétaire Task 4");
+    const advancedBacklog = await createConfiguredBacklog(
+      sourceSchemeId,
+      "advanced",
+      "Avancé association Task 4",
+    );
+    await expect(
+      associatePermissionScheme(
+        { backlogId: advancedBacklog.id, schemeId: sharingSchemeId },
+        actorId,
+        correlation("simple-made-shared"),
+      ),
+    ).rejects.toThrow("Le mode Simple est indisponible : ce schéma est partagé.");
+  });
+
+  it(
+    "serializes a mode switch with a concurrent association and preserves the Simple invariant",
+    async () => {
+      const schemeId = await createCanonicalScheme("Concurrence Simple Task 4");
+      const modeBacklog = await createConfiguredBacklog(
+        schemeId,
+        "advanced",
+        "Concurrence mode Task 4",
+      );
+      const otherSchemeId = await createCanonicalScheme("Concurrence autre Task 4");
+      const associationBacklog = await createConfiguredBacklog(
+        otherSchemeId,
+        "advanced",
+        "Concurrence association Task 4",
+      );
+
+      let releaseSchemeLock!: () => void;
+      let announceSchemeLock!: () => void;
+      const schemeLockAcquired = new Promise<void>((resolve) => {
+        announceSchemeLock = resolve;
+      });
+      const holdSchemeLock = new Promise<void>((resolve) => {
+        releaseSchemeLock = resolve;
+      });
+      const blocker = db.transaction(async (tx) => {
+        await tx
+          .select({ id: permissionSchemes.id })
+          .from(permissionSchemes)
+          .where(eq(permissionSchemes.id, schemeId))
+          .for("update");
+        announceSchemeLock();
+        await holdSchemeLock;
+      });
+
+      await schemeLockAcquired;
+      const association = associatePermissionScheme(
+        { backlogId: associationBacklog.id, schemeId },
+        actorId,
+        correlation("concurrent-association"),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      const modeChange = setBacklogAccessMode(
+        { backlogId: modeBacklog.id, mode: "simple" },
+        actorId,
+        correlation("concurrent-mode"),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      releaseSchemeLock();
+
+      const outcomes = await withTimeout(Promise.allSettled([association, modeChange]));
+      await blocker;
+      expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
+      expect(outcomes.filter((outcome) => outcome.status === "rejected")).toHaveLength(1);
+
+      const configs = await db
+        .select({ mode: backlogPermissionConfigs.accessMode })
+        .from(backlogPermissionConfigs)
+        .where(eq(backlogPermissionConfigs.permissionSchemeId, schemeId));
+      expect(configs.length > 1 && configs.some((config) => config.mode === "simple")).toBe(false);
+    },
+    10_000,
+  );
+
+  it("returns every backlog for membership changes in an administer_jiroo group", async () => {
+    const group = await createGroup(
+      { name: "Administrateurs globaux Task 4" },
+      actorId,
+      correlation("global-group-create"),
+    );
+    createdGroupIds.push(group.id);
+    const grant = await addGlobalPermissionGrant(
+      { permission: "administer_jiroo", principal: { type: "group", groupId: group.id } },
+      actorId,
+      correlation("global-group-grant"),
+    );
+
+    const added = await addGroupMember(
+      { groupId: group.id, userId: memberId },
+      actorId,
+      correlation("global-group-member-add"),
+    );
+    expect(added.affectedBacklogKeys).toEqual(
+      expect.arrayContaining([backlogAKey, backlogBKey, backlogCKey]),
+    );
+    const removed = await removeGroupMember(
+      { groupId: group.id, userId: memberId },
+      actorId,
+      correlation("global-group-member-remove"),
+    );
+    expect(removed.affectedBacklogKeys).toEqual(
+      expect.arrayContaining([backlogAKey, backlogBKey, backlogCKey]),
+    );
+    await removeGlobalPermissionGrant(
+      { grantId: grant.id },
+      actorId,
+      correlation("global-group-grant-remove"),
+    );
+  });
+
+  it(
+    "avoids a group-to-global deadlock during concurrent membership removal and grant creation",
+    async () => {
+      const group = await createGroup(
+        { name: "Interleaving global Task 4" },
+        actorId,
+        correlation("deadlock-global-group"),
+      );
+      createdGroupIds.push(group.id);
+      await addGroupMember(
+        { groupId: group.id, userId: secondMemberId },
+        actorId,
+        correlation("deadlock-global-member"),
+      );
+
+      let releaseMembershipLock!: () => void;
+      let announceMembershipLock!: () => void;
+      const membershipLockAcquired = new Promise<void>((resolve) => {
+        announceMembershipLock = resolve;
+      });
+      const holdMembershipLock = new Promise<void>((resolve) => {
+        releaseMembershipLock = resolve;
+      });
+      const blocker = db.transaction(async (tx) => {
+        await tx
+          .select({ id: groupMembers.id })
+          .from(groupMembers)
+          .where(
+            and(eq(groupMembers.groupId, group.id), eq(groupMembers.userId, secondMemberId)),
+          )
+          .for("update");
+        announceMembershipLock();
+        await holdMembershipLock;
+      });
+
+      await membershipLockAcquired;
+      const membershipRemoval = removeGroupMember(
+        { groupId: group.id, userId: secondMemberId },
+        actorId,
+        correlation("deadlock-global-remove"),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      const grantCreation = addGlobalPermissionGrant(
+        { permission: "browse_users", principal: { type: "group", groupId: group.id } },
+        actorId,
+        correlation("deadlock-global-grant"),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      releaseMembershipLock();
+
+      const outcomes = await withTimeout(
+        Promise.allSettled([membershipRemoval, grantCreation]),
+      );
+      await blocker;
+      expect(outcomes).toEqual([
+        expect.objectContaining({ status: "fulfilled" }),
+        expect.objectContaining({ status: "fulfilled" }),
+      ]);
+    },
+    10_000,
+  );
+
+  it(
+    "avoids a group-to-backlog deadlock during concurrent membership removal and role assignment",
+    async () => {
+      const group = await createGroup(
+        { name: "Interleaving backlog Task 4" },
+        actorId,
+        correlation("deadlock-backlog-group"),
+      );
+      createdGroupIds.push(group.id);
+      await addGroupMember(
+        { groupId: group.id, userId: secondMemberId },
+        actorId,
+        correlation("deadlock-backlog-member"),
+      );
+      await db.insert(permissionGrants).values({
+        scope: "backlog",
+        permissionSchemeId: privateSchemeId,
+        permissionKey: "manage_releases",
+        principalType: "group",
+        groupId: group.id,
+      });
+      const role = await createProjectRole(
+        { name: "Interleaving role Task 4" },
+        actorId,
+        correlation("deadlock-backlog-role"),
+      );
+      createdRoleIds.push(role.id);
+
+      let releaseMembershipLock!: () => void;
+      let announceMembershipLock!: () => void;
+      const membershipLockAcquired = new Promise<void>((resolve) => {
+        announceMembershipLock = resolve;
+      });
+      const holdMembershipLock = new Promise<void>((resolve) => {
+        releaseMembershipLock = resolve;
+      });
+      const blocker = db.transaction(async (tx) => {
+        await tx
+          .select({ id: groupMembers.id })
+          .from(groupMembers)
+          .where(
+            and(eq(groupMembers.groupId, group.id), eq(groupMembers.userId, secondMemberId)),
+          )
+          .for("update");
+        announceMembershipLock();
+        await holdMembershipLock;
+      });
+
+      await membershipLockAcquired;
+      const membershipRemoval = removeGroupMember(
+        { groupId: group.id, userId: secondMemberId },
+        actorId,
+        correlation("deadlock-backlog-remove"),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      const roleAssignment = assignBacklogRoleActor(
+        {
+          backlogId: backlogCId,
+          projectRoleId: role.id,
+          principal: { type: "group", groupId: group.id },
+        },
+        actorId,
+        correlation("deadlock-backlog-assign"),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      releaseMembershipLock();
+
+      const outcomes = await withTimeout(
+        Promise.allSettled([membershipRemoval, roleAssignment]),
+      );
+      await blocker;
+      expect(outcomes).toEqual([
+        expect.objectContaining({ status: "fulfilled" }),
+        expect.objectContaining({ status: "fulfilled" }),
+      ]);
+    },
+    10_000,
+  );
 });

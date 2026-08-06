@@ -12,6 +12,7 @@ import {
   permissionDefinition,
   type PermissionKey,
 } from "@/lib/auth/permissions";
+import { resolvePlatformAdministratorIds } from "@/lib/auth/platform-administrator";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
@@ -238,13 +239,31 @@ function knownPermission(input: CheckPermissionInput): PermissionKey | null {
 }
 
 async function isPlatformAdministrator(actor: Actor): Promise<boolean> {
-  if (actor.role === "admin") return true;
-  const matches = await loadGrantMatches({
-    actor,
-    permission: "administer_jiroo",
-    scope: { type: "global" },
-  });
-  return matches.length > 0;
+  const [grants, memberships] = await Promise.all([
+    db
+      .select({
+        id: permissionGrants.id,
+        principalType: permissionGrants.principalType,
+        userId: permissionGrants.userId,
+        groupId: permissionGrants.groupId,
+      })
+      .from(permissionGrants)
+      .where(
+        and(
+          eq(permissionGrants.scope, "global"),
+          eq(permissionGrants.permissionKey, "administer_jiroo"),
+        ),
+      ),
+    db
+      .select({ groupId: groupMembers.groupId, userId: groupMembers.userId })
+      .from(groupMembers)
+      .where(eq(groupMembers.userId, actor.id)),
+  ]);
+  return resolvePlatformAdministratorIds({
+    users: [{ id: actor.id, role: actor.role }],
+    grants,
+    memberships,
+  }).has(actor.id);
 }
 
 export async function checkPermission(

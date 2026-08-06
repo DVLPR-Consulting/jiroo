@@ -81,6 +81,7 @@ import {
   createGroupAction,
   permissionHelperAction,
   removeBacklogRoleActorAction,
+  removeGroupMemberAction,
   setBacklogAccessModeAction,
 } from "@/app/actions/authorization";
 
@@ -245,6 +246,28 @@ describe("authorization administration Server Actions", () => {
     });
 
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
+  });
+
+  it("revalidates every backlog returned by global-admin group membership changes", async () => {
+    mocks.addGroupMember.mockResolvedValue({
+      groupId,
+      userId: "member-1",
+      affectedBacklogKeys: ["DEMO", "OPS"],
+    });
+    mocks.removeGroupMember.mockResolvedValue({
+      groupId,
+      userId: "member-1",
+      affectedBacklogKeys: ["DEMO", "OPS"],
+    });
+
+    await addGroupMemberAction({ groupId, userId: "member-1" });
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/OPS");
+
+    mocks.revalidatePath.mockClear();
+    await removeGroupMemberAction({ groupId, userId: "member-1" });
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/OPS");
   });
 
   it("records a bypass before the domain service with the same correlation ID", async () => {

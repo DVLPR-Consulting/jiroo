@@ -3,6 +3,8 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { explainPermission } from "@/lib/auth/authorization";
+import { PROTECTED_ROLE_PERMISSION_KEYS } from "@/lib/auth/permissions";
+import { resolvePlatformAdministratorIds } from "@/lib/auth/platform-administrator";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
@@ -47,6 +49,14 @@ const LAST_PLATFORM_ADMIN_MESSAGE =
   "Le dernier administrateur de la plateforme ne peut pas être retiré.";
 const LAST_BACKLOG_ADMIN_MESSAGE =
   "Le dernier administrateur effectif du backlog ne peut pas être retiré.";
+const SIMPLE_SHARED_MESSAGE =
+  "Le mode Simple est indisponible : ce schéma est partagé.";
+const SIMPLE_MATRIX_MESSAGE =
+  "Le mode Simple est indisponible : ce schéma contient des autorisations avancées.";
+// Group-reference writes take membership topology first. Scheme/configuration writes
+// then take scheme topology, scheme rows by ID, and backlog configurations by ID.
+const MEMBERSHIP_TOPOLOGY_LOCK = "authorization-membership-topology";
+const SCHEME_TOPOLOGY_LOCK = "authorization-scheme-topology";
 
 export class StaleSchemeVersionError extends Error {
   constructor() {
@@ -171,6 +181,16 @@ async function lockedGroup(tx: Transaction, groupId: string) {
   return group;
 }
 
+async function existingGroup(tx: Transaction, groupId: string) {
+  await lockAggregate(tx, `authorization-group:${groupId}`);
+  const [group] = await tx
+    .select({ id: userGroups.id, key: userGroups.key, name: userGroups.name, protected: userGroups.protected })
+    .from(userGroups)
+    .where(eq(userGroups.id, groupId));
+  if (!group) throw new ProtectedInvariantError("Groupe introuvable.");
+  return group;
+}
+
 async function lockedRole(tx: Transaction, projectRoleId: string) {
   await lockAggregate(tx, `authorization-role:${projectRoleId}`);
   const [role] = await tx
@@ -222,6 +242,136 @@ async function lockedBacklogConfig(tx: Transaction, backlogId: string) {
     .for("update");
   if (!config) throw new ProtectedInvariantError("Configuration d’accès introuvable.");
   return config;
+}
+
+type LockedBacklogConfig = Awaited<ReturnType<typeof lockedBacklogConfig>>;
+
+async function loadBacklogConfig(tx: Transaction, backlogId: string) {
+  const [config] = await tx
+    .select({
+      backlogId: backlogPermissionConfigs.backlogId,
+      permissionSchemeId: backlogPermissionConfigs.permissionSchemeId,
+      accessMode: backlogPermissionConfigs.accessMode,
+      backlogKey: backlogs.key,
+      backlogName: backlogs.name,
+    })
+    .from(backlogPermissionConfigs)
+    .innerJoin(backlogs, eq(backlogs.id, backlogPermissionConfigs.backlogId))
+    .where(eq(backlogPermissionConfigs.backlogId, backlogId));
+  if (!config) throw new ProtectedInvariantError("Configuration d’accès introuvable.");
+  return config;
+}
+
+async function lockSchemes(tx: Transaction, schemeIds: string[]) {
+  const schemes = new Map<string, Awaited<ReturnType<typeof lockedScheme>>>();
+  for (const schemeId of [...new Set(schemeIds)].sort()) {
+    schemes.set(schemeId, await lockedScheme(tx, schemeId));
+  }
+  return schemes;
+}
+
+async function lockSchemeConfigurations(
+  tx: Transaction,
+  schemeIds: string[],
+): Promise<LockedBacklogConfig[]> {
+  const uniqueSchemeIds = [...new Set(schemeIds)];
+  if (uniqueSchemeIds.length === 0) return [];
+  const backlogRows = await tx
+    .select({ backlogId: backlogPermissionConfigs.backlogId })
+    .from(backlogPermissionConfigs)
+    .where(inArray(backlogPermissionConfigs.permissionSchemeId, uniqueSchemeIds));
+  for (const backlogId of backlogRows.map((row) => row.backlogId).sort()) {
+    await lockAggregate(tx, `authorization-backlog:${backlogId}`);
+  }
+  return tx
+    .select({
+      backlogId: backlogPermissionConfigs.backlogId,
+      permissionSchemeId: backlogPermissionConfigs.permissionSchemeId,
+      accessMode: backlogPermissionConfigs.accessMode,
+      backlogKey: backlogs.key,
+      backlogName: backlogs.name,
+    })
+    .from(backlogPermissionConfigs)
+    .innerJoin(backlogs, eq(backlogs.id, backlogPermissionConfigs.backlogId))
+    .where(inArray(backlogPermissionConfigs.permissionSchemeId, uniqueSchemeIds))
+    .orderBy(asc(backlogPermissionConfigs.backlogId))
+    .for("update");
+}
+
+type SchemeGrantProjection = {
+  excludeGrantId?: string;
+  add?: {
+    permissionKey: string;
+    principalType: "user" | "group" | "project_role" | "authenticated_user";
+    projectRoleId?: string;
+  };
+};
+
+async function assertCanonicalSimpleMatrix(
+  tx: Transaction,
+  schemeId: string,
+  projection: SchemeGrantProjection = {},
+): Promise<void> {
+  const grants = await tx
+    .select({
+      id: permissionGrants.id,
+      permissionKey: permissionGrants.permissionKey,
+      principalType: permissionGrants.principalType,
+      projectRoleId: permissionGrants.projectRoleId,
+      projectRoleKey: projectRoles.key,
+    })
+    .from(permissionGrants)
+    .leftJoin(projectRoles, eq(projectRoles.id, permissionGrants.projectRoleId))
+    .where(eq(permissionGrants.permissionSchemeId, schemeId));
+
+  const projected = grants
+    .filter((grant) => grant.id !== projection.excludeGrantId)
+    .map((grant) => ({
+      permissionKey: grant.permissionKey,
+      principalType: grant.principalType,
+      projectRoleKey: grant.projectRoleKey,
+    }));
+  if (projection.add) {
+    let projectRoleKey: string | null = null;
+    if (projection.add.projectRoleId) {
+      const [role] = await tx
+        .select({ key: projectRoles.key })
+        .from(projectRoles)
+        .where(eq(projectRoles.id, projection.add.projectRoleId));
+      projectRoleKey = role?.key ?? null;
+    }
+    projected.push({ ...projection.add, projectRoleKey });
+  }
+
+  const expectedPairs = new Set(
+    Object.entries(PROTECTED_ROLE_PERMISSION_KEYS).flatMap(([roleKey, permissions]) =>
+      permissions.map((permissionKey) => `${roleKey}:${permissionKey}`),
+    ),
+  );
+  const actualPairs = new Set<string>();
+  for (const grant of projected) {
+    if (grant.principalType !== "project_role" || !grant.projectRoleKey) {
+      throw new ProtectedInvariantError(SIMPLE_MATRIX_MESSAGE);
+    }
+    const pair = `${grant.projectRoleKey}:${grant.permissionKey}`;
+    if (!expectedPairs.has(pair)) throw new ProtectedInvariantError(SIMPLE_MATRIX_MESSAGE);
+    actualPairs.add(pair);
+  }
+  if (projected.length !== expectedPairs.size || actualPairs.size !== expectedPairs.size) {
+    throw new ProtectedInvariantError(SIMPLE_MATRIX_MESSAGE);
+  }
+}
+
+async function assertSimpleSchemeInvariant(
+  tx: Transaction,
+  schemeId: string,
+  configs: LockedBacklogConfig[],
+  grantProjection: SchemeGrantProjection = {},
+): Promise<void> {
+  const schemeConfigs = configs.filter((config) => config.permissionSchemeId === schemeId);
+  if (!schemeConfigs.some((config) => config.accessMode === "simple")) return;
+  if (schemeConfigs.length !== 1) throw new ProtectedInvariantError(SIMPLE_SHARED_MESSAGE);
+  await assertCanonicalSimpleMatrix(tx, schemeId, grantProjection);
 }
 
 type EffectiveAdminExclusion = {
@@ -337,6 +487,7 @@ async function assertPlatformAdministratorsRemain(
   tx: Transaction,
   exclusion: { grantId?: string; membership?: { groupId: string; userId: string } } = {},
 ): Promise<void> {
+  const users = await tx.select({ id: user.id, role: user.role }).from(user);
   const grants = await tx
     .select({
       id: permissionGrants.id,
@@ -360,16 +511,11 @@ async function assertPlatformAdministratorsRemain(
       entry.groupId !== exclusion.membership.groupId ||
       entry.userId !== exclusion.membership.userId,
   );
-  const administratorIds = new Set<string>();
-  for (const grant of grants) {
-    if (grant.id === exclusion.grantId) continue;
-    if (grant.principalType === "user" && grant.userId) administratorIds.add(grant.userId);
-    if (grant.principalType === "group" && grant.groupId) {
-      for (const member of members) {
-        if (member.groupId === grant.groupId) administratorIds.add(member.userId);
-      }
-    }
-  }
+  const administratorIds = resolvePlatformAdministratorIds({
+    users,
+    grants: grants.filter((grant) => grant.id !== exclusion.grantId),
+    memberships: members,
+  });
   if (administratorIds.size === 0) throw new ProtectedInvariantError(LAST_PLATFORM_ADMIN_MESSAGE);
 }
 
@@ -382,8 +528,8 @@ async function affectedBacklogsForScheme(tx: Transaction, schemeId: string) {
     .orderBy(asc(backlogs.name), asc(backlogs.id));
 }
 
-async function affectedBacklogsForGroup(tx: Transaction, groupId: string) {
-  const rows = await tx
+async function backlogDependenciesForGroup(tx: Transaction, groupId: string) {
+  return tx
     .select({ id: backlogs.id, key: backlogs.key, name: backlogs.name })
     .from(backlogs)
     .innerJoin(backlogPermissionConfigs, eq(backlogPermissionConfigs.backlogId, backlogs.id))
@@ -399,7 +545,29 @@ async function affectedBacklogsForGroup(tx: Transaction, groupId: string) {
       and(eq(backlogRoleActors.backlogId, backlogs.id), eq(backlogRoleActors.groupId, groupId)),
     )
     .where(or(eq(permissionGrants.groupId, groupId), eq(backlogRoleActors.groupId, groupId)));
-  return [...new Map(rows.map((row) => [row.id, row])).values()];
+}
+
+async function affectedBacklogsForGroup(tx: Transaction, groupId: string) {
+  const [platformGrant] = await tx
+    .select({ id: permissionGrants.id })
+    .from(permissionGrants)
+    .where(
+      and(
+        eq(permissionGrants.scope, "global"),
+        eq(permissionGrants.permissionKey, "administer_jiroo"),
+        eq(permissionGrants.groupId, groupId),
+      ),
+    )
+    .limit(1);
+  const rows = platformGrant
+    ? await tx
+        .select({ id: backlogs.id, key: backlogs.key, name: backlogs.name })
+        .from(backlogs)
+        .orderBy(asc(backlogs.name), asc(backlogs.id))
+    : await backlogDependenciesForGroup(tx, groupId);
+  return [...new Map(rows.map((row) => [row.id, row])).values()].sort(
+    (left, right) => left.name.localeCompare(right.name, "fr") || left.id.localeCompare(right.id),
+  );
 }
 
 async function allBacklogKeys(tx: Transaction): Promise<string[]> {
@@ -442,6 +610,7 @@ export async function renameGroup(
 ) {
   const parsed = groupRenameInput.parse(input);
   return db.transaction(async (tx) => {
+    await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
     const group = await lockedGroup(tx, parsed.groupId);
     const label = await actorLabel(tx, actorId);
     const [updated] = await tx
@@ -471,7 +640,9 @@ export async function addGroupMember(
 ) {
   const parsed = groupMembershipInput.parse(input);
   return db.transaction(async (tx) => {
-    const group = await lockedGroup(tx, parsed.groupId);
+    await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
+    await lockAggregate(tx, "authorization-global-permissions");
+    const group = await existingGroup(tx, parsed.groupId);
     const label = await actorLabel(tx, actorId);
     await assertPrincipalExists(tx, { type: "user", userId: parsed.userId });
     const affected = await affectedBacklogsForGroup(tx, group.id);
@@ -506,7 +677,9 @@ export async function removeGroupMember(
 ) {
   const parsed = groupMembershipInput.parse(input);
   return db.transaction(async (tx) => {
-    const group = await lockedGroup(tx, parsed.groupId);
+    await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
+    await lockAggregate(tx, "authorization-global-permissions");
+    const group = await existingGroup(tx, parsed.groupId);
     const label = await actorLabel(tx, actorId);
     const [membership] = await tx
       .select({ id: groupMembers.id })
@@ -516,12 +689,12 @@ export async function removeGroupMember(
     if (!membership) throw new ProtectedInvariantError("Ce membre est introuvable dans le groupe.");
 
     const exclusion = { membership: { groupId: group.id, userId: parsed.userId } };
-    await lockAggregate(tx, "authorization-global-permissions");
     await assertPlatformAdministratorsRemain(tx, exclusion);
     const affected = await affectedBacklogsForGroup(tx, group.id);
+    const administrationDependencies = await backlogDependenciesForGroup(tx, group.id);
     await assertBacklogAdministratorsRemain(
       tx,
-      affected.map((backlog) => backlog.id),
+      administrationDependencies.map((backlog) => backlog.id),
       exclusion,
     );
 
@@ -551,6 +724,7 @@ export async function deleteGroup(
 ) {
   const parsed = groupDeleteInput.parse(input);
   return db.transaction(async (tx) => {
+    await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
     const group = await lockedGroup(tx, parsed.groupId);
     const label = await actorLabel(tx, actorId);
     if (group.protected) throw new ProtectedInvariantError("Ce groupe protégé ne peut pas être supprimé.");
@@ -712,6 +886,7 @@ export async function assignBacklogRoleActor(
 ) {
   const parsed = backlogRoleActorInput.parse(input);
   return db.transaction(async (tx) => {
+    await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
     const config = await lockedBacklogConfig(tx, parsed.backlogId);
     await lockedRole(tx, parsed.projectRoleId);
     await assertPrincipalExists(tx, parsed.principal);
@@ -748,6 +923,7 @@ export async function removeBacklogRoleActor(
 ) {
   const parsed = backlogRoleActorInput.parse(input);
   return db.transaction(async (tx) => {
+    await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
     const config = await lockedBacklogConfig(tx, parsed.backlogId);
     await lockedRole(tx, parsed.projectRoleId);
     const label = await actorLabel(tx, actorId);
@@ -845,9 +1021,20 @@ export async function addSchemeGrant(
 ) {
   const parsed = grantInput.parse(input);
   return db.transaction(async (tx) => {
+    await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
+    await lockAggregate(tx, SCHEME_TOPOLOGY_LOCK);
     const scheme = await lockedScheme(tx, parsed.schemeId);
+    const configs = await lockSchemeConfigurations(tx, [scheme.id]);
     if (scheme.version !== parsed.expectedVersion) throw new StaleSchemeVersionError();
     await assertPrincipalExists(tx, parsed.principal);
+    const principal = principalColumns(parsed.principal);
+    await assertSimpleSchemeInvariant(tx, scheme.id, configs, {
+      add: {
+        permissionKey: parsed.permission,
+        principalType: principal.principalType,
+        projectRoleId: principal.projectRoleId,
+      },
+    });
     const label = await actorLabel(tx, actorId);
     const [grant] = await tx
       .insert(permissionGrants)
@@ -855,7 +1042,7 @@ export async function addSchemeGrant(
         scope: "backlog",
         permissionSchemeId: scheme.id,
         permissionKey: parsed.permission,
-        ...principalColumns(parsed.principal),
+        ...principal,
       })
       .returning({ id: permissionGrants.id });
     if (!grant) throw new Error("Création de l’autorisation impossible.");
@@ -892,7 +1079,10 @@ export async function removeSchemeGrant(
 ) {
   const parsed = schemeGrantRemovalInput.parse(input);
   return db.transaction(async (tx) => {
+    await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
+    await lockAggregate(tx, SCHEME_TOPOLOGY_LOCK);
     const scheme = await lockedScheme(tx, parsed.schemeId);
+    const configs = await lockSchemeConfigurations(tx, [scheme.id]);
     if (scheme.version !== parsed.expectedVersion) throw new StaleSchemeVersionError();
     const label = await actorLabel(tx, actorId);
     const [grant] = await tx
@@ -913,6 +1103,9 @@ export async function removeSchemeGrant(
       )
       .for("update");
     if (!grant) throw new ProtectedInvariantError("Autorisation introuvable.");
+    await assertSimpleSchemeInvariant(tx, scheme.id, configs, {
+      excludeGrantId: grant.id,
+    });
     const affected = await affectedBacklogsForScheme(tx, scheme.id);
     await assertBacklogAdministratorsRemain(
       tx,
@@ -954,6 +1147,7 @@ export async function addGlobalPermissionGrant(
 ) {
   const parsed = globalGrantInput.parse(input);
   return db.transaction(async (tx) => {
+    await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
     await lockAggregate(tx, "authorization-global-permissions");
     await assertPrincipalExists(tx, parsed.principal);
     const label = await actorLabel(tx, actorId);
@@ -993,6 +1187,7 @@ export async function removeGlobalPermissionGrant(
 ) {
   const parsed = globalGrantRemovalInput.parse(input);
   return db.transaction(async (tx) => {
+    await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
     await lockAggregate(tx, "authorization-global-permissions");
     const label = await actorLabel(tx, actorId);
     const [grant] = await tx
@@ -1039,8 +1234,24 @@ export async function associatePermissionScheme(
 ) {
   const parsed = schemeAssociationInput.parse(input);
   return db.transaction(async (tx) => {
-    await lockedScheme(tx, parsed.schemeId);
-    const config = await lockedBacklogConfig(tx, parsed.backlogId);
+    await lockAggregate(tx, SCHEME_TOPOLOGY_LOCK);
+    const initialConfig = await loadBacklogConfig(tx, parsed.backlogId);
+    await lockSchemes(tx, [initialConfig.permissionSchemeId, parsed.schemeId]);
+    const configs = await lockSchemeConfigurations(tx, [
+      initialConfig.permissionSchemeId,
+      parsed.schemeId,
+    ]);
+    const config = configs.find((entry) => entry.backlogId === parsed.backlogId);
+    if (!config) throw new ProtectedInvariantError("Configuration d’accès introuvable.");
+    const projectedConfigs = configs.map((entry) =>
+      entry.backlogId === parsed.backlogId
+        ? { ...entry, permissionSchemeId: parsed.schemeId }
+        : entry,
+    );
+    await assertSimpleSchemeInvariant(tx, config.permissionSchemeId, projectedConfigs);
+    if (parsed.schemeId !== config.permissionSchemeId) {
+      await assertSimpleSchemeInvariant(tx, parsed.schemeId, projectedConfigs);
+    }
     const label = await actorLabel(tx, actorId);
     await assertBacklogAdministratorsRemain(tx, [parsed.backlogId], {}, parsed.schemeId);
     await tx
@@ -1070,35 +1281,17 @@ export async function setBacklogAccessMode(
 ) {
   const parsed = accessModeInput.parse(input);
   return db.transaction(async (tx) => {
-    const config = await lockedBacklogConfig(tx, parsed.backlogId);
+    await lockAggregate(tx, SCHEME_TOPOLOGY_LOCK);
+    const initialConfig = await loadBacklogConfig(tx, parsed.backlogId);
+    await lockSchemes(tx, [initialConfig.permissionSchemeId]);
+    const configs = await lockSchemeConfigurations(tx, [initialConfig.permissionSchemeId]);
+    const config = configs.find((entry) => entry.backlogId === parsed.backlogId);
+    if (!config) throw new ProtectedInvariantError("Configuration d’accès introuvable.");
     const label = await actorLabel(tx, actorId);
-    if (parsed.mode === "simple") {
-      const affected = await affectedBacklogsForScheme(tx, config.permissionSchemeId);
-      if (affected.length !== 1) {
-        throw new ProtectedInvariantError(
-          "Le mode Simple est indisponible : ce schéma est partagé.",
-        );
-      }
-      const advancedGrants = await tx
-        .select({ id: permissionGrants.id })
-        .from(permissionGrants)
-        .leftJoin(projectRoles, eq(projectRoles.id, permissionGrants.projectRoleId))
-        .where(
-          and(
-            eq(permissionGrants.permissionSchemeId, config.permissionSchemeId),
-            or(
-              sql`${permissionGrants.principalType} <> 'project_role'`,
-              sql`${projectRoles.key} not in ('administrators', 'members', 'viewers')`,
-            ),
-          ),
-        )
-        .limit(1);
-      if (advancedGrants.length > 0) {
-        throw new ProtectedInvariantError(
-          "Le mode Simple est indisponible : ce schéma contient des autorisations avancées.",
-        );
-      }
-    }
+    const projectedConfigs = configs.map((entry) =>
+      entry.backlogId === parsed.backlogId ? { ...entry, accessMode: parsed.mode } : entry,
+    );
+    await assertSimpleSchemeInvariant(tx, config.permissionSchemeId, projectedConfigs);
     await tx
       .update(backlogPermissionConfigs)
       .set({ accessMode: parsed.mode, updatedAt: new Date() })
