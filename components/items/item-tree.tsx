@@ -20,6 +20,7 @@ import type {
   moveItemAction as MoveItemAction,
   reparentItemAction as ReparentItemAction,
 } from "@/app/actions/items";
+import type { ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
 
 export type TreeItem = {
   id: string;
@@ -149,6 +150,8 @@ type ItemTreeProps = {
   createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems">;
   canCreateItems?: boolean;
   canScheduleItems?: boolean;
+  itemCapabilities?: ItemCapabilities;
+  planningCapabilities?: PlanningCapabilities;
 };
 
 export function ItemTree({
@@ -163,9 +166,13 @@ export function ItemTree({
   hasItems,
   clearFiltersHref,
   createDialogProps,
-  canCreateItems = true,
-  canScheduleItems = true,
+  canCreateItems: legacyCanCreateItems = true,
+  canScheduleItems: legacyCanScheduleItems = true,
+  itemCapabilities,
+  planningCapabilities,
 }: ItemTreeProps) {
+  const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
+  const canScheduleItems = planningCapabilities?.reparent ?? legacyCanScheduleItems;
   const viewUrl = useViewUrlState();
   const [treeItems, setTreeItems] = useState<TreeItem[]>(() => seed(items));
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());

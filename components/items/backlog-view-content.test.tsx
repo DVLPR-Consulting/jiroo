@@ -248,4 +248,54 @@ describe("BacklogViewContent read boundary", () => {
       }),
     );
   });
+
+  it("projects safe permission booleans into focused product capability props", async () => {
+    mocks.getBacklogByKeyForUser.mockResolvedValue({
+      id: "backlog-1",
+      key: "DEMO",
+      name: "Demo",
+      color: "#2563eb",
+      archivedAt: null,
+    });
+    mocks.getBacklogCapabilities.mockResolvedValue({
+      createItems: false,
+      editItems: false,
+      transitionItems: false,
+      scheduleItems: true,
+      assignItems: false,
+      deleteItems: true,
+      restoreItems: false,
+      addComments: true,
+      editOwnComments: true,
+      deleteOwnComments: true,
+      deleteAllComments: false,
+      linkItems: true,
+      manageSprints: false,
+      manageWorkflow: false,
+      manageMembers: false,
+      bulkChangeItems: true,
+    });
+
+    render(
+      await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "backlog", item: "DEMO-1" }),
+      }),
+    );
+
+    expect(mocks.itemBacklogProps).toHaveBeenCalledWith(expect.objectContaining({
+      itemCapabilities: expect.objectContaining({ edit: false, delete: true }),
+      planningCapabilities: expect.objectContaining({ rank: true, manageSprints: false }),
+      bulkCapabilities: { edit: false, transition: false, assign: false, schedule: true },
+    }));
+    expect(mocks.itemDetailProps).toHaveBeenCalledWith(expect.objectContaining({
+      itemCapabilities: expect.objectContaining({
+        edit: false,
+        delete: true,
+        addComments: true,
+        link: true,
+      }),
+      planningCapabilities: expect.objectContaining({ rank: true }),
+    }));
+  });
 });

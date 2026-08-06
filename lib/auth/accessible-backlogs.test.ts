@@ -17,9 +17,16 @@ describe("getBacklogCapabilities", () => {
     mocks.checkPermission.mockReset();
   });
 
-  it("includes the actor's effective global bulk permission without exposing grants", async () => {
+  it("returns only effective product booleans without exposing grants", async () => {
     mocks.checkPermission.mockImplementation(async ({ permission }) => ({
-      allowed: ["browse_backlog", "edit_items", "bulk_change_items"].includes(permission),
+      allowed: [
+        "browse_backlog",
+        "edit_items",
+        "delete_items",
+        "add_comments",
+        "link_items",
+        "bulk_change_items",
+      ].includes(permission),
     }));
 
     await expect(
@@ -30,6 +37,13 @@ describe("getBacklogCapabilities", () => {
       transitionItems: false,
       scheduleItems: false,
       assignItems: false,
+      deleteItems: true,
+      restoreItems: false,
+      addComments: true,
+      editOwnComments: false,
+      deleteOwnComments: false,
+      deleteAllComments: false,
+      linkItems: true,
       manageSprints: false,
       manageWorkflow: false,
       manageMembers: false,

@@ -454,7 +454,11 @@ describe("ItemBacklog", () => {
     } as const;
 
     const manager = render(
-      <ItemBacklog {...sprintProps()} {...denied} canManageSprints />,
+      <ItemBacklog
+        {...sprintProps()}
+        {...denied}
+        planningCapabilities={{ rank: false, reparent: false, assignSprint: false, manageSprints: true }}
+      />,
     );
     expect(screen.getByRole("button", { name: "Créer un sprint" })).toBeVisible();
     expect(
@@ -466,7 +470,11 @@ describe("ItemBacklog", () => {
     manager.unmount();
 
     const scheduler = render(
-      <ItemBacklog {...sprintProps()} {...denied} canScheduleItems />,
+      <ItemBacklog
+        {...sprintProps()}
+        {...denied}
+        planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
+      />,
     );
     expect(screen.getByRole("button", { name: "Déplacer DEMO-1" })).toBeVisible();
     expect(

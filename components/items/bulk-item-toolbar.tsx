@@ -17,6 +17,7 @@ import {
   type ItemType,
 } from "@/lib/design/constants";
 import type { BulkItemPatch } from "@/lib/validation/bulk-item";
+import type { BulkItemCapabilities } from "@/lib/auth/capabilities";
 
 export type BulkStatusOption = {
   id: string;
@@ -47,6 +48,7 @@ export type BulkItemToolbarProps = {
   canAssignItems?: boolean;
   canScheduleItems?: boolean;
   canBulkChangeItems?: boolean;
+  capabilities?: BulkItemCapabilities;
   onClearSelection: () => void;
   onMutationSuccess: (result: MutationResult) => void;
 };
@@ -69,9 +71,14 @@ export function BulkItemToolbar({
   canAssignItems = true,
   canScheduleItems = true,
   canBulkChangeItems = true,
+  capabilities,
   onClearSelection,
   onMutationSuccess,
 }: BulkItemToolbarProps) {
+  const canEdit = capabilities?.edit ?? (canBulkChangeItems && canEditItems);
+  const canTransition = capabilities?.transition ?? (canBulkChangeItems && canTransitionItems);
+  const canAssign = capabilities?.assign ?? (canBulkChangeItems && canAssignItems);
+  const canSchedule = capabilities?.schedule ?? (canBulkChangeItems && canScheduleItems);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +132,7 @@ export function BulkItemToolbar({
         {selectedItems.length} {selectedItems.length === 1 ? "item sélectionné" : "items sélectionnés"}
       </span>
 
-      {canBulkChangeItems && canTransitionItems ? <DropdownMenu>
+      {canTransition ? <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
@@ -157,7 +164,7 @@ export function BulkItemToolbar({
         </DropdownMenuContent>
       </DropdownMenu> : null}
 
-      {canBulkChangeItems && canEditItems ? <DropdownMenu>
+      {canEdit ? <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
@@ -182,7 +189,7 @@ export function BulkItemToolbar({
         </DropdownMenuContent>
       </DropdownMenu> : null}
 
-      {canBulkChangeItems && canAssignItems ? <DropdownMenu>
+      {canAssign ? <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
@@ -212,7 +219,7 @@ export function BulkItemToolbar({
         </DropdownMenuContent>
       </DropdownMenu> : null}
 
-      {canBulkChangeItems && canScheduleItems && sprints ? (
+      {canSchedule && sprints ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -246,7 +253,7 @@ export function BulkItemToolbar({
         </DropdownMenu>
       ) : null}
 
-      {canBulkChangeItems && canEditItems ? <div className="flex items-center gap-1">
+      {canEdit ? <div className="flex items-center gap-1">
         <Input
           type="number"
           min="0"
@@ -298,7 +305,7 @@ export function BulkItemToolbar({
         {pending ? <Loader2 aria-hidden className="animate-spin" /> : <X aria-hidden />}
       </Button>
 
-      {canBulkChangeItems && canEditItems && !tasksOnly ? (
+      {canEdit && !tasksOnly ? (
         <span className="basis-full text-xs text-muted-foreground">
           L’estimation groupée est réservée aux tâches.
         </span>

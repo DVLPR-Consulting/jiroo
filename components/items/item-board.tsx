@@ -50,6 +50,7 @@ import {
   restoreCancelledColumns,
 } from "@/lib/items/board-dnd";
 import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
+import type { ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
 
 export type BoardCard = {
   id: string;
@@ -506,10 +507,12 @@ export function ItemBoard({
   filtersActive = false,
   hasItems,
   clearFiltersHref,
-  canCreateItems = true,
-  canEditItems = true,
-  canTransitionItems = true,
-  canScheduleItems = true,
+  canCreateItems: legacyCanCreateItems = true,
+  canEditItems: legacyCanEditItems = true,
+  canTransitionItems: legacyCanTransitionItems = true,
+  canScheduleItems: legacyCanScheduleItems = true,
+  itemCapabilities,
+  planningCapabilities,
   activeSprint,
   activeSprintMetrics,
   backlogHref,
@@ -530,11 +533,17 @@ export function ItemBoard({
   canEditItems?: boolean;
   canTransitionItems?: boolean;
   canScheduleItems?: boolean;
+  itemCapabilities?: ItemCapabilities;
+  planningCapabilities?: PlanningCapabilities;
   /** `undefined` preserves the legacy all-items board; `null` means no active sprint. */
   activeSprint?: SprintSummary | null;
   activeSprintMetrics?: SprintMetrics | null;
   backlogHref?: string;
 }) {
+  const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
+  const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
+  const canTransitionItems = itemCapabilities?.transition ?? legacyCanTransitionItems;
+  const canScheduleItems = planningCapabilities?.rank ?? legacyCanScheduleItems;
   const viewUrl = useViewUrlState();
   const dndId = useId();
   // Swimlane bands in first-seen order ("none" last). When ungrouped, a single

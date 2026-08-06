@@ -37,12 +37,12 @@ export function DevRefsSection({
   itemId,
   backlogKey,
   refs,
-  canWrite = true,
+  canLink = true,
 }: {
   itemId: string;
   backlogKey: string;
   refs: { id: string; url: string; kind: string; createdAt: Date | string }[];
-  canWrite?: boolean;
+  canLink?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -113,7 +113,7 @@ export function DevRefsSection({
                 >
                   {label}
                 </a>
-                {canWrite && (
+                {canLink && (
                   <button
                     type="button"
                     aria-label={`Supprimer le lien ${label}`}
@@ -131,7 +131,7 @@ export function DevRefsSection({
       )}
 
       {/* Add control */}
-      {canWrite && <div className="flex flex-col gap-1.5">
+      {canLink && <div className="flex flex-col gap-1.5">
         <input
           type="url"
           value={url}

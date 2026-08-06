@@ -215,13 +215,24 @@ describeDb("browse-filtered product reads", () => {
         getBacklogByKeyForUser(fixture.backlogB.key, fixture.admin),
       ).resolves.toMatchObject({ id: fixture.backlogB.id });
 
-      await db.insert(permissionGrants).values({
-        scope: "backlog",
-        permissionSchemeId: fixture.schemeIds[0],
-        permissionKey: "create_items",
-        principalType: "user",
-        userId: fixture.actorA,
-      });
+      await db.insert(permissionGrants).values(
+        [
+          "create_items",
+          "delete_items",
+          "restore_items",
+          "add_comments",
+          "edit_own_comments",
+          "delete_own_comments",
+          "delete_all_comments",
+          "link_items",
+        ].map((permissionKey) => ({
+          scope: "backlog" as const,
+          permissionSchemeId: fixture.schemeIds[0],
+          permissionKey,
+          principalType: "user" as const,
+          userId: fixture.actorA,
+        })),
+      );
       await expect(
         getBacklogCapabilities(fixture.actorA, fixture.backlogA.id),
       ).resolves.toEqual({
@@ -230,6 +241,13 @@ describeDb("browse-filtered product reads", () => {
         transitionItems: false,
         scheduleItems: false,
         assignItems: false,
+        deleteItems: true,
+        restoreItems: true,
+        addComments: true,
+        editOwnComments: true,
+        deleteOwnComments: true,
+        deleteAllComments: true,
+        linkItems: true,
         manageSprints: false,
         manageWorkflow: false,
         manageMembers: false,
@@ -246,6 +264,13 @@ describeDb("browse-filtered product reads", () => {
         transitionItems: true,
         scheduleItems: true,
         assignItems: true,
+        deleteItems: true,
+        restoreItems: true,
+        addComments: true,
+        editOwnComments: true,
+        deleteOwnComments: true,
+        deleteAllComments: true,
+        linkItems: true,
         manageSprints: true,
         manageWorkflow: true,
         manageMembers: true,

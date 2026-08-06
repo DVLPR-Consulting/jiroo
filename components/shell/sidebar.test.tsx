@@ -96,7 +96,11 @@ describe("Sidebar", () => {
     render(
       <SidebarStateProvider>
         <ViewUrlStateProvider initialEntries={[["view", "board"]]}>
-          <Sidebar {...props} canAdminister={false} />
+          <Sidebar
+            {...props}
+            user={{ ...props.user, role: "admin" }}
+            canAdminister={false}
+          />
         </ViewUrlStateProvider>
       </SidebarStateProvider>,
     );

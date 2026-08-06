@@ -112,4 +112,25 @@ describe("SprintSectionHeader", () => {
     expect(screen.getByText("13 pt")).toBeVisible();
     expect(screen.queryByText("Planifié")).not.toBeInTheDocument();
   });
+
+  it("lets a sprint manager reorder sprints without an item-edit capability", () => {
+    render(
+      <SprintSectionHeader
+        kind="planned"
+        sprint={sprint}
+        metrics={metrics}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage={false}
+        capabilities={{ rank: false, reparent: false, assignSprint: false, manageSprints: true }}
+        canMoveUp
+        canMoveDown
+        onMoveUp={vi.fn()}
+        onMoveDown={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Monter Sprint paiement" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Descendre Sprint paiement" })).toBeVisible();
+  });
 });

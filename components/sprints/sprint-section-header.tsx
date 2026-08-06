@@ -1,9 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
+import type { PlanningCapabilities } from "@/lib/auth/capabilities";
 
 const points = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
 const dates = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
@@ -21,6 +22,7 @@ export function SprintSectionHeader({
   expanded,
   onExpandedChange,
   canManage,
+  capabilities,
   canMoveUp = false,
   canMoveDown = false,
   onMoveUp,
@@ -33,12 +35,15 @@ export function SprintSectionHeader({
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
   canManage: boolean;
+  capabilities?: PlanningCapabilities;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
   actions?: ReactNode;
 }) {
+  const canManageSprint = capabilities?.manageSprints ?? canManage;
+  const reorderHelpId = useId();
   const name = sprint?.name ?? "Backlog";
   const plannedStartAt = sprint?.plannedStartAt ?? null;
   const plannedEndAt = sprint?.plannedEndAt ?? null;
@@ -93,10 +98,16 @@ export function SprintSectionHeader({
         )}
       </div>
 
-      {(canManage || actions) && (
+      {(canManageSprint || actions) && (
         <div className="flex items-center gap-1">
-          {canManage && kind === "planned" && (
+          {canManageSprint && kind === "planned" && (
             <>
+              <span id={`${reorderHelpId}-first`} className="sr-only">
+                Ce sprint est déjà en première position.
+              </span>
+              <span id={`${reorderHelpId}-last`} className="sr-only">
+                Ce sprint est déjà en dernière position.
+              </span>
               <Button
                 type="button"
                 variant="ghost"
@@ -104,6 +115,7 @@ export function SprintSectionHeader({
                 disabled={!canMoveUp}
                 onClick={onMoveUp}
                 aria-label={`Monter ${name}`}
+                aria-describedby={!canMoveUp ? `${reorderHelpId}-first` : undefined}
               >
                 <ArrowUp aria-hidden />
               </Button>
@@ -114,6 +126,7 @@ export function SprintSectionHeader({
                 disabled={!canMoveDown}
                 onClick={onMoveDown}
                 aria-label={`Descendre ${name}`}
+                aria-describedby={!canMoveDown ? `${reorderHelpId}-last` : undefined}
               >
                 <ArrowDown aria-hidden />
               </Button>

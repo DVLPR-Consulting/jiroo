@@ -30,6 +30,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
 import type { SortDir, SortField } from "@/lib/items/filter";
+import type { BulkItemCapabilities, ItemCapabilities } from "@/lib/auth/capabilities";
 import {
   emptySelection,
   reconcileSelection,
@@ -295,11 +296,13 @@ export function ItemList({
   hasItems,
   clearFiltersHref,
   createDialogProps,
-  canCreateItems = true,
-  canEditItems = true,
-  canTransitionItems = true,
-  canAssignItems = true,
-  canBulkChangeItems = true,
+  canCreateItems: legacyCanCreateItems = true,
+  canEditItems: legacyCanEditItems = true,
+  canTransitionItems: legacyCanTransitionItems = true,
+  canAssignItems: legacyCanAssignItems = true,
+  canBulkChangeItems: legacyCanBulkChangeItems = true,
+  itemCapabilities,
+  bulkCapabilities,
 }: {
   groups: Group[];
   grouped: boolean;
@@ -318,7 +321,16 @@ export function ItemList({
   canTransitionItems?: boolean;
   canAssignItems?: boolean;
   canBulkChangeItems?: boolean;
+  itemCapabilities?: ItemCapabilities;
+  bulkCapabilities?: BulkItemCapabilities;
 }) {
+  const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
+  const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
+  const canTransitionItems = itemCapabilities?.transition ?? legacyCanTransitionItems;
+  const canAssignItems = itemCapabilities?.assign ?? legacyCanAssignItems;
+  const canBulkChangeItems = bulkCapabilities
+    ? Object.values(bulkCapabilities).some(Boolean)
+    : legacyCanBulkChangeItems;
   const router = useRouter();
   const viewUrl = useViewUrlState();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
@@ -347,8 +359,9 @@ export function ItemList({
   const allSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selection.selectedIds.has(id));
   const partlySelected = selection.selectedIds.size > 0 && !allSelected;
-  const canSelectItems =
-    canBulkChangeItems && (canEditItems || canTransitionItems || canAssignItems);
+  const canSelectItems = bulkCapabilities
+    ? Object.values(bulkCapabilities).some(Boolean)
+    : canBulkChangeItems && (canEditItems || canTransitionItems || canAssignItems);
 
   function toggleSelection(id: string, extendRange: boolean) {
     setSelection((current) =>
@@ -541,6 +554,7 @@ export function ItemList({
           canAssignItems={canAssignItems}
           canScheduleItems={false}
           canBulkChangeItems={canBulkChangeItems}
+          capabilities={bulkCapabilities}
           onClearSelection={() => setSelection(emptySelection())}
           onMutationSuccess={() => router.refresh()}
         />

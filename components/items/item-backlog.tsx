@@ -50,6 +50,7 @@ import { SprintSectionHeader } from "@/components/sprints/sprint-section-header"
 import { Button } from "@/components/ui/button";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import { EmptyState } from "@/components/ui/empty-state";
+import type { BulkItemCapabilities, ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
 import {
   PRIORITIES,
   PRIORITY_LABELS,
@@ -311,6 +312,7 @@ function LegacyItemBacklog({
   canAssignItems = true,
   canScheduleItems = true,
   canBulkChangeItems = true,
+  bulkCapabilities,
   manualOrder = false,
   rankItemAction = rankBacklogItemAction,
 }: {
@@ -331,6 +333,9 @@ function LegacyItemBacklog({
   canScheduleItems?: boolean;
   canManageSprints?: boolean;
   canBulkChangeItems?: boolean;
+  itemCapabilities?: ItemCapabilities;
+  planningCapabilities?: PlanningCapabilities;
+  bulkCapabilities?: BulkItemCapabilities;
   manualOrder?: boolean;
   rankItemAction?: RankItemAction;
 }) {
@@ -395,9 +400,11 @@ function LegacyItemBacklog({
   const allSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selection.selectedIds.has(id));
   const partlySelected = selection.selectedIds.size > 0 && !allSelected;
-  const canSelectItems = canBulkChangeItems && (
-    canEditItems || canTransitionItems || canAssignItems || canScheduleItems
-  );
+  const canSelectItems = bulkCapabilities
+    ? Object.values(bulkCapabilities).some(Boolean)
+    : canBulkChangeItems && (
+        canEditItems || canTransitionItems || canAssignItems || canScheduleItems
+      );
 
   function toggleSelection(id: string, extendRange: boolean) {
     setSelection((current) =>
@@ -714,6 +721,9 @@ type SharedBacklogProps = {
   canScheduleItems?: boolean;
   canManageSprints?: boolean;
   canBulkChangeItems?: boolean;
+  itemCapabilities?: ItemCapabilities;
+  planningCapabilities?: PlanningCapabilities;
+  bulkCapabilities?: BulkItemCapabilities;
   manualOrder?: boolean;
   rankItemAction?: RankItemAction;
 };
@@ -892,19 +902,31 @@ function SprintItemBacklog({
   backlogKey,
   backlogId,
   selectedKey,
-  canCreateItems = true,
-  canEditItems = true,
-  canTransitionItems = true,
-  canAssignItems = true,
-  canScheduleItems = true,
-  canManageSprints = true,
-  canBulkChangeItems = true,
+  canCreateItems: legacyCanCreateItems = true,
+  canEditItems: legacyCanEditItems = true,
+  canTransitionItems: legacyCanTransitionItems = true,
+  canAssignItems: legacyCanAssignItems = true,
+  canScheduleItems: legacyCanScheduleItems = true,
+  canManageSprints: legacyCanManageSprints = true,
+  canBulkChangeItems: legacyCanBulkChangeItems = true,
+  itemCapabilities,
+  planningCapabilities,
+  bulkCapabilities,
   manualOrder = false,
   rankItemAction = rankBacklogItemAction,
   moveSprintItemAction = defaultMoveSprintItemAction,
   reorderSprintAction = defaultReorderSprintAction,
   createDialogProps,
 }: SprintBacklogProps) {
+  const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
+  const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
+  const canTransitionItems = itemCapabilities?.transition ?? legacyCanTransitionItems;
+  const canAssignItems = itemCapabilities?.assign ?? legacyCanAssignItems;
+  const canScheduleItems = planningCapabilities?.rank ?? legacyCanScheduleItems;
+  const canManageSprints = planningCapabilities?.manageSprints ?? legacyCanManageSprints;
+  const canBulkChangeItems = bulkCapabilities
+    ? Object.values(bulkCapabilities).some(Boolean)
+    : legacyCanBulkChangeItems;
   const router = useRouter();
   const [renderedSections, setRenderedSections] = useState(sections);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
@@ -915,9 +937,11 @@ function SprintItemBacklog({
   const [mutationPending, setMutationPending] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [rankError, setRankError] = useState<string | null>(null);
-  const canSelectItems = canBulkChangeItems && (
-    canEditItems || canTransitionItems || canAssignItems || canScheduleItems
-  );
+  const canSelectItems = bulkCapabilities
+    ? Object.values(bulkCapabilities).some(Boolean)
+    : canBulkChangeItems && (
+        canEditItems || canTransitionItems || canAssignItems || canScheduleItems
+      );
   const sectionSnapshot = useRef<SprintBacklogSection[] | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -1216,6 +1240,7 @@ function SprintItemBacklog({
                     setExpanded((current) => ({ ...current, [section.id]: next }))
                   }
                   canManage={canManageSprints}
+                  capabilities={planningCapabilities}
                   canMoveUp={section.kind === "planned" && plannedIndex > 0}
                   canMoveDown={section.kind === "planned" && plannedIndex < planned.length - 1}
                   onMoveUp={() => reorderPlannedSprint(section.id, -1)}
@@ -1328,6 +1353,7 @@ function SprintItemBacklog({
               canAssignItems={canAssignItems}
               canScheduleItems={canScheduleItems}
               canBulkChangeItems={canBulkChangeItems}
+              capabilities={bulkCapabilities}
               onClearSelection={() => setSelection(emptySelection())}
               onMutationSuccess={() => router.refresh()}
             />

@@ -32,13 +32,13 @@ export function LinksSection({
   backlogKey,
   links,
   candidates,
-  canWrite = true,
+  canLink = true,
 }: {
   itemId: string;
   backlogKey: string;
   links: LinkWithOther[];
   candidates: { id: string; key: string; title: string; type: ItemType }[];
-  canWrite?: boolean;
+  canLink?: boolean;
 }) {
   const router = useRouter();
   const viewUrl = useViewUrlState();
@@ -155,7 +155,7 @@ export function LinksSection({
                 <span className="truncate text-foreground">{link.other.title}</span>
               </Link>
               {/* Remove button */}
-              {canWrite && (
+              {canLink && (
                 <button
                   type="button"
                   aria-label={`Supprimer le lien vers ${link.other.key}`}
@@ -172,7 +172,7 @@ export function LinksSection({
       ))}
 
       {/* Add-link form */}
-      {canWrite && <div className="flex flex-col gap-1.5">
+      {canLink && <div className="flex flex-col gap-1.5">
         {/* Relation type select */}
         <select
           value={linkType}

@@ -253,8 +253,9 @@ describe("ItemTree", () => {
           statuses={statuses}
           reparentItemAction={vi.fn()}
           moveItemAction={vi.fn()}
-          canScheduleItems
+          canScheduleItems={false}
           canCreateItems={false}
+          planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
         />
       </ViewUrlStateProvider>,
     );

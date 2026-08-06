@@ -500,7 +500,12 @@ describe("ItemBoard", () => {
       canScheduleItems: false,
     };
 
-    const scheduled = renderBoard(<ItemBoard {...base} canScheduleItems />);
+    const scheduled = renderBoard(
+      <ItemBoard
+        {...base}
+        planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
+      />,
+    );
     expect(screen.getByRole("button", { name: "Déplacer DEMO-1" })).toBeVisible();
     expect(screen.queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Statut :/i })).not.toBeInTheDocument();

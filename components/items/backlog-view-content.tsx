@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
+import { projectBacklogCapabilities } from "@/lib/auth/capabilities";
 import { items as itemRowsTable, statuses } from "@/lib/db/schema/domain";
 import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
 import {
@@ -89,6 +90,7 @@ export async function BacklogViewContent({
   if (!backlog || backlog.archivedAt) notFound();
   const capabilities = await getBacklogCapabilities(userId, backlog.id);
   if (!capabilities) notFound();
+  const productCapabilities = projectBacklogCapabilities(capabilities);
 
   // Load and validate the active saved view from ?v=.
   // A stale, foreign, or inaccessible view id is silently treated as "no active view".
@@ -455,12 +457,13 @@ export async function BacklogViewContent({
             sort={viewState.sort}
           />
         }
-        workflowSlot={view === "board" && capabilities.manageWorkflow ? (
+        workflowSlot={view === "board" && productCapabilities.workflow.manage ? (
           <StatusManagerDialog
             key={statusList.map((status) => `${status.id}:${status.order}:${status.name}:${status.category}:${status.itemCount}`).join("|")}
             backlogId={backlog.id}
             backlogKey={backlog.key}
             statuses={statusList}
+            capabilities={productCapabilities.workflow}
           />
         ) : null}
         newItemSlot={capabilities.createItems && (
@@ -510,6 +513,9 @@ export async function BacklogViewContent({
           canScheduleItems={capabilities.scheduleItems}
           canManageSprints={capabilities.manageSprints}
           canBulkChangeItems={capabilities.bulkChangeItems}
+          itemCapabilities={productCapabilities.items}
+          planningCapabilities={productCapabilities.planning}
+          bulkCapabilities={productCapabilities.bulk}
           manualOrder={viewState.sort === null && viewState.group === null}
         />
       )}
@@ -543,6 +549,8 @@ export async function BacklogViewContent({
           canTransitionItems={capabilities.transitionItems}
           canAssignItems={capabilities.assignItems}
           canBulkChangeItems={capabilities.bulkChangeItems}
+          itemCapabilities={productCapabilities.items}
+          bulkCapabilities={productCapabilities.bulk}
         />
       )}
       {view === "board" && (
@@ -567,6 +575,8 @@ export async function BacklogViewContent({
           canEditItems={capabilities.editItems}
           canTransitionItems={capabilities.transitionItems}
           canScheduleItems={capabilities.scheduleItems}
+          itemCapabilities={productCapabilities.items}
+          planningCapabilities={productCapabilities.planning}
           activeSprint={activeSprint}
           activeSprintMetrics={activeSection?.metrics ?? null}
           backlogHref={backlogHref}
@@ -587,6 +597,8 @@ export async function BacklogViewContent({
           createDialogProps={createDialogProps}
           canCreateItems={capabilities.createItems}
           canScheduleItems={capabilities.scheduleItems}
+          itemCapabilities={productCapabilities.items}
+          planningCapabilities={productCapabilities.planning}
         />
       )}
       {itemKey && (
@@ -599,9 +611,21 @@ export async function BacklogViewContent({
             users={usersForFilter}
             statuses={statusList}
             items={items}
+            sprints={sprintSnapshot.sprints
+              .filter((sprint) => sprint.state !== "completed")
+              .map((sprint) => ({ id: sprint.id, name: sprint.name }))}
+            sprintId={
+              sprintSnapshot.memberships.find(
+                (membership) =>
+                  membership.itemId === items.find((item) => item.key === itemKey)?.id &&
+                  membership.leftAt === null,
+              )?.sprintId ?? null
+            }
             canEditItems={capabilities.editItems}
             canTransitionItems={capabilities.transitionItems}
             canAssignItems={capabilities.assignItems}
+            itemCapabilities={productCapabilities.items}
+            planningCapabilities={productCapabilities.planning}
           />
         </Suspense>
       )}

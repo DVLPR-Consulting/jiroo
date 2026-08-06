@@ -29,13 +29,31 @@ const statuses = [
 
 function renderManager(rows = statuses) {
   return render(
-    <StatusManagerDialog backlogId="backlog-1" backlogKey="DEMO" statuses={rows} />,
+    <StatusManagerDialog
+      backlogId="backlog-1"
+      backlogKey="DEMO"
+      statuses={rows}
+      capabilities={{ manage: true }}
+    />,
   );
 }
 
 describe("StatusManagerDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("does not render workflow mutations without the focused capability", () => {
+    render(
+      <StatusManagerDialog
+        backlogId="backlog-1"
+        backlogKey="DEMO"
+        statuses={statuses}
+        capabilities={{ manage: false }}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Colonnes" })).not.toBeInTheDocument();
   });
 
   it("makes column management discoverable and creates a persisted column", async () => {

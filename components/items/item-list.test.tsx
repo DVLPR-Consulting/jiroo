@@ -283,6 +283,20 @@ describe("ItemList", () => {
       canEditItems: false,
       canTransitionItems: false,
       canAssignItems: false,
+      itemCapabilities: {
+        create: false,
+        edit: false,
+        transition: false,
+        assign: false,
+        delete: false,
+        restore: false,
+        addComments: false,
+        editOwnComments: false,
+        deleteOwnComments: false,
+        deleteAllComments: false,
+        link: false,
+      },
+      bulkCapabilities: { edit: false, transition: false, assign: false, schedule: false },
     });
 
     const row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
@@ -291,6 +305,7 @@ describe("ItemList", () => {
     expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
     expect(within(row).getByText("À faire")).toBeVisible();
     expect(within(row).getByText("Marie Lemaire")).toBeVisible();
+    expect(within(row).getByText("Urgent")).toBeVisible();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
 
     await user.click(within(row).getByText("Authentication"));

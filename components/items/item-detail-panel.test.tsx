@@ -20,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   listComments: vi.fn(),
   listLinksForItem: vi.fn(),
   listRefsForItem: vi.fn(),
+  moveSprintItemAction: vi.fn(),
+  reparentItemAction: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -35,6 +37,11 @@ vi.mock("@/app/actions/items", () => ({
   restoreItemAction: mocks.restoreItemAction,
   softDeleteItemAction: mocks.softDeleteItemAction,
   updateItemAction: mocks.updateItemAction,
+  reparentItemAction: mocks.reparentItemAction,
+}));
+
+vi.mock("@/app/actions/sprints", () => ({
+  moveSprintItemAction: mocks.moveSprintItemAction,
 }));
 
 vi.mock("@/app/actions/comments", () => ({
@@ -162,6 +169,8 @@ describe("ItemDetailPanel header", () => {
     mocks.toastError.mockReset();
     mocks.toastSuccess.mockReset();
     mocks.updateItemAction.mockReset();
+    mocks.moveSprintItemAction.mockReset();
+    mocks.reparentItemAction.mockReset();
     writeText.mockReset();
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -384,6 +393,124 @@ describe("ItemDetailPanel header", () => {
     );
     expect(screen.getByRole("combobox", { name: "Assigné" })).toBeVisible();
     expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
+  });
+
+  it("grants delete, comments, and links independently from ordinary editing", async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          canEditItems={false}
+          canTransitionItems={false}
+          canAssignItems={false}
+          itemCapabilities={{
+            create: false,
+            edit: false,
+            transition: false,
+            assign: false,
+            delete: true,
+            restore: false,
+            addComments: true,
+            editOwnComments: false,
+            deleteOwnComments: false,
+            deleteAllComments: false,
+            link: true,
+          }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Actions" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Ajouter le lien" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Ajouter" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: `Renommer ${detail.key}` }))
+      .not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Commentaires" }));
+    expect(screen.getByRole("textbox", { name: "Nouveau commentaire" })).toBeVisible();
+  });
+
+  it("lets a scheduler change parent and sprint without editing ordinary fields", async () => {
+    const user = userEvent.setup();
+    mocks.reparentItemAction.mockResolvedValue({ ok: true });
+    mocks.moveSprintItemAction.mockResolvedValue({ ok: true });
+    const taskDetail = { ...detail, type: "tache" as const };
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          detail={taskDetail}
+          parent={{ key: "CASS-1", title: "Epic initial" }}
+          candidates={[
+            { id: detail.parentId!, key: "CASS-1", title: "Epic initial", type: "epic" },
+            { id: "55555555-5555-4555-8555-555555555555", key: "CASS-3", title: "Epic cible", type: "epic" },
+          ]}
+          sprints={[
+            { id: "66666666-6666-4666-8666-666666666666", name: "Sprint actif" },
+          ]}
+          sprintId={null}
+          canEditItems={false}
+          canTransitionItems={false}
+          canAssignItems={false}
+          planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.queryByRole("button", { name: `Renommer ${detail.key}` }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Priorité" })).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByRole("combobox", { name: "Parent" }), "55555555-5555-4555-8555-555555555555");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Sprint" }), "66666666-6666-4666-8666-666666666666");
+
+    await waitFor(() => expect(mocks.reparentItemAction).toHaveBeenCalledWith({
+      backlogKey: "CASS",
+      id: detail.id,
+      newParentId: "55555555-5555-4555-8555-555555555555",
+    }));
+    await waitFor(() => expect(mocks.moveSprintItemAction).toHaveBeenCalledWith({
+      backlogKey: "CASS",
+      backlogId: detail.backlogId,
+      itemId: detail.id,
+      sprintId: "66666666-6666-4666-8666-666666666666",
+      beforeId: null,
+      afterId: null,
+    }));
+  });
+
+  it("rolls back an optimistic planning change and exposes the safe error", async () => {
+    const user = userEvent.setup();
+    let resolveAction!: (result: { ok: false; error: string }) => void;
+    mocks.reparentItemAction.mockReturnValue(
+      new Promise((resolve) => {
+        resolveAction = resolve;
+      }),
+    );
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          detail={{ ...detail, type: "tache" }}
+          parent={{ key: "CASS-1", title: "Epic initial" }}
+          candidates={[
+            { id: detail.parentId!, key: "CASS-1", title: "Epic initial", type: "epic" },
+            { id: "55555555-5555-4555-8555-555555555555", key: "CASS-3", title: "Epic cible", type: "epic" },
+          ]}
+          canEditItems={false}
+          planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    const parentSelect = screen.getByRole("combobox", { name: "Parent" });
+    await user.selectOptions(parentSelect, "55555555-5555-4555-8555-555555555555");
+    expect(parentSelect).toHaveValue("55555555-5555-4555-8555-555555555555");
+    resolveAction({ ok: false, error: "Planification interdite." });
+
+    await waitFor(() => expect(parentSelect).toHaveValue(detail.parentId));
+    expect(screen.getByRole("alert")).toHaveTextContent("Planification interdite.");
+    expect(mocks.toastError).toHaveBeenCalledWith("Planification interdite.");
   });
 });
 

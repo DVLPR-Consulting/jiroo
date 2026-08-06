@@ -134,6 +134,13 @@ export type BacklogCapabilities = {
   transitionItems: boolean;
   scheduleItems: boolean;
   assignItems: boolean;
+  deleteItems: boolean;
+  restoreItems: boolean;
+  addComments: boolean;
+  editOwnComments: boolean;
+  deleteOwnComments: boolean;
+  deleteAllComments: boolean;
+  linkItems: boolean;
   manageSprints: boolean;
   manageWorkflow: boolean;
   manageMembers: boolean;
@@ -146,6 +153,13 @@ const CAPABILITY_PERMISSIONS = {
   transitionItems: "transition_items",
   scheduleItems: "schedule_items",
   assignItems: "assign_items",
+  deleteItems: "delete_items",
+  restoreItems: "restore_items",
+  addComments: "add_comments",
+  editOwnComments: "edit_own_comments",
+  deleteOwnComments: "delete_own_comments",
+  deleteAllComments: "delete_all_comments",
+  linkItems: "link_items",
   manageSprints: "manage_sprints",
   manageWorkflow: "manage_workflows",
   manageMembers: "manage_members",

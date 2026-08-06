@@ -13,6 +13,7 @@ import {
 } from "@/lib/services/items";
 import { listLinksForItem } from "@/lib/services/links";
 import { listRefsForItem } from "@/lib/services/refs";
+import type { ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
 
 type Backlog = NonNullable<Awaited<ReturnType<typeof getBacklogByKeyForUser>>>;
 type Items = Awaited<ReturnType<typeof listItems>>;
@@ -34,9 +35,13 @@ export async function ItemDetailContent({
   labels,
   items,
   currentUserId,
+  sprints = [],
+  sprintId = null,
   canEditItems = true,
   canTransitionItems = true,
   canAssignItems = true,
+  itemCapabilities,
+  planningCapabilities,
 }: {
   itemKey: string;
   backlog: Backlog;
@@ -45,9 +50,13 @@ export async function ItemDetailContent({
   labels: Labels;
   items: Items;
   currentUserId: string;
+  sprints?: { id: string; name: string }[];
+  sprintId?: string | null;
   canEditItems?: boolean;
   canTransitionItems?: boolean;
   canAssignItems?: boolean;
+  itemCapabilities?: ItemCapabilities;
+  planningCapabilities?: PlanningCapabilities;
 }) {
   const detail = await getItemByKeyForBacklog(itemKey, backlog.id);
   if (!detail) return null;
@@ -90,9 +99,13 @@ export async function ItemDetailContent({
         candidates={candidates}
         refs={refs}
         parent={parent}
+        sprints={sprints}
+        sprintId={sprintId}
         canEditItems={canEditItems}
         canTransitionItems={canTransitionItems}
         canAssignItems={canAssignItems}
+        itemCapabilities={itemCapabilities}
+        planningCapabilities={planningCapabilities}
       />
     </>
   );
