@@ -39,7 +39,7 @@ export default async function AccessPage({ params }: { params: Promise<{ key: st
     listGroups(),
     administerDecision.allowed ? listPermissionSchemes() : Promise.resolve([]),
   ]);
-  const users = rawUsers.map(({ id, name, email }) => ({ id, name, email }));
+  const users = rawUsers.map(({ id, name }) => ({ id, name }));
   const groups = rawGroups.map(({ id, name }) => ({ id, name }));
   const schemes = rawSchemes.map(({ id, name, version, usageCount }) => ({ id, name, version, usageCount }));
 

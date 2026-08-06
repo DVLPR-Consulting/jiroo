@@ -23,7 +23,7 @@ import {
 import { useOptimisticFieldUpdate } from "@/components/items/detail/use-optimistic-field-update";
 
 type StatusLite = { id: string; name: string; color: string; category: string };
-type UserLite = { id: string; name: string; email: string };
+type UserLite = { id: string; name: string };
 type LabelLite = { id: string; name: string; color: string };
 
 function FieldError({ error }: { error: string | null }) {

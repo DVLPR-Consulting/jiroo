@@ -2,6 +2,8 @@ import { cleanup, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  checkPermission: vi.fn(),
+  filterBarProps: vi.fn(),
   getBacklogByKeyForUser: vi.fn(),
   getBacklogCapabilities: vi.fn(),
   itemBacklogProps: vi.fn(),
@@ -14,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   listLabelsForBacklog: vi.fn(),
   listSprintsForBacklog: vi.fn(),
   listUsers: vi.fn(),
+  listUsersByIds: vi.fn(),
   blockedItemIds: vi.fn(),
   getViewByIdForUser: vi.fn(),
   notFound: vi.fn(),
@@ -31,6 +34,9 @@ vi.mock("@/lib/auth/session", () => ({
 vi.mock("@/lib/auth/accessible-backlogs", () => ({
   getBacklogCapabilities: mocks.getBacklogCapabilities,
 }));
+vi.mock("@/lib/auth/authorization", () => ({
+  checkPermission: mocks.checkPermission,
+}));
 vi.mock("@/lib/db", () => ({ db: { select: mocks.select } }));
 vi.mock("@/lib/services/backlogs", () => ({
   getBacklogByKeyForUser: mocks.getBacklogByKeyForUser,
@@ -40,6 +46,7 @@ vi.mock("@/lib/services/items", () => ({
   listItems: mocks.listItems,
   listLabelsForBacklog: mocks.listLabelsForBacklog,
   listUsers: mocks.listUsers,
+  listUsersByIds: mocks.listUsersByIds,
 }));
 vi.mock("@/lib/services/links", () => ({
   blockedItemIds: mocks.blockedItemIds,
@@ -86,7 +93,12 @@ vi.mock("@/components/items/item-tree", () => ({
 }));
 vi.mock("@/components/shell/view-bar", () => ({ ViewBar: () => null }));
 vi.mock("@/components/shell/group-control", () => ({ GroupControl: () => null }));
-vi.mock("@/components/shell/filter-bar", () => ({ FilterBar: () => null }));
+vi.mock("@/components/shell/filter-bar", () => ({
+  FilterBar: (props: unknown) => {
+    mocks.filterBarProps(props);
+    return null;
+  },
+}));
 vi.mock("@/components/shell/view-actions", () => ({ ViewActions: () => null }));
 vi.mock("@/components/items/new-item-dialog", () => ({ NewItemButton: () => null }));
 vi.mock("@/components/statuses/status-manager-dialog", () => ({
@@ -106,6 +118,13 @@ describe("BacklogViewContent read boundary", () => {
     mocks.listItemLabelPairs.mockResolvedValue([]);
     mocks.blockedItemIds.mockResolvedValue([]);
     mocks.listUsers.mockResolvedValue([]);
+    mocks.listUsersByIds.mockResolvedValue([]);
+    mocks.checkPermission.mockResolvedValue({
+      allowed: false,
+      permission: "browse_users",
+      scope: { type: "global" },
+      reasons: [{ type: "no_matching_grant" }],
+    });
     mocks.listLabelsForBacklog.mockResolvedValue([]);
     mocks.listSprintsForBacklog.mockResolvedValue({ sprints: [], memberships: [] });
     mocks.getViewByIdForUser.mockResolvedValue(null);
@@ -297,5 +316,119 @@ describe("BacklogViewContent read boundary", () => {
       }),
       planningCapabilities: expect.objectContaining({ rank: true }),
     }));
+  });
+
+  it("does not materialize the user directory when browse_users is denied", async () => {
+    mocks.getBacklogByKeyForUser.mockResolvedValue({
+      id: "backlog-1",
+      key: "DEMO",
+      name: "Demo",
+      color: "#2563eb",
+      archivedAt: null,
+    });
+    mocks.getBacklogCapabilities.mockResolvedValue({
+      createItems: false,
+      editItems: true,
+      transitionItems: false,
+      scheduleItems: false,
+      assignItems: true,
+      manageSprints: false,
+      manageWorkflow: false,
+      manageMembers: false,
+      bulkChangeItems: false,
+    });
+    mocks.listUsersByIds.mockResolvedValue([
+      { id: "referenced-1", name: "Referenced User" },
+    ]);
+    mocks.listUsers.mockResolvedValue([
+      { id: "directory-1", name: "Directory User", email: "private@example.test" },
+    ]);
+
+    render(
+      await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "list", item: "DEMO-1" }),
+      }),
+    );
+
+    expect(mocks.checkPermission).toHaveBeenCalledWith({
+      actorId: "viewer-1",
+      permission: "browse_users",
+      scope: { type: "global" },
+    });
+    expect(mocks.listUsers).not.toHaveBeenCalled();
+    expect(mocks.filterBarProps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        users: [{ id: "referenced-1", name: "Referenced User" }],
+      }),
+    );
+    expect(mocks.itemListProps).toHaveBeenCalledWith(
+      expect.objectContaining({ users: [] }),
+    );
+    expect(mocks.itemDetailProps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        users: [{ id: "referenced-1", name: "Referenced User" }],
+        assigneeCandidates: [],
+        reporterCandidates: [],
+      }),
+    );
+  });
+
+  it("projects only assignable directory users into assignment pickers", async () => {
+    mocks.getBacklogByKeyForUser.mockResolvedValue({
+      id: "backlog-1",
+      key: "DEMO",
+      name: "Demo",
+      color: "#2563eb",
+      archivedAt: null,
+    });
+    mocks.getBacklogCapabilities.mockResolvedValue({
+      createItems: false,
+      editItems: true,
+      transitionItems: false,
+      scheduleItems: false,
+      assignItems: true,
+      manageSprints: false,
+      manageWorkflow: false,
+      manageMembers: false,
+      bulkChangeItems: false,
+    });
+    mocks.listUsersByIds.mockResolvedValue([
+      { id: "referenced-1", name: "Referenced User" },
+    ]);
+    mocks.listUsers.mockResolvedValue([
+      { id: "blocked-1", name: "Blocked User", email: "blocked@example.test" },
+      { id: "assignable-1", name: "Assignable User", email: "assignable@example.test" },
+    ]);
+    mocks.checkPermission.mockImplementation(async ({ actorId, permission }) => ({
+      allowed: permission === "browse_users" || actorId === "assignable-1",
+      permission,
+      scope: permission === "browse_users"
+        ? { type: "global" }
+        : { type: "backlog", backlogId: "backlog-1" },
+      reasons: [],
+    }));
+
+    render(
+      await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "list", item: "DEMO-1" }),
+      }),
+    );
+
+    expect(mocks.itemListProps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        users: [{ id: "assignable-1", name: "Assignable User" }],
+      }),
+    );
+    expect(mocks.itemDetailProps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeCandidates: [{ id: "assignable-1", name: "Assignable User" }],
+        reporterCandidates: [
+          { id: "blocked-1", name: "Blocked User" },
+          { id: "assignable-1", name: "Assignable User" },
+        ],
+      }),
+    );
   });
 });

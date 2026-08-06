@@ -8,7 +8,7 @@ vi.mock("@/app/actions/authorization", () => ({ permissionHelperAction: mocks.he
 import { PermissionHelper } from "@/components/admin/permission-helper";
 
 const props = {
-  users: [{ id: "user-raw-uuid-11111111-1111-4111-8111-111111111111", name: "Ada", email: "ada@test" }],
+  users: [{ id: "user-raw-uuid-11111111-1111-4111-8111-111111111111", name: "Ada" }],
   backlogs: [{ id: "22222222-2222-4222-8222-222222222222", key: "DEMO", name: "Démonstration" }],
 };
 

@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   listComments: vi.fn(),
   listLinksForItem: vi.fn(),
   listRefsForItem: vi.fn(),
+  listUsersByIds: vi.fn(),
   moveSprintItemAction: vi.fn(),
   reparentItemAction: vi.fn(),
 }));
@@ -75,6 +76,7 @@ vi.mock("@/lib/services/items", () => ({
   getItemByKeyForBacklog: mocks.getItemByKeyForBacklog,
   getItemLabelIds: mocks.getItemLabelIds,
   listActivities: mocks.listActivities,
+  listUsersByIds: mocks.listUsersByIds,
 }));
 
 vi.mock("@/lib/services/comments", () => ({
@@ -122,7 +124,13 @@ const baseProps = {
   itemLabelIds: [],
   backlogLabels: [],
   users: [
-    { id: "better-auth-marie", name: "Marie Lemaire", email: "marie@example.test" },
+    { id: "better-auth-marie", name: "Marie Lemaire" },
+  ],
+  assigneeCandidates: [
+    { id: "better-auth-marie", name: "Marie Lemaire" },
+  ],
+  reporterCandidates: [
+    { id: "better-auth-marie", name: "Marie Lemaire" },
   ],
   statuses: [
     {
@@ -578,6 +586,7 @@ describe("ItemDetailContent parent resolution", () => {
     mocks.listComments.mockResolvedValueOnce([]);
     mocks.listLinksForItem.mockResolvedValueOnce([]);
     mocks.listRefsForItem.mockResolvedValueOnce([]);
+    mocks.listUsersByIds.mockResolvedValueOnce(baseProps.users);
     const parent = {
       ...detail,
       id: detail.parentId!,
@@ -598,6 +607,8 @@ describe("ItemDetailContent parent resolution", () => {
         archivedAt: null,
       },
       users: baseProps.users,
+      assigneeCandidates: baseProps.assigneeCandidates,
+      reporterCandidates: baseProps.reporterCandidates,
       statuses: [
         {
           id: detail.statusId,

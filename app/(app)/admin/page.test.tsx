@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({
+  adminTabsProps: vi.fn(),
   checkPermission: vi.fn(),
   listGroups: vi.fn(),
   listGlobalPermissionGrants: vi.fn(),
@@ -30,7 +32,12 @@ vi.mock("@/lib/services/authorization-admin", () => ({
   listPermissionSchemes: mocks.listPermissionSchemes,
   listProjectRoles: mocks.listProjectRoles,
 }));
-vi.mock("@/components/admin/admin-tabs", () => ({ AdminTabs: () => null }));
+vi.mock("@/components/admin/admin-tabs", () => ({
+  AdminTabs: (props: unknown) => {
+    mocks.adminTabsProps(props);
+    return null;
+  },
+}));
 
 import AdminPage from "@/app/(app)/admin/page";
 
@@ -78,5 +85,60 @@ describe("AdminPage read authorization", () => {
     ).rejects.toThrow("redirect:/");
     expect(mocks.listBacklogsForUser).not.toHaveBeenCalled();
     expect(mocks.listAdminUsers).not.toHaveBeenCalled();
+  });
+
+  it("requires browse_users before loading the users directory tab", async () => {
+    mocks.checkPermission.mockImplementation(async ({ permission }) => ({
+      allowed: permission === "manage_users_groups",
+    }));
+
+    await expect(
+      AdminPage({ searchParams: Promise.resolve({ tab: "users" }) }),
+    ).rejects.toThrow("redirect:/");
+
+    expect(mocks.checkPermission).toHaveBeenCalledWith({
+      actorId: "platform-admin-1",
+      permission: "browse_users",
+      scope: { type: "global" },
+    });
+    expect(mocks.listAdminUsers).not.toHaveBeenCalled();
+  });
+
+  it.each(["groups", "schemes"])(
+    "does not load user picker candidates for the %s tab without browse_users",
+    async (tab) => {
+      mocks.checkPermission.mockImplementation(async ({ permission }) => ({
+        allowed: permission !== "browse_users",
+      }));
+      mocks.listAdminUsers.mockResolvedValue([
+        { id: "u1", name: "Ada", email: "private@example.test" },
+      ]);
+
+      render(await AdminPage({ searchParams: Promise.resolve({ tab }) }));
+
+      expect(mocks.listAdminUsers).not.toHaveBeenCalled();
+      expect(mocks.adminTabsProps).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ users: [] }),
+        }),
+      );
+    },
+  );
+
+  it("removes email from non-directory picker DTOs", async () => {
+    mocks.checkPermission.mockResolvedValue({ allowed: true });
+    mocks.listAdminUsers.mockResolvedValue([
+      { id: "u1", name: "Ada", email: "private@example.test" },
+    ]);
+
+    render(await AdminPage({ searchParams: Promise.resolve({ tab: "groups" }) }));
+
+    expect(mocks.adminTabsProps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          users: [{ id: "u1", name: "Ada" }],
+        }),
+      }),
+    );
   });
 });

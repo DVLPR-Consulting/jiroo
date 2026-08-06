@@ -30,7 +30,7 @@ describe("GlobalPermissionAdmin", () => {
   it("ajoute un grant utilisateur et conserve les champs sur erreur", async () => {
     const user = userEvent.setup();
     mocks.add.mockResolvedValue({ ok: false, error: "Action impossible. Réessayez." });
-    render(<GlobalPermissionAdmin grants={[]} users={[{ id: "u1", name: "Ada", email: "ada@test" }]} groups={[]} canManage />);
+    render(<GlobalPermissionAdmin grants={[]} users={[{ id: "u1", name: "Ada" }]} groups={[]} canManage />);
     await user.selectOptions(screen.getByRole("combobox", { name: "Permission globale" }), "browse_users");
     await user.selectOptions(screen.getByRole("combobox", { name: "Type de principal" }), "user");
     await user.selectOptions(screen.getByRole("combobox", { name: "Principal" }), "u1");

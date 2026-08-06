@@ -62,7 +62,7 @@ import type { ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabili
 type ItemRow = typeof itemsTable.$inferSelect;
 type ActivityRow = typeof activitiesTable.$inferSelect;
 type LabelRow = typeof labelsTable.$inferSelect;
-type UserLite = { id: string; name: string; email: string };
+type UserLite = { id: string; name: string };
 type StatusLite = { id: string; name: string; color: string; category: string };
 
 const dateFmt = new Intl.DateTimeFormat("fr-FR", {
@@ -87,6 +87,8 @@ export function ItemDetailPanel({
   itemLabelIds,
   backlogLabels,
   users,
+  assigneeCandidates,
+  reporterCandidates,
   statuses,
   backlogKey,
   links,
@@ -108,6 +110,8 @@ export function ItemDetailPanel({
   itemLabelIds: string[];
   backlogLabels: LabelRow[];
   users: UserLite[];
+  assigneeCandidates: UserLite[];
+  reporterCandidates: UserLite[];
   statuses: StatusLite[];
   backlogKey: string;
   links: LinkWithOther[];
@@ -547,7 +551,7 @@ export function ItemDetailPanel({
                   itemId={detail.id}
                   backlogKey={backlogKey}
                   assigneeId={detail.assigneeId}
-                  users={users}
+                  users={assigneeCandidates}
                 />
               ) : assignee?.name ?? "Non assigné"}
             </Field>
@@ -558,7 +562,7 @@ export function ItemDetailPanel({
                   itemId={detail.id}
                   backlogKey={backlogKey}
                   reporterId={detail.reporterId}
-                  users={users}
+                  users={reporterCandidates}
                 />
               ) : reporter?.name ?? "—"}
             </Field>

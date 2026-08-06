@@ -62,7 +62,7 @@ describe("PermissionSchemeAdmin", () => {
         version: 8,
       },
     });
-    render(<PermissionSchemeAdmin schemes={[scheme]} users={[{ id: "u1", name: "Ada", email: "ada@test" }]} groups={[]} roles={[]} />);
+    render(<PermissionSchemeAdmin schemes={[scheme]} users={[{ id: "u1", name: "Ada" }]} groups={[]} roles={[]} />);
     await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
     await user.selectOptions(screen.getByRole("combobox", { name: "Type de principal" }), "user");
     await user.type(screen.getByRole("combobox", { name: "Rechercher un principal" }), "Ada");
@@ -88,7 +88,7 @@ describe("PermissionSchemeAdmin", () => {
       grant: { id: addedGrantId, permission: "edit_items", principalType: "user", version: 8 },
     });
     mocks.remove.mockResolvedValue({ ok: true, grant: { id: addedGrantId, version: 9 } });
-    render(<PermissionSchemeAdmin schemes={[scheme]} users={[{ id: "u1", name: "Ada", email: "ada@test" }]} groups={[]} roles={[]} />);
+    render(<PermissionSchemeAdmin schemes={[scheme]} users={[{ id: "u1", name: "Ada" }]} groups={[]} roles={[]} />);
 
     await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
     await user.type(screen.getByRole("combobox", { name: "Rechercher un principal" }), "Ada");

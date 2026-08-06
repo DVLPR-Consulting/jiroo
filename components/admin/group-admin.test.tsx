@@ -23,13 +23,13 @@ const groups = [{
   name: "Équipe produit",
   protected: false,
   memberCount: 1,
-  members: [{ id: "u1", name: "Ada Lovelace", email: "ada@test" }],
+  members: [{ id: "u1", name: "Ada Lovelace" }],
   blockers: ["Utilisé par le rôle Membre dans DEMO"],
   membershipRequiresPlatformAdmin: false,
 }];
 const users = [
-  { id: "u1", name: "Ada Lovelace", email: "ada@test", role: "contributor" as const },
-  { id: "u2", name: "Lin Chen", email: "lin@test", role: "contributor" as const },
+  { id: "u1", name: "Ada Lovelace", role: "contributor" as const },
+  { id: "u2", name: "Lin Chen", role: "contributor" as const },
 ];
 
 describe("GroupAdmin", () => {

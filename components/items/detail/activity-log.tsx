@@ -1,7 +1,7 @@
 import type { activities as activitiesTable } from "@/lib/db/schema/domain";
 
 type ActivityRow = typeof activitiesTable.$inferSelect;
-type UserLite = { id: string; name: string; email: string };
+type UserLite = { id: string; name: string };
 type StatusLite = { id: string; name: string; color: string; category: string };
 
 const dateFmt = new Intl.DateTimeFormat("fr-FR", {

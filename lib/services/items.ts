@@ -120,7 +120,16 @@ export function listItemLabelPairs(backlogId: string) {
 }
 
 export function listUsers() {
-  return db.select({ id: user.id, name: user.name, email: user.email }).from(user);
+  return db.select({ id: user.id, name: user.name }).from(user);
+}
+
+export function listUsersByIds(userIds: string[]) {
+  const uniqueIds = [...new Set(userIds)];
+  if (uniqueIds.length === 0) return Promise.resolve([]);
+  return db
+    .select({ id: user.id, name: user.name })
+    .from(user)
+    .where(inArray(user.id, uniqueIds));
 }
 
 export function listItemsAssignedTo(userId: string) {

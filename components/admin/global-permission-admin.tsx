@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { GLOBAL_PERMISSION_DEFINITIONS, type GlobalPermissionKey } from "@/lib/auth/permissions";
 
-export type AuthorizationUserOption = { id: string; name: string; email: string };
+export type AuthorizationUserOption = { id: string; name: string };
 export type AuthorizationGroupOption = { id: string; name: string };
 export type GlobalGrantDto = {
   id: string;

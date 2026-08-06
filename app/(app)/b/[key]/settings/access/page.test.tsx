@@ -145,11 +145,11 @@ describe("backlog access settings route", () => {
 
     expect(mocks.listAdminUsers).toHaveBeenCalledOnce();
     expect(mocks.accessProps).toHaveBeenCalledWith(expect.objectContaining({
-      users: [{ id: "u2", name: "Lin", email: "lin@test" }],
+      users: [{ id: "u2", name: "Lin" }],
       canBrowseUsers: true,
     }));
     expect(mocks.helperProps).toHaveBeenCalledWith(expect.objectContaining({
-      users: [{ id: "u2", name: "Lin", email: "lin@test" }],
+      users: [{ id: "u2", name: "Lin" }],
     }));
   });
 });

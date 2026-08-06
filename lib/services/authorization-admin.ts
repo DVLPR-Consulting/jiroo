@@ -1551,7 +1551,7 @@ export async function listGroups() {
       .from(userGroups)
       .orderBy(asc(userGroups.name), asc(userGroups.id)),
     db
-      .select({ groupId: groupMembers.groupId, id: user.id, name: user.name, email: user.email })
+      .select({ groupId: groupMembers.groupId, id: user.id, name: user.name })
       .from(groupMembers)
       .innerJoin(user, eq(user.id, groupMembers.userId)),
     db
@@ -1579,7 +1579,7 @@ export async function listGroups() {
     memberCount: memberships.filter((entry) => entry.groupId === group.id).length,
     members: memberships
       .filter((entry) => entry.groupId === group.id)
-      .map(({ id, name, email }) => ({ id, name, email })),
+      .map(({ id, name }) => ({ id, name })),
     blockers: [
       ...grantReferences
         .filter((entry) => entry.groupId === group.id)
@@ -1738,7 +1738,7 @@ export async function readBacklogAccess(backlogId: string) {
   const [roles, actors] = await Promise.all([
     db.select({ id: projectRoles.id, key: projectRoles.key, name: projectRoles.name, description: projectRoles.description, protected: projectRoles.protected }).from(projectRoles).orderBy(asc(projectRoles.name)),
     db
-      .select({ id: backlogRoleActors.id, projectRoleId: backlogRoleActors.projectRoleId, actorType: backlogRoleActors.actorType, userId: backlogRoleActors.userId, userName: user.name, userEmail: user.email, groupId: backlogRoleActors.groupId, groupName: userGroups.name })
+      .select({ id: backlogRoleActors.id, projectRoleId: backlogRoleActors.projectRoleId, actorType: backlogRoleActors.actorType, userId: backlogRoleActors.userId, userName: user.name, groupId: backlogRoleActors.groupId, groupName: userGroups.name })
       .from(backlogRoleActors)
       .leftJoin(user, eq(user.id, backlogRoleActors.userId))
       .leftJoin(userGroups, eq(userGroups.id, backlogRoleActors.groupId))
@@ -1748,7 +1748,7 @@ export async function readBacklogAccess(backlogId: string) {
     ...role,
     occupants: await Promise.all(actors.filter((entry) => entry.projectRoleId === role.id).flatMap((entry) => {
       const principal = entry.actorType === "user" && entry.userId && entry.userName
-        ? { type: "user" as const, id: entry.userId, label: entry.userName, email: entry.userEmail ?? "" }
+        ? { type: "user" as const, id: entry.userId, label: entry.userName }
         : entry.actorType === "group" && entry.groupId && entry.groupName
           ? { type: "group" as const, id: entry.groupId, label: entry.groupName }
           : null;

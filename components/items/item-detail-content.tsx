@@ -10,6 +10,7 @@ import {
   listItems,
   listLabelsForBacklog,
   listUsers,
+  listUsersByIds,
 } from "@/lib/services/items";
 import { listLinksForItem } from "@/lib/services/links";
 import { listRefsForItem } from "@/lib/services/refs";
@@ -31,6 +32,8 @@ export async function ItemDetailContent({
   itemKey,
   backlog,
   users,
+  assigneeCandidates,
+  reporterCandidates,
   statuses,
   labels,
   items,
@@ -46,6 +49,8 @@ export async function ItemDetailContent({
   itemKey: string;
   backlog: Backlog;
   users: Users;
+  assigneeCandidates: Users;
+  reporterCandidates: Users;
   statuses: Status[];
   labels: Labels;
   items: Items;
@@ -68,6 +73,15 @@ export async function ItemDetailContent({
     listLinksForItem(detail.id),
     listRefsForItem(detail.id),
   ]);
+  const detailReferencedUsers = await listUsersByIds([
+    detail.assigneeId,
+    detail.reporterId,
+    ...activities.map((activity) => activity.actorId),
+    ...comments.map((comment) => comment.authorId),
+  ].filter((id): id is string => typeof id === "string"));
+  const displayUsers = [...new Map(
+    [...users, ...detailReferencedUsers].map((candidate) => [candidate.id, candidate]),
+  ).values()];
   const candidates = items.map((item) => ({
     id: item.id,
     key: item.key,
@@ -92,7 +106,9 @@ export async function ItemDetailContent({
         currentUserId={currentUserId}
         itemLabelIds={itemLabelIds}
         backlogLabels={labels}
-        users={users}
+        users={displayUsers}
+        assigneeCandidates={assigneeCandidates}
+        reporterCandidates={reporterCandidates}
         statuses={statuses}
         backlogKey={backlog.key}
         links={links}

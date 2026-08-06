@@ -41,6 +41,14 @@ export default async function AdminPage({
     scope: { type: "global" },
   });
   if (!decision.allowed) redirect("/");
+  const browseUsersDecision = ["users", "groups", "schemes"].includes(activeTab)
+    ? await checkPermission({
+        actorId: session.user.id,
+        permission: "browse_users",
+        scope: { type: "global" },
+      })
+    : { allowed: false };
+  if (activeTab === "users" && !browseUsersDecision.allowed) redirect("/");
 
   const data = activeTab === "backlogs"
     ? {
@@ -54,19 +62,24 @@ export default async function AdminPage({
             const globalDecision = await checkPermission({ actorId: session.user.id, permission: "administer_jiroo", scope: { type: "global" } });
             const [groups, rawUsers, globalGrants] = await Promise.all([
               listGroups(),
-              listAdminUsers(),
+              browseUsersDecision.allowed ? listAdminUsers() : Promise.resolve([]),
               listGlobalPermissionGrants(),
             ]);
-            return { tab: "groups" as const, groups, users: rawUsers.map(({ id, name, email }) => ({ id, name, email })), globalGrants, canAdministerGlobals: globalDecision.allowed };
+            return { tab: "groups" as const, groups, users: rawUsers.map(({ id, name }) => ({ id, name })), globalGrants, canAdministerGlobals: globalDecision.allowed };
           })()
         : activeTab === "roles"
           ? { tab: "roles" as const, roles: await listProjectRoles() }
           : await (async () => {
-              const [schemes, rawUsers, rawGroups, rawRoles] = await Promise.all([listPermissionSchemes(), listAdminUsers(), listGroups(), listProjectRoles()]);
+              const [schemes, rawUsers, rawGroups, rawRoles] = await Promise.all([
+                listPermissionSchemes(),
+                browseUsersDecision.allowed ? listAdminUsers() : Promise.resolve([]),
+                listGroups(),
+                listProjectRoles(),
+              ]);
               return {
                 tab: "schemes" as const,
                 schemes,
-                users: rawUsers.map(({ id, name, email }) => ({ id, name, email })),
+                users: rawUsers.map(({ id, name }) => ({ id, name })),
                 groups: rawGroups.map(({ id, name }) => ({ id, name })),
                 roles: rawRoles.map(({ id, name }) => ({ id, name })),
                 initialSchemeId: typeof scheme === "string" ? scheme : undefined,

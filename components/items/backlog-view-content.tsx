@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
+import { checkPermission } from "@/lib/auth/authorization";
 import { projectBacklogCapabilities } from "@/lib/auth/capabilities";
 import { items as itemRowsTable, statuses } from "@/lib/db/schema/domain";
 import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
@@ -11,6 +12,7 @@ import {
   listItems,
   listLabelsForBacklog,
   listUsers,
+  listUsersByIds,
 } from "@/lib/services/items";
 import { blockedItemIds } from "@/lib/services/links";
 import { moveItemAction, reparentItemAction } from "@/app/actions/items";
@@ -225,13 +227,37 @@ export async function BacklogViewContent({
     statuses: statusRows.map((status) => ({ id: status.id, name: status.name })),
   };
 
-  // Single user fetch reused by both the filter bar facet and assignee-name resolution.
-  // Backlog labels fetched once and reused by the filter facet and (when open) the detail panel.
-  const [usersForFilter, backlogLabelRows] = await Promise.all([
-    listUsers(),
+  const referencedUserIds = items.flatMap((item) =>
+    [item.assigneeId, item.reporterId].filter((id): id is string => id !== null),
+  );
+  const browseUsersDecision = await checkPermission({
+    actorId: userId,
+    permission: "browse_users",
+    scope: { type: "global" },
+  });
+  const [referencedUsers, rawDirectoryUsers, backlogLabelRows] = await Promise.all([
+    listUsersByIds(referencedUserIds),
+    browseUsersDecision.allowed ? listUsers() : Promise.resolve([]),
     listLabelsForBacklog(backlog.id),
   ]);
-  const userName = new Map(usersForFilter.map((u) => [u.id, u.name]));
+  const directoryUsers = rawDirectoryUsers.map(({ id, name }) => ({ id, name }));
+  const assignableDecisions = await Promise.all(
+    directoryUsers.map(async (candidate) => ({
+      candidate,
+      decision: await checkPermission({
+        actorId: candidate.id,
+        permission: "assignable_user",
+        scope: { type: "backlog", backlogId: backlog.id },
+      }),
+    })),
+  );
+  const assigneeCandidates = assignableDecisions
+    .filter(({ decision }) => decision.allowed)
+    .map(({ candidate }) => candidate);
+  const displayUsers = [...new Map(
+    [...referencedUsers, ...directoryUsers].map((candidate) => [candidate.id, candidate]),
+  ).values()];
+  const userName = new Map(displayUsers.map((u) => [u.id, u.name]));
   const estimateByItem = new Map(items.map((item) => [item.id, item.estimatePoints]));
 
   const groupLabel = (key: string): string => {
@@ -482,7 +508,7 @@ export async function BacklogViewContent({
       <FilterBar
         state={viewState}
         statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}
-        users={usersForFilter.map((u) => ({ id: u.id, name: u.name }))}
+        users={referencedUsers}
         labels={backlogLabelRows.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
         hierarchy={items.map((item) => ({
           id: item.id,
@@ -499,7 +525,7 @@ export async function BacklogViewContent({
           createDialogProps={createDialogProps}
           grouped={viewState.group !== null}
           statuses={statusList}
-          users={usersForFilter.map((user) => ({ id: user.id, name: user.name }))}
+          users={assigneeCandidates}
           backlogKey={key}
           backlogId={backlog.id}
           selectedKey={itemKey}
@@ -535,7 +561,7 @@ export async function BacklogViewContent({
           }))}
           grouped={viewState.group !== null}
           statuses={statusList}
-          users={usersForFilter.map((user) => ({ id: user.id, name: user.name }))}
+          users={assigneeCandidates}
           backlogId={backlog.id}
           backlogKey={key}
           selectedKey={itemKey}
@@ -608,7 +634,9 @@ export async function BacklogViewContent({
             backlog={backlog}
             currentUserId={userId}
             labels={backlogLabelRows}
-            users={usersForFilter}
+            users={displayUsers}
+            assigneeCandidates={assigneeCandidates}
+            reporterCandidates={directoryUsers}
             statuses={statusList}
             items={items}
             sprints={sprintSnapshot.sprints
