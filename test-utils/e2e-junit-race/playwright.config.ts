@@ -14,7 +14,7 @@ const junitPaths = exclusiveJunitPaths({ reportPath, runId, lockRoot });
 
 export default defineConfig({
   testDir: ".",
-  testMatch: "proof.spec.ts",
+  testMatch: "proof.pw.ts",
   workers: 1,
   retries: 0,
   globalSetup: "./global.setup.ts",
