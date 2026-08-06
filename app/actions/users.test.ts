@@ -34,7 +34,6 @@ describe("user admin actions", () => {
         createUserAction({
           email: "user@example.test",
           name: "User",
-          role: "viewer",
           password: "password-123",
         }),
       service: mocks.createUser,
@@ -69,7 +68,6 @@ describe("user admin actions", () => {
       createUserAction({
         email: "user@example.test",
         name: "User",
-        role: "viewer",
         password: "password-123",
       }),
     ).resolves.toEqual({
@@ -77,6 +75,18 @@ describe("user admin actions", () => {
       error: "Vous n’avez pas la permission « Gérer les utilisateurs et les groupes ».",
     });
     expect(mocks.createUser).not.toHaveBeenCalled();
+  });
+
+  it("force contributor même si un appel forgé envoie le rôle bootstrap admin", async () => {
+    mocks.createUser.mockResolvedValue({ id: "user-2", role: "contributor" });
+    const forgedCreate = createUserAction as (input: { email: string; name: string; password: string; role: string }) => ReturnType<typeof createUserAction>;
+    await forgedCreate({ email: "user@example.test", name: "User", password: "password-123", role: "admin" });
+    expect(mocks.createUser).toHaveBeenCalledWith({
+      email: "user@example.test",
+      name: "User",
+      password: "password-123",
+      role: "contributor",
+    });
   });
 
   it.each([
@@ -90,7 +100,7 @@ describe("user admin actions", () => {
     mocks.createUser.mockRejectedValue(new Error(message));
 
     await expect(
-      createUserAction({ email: "x", name: "x", role: "x", password: "x" }),
+      createUserAction({ email: "x", name: "x", password: "x" }),
     ).resolves.toEqual({ ok: false, error: message });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
@@ -99,7 +109,7 @@ describe("user admin actions", () => {
     mocks.createUser.mockRejectedValue(new Error("database offline"));
 
     await expect(
-      createUserAction({ email: "x", name: "x", role: "x", password: "x" }),
+      createUserAction({ email: "x", name: "x", password: "x" }),
     ).resolves.toEqual({ ok: false, error: "Action impossible." });
   });
 

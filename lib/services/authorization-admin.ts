@@ -3,7 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { explainPermission } from "@/lib/auth/authorization";
-import { PROTECTED_ROLE_PERMISSION_KEYS } from "@/lib/auth/permissions";
+import { permissionDefinition, PROTECTED_ROLE_PERMISSION_KEYS } from "@/lib/auth/permissions";
 import { resolvePlatformAdministratorIds } from "@/lib/auth/platform-administrator";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -1318,21 +1318,48 @@ export async function listAffectedBacklogs(schemeId: string) {
 }
 
 export async function listGroups() {
-  const [groups, memberships] = await Promise.all([
+  const [groups, memberships, grantReferences, roleReferences] = await Promise.all([
     db
       .select({ id: userGroups.id, name: userGroups.name, protected: userGroups.protected })
       .from(userGroups)
       .orderBy(asc(userGroups.name), asc(userGroups.id)),
-    db.select({ groupId: groupMembers.groupId }).from(groupMembers),
+    db
+      .select({ groupId: groupMembers.groupId, id: user.id, name: user.name, email: user.email })
+      .from(groupMembers)
+      .innerJoin(user, eq(user.id, groupMembers.userId)),
+    db
+      .select({ groupId: permissionGrants.groupId, permissionKey: permissionGrants.permissionKey, scope: permissionGrants.scope, schemeName: permissionSchemes.name })
+      .from(permissionGrants)
+      .leftJoin(permissionSchemes, eq(permissionSchemes.id, permissionGrants.permissionSchemeId))
+      .where(eq(permissionGrants.principalType, "group")),
+    db
+      .select({ groupId: backlogRoleActors.groupId, roleName: projectRoles.name, backlogName: backlogs.name })
+      .from(backlogRoleActors)
+      .innerJoin(projectRoles, eq(projectRoles.id, backlogRoleActors.projectRoleId))
+      .innerJoin(backlogs, eq(backlogs.id, backlogRoleActors.backlogId))
+      .where(eq(backlogRoleActors.actorType, "group")),
   ]);
   return groups.map((group) => ({
     ...group,
     memberCount: memberships.filter((entry) => entry.groupId === group.id).length,
+    members: memberships
+      .filter((entry) => entry.groupId === group.id)
+      .map(({ id, name, email }) => ({ id, name, email })),
+    blockers: [
+      ...grantReferences
+        .filter((entry) => entry.groupId === group.id)
+        .map((entry) => entry.scope === "global"
+          ? `Permission globale « ${safePermissionLabel(entry.permissionKey)} »`
+          : `Permission « ${safePermissionLabel(entry.permissionKey)} » dans ${entry.schemeName ?? "un schéma"}`),
+      ...roleReferences
+        .filter((entry) => entry.groupId === group.id)
+        .map((entry) => `Rôle ${entry.roleName} dans ${entry.backlogName}`),
+    ].sort((left, right) => left.localeCompare(right, "fr")),
   }));
 }
 
 export async function listProjectRoles() {
-  const [roles, occupancies] = await Promise.all([
+  const [roles, occupancies, grants] = await Promise.all([
     db
       .select({
         id: projectRoles.id,
@@ -1343,16 +1370,66 @@ export async function listProjectRoles() {
       })
       .from(projectRoles)
       .orderBy(asc(projectRoles.name), asc(projectRoles.id)),
-    db.select({ projectRoleId: backlogRoleActors.projectRoleId }).from(backlogRoleActors),
+    db
+      .select({ projectRoleId: backlogRoleActors.projectRoleId, backlogName: backlogs.name })
+      .from(backlogRoleActors)
+      .innerJoin(backlogs, eq(backlogs.id, backlogRoleActors.backlogId)),
+    db
+      .select({ projectRoleId: permissionGrants.projectRoleId, permissionKey: permissionGrants.permissionKey, schemeName: permissionSchemes.name })
+      .from(permissionGrants)
+      .innerJoin(permissionSchemes, eq(permissionSchemes.id, permissionGrants.permissionSchemeId))
+      .where(eq(permissionGrants.principalType, "project_role")),
   ]);
   return roles.map((role) => ({
     ...role,
     occupancyCount: occupancies.filter((entry) => entry.projectRoleId === role.id).length,
+    blockers: [
+      ...occupancies.filter((entry) => entry.projectRoleId === role.id).map((entry) => `Affectation dans ${entry.backlogName}`),
+      ...grants.filter((entry) => entry.projectRoleId === role.id).map((entry) => `Permission « ${safePermissionLabel(entry.permissionKey)} » dans ${entry.schemeName}`),
+    ].sort((left, right) => left.localeCompare(right, "fr")),
   }));
 }
 
+function safePermissionLabel(key: string): string {
+  try { return permissionDefinition(key).label; } catch { return "Permission inconnue"; }
+}
+
+function permissionCategory(key: string): string {
+  if (["browse_backlog", "administer_backlog", "manage_members"].includes(key)) return "Accès";
+  if (["manage_workflows", "manage_sprints", "manage_releases"].includes(key)) return "Administration du backlog";
+  if (key.includes("comments")) return "Commentaires";
+  if (key.includes("views")) return "Vues";
+  return "Éléments";
+}
+
+export async function listGlobalPermissionGrants() {
+  const rows = await db
+    .select({
+      id: permissionGrants.id,
+      permission: permissionGrants.permissionKey,
+      principalType: permissionGrants.principalType,
+      userId: permissionGrants.userId,
+      userName: user.name,
+      groupId: permissionGrants.groupId,
+      groupName: userGroups.name,
+    })
+    .from(permissionGrants)
+    .leftJoin(user, eq(user.id, permissionGrants.userId))
+    .leftJoin(userGroups, eq(userGroups.id, permissionGrants.groupId))
+    .where(eq(permissionGrants.scope, "global"))
+    .orderBy(asc(permissionGrants.permissionKey), asc(permissionGrants.id));
+  return rows.flatMap((row) => {
+    const principal = row.principalType === "user" && row.userId && row.userName
+      ? { type: "user" as const, id: row.userId, label: row.userName }
+      : row.principalType === "group" && row.groupId && row.groupName
+        ? { type: "group" as const, id: row.groupId, label: row.groupName }
+        : null;
+    return principal ? [{ id: row.id, permission: row.permission, permissionLabel: safePermissionLabel(row.permission), principal }] : [];
+  });
+}
+
 export async function listPermissionSchemes() {
-  const [schemes, usages] = await Promise.all([
+  const [schemes, usages, grants] = await Promise.all([
     db
       .select({
         id: permissionSchemes.id,
@@ -1364,12 +1441,45 @@ export async function listPermissionSchemes() {
       .from(permissionSchemes)
       .orderBy(asc(permissionSchemes.name), asc(permissionSchemes.id)),
     db
-      .select({ permissionSchemeId: backlogPermissionConfigs.permissionSchemeId })
-      .from(backlogPermissionConfigs),
+      .select({ permissionSchemeId: backlogPermissionConfigs.permissionSchemeId, id: backlogs.id, key: backlogs.key, name: backlogs.name })
+      .from(backlogPermissionConfigs)
+      .innerJoin(backlogs, eq(backlogs.id, backlogPermissionConfigs.backlogId)),
+    db
+      .select({
+        id: permissionGrants.id,
+        permissionSchemeId: permissionGrants.permissionSchemeId,
+        permission: permissionGrants.permissionKey,
+        principalType: permissionGrants.principalType,
+        userId: permissionGrants.userId,
+        userName: user.name,
+        groupId: permissionGrants.groupId,
+        groupName: userGroups.name,
+        roleId: permissionGrants.projectRoleId,
+        roleName: projectRoles.name,
+      })
+      .from(permissionGrants)
+      .leftJoin(user, eq(user.id, permissionGrants.userId))
+      .leftJoin(userGroups, eq(userGroups.id, permissionGrants.groupId))
+      .leftJoin(projectRoles, eq(projectRoles.id, permissionGrants.projectRoleId))
+      .where(eq(permissionGrants.scope, "backlog"))
+      .orderBy(asc(permissionGrants.permissionKey), asc(permissionGrants.id)),
   ]);
   return schemes.map((scheme) => ({
     ...scheme,
     usageCount: usages.filter((entry) => entry.permissionSchemeId === scheme.id).length,
+    affectedBacklogs: usages.filter((entry) => entry.permissionSchemeId === scheme.id).map(({ id, key, name }) => ({ id, key, name })),
+    grants: grants.filter((entry) => entry.permissionSchemeId === scheme.id).flatMap((entry) => {
+      const principal = entry.principalType === "user" && entry.userId && entry.userName
+        ? { type: "user" as const, id: entry.userId, label: entry.userName }
+        : entry.principalType === "group" && entry.groupId && entry.groupName
+          ? { type: "group" as const, id: entry.groupId, label: entry.groupName }
+          : entry.principalType === "project_role" && entry.roleId && entry.roleName
+            ? { type: "project_role" as const, id: entry.roleId, label: entry.roleName }
+            : entry.principalType === "authenticated_user"
+              ? { type: "authenticated_user" as const, id: "authenticated_user", label: "Tous les utilisateurs authentifiés" }
+              : null;
+      return principal ? [{ id: entry.id, permission: entry.permission, permissionLabel: safePermissionLabel(entry.permission), category: permissionCategory(entry.permission), principal }] : [];
+    }),
   }));
 }
 
@@ -1390,10 +1500,34 @@ export async function readBacklogAccess(backlogId: string) {
     .innerJoin(permissionSchemes, eq(permissionSchemes.id, backlogPermissionConfigs.permissionSchemeId))
     .where(eq(backlogPermissionConfigs.backlogId, parsedBacklogId));
   if (!config) throw new ProtectedInvariantError("Configuration d’accès introuvable.");
+  const [roles, actors] = await Promise.all([
+    db.select({ id: projectRoles.id, key: projectRoles.key, name: projectRoles.name, description: projectRoles.description, protected: projectRoles.protected }).from(projectRoles).orderBy(asc(projectRoles.name)),
+    db
+      .select({ id: backlogRoleActors.id, projectRoleId: backlogRoleActors.projectRoleId, actorType: backlogRoleActors.actorType, userId: backlogRoleActors.userId, userName: user.name, userEmail: user.email, groupId: backlogRoleActors.groupId, groupName: userGroups.name })
+      .from(backlogRoleActors)
+      .leftJoin(user, eq(user.id, backlogRoleActors.userId))
+      .leftJoin(userGroups, eq(userGroups.id, backlogRoleActors.groupId))
+      .where(eq(backlogRoleActors.backlogId, parsedBacklogId)),
+  ]);
+  const roleDtos = await Promise.all(roles.map(async (role) => ({
+    ...role,
+    occupants: await Promise.all(actors.filter((entry) => entry.projectRoleId === role.id).flatMap((entry) => {
+      const principal = entry.actorType === "user" && entry.userId && entry.userName
+        ? { type: "user" as const, id: entry.userId, label: entry.userName, email: entry.userEmail ?? "" }
+        : entry.actorType === "group" && entry.groupId && entry.groupName
+          ? { type: "group" as const, id: entry.groupId, label: entry.groupName }
+          : null;
+      return principal ? [{ actorId: entry.id, principal }] : [];
+    }).map(async (occupant) => ({
+      ...occupant,
+      removalBlocked: (await effectiveBacklogAdministratorIds(db as unknown as Transaction, parsedBacklogId, config.schemeId, { roleActorId: occupant.actorId })).size === 0,
+    }))),
+  })));
   return {
     backlog: { id: config.backlogId, key: config.backlogKey, name: config.backlogName },
     scheme: { id: config.schemeId, name: config.schemeName, version: config.schemeVersion },
     mode: config.mode,
+    roles: roleDtos,
   };
 }
 

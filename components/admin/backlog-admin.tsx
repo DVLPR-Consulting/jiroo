@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import {
   archiveBacklogAction,
@@ -119,6 +120,7 @@ function BacklogDialog({
           </DialogDescription>
         </DialogHeader>
         <form
+          aria-busy={pending}
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
@@ -169,9 +171,9 @@ function BacklogDialog({
               plus.
             </p>
           )}
-          {error && <p className="t-sm text-destructive">{error}</p>}
+          {error && <p role="alert" className="t-sm text-destructive">{error}</p>}
           <DialogFooter>
-            <Button type="submit" disabled={pending || !name || (keyEditable && !key)}>
+            <Button type="submit" aria-busy={pending} disabled={pending || !name || (keyEditable && !key)}>
               {confirmKeyChange ? "Confirmer le renommage" : "Enregistrer"}
             </Button>
           </DialogFooter>
@@ -232,6 +234,13 @@ export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
                 </Badge>
               )}
               <div className="ml-auto flex items-center gap-2">
+                {!archived && (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/b/${b.key}/settings/access`} aria-label={`Gérer les accès de ${b.name}`}>
+                      Accès
+                    </Link>
+                  </Button>
+                )}
                 {!archived && (
                   <>
                     <BacklogDialog

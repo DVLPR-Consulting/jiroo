@@ -95,14 +95,25 @@ describe("AppLayout 2FA access guard", () => {
     render(await AppLayout({ children: null }));
     expect(mocks.redirect).not.toHaveBeenCalled();
     expect(mocks.listBacklogsForUser).toHaveBeenCalledWith("user-1");
-    expect(mocks.checkPermission).toHaveBeenCalledWith({
-      actorId: "user-1",
-      permission: "administer_jiroo",
-      scope: { type: "global" },
-    });
+    expect(mocks.checkPermission).toHaveBeenCalledWith(expect.objectContaining({ actorId: "user-1", permission: "administer_jiroo" }));
     expect(mocks.sidebar).toHaveBeenCalledWith(
       expect.objectContaining({ canAdminister: true }),
       undefined,
     );
+  });
+
+  it("expose l’administration pour une permission globale dédiée, jamais pour manage_members seul", async () => {
+    mocks.authGetSession.mockResolvedValue(authSession(true));
+    mocks.checkPermission.mockImplementation(async ({ permission }: { permission: string }) => ({ allowed: permission === "manage_users_groups" }));
+    render(await AppLayout({ children: null }));
+    expect(mocks.sidebar).toHaveBeenLastCalledWith(expect.objectContaining({ canAdminister: true, adminHref: "/admin?tab=users" }), undefined);
+
+    vi.clearAllMocks();
+    mocks.headers.mockResolvedValue(new Headers());
+    mocks.authGetSession.mockResolvedValue(authSession(true));
+    mocks.listBacklogsForUser.mockResolvedValue([]); mocks.listVisibleViews.mockResolvedValue([]); mocks.unreadCount.mockResolvedValue(0); mocks.listRecentNotifications.mockResolvedValue([]); mocks.getShellCounts.mockResolvedValue({});
+    mocks.checkPermission.mockResolvedValue({ allowed: false });
+    render(await AppLayout({ children: null }));
+    expect(mocks.sidebar).toHaveBeenLastCalledWith(expect.objectContaining({ canAdminister: false }), undefined);
   });
 });

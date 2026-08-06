@@ -31,6 +31,7 @@ import {
   deleteProjectRole,
   listAffectedBacklogs,
   listGroups,
+  listGlobalPermissionGrants,
   listPermissionSchemes,
   listProjectRoles,
   readBacklogAccess,
@@ -501,20 +502,24 @@ describeDb("transactional authorization administration", () => {
         name: expect.any(String),
         protected: expect.any(Boolean),
         memberCount: expect.any(Number),
+        members: expect.any(Array),
+        blockers: expect.any(Array),
       }),
     );
     const roles = await listProjectRoles();
     expect(roles).toContainEqual(
-      expect.objectContaining({ id: administratorRoleId, key: "administrators" }),
+      expect.objectContaining({ id: administratorRoleId, key: "administrators", blockers: expect.any(Array) }),
     );
     const schemes = await listPermissionSchemes();
     expect(schemes).toContainEqual(
-      expect.objectContaining({ id: sharedSchemeId, version: expect.any(Number), usageCount: 2 }),
+      expect.objectContaining({ id: sharedSchemeId, version: expect.any(Number), usageCount: 2, grants: expect.any(Array), affectedBacklogs: expect.any(Array) }),
     );
+    expect(await listGlobalPermissionGrants()).toEqual(expect.any(Array));
     await expect(readBacklogAccess(backlogAId)).resolves.toMatchObject({
       backlog: { id: backlogAId, name: "Backlog Task 4 A" },
       scheme: { id: sharedSchemeId },
       mode: "advanced",
+      roles: expect.any(Array),
     });
   });
 

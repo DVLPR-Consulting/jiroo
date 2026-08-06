@@ -45,6 +45,7 @@ const props = {
   userId: "admin-1",
   user: { name: "Ada Lovelace", email: "ada@example.com", role: "contributor" },
   canAdminister: true,
+  adminHref: "/admin?tab=users",
   counts: { allByBacklog: { CASS: 42 }, mine: 7, trash: 3 },
 };
 
@@ -88,7 +89,7 @@ describe("Sidebar", () => {
     );
     expect(screen.getByRole("link", { name: "Administration" })).toHaveAttribute(
       "href",
-      "/admin",
+      "/admin?tab=users",
     );
   });
 

@@ -53,13 +53,12 @@ function mapUserError(e: unknown): string {
 export async function createUserAction(input: {
   email: string;
   name: string;
-  role: string;
   password: string;
 }) {
   const actorId = await authenticatedActorId();
   try {
     await requireUserAdministrator(actorId);
-    const u = await createUser(input);
+    const u = await createUser({ ...input, role: "contributor" });
     revalidatePath("/admin");
     return { ok: true as const, user: u };
   } catch (e) {

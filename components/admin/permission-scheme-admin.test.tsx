@@ -1,0 +1,92 @@
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({ add: vi.fn(), remove: vi.fn(), clone: vi.fn() }));
+vi.mock("@/app/actions/authorization", () => ({
+  addSchemeGrantAction: mocks.add,
+  removeSchemeGrantAction: mocks.remove,
+  clonePermissionSchemeAction: mocks.clone,
+}));
+
+import { PermissionSchemeAdmin } from "@/components/admin/permission-scheme-admin";
+
+const scheme = {
+  id: "11111111-1111-4111-8111-111111111111",
+  name: "Produit partagé",
+  description: "Accès produit",
+  protected: false,
+  version: 7,
+  usageCount: 2,
+  affectedBacklogs: [
+    { id: "b1", key: "DEMO", name: "Démonstration" },
+    { id: "b2", key: "OPS", name: "Opérations" },
+  ],
+  grants: [
+    { id: "22222222-2222-4222-8222-222222222222", permission: "browse_backlog" as const, permissionLabel: "Consulter le backlog", category: "Accès", principal: { type: "group" as const, id: "33333333-3333-4333-8333-333333333333", label: "Produit" } },
+    { id: "44444444-4444-4444-8444-444444444444", permission: "add_comments" as const, permissionLabel: "Ajouter des commentaires", category: "Commentaires", principal: { type: "project_role" as const, id: "55555555-5555-4555-8555-555555555555", label: "Membre" } },
+  ],
+};
+
+describe("PermissionSchemeAdmin", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("ouvre directement le schéma ciblé par le lien de matrice", () => {
+    render(<PermissionSchemeAdmin schemes={[scheme]} users={[]} groups={[]} roles={[]} initialSchemeId={scheme.id} />);
+    expect(screen.getByRole("dialog", { name: "Matrice de Produit partagé" })).toBeVisible();
+  });
+
+  it("affiche version, usage, backlogs affectés et matrice groupée avec chips retirables", async () => {
+    const user = userEvent.setup();
+    render(<PermissionSchemeAdmin schemes={[scheme]} users={[]} groups={[]} roles={[]} />);
+    expect(screen.getByText("Version 7")).toBeVisible();
+    expect(screen.getByText("2 backlogs")).toBeVisible();
+    expect(screen.getByText("Démonstration (DEMO)")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
+    const dialog = screen.getByRole("dialog", { name: "Matrice de Produit partagé" });
+    expect(within(dialog).getByRole("heading", { name: "Accès" })).toBeVisible();
+    expect(within(dialog).getByRole("heading", { name: "Commentaires" })).toBeVisible();
+    expect(within(dialog).getByRole("button", { name: "Retirer Produit de Consulter le backlog" })).toBeVisible();
+  });
+
+  it("utilise type et recherche de principal pour ajouter un grant", async () => {
+    const user = userEvent.setup();
+    mocks.add.mockResolvedValue({ ok: true, grant: { version: 8 } });
+    render(<PermissionSchemeAdmin schemes={[scheme]} users={[{ id: "u1", name: "Ada", email: "ada@test" }]} groups={[]} roles={[]} />);
+    await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Type de principal" }), "user");
+    await user.type(screen.getByRole("combobox", { name: "Rechercher un principal" }), "Ada");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Permission de backlog" }), "edit_items");
+    await user.click(screen.getByRole("button", { name: "Ajouter le grant" }));
+    const confirmation = screen.getByRole("dialog", { name: "Modifier un schéma partagé" });
+    expect(within(confirmation).getByText("Démonstration (DEMO)")).toBeVisible();
+    await user.click(within(confirmation).getByRole("button", { name: "Confirmer la modification" }));
+    await waitFor(() => expect(mocks.add).toHaveBeenCalledWith({
+      schemeId: scheme.id, permission: "edit_items", principal: { type: "user", userId: "u1" }, expectedVersion: 7,
+    }));
+  });
+
+  it("retient le dialogue et affiche le message stale exact", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockResolvedValue({ ok: false, error: "Ce schéma a été modifié. Rechargez la page." });
+    render(<PermissionSchemeAdmin schemes={[scheme]} users={[]} groups={[]} roles={[]} />);
+    await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
+    await user.click(screen.getByRole("button", { name: "Retirer Produit de Consulter le backlog" }));
+    await user.click(screen.getByRole("button", { name: "Confirmer la modification" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Ce schéma a été modifié. Rechargez la page.");
+    expect(screen.getByRole("dialog", { name: "Matrice de Produit partagé" })).toBeVisible();
+  });
+
+  it("clone le schéma en conservant les champs en cas d’erreur", async () => {
+    const user = userEvent.setup();
+    mocks.clone.mockResolvedValue({ ok: false, error: "Action impossible. Réessayez." });
+    render(<PermissionSchemeAdmin schemes={[scheme]} users={[]} groups={[]} roles={[]} />);
+    await user.click(screen.getByRole("button", { name: "Cloner Produit partagé" }));
+    const dialog = screen.getByRole("dialog", { name: "Cloner le schéma" });
+    await user.clear(within(dialog).getByRole("textbox", { name: "Nom du clone" }));
+    await user.type(within(dialog).getByRole("textbox", { name: "Nom du clone" }), "Copie produit");
+    await user.click(within(dialog).getByRole("button", { name: "Cloner" }));
+    expect(await within(dialog).findByRole("alert")).toBeVisible();
+    expect(within(dialog).getByRole("textbox", { name: "Nom du clone" })).toHaveValue("Copie produit");
+  });
+});

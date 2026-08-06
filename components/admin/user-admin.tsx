@@ -1,13 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { setUserRoleAction } from "@/app/actions/users";
 import { UserCreateDialog } from "@/components/admin/user-create-dialog";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
-import { ROLE_LABELS } from "@/lib/items/users";
-import type { Role } from "@/lib/auth/rbac";
 import type { LabelHue } from "@/lib/design/constants";
-import type { AdminUserRow } from "@/lib/services/users";
+export type UserAdminDto = { id: string; name: string; email: string };
 
 function hueFor(value: string): LabelHue {
   let hash = 0;
@@ -19,24 +15,16 @@ export function UserAdmin({
   users,
   currentUserId,
 }: {
-  users: AdminUserRow[];
+  users: UserAdminDto[];
   currentUserId: string;
 }) {
-  const [roles, setRoles] = useState<Record<string, Role>>(() =>
-    Object.fromEntries(users.map((user) => [user.id, user.role])),
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
         <UserCreateDialog />
       </div>
-      {error && <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
       <ul className="divide-y divide-border overflow-hidden rounded-[var(--radius)] border border-border bg-card">
         {users.map((adminUser) => {
-          const selectedRole = roles[adminUser.id] ?? adminUser.role;
           const isCurrentUser = adminUser.id === currentUserId;
           return (
             <li key={adminUser.id} className="flex min-h-14 items-center gap-3 px-4 py-2.5">
@@ -52,34 +40,7 @@ export function UserAdmin({
                 </div>
                 <p className="truncate text-xs text-muted-foreground">{adminUser.email}</p>
               </div>
-              <select
-                aria-label={`Rôle de ${adminUser.name}`}
-                value={selectedRole}
-                disabled={pending || isCurrentUser}
-                onChange={(event) => {
-                  const nextRole = event.target.value as Role;
-                  const previousRole = selectedRole;
-                  setError(null);
-                  setRoles((current) => ({ ...current, [adminUser.id]: nextRole }));
-                  startTransition(async () => {
-                    const result = await setUserRoleAction({
-                      userId: adminUser.id,
-                      role: nextRole,
-                    });
-                    if (!result.ok) {
-                      setRoles((current) => ({ ...current, [adminUser.id]: previousRole }));
-                      setError(result.error);
-                    }
-                  });
-                }}
-                className="h-8 max-w-40 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {(Object.entries(ROLE_LABELS) as Array<[Role, string]>).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <span className="text-xs text-muted-foreground">Accès attribué par groupes et rôles de backlog</span>
             </li>
           );
         })}

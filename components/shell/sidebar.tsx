@@ -22,6 +22,7 @@ export function Sidebar({
   userId,
   user,
   canAdminister,
+  adminHref = "/admin",
   counts,
 }: {
   backlogs: Backlog[];
@@ -29,6 +30,7 @@ export function Sidebar({
   userId: string;
   user: { name: string; email: string; role: string };
   canAdminister: boolean;
+  adminHref?: string;
   counts: ShellCounts;
 }) {
   const { collapsed: desktopCollapsed, mobile } = useSidebarState();
@@ -160,7 +162,7 @@ export function Sidebar({
         </NavLink>
         {canAdminister && (
           <NavLink
-            href="/admin"
+            href={adminHref}
             active={context.activeNav === "admin"}
             ariaLabel="Administration"
             collapsed={collapsed}
