@@ -277,7 +277,13 @@ describe("ItemList", () => {
 
   it("keeps rows navigable but renders item fields without editors for viewers", async () => {
     const user = userEvent.setup();
-    renderList({ ...listProps(), canWrite: false });
+    renderList({
+      ...listProps(),
+      canCreateItems: false,
+      canEditItems: false,
+      canTransitionItems: false,
+      canAssignItems: false,
+    });
 
     const row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
     expect(within(row).queryByRole("button", { name: /Statut/i })).not.toBeInTheDocument();
@@ -291,6 +297,37 @@ describe("ItemList", () => {
     expect(mocks.push).toHaveBeenCalledWith(
       "/b/DEMO?view=list&item=DEMO-1&v=saved-view&q=auth",
     );
+  });
+
+  it("maps list editors to disjoint edit, transition, and assign capabilities", () => {
+    const base = {
+      ...listProps(),
+      canCreateItems: false,
+      canEditItems: false,
+      canTransitionItems: false,
+      canAssignItems: false,
+    };
+
+    const transitioned = renderList({ ...base, canTransitionItems: true });
+    let row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    expect(within(row).getByRole("button", { name: /Statut/i })).toBeVisible();
+    expect(within(row).queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
+    transitioned.unmount();
+
+    const assigned = renderList({ ...base, canAssignItems: true });
+    row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    expect(within(row).getByRole("button", { name: /Assigné/i })).toBeVisible();
+    expect(within(row).queryByRole("button", { name: /Statut/i })).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
+    assigned.unmount();
+
+    renderList({ ...base, canEditItems: true });
+    row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    expect(within(row).getByRole("button", { name: /Priorité.*Moyenne/i })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "Estimation : Non estimé" })).toBeVisible();
+    expect(within(row).queryByRole("button", { name: /Statut/i })).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
   });
 
   it("selects a visible range without opening item detail", async () => {
@@ -353,7 +390,10 @@ describe("ItemList", () => {
         items: [],
         statuses: [{ id: todoStatusId, name: "À faire" }],
       },
-      canWrite: false,
+      canCreateItems: false,
+      canEditItems: false,
+      canTransitionItems: false,
+      canAssignItems: false,
     });
 
     expect(screen.getByRole("heading", { name: "Aucun item" })).toBeVisible();

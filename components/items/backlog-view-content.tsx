@@ -89,9 +89,6 @@ export async function BacklogViewContent({
   if (!backlog || backlog.archivedAt) notFound();
   const capabilities = await getBacklogCapabilities(userId, backlog.id);
   if (!capabilities) notFound();
-  // Preserve the existing coarse downstream write contract with an effective
-  // capability; create and workflow already consume their exact booleans.
-  const canWrite = capabilities.editItems;
 
   // Load and validate the active saved view from ?v=.
   // A stale, foreign, or inaccessible view id is silently treated as "no active view".
@@ -216,6 +213,7 @@ export async function BacklogViewContent({
   );
   const createDialogProps = {
     backlogId: backlog.id,
+    canScheduleItems: capabilities.scheduleItems,
     items: items.map((item) => ({
       id: item.id,
       key: item.key,
@@ -465,7 +463,9 @@ export async function BacklogViewContent({
             statuses={statusList}
           />
         ) : null}
-        newItemSlot={capabilities.createItems && (view !== "board" || activeSprint !== null) ? (
+        newItemSlot={capabilities.createItems && (
+          view !== "board" || (activeSprint !== null && capabilities.scheduleItems)
+        ) ? (
           <NewItemButton
             backlogKey={backlog.key}
             {...createDialogProps}
@@ -503,7 +503,12 @@ export async function BacklogViewContent({
           filtersActive={filtersOn}
           hasItems={hasBacklogItems}
           clearFiltersHref={clearFiltersHref}
-          canWrite={canWrite}
+          canCreateItems={capabilities.createItems}
+          canEditItems={capabilities.editItems}
+          canTransitionItems={capabilities.transitionItems}
+          canAssignItems={capabilities.assignItems}
+          canScheduleItems={capabilities.scheduleItems}
+          canManageSprints={capabilities.manageSprints}
           manualOrder={viewState.sort === null && viewState.group === null}
         />
       )}
@@ -532,7 +537,10 @@ export async function BacklogViewContent({
           hasItems={items.length > 0}
           clearFiltersHref={clearFiltersHref}
           createDialogProps={createDialogProps}
-          canWrite={canWrite}
+          canCreateItems={capabilities.createItems}
+          canEditItems={capabilities.editItems}
+          canTransitionItems={capabilities.transitionItems}
+          canAssignItems={capabilities.assignItems}
         />
       )}
       {view === "board" && (
@@ -553,7 +561,10 @@ export async function BacklogViewContent({
           filtersActive={filtersOn}
           hasItems={(activeSection?.items.length ?? 0) > 0}
           clearFiltersHref={clearFiltersHref}
-          canWrite={canWrite}
+          canCreateItems={capabilities.createItems}
+          canEditItems={capabilities.editItems}
+          canTransitionItems={capabilities.transitionItems}
+          canScheduleItems={capabilities.scheduleItems}
           activeSprint={activeSprint}
           activeSprintMetrics={activeSection?.metrics ?? null}
           backlogHref={backlogHref}
@@ -572,7 +583,8 @@ export async function BacklogViewContent({
           hasItems={items.length > 0}
           clearFiltersHref={clearFiltersHref}
           createDialogProps={createDialogProps}
-          canWrite={canWrite}
+          canCreateItems={capabilities.createItems}
+          canScheduleItems={capabilities.scheduleItems}
         />
       )}
       {itemKey && (
@@ -585,7 +597,9 @@ export async function BacklogViewContent({
             users={usersForFilter}
             statuses={statusList}
             items={items}
-            canWrite={canWrite}
+            canEditItems={capabilities.editItems}
+            canTransitionItems={capabilities.transitionItems}
+            canAssignItems={capabilities.assignItems}
           />
         </Suspense>
       )}

@@ -21,12 +21,14 @@ export function Sidebar({
   views,
   userId,
   user,
+  canAdminister,
   counts,
 }: {
   backlogs: Backlog[];
   views: SidebarViewRow[];
   userId: string;
   user: { name: string; email: string; role: string };
+  canAdminister: boolean;
   counts: ShellCounts;
 }) {
   const { collapsed: desktopCollapsed, mobile } = useSidebarState();
@@ -141,24 +143,22 @@ export function Sidebar({
       )}
 
       <div className="mt-auto flex flex-col gap-1">
-        {user.role === "admin" && (
-          <NavLink
-            href="/trash"
-            active={context.activeNav === "trash"}
-            ariaLabel={`Corbeille ${counts.trash}`}
-            collapsed={collapsed}
-            title={collapsed ? "Corbeille" : undefined}
+        <NavLink
+          href="/trash"
+          active={context.activeNav === "trash"}
+          ariaLabel={`Corbeille ${counts.trash}`}
+          collapsed={collapsed}
+          title={collapsed ? "Corbeille" : undefined}
+        >
+          <Trash2 className="size-4" />
+          <span
+            className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}
           >
-            <Trash2 className="size-4" />
-            <span
-              className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}
-            >
-              Corbeille
-            </span>
-            <Count value={counts.trash} collapsed={collapsed} />
-          </NavLink>
-        )}
-        {user.role === "admin" && (
+            Corbeille
+          </span>
+          <Count value={counts.trash} collapsed={collapsed} />
+        </NavLink>
+        {canAdminister && (
           <NavLink
             href="/admin"
             active={context.activeNav === "admin"}

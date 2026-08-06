@@ -65,6 +65,34 @@ describe("BulkItemToolbar", () => {
     expect(mocks.bulkUpdateItemsAction).not.toHaveBeenCalled();
   });
 
+  it("exposes only commands backed by their disjoint effective capability", () => {
+    render(
+      <BulkItemToolbar
+        {...props()}
+        canEditItems={false}
+        canTransitionItems
+        canAssignItems={false}
+        canScheduleItems={false}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Modifier le statut" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Modifier la priorité" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Modifier l’assigné" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Modifier le sprint" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("spinbutton", { name: "Estimation groupée" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("sends exact status, priority and assignee patches with sorted ids", async () => {
     const user = userEvent.setup();
     mocks.bulkUpdateItemsAction.mockResolvedValue({

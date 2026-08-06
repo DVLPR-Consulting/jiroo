@@ -87,7 +87,9 @@ export function ItemDetailPanel({
   candidates,
   refs,
   parent,
-  canWrite = true,
+  canEditItems = true,
+  canTransitionItems = true,
+  canAssignItems = true,
 }: {
   detail: ItemRow;
   activities: ActivityRow[];
@@ -102,7 +104,9 @@ export function ItemDetailPanel({
   candidates: { id: string; key: string; title: string; type: ItemType }[];
   refs: { id: string; url: string; kind: string; createdAt: Date | string }[];
   parent?: { key: string; title: string };
-  canWrite?: boolean;
+  canEditItems?: boolean;
+  canTransitionItems?: boolean;
+  canAssignItems?: boolean;
 }) {
   const router = useRouter();
   const viewUrl = useViewUrlState();
@@ -217,7 +221,7 @@ export function ItemDetailPanel({
               <Copy className="size-4" aria-hidden />
               Copier le lien
             </button>
-            {canWrite && (
+            {canEditItems && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -267,7 +271,7 @@ export function ItemDetailPanel({
               itemKey={detail.key}
               backlogKey={backlogKey}
               title={detail.title}
-              readOnly={!canWrite}
+              readOnly={!canEditItems}
             />
 
             <div className="flex gap-1 border-b border-border">
@@ -311,7 +315,7 @@ export function ItemDetailPanel({
                 itemId={detail.id}
                 backlogKey={backlogKey}
                 description={detail.description}
-                readOnly={!canWrite}
+                readOnly={!canEditItems}
               />
             )}
             {tab === "comments" && (
@@ -321,7 +325,7 @@ export function ItemDetailPanel({
                 comments={comments}
                 users={users.map((u) => ({ id: u.id, name: u.name }))}
                 currentUserId={currentUserId}
-                canWrite={canWrite}
+                canWrite={canEditItems}
               />
             )}
             {tab === "activity" && (
@@ -332,7 +336,7 @@ export function ItemDetailPanel({
           {/* Side column */}
           <div className="flex flex-col gap-4 border-t border-border bg-[var(--surface-2)] p-5 md:border-t-0 md:border-l">
             <Field label="Statut">
-              {canWrite ? (
+              {canTransitionItems ? (
                 <StatusField
                   itemId={detail.id}
                   backlogKey={backlogKey}
@@ -352,7 +356,7 @@ export function ItemDetailPanel({
             </Field>
 
             <Field label="Priorité">
-              {canWrite ? (
+              {canEditItems ? (
                 <PriorityField
                   itemId={detail.id}
                   backlogKey={backlogKey}
@@ -368,7 +372,7 @@ export function ItemDetailPanel({
 
             {detail.type === "tache" && (
               <Field label="Points">
-                {canWrite ? (
+                {canEditItems ? (
                   <EstimateField
                     itemId={detail.id}
                     backlogKey={backlogKey}
@@ -383,7 +387,7 @@ export function ItemDetailPanel({
             )}
 
             <Field label="Nature">
-              {canWrite ? (
+              {canEditItems ? (
                 <KindField
                   itemId={detail.id}
                   backlogKey={backlogKey}
@@ -393,7 +397,7 @@ export function ItemDetailPanel({
             </Field>
 
             <Field label="Assigné">
-              {canWrite ? (
+              {canAssignItems ? (
                 <AssigneeField
                   itemId={detail.id}
                   backlogKey={backlogKey}
@@ -404,7 +408,7 @@ export function ItemDetailPanel({
             </Field>
 
             <Field label="Rapporteur">
-              {canWrite ? (
+              {canEditItems ? (
                 <ReporterField
                   itemId={detail.id}
                   backlogKey={backlogKey}
@@ -415,7 +419,7 @@ export function ItemDetailPanel({
             </Field>
 
             <Field label="Labels">
-              {canWrite ? (
+              {canEditItems ? (
                 <LabelsField
                   itemId={detail.id}
                   backlogKey={backlogKey}
@@ -435,7 +439,7 @@ export function ItemDetailPanel({
             </Field>
 
             <Field label="Échéance">
-              {canWrite ? (
+              {canEditItems ? (
                 <DueDateField
                   itemId={detail.id}
                   backlogKey={backlogKey}
@@ -454,7 +458,7 @@ export function ItemDetailPanel({
                 backlogKey={backlogKey}
                 links={links}
                 candidates={candidates}
-                canWrite={canWrite}
+                canWrite={canEditItems}
               />
             </Field>
 
@@ -463,7 +467,7 @@ export function ItemDetailPanel({
                 itemId={detail.id}
                 backlogKey={backlogKey}
                 refs={refs}
-                canWrite={canWrite}
+                canWrite={canEditItems}
               />
             </Field>
 

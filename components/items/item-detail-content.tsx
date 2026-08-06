@@ -34,7 +34,9 @@ export async function ItemDetailContent({
   labels,
   items,
   currentUserId,
-  canWrite = true,
+  canEditItems = true,
+  canTransitionItems = true,
+  canAssignItems = true,
 }: {
   itemKey: string;
   backlog: Backlog;
@@ -43,7 +45,9 @@ export async function ItemDetailContent({
   labels: Labels;
   items: Items;
   currentUserId: string;
-  canWrite?: boolean;
+  canEditItems?: boolean;
+  canTransitionItems?: boolean;
+  canAssignItems?: boolean;
 }) {
   const detail = await getItemByKeyForBacklog(itemKey, backlog.id);
   if (!detail) return null;
@@ -86,7 +90,9 @@ export async function ItemDetailContent({
         candidates={candidates}
         refs={refs}
         parent={parent}
-        canWrite={canWrite}
+        canEditItems={canEditItems}
+        canTransitionItems={canTransitionItems}
+        canAssignItems={canAssignItems}
       />
     </>
   );

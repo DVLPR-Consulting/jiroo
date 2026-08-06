@@ -484,6 +484,91 @@ describe("ItemBoard", () => {
     expect(screen.getByRole("button", { name: "Statut : Prêt" })).toBeInTheDocument();
   });
 
+  it("keeps edit, transition, schedule, and create affordances disjoint", () => {
+    const base = {
+      backlogKey: "DEMO",
+      items: [editableCard],
+      statuses: [readyStatus],
+      statusDomain: [readyStatus],
+      group: null,
+      groupLabels: {},
+      moveItemAction: vi.fn(),
+      createDialogProps,
+      canCreateItems: false,
+      canEditItems: false,
+      canTransitionItems: false,
+      canScheduleItems: false,
+    };
+
+    const scheduled = renderBoard(<ItemBoard {...base} canScheduleItems />);
+    expect(screen.getByRole("button", { name: "Déplacer DEMO-1" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Statut :/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Créer dans Prêt" })).not.toBeInTheDocument();
+    scheduled.unmount();
+
+    const transitioned = renderBoard(<ItemBoard {...base} canTransitionItems />);
+    expect(screen.getByRole("button", { name: "Statut : Prêt" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Déplacer DEMO-1" })).not.toBeInTheDocument();
+    transitioned.unmount();
+
+    const edited = renderBoard(<ItemBoard {...base} canEditItems />);
+    expect(screen.getByRole("button", { name: /Priorité.*Moyenne/i })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Statut :/i })).not.toBeInTheDocument();
+    edited.unmount();
+
+    renderBoard(<ItemBoard {...base} canCreateItems />);
+    expect(screen.getByRole("button", { name: "Créer dans Prêt" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Statut :/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Déplacer DEMO-1" })).not.toBeInTheDocument();
+  });
+
+  it("requires scheduling permission for sprint-context task creation", () => {
+    const contextualCreateDialogProps = {
+      ...createDialogProps,
+      sprintId: activeSprint.id,
+      contextLabel: activeSprint.name,
+    };
+    const createOnly = renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[editableCard]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={contextualCreateDialogProps}
+        canCreateItems
+        canEditItems={false}
+        canTransitionItems={false}
+        canScheduleItems={false}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Créer dans Prêt" }))
+      .not.toBeInTheDocument();
+    createOnly.unmount();
+
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[editableCard]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={contextualCreateDialogProps}
+        canCreateItems
+        canEditItems={false}
+        canTransitionItems={false}
+        canScheduleItems
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Créer dans Prêt" })).toBeVisible();
+  });
+
   it("keeps cards readable but hides every mutation affordance for viewers", () => {
     renderBoard(
       <ItemBoard
@@ -495,7 +580,10 @@ describe("ItemBoard", () => {
         groupLabels={{}}
         moveItemAction={vi.fn()}
         createDialogProps={createDialogProps}
-        canWrite={false}
+        canCreateItems={false}
+        canEditItems={false}
+        canTransitionItems={false}
+        canScheduleItems={false}
       />,
     );
 
@@ -517,7 +605,10 @@ describe("ItemBoard", () => {
         groupLabels={{}}
         moveItemAction={vi.fn()}
         createDialogProps={createDialogProps}
-        canWrite={false}
+        canCreateItems={false}
+        canEditItems={false}
+        canTransitionItems={false}
+        canScheduleItems={false}
       />,
     );
 

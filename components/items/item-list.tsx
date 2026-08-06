@@ -135,7 +135,10 @@ function ItemRow({
   users,
   backlogKey,
   selectedKey,
-  canWrite,
+  canSelectItems,
+  canEditItems,
+  canTransitionItems,
+  canAssignItems,
   bulkSelected,
   onToggleSelection,
 }: {
@@ -145,7 +148,10 @@ function ItemRow({
   users: UserOption[];
   backlogKey: string;
   selectedKey?: string;
-  canWrite: boolean;
+  canSelectItems: boolean;
+  canEditItems: boolean;
+  canTransitionItems: boolean;
+  canAssignItems: boolean;
   bulkSelected: boolean;
   onToggleSelection: (id: string, extendRange: boolean) => void;
 }) {
@@ -175,7 +181,7 @@ function ItemRow({
       }`}
       style={{ height: "var(--row-h)" }}
     >
-      {canWrite ? (
+      {canSelectItems ? (
         <td
           className={`${CELL_CLASS} px-2 text-center`}
           onClick={(event) => event.stopPropagation()}
@@ -226,7 +232,7 @@ function ItemRow({
           backlogKey={backlogKey}
           statusId={item.statusId}
           statuses={statuses}
-          readOnly={!canWrite}
+          readOnly={!canTransitionItems}
         />
       </td>
       <td className={CELL_CLASS} onClick={(event) => event.stopPropagation()}>
@@ -234,7 +240,7 @@ function ItemRow({
           itemId={item.id}
           backlogKey={backlogKey}
           priority={item.priority}
-          readOnly={!canWrite}
+          readOnly={!canEditItems}
         />
       </td>
       <td className={CELL_CLASS} onClick={(event) => event.stopPropagation()}>
@@ -243,7 +249,7 @@ function ItemRow({
             itemId={item.id}
             backlogKey={backlogKey}
             estimatePoints={item.estimatePoints}
-            readOnly={!canWrite}
+            readOnly={!canEditItems}
           />
         ) : (
           <span className="text-muted-foreground">—</span>
@@ -269,7 +275,7 @@ function ItemRow({
           backlogKey={backlogKey}
           assigneeId={item.assigneeId}
           users={users}
-          readOnly={!canWrite}
+          readOnly={!canAssignItems}
         />
       </td>
     </tr>
@@ -289,7 +295,10 @@ export function ItemList({
   hasItems,
   clearFiltersHref,
   createDialogProps,
-  canWrite = true,
+  canCreateItems = true,
+  canEditItems = true,
+  canTransitionItems = true,
+  canAssignItems = true,
 }: {
   groups: Group[];
   grouped: boolean;
@@ -302,8 +311,11 @@ export function ItemList({
   filtersActive?: boolean;
   hasItems?: boolean;
   clearFiltersHref?: string;
-  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses">;
-  canWrite?: boolean;
+  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems">;
+  canCreateItems?: boolean;
+  canEditItems?: boolean;
+  canTransitionItems?: boolean;
+  canAssignItems?: boolean;
 }) {
   const router = useRouter();
   const viewUrl = useViewUrlState();
@@ -333,6 +345,7 @@ export function ItemList({
   const allSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selection.selectedIds.has(id));
   const partlySelected = selection.selectedIds.size > 0 && !allSelected;
+  const canSelectItems = canEditItems || canTransitionItems || canAssignItems;
 
   function toggleSelection(id: string, extendRange: boolean) {
     setSelection((current) =>
@@ -393,7 +406,7 @@ export function ItemList({
                   Effacer les filtres
                 </Link>
               ) : null
-            ) : canWrite && createDialogProps ? (
+            ) : canCreateItems && createDialogProps ? (
               <NewItemButton backlogKey={backlogKey} {...createDialogProps} />
             ) : null
           }
@@ -405,11 +418,11 @@ export function ItemList({
   return (
     <div
       className="min-h-0 flex-1 overflow-auto"
-      onKeyDown={canWrite ? handleSelectionShortcut : undefined}
+      onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
     >
       <table className="w-full table-fixed border-separate border-spacing-0">
         <colgroup>
-          {canWrite ? <col className="w-10" /> : null}
+          {canSelectItems ? <col className="w-10" /> : null}
           <col className="w-32" />
           <col />
           <col className="w-40" />
@@ -421,7 +434,7 @@ export function ItemList({
         </colgroup>
         <thead className="sticky top-0 z-20">
           <tr>
-            {canWrite ? (
+            {canSelectItems ? (
               <th scope="col" className={`${HEADER_CLASS} px-2 text-center`}>
                 <input
                   ref={(node) => {
@@ -467,7 +480,7 @@ export function ItemList({
                 <tr>
                   <th
                     scope="rowgroup"
-                    colSpan={canWrite ? 9 : 8}
+                    colSpan={canSelectItems ? 9 : 8}
                     className="sticky top-8 z-10 border-b border-border bg-[var(--surface-2)] px-3 py-1.5 text-left"
                   >
                     <button
@@ -498,7 +511,10 @@ export function ItemList({
                     users={users}
                     backlogKey={backlogKey}
                     selectedKey={selectedKey}
-                    canWrite={canWrite}
+                    canSelectItems={canSelectItems}
+                    canEditItems={canEditItems}
+                    canTransitionItems={canTransitionItems}
+                    canAssignItems={canAssignItems}
                     bulkSelected={selection.selectedIds.has(item.id)}
                     onToggleSelection={toggleSelection}
                   />
@@ -507,7 +523,7 @@ export function ItemList({
           );
         })}
       </table>
-      {canWrite && selectedItems.length > 0 ? (
+      {canSelectItems && selectedItems.length > 0 ? (
         <BulkItemToolbar
           backlogId={backlogId}
           backlogKey={backlogKey}
@@ -517,6 +533,10 @@ export function ItemList({
           }))}
           statuses={statuses}
           users={users}
+          canEditItems={canEditItems}
+          canTransitionItems={canTransitionItems}
+          canAssignItems={canAssignItems}
+          canScheduleItems={false}
           onClearSelection={() => setSelection(emptySelection())}
           onMutationSuccess={() => router.refresh()}
         />

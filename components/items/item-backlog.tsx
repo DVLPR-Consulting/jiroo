@@ -130,7 +130,9 @@ function BacklogRow({
   users,
   backlogKey,
   selectedKey,
-  canWrite,
+  canSelectItems,
+  canEditItems,
+  canScheduleItems,
   manualOrder,
   mutationPending,
   bulkSelected,
@@ -141,7 +143,9 @@ function BacklogRow({
   users: UserOption[];
   backlogKey: string;
   selectedKey?: string;
-  canWrite: boolean;
+  canSelectItems: boolean;
+  canEditItems: boolean;
+  canScheduleItems: boolean;
   manualOrder: boolean;
   mutationPending: boolean;
   bulkSelected: boolean;
@@ -165,7 +169,7 @@ function BacklogRow({
   } = useSortable({
     id: item.id,
     data: { key: item.key, title: item.title },
-    disabled: !manualOrder || mutationPending,
+    disabled: !canScheduleItems || !manualOrder || mutationPending,
   });
 
   function openItem() {
@@ -195,7 +199,7 @@ function BacklogRow({
         opacity: isDragging ? 0.45 : 1,
       }}
     >
-      {canWrite ? (
+      {canSelectItems ? (
         <td
           className={`${CELL_CLASS} px-2 text-center`}
           onClick={(event) => event.stopPropagation()}
@@ -218,7 +222,7 @@ function BacklogRow({
         className={`${CELL_CLASS} px-1`}
         onClick={(event) => event.stopPropagation()}
       >
-        {manualOrder && canWrite ? (
+        {manualOrder && canScheduleItems ? (
           <button
             ref={setActivatorNodeRef}
             {...attributes}
@@ -281,7 +285,7 @@ function BacklogRow({
           itemId={item.id}
           backlogKey={backlogKey}
           estimatePoints={item.estimatePoints}
-          readOnly={!canWrite}
+          readOnly={!canEditItems}
         />
       </td>
       <td className={CELL_CLASS}>
@@ -302,7 +306,10 @@ function LegacyItemBacklog({
   filtersActive = false,
   hasItems,
   clearFiltersHref,
-  canWrite = true,
+  canEditItems = true,
+  canTransitionItems = true,
+  canAssignItems = true,
+  canScheduleItems = true,
   manualOrder = false,
   rankItemAction = rankBacklogItemAction,
 }: {
@@ -316,7 +323,12 @@ function LegacyItemBacklog({
   filtersActive?: boolean;
   hasItems?: boolean;
   clearFiltersHref?: string;
-  canWrite?: boolean;
+  canCreateItems?: boolean;
+  canEditItems?: boolean;
+  canTransitionItems?: boolean;
+  canAssignItems?: boolean;
+  canScheduleItems?: boolean;
+  canManageSprints?: boolean;
   manualOrder?: boolean;
   rankItemAction?: RankItemAction;
 }) {
@@ -381,6 +393,8 @@ function LegacyItemBacklog({
   const allSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selection.selectedIds.has(id));
   const partlySelected = selection.selectedIds.size > 0 && !allSelected;
+  const canSelectItems =
+    canEditItems || canTransitionItems || canAssignItems || canScheduleItems;
 
   function toggleSelection(id: string, extendRange: boolean) {
     setSelection((current) =>
@@ -499,7 +513,7 @@ function LegacyItemBacklog({
     <section
       className="flex min-h-0 flex-1 flex-col"
       aria-labelledby="backlog-heading"
-      onKeyDown={canWrite ? handleSelectionShortcut : undefined}
+      onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
     >
       <header className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-border px-4 py-3">
         <h2 id="backlog-heading" className="t-h2">
@@ -514,7 +528,7 @@ function LegacyItemBacklog({
         <span className="text-xs text-muted-foreground">
           {unestimatedCount} non estimé{unestimatedCount > 1 ? "s" : ""}
         </span>
-        {canWrite && !manualOrder && displayedItems.length > 0 ? (
+        {canScheduleItems && !manualOrder && displayedItems.length > 0 ? (
           <span className="text-xs text-muted-foreground">
             Effacez le tri ou le groupement pour modifier l’ordre manuel.
           </span>
@@ -569,14 +583,14 @@ function LegacyItemBacklog({
                 "Appuyez sur espace pour saisir une tâche, utilisez les flèches verticales, puis espace pour déposer ou Échap pour annuler.",
             },
           }}
-          onDragStart={manualOrder && canWrite ? onDragStart : undefined}
-          onDragEnd={manualOrder && canWrite ? onDragEnd : undefined}
-          onDragCancel={manualOrder && canWrite ? onDragCancel : undefined}
+          onDragStart={manualOrder && canScheduleItems ? onDragStart : undefined}
+          onDragEnd={manualOrder && canScheduleItems ? onDragEnd : undefined}
+          onDragCancel={manualOrder && canScheduleItems ? onDragCancel : undefined}
         >
         <div className="min-h-0 flex-1 overflow-auto">
           <table className="w-full table-fixed border-separate border-spacing-0">
             <colgroup>
-              {canWrite ? <col className="w-10" /> : null}
+              {canSelectItems ? <col className="w-10" /> : null}
               <col className="w-10" />
               <col className="w-32" />
               <col />
@@ -587,7 +601,7 @@ function LegacyItemBacklog({
             </colgroup>
             <thead className="sticky top-0 z-20">
               <tr>
-                {canWrite ? (
+                {canSelectItems ? (
                   <th scope="col" className={`${HEADER_CLASS} px-2 text-center`}>
                     <input
                       ref={(node) => {
@@ -622,7 +636,7 @@ function LegacyItemBacklog({
                   <tr>
                     <th
                       scope="rowgroup"
-                      colSpan={canWrite ? 8 : 7}
+                      colSpan={canSelectItems ? 8 : 7}
                       className="border-b border-border bg-[var(--surface-2)] px-3 py-2 text-left text-xs font-semibold"
                     >
                       {group.label} · {group.items.length}
@@ -641,7 +655,9 @@ function LegacyItemBacklog({
                       users={users}
                       backlogKey={backlogKey}
                       selectedKey={selectedKey}
-                      canWrite={canWrite}
+                      canSelectItems={canSelectItems}
+                      canEditItems={canEditItems}
+                      canScheduleItems={canScheduleItems}
                       manualOrder={manualOrder}
                       mutationPending={mutationPending}
                       bulkSelected={selection.selectedIds.has(item.id)}
@@ -652,7 +668,7 @@ function LegacyItemBacklog({
               </tbody>
             ))}
           </table>
-          {canWrite && selectedItems.length > 0 ? (
+          {canSelectItems && selectedItems.length > 0 ? (
             <BulkItemToolbar
               backlogId={backlogId}
               backlogKey={backlogKey}
@@ -662,6 +678,10 @@ function LegacyItemBacklog({
               }))}
               statuses={statuses}
               users={users}
+              canEditItems={canEditItems}
+              canTransitionItems={canTransitionItems}
+              canAssignItems={canAssignItems}
+              canScheduleItems={canScheduleItems}
               onClearSelection={() => setSelection(emptySelection())}
               onMutationSuccess={() => router.refresh()}
             />
@@ -683,7 +703,12 @@ type SharedBacklogProps = {
   filtersActive?: boolean;
   hasItems?: boolean;
   clearFiltersHref?: string;
-  canWrite?: boolean;
+  canCreateItems?: boolean;
+  canEditItems?: boolean;
+  canTransitionItems?: boolean;
+  canAssignItems?: boolean;
+  canScheduleItems?: boolean;
+  canManageSprints?: boolean;
   manualOrder?: boolean;
   rankItemAction?: RankItemAction;
 };
@@ -713,7 +738,7 @@ type SprintBacklogProps = SharedBacklogProps & {
   sprints: SprintSummary[];
   moveSprintItemAction?: MoveSprintItemAction;
   reorderSprintAction?: typeof defaultReorderSprintAction;
-  createDialogProps?: Pick<NewItemButtonProps, "items" | "statuses">;
+  createDialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems">;
 };
 
 function SectionTable({
@@ -723,7 +748,9 @@ function SectionTable({
   users,
   backlogKey,
   selectedKey,
-  canWrite,
+  canSelectItems,
+  canEditItems,
+  canScheduleItems,
   manualOrder,
   mutationPending,
   selection,
@@ -738,7 +765,9 @@ function SectionTable({
   users: UserOption[];
   backlogKey: string;
   selectedKey?: string;
-  canWrite: boolean;
+  canSelectItems: boolean;
+  canEditItems: boolean;
+  canScheduleItems: boolean;
   manualOrder: boolean;
   mutationPending: boolean;
   selection: ReadonlySet<string>;
@@ -750,7 +779,7 @@ function SectionTable({
   return (
     <table className="w-full table-fixed border-separate border-spacing-0">
       <colgroup>
-        {canWrite ? <col className="w-10" /> : null}
+        {canSelectItems ? <col className="w-10" /> : null}
         <col className="w-10" />
         <col className="w-32" />
         <col />
@@ -761,7 +790,7 @@ function SectionTable({
       </colgroup>
       <thead>
         <tr>
-          {canWrite ? (
+          {canSelectItems ? (
             <th scope="col" className={`${HEADER_CLASS} px-2 text-center`}>
               <input
                 ref={(node) => {
@@ -794,7 +823,7 @@ function SectionTable({
             <tr>
               <th
                 scope="rowgroup"
-                colSpan={canWrite ? 8 : 7}
+                colSpan={canSelectItems ? 8 : 7}
                 className="border-b border-border bg-[var(--surface-2)] px-3 py-2 text-left text-xs font-semibold"
               >
                 {group.label} · {group.items.length}
@@ -813,7 +842,9 @@ function SectionTable({
                 users={users}
                 backlogKey={backlogKey}
                 selectedKey={selectedKey}
-                canWrite={canWrite}
+                canSelectItems={canSelectItems}
+                canEditItems={canEditItems}
+                canScheduleItems={canScheduleItems}
                 manualOrder={manualOrder}
                 mutationPending={mutationPending}
                 bulkSelected={selection.has(item.id)}
@@ -856,7 +887,12 @@ function SprintItemBacklog({
   backlogKey,
   backlogId,
   selectedKey,
-  canWrite = true,
+  canCreateItems = true,
+  canEditItems = true,
+  canTransitionItems = true,
+  canAssignItems = true,
+  canScheduleItems = true,
+  canManageSprints = true,
   manualOrder = false,
   rankItemAction = rankBacklogItemAction,
   moveSprintItemAction = defaultMoveSprintItemAction,
@@ -873,6 +909,8 @@ function SprintItemBacklog({
   const [mutationPending, setMutationPending] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [rankError, setRankError] = useState<string | null>(null);
+  const canSelectItems =
+    canEditItems || canTransitionItems || canAssignItems || canScheduleItems;
   const sectionSnapshot = useRef<SprintBacklogSection[] | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -1105,18 +1143,18 @@ function SprintItemBacklog({
     <section
       className="flex min-h-0 flex-1 flex-col"
       aria-labelledby="sprint-backlog-heading"
-      onKeyDown={canWrite ? handleSelectionShortcut : undefined}
+      onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
     >
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
           <h2 id="sprint-backlog-heading" className="t-h2">Planification</h2>
-          {!manualOrder && visibleItems.length > 0 && canWrite ? (
+          {!manualOrder && visibleItems.length > 0 && canScheduleItems ? (
             <p className="text-xs text-muted-foreground">
               Effacez le tri ou le groupement pour modifier l’ordre manuel.
             </p>
           ) : null}
         </div>
-        {canWrite ? (
+        {canManageSprints ? (
           <CreateSprintButton backlogId={backlogId} backlogKey={backlogKey} />
         ) : null}
       </header>
@@ -1136,9 +1174,9 @@ function SprintItemBacklog({
               "Appuyez sur espace pour saisir une tâche, utilisez les flèches verticales, puis espace pour déposer ou Échap pour annuler.",
           },
         }}
-        onDragStart={manualOrder && canWrite ? handleDragStart : undefined}
-        onDragEnd={manualOrder && canWrite ? handleDragEnd : undefined}
-        onDragCancel={manualOrder && canWrite ? handleDragCancel : undefined}
+        onDragStart={manualOrder && canScheduleItems ? handleDragStart : undefined}
+        onDragEnd={manualOrder && canScheduleItems ? handleDragEnd : undefined}
+        onDragCancel={manualOrder && canScheduleItems ? handleDragCancel : undefined}
       >
         <div className="min-h-0 flex-1 overflow-auto">
           {renderedSections.map((section) => {
@@ -1170,14 +1208,14 @@ function SprintItemBacklog({
                   onExpandedChange={(next) =>
                     setExpanded((current) => ({ ...current, [section.id]: next }))
                   }
-                  canWrite={canWrite}
+                  canManage={canManageSprints}
                   canMoveUp={section.kind === "planned" && plannedIndex > 0}
                   canMoveDown={section.kind === "planned" && plannedIndex < planned.length - 1}
                   onMoveUp={() => reorderPlannedSprint(section.id, -1)}
                   onMoveDown={() => reorderPlannedSprint(section.id, 1)}
-                  actions={
+                  actions={(canCreateItems && canScheduleItems) || canManageSprints ? (
                     <>
-                      {createDialogProps ? (
+                      {canCreateItems && canScheduleItems && createDialogProps ? (
                         <NewItemButton
                           backlogId={backlogId}
                           backlogKey={backlogKey}
@@ -1196,14 +1234,14 @@ function SprintItemBacklog({
                           }
                         />
                       ) : null}
-                      {section.sprint ? (
+                      {canManageSprints && section.sprint ? (
                         <EditSprintDialog
                           backlogId={backlogId}
                           backlogKey={backlogKey}
                           sprint={section.sprint}
                         />
                       ) : null}
-                      {section.kind === "planned" && section.sprint ? (
+                      {canManageSprints && section.kind === "planned" && section.sprint ? (
                         <StartSprintDialog
                           backlogId={backlogId}
                           backlogKey={backlogKey}
@@ -1211,7 +1249,7 @@ function SprintItemBacklog({
                           metrics={section.metrics}
                         />
                       ) : null}
-                      {section.kind === "active" && section.sprint ? (
+                      {canManageSprints && section.kind === "active" && section.sprint ? (
                         <CompleteSprintDialog
                           backlogId={backlogId}
                           backlogKey={backlogKey}
@@ -1225,7 +1263,7 @@ function SprintItemBacklog({
                         />
                       ) : null}
                     </>
-                  }
+                  ) : undefined}
                 />
                 {sectionExpanded ? (
                   section.items.length > 0 ? (
@@ -1236,7 +1274,9 @@ function SprintItemBacklog({
                       users={users}
                       backlogKey={backlogKey}
                       selectedKey={selectedKey}
-                      canWrite={canWrite}
+                      canSelectItems={canSelectItems}
+                      canEditItems={canEditItems}
+                      canScheduleItems={canScheduleItems}
                       manualOrder={manualOrder}
                       mutationPending={mutationPending}
                       selection={selection.selectedIds}
@@ -1264,7 +1304,7 @@ function SprintItemBacklog({
               </SprintSectionDropZone>
             );
           })}
-          {canWrite && selectedItems.length > 0 ? (
+          {canSelectItems && selectedItems.length > 0 ? (
             <BulkItemToolbar
               backlogId={backlogId}
               backlogKey={backlogKey}
@@ -1276,6 +1316,10 @@ function SprintItemBacklog({
                   sprint.state === "planned" || sprint.state === "active",
                 )
                 .map((sprint) => ({ id: sprint.id, name: sprint.name, state: sprint.state }))}
+              canEditItems={canEditItems}
+              canTransitionItems={canTransitionItems}
+              canAssignItems={canAssignItems}
+              canScheduleItems={canScheduleItems}
               onClearSelection={() => setSelection(emptySelection())}
               onMutationSuccess={() => router.refresh()}
             />

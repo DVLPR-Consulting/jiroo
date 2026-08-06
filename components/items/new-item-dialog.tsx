@@ -54,6 +54,7 @@ export type NewItemButtonProps = {
   enableShortcut?: boolean;
   sprintId?: string | null;
   contextLabel?: string;
+  canScheduleItems?: boolean;
 };
 
 // Shared field styling — matches Input's token-based look so native selects fit in.
@@ -71,6 +72,7 @@ export function NewItemButton({
   enableShortcut = false,
   sprintId,
   contextLabel,
+  canScheduleItems = true,
 }: NewItemButtonProps) {
   const router = useRouter();
   const contextualTask = contextLabel !== undefined;
@@ -122,6 +124,9 @@ export function NewItemButton({
   }, [enableShortcut]);
 
   const requiredParentType = allowedParentType(type);
+  const availableItemTypes = canScheduleItems
+    ? ITEM_TYPES
+    : ITEM_TYPES.filter((candidate) => allowedParentType(candidate) === null);
   const parentOptions = useMemo(
     () => (requiredParentType ? items.filter((i) => i.type === requiredParentType) : []),
     [items, requiredParentType],
@@ -262,7 +267,7 @@ export function NewItemButton({
               disabled={contextualTask}
               onChange={(e) => handleTypeChange(e.target.value as ItemType)}
             >
-              {ITEM_TYPES.map((t) => (
+              {availableItemTypes.map((t) => (
                 <option key={t} value={t}>
                   {ITEM_TYPE_LABELS[t]}
                 </option>
@@ -303,7 +308,7 @@ export function NewItemButton({
             </div>
           </div>
 
-          {parentRequired && (
+          {canScheduleItems && parentRequired && (
             <div className="space-y-2">
               <Label htmlFor="item-parent">Parent</Label>
               <select

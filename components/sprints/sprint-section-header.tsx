@@ -20,7 +20,7 @@ export function SprintSectionHeader({
   metrics,
   expanded,
   onExpandedChange,
-  canWrite,
+  canManage,
   canMoveUp = false,
   canMoveDown = false,
   onMoveUp,
@@ -32,7 +32,7 @@ export function SprintSectionHeader({
   metrics: SprintMetrics;
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
-  canWrite: boolean;
+  canManage: boolean;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   onMoveUp?: () => void;
@@ -93,9 +93,9 @@ export function SprintSectionHeader({
         )}
       </div>
 
-      {canWrite && (
+      {(canManage || actions) && (
         <div className="flex items-center gap-1">
-          {kind === "planned" && (
+          {canManage && kind === "planned" && (
             <>
               <Button
                 type="button"

@@ -1,4 +1,5 @@
 import { requireAppPageSession } from "@/lib/auth/session";
+import { checkPermission } from "@/lib/auth/authorization";
 import { listBacklogsForUser } from "@/lib/services/backlogs";
 import { listVisibleViews } from "@/lib/services/views";
 import { unreadCount, listRecentNotifications } from "@/lib/services/notifications";
@@ -9,12 +10,17 @@ import { Topbar } from "@/components/shell/topbar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAppPageSession();
-  const [backlogs, views, notifCount, notifications, counts] = await Promise.all([
+  const [backlogs, views, notifCount, notifications, counts, administerDecision] = await Promise.all([
     listBacklogsForUser(session.user.id),
     listVisibleViews(session.user.id),
     unreadCount(session.user.id),
     listRecentNotifications(session.user.id),
     getShellCounts(session.user.id),
+    checkPermission({
+      actorId: session.user.id,
+      permission: "administer_jiroo",
+      scope: { type: "global" },
+    }),
   ]);
   const role = (session.user as { role?: string }).role ?? "viewer";
   return (
@@ -25,6 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           views={views}
           userId={session.user.id}
           user={{ name: session.user.name, email: session.user.email, role }}
+          canAdminister={administerDecision.allowed}
           counts={counts}
         />
       }
