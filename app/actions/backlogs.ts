@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
 import { requirePermission } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
@@ -21,16 +22,18 @@ function isUniqueViolation(error: unknown): boolean {
 
 export async function createBacklogAction(input: { key: string; name: string; color: string }) {
   const actorId = await authenticatedActorId();
-  await requirePermission({
-    actorId,
-    permission: "create_backlogs",
-    scope: { type: "global" },
-  });
   try {
+    await requirePermission({
+      actorId,
+      permission: "create_backlogs",
+      scope: { type: "global" },
+    });
     const b = await createBacklog(input);
     revalidatePath("/admin");
     return { ok: true as const, backlog: b };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     const msg = String(e).includes("unique") ? "Cette clé est déjà utilisée." : "Création impossible.";
     return { ok: false as const, error: msg };
   }
@@ -43,12 +46,12 @@ export async function updateBacklogAction(input: {
   color: string;
 }) {
   const actorId = await authenticatedActorId();
-  await requireBacklogPermissionById({
-    actorId,
-    backlogId: input.id,
-    permission: "administer_backlog",
-  });
   try {
+    await requireBacklogPermissionById({
+      actorId,
+      backlogId: input.id,
+      permission: "administer_backlog",
+    });
     const result = await updateBacklog(input, actorId);
     if (!result) return { ok: false as const, error: "Modification impossible." };
 
@@ -64,6 +67,8 @@ export async function updateBacklogAction(input: {
     }
     return { ok: true as const };
   } catch (error) {
+    const authorizationError = mapActionAuthorizationError(error);
+    if (authorizationError) return authorizationError;
     return {
       ok: false as const,
       error: isUniqueViolation(error)
@@ -75,12 +80,18 @@ export async function updateBacklogAction(input: {
 
 export async function archiveBacklogAction(id: string) {
   const actorId = await authenticatedActorId();
-  await requireBacklogPermissionById({
-    actorId,
-    backlogId: id,
-    permission: "administer_backlog",
-  });
-  await archiveBacklog(id);
-  revalidatePath("/admin");
-  return { ok: true as const };
+  try {
+    await requireBacklogPermissionById({
+      actorId,
+      backlogId: id,
+      permission: "administer_backlog",
+    });
+    await archiveBacklog(id);
+    revalidatePath("/admin");
+    return { ok: true as const };
+  } catch (error) {
+    const authorizationError = mapActionAuthorizationError(error);
+    if (authorizationError) return authorizationError;
+    throw error;
+  }
 }

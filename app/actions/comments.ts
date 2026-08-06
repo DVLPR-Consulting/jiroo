@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
   requireCommentPermission,
   requireItemPermission,
@@ -32,17 +33,19 @@ export async function addCommentAction(input: {
   mentionIds: string[];
 }) {
   const actorId = await authenticatedActorId();
-  await requireItemPermission({
-    actorId,
-    itemId: input.itemId,
-    permission: "add_comments",
-  });
   const { backlogKey, itemId, body, mentionIds } = input;
   try {
+    await requireItemPermission({
+      actorId,
+      itemId: input.itemId,
+      permission: "add_comments",
+    });
     const comment = await addComment({ itemId, body, mentionIds }, actorId);
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, comment };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapError(e) };
   }
 }
@@ -54,17 +57,19 @@ export async function editCommentAction(input: {
   mentionIds: string[];
 }) {
   const actorId = await authenticatedActorId();
-  await requireCommentPermission({
-    actorId,
-    commentId: input.id,
-    ownPermission: "edit_own_comments",
-  });
   const { backlogKey, id, body, mentionIds } = input;
   try {
+    await requireCommentPermission({
+      actorId,
+      commentId: input.id,
+      ownPermission: "edit_own_comments",
+    });
     const comment = await editComment(id, { body, mentionIds }, actorId);
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, comment };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapError(e) };
   }
 }
@@ -74,20 +79,22 @@ export async function deleteCommentAction(input: {
   id: string;
 }) {
   const actorId = await authenticatedActorId();
-  const authorization = await requireCommentPermission({
-    actorId,
-    commentId: input.id,
-    ownPermission: "delete_own_comments",
-    otherPermission: "delete_all_comments",
-  });
   const { backlogKey, id } = input;
   try {
+    const authorization = await requireCommentPermission({
+      actorId,
+      commentId: input.id,
+      ownPermission: "delete_own_comments",
+      otherPermission: "delete_all_comments",
+    });
     await softDeleteComment(id, actorId, {
       allowAny: authorization.authorId !== actorId,
     });
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapError(e) };
   }
 }

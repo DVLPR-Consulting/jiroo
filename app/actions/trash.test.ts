@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { permissionDeniedError } from "@/test-utils/action-authorization-errors";
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -41,6 +42,18 @@ describe("restoreTrashedItemAction", () => {
       itemId: "item-1",
       permission: "restore_items",
     });
+  });
+
+  it("returns a structured trash permission denial", async () => {
+    mocks.requireItemPermission.mockRejectedValueOnce(
+      permissionDeniedError("restore_items", { type: "backlog", backlogId: "backlog-1" }),
+    );
+
+    await expect(restoreTrashedItemAction({ id: "item-1" })).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Restaurer les éléments » pour ce backlog.",
+    });
+    expect(mocks.restoreItem).not.toHaveBeenCalled();
   });
 
   it("surfaces the expired restore window without revalidating", async () => {

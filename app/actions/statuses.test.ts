@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { permissionDeniedError } from "@/test-utils/action-authorization-errors";
 
 const mocks = vi.hoisted(() => ({
   createStatus: vi.fn(),
@@ -89,6 +90,27 @@ describe("workflow status actions", () => {
       { actorId: "admin-1", statusId, permission: "manage_workflows" },
       { actorId: "admin-1", statusId: replacementStatusId, permission: "manage_workflows" },
     ]);
+  });
+
+  it("returns a structured workflow permission denial", async () => {
+    mocks.requireStatusPermission.mockRejectedValueOnce(
+      permissionDeniedError("manage_workflows", { type: "backlog", backlogId }),
+    );
+
+    await expect(
+      updateStatusAction({
+        id: statusId,
+        backlogId,
+        backlogKey: "FORGED",
+        name: "Livré",
+        category: "done",
+        color: "#3aa675",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Gérer les workflows » pour ce backlog.",
+    });
+    expect(mocks.updateStatus).not.toHaveBeenCalled();
   });
 
   it("checks every stored status before reordering", async () => {

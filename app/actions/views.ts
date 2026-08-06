@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
   requireBacklogPermissionById,
   requireViewMutationPermission,
@@ -88,17 +89,19 @@ function mapViewError(e: unknown): string {
 /** Creates a new saved view owned by the authenticated user. */
 export async function createViewAction(input: CreateViewActionInput) {
   const ownerId = await requireUser();
-  await requireBacklogPermissionById({
-    actorId: ownerId,
-    backlogId: input.backlogId,
-    permission: input.shared ? "manage_shared_views" : "browse_backlog",
-  });
-  const { backlogKey, ...data } = input;
   try {
+    await requireBacklogPermissionById({
+      actorId: ownerId,
+      backlogId: input.backlogId,
+      permission: input.shared ? "manage_shared_views" : "browse_backlog",
+    });
+    const { backlogKey, ...data } = input;
     const view = await createView(data, ownerId);
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, view };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapViewError(e) };
   }
 }
@@ -106,18 +109,20 @@ export async function createViewAction(input: CreateViewActionInput) {
 /** Overwrites the display state of an existing view in-place ("Save"). */
 export async function updateViewAction(input: UpdateViewActionInput) {
   const actorId = await requireUser();
-  const authorization = await requireViewMutationPermission({
-    actorId,
-    viewId: input.id,
-  });
-  const { backlogKey, id, ...stateFields } = input;
   try {
+    const authorization = await requireViewMutationPermission({
+      actorId,
+      viewId: input.id,
+    });
+    const { backlogKey, id, ...stateFields } = input;
     const view = await updateView(id, stateFields, actorId, {
       allowAny: authorization.shared && authorization.ownerId !== actorId,
     });
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, view };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapViewError(e) };
   }
 }
@@ -125,18 +130,20 @@ export async function updateViewAction(input: UpdateViewActionInput) {
 /** Renames a saved view. Only the owner may rename. */
 export async function renameViewAction(input: RenameViewActionInput) {
   const actorId = await requireUser();
-  const authorization = await requireViewMutationPermission({
-    actorId,
-    viewId: input.id,
-  });
-  const { backlogKey, id, name } = input;
   try {
+    const authorization = await requireViewMutationPermission({
+      actorId,
+      viewId: input.id,
+    });
+    const { backlogKey, id, name } = input;
     const view = await renameView(id, { name }, actorId, {
       allowAny: authorization.shared && authorization.ownerId !== actorId,
     });
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, view };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapViewError(e) };
   }
 }
@@ -144,19 +151,21 @@ export async function renameViewAction(input: RenameViewActionInput) {
 /** Sets the shared flag on a view. Only the owner may change visibility. */
 export async function setSharedViewAction(input: SetSharedViewActionInput) {
   const actorId = await requireUser();
-  const authorization = await requireViewMutationPermission({
-    actorId,
-    viewId: input.id,
-    sharedMutation: true,
-  });
-  const { backlogKey, id, shared } = input;
   try {
+    const authorization = await requireViewMutationPermission({
+      actorId,
+      viewId: input.id,
+      sharedMutation: true,
+    });
+    const { backlogKey, id, shared } = input;
     const view = await setShared(id, { shared }, actorId, {
       allowAny: authorization.shared && authorization.ownerId !== actorId,
     });
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, view };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapViewError(e) };
   }
 }
@@ -164,18 +173,20 @@ export async function setSharedViewAction(input: SetSharedViewActionInput) {
 /** Permanently deletes a saved view. Only the owner may delete. */
 export async function deleteViewAction(input: DeleteViewActionInput) {
   const actorId = await requireUser();
-  const authorization = await requireViewMutationPermission({
-    actorId,
-    viewId: input.id,
-  });
-  const { backlogKey, id } = input;
   try {
+    const authorization = await requireViewMutationPermission({
+      actorId,
+      viewId: input.id,
+    });
+    const { backlogKey, id } = input;
     await deleteView(id, actorId, {
       allowAny: authorization.shared && authorization.ownerId !== actorId,
     });
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapViewError(e) };
   }
 }

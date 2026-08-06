@@ -14,6 +14,14 @@ import {
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+function canMutateLockedView(
+  view: { ownerId: string; shared: boolean },
+  actorId: string,
+  allowSharedOverride: boolean,
+): boolean {
+  return canMutateView(view, actorId) || (allowSharedOverride && view.shared);
+}
+
 // Re-export ViewRow so callers can type-annotate without importing from two places.
 export type { ViewRow };
 
@@ -120,7 +128,7 @@ export async function updateView(
       .where(eq(views.id, id))
       .for("update");
     if (!cur) throw new Error("Vue introuvable.");
-    if (!options.allowAny && !canMutateView(cur, actorId)) {
+    if (!canMutateLockedView(cur, actorId, options.allowAny)) {
       throw new Error("Action réservée au propriétaire de la vue.");
     }
 
@@ -156,7 +164,7 @@ export async function renameView(
       .where(eq(views.id, id))
       .for("update");
     if (!cur) throw new Error("Vue introuvable.");
-    if (!options.allowAny && !canMutateView(cur, actorId)) {
+    if (!canMutateLockedView(cur, actorId, options.allowAny)) {
       throw new Error("Action réservée au propriétaire de la vue.");
     }
 
@@ -187,7 +195,7 @@ export async function setShared(
       .where(eq(views.id, id))
       .for("update");
     if (!cur) throw new Error("Vue introuvable.");
-    if (!options.allowAny && !canMutateView(cur, actorId)) {
+    if (!canMutateLockedView(cur, actorId, options.allowAny)) {
       throw new Error("Action réservée au propriétaire de la vue.");
     }
 
@@ -215,7 +223,7 @@ export async function deleteView(
       .where(eq(views.id, id))
       .for("update");
     if (!cur) throw new Error("Vue introuvable.");
-    if (!options.allowAny && !canMutateView(cur, actorId)) {
+    if (!canMutateLockedView(cur, actorId, options.allowAny)) {
       throw new Error("Action réservée au propriétaire de la vue.");
     }
 

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { permissionDeniedError } from "@/test-utils/action-authorization-errors";
 
 const mocks = vi.hoisted(() => ({
   archiveBacklog: vi.fn(),
@@ -54,6 +55,20 @@ describe("backlog action permissions", () => {
     expect(mocks.requirePermission.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.createBacklog.mock.invocationCallOrder[0]!,
     );
+  });
+
+  it("returns a structured global permission denial", async () => {
+    mocks.requirePermission.mockRejectedValueOnce(
+      permissionDeniedError("create_backlogs", { type: "global" }),
+    );
+
+    await expect(
+      createBacklogAction({ key: "API", name: "API", color: "#475569" }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Créer des backlogs ».",
+    });
+    expect(mocks.createBacklog).not.toHaveBeenCalled();
   });
 
   it.each([

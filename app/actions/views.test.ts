@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { permissionDeniedError } from "@/test-utils/action-authorization-errors";
 
 const mocks = vi.hoisted(() => ({
   createView: vi.fn(),
@@ -107,6 +108,23 @@ describe("view action permissions", () => {
       viewId: "view-1",
       sharedMutation: true,
     });
+  });
+
+  it("returns a structured shared-view permission denial", async () => {
+    mocks.requireViewMutationPermission.mockRejectedValueOnce(
+      permissionDeniedError("manage_shared_views", {
+        type: "backlog",
+        backlogId: "backlog-1",
+      }),
+    );
+
+    await expect(
+      setSharedViewAction({ backlogKey: "FORGED", id: "view-1", shared: true }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Gérer les vues partagées » pour ce backlog.",
+    });
+    expect(mocks.setShared).not.toHaveBeenCalled();
   });
 
   it("passes a stored shared-view manager decision to the service", async () => {

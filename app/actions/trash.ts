@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requireItemPermission } from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
 import { purgeItem, restoreItem } from "@/lib/services/items";
@@ -22,24 +23,28 @@ function mapTrashError(e: unknown): string {
 
 export async function restoreTrashedItemAction(input: { id: string }) {
   const actorId = await authenticatedActorId();
-  await requireItemPermission({ actorId, itemId: input.id, permission: "restore_items" });
   try {
+    await requireItemPermission({ actorId, itemId: input.id, permission: "restore_items" });
     await restoreItem({ id: input.id }, actorId);
     revalidatePath("/trash");
     return { ok: true as const };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapTrashError(e) };
   }
 }
 
 export async function purgeItemAction(input: { id: string }) {
   const actorId = await authenticatedActorId();
-  await requireItemPermission({ actorId, itemId: input.id, permission: "restore_items" });
   try {
+    await requireItemPermission({ actorId, itemId: input.id, permission: "restore_items" });
     await purgeItem(input.id);
     revalidatePath("/trash");
     return { ok: true as const };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapTrashError(e) };
   }
 }

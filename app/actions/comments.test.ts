@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { permissionDeniedError } from "@/test-utils/action-authorization-errors";
 
 const mocks = vi.hoisted(() => ({
   addComment: vi.fn(),
@@ -61,6 +62,25 @@ describe("comment action permissions", () => {
     );
   });
 
+  it("returns a structured comment permission denial", async () => {
+    mocks.requireItemPermission.mockRejectedValueOnce(
+      permissionDeniedError("add_comments", { type: "backlog", backlogId: "backlog-1" }),
+    );
+
+    await expect(
+      addCommentAction({
+        backlogKey: "FORGED",
+        itemId: "item-1",
+        body: "Message",
+        mentionIds: [],
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Ajouter des commentaires » pour ce backlog.",
+    });
+    expect(mocks.addComment).not.toHaveBeenCalled();
+  });
+
   it("requires edit_own_comments with stored comment ownership", async () => {
     await editCommentAction({
       backlogKey: "FORGED",
@@ -110,7 +130,12 @@ describe("comment action permissions", () => {
   });
 
   it("does not call the mutation service when stored ownership authorization fails", async () => {
-    mocks.requireCommentPermission.mockRejectedValueOnce(new Error("Forbidden"));
+    mocks.requireCommentPermission.mockRejectedValueOnce(
+      permissionDeniedError("edit_own_comments", {
+        type: "backlog",
+        backlogId: "backlog-1",
+      }),
+    );
 
     await expect(
       editCommentAction({
@@ -119,7 +144,11 @@ describe("comment action permissions", () => {
         body: "Interdit",
         mentionIds: [],
       }),
-    ).rejects.toThrow("Forbidden");
+    ).resolves.toEqual({
+      ok: false,
+      error:
+        "Vous n’avez pas la permission « Modifier ses propres commentaires » pour ce backlog.",
+    });
     expect(mocks.editComment).not.toHaveBeenCalled();
   });
 });

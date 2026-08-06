@@ -1,6 +1,7 @@
 import "server-only";
 
 import { eq } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import {
   PermissionDeniedError,
   requirePermission,
@@ -28,6 +29,9 @@ type BacklogPermissionInput = {
   actorId: string;
   permission: BacklogPermissionKey;
 };
+
+const linkSourceItems = alias(items, "authorization_link_source_items");
+const linkTargetItems = alias(items, "authorization_link_target_items");
 
 async function authorizeResource(input: {
   actorId: string;
@@ -261,18 +265,26 @@ export async function requireLinkPermission(
   input: BacklogPermissionInput & { linkId: string },
 ): Promise<AuthorizedResource> {
   const [link] = await db
-    .select({ id: itemLinks.id, backlogId: items.backlogId })
+    .select({
+      id: itemLinks.id,
+      sourceBacklogId: linkSourceItems.backlogId,
+      targetBacklogId: linkTargetItems.backlogId,
+    })
     .from(itemLinks)
-    .innerJoin(items, eq(itemLinks.sourceId, items.id))
+    .innerJoin(linkSourceItems, eq(itemLinks.sourceId, linkSourceItems.id))
+    .innerJoin(linkTargetItems, eq(itemLinks.targetId, linkTargetItems.id))
     .where(eq(itemLinks.id, input.linkId))
     .limit(1);
   if (!link) throw new ResourceNotFoundError("link", input.linkId);
+  if (link.sourceBacklogId !== link.targetBacklogId) {
+    throw new ResourceNotFoundError("link", input.linkId);
+  }
 
   return authorizeResource({
     ...input,
     resourceType: "link",
     resourceId: link.id,
-    backlogId: link.backlogId,
+    backlogId: link.sourceBacklogId,
   });
 }
 

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { permissionDeniedError } from "@/test-utils/action-authorization-errors";
 
 const mocks = vi.hoisted(() => ({
   addRef: vi.fn(),
@@ -35,6 +36,24 @@ describe("reference action permissions", () => {
       itemId: "item-1",
       permission: "link_items",
     });
+  });
+
+  it("returns a structured reference permission denial", async () => {
+    mocks.requireItemPermission.mockRejectedValueOnce(
+      permissionDeniedError("link_items", { type: "backlog", backlogId: "backlog-1" }),
+    );
+
+    await expect(
+      addRefAction({
+        backlogKey: "FORGED",
+        itemId: "item-1",
+        url: "https://github.com/o/r/pull/1",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Lier les éléments » pour ce backlog.",
+    });
+    expect(mocks.addRef).not.toHaveBeenCalled();
   });
 
   it("requires link_items from the stored reference before removing it", async () => {

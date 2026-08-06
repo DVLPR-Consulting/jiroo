@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
   requireItemPermission,
   requireRefPermission,
@@ -31,17 +32,19 @@ export async function addRefAction(input: {
   url: string;
 }) {
   const actorId = await authenticatedActorId();
-  await requireItemPermission({
-    actorId,
-    itemId: input.itemId,
-    permission: "link_items",
-  });
   const { backlogKey, itemId, url } = input;
   try {
+    await requireItemPermission({
+      actorId,
+      itemId: input.itemId,
+      permission: "link_items",
+    });
     const ref = await addRef({ itemId, url }, actorId);
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, ref };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapRefError(e) };
   }
 }
@@ -52,17 +55,19 @@ export async function addRefAction(input: {
 
 export async function removeRefAction(input: { backlogKey: string; id: string }) {
   const actorId = await authenticatedActorId();
-  await requireRefPermission({
-    actorId,
-    refId: input.id,
-    permission: "link_items",
-  });
   const { backlogKey, id } = input;
   try {
+    await requireRefPermission({
+      actorId,
+      refId: input.id,
+      permission: "link_items",
+    });
     await removeRef(id);
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapRefError(e) };
   }
 }

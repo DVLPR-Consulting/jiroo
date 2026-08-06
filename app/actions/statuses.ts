@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
   requireBacklogPermissionById,
   requireStatusPermission,
@@ -43,6 +44,8 @@ function assertStatusBacklog(status: AuthorizedResource, backlogId: string): voi
 }
 
 function actionError(error: unknown) {
+  const authorizationError = mapActionAuthorizationError(error);
+  if (authorizationError) return authorizationError.error;
   if (error instanceof ZodError) {
     return error.issues[0]?.message ?? "Données de statut invalides.";
   }
@@ -64,12 +67,12 @@ export async function createStatusAction(input: {
   color: string;
 }) {
   const actorId = await authenticatedActorId();
-  await requireBacklogPermissionById({
-    actorId,
-    backlogId: input.backlogId,
-    permission: "manage_workflows",
-  });
   try {
+    await requireBacklogPermissionById({
+      actorId,
+      backlogId: input.backlogId,
+      permission: "manage_workflows",
+    });
     const status = await createStatus({
       backlogId: input.backlogId,
       name: input.name,
@@ -92,13 +95,13 @@ export async function updateStatusAction(input: {
   color: string;
 }) {
   const actorId = await authenticatedActorId();
-  const statusAuthorization = await requireStatusPermission({
-    actorId,
-    statusId: input.id,
-    permission: "manage_workflows",
-  });
-  assertStatusBacklog(statusAuthorization, input.backlogId);
   try {
+    const statusAuthorization = await requireStatusPermission({
+      actorId,
+      statusId: input.id,
+      permission: "manage_workflows",
+    });
+    assertStatusBacklog(statusAuthorization, input.backlogId);
     const status = await updateStatus(
       {
         id: input.id,
@@ -122,20 +125,20 @@ export async function reorderStatusesAction(input: {
   statusIds: string[];
 }) {
   const actorId = await authenticatedActorId();
-  await requireBacklogPermissionById({
-    actorId,
-    backlogId: input.backlogId,
-    permission: "manage_workflows",
-  });
-  for (const statusId of input.statusIds) {
-    const statusAuthorization = await requireStatusPermission({
+  try {
+    await requireBacklogPermissionById({
       actorId,
-      statusId,
+      backlogId: input.backlogId,
       permission: "manage_workflows",
     });
-    assertStatusBacklog(statusAuthorization, input.backlogId);
-  }
-  try {
+    for (const statusId of input.statusIds) {
+      const statusAuthorization = await requireStatusPermission({
+        actorId,
+        statusId,
+        permission: "manage_workflows",
+      });
+      assertStatusBacklog(statusAuthorization, input.backlogId);
+    }
     await reorderStatuses({ backlogId: input.backlogId, statusIds: input.statusIds });
     revalidateWorkflow(input.backlogKey);
     return { ok: true as const };
@@ -151,21 +154,21 @@ export async function deleteStatusAction(input: {
   replacementStatusId?: string | null;
 }) {
   const actorId = await authenticatedActorId();
-  const statusAuthorization = await requireStatusPermission({
-    actorId,
-    statusId: input.id,
-    permission: "manage_workflows",
-  });
-  assertStatusBacklog(statusAuthorization, input.backlogId);
-  if (input.replacementStatusId) {
-    const replacementAuthorization = await requireStatusPermission({
+  try {
+    const statusAuthorization = await requireStatusPermission({
       actorId,
-      statusId: input.replacementStatusId,
+      statusId: input.id,
       permission: "manage_workflows",
     });
-    assertStatusBacklog(replacementAuthorization, statusAuthorization.backlogId);
-  }
-  try {
+    assertStatusBacklog(statusAuthorization, input.backlogId);
+    if (input.replacementStatusId) {
+      const replacementAuthorization = await requireStatusPermission({
+        actorId,
+        statusId: input.replacementStatusId,
+        permission: "manage_workflows",
+      });
+      assertStatusBacklog(replacementAuthorization, statusAuthorization.backlogId);
+    }
     const result = await deleteStatus(
       {
         id: input.id,

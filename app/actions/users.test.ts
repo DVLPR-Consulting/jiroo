@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { permissionDeniedError } from "@/test-utils/action-authorization-errors";
 
 const mocks = vi.hoisted(() => ({
   createUser: vi.fn(),
@@ -57,6 +58,25 @@ describe("user admin actions", () => {
     expect(mocks.requirePermission.mock.invocationCallOrder[0]).toBeLessThan(
       service.mock.invocationCallOrder[0]!,
     );
+  });
+
+  it("returns a structured user-administration permission denial", async () => {
+    mocks.requirePermission.mockRejectedValueOnce(
+      permissionDeniedError("manage_users_groups", { type: "global" }),
+    );
+
+    await expect(
+      createUserAction({
+        email: "user@example.test",
+        name: "User",
+        role: "viewer",
+        password: "password-123",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Gérer les utilisateurs et les groupes ».",
+    });
+    expect(mocks.createUser).not.toHaveBeenCalled();
   });
 
   it.each([

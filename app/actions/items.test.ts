@@ -1,4 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  permissionDeniedError,
+  resourceNotFoundError,
+} from "@/test-utils/action-authorization-errors";
+
+const classes = vi.hoisted(() => ({
+  ResourceNotFoundError: class ResourceNotFoundError extends Error {
+    readonly resourceType: string;
+    readonly resourceId: string;
+
+    constructor(resourceType: string, resourceId: string) {
+      super("La ressource demandée est introuvable.");
+      this.name = "ResourceNotFoundError";
+      this.resourceType = resourceType;
+      this.resourceId = resourceId;
+    }
+  },
+}));
 
 const mocks = vi.hoisted(() => ({
   bulkUpdateItems: vi.fn(),
@@ -29,7 +47,7 @@ vi.mock("@/lib/auth/action-authorization", () => ({
 }));
 vi.mock("@/lib/auth/authorization", () => ({
   requirePermission: mocks.requirePermission,
-  ResourceNotFoundError: Error,
+  ResourceNotFoundError: classes.ResourceNotFoundError,
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/services/items", () => ({
@@ -63,6 +81,8 @@ const itemId = "22222222-2222-4222-9222-222222222222";
 const secondItemId = "33333333-3333-4333-8333-333333333333";
 const statusId = "44444444-4444-4444-8444-444444444444";
 const sprintId = "55555555-5555-4555-8555-555555555555";
+const otherBacklogId = "66666666-6666-4666-8666-666666666666";
+const absentBacklogId = "77777777-7777-4777-8777-777777777777";
 
 function authorizeStoredResource(id: string) {
   return { backlogId, resourceId: id };
@@ -116,6 +136,61 @@ describe("item action permission mapping", () => {
       permission: "schedule_items",
     });
     expect(mocks.createItem).toHaveBeenCalled();
+  });
+
+  it("resolves a create parent with browse_backlog and rejects another stored backlog", async () => {
+    const parentId = "88888888-8888-4888-8888-888888888888";
+    mocks.requireItemPermission.mockImplementation(async ({ itemId: id }) =>
+      id === parentId
+        ? { backlogId: otherBacklogId, resourceId: parentId }
+        : authorizeStoredResource(id),
+    );
+
+    await expect(
+      createItemAction({
+        backlogKey: "FORGED",
+        backlogId,
+        type: "tache",
+        parentId,
+        title: "Enfant",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "La ressource demandée est introuvable.",
+    });
+    expect(mocks.requireItemPermission).toHaveBeenCalledWith({
+      actorId: "writer-1",
+      itemId: parentId,
+      permission: "browse_backlog",
+    });
+    expect(mocks.createItem).not.toHaveBeenCalled();
+  });
+
+  it("resolves a reparent target with browse_backlog and rejects another stored backlog", async () => {
+    const parentId = "88888888-8888-4888-8888-888888888888";
+    mocks.requireItemPermission.mockImplementation(async ({ itemId: id }) =>
+      id === parentId
+        ? { backlogId: otherBacklogId, resourceId: parentId }
+        : authorizeStoredResource(id),
+    );
+
+    await expect(
+      reparentItemAction({
+        backlogKey: "FORGED",
+        id: itemId,
+        newParentId: parentId,
+        beforeId: null,
+        afterId: null,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "La ressource demandée est introuvable.",
+    });
+    expect(mocks.requireItemPermission.mock.calls.map(([input]) => input)).toEqual([
+      { actorId: "writer-1", itemId, permission: "schedule_items" },
+      { actorId: "writer-1", itemId: parentId, permission: "browse_backlog" },
+    ]);
+    expect(mocks.reparentItem).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -214,16 +289,52 @@ describe("item action permission mapping", () => {
   });
 
   it("does not let a forged backlog key authorize an item from another backlog", async () => {
-    mocks.requireItemPermission.mockRejectedValueOnce(new Error("Forbidden"));
+    mocks.requireItemPermission.mockRejectedValueOnce(
+      permissionDeniedError("edit_items", { type: "backlog", backlogId }),
+    );
 
     await expect(
       updateItemAction({ backlogKey: "AUTHORIZED-BUT-FORGED", id: itemId, title: "Interdit" }),
-    ).rejects.toThrow("Forbidden");
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Modifier les éléments » pour ce backlog.",
+    });
+    expect(mocks.updateItem).not.toHaveBeenCalled();
+  });
+
+  it("returns a structured item permission denial with the exact label", async () => {
+    mocks.requireItemPermission.mockRejectedValueOnce(
+      permissionDeniedError("edit_items", { type: "backlog", backlogId }),
+    );
+
+    await expect(
+      updateItemAction({ backlogKey: "FORGED", id: itemId, title: "Interdit" }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Modifier les éléments » pour ce backlog.",
+    });
+    expect(mocks.updateItem).not.toHaveBeenCalled();
+  });
+
+  it("returns the same structured not-found result for hidden and absent resources", async () => {
+    for (const resourceId of ["hidden-item", "absent-item"]) {
+      mocks.requireItemPermission.mockRejectedValueOnce(
+        resourceNotFoundError("item", resourceId),
+      );
+      await expect(
+        updateItemAction({ backlogKey: "FORGED", id: resourceId, title: "Interdit" }),
+      ).resolves.toEqual({
+        ok: false,
+        error: "La ressource demandée est introuvable.",
+      });
+    }
     expect(mocks.updateItem).not.toHaveBeenCalled();
   });
 
   it("does not let global bulk_change_items substitute for item edit permission", async () => {
-    mocks.requireItemPermission.mockRejectedValueOnce(new Error("Forbidden"));
+    mocks.requireItemPermission.mockRejectedValueOnce(
+      permissionDeniedError("edit_items", { type: "backlog", backlogId }),
+    );
 
     await expect(
       bulkUpdateItemsAction({
@@ -232,7 +343,10 @@ describe("item action permission mapping", () => {
         itemIds: [itemId],
         patch: { field: "priority", value: 4 },
       }),
-    ).rejects.toThrow("Forbidden");
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Modifier les éléments » pour ce backlog.",
+    });
     expect(mocks.requirePermission).toHaveBeenCalledWith({
       actorId: "writer-1",
       permission: "bulk_change_items",
@@ -241,8 +355,47 @@ describe("item action permission mapping", () => {
     expect(mocks.bulkUpdateItems).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { name: "existing", forgedBacklogId: otherBacklogId },
+    { name: "absent", forgedBacklogId: absentBacklogId },
+  ])("rejects an $name forged backlog before bulk mutation", async ({ forgedBacklogId }) => {
+    await expect(
+      bulkUpdateItemsAction({
+        backlogKey: "FORGED",
+        backlogId: forgedBacklogId,
+        itemIds: [itemId, secondItemId],
+        patch: { field: "priority", value: 4 },
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "La ressource demandée est introuvable.",
+    });
+    expect(mocks.bulkUpdateItems).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: "existing", forgedBacklogId: otherBacklogId },
+    { name: "absent", forgedBacklogId: absentBacklogId },
+  ])("rejects an $name forged backlog before ranking", async ({ forgedBacklogId }) => {
+    await expect(
+      rankBacklogItemAction({
+        backlogKey: "FORGED",
+        backlogId: forgedBacklogId,
+        id: itemId,
+        beforeId: null,
+        afterId: null,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "La ressource demandée est introuvable.",
+    });
+    expect(mocks.rankBacklogItem).not.toHaveBeenCalled();
+  });
+
   it("rejects an assignee who lacks assignable_user in the stored item backlog", async () => {
-    mocks.requirePermission.mockRejectedValueOnce(new Error("Forbidden"));
+    mocks.requirePermission.mockRejectedValueOnce(
+      permissionDeniedError("assignable_user", { type: "backlog", backlogId }),
+    );
 
     await expect(
       updateItemAction({
@@ -250,7 +403,10 @@ describe("item action permission mapping", () => {
         id: itemId,
         assigneeId: "unassignable-1",
       }),
-    ).rejects.toThrow("Forbidden");
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Être assignable » pour ce backlog.",
+    });
     expect(mocks.requirePermission).toHaveBeenCalledWith({
       actorId: "unassignable-1",
       permission: "assignable_user",
@@ -259,14 +415,13 @@ describe("item action permission mapping", () => {
     expect(mocks.updateItem).not.toHaveBeenCalled();
   });
 
-  it("requires the assignee to be assignable in every backlog represented by a bulk patch", async () => {
-    mocks.requireItemPermission.mockImplementation(async ({ itemId: id }) => ({
-      backlogId: id === itemId ? "backlog-1" : "backlog-2",
-      resourceId: id,
-    }));
+  it("requires the assignee to be assignable in the stored bulk backlog", async () => {
     mocks.requirePermission.mockImplementation(async ({ permission, scope }) => {
-      if (permission === "assignable_user" && scope.backlogId === "backlog-2") {
-        throw new Error("Forbidden");
+      if (permission === "assignable_user" && scope.backlogId === backlogId) {
+        throw permissionDeniedError("assignable_user", {
+          type: "backlog",
+          backlogId,
+        });
       }
     });
 
@@ -277,18 +432,16 @@ describe("item action permission mapping", () => {
         itemIds: [itemId, secondItemId],
         patch: { field: "assigneeId", value: "assignee-1" },
       }),
-    ).rejects.toThrow("Forbidden");
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Être assignable » pour ce backlog.",
+    });
     expect(mocks.requirePermission.mock.calls.map(([input]) => input)).toEqual([
       { actorId: "writer-1", permission: "bulk_change_items", scope: { type: "global" } },
       {
         actorId: "assignee-1",
         permission: "assignable_user",
-        scope: { type: "backlog", backlogId: "backlog-1" },
-      },
-      {
-        actorId: "assignee-1",
-        permission: "assignable_user",
-        scope: { type: "backlog", backlogId: "backlog-2" },
+        scope: { type: "backlog", backlogId },
       },
     ]);
     expect(mocks.bulkUpdateItems).not.toHaveBeenCalled();
@@ -317,7 +470,10 @@ describe("item action permission mapping", () => {
     },
   ])("rejects a stored $name target from another backlog", async ({ name, run, helper, service }) => {
     helper.mockResolvedValueOnce({ backlogId: "backlog-2", resourceId: `${name}-other` });
-    await expect(run()).rejects.toThrow();
+    await expect(run()).resolves.toEqual({
+      ok: false,
+      error: "La ressource demandée est introuvable.",
+    });
     expect(service).not.toHaveBeenCalled();
   });
 });
@@ -476,12 +632,20 @@ describe("rankBacklogItemAction", () => {
   });
 
   it("rejects viewers before calling the service", async () => {
-    mocks.requireItemPermission.mockRejectedValueOnce(new Error("Forbidden"));
+    mocks.requireItemPermission.mockRejectedValueOnce(
+      permissionDeniedError("schedule_items", {
+        type: "backlog",
+        backlogId: input.backlogId,
+      }),
+    );
     mocks.getSession.mockResolvedValueOnce({
       user: { id: "viewer-1", role: "viewer", twoFactorEnabled: true },
     });
 
-    await expect(rankBacklogItemAction(input)).rejects.toThrow("Forbidden");
+    await expect(rankBacklogItemAction(input)).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Planifier les éléments » pour ce backlog.",
+    });
     expect(mocks.rankBacklogItem).not.toHaveBeenCalled();
   });
 
@@ -590,12 +754,17 @@ describe("bulkUpdateItemsAction", () => {
   });
 
   it("rejects viewers before calling the bulk service", async () => {
-    mocks.requirePermission.mockRejectedValueOnce(new Error("Forbidden"));
+    mocks.requirePermission.mockRejectedValueOnce(
+      permissionDeniedError("bulk_change_items", { type: "global" }),
+    );
     mocks.getSession.mockResolvedValueOnce({
       user: { id: "viewer-1", role: "viewer", twoFactorEnabled: true },
     });
 
-    await expect(bulkUpdateItemsAction(input)).rejects.toThrow("Forbidden");
+    await expect(bulkUpdateItemsAction(input)).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Modifier des éléments en masse ».",
+    });
     expect(mocks.bulkUpdateItems).not.toHaveBeenCalled();
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });

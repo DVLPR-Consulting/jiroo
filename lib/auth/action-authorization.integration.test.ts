@@ -57,6 +57,7 @@ let viewBId = "";
 let commentAId = "";
 let otherCommentAId = "";
 let linkAId = "";
+let crossBacklogLinkId = "";
 let refAId = "";
 let sharedViewAId = "";
 let privateOtherViewAId = "";
@@ -153,6 +154,7 @@ describeDb("ownership-aware authorization helpers", () => {
     statusBId = createdStatusB!.id;
 
     itemAId = randomUUID();
+    const secondItemAId = randomUUID();
     itemBId = randomUUID();
     await db.insert(items).values([
       {
@@ -165,6 +167,17 @@ describeDb("ownership-aware authorization helpers", () => {
         reporterId: actorId,
         rank: "a0",
         path: `root.${itemAId.replaceAll("-", "")}`,
+      },
+      {
+        id: secondItemAId,
+        key: `${backlogA.key}-2`,
+        type: "composant",
+        backlogId: backlogA.id,
+        title: "Second item A",
+        statusId: statusAId,
+        reporterId: actorId,
+        rank: "a1",
+        path: `root.${secondItemAId.replaceAll("-", "")}`,
       },
       {
         id: itemBId,
@@ -189,11 +202,15 @@ describeDb("ownership-aware authorization helpers", () => {
     commentAId = createdCommentA!.id;
     otherCommentAId = createdOtherCommentA!.id;
 
-    const [createdLinkA] = await db
+    const [createdLinkA, createdCrossBacklogLink] = await db
       .insert(itemLinks)
-      .values({ sourceId: itemAId, targetId: itemBId, type: "relates", createdBy: actorId })
+      .values([
+        { sourceId: itemAId, targetId: secondItemAId, type: "relates", createdBy: actorId },
+        { sourceId: itemAId, targetId: itemBId, type: "relates", createdBy: actorId },
+      ])
       .returning({ id: itemLinks.id });
     linkAId = createdLinkA!.id;
+    crossBacklogLinkId = createdCrossBacklogLink!.id;
     const [createdRefA] = await db
       .insert(itemRefs)
       .values({
@@ -354,6 +371,16 @@ describeDb("ownership-aware authorization helpers", () => {
     await expect(
       requireRefPermission({ actorId, refId: refAId, permission: "link_items" }),
     ).resolves.toMatchObject({ backlogId: backlogA.id, resourceId: refAId });
+  });
+
+  it("hides a malformed link whose stored endpoints cross backlogs", async () => {
+    await expect(
+      requireLinkPermission({
+        actorId,
+        linkId: crossBacklogLinkId,
+        permission: "link_items",
+      }),
+    ).rejects.toBeInstanceOf(ResourceNotFoundError);
   });
 
   it("keeps personal views owner-scoped while shared views use manage_shared_views", async () => {

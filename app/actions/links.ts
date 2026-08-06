@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
   requireItemPermission,
   requireLinkPermission,
@@ -33,42 +34,46 @@ export async function addLinkAction(input: {
   type: LinkType;
 }) {
   const actorId = await authenticatedActorId();
-  const source = await requireItemPermission({
-    actorId,
-    itemId: input.sourceId,
-    permission: "link_items",
-  });
-  const target = await requireItemPermission({
-    actorId,
-    itemId: input.targetId,
-    permission: "link_items",
-  });
-  if (source.backlogId !== target.backlogId) {
-    throw new ResourceNotFoundError("item", target.resourceId);
-  }
   const { backlogKey, sourceId, targetId, type } = input;
   try {
+    const source = await requireItemPermission({
+      actorId,
+      itemId: input.sourceId,
+      permission: "link_items",
+    });
+    const target = await requireItemPermission({
+      actorId,
+      itemId: input.targetId,
+      permission: "link_items",
+    });
+    if (source.backlogId !== target.backlogId) {
+      throw new ResourceNotFoundError("item", target.resourceId);
+    }
     const link = await addLink({ sourceId, targetId, type }, actorId);
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, link };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapLinkError(e) };
   }
 }
 
 export async function removeLinkAction(input: { backlogKey: string; id: string }) {
   const actorId = await authenticatedActorId();
-  await requireLinkPermission({
-    actorId,
-    linkId: input.id,
-    permission: "link_items",
-  });
   const { backlogKey, id } = input;
   try {
+    await requireLinkPermission({
+      actorId,
+      linkId: input.id,
+      permission: "link_items",
+    });
     await removeLink(id);
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapLinkError(e) };
   }
 }

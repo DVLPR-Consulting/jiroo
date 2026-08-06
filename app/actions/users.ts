@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requirePermission } from "@/lib/auth/authorization";
 import type { Role } from "@/lib/auth/rbac";
 import { getSession } from "@/lib/auth/session";
@@ -10,15 +11,18 @@ import { createUser, setUserRole } from "@/lib/services/users";
 // Auth gate
 // ---------------------------------------------------------------------------
 
-async function requireUserAdministrator(): Promise<string> {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
   if (!session?.user.id) throw new Error("Forbidden");
+  return session.user.id;
+}
+
+async function requireUserAdministrator(actorId: string): Promise<void> {
   await requirePermission({
-    actorId: session.user.id,
+    actorId,
     permission: "manage_users_groups",
     scope: { type: "global" },
   });
-  return session.user.id;
 }
 
 // ---------------------------------------------------------------------------
@@ -52,33 +56,37 @@ export async function createUserAction(input: {
   role: string;
   password: string;
 }) {
-  await requireUserAdministrator();
+  const actorId = await authenticatedActorId();
   try {
+    await requireUserAdministrator(actorId);
     const u = await createUser(input);
     revalidatePath("/admin");
     return { ok: true as const, user: u };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapUserError(e) };
   }
 }
 
 export async function setUserRoleAction(input: { userId: string; role: string }) {
-  const adminId = await requireUserAdministrator();
-
-  // Prevent the admin from accidentally revoking their own admin role, which
-  // would lock them out of the admin panel with no way back.
-  if (input.userId === adminId && input.role !== "admin") {
-    return {
-      ok: false as const,
-      error: "Vous ne pouvez pas retirer votre propre rôle administrateur.",
-    };
-  }
-
+  const adminId = await authenticatedActorId();
   try {
+    await requireUserAdministrator(adminId);
+    // Prevent the admin from accidentally revoking their own admin role, which
+    // would lock them out of the admin panel with no way back.
+    if (input.userId === adminId && input.role !== "admin") {
+      return {
+        ok: false as const,
+        error: "Vous ne pouvez pas retirer votre propre rôle administrateur.",
+      };
+    }
     await setUserRole(input.userId, input.role as Role);
     revalidatePath("/admin");
     return { ok: true as const };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapUserError(e) };
   }
 }

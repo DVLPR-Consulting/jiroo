@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
   requireBacklogPermissionById,
   requireItemPermission,
@@ -41,6 +42,12 @@ async function authenticatedActorId(): Promise<string> {
 function assertSameBacklog(expected: AuthorizedResource, actual: AuthorizedResource): void {
   if (expected.backlogId !== actual.backlogId) {
     throw new ResourceNotFoundError("sprint", actual.resourceId);
+  }
+}
+
+function assertStoredBacklog(resource: AuthorizedResource, backlogId: string): void {
+  if (resource.backlogId !== backlogId) {
+    throw new ResourceNotFoundError("backlog", backlogId);
   }
 }
 
@@ -86,6 +93,8 @@ function safeError(
   known: ReadonlySet<string>,
   fallback: string,
 ): { error: string; fieldErrors?: Record<string, string[]> } {
+  const authorizationError = mapActionAuthorizationError(error);
+  if (authorizationError) return { error: authorizationError.error };
   const validation = mapZodActionError(error);
   if (validation) return validation;
   const message = error instanceof Error ? error.message : "";
@@ -97,13 +106,13 @@ export async function createSprintAction(input: {
   backlogId: string;
 }) {
   const actorId = await authenticatedActorId();
-  await requireBacklogPermissionById({
-    actorId,
-    backlogId: input.backlogId,
-    permission: "manage_sprints",
-  });
-  const { backlogKey, ...serviceInput } = input;
   try {
+    await requireBacklogPermissionById({
+      actorId,
+      backlogId: input.backlogId,
+      permission: "manage_sprints",
+    });
+    const { backlogKey, ...serviceInput } = input;
     const sprint = await createSprint(serviceInput, actorId);
     revalidateBacklog(backlogKey);
     return { ok: true as const, sprint };
@@ -119,13 +128,14 @@ export async function updateSprintAction(
   input: WithBacklogKey<UpdateSprintInput>,
 ) {
   const actorId = await authenticatedActorId();
-  await requireSprintPermission({
-    actorId,
-    sprintId: input.id,
-    permission: "manage_sprints",
-  });
-  const { backlogKey, ...serviceInput } = input;
   try {
+    const sprintAuthorization = await requireSprintPermission({
+      actorId,
+      sprintId: input.id,
+      permission: "manage_sprints",
+    });
+    assertStoredBacklog(sprintAuthorization, input.backlogId);
+    const { backlogKey, ...serviceInput } = input;
     const sprint = await updateSprint(serviceInput, actorId);
     revalidateBacklog(backlogKey);
     return { ok: true as const, sprint };
@@ -141,13 +151,14 @@ export async function reorderSprintAction(
   input: WithBacklogKey<ReorderSprintInput>,
 ) {
   const actorId = await authenticatedActorId();
-  await requireSprintPermission({
-    actorId,
-    sprintId: input.id,
-    permission: "manage_sprints",
-  });
-  const { backlogKey, ...serviceInput } = input;
   try {
+    const sprintAuthorization = await requireSprintPermission({
+      actorId,
+      sprintId: input.id,
+      permission: "manage_sprints",
+    });
+    assertStoredBacklog(sprintAuthorization, input.backlogId);
+    const { backlogKey, ...serviceInput } = input;
     const sprint = await reorderSprint(serviceInput, actorId);
     revalidateBacklog(backlogKey);
     return { ok: true as const, sprint };
@@ -163,20 +174,22 @@ export async function assignSprintItemsAction(
   input: WithBacklogKey<AssignSprintItemsInput>,
 ) {
   const actorId = await authenticatedActorId();
-  const items: AuthorizedResource[] = [];
-  for (const itemId of input.itemIds) {
-    items.push(await requireItemPermission({ actorId, itemId, permission: "schedule_items" }));
-  }
-  if (input.sprintId) {
-    const sprint = await requireSprintPermission({
-      actorId,
-      sprintId: input.sprintId,
-      permission: "schedule_items",
-    });
-    for (const item of items) assertSameBacklog(item, sprint);
-  }
-  const { backlogKey, ...serviceInput } = input;
   try {
+    const items: AuthorizedResource[] = [];
+    for (const itemId of input.itemIds) {
+      const item = await requireItemPermission({ actorId, itemId, permission: "schedule_items" });
+      assertStoredBacklog(item, input.backlogId);
+      items.push(item);
+    }
+    if (input.sprintId) {
+      const sprint = await requireSprintPermission({
+        actorId,
+        sprintId: input.sprintId,
+        permission: "schedule_items",
+      });
+      for (const item of items) assertSameBacklog(item, sprint);
+    }
+    const { backlogKey, ...serviceInput } = input;
     const result = await assignItemsToSprint(serviceInput, actorId);
     revalidateBacklog(backlogKey);
     return { ok: true as const, ...result };
@@ -192,21 +205,22 @@ export async function moveSprintItemAction(
   input: WithBacklogKey<MoveSprintItemInput>,
 ) {
   const actorId = await authenticatedActorId();
-  const item = await requireItemPermission({
-    actorId,
-    itemId: input.itemId,
-    permission: "schedule_items",
-  });
-  if (input.sprintId) {
-    const sprint = await requireSprintPermission({
+  try {
+    const itemAuthorization = await requireItemPermission({
       actorId,
-      sprintId: input.sprintId,
+      itemId: input.itemId,
       permission: "schedule_items",
     });
-    assertSameBacklog(item, sprint);
-  }
-  const { backlogKey, ...serviceInput } = input;
-  try {
+    assertStoredBacklog(itemAuthorization, input.backlogId);
+    if (input.sprintId) {
+      const sprint = await requireSprintPermission({
+        actorId,
+        sprintId: input.sprintId,
+        permission: "schedule_items",
+      });
+      assertSameBacklog(itemAuthorization, sprint);
+    }
+    const { backlogKey, ...serviceInput } = input;
     const item = await moveItemToSprint(serviceInput, actorId);
     revalidateBacklog(backlogKey);
     return { ok: true as const, item };
@@ -220,13 +234,14 @@ export async function moveSprintItemAction(
 
 export async function startSprintAction(input: WithBacklogKey<StartSprintInput>) {
   const actorId = await authenticatedActorId();
-  await requireSprintPermission({
-    actorId,
-    sprintId: input.id,
-    permission: "manage_sprints",
-  });
-  const { backlogKey, ...serviceInput } = input;
   try {
+    const sprintAuthorization = await requireSprintPermission({
+      actorId,
+      sprintId: input.id,
+      permission: "manage_sprints",
+    });
+    assertStoredBacklog(sprintAuthorization, input.backlogId);
+    const { backlogKey, ...serviceInput } = input;
     const result = await startSprint(serviceInput, actorId);
     revalidateBacklog(backlogKey);
     return { ok: true as const, ...result };
@@ -242,13 +257,14 @@ export async function completeSprintAction(
   input: WithBacklogKey<CompleteSprintInput>,
 ) {
   const actorId = await authenticatedActorId();
-  await requireSprintPermission({
-    actorId,
-    sprintId: input.id,
-    permission: "manage_sprints",
-  });
-  const { backlogKey, ...serviceInput } = input;
   try {
+    const sprintAuthorization = await requireSprintPermission({
+      actorId,
+      sprintId: input.id,
+      permission: "manage_sprints",
+    });
+    assertStoredBacklog(sprintAuthorization, input.backlogId);
+    const { backlogKey, ...serviceInput } = input;
     const result = await completeSprint(serviceInput, actorId);
     revalidateBacklog(backlogKey);
     return { ok: true as const, ...result };
