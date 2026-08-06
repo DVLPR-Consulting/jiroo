@@ -48,6 +48,7 @@ next-env.d.ts
 .playwright/
 /test-results/
 /playwright-report/
+/.worktrees/
 
 # Local audit evidence containing TOTP enrollment secrets and recovery codes
 /audit/screenshots/BUG-JIR-001-2fa-activation-failure.png
