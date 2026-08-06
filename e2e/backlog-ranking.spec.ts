@@ -1,5 +1,5 @@
-import { mkdir, writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
 
 const CONSOLE_PATH =
   "audit/console/2026-08-05-session-06-backlog-ranking-smoke-console.log";
@@ -150,12 +150,12 @@ test("classe à la souris, restaure au clavier et conserve chaque ordre", async 
   consoleLines.push(`[performance] ${JSON.stringify(navigation)}`);
   consoleLines.push(`[result] ${movedKey} persisted then restored after reload`);
 
-  await mkdir("audit/console", { recursive: true });
-  await mkdir("audit/network", { recursive: true });
-  await mkdir("audit/screenshots", { recursive: true });
-  await writeFile(CONSOLE_PATH, `${consoleLines.join("\n")}\n`, "utf8");
-  await writeFile(NETWORK_PATH, `${networkLines.join("\n")}\n`, "utf8");
-  await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
+  await writeAuditText(CONSOLE_PATH, `${consoleLines.join("\n")}\n`);
+  await writeAuditText(NETWORK_PATH, `${networkLines.join("\n")}\n`);
+  await writeAuditScreenshot(
+    SCREENSHOT_PATH,
+    (path) => page.screenshot({ path, fullPage: true }),
+  );
 
   expect(consoleErrors, "Erreurs JavaScript/console").toEqual([]);
   expect(requestFailures, "Requêtes réseau échouées").toEqual([]);

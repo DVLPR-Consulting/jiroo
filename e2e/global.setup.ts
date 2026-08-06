@@ -3,9 +3,9 @@ import "dotenv/config";
 import { createHmac } from "node:crypto";
 import { chmod, mkdir, rm } from "node:fs/promises";
 import { request, type FullConfig } from "@playwright/test";
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { auth } from "../lib/auth";
-import { db } from "../lib/db";
+import { databasePool, db } from "../lib/db";
 import { twoFactor, user } from "../lib/db/schema/auth";
 import {
   backlogPermissionConfigs,
@@ -33,7 +33,12 @@ import {
 } from "../lib/services/authorization-seed";
 import { buildPath, childDepth } from "../lib/tree/path";
 import { rankLast } from "../lib/tree/rank";
-import { assertE2eResetAllowed } from "../scripts/e2e-reset-guard";
+import {
+  assertE2eResetAllowed,
+  verifyE2eDatabaseIdentity,
+} from "../scripts/e2e-reset-guard";
+import { reserveE2eRunId } from "../scripts/e2e-run-reservation";
+import { collectAndWriteE2eRunManifest } from "../scripts/e2e-run-manifest";
 
 const PASSWORD = process.env.JIROO_PLAYWRIGHT_PASSWORD ?? "Audit-Local-2026!";
 
@@ -72,25 +77,55 @@ function generateTotp(secret: string, now = Date.now()): string {
   return String(binary % 1_000_000).padStart(6, "0");
 }
 
-async function resetBrowserDatabase() {
+async function resetBrowserDatabase(input: {
+  baseURL: string;
+  command: string;
+  runId: string;
+  scenarios: string;
+  startedAt: string;
+}) {
   assertE2eResetAllowed({
     allowReset: process.env.JIROO_ALLOW_E2E_RESET,
     databaseUrl: process.env.DATABASE_URL,
   });
-  await db.execute(sql.raw(`
-    TRUNCATE TABLE
-      "security_audit_events",
-      "backlogs",
-      "permission_grants",
-      "group_members",
-      "backlog_role_actors",
-      "backlog_permission_configs",
-      "user_groups",
-      "project_roles",
-      "permission_schemes",
-      "user"
-    RESTART IDENTITY CASCADE
-  `));
+  const client = await databasePool.connect();
+  try {
+    const verifiedIdentity = await verifyE2eDatabaseIdentity(
+      client,
+      process.env.JIROO_E2E_DATABASE_SYSTEM_IDENTIFIER,
+    );
+    const databaseVerifiedAt = new Date().toISOString();
+    const junitPath = process.env.JIROO_E2E_PERSIST_AUDIT === "1"
+      ? `audit/runs/${input.runId}-junit.xml`
+      : `.playwright/reports/${input.runId}-junit.xml`;
+    await collectAndWriteE2eRunManifest({
+      baseURL: input.baseURL,
+      command: input.command,
+      databaseName: verifiedIdentity.databaseName,
+      databaseVerifiedAt,
+      junitPath,
+      runId: input.runId,
+      scenarios: input.scenarios,
+      startedAt: input.startedAt,
+      systemIdentifierFingerprint: verifiedIdentity.systemIdentifierFingerprint,
+    });
+    await client.query(`
+      TRUNCATE TABLE
+        "security_audit_events",
+        "backlogs",
+        "permission_grants",
+        "group_members",
+        "backlog_role_actors",
+        "backlog_permission_configs",
+        "user_groups",
+        "project_roles",
+        "permission_schemes",
+        "user"
+      RESTART IDENTITY CASCADE
+    `);
+  } finally {
+    client.release();
+  }
 }
 
 async function createStorageState({
@@ -265,11 +300,28 @@ async function seedPermissionFixtures(accountIds: Record<AccountKey, string>, ca
 }
 
 export default async function globalSetup(config: FullConfig) {
+  const runId = process.env.JIROO_E2E_RUN_ID;
+  if (!runId) throw new Error("JIROO_E2E_RUN_ID est absent du processus Playwright.");
+  reserveE2eRunId(runId);
+
+  const startedAt = new Date().toISOString();
   const baseURL = config.projects[0]?.use.baseURL;
   if (typeof baseURL !== "string") throw new Error("Playwright baseURL manquante.");
+  const command = process.env.JIROO_E2E_COMMAND_LABEL?.trim()
+    || process.argv.join(" ");
+  const scenarios = process.env.JIROO_E2E_SCENARIOS?.trim()
+    || "ensemble Playwright sélectionné par la ligne de commande";
+  if (
+    process.env.JIROO_E2E_PERSIST_AUDIT === "1"
+    && (!process.env.JIROO_E2E_COMMAND_LABEL?.trim() || !process.env.JIROO_E2E_SCENARIOS?.trim())
+  ) {
+    throw new Error(
+      "Un audit persistant exige JIROO_E2E_COMMAND_LABEL et JIROO_E2E_SCENARIOS.",
+    );
+  }
   await rm(".playwright/.auth", { recursive: true, force: true });
   await mkdir(".playwright/.auth", { recursive: true });
-  await resetBrowserDatabase();
+  await resetBrowserDatabase({ baseURL, command, runId, scenarios, startedAt });
 
   const accountIds = {} as Record<AccountKey, string>;
   for (const account of ACCOUNTS) {

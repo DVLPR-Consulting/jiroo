@@ -1,6 +1,5 @@
 import "dotenv/config";
 
-import { mkdir, writeFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../lib/db";
@@ -15,6 +14,7 @@ import {
 import { createItem, updateItem } from "../lib/services/items";
 import { startSprint } from "../lib/services/sprint-lifecycle";
 import { createSprint } from "../lib/services/sprints";
+import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
 
 const ACTIVE_SPRINT = "Audit Sprint actif 2026-08-05";
 const NEXT_SPRINT = "Sprint 2";
@@ -280,7 +280,10 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
     "/b/CASS?q=audit&view=backlog",
   );
   await expect(page.getByRole("button", { name: "Nouvel item" })).toHaveCount(0);
-  await page.screenshot({ path: NO_ACTIVE_SCREENSHOT, fullPage: true, caret: "initial" });
+  await writeAuditScreenshot(
+    NO_ACTIVE_SCREENSHOT,
+    (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+  );
 
   await page.goto("/b/CASS?view=backlog");
   await expect(page.getByRole("heading", { name: "Planification" })).toBeVisible();
@@ -382,7 +385,10 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
   await moved.finished();
   timings.push(`[timing] board drag ${Date.now() - moveStartedAt}ms`);
   await expect(destinationColumn.getByText(TASK_DONE, { exact: true })).toBeVisible();
-  await page.screenshot({ path: ACTIVE_BOARD_SCREENSHOT, fullPage: true, caret: "initial" });
+  await writeAuditScreenshot(
+    ACTIVE_BOARD_SCREENSHOT,
+    (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+  );
 
   await page.goto("/b/CASS?view=backlog");
   await page.getByRole("button", { name: `Clôturer ${ACTIVE_SPRINT}` }).click();
@@ -402,7 +408,10 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
   await page.goto("/b/CASS?view=board");
   await expect(page.getByRole("heading", { name: "Aucun sprint actif" })).toBeVisible();
   await expect(page.getByText(TASK_CARRIED, { exact: true })).toHaveCount(0);
-  await page.screenshot({ path: CLOSED_SCREENSHOT, fullPage: true, caret: "initial" });
+  await writeAuditScreenshot(
+    CLOSED_SCREENSHOT,
+    (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+  );
 
   const fixtureRows = await db
     .select({
@@ -444,11 +453,8 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
     `[performance] ${JSON.stringify(navigation)}`,
     "[result] cycle planification → sprint actif → board → clôture persisté",
   );
-  await mkdir("audit/console", { recursive: true });
-  await mkdir("audit/network", { recursive: true });
-  await mkdir("audit/screenshots", { recursive: true });
-  await writeFile(CONSOLE_PATH, `${capture.consoleLines.join("\n")}\n`, "utf8");
-  await writeFile(NETWORK_PATH, `${capture.networkLines.join("\n")}\n`, "utf8");
+  await writeAuditText(CONSOLE_PATH, `${capture.consoleLines.join("\n")}\n`);
+  await writeAuditText(NETWORK_PATH, `${capture.networkLines.join("\n")}\n`);
 
   expect(capture.consoleErrors, "Erreurs JavaScript/console").toEqual([]);
   expect(capture.requestFailures, "Requêtes réseau échouées").toEqual([]);
@@ -491,7 +497,10 @@ test("conserve le sprint planifié et explique un échec réseau au démarrage",
     .from(sprints)
     .where(and(eq(sprints.backlogId, backlog.id), eq(sprints.name, "Sprint 1")));
   expect(stored).toEqual({ state: "planned", startedAt: null });
-  await page.screenshot({ path: START_FAILURE_SCREENSHOT, fullPage: true, caret: "initial" });
+  await writeAuditScreenshot(
+    START_FAILURE_SCREENSHOT,
+    (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+  );
 
   await page.unroute("**/*");
   await businessPost(page, () =>
@@ -521,25 +530,22 @@ test("conserve le sprint planifié et explique un échec réseau au démarrage",
     .from(sprints)
     .where(and(eq(sprints.backlogId, backlog.id), eq(sprints.name, "Sprint 1")));
   expect(stillActive).toEqual({ state: "active", completedAt: null });
-  await page.screenshot({
-    path: COMPLETE_FAILURE_SCREENSHOT,
-    fullPage: true,
-    caret: "initial",
-  });
+  await writeAuditScreenshot(
+    COMPLETE_FAILURE_SCREENSHOT,
+    (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+  );
 
   capture.consoleLines.push(
     "[expected] POST de démarrage et POST de clôture interrompus volontairement",
     "[result] dialogues conservés, messages français visibles, états planifié puis actif inchangés",
   );
-  await writeFile(
+  await writeAuditText(
     FAILURE_CONSOLE_PATH,
     `${capture.consoleLines.join("\n")}\n`,
-    "utf8",
   );
-  await writeFile(
+  await writeAuditText(
     FAILURE_NETWORK_PATH,
     `${capture.networkLines.join("\n")}\n`,
-    "utf8",
   );
 
   expect(rejected).toBe(true);
@@ -586,17 +592,16 @@ test("recalcule et explique un dépassement de capacité avant démarrage", asyn
   await expect(page.getByRole("alert")).toHaveText(
     "Dépassement de 1 pt. Vous pouvez tout de même démarrer.",
   );
-  await page.screenshot({
-    path: CAPACITY_SCREENSHOT,
-    fullPage: true,
-    caret: "initial",
-  });
+  await writeAuditScreenshot(
+    CAPACITY_SCREENSHOT,
+    (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+  );
 
   capture.consoleLines.push(
     "[result] capacité 5 → dépassement 3 ; capacité 8 → aucun dépassement ; capacité 7 → dépassement 1",
   );
-  await writeFile(CAPACITY_CONSOLE_PATH, `${capture.consoleLines.join("\n")}\n`, "utf8");
-  await writeFile(CAPACITY_NETWORK_PATH, `${capture.networkLines.join("\n")}\n`, "utf8");
+  await writeAuditText(CAPACITY_CONSOLE_PATH, `${capture.consoleLines.join("\n")}\n`);
+  await writeAuditText(CAPACITY_NETWORK_PATH, `${capture.networkLines.join("\n")}\n`);
   expect(capture.consoleErrors).toEqual([]);
   expect(capture.requestFailures).toEqual([]);
   expect(capture.httpErrors).toEqual([]);
@@ -706,25 +711,22 @@ test("restaure sélection et section après deux échecs réseau de planificatio
     .from(sprintItems)
     .where(and(eq(sprintItems.itemId, draggedItem.id), isNull(sprintItems.leftAt)));
   expect(currentMembership).toEqual([]);
-  await page.screenshot({
-    path: PLANNING_FAILURE_SCREENSHOT,
-    fullPage: true,
-    caret: "initial",
-  });
+  await writeAuditScreenshot(
+    PLANNING_FAILURE_SCREENSHOT,
+    (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+  );
 
   capture.consoleLines.push(
     "[expected] POST bulk sprint et POST drag inter-section interrompus volontairement",
     "[result] sélection conservée après bulk ; ligne et base restaurées dans le Backlog après drag",
   );
-  await writeFile(
+  await writeAuditText(
     PLANNING_FAILURE_CONSOLE_PATH,
     `${capture.consoleLines.join("\n")}\n`,
-    "utf8",
   );
-  await writeFile(
+  await writeAuditText(
     PLANNING_FAILURE_NETWORK_PATH,
     `${capture.networkLines.join("\n")}\n`,
-    "utf8",
   );
   expect(bulkRejected).toBe(true);
   expect(dragRejected).toBe(true);
@@ -840,24 +842,21 @@ test("clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ou
     .where(eq(sprintItems.itemId, blockedCase.task.id));
   expect(blockedSprint?.state).toBe("active");
   expect(blockedMembership?.leftAt).toBeNull();
-  await page.screenshot({
-    path: COMPLETION_VARIANTS_SCREENSHOT,
-    fullPage: true,
-    caret: "initial",
-  });
+  await writeAuditScreenshot(
+    COMPLETION_VARIANTS_SCREENSHOT,
+    (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+  );
 
   capture.consoleLines.push(
     "[result] clôture Backlog et nouveau sprint persistées ; sous-tâche ouverte bloquante avec clé métier",
   );
-  await writeFile(
+  await writeAuditText(
     COMPLETION_VARIANTS_CONSOLE_PATH,
     `${capture.consoleLines.join("\n")}\n`,
-    "utf8",
   );
-  await writeFile(
+  await writeAuditText(
     COMPLETION_VARIANTS_NETWORK_PATH,
     `${capture.networkLines.join("\n")}\n`,
-    "utf8",
   );
   expect(capture.consoleErrors).toEqual([]);
   expect(capture.requestFailures).toEqual([]);
@@ -913,7 +912,10 @@ test("laisse le lecteur consulter la planification et le Board sans aucun contr�
     await expect(viewer.getByRole("button", { name: "Nouvel item" })).toHaveCount(0);
     await expect(viewer.getByRole("button", { name: /^Créer dans / })).toHaveCount(0);
     await expect(viewer.getByRole("button", { name: /^Déplacer CASS-/ })).toHaveCount(0);
-    await viewer.screenshot({ path: VIEWER_SCREENSHOT, fullPage: true, caret: "initial" });
+    await writeAuditScreenshot(
+      VIEWER_SCREENSHOT,
+      (path) => viewer.screenshot({ path, fullPage: true, caret: "initial" }),
+    );
 
     const [stored] = await db
       .select({ state: sprints.state })
@@ -923,8 +925,8 @@ test("laisse le lecteur consulter la planification et le Board sans aucun contr�
     capture.consoleLines.push(
       "[result] lecteur: métadonnées et tâche visibles, zéro contrôle de mutation",
     );
-    await writeFile(VIEWER_CONSOLE_PATH, `${capture.consoleLines.join("\n")}\n`, "utf8");
-    await writeFile(VIEWER_NETWORK_PATH, `${capture.networkLines.join("\n")}\n`, "utf8");
+    await writeAuditText(VIEWER_CONSOLE_PATH, `${capture.consoleLines.join("\n")}\n`);
+    await writeAuditText(VIEWER_NETWORK_PATH, `${capture.networkLines.join("\n")}\n`);
 
     expect(capture.consoleErrors).toEqual([]);
     expect(capture.requestFailures).toEqual([]);
@@ -1022,14 +1024,17 @@ test("planifie une plage de tâches en masse et conserve la section après recha
     .toBeVisible();
   await expect(sprintSection.getByRole("row", { name: new RegExp(`^${secondKey} —`) }))
     .toBeVisible();
-  await page.screenshot({ path: PLANNING_SCREENSHOT, fullPage: true, caret: "initial" });
+  await writeAuditScreenshot(
+    PLANNING_SCREENSHOT,
+    (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+  );
 
   capture.consoleLines.push(
     `[timing] bulk sprint ${elapsed}ms`,
     `[result] ${thirdKey} planifié par drag ; ${firstKey} → ${secondKey} par bulk, repliés puis persistés après reload`,
   );
-  await writeFile(PLANNING_CONSOLE_PATH, `${capture.consoleLines.join("\n")}\n`, "utf8");
-  await writeFile(PLANNING_NETWORK_PATH, `${capture.networkLines.join("\n")}\n`, "utf8");
+  await writeAuditText(PLANNING_CONSOLE_PATH, `${capture.consoleLines.join("\n")}\n`);
+  await writeAuditText(PLANNING_NETWORK_PATH, `${capture.networkLines.join("\n")}\n`);
   expect(capture.consoleErrors).toEqual([]);
   expect(capture.requestFailures).toEqual([]);
   expect(capture.httpErrors).toEqual([]);

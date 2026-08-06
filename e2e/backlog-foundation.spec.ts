@@ -1,12 +1,12 @@
 import "dotenv/config";
 
-import { mkdir, writeFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
 import { items } from "../lib/db/schema/domain";
 import { updateItem } from "../lib/services/items";
+import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
 
 const CONSOLE_PATH =
   "audit/console/2026-08-05-session-06-backlog-foundation-console.log";
@@ -167,8 +167,8 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
 
     capture.networkLines.push(...timings);
     capture.consoleLines.push(`[result] plage ${firstKey} → ${secondKey}, 4 mutations bulk persistées`);
-    await page.screenshot({ path: BULK_SCREENSHOT, fullPage: true });
-    await page.screenshot({ path: POINTS_SCREENSHOT, fullPage: true });
+    await writeAuditScreenshot(BULK_SCREENSHOT, (path) => page.screenshot({ path, fullPage: true }));
+    await writeAuditScreenshot(POINTS_SCREENSHOT, (path) => page.screenshot({ path, fullPage: true }));
   } finally {
     for (const row of originalRows) {
       await updateItem(
@@ -200,11 +200,8 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
   });
   capture.consoleLines.push(`[performance] ${JSON.stringify(navigation)}`);
 
-  await mkdir("audit/console", { recursive: true });
-  await mkdir("audit/network", { recursive: true });
-  await mkdir("audit/screenshots", { recursive: true });
-  await writeFile(CONSOLE_PATH, `${capture.consoleLines.join("\n")}\n`, "utf8");
-  await writeFile(NETWORK_PATH, `${capture.networkLines.join("\n")}\n`, "utf8");
+  await writeAuditText(CONSOLE_PATH, `${capture.consoleLines.join("\n")}\n`);
+  await writeAuditText(NETWORK_PATH, `${capture.networkLines.join("\n")}\n`);
 
   expect(capture.consoleErrors, "Erreurs JavaScript/console").toEqual([]);
   expect(capture.requestFailures, "Requêtes réseau échouées").toEqual([]);
@@ -278,7 +275,10 @@ test("distingue 5, zéro et non estimé puis restaure la valeur", async ({ page 
       liveRow.getByRole("button", { name: "Estimation : Non estimé" }),
     ).toBeVisible();
     await expect(page.getByRole("spinbutton", { name: "Points" })).toHaveCount(0);
-    await page.screenshot({ path: ESTIMATE_MENU_SCREENSHOT, fullPage: true });
+    await writeAuditScreenshot(
+      ESTIMATE_MENU_SCREENSHOT,
+      (path) => page.screenshot({ path, fullPage: true }),
+    );
 
     capture.networkLines.push(
       `[timing] estimate 5 ${five.elapsedMs}ms`,
@@ -377,10 +377,10 @@ test("restaure le classement et conserve la sélection après deux échecs rése
   await expect
     .poll(async () => rows.evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
     .toEqual(initialOrder);
-  await page.screenshot({
-    path: "audit/screenshots/EXPECTED-backlog-rank-network-rollback.png",
-    fullPage: true,
-  });
+  await writeAuditScreenshot(
+    "audit/screenshots/EXPECTED-backlog-rank-network-rollback.png",
+    (path) => page.screenshot({ path, fullPage: true }),
+  );
 
   const rowCheckboxes = page.getByRole("checkbox", { name: /^Sélectionner CASS-/ });
   await rowCheckboxes.nth(0).click();
@@ -393,17 +393,17 @@ test("restaure le classement et conserve la sélection après deux échecs rése
     page.getByRole("alert").filter({ hasText: "Modification groupée impossible." }),
   ).toHaveText("Modification groupée impossible.");
   await expect(page.getByText("2 items sélectionnés")).toBeVisible();
-  await page.screenshot({
-    path: "audit/screenshots/EXPECTED-backlog-bulk-network-selection-retained.png",
-    fullPage: true,
-  });
+  await writeAuditScreenshot(
+    "audit/screenshots/EXPECTED-backlog-bulk-network-selection-retained.png",
+    (path) => page.screenshot({ path, fullPage: true }),
+  );
 
   capture.consoleLines.push(
     `[expected] rank POST aborted; ${movedKey} rolled back`,
     "[expected] bulk POST aborted; selection retained",
   );
-  await writeFile(FAILURE_CONSOLE_PATH, `${capture.consoleLines.join("\n")}\n`, "utf8");
-  await writeFile(FAILURE_NETWORK_PATH, `${capture.networkLines.join("\n")}\n`, "utf8");
+  await writeAuditText(FAILURE_CONSOLE_PATH, `${capture.consoleLines.join("\n")}\n`);
+  await writeAuditText(FAILURE_NETWORK_PATH, `${capture.networkLines.join("\n")}\n`);
   expect(capture.requestFailures.length).toBeGreaterThanOrEqual(2);
   expect(capture.httpErrors).toEqual([]);
 });

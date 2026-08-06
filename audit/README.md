@@ -813,23 +813,41 @@ ne crédite aucune interface Releases, encore absente.
   corrélation et premier événement byte-for-byte inchangé après le second ;
   persistance après reload et dans un second contexte utilisateur.
 
-`test:e2e` ne définit jamais le consentement destructif. L’opérateur doit lancer
-explicitement, sur une base dédiée migrée :
+`test:e2e` ne définit jamais le consentement destructif. Le reset accepte
+exclusivement la base locale `jiroo_e2e` et vérifie aussi l’identité physique de
+l’instance sur la même connexion que le `TRUNCATE`. L’URL reste dans
+l’environnement local de l’opérateur ; la commande suivante capture
+l’identifiant sans l’afficher ni l’inscrire dans l’historique shell :
 
 ```sh
+export PATH=/Users/nkrmr/.nvm/versions/node/v24.13.0/bin:/usr/local/bin:/usr/bin:/bin
+# DATABASE_URL doit déjà provenir d’un fichier local ignoré ou d’un gestionnaire de secrets.
+JIROO_E2E_DATABASE_SYSTEM_IDENTIFIER="$(
+  psql "$DATABASE_URL" --no-psqlrc --tuples-only --no-align \
+    --command='SELECT system_identifier FROM pg_control_system()'
+)"
+export JIROO_E2E_DATABASE_SYSTEM_IDENTIFIER
+
 JIROO_ALLOW_E2E_RESET=1 \
-DATABASE_URL='postgres://<identifiants-locaux>@localhost:5433/jiroo_e2e' \
-pnpm --ignore-workspace test:e2e
+JIROO_E2E_RUN_ID='<run-id-unique>' \
+JIROO_E2E_COMMAND_LABEL='pnpm --ignore-workspace test:e2e -- --project=chromium' \
+JIROO_E2E_SCENARIOS='régression Chromium complète' \
+JIROO_E2E_PERSIST_AUDIT=1 \
+JIROO_E2E_PERSIST_AUDIT_ARTIFACTS=1 \
+pnpm --ignore-workspace test:e2e -- --project=chromium
 ```
 
 Playwright lance son propre serveur depuis ce worktree sur `:3100`, avec
-`.next-e2e`, sans réutiliser le serveur manuel `:3000`. Chaque run-id est réservé
-atomiquement par `wx` avant reporter, journaux et captures ; un token propriétaire
-permet seulement aux workers du run gagnant de relire la configuration. Sous
-Node 24.13.0 et sur `jiroo_e2e`, la matrice dédiée passe **10/10 en 26,4 s** et
-la régression Chromium complète **24/24 en 62,0 s**. Les preuves JUnit immuables
-sont le [run dédié round 2](runs/20260806-review-r2-permissions-02-junit.xml) et
-le [run complet round 2](runs/20260806-review-r2-chromium-01-junit.xml). Chaque
+`.next-e2e`, sans réutiliser le serveur manuel `:3000`. `globalSetup` réserve
+chaque run-id exactement une fois par `wx` `0600`; aucune variable transmissible
+ne permet la réentrance. Journaux et captures sont toujours préfixés par le run
+ID et publiés sans écrasement. Un manifeste `0600` conserve Node/pnpm, SHA Git,
+nom et empreinte de base, serveur, invocation, horodatages et lien JUnit, jamais
+l’identifiant PostgreSQL brut. Lors du round 2, sous Node 24.13.0 et sur
+`jiroo_e2e`, la matrice dédiée passait **10/10 en 26,4 s** et la régression
+Chromium complète **24/24 en 62,0 s**. Les preuves JUnit immuables round 2 sont
+le [run dédié](runs/20260806-review-r2-permissions-02-junit.xml) et
+le [run complet](runs/20260806-review-r2-chromium-01-junit.xml). Chaque
 scénario permissions conserve aussi ses journaux uniques, par exemple
 [console](console/20260806-review-r2-permissions-02-permission-schemes-01-create-group-role-scheme-console.log)
 et [réseau](network/20260806-review-r2-permissions-02-permission-schemes-01-create-group-role-scheme-network.log).

@@ -1,7 +1,5 @@
 import "dotenv/config";
 
-import { existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
 import { expect, test, type Browser, type Locator, type Page, type Request } from "@playwright/test";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "../lib/db";
@@ -18,6 +16,7 @@ import {
   securityAuditEvents,
   userGroups,
 } from "../lib/db/schema/domain";
+import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
 
 const AUTH = {
   admin: ".playwright/.auth/platform-admin.json",
@@ -26,10 +25,6 @@ const AUTH = {
   reader: ".playwright/.auth/reader.json",
   noAccess: ".playwright/.auth/no-access.json",
 } as const;
-
-const RUN_ID = process.env.JIROO_E2E_RUN_ID ?? "local-untracked";
-const PERSIST_SCENARIO_LOGS = process.env.JIROO_E2E_PERSIST_SCENARIO_LOGS === "1";
-const CAPTURE_REVIEW_BUGS = process.env.JIROO_E2E_CAPTURE_REVIEW_BUGS === "1";
 
 type AuditCapture = {
   consoleLines: string[];
@@ -79,20 +74,15 @@ async function timed<T>(capture: AuditCapture, label: string, operation: () => P
 }
 
 async function persistAudit(slug: string, captures: AuditCapture[]) {
-  const root = PERSIST_SCENARIO_LOGS ? "audit" : `.playwright/evidence/${RUN_ID}`;
-  await mkdir(`${root}/console`, { recursive: true });
-  await mkdir(`${root}/network`, { recursive: true });
   const consoleLines = captures.flatMap((capture) => capture.consoleLines);
   const networkLines = captures.flatMap((capture) => capture.networkLines);
-  await writeFile(
-    `${root}/console/${RUN_ID}-permission-schemes-${slug}-console.log`,
+  await writeAuditText(
+    `audit/console/permission-schemes-${slug}-console.log`,
     `${consoleLines.join("\n")}\n`,
-    { encoding: "utf8", flag: "wx" },
   );
-  await writeFile(
-    `${root}/network/${RUN_ID}-permission-schemes-${slug}-network.log`,
+  await writeAuditText(
+    `audit/network/permission-schemes-${slug}-network.log`,
     `${networkLines.join("\n")}\n`,
-    { encoding: "utf8", flag: "wx" },
   );
   expect(captures.flatMap((capture) => capture.consoleErrors), "Erreurs JavaScript/console").toEqual([]);
   expect(captures.flatMap((capture) => capture.requestFailures), "Requêtes réseau échouées").toEqual([]);
@@ -100,17 +90,10 @@ async function persistAudit(slug: string, captures: AuditCapture[]) {
 }
 
 async function captureReviewScreenshot(target: Page | Locator, bugId: string) {
-  const root = CAPTURE_REVIEW_BUGS
-    ? "audit/screenshots"
-    : `.playwright/evidence/${RUN_ID}/screenshots`;
-  await mkdir(root, { recursive: true });
-  const path = `${root}/${RUN_ID}-FIXED-${bugId}.png`;
-  if (CAPTURE_REVIEW_BUGS && existsSync(path)) {
-    throw new Error(`La preuve Playwright ${path} existe déjà ; choisissez un run-id unique.`);
-  }
-  await target.screenshot({
-    path,
-  });
+  await writeAuditScreenshot(
+    `audit/screenshots/FIXED-${bugId}.png`,
+    (path) => target.screenshot({ path }),
+  );
 }
 
 function audited(

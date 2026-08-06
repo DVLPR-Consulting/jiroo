@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 const DESTINATION_QUERY_PARAMETERS = new Set([
   "connection_string",
   "connectionstring",
@@ -23,6 +25,62 @@ const SAFE_QUERY_PARAMETERS = new Set([
   "sslrootcert",
   "uselibpqcompat",
 ]);
+
+export type VerifiedE2eDatabaseIdentity = {
+  databaseName: "jiroo_e2e";
+  systemIdentifierFingerprint: string;
+};
+
+export function assertE2eDatabaseIdentity(input: {
+  databaseName: string;
+  expectedSystemIdentifier: string | undefined;
+  systemIdentifier: string;
+}): VerifiedE2eDatabaseIdentity {
+  if (!input.expectedSystemIdentifier) {
+    throw new Error(
+      "Reset E2E refusé : définissez explicitement JIROO_E2E_DATABASE_SYSTEM_IDENTIFIER.",
+    );
+  }
+  if (input.databaseName !== "jiroo_e2e") {
+    throw new Error("Reset E2E refusé : la base PostgreSQL effective n’est pas jiroo_e2e.");
+  }
+  if (input.systemIdentifier !== input.expectedSystemIdentifier) {
+    throw new Error("Reset E2E refusé : l’identité PostgreSQL effective ne correspond pas à l’identité attendue.");
+  }
+
+  return {
+    databaseName: "jiroo_e2e",
+    systemIdentifierFingerprint: `sha256:${createHash("sha256").update(input.systemIdentifier).digest("hex")}`,
+  };
+}
+
+type IdentityQueryClient = {
+  query: (queryText: string) => Promise<{
+    rows: Array<{ databaseName: string; systemIdentifier: string }>;
+  }>;
+};
+
+export async function verifyE2eDatabaseIdentity(
+  client: IdentityQueryClient,
+  expectedSystemIdentifier: string | undefined,
+): Promise<VerifiedE2eDatabaseIdentity> {
+  const result = await client.query(`
+    SELECT
+      current_database() AS "databaseName",
+      system_identifier::text AS "systemIdentifier"
+    FROM pg_control_system()
+  `);
+  const identity = result.rows[0];
+  if (!identity) {
+    throw new Error("Reset E2E refusé : PostgreSQL n’a retourné aucune identité effective.");
+  }
+
+  return assertE2eDatabaseIdentity({
+    databaseName: identity.databaseName,
+    expectedSystemIdentifier,
+    systemIdentifier: identity.systemIdentifier,
+  });
+}
 
 export function assertE2eResetAllowed(_input: {
   allowReset: string | undefined;
@@ -61,8 +119,8 @@ export function assertE2eResetAllowed(_input: {
   }
 
   const databaseName = decodeURIComponent(parsed.pathname.replace(/^\//u, ""));
-  if (!["jiroo", "jiroo_e2e", "jiroo_test"].includes(databaseName)) {
-    throw new Error("Reset E2E refusé : utilisez une base PostgreSQL E2E autorisée (jiroo, jiroo_e2e ou jiroo_test).");
+  if (databaseName !== "jiroo_e2e") {
+    throw new Error("Reset E2E refusé : utilisez exclusivement la base PostgreSQL E2E autorisée jiroo_e2e.");
   }
 
   return { databaseName, hostname };
