@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canWriteItems, hasRole, requireRole, type Role } from "@/lib/auth/rbac";
 
-describe("RBAC (hard-coded)", () => {
+describe("legacy RBAC compatibility", () => {
   it("hasRole compares roles", () => {
     expect(hasRole("admin", "admin")).toBe(true);
     expect(hasRole("viewer", "admin")).toBe(false);
