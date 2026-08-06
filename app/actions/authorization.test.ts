@@ -315,6 +315,39 @@ describe("authorization administration Server Actions", () => {
     });
   });
 
+  it("rejects a forged permission-helper call without global browse_users", async () => {
+    mocks.requirePermission.mockImplementation(async ({ permission, scope }) => {
+      if (permission === "browse_users") {
+        throw new classes.PermissionDeniedError({
+          allowed: false,
+          permission: "browse_users",
+          scope: { type: "global" },
+          reasons: [{ type: "no_matching_grant" }],
+        });
+      }
+      return allowed(scope);
+    });
+    mocks.getPermissionHelperResult.mockResolvedValue({
+      allowed: true,
+      permission: "manage_members",
+      reasons: [{ type: "user_grant", label: "Membre cible" }],
+    });
+
+    await expect(
+      permissionHelperAction({ backlogId, userId: "member-1", permission: "manage_members" }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Parcourir les utilisateurs ».",
+    });
+
+    expect(mocks.requirePermission).toHaveBeenNthCalledWith(2, {
+      actorId: "actor-session",
+      permission: "browse_users",
+      scope: { type: "global" },
+    });
+    expect(mocks.getPermissionHelperResult).not.toHaveBeenCalled();
+  });
+
   it("requires administer_jiroo for global grants so group managers cannot escalate", async () => {
     mocks.requirePermission.mockRejectedValue(
       new classes.PermissionDeniedError({

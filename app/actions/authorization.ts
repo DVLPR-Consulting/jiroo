@@ -628,6 +628,11 @@ export async function permissionHelperAction(input: unknown) {
         scope: { type: "global" },
       });
     }
+    await requirePermission({
+      actorId,
+      permission: "browse_users",
+      scope: { type: "global" },
+    });
     const result = await getPermissionHelperResult(parsed);
     return { ok: true as const, result };
   } catch (error) {
