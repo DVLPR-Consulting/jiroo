@@ -902,6 +902,20 @@ reste uniquement la preuve de son SHA source enregistré `f891d2c`, pas des
 commits R2. Le détail et les SHA sont dans le
 [ledger Task 10](reviews/2026-08-06-task10-review.md).
 
+La R3 indépendante conclut ensuite **PASS, 0 Critical/Important**. La preuve de
+livraison finale est le run immuable unique
+`20260806-task10-delivery-chromium-01` sur le SHA source `3e592090` :
+[JUnit 24/24](runs/20260806-task10-delivery-chromium-01-junit.xml) et
+[manifeste de provenance](runs/20260806-task10-delivery-chromium-01-manifest.json).
+Le gate complet compte 125 fichiers unitaires et 1 051 tests réussis, puis
+16 fichiers/125 tests PostgreSQL, typecheck, ESLint et build Next 16.2.7 verts.
+Les 60 preuves navigateur sont run-scoped : 20 consoles, 20 réseaux,
+18 captures, JUnit et manifeste. Les scans trouvent 0 erreur nominale,
+0 statut HTTP 4xx/5xx, 0 motif de secret et 0 identité PostgreSQL brute ; les
+six `ERR_FAILED` et six `[error]` sont limités aux trois parcours de rollback
+injecté. Ce run remplace les preuves historiques comme preuve de livraison de
+la branche corrigée R2/R3.
+
 Le détail finding par finding est conservé dans le
 [registre de revue Task 9 round 1/5](reviews/2026-08-06-task9-review-r1.md) et le
 [registre round 2/5](reviews/2026-08-06-task9-review-r2.md). Le durcissement
