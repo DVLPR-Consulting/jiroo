@@ -34,7 +34,7 @@ References:
    role memberships.
 3. Provide global groups and customizable project roles.
 4. Offer Simple and Advanced administration over the same stored model.
-5. Migrate every existing account without silently removing current access.
+5. Reset and seed development data deterministically against the new model.
 6. Enforce permissions in server queries and mutations, not only in React.
 7. Provide an explanation of every effective permission decision.
 8. Record an immutable security audit trail.
@@ -167,29 +167,28 @@ new backlog receives a private clone of the default scheme, starts in Simple
 mode, and assigns its creator to `Administrateur`. It does not automatically
 become visible to every existing account.
 
-## Migration
+## Development reset and seed
 
-The migration creates the protected roles, default scheme, global permission
-records, and security-audit storage before changing authorization reads.
+Jiroo is not in production and the product owner explicitly authorizes a full
+development-database reset for this model change. The implementation does not
+carry legacy backlog access forward or maintain a compatibility cutover.
 
-For every existing backlog:
+After the schema migration is ready, the development PostgreSQL volume is
+removed and recreated. The deterministic seed then creates:
 
-1. create or attach a private default scheme;
-2. assign every current global administrator to `Administrateur`;
-3. assign every current contributor to `Membre`;
-4. assign every current viewer to `Lecteur`;
-5. verify that every active account has the same or broader effective access
-   than before;
-6. only then enable scheme-based enforcement for that backlog.
+1. the protected platform-administrator group;
+2. the protected `Administrateur`, `Membre`, and `Lecteur` project roles;
+3. the default permission scheme and its catalogue grants;
+4. one platform administrator account;
+5. explicit member, specialist, reader, and no-access accounts for browser
+   tests;
+6. seeded backlogs with private scheme clones and explicit role occupancy.
 
-Existing administrators populate the protected platform-administrator group.
-Existing contributors and viewers receive no global authorization from their
-legacy role after the cutover. New accounts have no backlog access until they
-are added directly, through a group, or through an authenticated-user grant.
-
-The cutover is idempotent. It records a completion marker and aborts rather
-than partially enabling the new resolver if any backlog fails equivalence
-verification.
+The seed is idempotent for repeated local and CI setup. New accounts have no
+backlog access until they are added directly, through a group, or through an
+authenticated-user grant. The legacy account role remains only for Better Auth
+session compatibility and the bootstrap administrator; it never determines
+ordinary backlog access.
 
 ## Data model
 
@@ -203,8 +202,7 @@ constraints:
 - `permission_grants` for global or scheme-scoped permission-to-principal
   mappings;
 - `backlog_permission_configs` for one scheme and one UI mode per backlog;
-- `security_audit_events` for immutable administrative events;
-- `authorization_migrations` for the idempotent cutover marker.
+- `security_audit_events` for immutable administrative events.
 
 Polymorphic principals use an explicit principal type plus nullable foreign-key
 columns guarded by database checks so exactly one valid target is present.
@@ -330,7 +328,8 @@ Secrets, session tokens, passwords, and raw request bodies are never stored.
 - transactional scheme association and audit event;
 - concurrent scheme edit rejection;
 - deletion blockers and rollback;
-- idempotent migration and per-user access-equivalence proof.
+- deterministic reset seed and repeated-seed idempotence;
+- new accounts start with no backlog access.
 
 ### Server Action tests
 
@@ -365,8 +364,8 @@ are clean and the audit documents are updated.
 
 This permission system is one audited product increment and precedes
 Releases/Versions. Its implementation may use several commits, but it lands as
-one pull request because partial authorization migration would create two
-conflicting security models.
+one pull request because a partial authorization cutover would leave two
+conflicting security models in active code.
 
 After merge, the next pull request implements Releases/Versions with multiple
 Fix versions per item, `manage_releases` lifecycle authorization, `edit_items`

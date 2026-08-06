@@ -4,7 +4,7 @@
 
 **Goal:** Replace global `admin/contributor/viewer` authorization with Jira-like global groups, project roles, reusable permission schemes, per-backlog role occupancy, permission explanations, and one Simple/Advanced administration experience.
 
-**Architecture:** Add a server-only authorization data access layer that resolves additive grants from users, groups, and backlog roles and returns a safe decision DTO. Migrate existing access transactionally, route every read and mutation through the resolver, and expose administration through focused services, Server Actions, and accessible React views. Simple and Advanced modes share the same records; only their administration surfaces differ.
+**Architecture:** Add a server-only authorization data access layer that resolves additive grants from users, groups, and backlog roles and returns a safe decision DTO. Reset and seed development data directly against the new model, route every read and mutation through the resolver, and expose administration through focused services, Server Actions, and accessible React views. Simple and Advanced modes share the same records; only their administration surfaces differ.
 
 **Tech Stack:** Next.js 16.2.7 App Router and Server Actions, React 19.2.4, TypeScript 5, Drizzle ORM 0.45, PostgreSQL, Zod 4, Vitest/Testing Library, Playwright 1.62 Chromium.
 
@@ -15,7 +15,7 @@
 - Every backlog has exactly one permission scheme; schemes may be shared.
 - Grants are additive and `browse_backlog` is a prerequisite for every other backlog permission.
 - Platform administrators keep a recoverable bypass and every bypass is explainable.
-- Existing users retain their current access during the idempotent cutover; new users receive no backlog access automatically.
+- The development database may be fully reset after the new migration is ready; reseed explicit accounts and backlog access deterministically, and give new users no backlog access automatically.
 - Unknown permission keys fail closed.
 - No production behavior is written before its test has failed for the expected reason.
 - All administrative writes are transactional and append an immutable security audit event.
@@ -36,7 +36,7 @@ New authorization files are grouped by responsibility:
 - `lib/auth/accessible-backlogs.ts`: SQL predicates and DTO reads for browse-filtered surfaces.
 - `lib/auth/action-authorization.ts`: helpers that resolve item, sprint, status, view, or backlog ownership before permission checks.
 - `lib/validation/authorization.ts`: schemas for groups, roles, schemes, grants, assignments, and helper queries.
-- `lib/services/authorization-bootstrap.ts`: idempotent compatibility migration and default setup.
+- `lib/services/authorization-seed.ts`: deterministic protected-role, scheme, grant, and development-access setup.
 - `lib/services/authorization-admin.ts`: transactional administration and immutable audit writes.
 - `app/actions/authorization.ts`: safe Server Actions and revalidation.
 - `app/(app)/b/[key]/settings/access/page.tsx`: backlog-scoped access settings for authorized backlog managers.
@@ -219,46 +219,58 @@ git commit -m "feat(auth): define permission catalogue and decisions"
 
 ---
 
-### Task 2: Database model, constraints, and compatibility bootstrap
+### Task 2: Database model, constraints, and deterministic development seed
 
 **Files:**
 - Modify: `lib/db/schema/enums.ts`
 - Modify: `lib/db/schema/domain.ts`
 - Modify: `lib/db/schema/index.ts`
-- Create: `lib/services/authorization-bootstrap.ts`
-- Create: `lib/services/authorization-bootstrap.integration.test.ts`
-- Create: `drizzle/0010_jira_permission_schemes.sql` through `pnpm db:generate`
+- Create: `lib/services/authorization-seed.ts`
+- Create: `lib/services/authorization-seed.integration.test.ts`
+- Modify: `lib/db/seed.ts`
+- Create: `drizzle/0010_jira_permission_schemes.sql` through Drizzle generation
 - Modify: `drizzle/meta/_journal.json`
 - Create: generated `drizzle/meta/0010_snapshot.json`
 
 **Interfaces:**
-- Produces tables `userGroups`, `groupMembers`, `projectRoles`, `backlogRoleActors`, `permissionSchemes`, `permissionGrants`, `backlogPermissionConfigs`, `securityAuditEvents`, `authorizationMigrations`.
-- Produces `bootstrapAuthorizationModel()` and protected keys `platform-administrators`, `administrators`, `members`, `viewers`, `default-permission-scheme`.
+- Produces tables `userGroups`, `groupMembers`, `projectRoles`, `backlogRoleActors`, `permissionSchemes`, `permissionGrants`, `backlogPermissionConfigs`, and `securityAuditEvents`.
+- Produces `seedAuthorizationDefaults(input)` and protected keys `platform-administrators`, `administrators`, `members`, `viewers`, `default-permission-scheme`.
 
-- [ ] **Step 1: Write failing PostgreSQL bootstrap tests**
+- [ ] **Step 1: Write failing PostgreSQL schema and seed tests**
 
 Guard the suite with `JIROO_RUN_DB_TESTS=1`, following existing integration
-tests. Seed one admin, contributor, viewer, and two backlogs. Assert:
+tests. Create one administrator account and two backlogs, then assert:
 
 ```ts
-const first = await bootstrapAuthorizationModel();
-const second = await bootstrapAuthorizationModel();
+await seedAuthorizationDefaults({
+  platformAdministratorIds: [adminId],
+  backlogAdministrators: [
+    { backlogId: backlogA.id, userIds: [adminId] },
+    { backlogId: backlogB.id, userIds: [adminId] },
+  ],
+});
+await seedAuthorizationDefaults({
+  platformAdministratorIds: [adminId],
+  backlogAdministrators: [
+    { backlogId: backlogA.id, userIds: [adminId] },
+    { backlogId: backlogB.id, userIds: [adminId] },
+  ],
+});
 
-expect(first.migrated).toBe(true);
-expect(second).toEqual({ migrated: false, reason: "already_completed" });
-expect(await effectiveRoleKeys(adminId, backlogA.id)).toContain("administrators");
-expect(await effectiveRoleKeys(contributorId, backlogA.id)).toContain("members");
-expect(await effectiveRoleKeys(viewerId, backlogA.id)).toContain("viewers");
-expect(await effectiveRoleKeys(contributorId, backlogB.id)).toContain("members");
+expect(await effectiveRoleKeys(adminId, backlogA.id)).toEqual(["administrators"]);
+expect(await effectiveRoleKeys(adminId, backlogB.id)).toEqual(["administrators"]);
+expect(await countProtectedRoles()).toBe(3);
+expect(await countBacklogConfigs()).toBe(2);
 ```
 
 Add tests that duplicate group membership and duplicate direct grant violate a
 unique constraint, a role actor with both user and group violates a check, and
-every backlog config has one scheme.
+each backlog has exactly one permission config. Assert a newly created account
+has no role actor or direct backlog grant.
 
-- [ ] **Step 2: Run bootstrap integration test and confirm RED**
+- [ ] **Step 2: Run the seed integration test and confirm RED**
 
-Run: `JIROO_RUN_DB_TESTS=1 pnpm exec vitest run lib/services/authorization-bootstrap.integration.test.ts`
+Run: `JIROO_RUN_DB_TESTS=1 pnpm exec vitest run lib/services/authorization-seed.integration.test.ts`
 
 Expected: FAIL because the schema and service do not exist.
 
@@ -278,10 +290,11 @@ export const accessModeEnum = pgEnum("access_mode", ["simple", "advanced"]);
 export const roleActorTypeEnum = pgEnum("role_actor_type", ["user", "group"]);
 ```
 
-Add the nine tables from the spec with foreign keys, timestamps, checks ensuring
-exactly one principal column matches its type, partial unique indexes for each
-principal shape, `permission_schemes.version NOT NULL DEFAULT 1`, and one
-`backlog_permission_configs` row per backlog using `backlog_id` as primary key.
+Add the eight tables from the spec with foreign keys, timestamps, checks
+ensuring exactly one principal column matches its type, partial unique indexes
+for each principal shape, `permission_schemes.version NOT NULL DEFAULT 1`, and
+one `backlog_permission_configs` row per backlog using `backlog_id` as primary
+key.
 
 - [ ] **Step 4: Generate and inspect migration SQL**
 
@@ -290,31 +303,38 @@ Run: `pnpm exec drizzle-kit generate --name jira_permission_schemes`
 Expected: one new `0010` migration and snapshot. Inspect the SQL for every
 foreign key, check, unique index, and `ON DELETE` behavior before running it.
 
-- [ ] **Step 5: Implement idempotent bootstrap transaction**
+- [ ] **Step 5: Implement deterministic authorization seed**
 
-`bootstrapAuthorizationModel()` must lock the migration key
-`jira-permission-schemes-v1`, create protected groups/roles/default scheme,
-insert catalogue grants, create a private scheme config for each backlog,
-assign users based on legacy role, verify expected role occupancy, insert the
-completion marker, and return the discriminated result. A failure rolls back
-all created records.
+`seedAuthorizationDefaults(input)` creates protected groups, protected roles,
+the default scheme, catalogue grants, one private cloned scheme and config per
+requested backlog, and explicit administrator occupancy. Use conflict-safe
+inserts and stable protected keys so a second identical run changes no counts.
+Update `lib/db/seed.ts` to call this service after creating the administrator
+and demo backlog. Do not infer backlog access from legacy contributor/viewer
+roles.
 
-- [ ] **Step 6: Run migration and integration tests**
+- [ ] **Step 6: Reset the authorized development database and verify seed**
 
-Run:
+Resolve the exact compose project before deletion with `docker compose -p jiroo
+ps`. Then run the explicitly authorized reset only after the migration and seed
+code are ready:
 
 ```bash
+docker compose -p jiroo down -v
+docker compose -p jiroo up -d db
 pnpm db:migrate
-JIROO_RUN_DB_TESTS=1 pnpm exec vitest run lib/services/authorization-bootstrap.integration.test.ts
+pnpm db:seed
+JIROO_RUN_DB_TESTS=1 pnpm exec vitest run lib/services/authorization-seed.integration.test.ts
 ```
 
-Expected: migration succeeds; integration suite passes.
+Expected: only the `jiroo` Compose database volume is recreated; migrations,
+seed, repeated-seed integration tests, and schema constraints pass.
 
-- [ ] **Step 7: Commit schema and bootstrap**
+- [ ] **Step 7: Commit schema and seed**
 
 ```bash
-git add lib/db/schema lib/services/authorization-bootstrap.ts lib/services/authorization-bootstrap.integration.test.ts drizzle
-git commit -m "feat(auth): persist permission schemes and migrated access"
+git add lib/db/schema lib/db/seed.ts lib/services/authorization-seed.ts lib/services/authorization-seed.integration.test.ts drizzle
+git commit -m "feat(auth): persist permission schemes and seeded access"
 ```
 
 ---
@@ -337,7 +357,7 @@ git commit -m "feat(auth): persist permission schemes and migrated access"
 
 Cover direct user, group membership, direct group grant, user-in-role,
 group-in-role, authenticated-user grant, multiple reasons, browse prerequisite,
-unknown permission, scheme isolation across two backlogs, and bootstrap admin
+unknown permission, scheme isolation across two backlogs, and platform admin
 bypass. The core assertion is:
 
 ```ts
@@ -876,7 +896,7 @@ git commit -m "feat(admin): manage Jira-like access schemes"
 - [ ] **Step 1: Extend real account setup**
 
 Create storage states for platform administrator, member, specialist, reader,
-and no-access user. After schema bootstrap, assign roles/groups through service
+and no-access user. After the deterministic authorization seed, assign roles/groups through service
 fixtures, not by changing browser-visible state. Keep 2FA enrollment complete
 for every account.
 
@@ -914,7 +934,7 @@ new failing test.
 Run: `pnpm test:e2e -- --project=chromium`
 
 Expected: existing backlog, board, ranking, and sprint scenarios still pass
-under migrated permissions.
+under seeded permissions.
 
 - [ ] **Step 5: Update audit documents**
 
@@ -960,7 +980,7 @@ intentional committed changes.
 
 - [ ] **Step 2: Review requirements line by line**
 
-Compare every goal, non-goal, permission, migration invariant, administration
+Compare every goal, non-goal, permission, seed invariant, administration
 flow, security rule, and Playwright acceptance item in
 `docs/superpowers/specs/2026-08-06-jiroo-unified-permission-schemes-design.md`
 against code and evidence. Add a failing test and fix any uncovered gap before
@@ -979,7 +999,7 @@ git push -u origin feat/jira-permission-schemes
 gh pr create --base main --head feat/jira-permission-schemes --title "feat(auth): add Jira-like permission schemes" --body-file /tmp/jiroo-permission-schemes-pr-body.md
 ```
 
-The PR body must summarize model, migration safety, permission matrix,
+The PR body must summarize model, development reset/seed safety, permission matrix,
 Playwright evidence, audit changes, and exact verification results. Create the
 body file with `apply_patch`, not shell redirection.
 
