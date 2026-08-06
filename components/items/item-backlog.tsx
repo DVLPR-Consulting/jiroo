@@ -1224,6 +1224,8 @@ function SprintItemBacklog({
             const incompleteItems = section.items.filter(
               (item) => statuses.find((status) => status.id === item.statusId)?.category !== "done",
             );
+            const canCreateInSection =
+              canCreateItems && (section.kind === "backlog" || canScheduleItems);
             const metricsFor = (rows: BacklogItem[]) =>
               calculateSprintMetrics(
                 rows.map((item) => ({ ...item, done: false })),
@@ -1245,9 +1247,9 @@ function SprintItemBacklog({
                   canMoveDown={section.kind === "planned" && plannedIndex < planned.length - 1}
                   onMoveUp={() => reorderPlannedSprint(section.id, -1)}
                   onMoveDown={() => reorderPlannedSprint(section.id, 1)}
-                  actions={(canCreateItems && canScheduleItems) || canManageSprints ? (
+                  actions={canCreateInSection || canManageSprints ? (
                     <>
-                      {canCreateItems && canScheduleItems && createDialogProps ? (
+                      {canCreateInSection && createDialogProps ? (
                         <NewItemButton
                           backlogId={backlogId}
                           backlogKey={backlogKey}

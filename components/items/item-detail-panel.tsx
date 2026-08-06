@@ -198,18 +198,25 @@ export function ItemDetailPanel({
     setSelectedParentId(newParentId);
     setPlanningError(null);
     startPlanning(async () => {
-      const result = await reparentItemAction({
-        backlogKey,
-        id: detail.id,
-        newParentId,
-      });
-      if (!result.ok) {
+      try {
+        const result = await reparentItemAction({
+          backlogKey,
+          id: detail.id,
+          newParentId,
+        });
+        if (!result.ok) {
+          setSelectedParentId(previousParentId);
+          setPlanningError(result.error);
+          toast.error(result.error);
+          return;
+        }
+        router.refresh();
+      } catch {
+        const error = "Impossible de modifier la planification.";
         setSelectedParentId(previousParentId);
-        setPlanningError(result.error);
-        toast.error(result.error);
-        return;
+        setPlanningError(error);
+        toast.error(error);
       }
-      router.refresh();
     });
   };
 
@@ -218,21 +225,28 @@ export function ItemDetailPanel({
     setSelectedSprintId(newSprintId);
     setPlanningError(null);
     startPlanning(async () => {
-      const result = await moveSprintItemAction({
-        backlogKey,
-        backlogId: detail.backlogId,
-        itemId: detail.id,
-        sprintId: newSprintId,
-        beforeId: null,
-        afterId: null,
-      });
-      if (!result.ok) {
+      try {
+        const result = await moveSprintItemAction({
+          backlogKey,
+          backlogId: detail.backlogId,
+          itemId: detail.id,
+          sprintId: newSprintId,
+          beforeId: null,
+          afterId: null,
+        });
+        if (!result.ok) {
+          setSelectedSprintId(previousSprintId);
+          setPlanningError(result.error);
+          toast.error(result.error);
+          return;
+        }
+        router.refresh();
+      } catch {
+        const error = "Impossible de modifier la planification.";
         setSelectedSprintId(previousSprintId);
-        setPlanningError(result.error);
-        toast.error(result.error);
-        return;
+        setPlanningError(error);
+        toast.error(error);
       }
-      router.refresh();
     });
   };
 

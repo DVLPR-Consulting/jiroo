@@ -512,6 +512,62 @@ describe("ItemDetailPanel header", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Planification interdite.");
     expect(mocks.toastError).toHaveBeenCalledWith("Planification interdite.");
   });
+
+  it("rolls back the parent and exposes a safe error when reparenting rejects", async () => {
+    const user = userEvent.setup();
+    mocks.reparentItemAction.mockRejectedValueOnce(new Error("internal parent details"));
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          detail={{ ...detail, type: "tache" }}
+          parent={{ key: "CASS-1", title: "Epic initial" }}
+          candidates={[
+            { id: detail.parentId!, key: "CASS-1", title: "Epic initial", type: "epic" },
+            { id: "55555555-5555-4555-8555-555555555555", key: "CASS-3", title: "Epic cible", type: "epic" },
+          ]}
+          canEditItems={false}
+          planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    const parentSelect = screen.getByRole("combobox", { name: "Parent" });
+    await user.selectOptions(parentSelect, "55555555-5555-4555-8555-555555555555");
+
+    await waitFor(() => expect(parentSelect).toHaveValue(detail.parentId));
+    expect(screen.getByRole("alert")).toHaveTextContent("Impossible de modifier la planification.");
+    expect(mocks.toastError).toHaveBeenCalledWith("Impossible de modifier la planification.");
+  });
+
+  it("rolls back the sprint and exposes a safe error when sprint assignment rejects", async () => {
+    const user = userEvent.setup();
+    mocks.moveSprintItemAction.mockRejectedValueOnce(new Error("internal sprint details"));
+    const initialSprintId = "66666666-6666-4666-8666-666666666666";
+    const targetSprintId = "77777777-7777-4777-8777-777777777777";
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          detail={{ ...detail, type: "tache" }}
+          sprints={[
+            { id: initialSprintId, name: "Sprint initial" },
+            { id: targetSprintId, name: "Sprint cible" },
+          ]}
+          sprintId={initialSprintId}
+          canEditItems={false}
+          planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    const sprintSelect = screen.getByRole("combobox", { name: "Sprint" });
+    await user.selectOptions(sprintSelect, targetSprintId);
+
+    await waitFor(() => expect(sprintSelect).toHaveValue(initialSprintId));
+    expect(screen.getByRole("alert")).toHaveTextContent("Impossible de modifier la planification.");
+    expect(mocks.toastError).toHaveBeenCalledWith("Impossible de modifier la planification.");
+  });
 });
 
 describe("ItemDetailContent parent resolution", () => {

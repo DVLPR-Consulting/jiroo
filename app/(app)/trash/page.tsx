@@ -1,4 +1,5 @@
 import { requireAppPageSession } from "@/lib/auth/session";
+import { checkPermission } from "@/lib/auth/authorization";
 import { listTrashedItems } from "@/lib/services/items";
 import type { TrashedItem } from "@/lib/services/items";
 import { TrashList } from "@/components/items/trash-list";
@@ -8,13 +9,18 @@ import { TrashList } from "@/components/items/trash-list";
 // the group's position in the list).
 function groupByBacklog(items: TrashedItem[]) {
   const order: string[] = [];
-  const map = new Map<string, { backlog: { key: string; name: string; color: string }; items: TrashedItem[] }>();
+  const map = new Map<string, { backlog: { id: string; key: string; name: string; color: string }; items: TrashedItem[] }>();
 
   for (const item of items) {
     if (!map.has(item.backlogKey)) {
       order.push(item.backlogKey);
       map.set(item.backlogKey, {
-        backlog: { key: item.backlogKey, name: item.backlogName, color: item.backlogColor },
+        backlog: {
+          id: item.backlogId,
+          key: item.backlogKey,
+          name: item.backlogName,
+          color: item.backlogColor,
+        },
         items: [],
       });
     }
@@ -28,6 +34,20 @@ export default async function TrashPage() {
   const session = await requireAppPageSession();
   const items = await listTrashedItems(session.user.id);
   const groups = groupByBacklog(items);
+  const backlogIds = [...new Set(items.map((item) => item.backlogId))];
+  const restoreDecisions = await Promise.all(
+    backlogIds.map(async (backlogId) => ({
+      backlogId,
+      decision: await checkPermission({
+        actorId: session.user.id,
+        permission: "restore_items",
+        scope: { type: "backlog", backlogId },
+      }),
+    })),
+  );
+  const restorableBacklogIds = restoreDecisions
+    .filter(({ decision }) => decision.allowed)
+    .map(({ backlogId }) => backlogId);
 
   return (
     <div className="flex flex-col h-full">
@@ -44,7 +64,7 @@ export default async function TrashPage() {
       </div>
 
       {/* Body */}
-      <TrashList groups={groups} />
+      <TrashList groups={groups} restorableBacklogIds={restorableBacklogIds} />
     </div>
   );
 }

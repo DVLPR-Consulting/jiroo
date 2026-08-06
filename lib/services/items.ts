@@ -32,6 +32,7 @@ export function listTrashedItems(userId: string) {
       key: items.key,
       type: items.type,
       title: items.title,
+      backlogId: backlogs.id,
       backlogKey: backlogs.key,
       backlogName: backlogs.name,
       backlogColor: backlogs.color,

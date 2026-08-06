@@ -484,7 +484,13 @@ describe("ItemBacklog", () => {
 
     const creator = render(<ItemBacklog {...sprintProps()} {...denied} canCreateItems />);
     expect(
+      screen.getByRole("button", { name: "Créer une tâche dans Backlog" }),
+    ).toBeVisible();
+    expect(
       screen.queryByRole("button", { name: "Créer une tâche dans Sprint actif" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Créer une tâche dans Sprint futur" }),
     ).not.toBeInTheDocument();
     creator.unmount();
 

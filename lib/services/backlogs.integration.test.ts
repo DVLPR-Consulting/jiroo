@@ -281,7 +281,10 @@ describeDb("browse-filtered product reads", () => {
         expect.objectContaining({ id: fixture.liveA.id, backlogId: fixture.backlogA.id }),
       ]);
       await expect(listTrashedItems(fixture.actorA)).resolves.toEqual([
-        expect.objectContaining({ id: fixture.trashA.id }),
+        expect.objectContaining({
+          id: fixture.trashA.id,
+          backlogId: fixture.backlogA.id,
+        }),
       ]);
       expect((await listTrashedItems(fixture.admin)).map((row) => row.id)).toEqual(
         expect.arrayContaining([fixture.trashA.id, fixture.trashB.id]),
