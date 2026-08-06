@@ -48,7 +48,10 @@ describe("artefacts d’audit E2E immuables", () => {
 
   it("publie les captures sans écrasement et nettoie le fichier temporaire", async () => {
     const legacyPath = "audit/screenshots/ancienne-capture.png";
-    const capture = async (path: string) => writeFile(path, "première image");
+    const capture = async (path: string) => {
+      expect(path).toMatch(/\.png$/u);
+      return writeFile(path, "première image");
+    };
     const path = await writeAuditScreenshot(legacyPath, capture, persistentOptions());
 
     await expect(writeAuditScreenshot(
