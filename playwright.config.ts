@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
+import { reserveE2eRunId } from "./scripts/e2e-run-reservation";
 
 process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, "--conditions=react-server"]
   .filter(Boolean)
@@ -12,6 +13,13 @@ if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(runId)) {
   throw new Error("JIROO_E2E_RUN_ID contient des caractères non autorisés.");
 }
 process.env.JIROO_E2E_RUN_ID = runId;
+const inheritedOwnerToken = process.env.JIROO_E2E_RUN_OWNER_TOKEN?.trim();
+const ownerToken = inheritedOwnerToken || randomUUID();
+if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(ownerToken)) {
+  throw new Error("JIROO_E2E_RUN_OWNER_TOKEN est invalide.");
+}
+process.env.JIROO_E2E_RUN_OWNER_TOKEN = ownerToken;
+reserveE2eRunId(runId, ownerToken);
 
 const persistAudit = process.env.JIROO_E2E_PERSIST_AUDIT === "1";
 const reportPath = persistAudit

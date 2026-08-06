@@ -1,3 +1,29 @@
+const DESTINATION_QUERY_PARAMETERS = new Set([
+  "connection_string",
+  "connectionstring",
+  "database",
+  "dbname",
+  "host",
+  "hostaddr",
+  "port",
+  "server",
+  "service",
+  "servicefile",
+  "socket",
+  "unix_socket",
+]);
+
+const SAFE_QUERY_PARAMETERS = new Set([
+  "application_name",
+  "fallback_application_name",
+  "ssl",
+  "sslcert",
+  "sslkey",
+  "sslmode",
+  "sslrootcert",
+  "uselibpqcompat",
+]);
+
 export function assertE2eResetAllowed(_input: {
   allowReset: string | undefined;
   databaseUrl: string | undefined;
@@ -17,6 +43,16 @@ export function assertE2eResetAllowed(_input: {
   }
   if (parsed.protocol !== "postgres:" && parsed.protocol !== "postgresql:") {
     throw new Error("Reset E2E refusé : DATABASE_URL doit utiliser PostgreSQL.");
+  }
+
+  for (const key of parsed.searchParams.keys()) {
+    const normalizedKey = key.toLowerCase();
+    if (DESTINATION_QUERY_PARAMETERS.has(normalizedKey)) {
+      throw new Error(`Reset E2E refusé : le paramètre de destination PostgreSQL « ${key} » est interdit.`);
+    }
+    if (!SAFE_QUERY_PARAMETERS.has(normalizedKey)) {
+      throw new Error(`Reset E2E refusé : le paramètre PostgreSQL non autorisé « ${key} » est interdit par défaut.`);
+    }
   }
 
   const hostname = parsed.hostname.replace(/^\[|\]$/gu, "").toLowerCase();

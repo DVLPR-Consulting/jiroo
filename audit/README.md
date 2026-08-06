@@ -784,13 +784,16 @@ ne crédite aucune interface Releases, encore absente.
 | Accessibilité | 86/100 | Un seul `main`, contrôles nommés et surfaces interdites absentes |
 | Responsive | 64/100 | Inchangé : matrice permissions desktop Chromium |
 | Permissions | 98/100 | Cinq comptes 2FA, rôle personnalisé seul en CASS, refus LABS et contrôles UI + serveur + données |
-| Performance locale | 84/100 | Mutations 23–247 ms ; navigations/reloads 380–1 002 ms en développement isolé |
+| Performance locale | 84/100 | Mutations 21–339 ms ; navigations/reloads 248–1 040 ms en développement isolé |
 
 ### Ce qui a été testé
 
-- setup Playwright autonome : reset refusé sans opt-in explicite, hôte local et
-  nom de base autorisé ; exactement cinq comptes, enrôlement TOTP réel, sessions
-  `0600` séparées et fixtures CASS/LABS ;
+- setup Playwright autonome : reset refusé sans opt-in explicite, autorité URL
+  locale et nom de base autorisé ; les paramètres `host`, `hostaddr`, `port`,
+  `database`/`dbname`, `service`, socket et équivalents sont refusés, et tout
+  paramètre inconnu est deny-by-default hors liste TLS/app-name ; exactement
+  cinq comptes, enrôlement TOTP réel, sessions `0600` séparées et fixtures
+  CASS/LABS ;
 - création UI d’un groupe, d’un rôle personnalisé et d’un clone de schéma ;
 - portée backlog du seul chemin `Membre E2E → Équipe delivery → Spécialiste
   delivery` dans CASS, sans rôle direct/protégé, puis refus dans LABS ;
@@ -810,19 +813,32 @@ ne crédite aucune interface Releases, encore absente.
   corrélation et premier événement byte-for-byte inchangé après le second ;
   persistance après reload et dans un second contexte utilisateur.
 
+`test:e2e` ne définit jamais le consentement destructif. L’opérateur doit lancer
+explicitement, sur une base dédiée migrée :
+
+```sh
+JIROO_ALLOW_E2E_RESET=1 \
+DATABASE_URL='postgres://<identifiants-locaux>@localhost:5433/jiroo_e2e' \
+pnpm --ignore-workspace test:e2e
+```
+
 Playwright lance son propre serveur depuis ce worktree sur `:3100`, avec
-`.next-e2e`, sans réutiliser le serveur manuel `:3000`. La matrice dédiée passe
-**10/10 en 27,1 s** et la régression Chromium complète **24/24 en 58,6 s**.
-Les preuves JUnit immuables sont le [run dédié](runs/20260806-review-r1-permissions-01-junit.xml)
-et le [run complet](runs/20260806-review-r1-chromium-01-junit.xml). Chaque
+`.next-e2e`, sans réutiliser le serveur manuel `:3000`. Chaque run-id est réservé
+atomiquement par `wx` avant reporter, journaux et captures ; un token propriétaire
+permet seulement aux workers du run gagnant de relire la configuration. Sous
+Node 24.13.0 et sur `jiroo_e2e`, la matrice dédiée passe **10/10 en 26,4 s** et
+la régression Chromium complète **24/24 en 62,0 s**. Les preuves JUnit immuables
+sont le [run dédié round 2](runs/20260806-review-r2-permissions-02-junit.xml) et
+le [run complet round 2](runs/20260806-review-r2-chromium-01-junit.xml). Chaque
 scénario permissions conserve aussi ses journaux uniques, par exemple
-[console](console/20260806-review-r1-permissions-01-permission-schemes-01-create-group-role-scheme-console.log)
-et [réseau](network/20260806-review-r1-permissions-01-permission-schemes-01-create-group-role-scheme-network.log).
+[console](console/20260806-review-r2-permissions-02-permission-schemes-01-create-group-role-scheme-console.log)
+et [réseau](network/20260806-review-r2-permissions-02-permission-schemes-01-create-group-role-scheme-network.log).
 Aucun parcours nominal ne contient d’erreur console, de requête échouée ou de
-réponse HTTP inattendue.
+réponse HTTP inattendue. Les runs round 1 restent conservés sans modification.
 
 Le détail finding par finding est conservé dans le
-[registre de revue Task 9 round 1/5](reviews/2026-08-06-task9-review-r1.md).
+[registre de revue Task 9 round 1/5](reviews/2026-08-06-task9-review-r1.md) et le
+[registre round 2/5](reviews/2026-08-06-task9-review-r2.md).
 
 ### Bugs et dette observés
 

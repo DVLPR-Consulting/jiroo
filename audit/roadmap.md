@@ -368,10 +368,11 @@ et [planification d'un sprint](https://support.atlassian.com/jira-software-cloud
   régression complète 24/24.
 
 La revue de preuve impose désormais trois invariants de harnais : reset de base
-avec opt-in + destination locale autorisée, serveur Next isolé sur `:3100` sans
-réutilisation, et artefacts JUnit/journaux portant un run-id non écrasable. La
-preuve d’isolation n’accorde aucun rôle protégé au membre testé ; le chemin
-groupe → rôle personnalisé est le seul qui explique son accès à CASS.
+avec opt-in fourni par l’opérateur, base dédiée `jiroo_e2e` et destination locale
+sans paramètre de redirection ; serveur Next isolé sur `:3100` sans réutilisation ;
+run-id réservé atomiquement avant tout reporter, journal ou capture. La preuve
+d’isolation n’accorde aucun rôle protégé au membre testé ; le chemin groupe →
+rôle personnalisé est le seul qui explique son accès à CASS.
 
 La permission `manage_releases` est volontairement disponible avant son
 consommateur produit. Elle ne constitue pas une livraison de Releases.

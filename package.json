@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "JIROO_ALLOW_E2E_RESET=1 JIROO_E2E_ISOLATED=1 BETTER_AUTH_URL=http://localhost:3100 NODE_OPTIONS=--conditions=react-server playwright test",
+    "test:e2e": "JIROO_E2E_ISOLATED=1 BETTER_AUTH_URL=http://localhost:3100 NODE_OPTIONS=--conditions=react-server playwright test",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",

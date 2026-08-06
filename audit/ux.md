@@ -424,9 +424,9 @@ une colonne dédiée.
 
 ### Mesures et dette restante
 
-Les mutations UI observées répondent en **23 à 247 ms** ; les explications de
-permission en **69 à 128 ms** ; navigations et rechargements en **380 à
-1 002 ms** sur le serveur local isolé. Les dix scénarios sont propres côté
+Les mutations UI observées répondent en **21 à 339 ms** ; les explications de
+permission en **75 à 205 ms** ; navigations et rechargements en **248 à
+1 040 ms** sur le serveur local isolé. Les dix scénarios sont propres côté
 console/réseau/HTTP ; leurs durées individuelles et la durée totale sont
 conservées dans le rapport JUnit immuable du run.
 
