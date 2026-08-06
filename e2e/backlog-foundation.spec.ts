@@ -108,7 +108,7 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
   const [auditActor] = await db
     .select({ id: user.id })
     .from(user)
-    .where(eq(user.email, "audit-playwright@jiroo.local"));
+    .where(eq(user.email, "platform-admin@jiroo.local"));
   if (!auditActor) throw new Error("Compte d’audit Playwright introuvable.");
 
   try {
@@ -143,12 +143,12 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
 
     const assignee = await waitForBusinessPost(page, async () => {
       await page.getByRole("button", { name: "Modifier l’assigné" }).click();
-      await page.getByRole("menuitem", { name: "Audit Playwright", exact: true }).click();
+      await page.getByRole("menuitem", { name: "Administrateur E2E", exact: true }).click();
     });
     timings.push(`[timing] bulk assignee ${assignee.elapsedMs}ms`);
     expect(assignee.status).toBeLessThan(400);
     for (const key of [firstKey, secondKey]) {
-      await expect(page.getByRole("row", { name: new RegExp(`^${key} —`) })).toContainText("Audit Playwright");
+      await expect(page.getByRole("row", { name: new RegExp(`^${key} —`) })).toContainText("Administrateur E2E");
     }
 
     await page.getByRole("spinbutton", { name: "Estimation groupée" }).fill("5");
@@ -213,7 +213,7 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
 
 test("le lecteur ne reçoit aucun contrôle de planification", async ({ browser }) => {
   const context = await browser.newContext({
-    storageState: ".playwright/.auth/viewer.json",
+    storageState: ".playwright/.auth/reader.json",
   });
   const page = await context.newPage();
   const capture = observe(page);
@@ -249,7 +249,7 @@ test("distingue 5, zéro et non estimé puis restaure la valeur", async ({ page 
   const [auditActor] = await db
     .select({ id: user.id })
     .from(user)
-    .where(eq(user.email, "audit-playwright@jiroo.local"));
+    .where(eq(user.email, "platform-admin@jiroo.local"));
   if (!original || !auditActor) throw new Error("Fixture d’estimation introuvable.");
 
   try {

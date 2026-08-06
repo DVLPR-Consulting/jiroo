@@ -763,3 +763,69 @@ en fin d'audit.
    sur l'historique désormais persistant.
 3. Concevoir l'**intégration dépôt/PR** pour relier exécution technique, checks
    CI et release sans confondre `Terminé` avec `Livré`.
+
+## Fin de session — incrément 09 : schémas de permissions Jira-like
+
+### Score global provisoire
+
+**82/100 — confiance élevée sur l’autorisation et le cycle sprint, plus faible
+sur le pilotage produit restant.** Le gain depuis 78 vient d’une matrice réelle
+à cinq identités, d’un setup 2FA autonome et de preuves UI/serveur/base sur les
+schémas partagés. Il ne crédite aucune interface Releases, encore absente.
+
+| Dimension | Score | Preuve principale |
+|---|---:|---|
+| Couverture fonctionnelle observée | 84/100 | Groupes, rôles, grants, schémas, concurrence et dix scénarios multi-utilisateurs |
+| Fiabilité et feedback | 92/100 | Refus Server Action structuré, conflit stale récupérable et historique append-only |
+| Efficacité UX | 80/100 | Mode Simple, mode Avancé et Assistant explicitent les sources de droit |
+| Accessibilité | 86/100 | Un seul `main`, contrôles nommés et surfaces interdites absentes |
+| Responsive | 64/100 | Inchangé : matrice permissions desktop Chromium |
+| Permissions | 98/100 | Cinq comptes 2FA, isolation CASS/LABS et contrôle UI + serveur + données |
+| Performance locale | 84/100 | Mutations 30–297 ms ; navigations/reloads 136–525 ms en développement |
+
+### Ce qui a été testé
+
+- setup Playwright autonome : base applicative remise à zéro, exactement cinq
+  comptes, enrôlement TOTP réel, sessions séparées et fixtures CASS/LABS ;
+- création UI d’un groupe, d’un rôle personnalisé et d’un clone de schéma ;
+- portée backlog d’une occupation de groupe/rôle malgré un schéma partagé ;
+- explication des grants direct, groupe et rôle par l’Assistant ;
+- rejeu par un lecteur d’une Server Action capturée, refusé côté serveur avec
+  une erreur structurée et sans mutation ;
+- spécialiste autorisé à gérer les sprints, sans édition d’item ni workflow ;
+- `manage_releases` expliqué sans inventer de page ou contrôle Releases ;
+- retrait de `browse_backlog` répercuté sur navigation, recherche, récents,
+  notifications et accès URL direct ;
+- conflit de version entre deux éditeurs d’un schéma partagé, puis récupération
+  après reload ;
+- deux mutations navigateur inscrites dans un historique de sécurité strictement
+  append-only ; persistance après reload et dans un second contexte utilisateur.
+
+La matrice dédiée passe **10/10 en 17,1 s**. La régression Chromium complète
+passe **24/24 en 1,1 min**. Chaque scénario permissions conserve son journal
+[console](console/2026-08-06-permission-schemes-01-create-group-role-scheme-console.log)
+et [réseau](network/2026-08-06-permission-schemes-01-create-group-role-scheme-network.log) ;
+les neuf paires suivantes portent le même préfixe daté. Aucun parcours nominal
+ne contient d’erreur console, de requête échouée ou de réponse HTTP inattendue.
+
+### Bugs et dette observés
+
+`BUG-JIR-024` ferme une élévation de privilège via les membres d’un groupe
+administrateur. `BUG-JIR-025` élimine les clés React dupliquées des blockers de
+rôle. `BUG-JIR-026` restaure un unique landmark principal sur la page Accès.
+Le harnais de classement attend maintenant une interaction client réelle avant
+sa capture, ce qui évite une course entre hydratation React et le masquage de
+caret de Playwright.
+
+Restent hors couverture : responsive multi-breakpoints de l’administration,
+lecteurs d’écran réels, volumétrie élevée, concurrence à plus de deux éditeurs
+et visualisation UI complète de l’historique de sécurité. Releases/versions,
+rapport de sprint, vélocité et burndown demeurent des fonctions produit absentes.
+
+### Trois priorités absolues pour la prochaine session
+
+1. Livrer les **releases/versions** et appliquer réellement `manage_releases`.
+2. Exposer l’**historique de sécurité** filtrable dans l’interface et rejouer
+   l’administration aux breakpoints 390/768/1024/1440 px.
+3. Construire le **rapport de sprint**, la vélocité et le burndown à partir des
+   événements persistants, avec totaux explicables item par item.

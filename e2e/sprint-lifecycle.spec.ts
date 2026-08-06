@@ -890,7 +890,7 @@ test("laisse le lecteur consulter la planification et le Board sans aucun contr√
   );
 
   const context = await browser.newContext({
-    storageState: ".playwright/.auth/viewer.json",
+    storageState: ".playwright/.auth/reader.json",
   });
   const viewer = await context.newPage();
   const capture = observe(viewer);

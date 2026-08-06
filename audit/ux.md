@@ -401,3 +401,44 @@ une colonne dédiée.
    comme une cible de performance individuelle.
 5. Ajouter les versions dans la même surface de planification et une page
    release centrée sur la readiness réelle.
+
+## Administration des permissions — incrément 09 du 6 août 2026
+
+### Résultat observé
+
+- Le mode Simple reste centré sur des personnes/groupes et trois rôles protégés ;
+  le mode Avancé rend visibles schéma, rôles personnalisés et grants détaillés.
+- L’Assistant de permissions répond par utilisateur, backlog et permission, puis
+  distingue clairement droit direct, héritage de groupe et rôle de projet.
+- Un même schéma peut servir CASS et LABS sans rendre globale l’occupation d’un
+  rôle : le membre autorisé dans CASS reste refusé dans LABS.
+- Le retrait de `browse_backlog` retire CASS de toutes les surfaces de découverte
+  et l’URL directe explique le refus sans dévoiler le backlog.
+- Le conflit de deux éditeurs est explicite et récupérable par rechargement ; le
+  premier enregistrement n’est ni écrasé ni masqué.
+- La page Accès expose désormais un seul landmark `main`. Les contrôles de
+  membres d’un groupe privilégié sont absents pour un simple gestionnaire.
+
+### Mesures et dette restante
+
+Les mutations UI observées répondent en **30 à 297 ms** ; les explications de
+permission en **74 à 184 ms** ; navigations et rechargements en **136 à 525 ms**
+sur le serveur local de développement. Les dix scénarios sont propres côté
+console/réseau/HTTP.
+
+L’administration reste dense et desktop-first. La source exacte d’un droit est
+lisible, mais l’historique append-only n’a pas encore de timeline UI filtrable.
+Il faut encore tester zoom 200 %, 390/768/1024/1440 px, VoiceOver/NVDA, listes
+volumineuses et navigation clavier complète dans les matrices de grants. Enfin,
+`manage_releases` n’affiche correctement aucun contrôle aujourd’hui parce que
+la fonctionnalité Releases n’existe pas ; son premier consommateur devra éviter
+de dupliquer les sélecteurs complexes de l’écran d’administration.
+
+### Recommandations prioritaires
+
+1. Ajouter une vue « Historique de sécurité » filtrable et liée depuis chaque
+   schéma/groupe/rôle, avec détail de corrélation sans exposer de donnée sensible.
+2. Réduire la densité du mode Avancé par sections progressives et résumé des
+   différences par rapport au schéma par défaut.
+3. Rejouer toute l’administration au clavier et aux quatre breakpoints avant
+   d’ajouter Releases ; réutiliser l’Assistant dans les écrans métier refusés.

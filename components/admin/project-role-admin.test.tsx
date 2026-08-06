@@ -27,6 +27,18 @@ describe("ProjectRoleAdmin", () => {
     expect(screen.getByText("Rôle protégé")).toBeVisible();
   });
 
+  it("rend des blockers de même libellé sans erreur de clé React", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    render(<ProjectRoleAdmin roles={[{
+      ...role,
+      blockers: ["Affectation dans Cour de cassation", "Affectation dans Cour de cassation"],
+    }]} />);
+
+    expect(screen.getAllByText("Affectation dans Cour de cassation")).toHaveLength(2);
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
   it("préserve nom et description lors d’une erreur de modification", async () => {
     const user = userEvent.setup();
     mocks.update.mockResolvedValue({ ok: false, error: "Ce rôle de projet est encore utilisé." });

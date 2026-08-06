@@ -1158,6 +1158,121 @@ La matrice Playwright complète recrée ensuite toutes les tâches sans erreur.
 Preuve navigateur : [cycle nominal](screenshots/FIXED-PARTIAL-BUG-JIR-015-board-sprint-actif.png)
 et [console propre](console/2026-08-05-session-08-sprint-lifecycle-console.log).
 
+## BUG-JIR-024 — Un gestionnaire de groupes pouvait modifier un groupe privilégié
+
+- **Gravité :** critique
+- **Priorité :** P0
+- **Statut :** corrigé et vérifié le 6 août 2026
+- **Fonctionnalité :** administration / permissions globales
+
+### Étapes de reproduction
+
+1. Accorder `manage_users_groups`, sans `administer_jiroo`, à un utilisateur.
+2. Ouvrir `/admin?tab=groups` avec cet utilisateur.
+3. Cibler le groupe protégé des administrateurs, ou un groupe non protégé qui
+   reçoit `administer_jiroo`, puis tenter d’ajouter ou retirer un membre.
+
+### Résultat obtenu et attendu
+
+Les contrôles de membres étaient exposés et la Server Action ne demandait que
+`manage_users_groups`. Un gestionnaire de groupes pouvait donc s’accorder
+indirectement `administer_jiroo`. Ces groupes privilégiés doivent exiger
+`administer_jiroo` côté serveur et ne présenter aucun contrôle de mutation aux
+autres gestionnaires.
+
+### Impacts
+
+- **Utilisateur :** élévation de privilège jusqu’à l’administration globale.
+- **Métier :** rupture de séparation des responsabilités sur toute l’instance.
+- **Données :** possibilité de contourner ensuite tous les schémas de backlog.
+
+### Cause, correction et preuve
+
+L’autorisation portait sur la fonction de gestion des groupes, sans considérer
+les permissions transitives du groupe ciblé. Le service détecte désormais tout
+groupe protégé ou titulaire de `administer_jiroo`; les Server Actions exigent
+alors cette permission supplémentaire et l’UI masque ajout/retrait. Les tests
+d’action, composant et intégration couvrent le refus et la propagation des
+backlogs concernés.
+
+Preuve navigateur : [contrôles protégés absents](screenshots/BUG-JIR-024-protected-admin-group-membership-controls.png).
+
+## BUG-JIR-025 — Les usages d’un rôle produisent des clés React dupliquées
+
+- **Gravité :** mineure
+- **Priorité :** P2
+- **Statut :** corrigé et vérifié le 6 août 2026
+- **Fonctionnalité :** administration / rôles de projet
+
+### Étapes de reproduction
+
+1. Affecter un même rôle de projet à un groupe et à un utilisateur dans CASS.
+2. Ouvrir `/admin?tab=roles` avec l’administrateur de plateforme.
+3. Surveiller la console Chromium pendant le rendu et les rafraîchissements.
+
+### Résultat obtenu
+
+React émet six erreurs `Encountered two children with the same key` pour le
+libellé identique `Affectation dans Cour de cassation`.
+
+### Résultat attendu
+
+Chaque blocker de suppression possède une identité React stable et unique ; le
+parcours nominal d’administration ne produit aucune erreur console.
+
+### Impacts
+
+- **Utilisateur :** risque de blocker dupliqué ou omis lors d’un rafraîchissement.
+- **Métier :** signal d’intégrité UI bruité dans une surface de sécurité.
+- **Audit :** empêche la validation « console propre » de la matrice permissions.
+
+### Cause, correction et preuve
+
+- [Capture Playwright](screenshots/BUG-JIR-025-duplicate-project-role-blocker-keys.png)
+- [Console du scénario](console/2026-08-06-permission-schemes-01-create-group-role-scheme-console.log)
+
+`ProjectRoleAdmin` utilisait le texte du blocker comme clé React. Le service
+retourne légitimement deux dépendances de même libellé lorsque le rôle est
+occupé par deux principaux dans le même backlog. La clé combine désormais
+l’index et le libellé dans la liste principale comme dans le dialogue de
+suppression. Le test composant reproduit le doublon et le scénario Chromium est
+repassé sans erreur console.
+
+## BUG-JIR-026 — La page Accès imbrique deux landmarks `main`
+
+- **Gravité :** majeure (accessibilité)
+- **Priorité :** P1
+- **Statut :** corrigé et vérifié le 6 août 2026
+- **Fonctionnalité :** administration des accès d’un backlog
+
+### Étapes de reproduction
+
+1. Ouvrir `/b/CASS/settings/access` dans Chromium avec l’administrateur E2E.
+2. Interroger l’arbre d’accessibilité par le rôle `main`.
+3. Compter les landmarks exposés.
+
+### Résultat obtenu et attendu
+
+Playwright trouve deux landmarks `main` : celui du shell applicatif et un
+second créé par la page Accès. Une page doit exposer un seul contenu principal ;
+la page enfant doit utiliser un conteneur neutre sous le `main` du shell.
+
+### Impacts
+
+- **Utilisateur :** navigation par landmarks ambiguë pour les lecteurs d’écran.
+- **Métier :** non-conformité de structure sur une surface de sécurité critique.
+- **Audit :** les sélecteurs de région ne désignent plus un contenu principal unique.
+
+### Cause, correction et preuve
+
+- [Capture Playwright](screenshots/BUG-JIR-026-nested-main-access-settings.png)
+- [Console du scénario](console/2026-08-06-permission-schemes-03-permission-helper-console.log)
+
+`AppShell` rend déjà le landmark principal. `AccessPage` ajoutait un second
+élément `<main>` sans tenir compte de ce parent structurel. La page utilise
+désormais un conteneur neutre ; un test de page et Chromium garantissent un seul
+landmark `main`.
+
 ## Diagnostics non classés comme bugs
 
 - Deux `POST /api/auth/two-factor/verify-totp` ont répondu `401 UNAUTHORIZED` lors de codes TOTP invalides générés par l'audit. Le troisième code, validé dans l'application d'authentification, a répondu 200. Le blocage et le message `Code invalide. Réessayez.` sont attendus.

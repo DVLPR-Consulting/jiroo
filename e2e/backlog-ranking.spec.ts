@@ -121,6 +121,20 @@ test("classe à la souris, restaure au clavier et conserve chaque ordre", async 
     .poll(async () => rows.evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
     .toEqual(initialOrder);
 
+  // Exercise a reversible client interaction before taking the full-page
+  // screenshot. This proves hydration is complete and avoids Playwright's
+  // temporary caret-hiding style racing React hydration on the item inputs.
+  const collapseSidebar = page.getByRole("button", {
+    name: "Replier la barre latérale",
+  });
+  await collapseSidebar.click();
+  const expandSidebar = page.getByRole("button", {
+    name: "Déplier la barre latérale",
+  });
+  await expect(expandSidebar).toBeVisible();
+  await expandSidebar.click();
+  await expect(collapseSidebar).toBeVisible();
+
   const navigation = await page.evaluate(() => {
     const entry = performance.getEntriesByType("navigation")[0] as
       | PerformanceNavigationTiming

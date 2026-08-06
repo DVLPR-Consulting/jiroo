@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, "--conditions=react-server"]
+  .filter(Boolean)
+  .join(" ");
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -9,7 +13,7 @@ export default defineConfig({
   globalSetup: "./e2e/global.setup.ts",
   use: {
     baseURL: "http://localhost:3000",
-    storageState: ".playwright/.auth/contributor.json",
+    storageState: ".playwright/.auth/platform-admin.json",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

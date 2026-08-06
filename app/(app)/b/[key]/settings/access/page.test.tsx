@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 const classes = vi.hoisted(() => ({
   ResourceNotFoundError: class ResourceNotFoundError extends Error {
@@ -71,6 +71,14 @@ describe("backlog access settings route", () => {
       canAdministerBacklog: true,
       canAdministerJiroo: false,
     }));
+  });
+
+  it("laisse le landmark main au shell parent", async () => {
+    mocks.checkPermission.mockResolvedValue({ allowed: true });
+    render(await AccessPage({ params: Promise.resolve({ key: "DEMO" }) }));
+
+    expect(screen.queryByRole("main")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Accès — Démo" })).toBeVisible();
   });
 
   it("refuse avant les lectures sans l’une des deux permissions", async () => {
