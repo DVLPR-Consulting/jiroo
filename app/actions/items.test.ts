@@ -5,6 +5,15 @@ import {
 } from "@/test-utils/action-authorization-errors";
 
 const classes = vi.hoisted(() => ({
+  PermissionDeniedError: class PermissionDeniedError extends Error {
+    readonly decision: unknown;
+
+    constructor(decision: unknown) {
+      super("denied");
+      this.name = "PermissionDeniedError";
+      this.decision = decision;
+    }
+  },
   ResourceNotFoundError: class ResourceNotFoundError extends Error {
     readonly resourceType: string;
     readonly resourceId: string;
@@ -20,6 +29,7 @@ const classes = vi.hoisted(() => ({
 
 const mocks = vi.hoisted(() => ({
   bulkUpdateItems: vi.fn(),
+  checkPermission: vi.fn(),
   createItem: vi.fn(),
   getSession: vi.fn(),
   moveItem: vi.fn(),
@@ -44,6 +54,8 @@ vi.mock("@/lib/auth/action-authorization", () => ({
   requireStatusPermission: mocks.requireStatusPermission,
 }));
 vi.mock("@/lib/auth/authorization", () => ({
+  checkPermission: mocks.checkPermission,
+  PermissionDeniedError: classes.PermissionDeniedError,
   requirePermission: mocks.requirePermission,
   ResourceNotFoundError: classes.ResourceNotFoundError,
 }));
@@ -89,6 +101,12 @@ function authorizeStoredResource(id: string) {
 function resetActionMocks() {
   vi.resetAllMocks();
   mocks.getSession.mockResolvedValue({ user: { id: "writer-1", role: "contributor" } });
+  mocks.checkPermission.mockResolvedValue({
+    allowed: true,
+    permission: "assignable_user",
+    scope: { type: "backlog", backlogId },
+    reasons: [{ type: "matching_grant" }],
+  });
   mocks.requireBacklogPermissionById.mockImplementation(async ({ backlogId: id }) =>
     authorizeStoredResource(id),
   );
@@ -424,9 +442,12 @@ describe("item action permission mapping", () => {
   });
 
   it("rejects an assignee who lacks assignable_user in the stored item backlog", async () => {
-    mocks.requirePermission.mockRejectedValueOnce(
-      permissionDeniedError("assignable_user", { type: "backlog", backlogId }),
-    );
+    mocks.checkPermission.mockResolvedValueOnce({
+      allowed: false,
+      permission: "assignable_user",
+      scope: { type: "backlog", backlogId },
+      reasons: [{ type: "no_matching_grant" }],
+    });
 
     await expect(
       updateItemAction({
@@ -438,7 +459,7 @@ describe("item action permission mapping", () => {
       ok: false,
       error: "Vous n’avez pas la permission « Être assignable » pour ce backlog.",
     });
-    expect(mocks.requirePermission).toHaveBeenCalledWith({
+    expect(mocks.checkPermission).toHaveBeenCalledWith({
       actorId: "unassignable-1",
       permission: "assignable_user",
       scope: { type: "backlog", backlogId },
@@ -446,14 +467,28 @@ describe("item action permission mapping", () => {
     expect(mocks.updateItem).not.toHaveBeenCalled();
   });
 
+  it("evaluates assignable_user without invoking the audited mutation boundary for the target", async () => {
+    await updateItemAction({
+      backlogKey: "DEMO",
+      id: itemId,
+      assigneeId: "platform-admin-target",
+    });
+
+    expect(mocks.checkPermission).toHaveBeenCalledWith({
+      actorId: "platform-admin-target",
+      permission: "assignable_user",
+      scope: { type: "backlog", backlogId },
+    });
+    expect(mocks.requirePermission).not.toHaveBeenCalled();
+    expect(mocks.updateItem).toHaveBeenCalled();
+  });
+
   it("requires the assignee to be assignable in the stored bulk backlog", async () => {
-    mocks.requirePermission.mockImplementation(async ({ permission, scope }) => {
-      if (permission === "assignable_user" && scope.backlogId === backlogId) {
-        throw permissionDeniedError("assignable_user", {
-          type: "backlog",
-          backlogId,
-        });
-      }
+    mocks.checkPermission.mockResolvedValueOnce({
+      allowed: false,
+      permission: "assignable_user",
+      scope: { type: "backlog", backlogId },
+      reasons: [{ type: "no_matching_grant" }],
     });
 
     await expect(
@@ -469,12 +504,12 @@ describe("item action permission mapping", () => {
     });
     expect(mocks.requirePermission.mock.calls.map(([input]) => input)).toEqual([
       { actorId: "writer-1", permission: "bulk_change_items", scope: { type: "global" } },
-      {
-        actorId: "assignee-1",
-        permission: "assignable_user",
-        scope: { type: "backlog", backlogId },
-      },
     ]);
+    expect(mocks.checkPermission).toHaveBeenCalledWith({
+      actorId: "assignee-1",
+      permission: "assignable_user",
+      scope: { type: "backlog", backlogId },
+    });
     expect(mocks.bulkUpdateItems).not.toHaveBeenCalled();
   });
 

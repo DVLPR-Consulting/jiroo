@@ -9,7 +9,12 @@ import {
   requireStatusPermission,
   type AuthorizedResource,
 } from "@/lib/auth/action-authorization";
-import { requirePermission, ResourceNotFoundError } from "@/lib/auth/authorization";
+import {
+  checkPermission,
+  PermissionDeniedError,
+  requirePermission,
+  ResourceNotFoundError,
+} from "@/lib/auth/authorization";
 import type { BacklogPermissionKey } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
@@ -91,11 +96,12 @@ async function requireAssignableUser(input: {
   backlogId: string;
 }): Promise<void> {
   if (!input.assigneeId) return;
-  await requirePermission({
+  const decision = await checkPermission({
     actorId: input.assigneeId,
     permission: "assignable_user",
     scope: { type: "backlog", backlogId: input.backlogId },
   });
+  if (!decision.allowed) throw new PermissionDeniedError(decision);
 }
 
 async function authorizeParent(input: {
