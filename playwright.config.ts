@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
+import { exclusiveJunitPaths } from "./scripts/e2e-junit-report";
 
 process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, "--conditions=react-server"]
   .filter(Boolean)
@@ -17,16 +17,21 @@ const persistAudit = process.env.JIROO_E2E_PERSIST_AUDIT === "1";
 const reportPath = persistAudit
   ? `audit/runs/${runId}-junit.xml`
   : `.playwright/reports/${runId}-junit.xml`;
-if (persistAudit && existsSync(reportPath)) {
-  throw new Error(`La preuve Playwright ${reportPath} existe déjà ; choisissez un run-id unique.`);
-}
+const junitPaths = exclusiveJunitPaths({ reportPath, runId });
 
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  reporter: [["list"], ["junit", { outputFile: reportPath, stripANSIControlSequences: true }]],
+  reporter: [
+    ["list"],
+    ["junit", {
+      outputFile: junitPaths.temporaryPath,
+      stripANSIControlSequences: true,
+    }],
+    ["./e2e/exclusive-junit-reporter.ts", junitPaths],
+  ],
   globalSetup: "./e2e/global.setup.ts",
   outputDir: `.playwright/test-results/${runId}`,
   use: {
