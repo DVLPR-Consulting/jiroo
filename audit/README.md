@@ -889,6 +889,19 @@ Le premier essai `20260806-task10-final-chromium-01` est conservé comme diagnos
 (22 réussites, 2 erreurs) : les sélecteurs E2E attendaient encore les anciens
 libellés avec email. Il n'est pas cité comme preuve d'acceptation.
 
+La re-review R2 suivante a fermé trois autres findings Important par TDD : les
+identités assigné/rapporteur courantes restent affichées séparément des candidats
+et deviennent des options désactivées lorsqu'elles ne sont plus sélectionnables ;
+le Server Action du helper exige maintenant `browse_users` après ses gates
+backlog/admin ; la résolution `assignable_user` utilise deux requêtes DAL bornées
+au lieu d'un `checkPermission` par compte. La preuve de charge ajoute 64 comptes
+d'annuaire et vérifie exactement deux requêtes, tandis que la matrice PostgreSQL
+complète passe 16/16 fichiers et 125/125 tests. Conformément au gate R2, aucun
+Chromium n'a été relancé avant re-review : le run `20260806-task10-final-chromium-02`
+reste uniquement la preuve de son SHA source enregistré `f891d2c`, pas des
+commits R2. Le détail et les SHA sont dans le
+[ledger Task 10](reviews/2026-08-06-task10-review.md).
+
 Le détail finding par finding est conservé dans le
 [registre de revue Task 9 round 1/5](reviews/2026-08-06-task9-review-r1.md) et le
 [registre round 2/5](reviews/2026-08-06-task9-review-r2.md). Le durcissement
