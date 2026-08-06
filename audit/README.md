@@ -864,11 +864,17 @@ capture temporaire perdue, est conservé sous son run ID mais n’est pas cité
 comme preuve d’acceptation.
 
 La vérification finale Task 10 rejoue la régression complète sur le commit
-`e07fa2f` avec le run immuable `20260806-task10-chromium-01` :
+`e07fa2f` avec le run conservé `20260806-task10-chromium-01` :
 [JUnit 24/24](runs/20260806-task10-chromium-01-junit.xml),
 [manifeste de provenance](runs/20260806-task10-chromium-01-manifest.json) et
 [revue/ledger](reviews/2026-08-06-task10-review.md). Les dix scénarios de
 permissions restent sans erreur console/page/requête ni statut HTTP 4xx/5xx.
+La revue indépendante suivante a identifié une course de publication JUnit
+entre deux processus ayant chargé la configuration avant la réservation. Les
+commits de correction publient désormais le rapport temporaire du seul
+propriétaire par lien atomique exclusif; un test lance réellement deux processus
+Playwright avec le même run ID. Le run ci-dessus reste la preuve Chromium de
+`e07fa2f` et n'est pas présenté comme une preuve navigateur des corrections.
 
 Le détail finding par finding est conservé dans le
 [registre de revue Task 9 round 1/5](reviews/2026-08-06-task9-review-r1.md) et le
