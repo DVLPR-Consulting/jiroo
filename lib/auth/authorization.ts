@@ -21,6 +21,7 @@ import {
   groupMembers,
   permissionGrants,
   projectRoles,
+  securityAuditEvents,
   userGroups,
 } from "@/lib/db/schema/domain";
 
@@ -316,6 +317,38 @@ export async function requirePermission(
   const decision = await checkPermission(input);
   if (!decision.allowed) throw new PermissionDeniedError(decision);
   return decision;
+}
+
+export type PlatformAdministratorBypassEventInput = {
+  actorId: string;
+  permission: string;
+  scope: PermissionScope;
+  targetType: string;
+  targetId: string;
+  requestCorrelationId: string;
+};
+
+export async function appendPlatformAdministratorBypassEvent(
+  input: PlatformAdministratorBypassEventInput,
+): Promise<void> {
+  const definition = permissionDefinition(input.permission);
+  if (definition.scope !== input.scope.type) throw new Error("Permission inconnue.");
+  if (!input.actorId || !input.targetType || !input.targetId || !input.requestCorrelationId) {
+    throw new Error("Événement de sécurité invalide.");
+  }
+  const actor = await loadActor(input.actorId);
+  if (!actor) throw new ResourceNotFoundError("user", input.actorId);
+  await db.insert(securityAuditEvents).values({
+    actorId: actor.id,
+    actorLabel: actor.name,
+    action: "platform_administrator_bypass",
+    scope: input.scope.type,
+    backlogId: input.scope.type === "backlog" ? input.scope.backlogId : undefined,
+    targetType: input.targetType,
+    targetId: input.targetId,
+    newValue: { permission: definition.key },
+    requestCorrelationId: input.requestCorrelationId,
+  });
 }
 
 export type { PermissionReason };
