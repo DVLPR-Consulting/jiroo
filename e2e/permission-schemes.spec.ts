@@ -262,11 +262,11 @@ audited(
     await timed(capture, "navigation accès", () => page.goto("/b/CASS/settings/access"));
     await expect(page.getByRole("main")).toHaveCount(1);
 
-    await timed(capture, "explication directe", () => selectHelper(page, "Membre E2E — member@jiroo.local", "Gérer les vues partagées"));
+    await timed(capture, "explication directe", () => selectHelper(page, "Membre E2E", "Gérer les vues partagées"));
     await expect(page.getByText("Grant direct à Membre E2E.")).toBeVisible();
-    await timed(capture, "explication groupe", () => selectHelper(page, "Membre E2E — member@jiroo.local", "Supprimer les éléments"));
+    await timed(capture, "explication groupe", () => selectHelper(page, "Membre E2E", "Supprimer les éléments"));
     await expect(page.getByText("Membre du groupe Équipe delivery.")).toBeVisible();
-    await timed(capture, "explication rôle", () => selectHelper(page, "Membre E2E — member@jiroo.local", "Gérer les sprints"));
+    await timed(capture, "explication rôle", () => selectHelper(page, "Membre E2E", "Gérer les sprints"));
     await expect(page.getByText("Occupe le rôle Spécialiste delivery.")).toBeVisible();
   },
 );
@@ -347,7 +347,7 @@ audited(
     const adminCapture = observe(page, "permission future release");
     captures.push(adminCapture);
     await page.goto("/b/CASS/settings/access");
-    await timed(adminCapture, "explication release", () => selectHelper(page, "Spécialiste E2E — specialist@jiroo.local", "Gérer les releases"));
+    await timed(adminCapture, "explication release", () => selectHelper(page, "Spécialiste E2E", "Gérer les releases"));
     await expect(page.getByRole("heading", { name: "Autorisé" })).toBeVisible();
     await expect(page.getByText("Occupe le rôle Spécialiste delivery.")).toBeVisible();
 
