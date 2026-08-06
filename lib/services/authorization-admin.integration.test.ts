@@ -34,6 +34,7 @@ import {
   listGlobalPermissionGrants,
   listPermissionSchemes,
   listProjectRoles,
+  moveBacklogRoleActor,
   readBacklogAccess,
   readSecurityHistory,
   removeBacklogRoleActor,
@@ -173,6 +174,12 @@ describeDb("transactional authorization administration", () => {
         role: "contributor",
       },
     ]);
+    await db.insert(permissionGrants).values({
+      scope: "global",
+      permissionKey: "administer_jiroo",
+      principalType: "user",
+      userId: actorId,
+    });
 
     const protectedRoles = await db
       .select({ id: projectRoles.id, key: projectRoles.key })
@@ -326,6 +333,42 @@ describeDb("transactional authorization administration", () => {
     ).toEqual([]);
   });
 
+  it("blocks direct self-escalation through a group granting administer_jiroo", async () => {
+    const group = await createGroup(
+      { name: "Escalade interdite Task 8" },
+      actorId,
+      correlation("escalation-group-create"),
+    );
+    createdGroupIds.push(group.id);
+    await db.insert(permissionGrants).values([
+      {
+        scope: "global",
+        permissionKey: "administer_jiroo",
+        principalType: "group",
+        groupId: group.id,
+      },
+      {
+        scope: "global",
+        permissionKey: "manage_users_groups",
+        principalType: "user",
+        userId: secondMemberId,
+      },
+    ]);
+
+    await expect(
+      addGroupMember(
+        { groupId: group.id, userId: secondMemberId },
+        secondMemberId,
+        correlation("escalation-group-add"),
+      ),
+    ).rejects.toThrow("Seul un administrateur Jiroo peut modifier les membres de ce groupe.");
+    expect(
+      await db.select({ id: groupMembers.id }).from(groupMembers).where(
+        and(eq(groupMembers.groupId, group.id), eq(groupMembers.userId, secondMemberId)),
+      ),
+    ).toEqual([]);
+  });
+
   it("creates custom roles and assigns both user and group occupants per backlog", async () => {
     const group = await createGroup({ name: "Spécialistes" }, actorId, correlation("role-group"));
     createdGroupIds.push(group.id);
@@ -440,6 +483,7 @@ describeDb("transactional authorization administration", () => {
         permission: "manage_releases",
         principal: { type: "user", userId: memberId },
         expectedVersion: 1,
+        expectedUsageCount: 0,
       },
       actorId,
       correlation("grant-add"),
@@ -453,6 +497,7 @@ describeDb("transactional authorization administration", () => {
           permission: "browse_backlog",
           principal: { type: "user", userId: secondMemberId },
           expectedVersion: 1,
+          expectedUsageCount: 0,
         },
         actorId,
         correlation("grant-stale"),
@@ -480,7 +525,7 @@ describeDb("transactional authorization administration", () => {
     );
 
     await removeSchemeGrant(
-      { schemeId, grantId: grant.id, expectedVersion: 2 },
+      { schemeId, grantId: grant.id, expectedVersion: 2, expectedUsageCount: 0 },
       actorId,
       correlation("grant-remove"),
     );
@@ -804,6 +849,7 @@ describeDb("transactional authorization administration", () => {
           permission: "delete_items",
           principal: { type: "user", userId: memberId },
           expectedVersion: 1,
+          expectedUsageCount: 1,
         },
         actorId,
         correlation("simple-direct-add"),
@@ -828,7 +874,12 @@ describeDb("transactional authorization administration", () => {
 
     await expect(
       removeSchemeGrant(
-        { schemeId: removeSchemeId, grantId: grant!.id, expectedVersion: 1 },
+        {
+          schemeId: removeSchemeId,
+          grantId: grant!.id,
+          expectedVersion: 1,
+          expectedUsageCount: 1,
+        },
         actorId,
         correlation("simple-direct-remove"),
       ),
@@ -887,6 +938,95 @@ describeDb("transactional authorization administration", () => {
         correlation("simple-made-shared"),
       ),
     ).rejects.toThrow("Le mode Simple est indisponible : ce schéma est partagé.");
+  });
+
+  it("rejects a grant edit when a concurrent association changed the sharing snapshot", async () => {
+    const schemeId = await createCanonicalScheme("Partage concurrent Task 8");
+    await createConfiguredBacklog(schemeId, "advanced", "Partage source Task 8");
+    const otherSchemeId = await createCanonicalScheme("Partage autre Task 8");
+    const secondBacklog = await createConfiguredBacklog(
+      otherSchemeId,
+      "advanced",
+      "Partage second Task 8",
+    );
+
+    await associatePermissionScheme(
+      { backlogId: secondBacklog.id, schemeId },
+      actorId,
+      correlation("sharing-concurrent-association"),
+    );
+    await expect(addSchemeGrant({
+      schemeId,
+      permission: "manage_releases",
+      principal: { type: "user", userId: memberId },
+      expectedVersion: 1,
+      expectedUsageCount: 1,
+    }, actorId, correlation("sharing-stale-edit"))).rejects.toThrow(
+      "Les backlogs associés à ce schéma ont changé. Rechargez la page.",
+    );
+    expect(await storedVersion(schemeId)).toBe(1);
+  });
+
+  it("rolls back an atomic Simple role move when the target already exists", async () => {
+    const schemeId = await createCanonicalScheme("Move rollback Task 8");
+    const backlog = await createConfiguredBacklog(schemeId, "simple", "Move rollback Task 8");
+    const memberRoleId = protectedRoleIds.get("members")!;
+    const viewerRoleId = protectedRoleIds.get("viewers")!;
+    await db.insert(backlogRoleActors).values([
+      { backlogId: backlog.id, projectRoleId: memberRoleId, actorType: "user", userId: memberId },
+      { backlogId: backlog.id, projectRoleId: viewerRoleId, actorType: "user", userId: memberId },
+    ]);
+
+    await expect(moveBacklogRoleActor({
+      backlogId: backlog.id,
+      sourceProjectRoleId: memberRoleId,
+      targetProjectRoleId: viewerRoleId,
+      principal: { type: "user", userId: memberId },
+    }, actorId, correlation("move-rollback"))).rejects.toThrow(
+      "Cette affectation de rôle existe déjà.",
+    );
+    const stored = await db.select({ projectRoleId: backlogRoleActors.projectRoleId })
+      .from(backlogRoleActors)
+      .where(and(eq(backlogRoleActors.backlogId, backlog.id), eq(backlogRoleActors.userId, memberId)));
+    expect(stored).toEqual(expect.arrayContaining([
+      { projectRoleId: memberRoleId },
+      { projectRoleId: viewerRoleId },
+    ]));
+  });
+
+  it("serializes concurrent Simple role moves and keeps exactly one target", async () => {
+    const schemeId = await createCanonicalScheme("Move concurrence Task 8");
+    const backlog = await createConfiguredBacklog(schemeId, "simple", "Move concurrence Task 8");
+    const memberRoleId = protectedRoleIds.get("members")!;
+    const viewerRoleId = protectedRoleIds.get("viewers")!;
+    await db.insert(backlogRoleActors).values({
+      backlogId: backlog.id,
+      projectRoleId: memberRoleId,
+      actorType: "user",
+      userId: secondMemberId,
+    });
+
+    const outcomes = await withTimeout(Promise.allSettled([
+      moveBacklogRoleActor({
+        backlogId: backlog.id,
+        sourceProjectRoleId: memberRoleId,
+        targetProjectRoleId: viewerRoleId,
+        principal: { type: "user", userId: secondMemberId },
+      }, actorId, correlation("move-concurrent-viewer")),
+      moveBacklogRoleActor({
+        backlogId: backlog.id,
+        sourceProjectRoleId: memberRoleId,
+        targetProjectRoleId: administratorRoleId,
+        principal: { type: "user", userId: secondMemberId },
+      }, actorId, correlation("move-concurrent-admin")),
+    ]));
+    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
+    expect(outcomes.filter((outcome) => outcome.status === "rejected")).toHaveLength(1);
+    const stored = await db.select({ projectRoleId: backlogRoleActors.projectRoleId })
+      .from(backlogRoleActors)
+      .where(and(eq(backlogRoleActors.backlogId, backlog.id), eq(backlogRoleActors.userId, secondMemberId)));
+    expect(stored).toHaveLength(1);
+    expect(stored[0]!.projectRoleId).not.toBe(memberRoleId);
   });
 
   it(

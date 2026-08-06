@@ -28,6 +28,7 @@ import {
   groupDeleteInput,
   groupMembershipInput,
   groupRenameInput,
+  moveBacklogRoleActorInput,
   permissionHelperInput,
   permissionSchemeCloneInput,
   projectRoleCreateInput,
@@ -53,6 +54,10 @@ const SIMPLE_SHARED_MESSAGE =
   "Le mode Simple est indisponible : ce schéma est partagé.";
 const SIMPLE_MATRIX_MESSAGE =
   "Le mode Simple est indisponible : ce schéma contient des autorisations avancées.";
+const STALE_SCHEME_USAGE_MESSAGE =
+  "Les backlogs associés à ce schéma ont changé. Rechargez la page.";
+const PRIVILEGED_GROUP_MEMBERSHIP_MESSAGE =
+  "Seul un administrateur Jiroo peut modifier les membres de ce groupe.";
 // Group-reference writes take membership topology first. Scheme/configuration writes
 // then take scheme topology, scheme rows by ID, and backlog configurations by ID.
 const MEMBERSHIP_TOPOLOGY_LOCK = "authorization-membership-topology";
@@ -189,6 +194,58 @@ async function existingGroup(tx: Transaction, groupId: string) {
     .where(eq(userGroups.id, groupId));
   if (!group) throw new ProtectedInvariantError("Groupe introuvable.");
   return group;
+}
+
+async function groupRequiresPlatformAdministration(
+  tx: Transaction,
+  group: { id: string; protected: boolean },
+): Promise<boolean> {
+  if (group.protected) return true;
+  const [grant] = await tx
+    .select({ id: permissionGrants.id })
+    .from(permissionGrants)
+    .where(
+      and(
+        eq(permissionGrants.scope, "global"),
+        eq(permissionGrants.permissionKey, "administer_jiroo"),
+        eq(permissionGrants.groupId, group.id),
+      ),
+    )
+    .limit(1);
+  return Boolean(grant);
+}
+
+async function platformAdministratorIds(tx: Transaction): Promise<Set<string>> {
+  const users = await tx.select({ id: user.id, role: user.role }).from(user);
+  const grants = await tx
+    .select({
+      id: permissionGrants.id,
+      principalType: permissionGrants.principalType,
+      userId: permissionGrants.userId,
+      groupId: permissionGrants.groupId,
+    })
+    .from(permissionGrants)
+    .where(
+      and(
+        eq(permissionGrants.scope, "global"),
+        eq(permissionGrants.permissionKey, "administer_jiroo"),
+      ),
+    );
+  const memberships = await tx
+    .select({ groupId: groupMembers.groupId, userId: groupMembers.userId })
+    .from(groupMembers);
+  return resolvePlatformAdministratorIds({ users, grants, memberships });
+}
+
+async function assertGroupMembershipActorAllowed(
+  tx: Transaction,
+  group: { id: string; protected: boolean },
+  actorId: string,
+): Promise<void> {
+  if (!(await groupRequiresPlatformAdministration(tx, group))) return;
+  if (!(await platformAdministratorIds(tx)).has(actorId)) {
+    throw new ProtectedInvariantError(PRIVILEGED_GROUP_MEMBERSHIP_MESSAGE);
+  }
 }
 
 async function lockedRole(tx: Transaction, projectRoleId: string) {
@@ -372,6 +429,19 @@ async function assertSimpleSchemeInvariant(
   if (!schemeConfigs.some((config) => config.accessMode === "simple")) return;
   if (schemeConfigs.length !== 1) throw new ProtectedInvariantError(SIMPLE_SHARED_MESSAGE);
   await assertCanonicalSimpleMatrix(tx, schemeId, grantProjection);
+}
+
+function assertExpectedSchemeUsage(
+  schemeId: string,
+  configs: LockedBacklogConfig[],
+  expectedUsageCount: number,
+): void {
+  const actualUsageCount = configs.filter(
+    (config) => config.permissionSchemeId === schemeId,
+  ).length;
+  if (actualUsageCount !== expectedUsageCount) {
+    throw new ProtectedInvariantError(STALE_SCHEME_USAGE_MESSAGE);
+  }
 }
 
 type EffectiveAdminExclusion = {
@@ -643,6 +713,7 @@ export async function addGroupMember(
     await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
     await lockAggregate(tx, "authorization-global-permissions");
     const group = await existingGroup(tx, parsed.groupId);
+    await assertGroupMembershipActorAllowed(tx, group, actorId);
     const label = await actorLabel(tx, actorId);
     await assertPrincipalExists(tx, { type: "user", userId: parsed.userId });
     const affected = await affectedBacklogsForGroup(tx, group.id);
@@ -680,6 +751,7 @@ export async function removeGroupMember(
     await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
     await lockAggregate(tx, "authorization-global-permissions");
     const group = await existingGroup(tx, parsed.groupId);
+    await assertGroupMembershipActorAllowed(tx, group, actorId);
     const label = await actorLabel(tx, actorId);
     const [membership] = await tx
       .select({ id: groupMembers.id })
@@ -952,6 +1024,107 @@ export async function removeBacklogRoleActor(
   });
 }
 
+export async function moveBacklogRoleActor(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId?: string,
+) {
+  const parsed = moveBacklogRoleActorInput.parse(input);
+  return db.transaction(async (tx) => {
+    await lockAggregate(tx, MEMBERSHIP_TOPOLOGY_LOCK);
+    const config = await lockedBacklogConfig(tx, parsed.backlogId);
+    if (config.accessMode !== "simple") {
+      throw new ProtectedInvariantError(
+        "Le déplacement simplifié est réservé au mode Simple.",
+      );
+    }
+
+    const lockedRoles = new Map<string, Awaited<ReturnType<typeof lockedRole>>>();
+    for (const roleId of [
+      parsed.sourceProjectRoleId,
+      parsed.targetProjectRoleId,
+    ].sort()) {
+      lockedRoles.set(roleId, await lockedRole(tx, roleId));
+    }
+    const sourceRole = lockedRoles.get(parsed.sourceProjectRoleId)!;
+    const targetRole = lockedRoles.get(parsed.targetProjectRoleId)!;
+    if (!sourceRole.protected || !targetRole.protected) {
+      throw new ProtectedInvariantError(
+        "Le déplacement simplifié exige deux rôles protégés.",
+      );
+    }
+
+    const sourceInput: BacklogRoleActorInput = {
+      backlogId: parsed.backlogId,
+      projectRoleId: parsed.sourceProjectRoleId,
+      principal: parsed.principal,
+    };
+    const targetInput: BacklogRoleActorInput = {
+      backlogId: parsed.backlogId,
+      projectRoleId: parsed.targetProjectRoleId,
+      principal: parsed.principal,
+    };
+    const [source] = await tx
+      .select({ id: backlogRoleActors.id })
+      .from(backlogRoleActors)
+      .where(roleActorCondition(sourceInput))
+      .for("update");
+    if (!source) {
+      throw new ProtectedInvariantError("Cette affectation de rôle est introuvable.");
+    }
+    const [target] = await tx
+      .select({ id: backlogRoleActors.id })
+      .from(backlogRoleActors)
+      .where(roleActorCondition(targetInput))
+      .for("update");
+    if (target) {
+      throw new ProtectedInvariantError("Cette affectation de rôle existe déjà.");
+    }
+
+    await assertBacklogAdministratorsRemain(tx, [parsed.backlogId], {
+      roleActorId: source.id,
+    });
+    const label = await actorLabel(tx, actorId);
+    await tx.delete(backlogRoleActors).where(eq(backlogRoleActors.id, source.id));
+    const values = parsed.principal.type === "user"
+      ? { actorType: "user" as const, userId: parsed.principal.userId }
+      : { actorType: "group" as const, groupId: parsed.principal.groupId };
+    const [occupancy] = await tx
+      .insert(backlogRoleActors)
+      .values({
+        backlogId: parsed.backlogId,
+        projectRoleId: parsed.targetProjectRoleId,
+        ...values,
+      })
+      .returning({ id: backlogRoleActors.id });
+    if (!occupancy) throw new Error("Déplacement de rôle impossible.");
+    await appendSecurityAuditEvent(tx, {
+      actorId,
+      actorLabel: label,
+      action: "backlog_role_actor_moved",
+      scope: "backlog",
+      backlogId: parsed.backlogId,
+      targetType: "backlog_role_actor",
+      targetId: occupancy.id,
+      oldValue: {
+        actorId: source.id,
+        projectRoleId: parsed.sourceProjectRoleId,
+        principal: parsed.principal,
+      },
+      newValue: {
+        projectRoleId: parsed.targetProjectRoleId,
+        principal: parsed.principal,
+      },
+      requestCorrelationId: correlationId(requestCorrelationId),
+    });
+    return {
+      id: occupancy.id,
+      previousId: source.id,
+      backlogKey: config.backlogKey,
+    };
+  });
+}
+
 export async function clonePermissionScheme(
   input: unknown,
   actorId: string,
@@ -1026,6 +1199,7 @@ export async function addSchemeGrant(
     const scheme = await lockedScheme(tx, parsed.schemeId);
     const configs = await lockSchemeConfigurations(tx, [scheme.id]);
     if (scheme.version !== parsed.expectedVersion) throw new StaleSchemeVersionError();
+    assertExpectedSchemeUsage(scheme.id, configs, parsed.expectedUsageCount);
     await assertPrincipalExists(tx, parsed.principal);
     const principal = principalColumns(parsed.principal);
     await assertSimpleSchemeInvariant(tx, scheme.id, configs, {
@@ -1084,6 +1258,7 @@ export async function removeSchemeGrant(
     const scheme = await lockedScheme(tx, parsed.schemeId);
     const configs = await lockSchemeConfigurations(tx, [scheme.id]);
     if (scheme.version !== parsed.expectedVersion) throw new StaleSchemeVersionError();
+    assertExpectedSchemeUsage(scheme.id, configs, parsed.expectedUsageCount);
     const label = await actorLabel(tx, actorId);
     const [grant] = await tx
       .select({
@@ -1317,6 +1492,20 @@ export async function listAffectedBacklogs(schemeId: string) {
   return affectedBacklogsForScheme(db as unknown as Transaction, parsedSchemeId);
 }
 
+export async function groupMembershipRequiredPermission(
+  groupId: string,
+): Promise<"manage_users_groups" | "administer_jiroo"> {
+  const parsedGroupId = groupDeleteInput.shape.groupId.parse(groupId);
+  const [group] = await db
+    .select({ id: userGroups.id, protected: userGroups.protected })
+    .from(userGroups)
+    .where(eq(userGroups.id, parsedGroupId));
+  if (!group) throw new ProtectedInvariantError("Groupe introuvable.");
+  return (await groupRequiresPlatformAdministration(db as unknown as Transaction, group))
+    ? "administer_jiroo"
+    : "manage_users_groups";
+}
+
 export async function listGroups() {
   const [groups, memberships, grantReferences, roleReferences] = await Promise.all([
     db
@@ -1341,6 +1530,14 @@ export async function listGroups() {
   ]);
   return groups.map((group) => ({
     ...group,
+    membershipRequiresPlatformAdmin:
+      group.protected ||
+      grantReferences.some(
+        (entry) =>
+          entry.groupId === group.id &&
+          entry.scope === "global" &&
+          entry.permissionKey === "administer_jiroo",
+      ),
     memberCount: memberships.filter((entry) => entry.groupId === group.id).length,
     members: memberships
       .filter((entry) => entry.groupId === group.id)

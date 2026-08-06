@@ -9,6 +9,7 @@ const userId = z.string().trim().min(1);
 const administrationName = z.string().trim().min(1).max(80);
 const description = z.string().trim().max(500).nullable().optional();
 const expectedVersion = z.number().int().positive();
+const expectedUsageCount = z.number().int().nonnegative();
 
 const backlogPermission = z.enum(BACKLOG_PERMISSION_KEYS);
 const globalPermission = z.enum(GLOBAL_PERMISSION_KEYS);
@@ -66,6 +67,19 @@ export const backlogRoleActorInput = z
   })
   .strict();
 
+export const moveBacklogRoleActorInput = z
+  .object({
+    backlogId: uuid,
+    sourceProjectRoleId: uuid,
+    targetProjectRoleId: uuid,
+    principal: backlogRolePrincipalInput,
+  })
+  .strict()
+  .refine((input) => input.sourceProjectRoleId !== input.targetProjectRoleId, {
+    message: "Les rôles source et cible doivent être différents.",
+    path: ["targetProjectRoleId"],
+  });
+
 export const permissionSchemeCloneInput = z
   .object({ sourceSchemeId: uuid, name: administrationName, description })
   .strict();
@@ -76,11 +90,12 @@ export const grantInput = z
     permission: backlogPermission,
     principal: schemeGrantPrincipalInput,
     expectedVersion,
+    expectedUsageCount,
   })
   .strict();
 
 export const schemeGrantRemovalInput = z
-  .object({ schemeId: uuid, grantId: uuid, expectedVersion })
+  .object({ schemeId: uuid, grantId: uuid, expectedVersion, expectedUsageCount })
   .strict();
 
 export const globalGrantInput = z
@@ -116,6 +131,7 @@ export type ProjectRoleCreateInput = z.infer<typeof projectRoleCreateInput>;
 export type ProjectRoleUpdateInput = z.infer<typeof projectRoleUpdateInput>;
 export type ProjectRoleDeleteInput = z.infer<typeof projectRoleDeleteInput>;
 export type BacklogRoleActorInput = z.infer<typeof backlogRoleActorInput>;
+export type MoveBacklogRoleActorInput = z.infer<typeof moveBacklogRoleActorInput>;
 export type PermissionSchemeCloneInput = z.infer<typeof permissionSchemeCloneInput>;
 export type GrantInput = z.infer<typeof grantInput>;
 export type SchemeGrantRemovalInput = z.infer<typeof schemeGrantRemovalInput>;

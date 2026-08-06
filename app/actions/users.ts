@@ -3,9 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requirePermission } from "@/lib/auth/authorization";
-import type { Role } from "@/lib/auth/rbac";
 import { getSession } from "@/lib/auth/session";
-import { createUser, setUserRole } from "@/lib/services/users";
+import { createUser } from "@/lib/services/users";
 
 // ---------------------------------------------------------------------------
 // Auth gate
@@ -69,23 +68,9 @@ export async function createUserAction(input: {
 }
 
 export async function setUserRoleAction(input: { userId: string; role: string }) {
-  const adminId = await authenticatedActorId();
-  try {
-    await requireUserAdministrator(adminId);
-    // Prevent the admin from accidentally revoking their own admin role, which
-    // would lock them out of the admin panel with no way back.
-    if (input.userId === adminId && input.role !== "admin") {
-      return {
-        ok: false as const,
-        error: "Vous ne pouvez pas retirer votre propre rôle administrateur.",
-      };
-    }
-    await setUserRole(input.userId, input.role as Role);
-    revalidatePath("/admin");
-    return { ok: true as const };
-  } catch (e) {
-    const authorizationError = mapActionAuthorizationError(e);
-    if (authorizationError) return authorizationError;
-    return { ok: false as const, error: mapUserError(e) };
-  }
+  void input;
+  return {
+    ok: false as const,
+    error: "Les rôles de compte hérités ne peuvent plus être modifiés.",
+  };
 }

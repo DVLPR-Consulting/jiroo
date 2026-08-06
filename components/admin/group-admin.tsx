@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 export type GroupAdminDto = {
   id: string; name: string; protected: boolean; memberCount: number;
   members: AuthorizationUserOption[]; blockers: string[];
+  membershipRequiresPlatformAdmin: boolean;
 };
 export type GroupAdminProps = {
   groups: GroupAdminDto[];
@@ -44,6 +45,8 @@ export function GroupAdmin({ groups, users, globalGrants, canAdministerGlobals }
         const available = users.filter((candidate) => !group.members.some((member) => member.id === candidate.id));
         const selected = selectedUsers[group.id] ?? "";
         const selectedLabel = users.find((candidate) => candidate.id === selected)?.name ?? "ce membre";
+        const canManageMembership =
+          !group.membershipRequiresPlatformAdmin || canAdministerGlobals;
         return <section role="region" aria-label={group.name} key={group.id} className="space-y-3 rounded-xl border border-border p-4" aria-busy={pending}>
           <div className="flex items-center gap-2">
             <Input aria-label="Nom du groupe" value={names[group.id] ?? group.name} disabled={group.protected || pending} onChange={(e) => setNames((current) => ({ ...current, [group.id]: e.target.value }))} />
@@ -52,11 +55,11 @@ export function GroupAdmin({ groups, users, globalGrants, canAdministerGlobals }
             {!group.protected && <Button className="ml-auto" size="sm" variant="destructive" onClick={() => setDeleting(group)}>Supprimer le groupe</Button>}
           </div>
           <p className="text-xs text-muted-foreground">{group.memberCount} membre{group.memberCount > 1 ? "s" : ""}</p>
-          <ul className="space-y-1">{group.members.map((member) => <li key={member.id} className="flex items-center gap-2 text-sm"><span>{member.name}</span><span className="text-muted-foreground">{member.email}</span><Button className="ml-auto" size="xs" variant="ghost" disabled={pending} onClick={() => run(() => removeGroupMemberAction({ groupId: group.id, userId: member.id }))} aria-label={`Retirer ${member.name}`}>Retirer</Button></li>)}</ul>
-          <div className="flex gap-2">
+          <ul className="space-y-1">{group.members.map((member) => <li key={member.id} className="flex items-center gap-2 text-sm"><span>{member.name}</span><span className="text-muted-foreground">{member.email}</span>{canManageMembership && <Button className="ml-auto" size="xs" variant="ghost" disabled={pending} onClick={() => run(() => removeGroupMemberAction({ groupId: group.id, userId: member.id }))} aria-label={`Retirer ${member.name}`}>Retirer</Button>}</li>)}</ul>
+          {canManageMembership && <div className="flex gap-2">
             <select aria-label="Ajouter un membre" value={selected} onChange={(e) => setSelectedUsers((current) => ({ ...current, [group.id]: e.target.value }))} className="h-8 flex-1 rounded-lg border border-input bg-background px-2 text-sm"><option value="">Choisir…</option>{available.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select>
             <Button size="sm" disabled={!selected || pending} onClick={() => run(() => addGroupMemberAction({ groupId: group.id, userId: selected }), () => setSelectedUsers((current) => ({ ...current, [group.id]: "" })))} aria-label={`Ajouter ${selectedLabel}`}>Ajouter</Button>
-          </div>
+          </div>}
           {group.blockers.length > 0 && <ul className="list-disc pl-5 text-xs text-muted-foreground">{group.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul>}
         </section>;
       })}

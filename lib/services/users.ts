@@ -64,6 +64,9 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
  * action layer, not here, to keep this function testable in isolation.
  */
 export async function setUserRole(userId: string, role: Role): Promise<AdminUserRow> {
+  if (role === "admin") {
+    throw new Error("Le rôle administrateur brut ne peut pas être attribué.");
+  }
   const parsed = setRoleInput.safeParse({ userId, role });
   if (!parsed.success) {
     throw new Error(parsed.error.issues[0]?.message ?? "Rôle invalide.");

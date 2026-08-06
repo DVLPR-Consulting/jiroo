@@ -1,6 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/react";
+
+const classes = vi.hoisted(() => ({
+  ResourceNotFoundError: class ResourceNotFoundError extends Error {
+    constructor(readonly resourceType: string, readonly resourceId: string) {
+      super("resource not found");
+    }
+  },
+}));
 
 const mocks = vi.hoisted(() => ({
+  accessProps: vi.fn(),
   checkPermission: vi.fn(),
   listGroups: vi.fn(), listPermissionSchemes: vi.fn(), readBacklogAccess: vi.fn(), listAdminUsers: vi.fn(),
   notFound: vi.fn(), redirect: vi.fn(), requireBacklogPermissionByKey: vi.fn(), requireSession: vi.fn(),
@@ -9,12 +19,21 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound, redirect: mocks.redirect }));
 vi.mock("@/lib/auth/session", () => ({ requireAppPageSession: mocks.requireSession }));
 vi.mock("@/lib/auth/action-authorization", () => ({ requireBacklogPermissionByKey: mocks.requireBacklogPermissionByKey }));
-vi.mock("@/lib/auth/authorization", () => ({ checkPermission: mocks.checkPermission }));
+vi.mock("@/lib/auth/authorization", () => ({
+  checkPermission: mocks.checkPermission,
+  ResourceNotFoundError: classes.ResourceNotFoundError,
+}));
 vi.mock("@/lib/services/users", () => ({ listAdminUsers: mocks.listAdminUsers }));
 vi.mock("@/lib/services/authorization-admin", () => ({
   listGroups: mocks.listGroups, listPermissionSchemes: mocks.listPermissionSchemes, readBacklogAccess: mocks.readBacklogAccess,
 }));
-vi.mock("@/components/admin/access-admin", () => ({ AccessAdmin: () => null }));
+vi.mock("@/components/admin/access-admin", () => ({
+  AccessAdmin: (props: unknown) => {
+    mocks.accessProps(props);
+    return null;
+  },
+}));
+vi.mock("@/components/admin/permission-helper", () => ({ PermissionHelper: () => null }));
 
 import AccessPage from "@/app/(app)/b/[key]/settings/access/page";
 
@@ -26,6 +45,7 @@ describe("backlog access settings route", () => {
     mocks.listGroups.mockResolvedValue([]); mocks.listPermissionSchemes.mockResolvedValue([]); mocks.listAdminUsers.mockResolvedValue([]);
     mocks.readBacklogAccess.mockResolvedValue({ backlog: { id: "b1", key: "DEMO", name: "Démo" }, scheme: { id: "s1", name: "Schéma", version: 1 }, mode: "simple", roles: [] });
     mocks.redirect.mockImplementation((path: string) => { throw new Error(`redirect:${path}`); });
+    mocks.notFound.mockImplementation(() => { throw new Error("not-found"); });
   });
 
   it("résout browse puis autorise manage_members avant toute lecture", async () => {
@@ -38,8 +58,13 @@ describe("backlog access settings route", () => {
 
   it("autorise administer_backlog comme alternative", async () => {
     mocks.checkPermission.mockImplementation(async ({ permission }: { permission: string }) => ({ allowed: permission === "administer_backlog" }));
-    await expect(AccessPage({ params: Promise.resolve({ key: "DEMO" }) })).resolves.toBeTruthy();
+    render(await AccessPage({ params: Promise.resolve({ key: "DEMO" }) }));
     expect(mocks.readBacklogAccess).toHaveBeenCalledWith("b1");
+    expect(mocks.accessProps).toHaveBeenCalledWith(expect.objectContaining({
+      canManageMembers: false,
+      canAdministerBacklog: true,
+      canAdministerJiroo: false,
+    }));
   });
 
   it("refuse avant les lectures sans l’une des deux permissions", async () => {
@@ -47,5 +72,27 @@ describe("backlog access settings route", () => {
     await expect(AccessPage({ params: Promise.resolve({ key: "DEMO" }) })).rejects.toThrow("redirect:/b/DEMO");
     expect(mocks.readBacklogAccess).not.toHaveBeenCalled();
     expect(mocks.listGroups).not.toHaveBeenCalled();
+  });
+
+  it("convertit une clé inconnue en notFound avant toute lecture", async () => {
+    mocks.requireBacklogPermissionByKey.mockRejectedValue(
+      new classes.ResourceNotFoundError("backlog", "UNKNOWN"),
+    );
+
+    await expect(AccessPage({ params: Promise.resolve({ key: "UNKNOWN" }) })).rejects.toThrow("not-found");
+    expect(mocks.notFound).toHaveBeenCalledOnce();
+    expect(mocks.checkPermission).not.toHaveBeenCalled();
+    expect(mocks.readBacklogAccess).not.toHaveBeenCalled();
+  });
+
+  it("convertit un refus browse en notFound sans divulguer le backlog", async () => {
+    mocks.requireBacklogPermissionByKey.mockRejectedValue(
+      new classes.ResourceNotFoundError("backlog", "DEMO"),
+    );
+
+    await expect(AccessPage({ params: Promise.resolve({ key: "DEMO" }) })).rejects.toThrow("not-found");
+    expect(mocks.notFound).toHaveBeenCalledOnce();
+    expect(mocks.listGroups).not.toHaveBeenCalled();
+    expect(mocks.listAdminUsers).not.toHaveBeenCalled();
   });
 });

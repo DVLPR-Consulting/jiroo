@@ -32,6 +32,8 @@ const mocks = vi.hoisted(() => ({
   deleteProjectRole: vi.fn(),
   getPermissionHelperResult: vi.fn(),
   getSession: vi.fn(),
+  groupMembershipRequiredPermission: vi.fn(),
+  moveBacklogRoleActor: vi.fn(),
   removeBacklogRoleActor: vi.fn(),
   removeGlobalPermissionGrant: vi.fn(),
   removeGroupMember: vi.fn(),
@@ -62,6 +64,8 @@ vi.mock("@/lib/services/authorization-admin", () => ({
   deleteGroup: mocks.deleteGroup,
   deleteProjectRole: mocks.deleteProjectRole,
   getPermissionHelperResult: mocks.getPermissionHelperResult,
+  groupMembershipRequiredPermission: mocks.groupMembershipRequiredPermission,
+  moveBacklogRoleActor: mocks.moveBacklogRoleActor,
   removeBacklogRoleActor: mocks.removeBacklogRoleActor,
   removeGlobalPermissionGrant: mocks.removeGlobalPermissionGrant,
   removeGroupMember: mocks.removeGroupMember,
@@ -79,6 +83,7 @@ import {
   assignBacklogRoleActorAction,
   associatePermissionSchemeAction,
   createGroupAction,
+  moveBacklogRoleActorAction,
   permissionHelperAction,
   removeBacklogRoleActorAction,
   removeGroupMemberAction,
@@ -105,6 +110,7 @@ describe("authorization administration Server Actions", () => {
     });
     mocks.requirePermission.mockImplementation(async (input) => allowed(input.scope));
     mocks.appendPlatformAdministratorBypassEvent.mockResolvedValue(undefined);
+    mocks.groupMembershipRequiredPermission.mockResolvedValue("manage_users_groups");
   });
 
   it("derives the actor from the session and requires manage_users_groups to create groups", async () => {
@@ -268,6 +274,51 @@ describe("authorization administration Server Actions", () => {
     await removeGroupMemberAction({ groupId, userId: "member-1" });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/OPS");
+  });
+
+  it.each([
+    ["add", () => addGroupMemberAction({ groupId, userId: "member-1" }), mocks.addGroupMember],
+    ["remove", () => removeGroupMemberAction({ groupId, userId: "member-1" }), mocks.removeGroupMember],
+  ])("requires administer_jiroo before %s on a privileged group", async (_name, run, service) => {
+    mocks.groupMembershipRequiredPermission.mockResolvedValue("administer_jiroo");
+    mocks.requirePermission.mockImplementation(async (input) => {
+      if (input.permission !== "administer_jiroo") return allowed(input.scope);
+      throw new classes.PermissionDeniedError({
+          allowed: false,
+          permission: "administer_jiroo",
+          scope: { type: "global" },
+          reasons: [{ type: "no_matching_grant" }],
+        });
+    });
+
+    await expect(run()).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Administrer Jiroo ».",
+    });
+    expect(mocks.requirePermission).toHaveBeenCalledWith({
+      actorId: "actor-session",
+      permission: "administer_jiroo",
+      scope: { type: "global" },
+    });
+    expect(service).not.toHaveBeenCalled();
+  });
+
+  it("moves a Simple role occupant through one authorized domain mutation", async () => {
+    mocks.moveBacklogRoleActor.mockResolvedValue({ backlogKey: "DEMO" });
+
+    await expect(moveBacklogRoleActorAction({
+      backlogId,
+      sourceProjectRoleId: projectRoleId,
+      targetProjectRoleId: "00000000-0000-4000-8000-000000000009",
+      principal: { type: "user", userId: "member-1" },
+    })).resolves.toEqual({ ok: true, occupancy: { backlogKey: "DEMO" } });
+
+    expect(mocks.requirePermission).toHaveBeenCalledWith({
+      actorId: "actor-session",
+      permission: "manage_members",
+      scope: { type: "backlog", backlogId },
+    });
+    expect(mocks.moveBacklogRoleActor).toHaveBeenCalledOnce();
   });
 
   it("records a bypass before the domain service with the same correlation ID", async () => {

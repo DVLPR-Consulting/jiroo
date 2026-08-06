@@ -23,6 +23,8 @@ import {
   deleteGroup,
   deleteProjectRole,
   getPermissionHelperResult,
+  groupMembershipRequiredPermission,
+  moveBacklogRoleActor,
   readSecurityHistory,
   removeBacklogRoleActor,
   removeGlobalPermissionGrant,
@@ -42,6 +44,7 @@ import {
   groupDeleteInput,
   groupMembershipInput,
   groupRenameInput,
+  moveBacklogRoleActorInput,
   permissionHelperInput,
   permissionSchemeCloneInput,
   projectRoleCreateInput,
@@ -81,6 +84,10 @@ const SAFE_INVARIANT_MESSAGES = new Set([
   "Ce membre est introuvable dans le groupe.",
   "Cette affectation de rôle existe déjà.",
   "Cette affectation de rôle est introuvable.",
+  "Les backlogs associés à ce schéma ont changé. Rechargez la page.",
+  "Seul un administrateur Jiroo peut modifier les membres de ce groupe.",
+  "Le déplacement simplifié est réservé au mode Simple.",
+  "Le déplacement simplifié exige deux rôles protégés.",
 ]);
 
 async function authenticatedActorId(): Promise<string> {
@@ -132,6 +139,27 @@ async function authorizeMutation(input: {
     });
   }
   return { actorId, requestCorrelationId };
+}
+
+async function authorizeAdditionalMutation(
+  authorization: { actorId: string; requestCorrelationId: string },
+  input: { permission: string; scope: PermissionScope; targetType: string; targetId: string },
+): Promise<void> {
+  const decision = await requirePermission({
+    actorId: authorization.actorId,
+    permission: input.permission,
+    scope: input.scope,
+  });
+  if (usesPlatformAdministratorBypass(decision)) {
+    await appendPlatformAdministratorBypassEvent({
+      actorId: authorization.actorId,
+      permission: input.permission,
+      scope: input.scope,
+      targetType: input.targetType,
+      targetId: input.targetId,
+      requestCorrelationId: authorization.requestCorrelationId,
+    });
+  }
 }
 
 async function authorizeRead(permission: string, scope: PermissionScope): Promise<string> {
@@ -203,6 +231,14 @@ export async function addGroupMemberAction(input: unknown) {
       targetType: "group_membership",
       targetId: `${parsed.groupId}:${parsed.userId}`,
     });
+    if ((await groupMembershipRequiredPermission(parsed.groupId)) === "administer_jiroo") {
+      await authorizeAdditionalMutation(authorization, {
+        permission: "administer_jiroo",
+        scope: { type: "global" },
+        targetType: "group_membership",
+        targetId: `${parsed.groupId}:${parsed.userId}`,
+      });
+    }
     const membership = await addGroupMember(
       parsed,
       authorization.actorId,
@@ -224,6 +260,14 @@ export async function removeGroupMemberAction(input: unknown) {
       targetType: "group_membership",
       targetId: `${parsed.groupId}:${parsed.userId}`,
     });
+    if ((await groupMembershipRequiredPermission(parsed.groupId)) === "administer_jiroo") {
+      await authorizeAdditionalMutation(authorization, {
+        permission: "administer_jiroo",
+        scope: { type: "global" },
+        targetType: "group_membership",
+        targetId: `${parsed.groupId}:${parsed.userId}`,
+      });
+    }
     const membership = await removeGroupMember(
       parsed,
       authorization.actorId,
@@ -343,6 +387,27 @@ export async function removeBacklogRoleActorAction(input: unknown) {
       targetId: `${parsed.backlogId}:${parsed.projectRoleId}`,
     });
     const occupancy = await removeBacklogRoleActor(
+      parsed,
+      authorization.actorId,
+      authorization.requestCorrelationId,
+    );
+    revalidateAccess([occupancy.backlogKey]);
+    return { ok: true as const, occupancy };
+  } catch (error) {
+    return { ok: false as const, error: safeError(error) };
+  }
+}
+
+export async function moveBacklogRoleActorAction(input: unknown) {
+  try {
+    const parsed = moveBacklogRoleActorInput.parse(input);
+    const authorization = await authorizeMutation({
+      permission: "manage_members",
+      scope: { type: "backlog", backlogId: parsed.backlogId },
+      targetType: "backlog_role_actor",
+      targetId: `${parsed.backlogId}:${parsed.sourceProjectRoleId}:${parsed.targetProjectRoleId}`,
+    });
+    const occupancy = await moveBacklogRoleActor(
       parsed,
       authorization.actorId,
       authorization.requestCorrelationId,

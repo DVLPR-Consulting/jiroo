@@ -25,6 +25,7 @@ const groups = [{
   memberCount: 1,
   members: [{ id: "u1", name: "Ada Lovelace", email: "ada@test" }],
   blockers: ["Utilisé par le rôle Membre dans DEMO"],
+  membershipRequiresPlatformAdmin: false,
 }];
 const users = [
   { id: "u1", name: "Ada Lovelace", email: "ada@test", role: "contributor" as const },
@@ -67,5 +68,17 @@ describe("GroupAdmin", () => {
     const dialog = screen.getByRole("dialog", { name: "Supprimer Équipe produit" });
     await user.click(within(dialog).getByRole("button", { name: "Confirmer la suppression" }));
     await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith({ groupId: groups[0]!.id }));
+  });
+
+  it("masque les mutations de membres d’un groupe privilégié à un simple gestionnaire", () => {
+    render(<GroupAdmin groups={[{
+      ...groups[0]!,
+      name: "Administrateurs de la plateforme",
+      protected: true,
+      membershipRequiresPlatformAdmin: true,
+    }]} users={users} globalGrants={[]} canAdministerGlobals={false} />);
+    const section = screen.getByRole("region", { name: "Administrateurs de la plateforme" });
+    expect(within(section).queryByRole("button", { name: "Retirer Ada Lovelace" })).not.toBeInTheDocument();
+    expect(within(section).queryByRole("combobox", { name: "Ajouter un membre" })).not.toBeInTheDocument();
   });
 });

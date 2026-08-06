@@ -38,11 +38,6 @@ describe("user admin actions", () => {
         }),
       service: mocks.createUser,
     },
-    {
-      name: "change role",
-      run: () => setUserRoleAction({ userId: "user-2", role: "viewer" }),
-      service: mocks.setUserRole,
-    },
   ])("requires manage_users_groups before $name", async ({ run, service }) => {
     mocks.createUser.mockResolvedValue({ id: "user-2" });
     mocks.setUserRole.mockResolvedValue({ id: "user-2" });
@@ -113,34 +108,13 @@ describe("user admin actions", () => {
     ).resolves.toEqual({ ok: false, error: "Action impossible." });
   });
 
-  it.each(["L’utilisateur est requis.", "Rôle invalide.", "Utilisateur introuvable."])(
-    "preserves the safe role error: %s",
-    async (message) => {
-      mocks.setUserRole.mockRejectedValue(new Error(message));
-
-      await expect(setUserRoleAction({ userId: "user-2", role: "viewer" })).resolves.toEqual({
-        ok: false,
-        error: message,
-      });
-      expect(mocks.revalidatePath).not.toHaveBeenCalled();
-    },
-  );
-
-  it("prevents self-demotion before touching persistence", async () => {
-    await expect(setUserRoleAction({ userId: "admin-1", role: "viewer" })).resolves.toEqual({
+  it("désactive l’ancienne frontière de rôle même pour un appel forgé vers admin", async () => {
+    await expect(setUserRoleAction({ userId: "admin-1", role: "admin" })).resolves.toEqual({
       ok: false,
-      error: "Vous ne pouvez pas retirer votre propre rôle administrateur.",
+      error: "Les rôles de compte hérités ne peuvent plus être modifiés.",
     });
+    expect(mocks.requirePermission).not.toHaveBeenCalled();
     expect(mocks.setUserRole).not.toHaveBeenCalled();
-  });
-
-  it("revalidates only the admin route after success", async () => {
-    mocks.setUserRole.mockResolvedValue({ id: "user-2", role: "viewer" });
-
-    await expect(setUserRoleAction({ userId: "user-2", role: "viewer" })).resolves.toEqual({
-      ok: true,
-    });
-    expect(mocks.revalidatePath).toHaveBeenCalledTimes(1);
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin");
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 });

@@ -46,12 +46,22 @@ describe("PermissionSchemeAdmin", () => {
     const dialog = screen.getByRole("dialog", { name: "Matrice de Produit partagé" });
     expect(within(dialog).getByRole("heading", { name: "Accès" })).toBeVisible();
     expect(within(dialog).getByRole("heading", { name: "Commentaires" })).toBeVisible();
+    expect(within(dialog).getAllByText("Gérer les releases")[0]).toBeVisible();
+    expect(within(dialog).getAllByText("Aucun grant").length).toBeGreaterThan(0);
     expect(within(dialog).getByRole("button", { name: "Retirer Produit de Consulter le backlog" })).toBeVisible();
   });
 
   it("utilise type et recherche de principal pour ajouter un grant", async () => {
     const user = userEvent.setup();
-    mocks.add.mockResolvedValue({ ok: true, grant: { version: 8 } });
+    mocks.add.mockResolvedValue({
+      ok: true,
+      grant: {
+        id: "77777777-7777-4777-8777-777777777777",
+        permission: "edit_items",
+        principalType: "user",
+        version: 8,
+      },
+    });
     render(<PermissionSchemeAdmin schemes={[scheme]} users={[{ id: "u1", name: "Ada", email: "ada@test" }]} groups={[]} roles={[]} />);
     await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
     await user.selectOptions(screen.getByRole("combobox", { name: "Type de principal" }), "user");
@@ -62,8 +72,38 @@ describe("PermissionSchemeAdmin", () => {
     expect(within(confirmation).getByText("Démonstration (DEMO)")).toBeVisible();
     await user.click(within(confirmation).getByRole("button", { name: "Confirmer la modification" }));
     await waitFor(() => expect(mocks.add).toHaveBeenCalledWith({
-      schemeId: scheme.id, permission: "edit_items", principal: { type: "user", userId: "u1" }, expectedVersion: 7,
+      schemeId: scheme.id, permission: "edit_items", principal: { type: "user", userId: "u1" }, expectedVersion: 7, expectedUsageCount: 2,
     }));
+  });
+
+  it("synchronise grants et version pour deux mutations successives", async () => {
+    const user = userEvent.setup();
+    const addedGrantId = "66666666-6666-4666-8666-666666666666";
+    mocks.add.mockResolvedValue({
+      ok: true,
+      grant: { id: addedGrantId, permission: "edit_items", principalType: "user", version: 8 },
+    });
+    mocks.remove.mockResolvedValue({ ok: true, grant: { id: addedGrantId, version: 9 } });
+    render(<PermissionSchemeAdmin schemes={[scheme]} users={[{ id: "u1", name: "Ada", email: "ada@test" }]} groups={[]} roles={[]} />);
+
+    await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
+    await user.type(screen.getByRole("combobox", { name: "Rechercher un principal" }), "Ada");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Permission de backlog" }), "edit_items");
+    await user.click(screen.getByRole("button", { name: "Ajouter le grant" }));
+    await user.click(screen.getByRole("button", { name: "Confirmer la modification" }));
+
+    const addedChip = await screen.findByRole("button", { name: "Retirer Ada de Modifier les éléments" });
+    expect(screen.getByText("Version 8")).toBeVisible();
+    await user.click(addedChip);
+    await user.click(screen.getByRole("button", { name: "Confirmer la modification" }));
+
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith({
+      schemeId: scheme.id,
+      grantId: addedGrantId,
+      expectedVersion: 8,
+      expectedUsageCount: 2,
+    }));
+    expect(await screen.findByText("Version 9")).toBeVisible();
   });
 
   it("retient le dialogue et affiche le message stale exact", async () => {

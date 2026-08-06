@@ -2,10 +2,11 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ assign: vi.fn(), remove: vi.fn(), associate: vi.fn(), mode: vi.fn() }));
+const mocks = vi.hoisted(() => ({ assign: vi.fn(), remove: vi.fn(), move: vi.fn(), associate: vi.fn(), mode: vi.fn() }));
 vi.mock("@/app/actions/authorization", () => ({
   assignBacklogRoleActorAction: mocks.assign,
   removeBacklogRoleActorAction: mocks.remove,
+  moveBacklogRoleActorAction: mocks.move,
   associatePermissionSchemeAction: mocks.associate,
   setBacklogAccessModeAction: mocks.mode,
 }));
@@ -29,6 +30,7 @@ const base = {
   schemes: [{ id: "22222222-2222-4222-8222-222222222222", name: "Schéma DEMO", version: 4, usageCount: 1 }],
   canManageMembers: true,
   canAdministerBacklog: true,
+  canAdministerJiroo: true,
 };
 
 describe("AccessAdmin", () => {
@@ -55,6 +57,26 @@ describe("AccessAdmin", () => {
       projectRoleId: base.access.roles[2]!.id,
       principal: { type: "user", userId: "u2" },
     });
+  });
+
+  it("déplace un occupant Simple par une seule mutation atomique", async () => {
+    const user = userEvent.setup();
+    mocks.move.mockResolvedValue({ ok: true });
+    render(<AccessAdmin {...base} />);
+
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Rôle de Produit" }),
+      base.access.roles[2]!.id,
+    );
+
+    expect(mocks.move).toHaveBeenCalledWith({
+      backlogId: base.access.backlog.id,
+      sourceProjectRoleId: base.access.roles[1]!.id,
+      targetProjectRoleId: base.access.roles[2]!.id,
+      principal: { type: "group", groupId: base.access.roles[1]!.occupants[0]!.principal.id },
+    });
+    expect(mocks.assign).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
   });
 
   it("passe en avancé et expose occupants, schéma, changement et lien matrice", async () => {
@@ -84,5 +106,16 @@ describe("AccessAdmin", () => {
     const button = within(adminRegion).getByRole("button", { name: "Retirer Ada" });
     expect(button).toBeDisabled();
     expect(button).toHaveAccessibleDescription("Le dernier administrateur effectif du backlog ne peut pas être retiré.");
+  });
+
+  it("ne montre pas le lien d’administration globale sans administer_jiroo", () => {
+    render(<AccessAdmin {...base} canAdministerJiroo={false} access={{ ...base.access, mode: "advanced" }} />);
+    expect(screen.queryByRole("link", { name: "Ouvrir la matrice" })).not.toBeInTheDocument();
+  });
+
+  it("ne rend aucun contrôle de membres à un administrateur de backlog sans manage_members", () => {
+    render(<AccessAdmin {...base} canManageMembers={false} access={{ ...base.access, mode: "advanced" }} />);
+    expect(screen.queryByRole("button", { name: "Retirer Ada" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ajouter" })).not.toBeInTheDocument();
   });
 });

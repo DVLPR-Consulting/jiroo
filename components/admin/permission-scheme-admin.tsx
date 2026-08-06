@@ -32,6 +32,20 @@ type StagedChange =
   | { type: "remove"; scheme: PermissionSchemeAdminDto; grantId: string }
   | { type: "add"; scheme: PermissionSchemeAdminDto; permission: BacklogPermissionKey; principal: { type: "user"; userId: string } | { type: "group"; groupId: string } | { type: "project_role"; projectRoleId: string } | { type: "authenticated_user" } };
 
+function categoryForPermission(key: BacklogPermissionKey): string {
+  if (["browse_backlog", "administer_backlog", "manage_members"].includes(key)) return "Accès";
+  if (["manage_workflows", "manage_sprints", "manage_releases"].includes(key)) return "Administration du backlog";
+  if (key.includes("comments")) return "Commentaires";
+  if (key.includes("views")) return "Vues";
+  return "Éléments";
+}
+
+const MATRIX_ROWS = Object.values(BACKLOG_PERMISSION_DEFINITIONS).map((definition) => ({
+  ...definition,
+  category: categoryForPermission(definition.key as BacklogPermissionKey),
+}));
+const MATRIX_CATEGORIES = [...new Set(MATRIX_ROWS.map((row) => row.category))];
+
 export function PermissionSchemeAdmin({ schemes, users, groups, roles, initialSchemeId }: PermissionSchemeAdminProps) {
   const [matrix, setMatrix] = useState<PermissionSchemeAdminDto | null>(() => schemes.find((scheme) => scheme.id === initialSchemeId) ?? null);
   const [clone, setClone] = useState<PermissionSchemeAdminDto | null>(null);
@@ -56,10 +70,49 @@ export function PermissionSchemeAdmin({ schemes, users, groups, roles, initialSc
     setMatrixError(null);
     startTransition(async () => {
       const result = change.type === "remove"
-        ? await removeSchemeGrantAction({ schemeId: change.scheme.id, grantId: change.grantId, expectedVersion: change.scheme.version })
-        : await addSchemeGrantAction({ schemeId: change.scheme.id, permission: change.permission, principal: change.principal, expectedVersion: change.scheme.version });
+        ? await removeSchemeGrantAction({ schemeId: change.scheme.id, grantId: change.grantId, expectedVersion: change.scheme.version, expectedUsageCount: change.scheme.usageCount })
+        : await addSchemeGrantAction({ schemeId: change.scheme.id, permission: change.permission, principal: change.principal, expectedVersion: change.scheme.version, expectedUsageCount: change.scheme.usageCount });
       setStaged(null);
-      if (!result.ok) setMatrixError(result.error);
+      if (!result.ok) {
+        setMatrixError(result.error);
+        return;
+      }
+      setMatrix((current) => {
+        if (!current || current.id !== change.scheme.id) return current;
+        if (change.type === "remove") {
+          return {
+            ...current,
+            version: result.grant.version,
+            grants: current.grants.filter((grant) => grant.id !== change.grantId),
+          };
+        }
+        const principalInput = change.principal;
+        let principal: SchemePrincipal;
+        if (principalInput.type === "user") {
+          const id = principalInput.userId;
+          principal = { type: "user", id, label: users.find((entry) => entry.id === id)?.name ?? "Utilisateur" };
+        } else if (principalInput.type === "group") {
+          const id = principalInput.groupId;
+          principal = { type: "group", id, label: groups.find((entry) => entry.id === id)?.name ?? "Groupe" };
+        } else if (principalInput.type === "project_role") {
+          const id = principalInput.projectRoleId;
+          principal = { type: "project_role", id, label: roles.find((entry) => entry.id === id)?.name ?? "Rôle de projet" };
+        } else {
+          principal = { type: "authenticated_user", id: "authenticated_user", label: "Tous les utilisateurs authentifiés" };
+        }
+        const definition = BACKLOG_PERMISSION_DEFINITIONS[change.permission];
+        return {
+          ...current,
+          version: result.grant.version,
+          grants: [...current.grants, {
+            id: result.grant.id,
+            permission: change.permission,
+            permissionLabel: definition.label,
+            category: categoryForPermission(change.permission),
+            principal,
+          }],
+        };
+      });
     });
   };
   const requestChange = (change: StagedChange) => change.scheme.usageCount > 1 ? setStaged(change) : execute(change);
@@ -75,7 +128,8 @@ export function PermissionSchemeAdmin({ schemes, users, groups, roles, initialSc
 
     <Dialog open={matrix !== null} onOpenChange={(open) => { if (!open && !pending) setMatrix(null); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Matrice de {matrix?.name}</DialogTitle><DialogDescription>Les grants sont additifs. La consultation du backlog reste un prérequis.</DialogDescription></DialogHeader>
       {matrix && <div className="space-y-5">
-        {[...new Set(matrix.grants.map((grant) => grant.category))].map((category) => <section key={category} className="space-y-2"><h3 className="font-medium">{category}</h3><div className="space-y-2">{matrix.grants.filter((grant) => grant.category === category).map((grant) => <div key={grant.id} className="flex flex-wrap items-center gap-2 text-sm"><span className="min-w-44">{grant.permissionLabel}</span><span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">{grant.principal.label}<button type="button" className="rounded px-1 hover:bg-background" aria-label={`Retirer ${grant.principal.label} de ${grant.permissionLabel}`} onClick={() => requestChange({ type: "remove", scheme: matrix, grantId: grant.id })}>×</button></span></div>)}</div></section>)}
+        <Badge variant="secondary">Version {matrix.version}</Badge>
+        {MATRIX_CATEGORIES.map((category) => <section key={category} className="space-y-2"><h3 className="font-medium">{category}</h3><div className="space-y-2">{MATRIX_ROWS.filter((row) => row.category === category).map((row) => { const rowGrants = matrix.grants.filter((grant) => grant.permission === row.key); return <div key={row.key} className="flex flex-wrap items-center gap-2 text-sm"><span className="min-w-44">{row.label}</span>{rowGrants.length === 0 ? <span className="text-xs text-muted-foreground">Aucun grant</span> : rowGrants.map((grant) => <span key={grant.id} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">{grant.principal.label}<button type="button" className="rounded px-1 hover:bg-background" aria-label={`Retirer ${grant.principal.label} de ${row.label}`} onClick={() => requestChange({ type: "remove", scheme: matrix, grantId: grant.id })}>×</button></span>)}</div>; })}</div></section>)}
         <form aria-busy={pending} className="grid gap-2 md:grid-cols-2" onSubmit={(event) => { event.preventDefault(); const found = principalOptions.find((entry) => entry.label.toLocaleLowerCase("fr") === principalSearch.trim().toLocaleLowerCase("fr")) ?? (principalType === "authenticated_user" ? principalOptions[0] : undefined); if (!found) { setMatrixError("Sélectionnez un principal proposé."); return; } const principal = principalType === "user" ? { type: "user" as const, userId: found.id } : principalType === "group" ? { type: "group" as const, groupId: found.id } : principalType === "project_role" ? { type: "project_role" as const, projectRoleId: found.id } : { type: "authenticated_user" as const }; requestChange({ type: "add", scheme: matrix, permission, principal }); }}>
           <select aria-label="Permission de backlog" value={permission} onChange={(e) => setPermission(e.target.value as BacklogPermissionKey)} className="h-8 rounded-lg border bg-background px-2 text-sm">{Object.values(BACKLOG_PERMISSION_DEFINITIONS).map((definition) => <option key={definition.key} value={definition.key}>{definition.label}</option>)}</select>
           <select aria-label="Type de principal" value={principalType} onChange={(e) => { const type = e.target.value as SchemePrincipal["type"]; setPrincipalType(type); setPrincipalSearch(type === "authenticated_user" ? "Tous les utilisateurs authentifiés" : ""); }} className="h-8 rounded-lg border bg-background px-2 text-sm"><option value="user">Utilisateur</option><option value="group">Groupe</option><option value="project_role">Rôle de projet</option><option value="authenticated_user">Utilisateur authentifié</option></select>
