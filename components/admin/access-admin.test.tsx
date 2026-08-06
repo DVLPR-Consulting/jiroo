@@ -31,6 +31,7 @@ const base = {
   canManageMembers: true,
   canAdministerBacklog: true,
   canAdministerJiroo: true,
+  canBrowseUsers: true,
 };
 
 describe("AccessAdmin", () => {
@@ -117,5 +118,12 @@ describe("AccessAdmin", () => {
     render(<AccessAdmin {...base} canManageMembers={false} access={{ ...base.access, mode: "advanced" }} />);
     expect(screen.queryByRole("button", { name: "Retirer Ada" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ajouter" })).not.toBeInTheDocument();
+  });
+
+  it("conserve l’administration locale par groupe sans exposer le people picker utilisateur", () => {
+    render(<AccessAdmin {...base} canBrowseUsers={false} />);
+    expect(screen.queryByRole("option", { name: "Lin" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Produit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ajouter à l’accès simple" })).toBeVisible();
   });
 });

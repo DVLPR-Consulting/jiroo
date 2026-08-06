@@ -483,7 +483,7 @@ describeDb("transactional authorization administration", () => {
         permission: "manage_releases",
         principal: { type: "user", userId: memberId },
         expectedVersion: 1,
-        expectedUsageCount: 0,
+        expectedAffectedBacklogIds: [],
       },
       actorId,
       correlation("grant-add"),
@@ -497,7 +497,7 @@ describeDb("transactional authorization administration", () => {
           permission: "browse_backlog",
           principal: { type: "user", userId: secondMemberId },
           expectedVersion: 1,
-          expectedUsageCount: 0,
+          expectedAffectedBacklogIds: [],
         },
         actorId,
         correlation("grant-stale"),
@@ -525,7 +525,7 @@ describeDb("transactional authorization administration", () => {
     );
 
     await removeSchemeGrant(
-      { schemeId, grantId: grant.id, expectedVersion: 2, expectedUsageCount: 0 },
+      { schemeId, grantId: grant.id, expectedVersion: 2, expectedAffectedBacklogIds: [] },
       actorId,
       correlation("grant-remove"),
     );
@@ -840,7 +840,7 @@ describeDb("transactional authorization administration", () => {
 
   it("blocks direct grant additions and removals that would corrupt an active Simple scheme", async () => {
     const addSchemeId = await createCanonicalScheme("Simple ajout Task 4");
-    await createConfiguredBacklog(addSchemeId, "simple", "Simple ajout Task 4");
+    const addBacklog = await createConfiguredBacklog(addSchemeId, "simple", "Simple ajout Task 4");
 
     await expect(
       addSchemeGrant(
@@ -849,7 +849,7 @@ describeDb("transactional authorization administration", () => {
           permission: "delete_items",
           principal: { type: "user", userId: memberId },
           expectedVersion: 1,
-          expectedUsageCount: 1,
+          expectedAffectedBacklogIds: [addBacklog.id],
         },
         actorId,
         correlation("simple-direct-add"),
@@ -860,7 +860,7 @@ describeDb("transactional authorization administration", () => {
     expect(await storedVersion(addSchemeId)).toBe(1);
 
     const removeSchemeId = await createCanonicalScheme("Simple retrait Task 4");
-    await createConfiguredBacklog(removeSchemeId, "simple", "Simple retrait Task 4");
+    const removeBacklog = await createConfiguredBacklog(removeSchemeId, "simple", "Simple retrait Task 4");
     const [grant] = await db
       .select({ id: permissionGrants.id })
       .from(permissionGrants)
@@ -878,7 +878,7 @@ describeDb("transactional authorization administration", () => {
           schemeId: removeSchemeId,
           grantId: grant!.id,
           expectedVersion: 1,
-          expectedUsageCount: 1,
+          expectedAffectedBacklogIds: [removeBacklog.id],
         },
         actorId,
         correlation("simple-direct-remove"),
@@ -942,7 +942,7 @@ describeDb("transactional authorization administration", () => {
 
   it("rejects a grant edit when a concurrent association changed the sharing snapshot", async () => {
     const schemeId = await createCanonicalScheme("Partage concurrent Task 8");
-    await createConfiguredBacklog(schemeId, "advanced", "Partage source Task 8");
+    const sourceBacklog = await createConfiguredBacklog(schemeId, "advanced", "Partage source Task 8");
     const otherSchemeId = await createCanonicalScheme("Partage autre Task 8");
     const secondBacklog = await createConfiguredBacklog(
       otherSchemeId,
@@ -960,11 +960,62 @@ describeDb("transactional authorization administration", () => {
       permission: "manage_releases",
       principal: { type: "user", userId: memberId },
       expectedVersion: 1,
-      expectedUsageCount: 1,
+      expectedAffectedBacklogIds: [sourceBacklog.id],
     }, actorId, correlation("sharing-stale-edit"))).rejects.toThrow(
-      "Les backlogs associés à ce schéma ont changé. Rechargez la page.",
+      "Les backlogs associés à ce schéma ont changé.",
     );
     expect(await storedVersion(schemeId)).toBe(1);
+  });
+
+  it("requires renewed confirmation when B is replaced by C at constant cardinality", async () => {
+    const schemeId = await createCanonicalScheme("Partage exact Task 8");
+    const backlogA = await createConfiguredBacklog(schemeId, "advanced", "Partage exact A Task 8");
+    const backlogB = await createConfiguredBacklog(schemeId, "advanced", "Partage exact B Task 8");
+    const otherSchemeId = await createCanonicalScheme("Partage exact autre Task 8");
+    const backlogC = await createConfiguredBacklog(otherSchemeId, "advanced", "Partage exact C Task 8");
+    const expectedAffectedBacklogIds = [backlogA.id, backlogB.id].sort();
+
+    await associatePermissionScheme(
+      { backlogId: backlogB.id, schemeId: otherSchemeId },
+      actorId,
+      correlation("sharing-exact-remove-b"),
+    );
+    await associatePermissionScheme(
+      { backlogId: backlogC.id, schemeId },
+      actorId,
+      correlation("sharing-exact-add-c"),
+    );
+    const currentAffectedBacklogs = [backlogA, backlogC]
+      .sort((left, right) => left.id.localeCompare(right.id));
+
+    await expect(addSchemeGrant({
+      schemeId,
+      permission: "manage_releases",
+      principal: { type: "user", userId: memberId },
+      expectedVersion: 1,
+      expectedAffectedBacklogIds,
+    }, actorId, correlation("sharing-exact-stale-edit"))).rejects.toMatchObject({
+      affectedBacklogs: currentAffectedBacklogs.map((backlog) =>
+        expect.objectContaining({ id: backlog.id }),
+      ),
+    });
+    expect(await storedVersion(schemeId)).toBe(1);
+    expect(await db.select({ id: permissionGrants.id }).from(permissionGrants).where(and(
+      eq(permissionGrants.permissionSchemeId, schemeId),
+      eq(permissionGrants.permissionKey, "manage_releases"),
+      eq(permissionGrants.userId, memberId),
+    ))).toEqual([]);
+
+    await expect(addSchemeGrant({
+      schemeId,
+      permission: "manage_releases",
+      principal: { type: "user", userId: memberId },
+      expectedVersion: 1,
+      expectedAffectedBacklogIds: currentAffectedBacklogs.map((backlog) => backlog.id),
+    }, actorId, correlation("sharing-exact-confirmed-edit"))).resolves.toMatchObject({
+      permission: "manage_releases",
+      version: 2,
+    });
   });
 
   it("rolls back an atomic Simple role move when the target already exists", async () => {

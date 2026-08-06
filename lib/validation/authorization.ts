@@ -9,7 +9,15 @@ const userId = z.string().trim().min(1);
 const administrationName = z.string().trim().min(1).max(80);
 const description = z.string().trim().max(500).nullable().optional();
 const expectedVersion = z.number().int().positive();
-const expectedUsageCount = z.number().int().nonnegative();
+const expectedAffectedBacklogIds = z.array(uuid).superRefine((ids, context) => {
+  const canonicalIds = [...new Set(ids)].sort();
+  if (canonicalIds.length !== ids.length || canonicalIds.some((id, index) => id !== ids[index])) {
+    context.addIssue({
+      code: "custom",
+      message: "Le snapshot des backlogs affectés doit être trié et sans doublon.",
+    });
+  }
+});
 
 const backlogPermission = z.enum(BACKLOG_PERMISSION_KEYS);
 const globalPermission = z.enum(GLOBAL_PERMISSION_KEYS);
@@ -90,12 +98,12 @@ export const grantInput = z
     permission: backlogPermission,
     principal: schemeGrantPrincipalInput,
     expectedVersion,
-    expectedUsageCount,
+    expectedAffectedBacklogIds,
   })
   .strict();
 
 export const schemeGrantRemovalInput = z
-  .object({ schemeId: uuid, grantId: uuid, expectedVersion, expectedUsageCount })
+  .object({ schemeId: uuid, grantId: uuid, expectedVersion, expectedAffectedBacklogIds })
   .strict();
 
 export const globalGrantInput = z

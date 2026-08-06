@@ -54,8 +54,6 @@ const SIMPLE_SHARED_MESSAGE =
   "Le mode Simple est indisponible : ce schéma est partagé.";
 const SIMPLE_MATRIX_MESSAGE =
   "Le mode Simple est indisponible : ce schéma contient des autorisations avancées.";
-const STALE_SCHEME_USAGE_MESSAGE =
-  "Les backlogs associés à ce schéma ont changé. Rechargez la page.";
 const PRIVILEGED_GROUP_MEMBERSHIP_MESSAGE =
   "Seul un administrateur Jiroo peut modifier les membres de ce groupe.";
 // Group-reference writes take membership topology first. Scheme/configuration writes
@@ -74,6 +72,15 @@ export class ProtectedInvariantError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ProtectedInvariantError";
+  }
+}
+
+export type AffectedBacklogDto = { id: string; key: string; name: string };
+
+export class SchemeTopologyConfirmationRequiredError extends Error {
+  constructor(readonly affectedBacklogs: AffectedBacklogDto[]) {
+    super("Les backlogs associés à ce schéma ont changé.");
+    this.name = "SchemeTopologyConfirmationRequiredError";
   }
 }
 
@@ -431,16 +438,25 @@ async function assertSimpleSchemeInvariant(
   await assertCanonicalSimpleMatrix(tx, schemeId, grantProjection);
 }
 
-function assertExpectedSchemeUsage(
+function assertExpectedSchemeTopology(
   schemeId: string,
   configs: LockedBacklogConfig[],
-  expectedUsageCount: number,
+  expectedAffectedBacklogIds: string[],
 ): void {
-  const actualUsageCount = configs.filter(
-    (config) => config.permissionSchemeId === schemeId,
-  ).length;
-  if (actualUsageCount !== expectedUsageCount) {
-    throw new ProtectedInvariantError(STALE_SCHEME_USAGE_MESSAGE);
+  const affectedBacklogs = configs
+    .filter((config) => config.permissionSchemeId === schemeId)
+    .map((config) => ({
+      id: config.backlogId,
+      key: config.backlogKey,
+      name: config.backlogName,
+    }))
+    .sort((left, right) => left.id.localeCompare(right.id));
+  const actualAffectedBacklogIds = affectedBacklogs.map((backlog) => backlog.id);
+  if (
+    actualAffectedBacklogIds.length !== expectedAffectedBacklogIds.length ||
+    actualAffectedBacklogIds.some((id, index) => id !== expectedAffectedBacklogIds[index])
+  ) {
+    throw new SchemeTopologyConfirmationRequiredError(affectedBacklogs);
   }
 }
 
@@ -1199,7 +1215,7 @@ export async function addSchemeGrant(
     const scheme = await lockedScheme(tx, parsed.schemeId);
     const configs = await lockSchemeConfigurations(tx, [scheme.id]);
     if (scheme.version !== parsed.expectedVersion) throw new StaleSchemeVersionError();
-    assertExpectedSchemeUsage(scheme.id, configs, parsed.expectedUsageCount);
+    assertExpectedSchemeTopology(scheme.id, configs, parsed.expectedAffectedBacklogIds);
     await assertPrincipalExists(tx, parsed.principal);
     const principal = principalColumns(parsed.principal);
     await assertSimpleSchemeInvariant(tx, scheme.id, configs, {
@@ -1258,7 +1274,7 @@ export async function removeSchemeGrant(
     const scheme = await lockedScheme(tx, parsed.schemeId);
     const configs = await lockSchemeConfigurations(tx, [scheme.id]);
     if (scheme.version !== parsed.expectedVersion) throw new StaleSchemeVersionError();
-    assertExpectedSchemeUsage(scheme.id, configs, parsed.expectedUsageCount);
+    assertExpectedSchemeTopology(scheme.id, configs, parsed.expectedAffectedBacklogIds);
     const label = await actorLabel(tx, actorId);
     const [grant] = await tx
       .select({

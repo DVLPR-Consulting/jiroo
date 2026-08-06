@@ -12,6 +12,7 @@ const classes = vi.hoisted(() => ({
 const mocks = vi.hoisted(() => ({
   accessProps: vi.fn(),
   checkPermission: vi.fn(),
+  helperProps: vi.fn(),
   listGroups: vi.fn(), listPermissionSchemes: vi.fn(), readBacklogAccess: vi.fn(), listAdminUsers: vi.fn(),
   notFound: vi.fn(), redirect: vi.fn(), requireBacklogPermissionByKey: vi.fn(), requireSession: vi.fn(),
 }));
@@ -33,7 +34,12 @@ vi.mock("@/components/admin/access-admin", () => ({
     return null;
   },
 }));
-vi.mock("@/components/admin/permission-helper", () => ({ PermissionHelper: () => null }));
+vi.mock("@/components/admin/permission-helper", () => ({
+  PermissionHelper: (props: unknown) => {
+    mocks.helperProps(props);
+    return null;
+  },
+}));
 
 import AccessPage from "@/app/(app)/b/[key]/settings/access/page";
 
@@ -94,5 +100,48 @@ describe("backlog access settings route", () => {
     expect(mocks.notFound).toHaveBeenCalledOnce();
     expect(mocks.listGroups).not.toHaveBeenCalled();
     expect(mocks.listAdminUsers).not.toHaveBeenCalled();
+  });
+
+  it("ne lit ni ne transmet l’annuaire sans browse_users", async () => {
+    mocks.checkPermission.mockImplementation(async ({ permission }: { permission: string }) => ({
+      allowed: permission === "manage_members" || permission === "administer_backlog",
+    }));
+    mocks.listAdminUsers.mockResolvedValue([
+      { id: "u2", name: "Lin", email: "lin@test", role: "contributor" },
+    ]);
+
+    render(await AccessPage({ params: Promise.resolve({ key: "DEMO" }) }));
+
+    expect(mocks.checkPermission).toHaveBeenCalledWith({
+      actorId: "u1",
+      permission: "browse_users",
+      scope: { type: "global" },
+    });
+    expect(mocks.listAdminUsers).not.toHaveBeenCalled();
+    expect(mocks.accessProps).toHaveBeenCalledWith(expect.objectContaining({
+      users: [],
+      canBrowseUsers: false,
+    }));
+    expect(mocks.helperProps).not.toHaveBeenCalled();
+  });
+
+  it("transmet le people picker minimal avec browse_users", async () => {
+    mocks.checkPermission.mockImplementation(async ({ permission }: { permission: string }) => ({
+      allowed: ["manage_members", "administer_backlog", "browse_users"].includes(permission),
+    }));
+    mocks.listAdminUsers.mockResolvedValue([
+      { id: "u2", name: "Lin", email: "lin@test", role: "contributor" },
+    ]);
+
+    render(await AccessPage({ params: Promise.resolve({ key: "DEMO" }) }));
+
+    expect(mocks.listAdminUsers).toHaveBeenCalledOnce();
+    expect(mocks.accessProps).toHaveBeenCalledWith(expect.objectContaining({
+      users: [{ id: "u2", name: "Lin", email: "lin@test" }],
+      canBrowseUsers: true,
+    }));
+    expect(mocks.helperProps).toHaveBeenCalledWith(expect.objectContaining({
+      users: [{ id: "u2", name: "Lin", email: "lin@test" }],
+    }));
   });
 });

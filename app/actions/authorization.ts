@@ -31,6 +31,7 @@ import {
   removeGroupMember,
   removeSchemeGrant,
   renameGroup,
+  SchemeTopologyConfirmationRequiredError,
   setBacklogAccessMode,
   updateProjectRole,
 } from "@/lib/services/authorization-admin";
@@ -84,7 +85,6 @@ const SAFE_INVARIANT_MESSAGES = new Set([
   "Ce membre est introuvable dans le groupe.",
   "Cette affectation de rôle existe déjà.",
   "Cette affectation de rôle est introuvable.",
-  "Les backlogs associés à ce schéma ont changé. Rechargez la page.",
   "Seul un administrateur Jiroo peut modifier les membres de ce groupe.",
   "Le déplacement simplifié est réservé au mode Simple.",
   "Le déplacement simplifié exige deux rôles protégés.",
@@ -457,6 +457,13 @@ export async function addSchemeGrantAction(input: unknown) {
     revalidateAccess(grant.affectedBacklogKeys);
     return { ok: true as const, grant };
   } catch (error) {
+    if (error instanceof SchemeTopologyConfirmationRequiredError) {
+      return {
+        ok: false as const,
+        confirmationRequired: true as const,
+        affectedBacklogs: error.affectedBacklogs,
+      };
+    }
     return { ok: false as const, error: safeError(error) };
   }
 }
@@ -478,6 +485,13 @@ export async function removeSchemeGrantAction(input: unknown) {
     revalidateAccess(grant.affectedBacklogKeys);
     return { ok: true as const, grant };
   } catch (error) {
+    if (error instanceof SchemeTopologyConfirmationRequiredError) {
+      return {
+        ok: false as const,
+        confirmationRequired: true as const,
+        affectedBacklogs: error.affectedBacklogs,
+      };
+    }
     return { ok: false as const, error: safeError(error) };
   }
 }

@@ -72,7 +72,11 @@ describe("PermissionSchemeAdmin", () => {
     expect(within(confirmation).getByText("Démonstration (DEMO)")).toBeVisible();
     await user.click(within(confirmation).getByRole("button", { name: "Confirmer la modification" }));
     await waitFor(() => expect(mocks.add).toHaveBeenCalledWith({
-      schemeId: scheme.id, permission: "edit_items", principal: { type: "user", userId: "u1" }, expectedVersion: 7, expectedUsageCount: 2,
+      schemeId: scheme.id,
+      permission: "edit_items",
+      principal: { type: "user", userId: "u1" },
+      expectedVersion: 7,
+      expectedAffectedBacklogIds: ["b1", "b2"],
     }));
   });
 
@@ -101,7 +105,7 @@ describe("PermissionSchemeAdmin", () => {
       schemeId: scheme.id,
       grantId: addedGrantId,
       expectedVersion: 8,
-      expectedUsageCount: 2,
+      expectedAffectedBacklogIds: ["b1", "b2"],
     }));
     expect(await screen.findByText("Version 9")).toBeVisible();
   });
@@ -115,6 +119,59 @@ describe("PermissionSchemeAdmin", () => {
     await user.click(screen.getByRole("button", { name: "Confirmer la modification" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Ce schéma a été modifié. Rechargez la page.");
     expect(screen.getByRole("dialog", { name: "Matrice de Produit partagé" })).toBeVisible();
+  });
+
+  it("redemande confirmation avec l’ensemble courant après un remplacement à cardinalité constante", async () => {
+    const user = userEvent.setup();
+    const currentAffectedBacklogs = [
+      scheme.affectedBacklogs[0]!,
+      { id: "b3", key: "SUP", name: "Support" },
+    ];
+    mocks.remove
+      .mockResolvedValueOnce({
+        ok: false,
+        confirmationRequired: true,
+        affectedBacklogs: currentAffectedBacklogs,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        grant: { id: scheme.grants[0]!.id, version: 8 },
+      });
+    render(<PermissionSchemeAdmin schemes={[scheme]} users={[]} groups={[]} roles={[]} />);
+    await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
+    await user.click(screen.getByRole("button", { name: "Retirer Produit de Consulter le backlog" }));
+    await user.click(screen.getByRole("button", { name: "Confirmer la modification" }));
+
+    const renewed = await screen.findByRole("dialog", { name: "Modifier un schéma partagé" });
+    expect(within(renewed).getByText("Support (SUP)")).toBeVisible();
+    expect(within(renewed).queryByText("Opérations (OPS)")).not.toBeInTheDocument();
+    expect(mocks.remove).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      expectedAffectedBacklogIds: ["b1", "b2"],
+    }));
+
+    await user.click(within(renewed).getByRole("button", { name: "Confirmer la modification" }));
+    await waitFor(() => expect(mocks.remove).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      expectedAffectedBacklogIds: ["b1", "b3"],
+    })));
+  });
+
+  it("affiche et permet de retirer chaque grant de permission inconnue", async () => {
+    const user = userEvent.setup();
+    const invalidGrant = {
+      id: "88888888-8888-4888-8888-888888888888",
+      permission: "retired_permission",
+      permissionLabel: "Permission inconnue",
+      category: "Éléments",
+      principal: { type: "group" as const, id: "33333333-3333-4333-8333-333333333333", label: "Produit" },
+    };
+    render(<PermissionSchemeAdmin schemes={[{ ...scheme, grants: [...scheme.grants, invalidGrant] }]} users={[]} groups={[]} roles={[]} />);
+    await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
+
+    const invalidSection = screen.getByRole("region", { name: "Configuration invalide" });
+    expect(within(invalidSection).getByText("retired_permission")).toBeVisible();
+    expect(within(invalidSection).getByText("Produit")).toBeVisible();
+    await user.click(within(invalidSection).getByRole("button", { name: "Retirer Produit de retired_permission" }));
+    expect(screen.getByRole("dialog", { name: "Modifier un schéma partagé" })).toBeVisible();
   });
 
   it("clone le schéma en conservant les champs en cas d’erreur", async () => {

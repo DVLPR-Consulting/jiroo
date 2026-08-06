@@ -15,7 +15,12 @@ const classes = vi.hoisted(() => {
       this.decision = decision;
     }
   }
-  return { PermissionDeniedError };
+  class SchemeTopologyConfirmationRequiredError extends Error {
+    constructor(readonly affectedBacklogs: Array<{ id: string; key: string; name: string }>) {
+      super("Les backlogs associés à ce schéma ont changé.");
+    }
+  }
+  return { PermissionDeniedError, SchemeTopologyConfirmationRequiredError };
 });
 
 const mocks = vi.hoisted(() => ({
@@ -74,10 +79,12 @@ vi.mock("@/lib/services/authorization-admin", () => ({
   setBacklogAccessMode: mocks.setBacklogAccessMode,
   updateProjectRole: mocks.updateProjectRole,
   ProtectedInvariantError: class ProtectedInvariantError extends Error {},
+  SchemeTopologyConfirmationRequiredError: classes.SchemeTopologyConfirmationRequiredError,
   StaleSchemeVersionError: class StaleSchemeVersionError extends Error {},
 }));
 
 import {
+  addSchemeGrantAction,
   addGlobalPermissionGrantAction,
   addGroupMemberAction,
   assignBacklogRoleActorAction,
@@ -236,6 +243,33 @@ describe("authorization administration Server Actions", () => {
       scope: { type: "global" },
     });
     expect(mocks.addGlobalPermissionGrant).not.toHaveBeenCalled();
+  });
+
+  it("returns the current affected backlogs when a scheme edit needs renewed confirmation", async () => {
+    const currentAffectedBacklogs = [
+      { id: backlogId, key: "DEMO", name: "Démonstration" },
+      { id: "00000000-0000-4000-8000-000000000009", key: "OPS", name: "Opérations" },
+    ];
+    mocks.addSchemeGrant.mockRejectedValue(
+      new classes.SchemeTopologyConfirmationRequiredError(currentAffectedBacklogs),
+    );
+
+    await expect(addSchemeGrantAction({
+      schemeId,
+      permission: "manage_releases",
+      principal: { type: "user", userId: "member-1" },
+      expectedVersion: 4,
+      expectedAffectedBacklogIds: [backlogId],
+    })).resolves.toEqual({
+      ok: false,
+      confirmationRequired: true,
+      affectedBacklogs: currentAffectedBacklogs,
+    });
+    expect(mocks.addSchemeGrant).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedAffectedBacklogIds: [backlogId] }),
+      "actor-session",
+      expect.any(String),
+    );
   });
 
   it("revalidates backlogs made accessible by a platform-administrator grant", async () => {

@@ -46,6 +46,14 @@ const MATRIX_ROWS = Object.values(BACKLOG_PERMISSION_DEFINITIONS).map((definitio
 }));
 const MATRIX_CATEGORIES = [...new Set(MATRIX_ROWS.map((row) => row.category))];
 
+function affectedBacklogIds(scheme: PermissionSchemeAdminDto): string[] {
+  return scheme.affectedBacklogs.map((backlog) => backlog.id).sort();
+}
+
+function isKnownPermission(permission: string): permission is BacklogPermissionKey {
+  return Object.prototype.hasOwnProperty.call(BACKLOG_PERMISSION_DEFINITIONS, permission);
+}
+
 export function PermissionSchemeAdmin({ schemes, users, groups, roles, initialSchemeId }: PermissionSchemeAdminProps) {
   const [matrix, setMatrix] = useState<PermissionSchemeAdminDto | null>(() => schemes.find((scheme) => scheme.id === initialSchemeId) ?? null);
   const [clone, setClone] = useState<PermissionSchemeAdminDto | null>(null);
@@ -70,13 +78,24 @@ export function PermissionSchemeAdmin({ schemes, users, groups, roles, initialSc
     setMatrixError(null);
     startTransition(async () => {
       const result = change.type === "remove"
-        ? await removeSchemeGrantAction({ schemeId: change.scheme.id, grantId: change.grantId, expectedVersion: change.scheme.version, expectedUsageCount: change.scheme.usageCount })
-        : await addSchemeGrantAction({ schemeId: change.scheme.id, permission: change.permission, principal: change.principal, expectedVersion: change.scheme.version, expectedUsageCount: change.scheme.usageCount });
-      setStaged(null);
+        ? await removeSchemeGrantAction({ schemeId: change.scheme.id, grantId: change.grantId, expectedVersion: change.scheme.version, expectedAffectedBacklogIds: affectedBacklogIds(change.scheme) })
+        : await addSchemeGrantAction({ schemeId: change.scheme.id, permission: change.permission, principal: change.principal, expectedVersion: change.scheme.version, expectedAffectedBacklogIds: affectedBacklogIds(change.scheme) });
       if (!result.ok) {
+        if ("confirmationRequired" in result && result.confirmationRequired) {
+          const refreshedScheme = {
+            ...change.scheme,
+            usageCount: result.affectedBacklogs.length,
+            affectedBacklogs: result.affectedBacklogs,
+          };
+          setMatrix((current) => current?.id === refreshedScheme.id ? refreshedScheme : current);
+          setStaged({ ...change, scheme: refreshedScheme });
+          return;
+        }
+        setStaged(null);
         setMatrixError(result.error);
         return;
       }
+      setStaged(null);
       setMatrix((current) => {
         if (!current || current.id !== change.scheme.id) return current;
         if (change.type === "remove") {
@@ -130,6 +149,7 @@ export function PermissionSchemeAdmin({ schemes, users, groups, roles, initialSc
       {matrix && <div className="space-y-5">
         <Badge variant="secondary">Version {matrix.version}</Badge>
         {MATRIX_CATEGORIES.map((category) => <section key={category} className="space-y-2"><h3 className="font-medium">{category}</h3><div className="space-y-2">{MATRIX_ROWS.filter((row) => row.category === category).map((row) => { const rowGrants = matrix.grants.filter((grant) => grant.permission === row.key); return <div key={row.key} className="flex flex-wrap items-center gap-2 text-sm"><span className="min-w-44">{row.label}</span>{rowGrants.length === 0 ? <span className="text-xs text-muted-foreground">Aucun grant</span> : rowGrants.map((grant) => <span key={grant.id} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">{grant.principal.label}<button type="button" className="rounded px-1 hover:bg-background" aria-label={`Retirer ${grant.principal.label} de ${row.label}`} onClick={() => requestChange({ type: "remove", scheme: matrix, grantId: grant.id })}>×</button></span>)}</div>; })}</div></section>)}
+        {matrix.grants.some((grant) => !isKnownPermission(grant.permission)) && <section role="region" aria-labelledby={`invalid-configuration-${matrix.id}`} className="space-y-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3"><h3 id={`invalid-configuration-${matrix.id}`} className="font-medium text-destructive">Configuration invalide</h3><p className="text-xs text-muted-foreground">Ces permissions ne figurent plus dans le catalogue et doivent être retirées.</p><ul className="space-y-2">{matrix.grants.filter((grant) => !isKnownPermission(grant.permission)).map((grant) => <li key={grant.id} className="flex flex-wrap items-center gap-2 text-sm"><code>{grant.permission}</code><span>{grant.principal.label}</span><Button size="xs" variant="outline" aria-label={`Retirer ${grant.principal.label} de ${grant.permission}`} onClick={() => requestChange({ type: "remove", scheme: matrix, grantId: grant.id })}>Retirer</Button></li>)}</ul></section>}
         <form aria-busy={pending} className="grid gap-2 md:grid-cols-2" onSubmit={(event) => { event.preventDefault(); const found = principalOptions.find((entry) => entry.label.toLocaleLowerCase("fr") === principalSearch.trim().toLocaleLowerCase("fr")) ?? (principalType === "authenticated_user" ? principalOptions[0] : undefined); if (!found) { setMatrixError("Sélectionnez un principal proposé."); return; } const principal = principalType === "user" ? { type: "user" as const, userId: found.id } : principalType === "group" ? { type: "group" as const, groupId: found.id } : principalType === "project_role" ? { type: "project_role" as const, projectRoleId: found.id } : { type: "authenticated_user" as const }; requestChange({ type: "add", scheme: matrix, permission, principal }); }}>
           <select aria-label="Permission de backlog" value={permission} onChange={(e) => setPermission(e.target.value as BacklogPermissionKey)} className="h-8 rounded-lg border bg-background px-2 text-sm">{Object.values(BACKLOG_PERMISSION_DEFINITIONS).map((definition) => <option key={definition.key} value={definition.key}>{definition.label}</option>)}</select>
           <select aria-label="Type de principal" value={principalType} onChange={(e) => { const type = e.target.value as SchemePrincipal["type"]; setPrincipalType(type); setPrincipalSearch(type === "authenticated_user" ? "Tous les utilisateurs authentifiés" : ""); }} className="h-8 rounded-lg border bg-background px-2 text-sm"><option value="user">Utilisateur</option><option value="group">Groupe</option><option value="project_role">Rôle de projet</option><option value="authenticated_user">Utilisateur authentifié</option></select>

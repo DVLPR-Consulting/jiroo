@@ -39,12 +39,12 @@ describe("authorization administration validation", () => {
         permission: "manage_releases",
         principal: { type: "project_role", projectRoleId },
         expectedVersion: 3,
-        expectedUsageCount: 2,
+        expectedAffectedBacklogIds: [backlogId],
       }),
     ).toMatchObject({
       permission: "manage_releases",
       expectedVersion: 3,
-      expectedUsageCount: 2,
+      expectedAffectedBacklogIds: [backlogId],
     });
 
     expect(
@@ -60,7 +60,7 @@ describe("authorization administration validation", () => {
         permission: "not-real",
         principal: { type: "authenticated_user" },
         expectedVersion: 3,
-        expectedUsageCount: 0,
+        expectedAffectedBacklogIds: [],
       }),
     ).toThrow();
     expect(() =>
@@ -69,6 +69,7 @@ describe("authorization administration validation", () => {
         permission: "administer_jiroo",
         principal: { type: "authenticated_user" },
         expectedVersion: 3,
+        expectedAffectedBacklogIds: [],
       }),
     ).toThrow();
     expect(() =>
@@ -102,7 +103,7 @@ describe("authorization administration validation", () => {
         permission: "browse_backlog",
         principal: { type: "authenticated_user" },
         expectedVersion: 1,
-        expectedUsageCount: 0,
+        expectedAffectedBacklogIds: [],
       }).principal,
     ).toEqual({ type: "authenticated_user" });
 
@@ -112,7 +113,7 @@ describe("authorization administration validation", () => {
         permission: "browse_backlog",
         principal: { type: "project_role", projectRoleId, groupId },
         expectedVersion: 1,
-        expectedUsageCount: 0,
+        expectedAffectedBacklogIds: [],
       }),
     ).toThrow();
     expect(() =>
@@ -121,7 +122,7 @@ describe("authorization administration validation", () => {
         permission: "browse_backlog",
         principal: { type: "user", groupId },
         expectedVersion: 1,
-        expectedUsageCount: 0,
+        expectedAffectedBacklogIds: [],
       }),
     ).toThrow();
     expect(() =>
@@ -155,19 +156,55 @@ describe("authorization administration validation", () => {
         schemeId,
         grantId,
         expectedVersion: 2,
-        expectedUsageCount: 0,
+        expectedAffectedBacklogIds: [backlogId],
       }),
-    ).toEqual({ schemeId, grantId, expectedVersion: 2, expectedUsageCount: 0 });
+    ).toEqual({
+      schemeId,
+      grantId,
+      expectedVersion: 2,
+      expectedAffectedBacklogIds: [backlogId],
+    });
     for (const expectedVersion of [0, -1, 1.5, Number.NaN]) {
       expect(() =>
         schemeGrantRemovalInput.parse({
           schemeId,
           grantId,
           expectedVersion,
-          expectedUsageCount: 0,
+          expectedAffectedBacklogIds: [backlogId],
         }),
       ).toThrow();
     }
+  });
+
+  it("requires a canonical sorted snapshot of affected backlog IDs", () => {
+    const secondBacklogId = "00000000-0000-4000-8000-000000000005";
+    expect(
+      grantInput.parse({
+        schemeId,
+        permission: "manage_releases",
+        principal: { type: "user", userId: "user-1" },
+        expectedVersion: 2,
+        expectedAffectedBacklogIds: [backlogId, secondBacklogId],
+      }),
+    ).toMatchObject({ expectedAffectedBacklogIds: [backlogId, secondBacklogId] });
+    expect(() =>
+      grantInput.parse({
+        schemeId,
+        permission: "manage_releases",
+        principal: { type: "user", userId: "user-1" },
+        expectedVersion: 2,
+        expectedAffectedBacklogIds: [secondBacklogId, backlogId],
+      }),
+    ).toThrow();
+    expect(() =>
+      grantInput.parse({
+        schemeId,
+        permission: "manage_releases",
+        principal: { type: "user", userId: "user-1" },
+        expectedVersion: 2,
+        expectedAffectedBacklogIds: [backlogId, backlogId],
+      }),
+    ).toThrow();
   });
 
   it("validates mode changes and permission-helper queries explicitly", () => {
