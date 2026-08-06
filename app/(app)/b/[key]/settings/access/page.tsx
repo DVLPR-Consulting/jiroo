@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { AccessAdmin } from "@/components/admin/access-admin";
 import { PermissionHelper } from "@/components/admin/permission-helper";
-import { requireBacklogPermissionByKey } from "@/lib/auth/action-authorization";
+import { requireBacklogReadPermissionByKey } from "@/lib/auth/action-authorization";
 import { checkPermission, ResourceNotFoundError } from "@/lib/auth/authorization";
 import { requireAppPageSession } from "@/lib/auth/session";
 import {
@@ -14,9 +14,9 @@ import { listAdminUsers } from "@/lib/services/users";
 export default async function AccessPage({ params }: { params: Promise<{ key: string }> }) {
   const session = await requireAppPageSession();
   const { key } = await params;
-  let resource: Awaited<ReturnType<typeof requireBacklogPermissionByKey>>;
+  let resource: Awaited<ReturnType<typeof requireBacklogReadPermissionByKey>>;
   try {
-    resource = await requireBacklogPermissionByKey({
+    resource = await requireBacklogReadPermissionByKey({
       actorId: session.user.id,
       backlogKey: key,
       permission: "browse_backlog",

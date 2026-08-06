@@ -59,4 +59,22 @@ describe("ProjectRoleAdmin", () => {
     expect(within(dialog).getByText("1 autorisation de schéma")).toBeVisible();
     expect(within(dialog).getByRole("button", { name: "Confirmer la suppression" })).toBeDisabled();
   });
+
+  it("annonce une erreur de suppression dans la modale qui reste active", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockResolvedValue({
+      ok: false,
+      error: "Ce rôle de projet est encore utilisé.",
+    });
+    render(<ProjectRoleAdmin roles={[{ ...role, blockers: [] }]} />);
+
+    await user.click(screen.getByRole("button", { name: "Supprimer Delivery" }));
+    const dialog = screen.getByRole("dialog", { name: "Supprimer Delivery" });
+    await user.click(within(dialog).getByRole("button", { name: "Confirmer la suppression" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Ce rôle de projet est encore utilisé.",
+    );
+    expect(dialog).toBeVisible();
+  });
 });

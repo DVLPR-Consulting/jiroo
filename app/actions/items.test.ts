@@ -20,7 +20,6 @@ const classes = vi.hoisted(() => ({
 
 const mocks = vi.hoisted(() => ({
   bulkUpdateItems: vi.fn(),
-  canWriteItems: vi.fn(),
   createItem: vi.fn(),
   getSession: vi.fn(),
   moveItem: vi.fn(),
@@ -38,7 +37,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
-vi.mock("@/lib/auth/rbac", () => ({ canWriteItems: mocks.canWriteItems }));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireBacklogPermissionById: mocks.requireBacklogPermissionById,
   requireItemPermission: mocks.requireItemPermission,
@@ -88,31 +86,34 @@ function authorizeStoredResource(id: string) {
   return { backlogId, resourceId: id };
 }
 
+function resetActionMocks() {
+  vi.resetAllMocks();
+  mocks.getSession.mockResolvedValue({ user: { id: "writer-1", role: "contributor" } });
+  mocks.requireBacklogPermissionById.mockImplementation(async ({ backlogId: id }) =>
+    authorizeStoredResource(id),
+  );
+  mocks.requireItemPermission.mockImplementation(async ({ itemId: id }) =>
+    authorizeStoredResource(id),
+  );
+  mocks.requireSprintPermission.mockImplementation(async ({ sprintId: id }) =>
+    authorizeStoredResource(id),
+  );
+  mocks.requireStatusPermission.mockImplementation(async ({ statusId: id }) =>
+    authorizeStoredResource(id),
+  );
+  mocks.createItem.mockResolvedValue({ id: itemId });
+  mocks.updateItem.mockResolvedValue({ id: itemId });
+  mocks.bulkUpdateItems.mockResolvedValue({ changedCount: 2, unchangedCount: 0 });
+  mocks.rankBacklogItem.mockResolvedValue({ id: itemId });
+  mocks.moveItem.mockResolvedValue({ id: itemId });
+  mocks.reparentItem.mockResolvedValue({ id: itemId });
+  mocks.softDeleteItem.mockResolvedValue({ id: itemId });
+  mocks.restoreItem.mockResolvedValue({ id: itemId });
+}
+
 describe("item action permission mapping", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.canWriteItems.mockReturnValue(true);
-    mocks.getSession.mockResolvedValue({ user: { id: "writer-1", role: "contributor" } });
-    mocks.requireBacklogPermissionById.mockImplementation(async ({ backlogId: id }) =>
-      authorizeStoredResource(id),
-    );
-    mocks.requireItemPermission.mockImplementation(async ({ itemId: id }) =>
-      authorizeStoredResource(id),
-    );
-    mocks.requireSprintPermission.mockImplementation(async ({ sprintId: id }) =>
-      authorizeStoredResource(id),
-    );
-    mocks.requireStatusPermission.mockImplementation(async ({ statusId: id }) =>
-      authorizeStoredResource(id),
-    );
-    mocks.createItem.mockResolvedValue({ id: itemId });
-    mocks.updateItem.mockResolvedValue({ id: itemId });
-    mocks.bulkUpdateItems.mockResolvedValue({ changedCount: 2, unchangedCount: 0 });
-    mocks.rankBacklogItem.mockResolvedValue({ id: itemId });
-    mocks.moveItem.mockResolvedValue({ id: itemId });
-    mocks.reparentItem.mockResolvedValue({ id: itemId });
-    mocks.softDeleteItem.mockResolvedValue({ id: itemId });
-    mocks.restoreItem.mockResolvedValue({ id: itemId });
+    resetActionMocks();
   });
 
   it("requires create_items and schedule_items when creating directly in a sprint", async () => {
@@ -136,6 +137,36 @@ describe("item action permission mapping", () => {
       permission: "schedule_items",
     });
     expect(mocks.createItem).toHaveBeenCalled();
+  });
+
+  it("requires schedule_items for a non-null parent before creating the child", async () => {
+    mocks.requireItemPermission.mockImplementation(async ({ itemId: id, permission }) => {
+      if (id === itemId && permission === "schedule_items") {
+        throw permissionDeniedError("schedule_items", {
+          type: "backlog",
+          backlogId,
+        });
+      }
+      return authorizeStoredResource(id);
+    });
+
+    await expect(
+      createItemAction({
+        backlogKey: "FORGED",
+        backlogId,
+        type: "tache",
+        parentId: itemId,
+        title: "Enfant non planifiable",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Planifier les éléments » pour ce backlog.",
+    });
+    expect(mocks.requireItemPermission.mock.calls.map(([input]) => input)).toEqual([
+      { actorId: "writer-1", itemId, permission: "browse_backlog" },
+      { actorId: "writer-1", itemId, permission: "schedule_items" },
+    ]);
+    expect(mocks.createItem).not.toHaveBeenCalled();
   });
 
   it("resolves a create parent with browse_backlog and rejects another stored backlog", async () => {
@@ -476,12 +507,30 @@ describe("item action permission mapping", () => {
     });
     expect(service).not.toHaveBeenCalled();
   });
+
+  it("keeps a rejected authorization implementation local to this describe", async () => {
+    mocks.requireItemPermission.mockRejectedValue(
+      permissionDeniedError("schedule_items", { type: "backlog", backlogId }),
+    );
+
+    await expect(
+      rankBacklogItemAction({
+        backlogKey: "DEMO",
+        backlogId,
+        id: itemId,
+        beforeId: null,
+        afterId: null,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Planifier les éléments » pour ce backlog.",
+    });
+  });
 });
 
 describe("item action validation", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.canWriteItems.mockReturnValue(true);
+    resetActionMocks();
     mocks.getSession.mockResolvedValue({
       user: { id: "writer-1", role: "contributor", twoFactorEnabled: true },
     });
@@ -607,8 +656,7 @@ describe("rankBacklogItemAction", () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.canWriteItems.mockReturnValue(true);
+    resetActionMocks();
     mocks.getSession.mockResolvedValue({
       user: { id: "writer-1", role: "contributor", twoFactorEnabled: true },
     });
@@ -679,8 +727,7 @@ describe("rankBacklogItemAction", () => {
 
 describe("restoreItemAction", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.canWriteItems.mockReturnValue(true);
+    resetActionMocks();
     mocks.getSession.mockResolvedValue({
       user: { id: "writer-1", role: "contributor", twoFactorEnabled: true },
     });
@@ -726,8 +773,7 @@ describe("bulkUpdateItemsAction", () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.canWriteItems.mockReturnValue(true);
+    resetActionMocks();
     mocks.getSession.mockResolvedValue({
       user: { id: "writer-1", role: "contributor", twoFactorEnabled: true },
     });

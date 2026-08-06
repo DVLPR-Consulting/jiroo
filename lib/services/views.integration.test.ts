@@ -8,6 +8,9 @@ import { user } from "@/lib/db/schema/auth";
 import { backlogs, views } from "@/lib/db/schema/domain";
 import {
   deleteView,
+  getViewByIdForUser,
+  listViews,
+  listVisibleViews,
   renameView,
   setShared,
   updateView,
@@ -52,7 +55,7 @@ describeDb("shared view mutation override", () => {
         name: "Propriétaire vue",
         email: `${ownerId}@example.test`,
         emailVerified: true,
-        role: "contributor",
+        role: "admin",
       },
       {
         id: managerId,
@@ -84,6 +87,9 @@ describeDb("shared view mutation override", () => {
 
   afterEach(async () => {
     if (viewId) await db.delete(views).where(eq(views.id, viewId));
+    if (backlogId) {
+      await db.update(backlogs).set({ archivedAt: null }).where(eq(backlogs.id, backlogId));
+    }
     viewId = "";
   });
 
@@ -126,4 +132,18 @@ describeDb("shared view mutation override", () => {
       });
     },
   );
+
+  it("excludes archived backlogs in SQL from every ordinary view read", async () => {
+    await db
+      .update(backlogs)
+      .set({ archivedAt: new Date("2026-08-06T12:00:00.000Z") })
+      .where(eq(backlogs.id, backlogId));
+
+    await expect(listVisibleViews(ownerId)).resolves.toEqual([]);
+    await expect(listViews(backlogId, ownerId)).resolves.toEqual({
+      personal: [],
+      shared: [],
+    });
+    await expect(getViewByIdForUser(viewId, ownerId)).resolves.toBeNull();
+  });
 });

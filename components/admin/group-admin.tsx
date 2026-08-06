@@ -28,10 +28,22 @@ export function GroupAdmin({ groups, users, globalGrants, canAdministerGlobals }
   const [selectedUsers, setSelectedUsers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<GroupAdminDto | null>(null);
+  const [deletionError, setDeletionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const run = (action: () => Promise<{ ok: boolean; error?: string }>, onSuccess?: () => void) => {
     setError(null);
     startTransition(async () => { const result = await action(); if (!result.ok) setError(result.error ?? "Action impossible."); else onSuccess?.(); });
+  };
+  const runDeletion = (group: GroupAdminDto) => {
+    setDeletionError(null);
+    startTransition(async () => {
+      const result = await deleteGroupAction({ groupId: group.id });
+      if (!result.ok) {
+        setDeletionError(result.error ?? "Action impossible.");
+        return;
+      }
+      setDeleting(null);
+    });
   };
 
   return <div className="space-y-6">
@@ -52,7 +64,7 @@ export function GroupAdmin({ groups, users, globalGrants, canAdministerGlobals }
             <Input aria-label="Nom du groupe" value={names[group.id] ?? group.name} disabled={group.protected || pending} onChange={(e) => setNames((current) => ({ ...current, [group.id]: e.target.value }))} />
             <Button size="sm" variant="outline" disabled={group.protected || pending} onClick={() => run(() => renameGroupAction({ groupId: group.id, name: names[group.id] ?? group.name }))}>Renommer</Button>
             {group.protected && <Badge variant="secondary">Groupe protégé</Badge>}
-            {!group.protected && <Button className="ml-auto" size="sm" variant="destructive" onClick={() => setDeleting(group)}>Supprimer le groupe</Button>}
+            {!group.protected && <Button className="ml-auto" size="sm" variant="destructive" onClick={() => { setDeletionError(null); setDeleting(group); }}>Supprimer le groupe</Button>}
           </div>
           <p className="text-xs text-muted-foreground">{group.memberCount} membre{group.memberCount > 1 ? "s" : ""}</p>
           <ul className="space-y-1">{group.members.map((member) => <li key={member.id} className="flex items-center gap-2 text-sm"><span>{member.name}</span><span className="text-muted-foreground">{member.email}</span>{canManageMembership && <Button className="ml-auto" size="xs" variant="ghost" disabled={pending} onClick={() => run(() => removeGroupMemberAction({ groupId: group.id, userId: member.id }))} aria-label={`Retirer ${member.name}`}>Retirer</Button>}</li>)}</ul>
@@ -66,6 +78,6 @@ export function GroupAdmin({ groups, users, globalGrants, canAdministerGlobals }
       {groups.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">Aucun groupe.</p>}
     </div>
     <GlobalPermissionAdmin grants={globalGrants} users={users} groups={groups} canManage={canAdministerGlobals} />
-    <Dialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}><DialogContent><DialogHeader><DialogTitle>Supprimer {deleting?.name}</DialogTitle><DialogDescription>Cette suppression est définitive.</DialogDescription></DialogHeader>{deleting?.blockers.length ? <ul className="list-disc pl-5 text-sm">{deleting.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul> : null}<DialogFooter><Button variant="destructive" disabled={pending || Boolean(deleting?.blockers.length)} aria-busy={pending} onClick={() => deleting && run(() => deleteGroupAction({ groupId: deleting.id }), () => setDeleting(null))}>Confirmer la suppression</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={deleting !== null} onOpenChange={(open) => { if (!open) { setDeleting(null); setDeletionError(null); } }}><DialogContent><DialogHeader><DialogTitle>Supprimer {deleting?.name}</DialogTitle><DialogDescription>Cette suppression est définitive.</DialogDescription></DialogHeader>{deleting?.blockers.length ? <ul className="list-disc pl-5 text-sm">{deleting.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul> : null}{deletionError && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{deletionError}</p>}<DialogFooter><Button variant="destructive" disabled={pending || Boolean(deleting?.blockers.length)} aria-busy={pending} onClick={() => deleting && runDeletion(deleting)}>Confirmer la suppression</Button></DialogFooter></DialogContent></Dialog>
   </div>;
 }

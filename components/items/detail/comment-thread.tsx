@@ -226,7 +226,7 @@ export function CommentThread({
   comments,
   users,
   currentUserId,
-  capabilities = { add: true, editOwn: true, deleteOwn: true, deleteAll: true },
+  capabilities = { add: false, editOwn: false, deleteOwn: false, deleteAll: false },
 }: {
   itemId: string;
   backlogKey: string;

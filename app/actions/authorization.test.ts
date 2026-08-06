@@ -55,7 +55,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/auth/authorization", () => ({
   appendPlatformAdministratorBypassEvent: mocks.appendPlatformAdministratorBypassEvent,
   PermissionDeniedError: classes.PermissionDeniedError,
-  requirePermission: mocks.requirePermission,
+  requirePermissionWithoutBypassAudit: mocks.requirePermission,
 }));
 vi.mock("@/lib/services/authorization-admin", () => ({
   addGlobalPermissionGrant: mocks.addGlobalPermissionGrant,

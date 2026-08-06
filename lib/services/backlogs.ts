@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
 import { STATUS_CATEGORY, type StatusId } from "@/lib/design/constants";
 import { planItemKeyRewrite } from "@/lib/items/backlog-key";
+import { provisionBacklogAuthorization } from "@/lib/services/authorization-seed";
 import { createBacklogSchema, updateBacklogSchema } from "@/lib/validation/backlog";
 
 // The 4 fixed statuses every backlog gets at creation.
@@ -44,7 +45,7 @@ export async function getBacklogByKeyForUser(key: string, userId: string) {
   return b ?? null;
 }
 
-export async function createBacklog(input: unknown) {
+export async function createBacklog(input: unknown, creatorId: string) {
   const data = createBacklogSchema.parse(input);
   return db.transaction(async (tx) => {
     const [backlog] = await tx.insert(backlogs).values(data).returning();
@@ -57,6 +58,10 @@ export async function createBacklog(input: unknown) {
         color: s.color,
       })),
     );
+    await provisionBacklogAuthorization(tx, {
+      backlogId: backlog!.id,
+      administratorIds: [creatorId],
+    });
     return backlog!;
   });
 }

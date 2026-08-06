@@ -5,6 +5,7 @@ import { alias } from "drizzle-orm/pg-core";
 import {
   PermissionDeniedError,
   requirePermission,
+  requirePermissionWithoutBypassAudit,
   ResourceNotFoundError,
 } from "@/lib/auth/authorization";
 import type { BacklogPermissionKey } from "@/lib/auth/permissions";
@@ -39,16 +40,24 @@ async function authorizeResource(input: {
   resourceType: string;
   resourceId: string;
   backlogId: string | null;
-}): Promise<AuthorizedResource> {
+}, recordBypass = true): Promise<AuthorizedResource> {
   if (!input.backlogId) {
     throw new ResourceNotFoundError(input.resourceType, input.resourceId);
   }
   try {
-    await requirePermission({
+    const browseInput = {
       actorId: input.actorId,
-      permission: "browse_backlog",
-      scope: { type: "backlog", backlogId: input.backlogId },
-    });
+      permission: "browse_backlog" as const,
+      scope: { type: "backlog" as const, backlogId: input.backlogId },
+    };
+    if (recordBypass && input.permission === "browse_backlog") {
+      await requirePermission(browseInput, {
+        targetType: input.resourceType,
+        targetId: input.resourceId,
+      });
+    } else {
+      await requirePermissionWithoutBypassAudit(browseInput);
+    }
   } catch (error) {
     if (error instanceof PermissionDeniedError) {
       throw new ResourceNotFoundError(input.resourceType, input.resourceId);
@@ -57,11 +66,19 @@ async function authorizeResource(input: {
   }
 
   if (input.permission !== "browse_backlog") {
-    await requirePermission({
+    const requestedInput = {
       actorId: input.actorId,
       permission: input.permission,
-      scope: { type: "backlog", backlogId: input.backlogId },
-    });
+      scope: { type: "backlog" as const, backlogId: input.backlogId },
+    };
+    if (recordBypass) {
+      await requirePermission(requestedInput, {
+        targetType: input.resourceType,
+        targetId: input.resourceId,
+      });
+    } else {
+      await requirePermissionWithoutBypassAudit(requestedInput);
+    }
   }
   return { backlogId: input.backlogId, resourceId: input.resourceId };
 }
@@ -101,6 +118,26 @@ export async function requireBacklogPermissionByKey(
     resourceId: backlog.id,
     backlogId: backlog.id,
   });
+  return { ...authorized, backlogKey: backlog.key };
+}
+
+export async function requireBacklogReadPermissionByKey(
+  input: BacklogPermissionInput & { backlogKey: string },
+): Promise<AuthorizedResource & { backlogKey: string }> {
+  const normalizedKey = input.backlogKey.toUpperCase();
+  const [backlog] = await db
+    .select({ id: backlogs.id, key: backlogs.key })
+    .from(backlogs)
+    .where(eq(backlogs.key, normalizedKey))
+    .limit(1);
+  if (!backlog) throw new ResourceNotFoundError("backlog", normalizedKey);
+
+  const authorized = await authorizeResource({
+    ...input,
+    resourceType: "backlog",
+    resourceId: backlog.id,
+    backlogId: backlog.id,
+  }, false);
   return { ...authorized, backlogKey: backlog.key };
 }
 
@@ -239,7 +276,7 @@ export async function requireCommentPermission(input: {
       resourceType: "comment",
       resourceId: comment.id,
       backlogId: comment.backlogId,
-    });
+    }, false);
     throw new PermissionDeniedError({
       allowed: false,
       permission: input.ownPermission,

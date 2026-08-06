@@ -9,8 +9,12 @@ const runId = `reservation-${randomUUID()}`;
 const lockRoot = `.playwright/run-lock-tests/${randomUUID()}`;
 const lockPath = `${lockRoot}/${runId}.lock`;
 const legacyLockPath = `.playwright/run-locks/${runId}.lock`;
+let activeProcesses = 0;
+let maximumConcurrentProcesses = 0;
 
 async function reserveFromAnotherProcess() {
+  activeProcesses += 1;
+  maximumConcurrentProcesses = Math.max(maximumConcurrentProcesses, activeProcesses);
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     JIROO_E2E_RUN_ID: runId,
@@ -35,6 +39,8 @@ async function reserveFromAnotherProcess() {
       exitCode: failure.code ?? -1,
       output: `${failure.stdout ?? ""}${failure.stderr ?? ""}`,
     };
+  } finally {
+    activeProcesses -= 1;
   }
 }
 
@@ -46,10 +52,13 @@ afterEach(async () => {
 
 describe("réservation atomique des preuves Playwright", () => {
   it("laisse un seul de deux processus gagner malgré le même jeton d’environnement", async () => {
-    const first = await reserveFromAnotherProcess();
-    const second = await reserveFromAnotherProcess();
-    const results = [first, second];
+    maximumConcurrentProcesses = 0;
+    const results = await Promise.all([
+      reserveFromAnotherProcess(),
+      reserveFromAnotherProcess(),
+    ]);
 
+    expect(maximumConcurrentProcesses).toBe(2);
     expect(results.map((result) => result.exitCode).sort()).toEqual([0, 1]);
     expect(results.find((result) => result.exitCode === 1)?.output).toContain(
       `Le run-id Playwright ${runId} est déjà réservé`,

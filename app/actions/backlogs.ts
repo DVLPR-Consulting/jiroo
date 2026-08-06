@@ -28,7 +28,7 @@ export async function createBacklogAction(input: { key: string; name: string; co
       permission: "create_backlogs",
       scope: { type: "global" },
     });
-    const b = await createBacklog(input);
+    const b = await createBacklog(input, actorId);
     revalidatePath("/admin");
     return { ok: true as const, backlog: b };
   } catch (e) {

@@ -633,6 +633,31 @@ describeDb("transactional authorization administration", () => {
     ]);
   });
 
+  it("refuses to append a platform-administrator bypass for a non-administrator actor", async () => {
+    await expect(
+      appendPlatformAdministratorBypassEvent({
+        actorId: memberId,
+        permission: "manage_members",
+        scope: { type: "backlog", backlogId: backlogAId },
+        targetType: "backlog_role_actor",
+        targetId: backlogAId,
+        requestCorrelationId: correlation("non-admin-platform-bypass"),
+      }),
+    ).rejects.toThrow("Vous n’avez pas la permission d’effectuer cette action.");
+
+    expect(
+      await db
+        .select({ id: securityAuditEvents.id })
+        .from(securityAuditEvents)
+        .where(
+          eq(
+            securityAuditEvents.requestCorrelationId,
+            correlation("non-admin-platform-bypass"),
+          ),
+        ),
+    ).toEqual([]);
+  });
+
   it("associates a scheme and its immutable audit event atomically", async () => {
     const targetSchemeId = await createIsolatedScheme("Association Task 4");
     await db.insert(permissionGrants).values(

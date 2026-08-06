@@ -56,6 +56,18 @@ describe("StatusManagerDialog", () => {
     expect(screen.queryByRole("button", { name: "Colonnes" })).not.toBeInTheDocument();
   });
 
+  it("fails closed when a future consumer omits workflow capabilities", () => {
+    render(
+      <StatusManagerDialog
+        backlogId="backlog-1"
+        backlogKey="DEMO"
+        statuses={statuses}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Colonnes" })).not.toBeInTheDocument();
+  });
+
   it("makes column management discoverable and creates a persisted column", async () => {
     const user = userEvent.setup();
     mocks.createStatusAction.mockResolvedValue({

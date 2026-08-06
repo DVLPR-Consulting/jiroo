@@ -70,6 +70,24 @@ describe("GroupAdmin", () => {
     await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith({ groupId: groups[0]!.id }));
   });
 
+  it("annonce une erreur de suppression dans la modale qui reste active", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockResolvedValue({
+      ok: false,
+      error: "Ce groupe est encore utilisé par un rôle de projet.",
+    });
+    render(<GroupAdmin groups={[{ ...groups[0]!, blockers: [] }]} users={users} globalGrants={[]} canAdministerGlobals={false} />);
+
+    await user.click(screen.getByRole("button", { name: "Supprimer le groupe" }));
+    const dialog = screen.getByRole("dialog", { name: "Supprimer Équipe produit" });
+    await user.click(within(dialog).getByRole("button", { name: "Confirmer la suppression" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Ce groupe est encore utilisé par un rôle de projet.",
+    );
+    expect(dialog).toBeVisible();
+  });
+
   it("masque les mutations de membres d’un groupe privilégié à un simple gestionnaire", () => {
     render(<GroupAdmin groups={[{
       ...groups[0]!,

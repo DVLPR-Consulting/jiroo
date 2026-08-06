@@ -8,12 +8,17 @@ import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
 import { user } from "@/lib/db/schema/auth";
 import {
   activities,
+  backlogPermissionConfigs,
+  backlogRoleActors,
   backlogs,
   items,
   permissionGrants,
+  permissionSchemes,
+  projectRoles,
   statuses,
 } from "@/lib/db/schema/domain";
 import {
+  createBacklog,
   getBacklogByKeyForUser,
   listBacklogsForUser,
   updateBacklog,
@@ -89,6 +94,77 @@ async function createFixture(actorId: string) {
 
   return { backlog: backlog!, oldKey, suffix };
 }
+
+describeDb("createBacklog authorization provisioning", () => {
+  it("atomically gives a new backlog a private default clone and its creator the administrator role", async () => {
+    const [creator] = await db.select({ id: user.id }).from(user).limit(1);
+    if (!creator) throw new Error("Le seed doit contenir un créateur.");
+    const backlog = await createBacklog(
+      {
+        key: randomBacklogKey("N"),
+        name: "Nouveau backlog autorisé",
+        color: "#475569",
+      },
+      creator.id,
+    );
+    let privateSchemeId = "";
+
+    try {
+      const [config] = await db
+        .select({
+          accessMode: backlogPermissionConfigs.accessMode,
+          schemeId: permissionSchemes.id,
+          schemeKey: permissionSchemes.key,
+        })
+        .from(backlogPermissionConfigs)
+        .innerJoin(
+          permissionSchemes,
+          eq(backlogPermissionConfigs.permissionSchemeId, permissionSchemes.id),
+        )
+        .where(eq(backlogPermissionConfigs.backlogId, backlog.id));
+      expect(config).toEqual({
+        accessMode: "simple",
+        schemeId: expect.any(String),
+        schemeKey: `backlog-${backlog.id}-permission-scheme`,
+      });
+      privateSchemeId = config!.schemeId;
+
+      const occupancy = await db
+        .select({ roleKey: projectRoles.key, userId: backlogRoleActors.userId })
+        .from(backlogRoleActors)
+        .innerJoin(projectRoles, eq(backlogRoleActors.projectRoleId, projectRoles.id))
+        .where(eq(backlogRoleActors.backlogId, backlog.id));
+      expect(occupancy).toEqual([{ roleKey: "administrators", userId: creator.id }]);
+
+      const [defaultScheme] = await db
+        .select({ id: permissionSchemes.id })
+        .from(permissionSchemes)
+        .where(eq(permissionSchemes.key, "default-permission-scheme"));
+      if (!defaultScheme) throw new Error("Le schéma par défaut doit exister.");
+      const grantShape = {
+        permissionKey: permissionGrants.permissionKey,
+        principalType: permissionGrants.principalType,
+        projectRoleId: permissionGrants.projectRoleId,
+      };
+      const defaultGrants = await db
+        .select(grantShape)
+        .from(permissionGrants)
+        .where(eq(permissionGrants.permissionSchemeId, defaultScheme.id))
+        .orderBy(asc(permissionGrants.permissionKey), asc(permissionGrants.projectRoleId));
+      const clonedGrants = await db
+        .select(grantShape)
+        .from(permissionGrants)
+        .where(eq(permissionGrants.permissionSchemeId, privateSchemeId))
+        .orderBy(asc(permissionGrants.permissionKey), asc(permissionGrants.projectRoleId));
+      expect(clonedGrants).toEqual(defaultGrants);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, backlog.id));
+      if (privateSchemeId) {
+        await db.delete(permissionSchemes).where(eq(permissionSchemes.id, privateSchemeId));
+      }
+    }
+  });
+});
 
 describeDb("updateBacklog transaction", () => {
   it("renames live and deleted item keys and audits every item", async () => {

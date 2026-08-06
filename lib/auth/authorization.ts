@@ -1,5 +1,6 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import { and, eq, exists, isNull, or } from "drizzle-orm";
 import {
   evaluatePermission,
@@ -329,12 +330,38 @@ async function assertResourceExists(scope: PermissionScope): Promise<void> {
   if (!resource) throw new ResourceNotFoundError("backlog", scope.backlogId);
 }
 
-export async function requirePermission(
+export async function requirePermissionWithoutBypassAudit(
   input: CheckPermissionInput,
 ): Promise<AuthorizationDecision> {
   await assertResourceExists(input.scope);
   const decision = await checkPermission(input);
   if (!decision.allowed) throw new PermissionDeniedError(decision);
+  return decision;
+}
+
+export type PermissionBypassAuditTarget = {
+  targetType: string;
+  targetId: string;
+  requestCorrelationId?: string;
+};
+
+export async function requirePermission(
+  input: CheckPermissionInput,
+  target?: PermissionBypassAuditTarget,
+): Promise<AuthorizationDecision> {
+  const decision = await requirePermissionWithoutBypassAudit(input);
+  if (decision.reasons.some((reason) => reason.type === "platform_administrator")) {
+    await appendPlatformAdministratorBypassEvent({
+      actorId: input.actorId,
+      permission: input.permission,
+      scope: input.scope,
+      targetType: target?.targetType ?? input.scope.type,
+      targetId:
+        target?.targetId ??
+        (input.scope.type === "backlog" ? input.scope.backlogId : input.permission),
+      requestCorrelationId: target?.requestCorrelationId ?? randomUUID(),
+    });
+  }
   return decision;
 }
 
@@ -357,6 +384,14 @@ export async function appendPlatformAdministratorBypassEvent(
   }
   const actor = await loadActor(input.actorId);
   if (!actor) throw new ResourceNotFoundError("user", input.actorId);
+  if (!(await isPlatformAdministrator(actor))) {
+    throw new PermissionDeniedError({
+      allowed: false,
+      permission: definition.key,
+      scope: input.scope,
+      reasons: [{ type: "no_matching_grant" }],
+    });
+  }
   await db.insert(securityAuditEvents).values({
     actorId: actor.id,
     actorLabel: actor.name,

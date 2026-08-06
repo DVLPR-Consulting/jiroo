@@ -51,7 +51,7 @@ export function StatusManagerDialog({
   backlogId,
   backlogKey,
   statuses,
-  capabilities = { manage: true },
+  capabilities = { manage: false },
 }: {
   backlogId: string;
   backlogKey: string;

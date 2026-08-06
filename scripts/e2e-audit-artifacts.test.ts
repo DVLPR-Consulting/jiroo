@@ -20,7 +20,7 @@ afterEach(async () => {
 
 const persistentOptions = () => ({
   env: {
-    JIROO_E2E_PERSIST_AUDIT_ARTIFACTS: "1",
+    JIROO_E2E_PERSIST_AUDIT: "1",
     JIROO_E2E_RUN_ID: "20260806-round3",
   },
   workingDirectory,

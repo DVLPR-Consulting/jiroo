@@ -110,6 +110,11 @@ async function authorizeParent(input: {
     permission: "browse_backlog",
   });
   assertSameBacklog(input.childBacklog, parent, "item");
+  await requireItemPermission({
+    actorId: input.actorId,
+    itemId: input.parentId,
+    permission: "schedule_items",
+  });
 }
 
 async function authorizeItemUpdate(

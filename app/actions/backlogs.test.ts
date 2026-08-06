@@ -55,6 +55,10 @@ describe("backlog action permissions", () => {
     expect(mocks.requirePermission.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.createBacklog.mock.invocationCallOrder[0]!,
     );
+    expect(mocks.createBacklog).toHaveBeenCalledWith(
+      { key: "API", name: "API", color: "#475569" },
+      "admin-1",
+    );
   });
 
   it("returns a structured global permission denial", async () => {

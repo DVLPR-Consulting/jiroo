@@ -35,6 +35,97 @@ function privateSchemeKey(backlogId: string): string {
   return `backlog-${backlogId}-permission-scheme`;
 }
 
+type AuthorizationTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export async function provisionBacklogAuthorization(
+  tx: AuthorizationTransaction,
+  input: { backlogId: string; administratorIds: readonly string[] },
+): Promise<string> {
+  const [[defaultScheme], [administratorRole]] = await Promise.all([
+    tx
+      .select({ id: permissionSchemes.id })
+      .from(permissionSchemes)
+      .where(eq(permissionSchemes.key, DEFAULT_PERMISSION_SCHEME_KEY)),
+    tx
+      .select({ id: projectRoles.id })
+      .from(projectRoles)
+      .where(eq(projectRoles.key, ADMINISTRATORS_ROLE_KEY)),
+  ]);
+  if (!defaultScheme) throw new Error("Le schéma de permissions par défaut est introuvable.");
+  if (!administratorRole) throw new Error("Le rôle Administrateur est introuvable.");
+
+  const schemeKey = privateSchemeKey(input.backlogId);
+  await tx
+    .insert(permissionSchemes)
+    .values({
+      key: schemeKey,
+      name: `Schéma privé ${input.backlogId}`,
+      description: "Copie privée du schéma de permissions par défaut.",
+    })
+    .onConflictDoNothing();
+  const [privateScheme] = await tx
+    .select({ id: permissionSchemes.id })
+    .from(permissionSchemes)
+    .where(eq(permissionSchemes.key, schemeKey));
+  if (!privateScheme) {
+    throw new Error(`Le schéma privé du backlog ${input.backlogId} est introuvable.`);
+  }
+
+  const defaultGrants = await tx
+    .select({
+      permissionKey: permissionGrants.permissionKey,
+      principalType: permissionGrants.principalType,
+      userId: permissionGrants.userId,
+      groupId: permissionGrants.groupId,
+      projectRoleId: permissionGrants.projectRoleId,
+    })
+    .from(permissionGrants)
+    .where(eq(permissionGrants.permissionSchemeId, defaultScheme.id));
+  if (defaultGrants.length === 0) {
+    throw new Error("Le schéma de permissions par défaut ne contient aucun grant.");
+  }
+  await tx
+    .insert(permissionGrants)
+    .values(
+      defaultGrants.map((grant) => ({
+        scope: "backlog" as const,
+        permissionSchemeId: privateScheme.id,
+        permissionKey: grant.permissionKey,
+        principalType: grant.principalType,
+        userId: grant.userId,
+        groupId: grant.groupId,
+        projectRoleId: grant.projectRoleId,
+      })),
+    )
+    .onConflictDoNothing();
+
+  await tx
+    .insert(backlogPermissionConfigs)
+    .values({
+      backlogId: input.backlogId,
+      permissionSchemeId: privateScheme.id,
+      accessMode: "simple",
+    })
+    .onConflictDoNothing();
+
+  const administratorIds = [...new Set(input.administratorIds)];
+  if (administratorIds.length > 0) {
+    await tx
+      .insert(backlogRoleActors)
+      .values(
+        administratorIds.map((userId) => ({
+          backlogId: input.backlogId,
+          projectRoleId: administratorRole.id,
+          actorType: "user" as const,
+          userId,
+        })),
+      )
+      .onConflictDoNothing();
+  }
+
+  return privateScheme.id;
+}
+
 export async function seedAuthorizationDefaults(
   input: SeedAuthorizationDefaultsInput,
 ): Promise<void> {
@@ -136,53 +227,10 @@ export async function seedAuthorizationDefaults(
     }
 
     for (const [backlogId, administratorIds] of backlogAdministrators) {
-      const schemeKey = privateSchemeKey(backlogId);
-      await tx
-        .insert(permissionSchemes)
-        .values({
-          key: schemeKey,
-          name: `Schéma privé ${backlogId}`,
-          description: "Copie privée du schéma de permissions par défaut.",
-        })
-        .onConflictDoNothing();
-      const [privateScheme] = await tx
-        .select({ id: permissionSchemes.id })
-        .from(permissionSchemes)
-        .where(eq(permissionSchemes.key, schemeKey));
-      if (!privateScheme) throw new Error(`Le schéma privé du backlog ${backlogId} est introuvable.`);
-
-      await tx
-        .insert(permissionGrants)
-        .values(
-          defaultRoleGrants.map((grant) => ({
-            ...grant,
-            permissionSchemeId: privateScheme.id,
-          })),
-        )
-        .onConflictDoNothing();
-
-      await tx
-        .insert(backlogPermissionConfigs)
-        .values({
-          backlogId,
-          permissionSchemeId: privateScheme.id,
-          accessMode: "simple",
-        })
-        .onConflictDoNothing();
-
-      if (administratorIds.size > 0) {
-        await tx
-          .insert(backlogRoleActors)
-          .values(
-            [...administratorIds].map((userId) => ({
-              backlogId,
-              projectRoleId: roleIds.get(ADMINISTRATORS_ROLE_KEY)!,
-              actorType: "user" as const,
-              userId,
-            })),
-          )
-          .onConflictDoNothing();
-      }
+      await provisionBacklogAuthorization(tx, {
+        backlogId,
+        administratorIds: [...administratorIds],
+      });
     }
   });
 }

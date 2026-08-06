@@ -1,4 +1,4 @@
-import { and, asc, eq, getTableColumns, or } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, isNull, or } from "drizzle-orm";
 import { browseAccessPredicate } from "@/lib/auth/accessible-backlogs";
 import { db } from "@/lib/db";
 import { backlogs, views } from "@/lib/db/schema/domain";
@@ -41,6 +41,7 @@ export async function listVisibleViews(userId: string) {
     .where(
       and(
         or(eq(views.ownerId, userId), eq(views.shared, true)),
+        isNull(backlogs.archivedAt),
         browseAccessPredicate(userId),
       ),
     )
@@ -65,6 +66,7 @@ export async function listViews(
       and(
         eq(views.backlogId, backlogId),
         or(eq(views.ownerId, userId), eq(views.shared, true)),
+        isNull(backlogs.archivedAt),
         browseAccessPredicate(userId),
       ),
     )
@@ -83,6 +85,7 @@ export async function getViewByIdForUser(id: string, userId: string) {
       and(
         eq(views.id, id),
         or(eq(views.ownerId, userId), eq(views.shared, true)),
+        isNull(backlogs.archivedAt),
         browseAccessPredicate(userId),
       ),
     )

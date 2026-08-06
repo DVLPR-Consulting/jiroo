@@ -833,11 +833,12 @@ JIROO_E2E_RUN_ID='<run-id-unique>' \
 JIROO_E2E_COMMAND_LABEL='pnpm --ignore-workspace test:e2e -- --project=chromium' \
 JIROO_E2E_SCENARIOS='régression Chromium complète' \
 JIROO_E2E_PERSIST_AUDIT=1 \
-JIROO_E2E_PERSIST_AUDIT_ARTIFACTS=1 \
 pnpm --ignore-workspace test:e2e -- --project=chromium
 ```
 
-Playwright lance son propre serveur depuis ce worktree sur `:3100`, avec
+Le flag unique `JIROO_E2E_PERSIST_AUDIT=1` maintient ensemble le JUnit, le
+manifeste, les journaux et les captures ; une configuration partielle n’est
+plus possible. Playwright lance son propre serveur depuis ce worktree sur `:3100`, avec
 `.next-e2e`, sans réutiliser le serveur manuel `:3000`. `globalSetup` réserve
 chaque run-id exactement une fois par `wx` `0600`; aucune variable transmissible
 ne permet la réentrance. Journaux et captures sont toujours préfixés par le run

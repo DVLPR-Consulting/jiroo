@@ -51,7 +51,7 @@ async function main() {
   if (!cassStatus) throw new Error("Aucun statut CASS — exécute le seed d'abord.");
 
   // (b) throwaway backlog (also creates its 4 statuses)
-  const tb = await createBacklog({ key: "ZZTST", name: "Test", color: "#7c3030" });
+  const tb = await createBacklog({ key: "ZZTST", name: "Test", color: "#7c3030" }, actorId);
   console.log(`Created throwaway backlog ZZTST (${tb.id}).`);
 
   try {

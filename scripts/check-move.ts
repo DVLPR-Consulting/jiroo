@@ -32,7 +32,7 @@ async function main() {
   const actorId = admin.id;
 
   // (b) throwaway backlog ZZMV (also creates its 4 default statuses)
-  const tb = await createBacklog({ key: "ZZMV", name: "Move test", color: "#30557c" });
+  const tb = await createBacklog({ key: "ZZMV", name: "Move test", color: "#30557c" }, actorId);
   console.log(`Created throwaway backlog ZZMV (${tb.id}).`);
 
   try {

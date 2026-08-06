@@ -78,6 +78,34 @@ describe("CommentThread", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
+  it("fails closed when a future consumer omits comment capabilities", () => {
+    const comment: CommentRow = {
+      id: "comment-own",
+      authorId: "viewer-1",
+      authorName: "Nina Laurent",
+      body: "Commentaire existant",
+      mentions: [],
+      createdAt: new Date("2026-08-04T08:00:00Z"),
+      editedAt: null,
+      deletedAt: null,
+      deleted: false,
+    };
+
+    render(
+      <CommentThread
+        itemId="item-1"
+        backlogKey="CASS"
+        comments={[comment]}
+        users={[]}
+        currentUserId="viewer-1"
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Modifier" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Supprimer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
   it("separates own-comment editing from delete-all moderation", () => {
     const own = {
       id: "comment-own",

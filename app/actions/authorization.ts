@@ -6,7 +6,7 @@ import { ZodError } from "zod";
 import {
   appendPlatformAdministratorBypassEvent,
   PermissionDeniedError,
-  requirePermission,
+  requirePermissionWithoutBypassAudit as requirePermission,
   type AuthorizationDecision,
 } from "@/lib/auth/authorization";
 import { permissionDefinition } from "@/lib/auth/permissions";

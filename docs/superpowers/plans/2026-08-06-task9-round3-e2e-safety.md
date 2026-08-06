@@ -124,7 +124,10 @@ Run the new unit file and confirm current direct legacy writes cannot satisfy it
 
 - [x] **Step 3: Implement the shared artifact functions**
 
-Require a validated run ID, choose persistent output only when `JIROO_E2E_PERSIST_AUDIT_ARTIFACTS=1`, create parent directories, and publish screenshots atomically through `COPYFILE_EXCL`.
+Require a validated run ID, choose persistent output only when the shared
+`JIROO_E2E_PERSIST_AUDIT=1` flag also persists JUnit and manifest output,
+create parent directories, and publish screenshots atomically through
+`COPYFILE_EXCL`.
 
 - [x] **Step 4: Migrate all four specs**
 

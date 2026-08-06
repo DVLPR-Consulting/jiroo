@@ -27,7 +27,7 @@ async function main() {
   const actorId = admin.id;
 
   // (b) throwaway backlog (also creates its 4 statuses)
-  const tb = await createBacklog({ key: "ZZRK", name: "Rank test", color: "#30547c" });
+  const tb = await createBacklog({ key: "ZZRK", name: "Rank test", color: "#30547c" }, actorId);
   console.log(`Created throwaway backlog ZZRK (${tb.id}).`);
 
   try {

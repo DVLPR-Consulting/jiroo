@@ -20,6 +20,7 @@ import {
   permissionGrants,
   permissionSchemes,
   projectRoles,
+  securityAuditEvents,
   userGroups,
 } from "@/lib/db/schema/domain";
 
@@ -203,6 +204,9 @@ describeDb("server-only authorization resolver", () => {
   });
 
   afterAll(async () => {
+    await db
+      .delete(securityAuditEvents)
+      .where(eq(securityAuditEvents.actorId, ids.admin));
     if (backlogAId && backlogBId && backlogCId && unconfiguredBacklogId) {
       await db
         .delete(backlogs)
@@ -388,6 +392,47 @@ describeDb("server-only authorization resolver", () => {
       allowed: true,
       reasons: [{ type: "platform_administrator" }],
     });
+  });
+
+  it("records every mutating platform-administrator bypass at the permission boundary", async () => {
+    await expect(
+      requirePermission({
+        actorId: ids.admin,
+        permission: "manage_workflows",
+        scope: { type: "backlog", backlogId: backlogBId },
+      }),
+    ).resolves.toMatchObject({
+      allowed: true,
+      reasons: [{ type: "platform_administrator" }],
+    });
+
+    const events = await db
+      .select({
+        action: securityAuditEvents.action,
+        targetType: securityAuditEvents.targetType,
+        targetId: securityAuditEvents.targetId,
+        newValue: securityAuditEvents.newValue,
+        requestCorrelationId: securityAuditEvents.requestCorrelationId,
+      })
+      .from(securityAuditEvents)
+      .where(
+        and(
+          eq(securityAuditEvents.actorId, ids.admin),
+          eq(securityAuditEvents.action, "platform_administrator_bypass"),
+          eq(securityAuditEvents.targetId, backlogBId),
+        ),
+      );
+
+    expect(events).toEqual([
+      {
+        action: "platform_administrator_bypass",
+        targetType: "backlog",
+        targetId: backlogBId,
+        newValue: { permission: "manage_workflows" },
+        requestCorrelationId: expect.any(String),
+      },
+    ]);
+    expect(events[0]!.requestCorrelationId).not.toHaveLength(0);
   });
 
   it("throws typed errors for denied permissions and missing resources", async () => {
