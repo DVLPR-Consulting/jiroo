@@ -10,6 +10,7 @@ import {
   type AuthorizationDecision,
 } from "@/lib/auth/authorization";
 import { permissionDefinition } from "@/lib/auth/permissions";
+import { requireBacklogReadPermissionById } from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
 import {
   addGlobalPermissionGrant,
@@ -120,8 +121,8 @@ async function authorizeMutation(input: {
   scope: PermissionScope;
   targetType: string;
   targetId: string;
-}): Promise<{ actorId: string; requestCorrelationId: string }> {
-  const actorId = await authenticatedActorId();
+}, authenticatedId?: string): Promise<{ actorId: string; requestCorrelationId: string }> {
+  const actorId = authenticatedId ?? await authenticatedActorId();
   const requestCorrelationId = randomUUID();
   const decision = await requirePermission({
     actorId,
@@ -139,6 +140,26 @@ async function authorizeMutation(input: {
     });
   }
   return { actorId, requestCorrelationId };
+}
+
+async function authorizeBacklogMutation(input: {
+  permission: string;
+  backlogId: string;
+  targetType: string;
+  targetId: string;
+}): Promise<{ actorId: string; requestCorrelationId: string }> {
+  const actorId = await authenticatedActorId();
+  await requireBacklogReadPermissionById({
+    actorId,
+    backlogId: input.backlogId,
+    permission: "browse_backlog",
+  });
+  return authorizeMutation({
+    permission: input.permission,
+    scope: { type: "backlog", backlogId: input.backlogId },
+    targetType: input.targetType,
+    targetId: input.targetId,
+  }, actorId);
 }
 
 async function authorizeAdditionalMutation(
@@ -162,8 +183,12 @@ async function authorizeAdditionalMutation(
   }
 }
 
-async function authorizeRead(permission: string, scope: PermissionScope): Promise<string> {
-  const actorId = await authenticatedActorId();
+async function authorizeRead(
+  permission: string,
+  scope: PermissionScope,
+  authenticatedId?: string,
+): Promise<string> {
+  const actorId = authenticatedId ?? await authenticatedActorId();
   await requirePermission({ actorId, permission, scope });
   return actorId;
 }
@@ -359,9 +384,9 @@ export async function deleteProjectRoleAction(input: unknown) {
 export async function assignBacklogRoleActorAction(input: unknown) {
   try {
     const parsed = backlogRoleActorInput.parse(input);
-    const authorization = await authorizeMutation({
+    const authorization = await authorizeBacklogMutation({
       permission: "manage_members",
-      scope: { type: "backlog", backlogId: parsed.backlogId },
+      backlogId: parsed.backlogId,
       targetType: "backlog_role_actor",
       targetId: `${parsed.backlogId}:${parsed.projectRoleId}`,
     });
@@ -380,9 +405,9 @@ export async function assignBacklogRoleActorAction(input: unknown) {
 export async function removeBacklogRoleActorAction(input: unknown) {
   try {
     const parsed = backlogRoleActorInput.parse(input);
-    const authorization = await authorizeMutation({
+    const authorization = await authorizeBacklogMutation({
       permission: "manage_members",
-      scope: { type: "backlog", backlogId: parsed.backlogId },
+      backlogId: parsed.backlogId,
       targetType: "backlog_role_actor",
       targetId: `${parsed.backlogId}:${parsed.projectRoleId}`,
     });
@@ -401,9 +426,9 @@ export async function removeBacklogRoleActorAction(input: unknown) {
 export async function moveBacklogRoleActorAction(input: unknown) {
   try {
     const parsed = moveBacklogRoleActorInput.parse(input);
-    const authorization = await authorizeMutation({
+    const authorization = await authorizeBacklogMutation({
       permission: "manage_members",
-      scope: { type: "backlog", backlogId: parsed.backlogId },
+      backlogId: parsed.backlogId,
       targetType: "backlog_role_actor",
       targetId: `${parsed.backlogId}:${parsed.sourceProjectRoleId}:${parsed.targetProjectRoleId}`,
     });
@@ -541,9 +566,9 @@ export async function removeGlobalPermissionGrantAction(input: unknown) {
 export async function associatePermissionSchemeAction(input: unknown) {
   try {
     const parsed = schemeAssociationInput.parse(input);
-    const authorization = await authorizeMutation({
+    const authorization = await authorizeBacklogMutation({
       permission: "administer_backlog",
-      scope: { type: "backlog", backlogId: parsed.backlogId },
+      backlogId: parsed.backlogId,
       targetType: "backlog_permission_config",
       targetId: parsed.backlogId,
     });
@@ -562,9 +587,9 @@ export async function associatePermissionSchemeAction(input: unknown) {
 export async function setBacklogAccessModeAction(input: unknown) {
   try {
     const parsed = accessModeInput.parse(input);
-    const authorization = await authorizeMutation({
+    const authorization = await authorizeBacklogMutation({
       permission: "administer_backlog",
-      scope: { type: "backlog", backlogId: parsed.backlogId },
+      backlogId: parsed.backlogId,
       targetType: "backlog_permission_config",
       targetId: parsed.backlogId,
     });
@@ -584,6 +609,11 @@ export async function permissionHelperAction(input: unknown) {
   try {
     const parsed = permissionHelperInput.parse(input);
     const actorId = await authenticatedActorId();
+    await requireBacklogReadPermissionById({
+      actorId,
+      backlogId: parsed.backlogId,
+      permission: "browse_backlog",
+    });
     try {
       await requirePermission({
         actorId,
@@ -609,14 +639,20 @@ export async function readSecurityHistoryAction(input: unknown) {
   try {
     const parsed = securityHistoryInput.parse(input);
     if (parsed.backlogId) {
+      const actorId = await authenticatedActorId();
+      await requireBacklogReadPermissionById({
+        actorId,
+        backlogId: parsed.backlogId,
+        permission: "browse_backlog",
+      });
       try {
         await authorizeRead("administer_backlog", {
           type: "backlog",
           backlogId: parsed.backlogId,
-        });
+        }, actorId);
       } catch (error) {
         if (!(error instanceof PermissionDeniedError)) throw error;
-        await authorizeRead("administer_jiroo", { type: "global" });
+        await authorizeRead("administer_jiroo", { type: "global" }, actorId);
       }
     } else {
       await authorizeRead("administer_jiroo", { type: "global" });

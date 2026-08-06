@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   requireBacklogPermissionById,
   requireBacklogPermissionByKey,
+  requireBacklogReadPermissionById,
   requireCommentPermission,
   requireItemPermission,
   requireLinkPermission,
@@ -397,6 +398,13 @@ describeDb("ownership-aware authorization helpers", () => {
 
   it("hides every existing resource when its backlog cannot be browsed", async () => {
     await expect(
+      requireBacklogReadPermissionById({
+        actorId,
+        backlogId: backlogB.id,
+        permission: "browse_backlog",
+      }),
+    ).rejects.toBeInstanceOf(ResourceNotFoundError);
+    await expect(
       requireBacklogPermissionById({
         actorId,
         backlogId: backlogB.id,
@@ -475,6 +483,13 @@ describeDb("ownership-aware authorization helpers", () => {
   });
 
   it("returns typed not-found errors for every absent resource", async () => {
+    await expect(
+      requireBacklogReadPermissionById({
+        actorId,
+        backlogId: randomUUID(),
+        permission: "browse_backlog",
+      }),
+    ).rejects.toBeInstanceOf(ResourceNotFoundError);
     await expect(
       requireBacklogPermissionByKey({
         actorId,

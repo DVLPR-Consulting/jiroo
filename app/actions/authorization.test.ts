@@ -39,11 +39,13 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   groupMembershipRequiredPermission: vi.fn(),
   moveBacklogRoleActor: vi.fn(),
+  readSecurityHistory: vi.fn(),
   removeBacklogRoleActor: vi.fn(),
   removeGlobalPermissionGrant: vi.fn(),
   removeGroupMember: vi.fn(),
   removeSchemeGrant: vi.fn(),
   renameGroup: vi.fn(),
+  requireBacklogReadPermissionById: vi.fn(),
   requirePermission: vi.fn(),
   revalidatePath: vi.fn(),
   setBacklogAccessMode: vi.fn(),
@@ -52,6 +54,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
+vi.mock("@/lib/auth/action-authorization", () => ({
+  requireBacklogReadPermissionById: mocks.requireBacklogReadPermissionById,
+}));
 vi.mock("@/lib/auth/authorization", () => ({
   appendPlatformAdministratorBypassEvent: mocks.appendPlatformAdministratorBypassEvent,
   PermissionDeniedError: classes.PermissionDeniedError,
@@ -71,6 +76,7 @@ vi.mock("@/lib/services/authorization-admin", () => ({
   getPermissionHelperResult: mocks.getPermissionHelperResult,
   groupMembershipRequiredPermission: mocks.groupMembershipRequiredPermission,
   moveBacklogRoleActor: mocks.moveBacklogRoleActor,
+  readSecurityHistory: mocks.readSecurityHistory,
   removeBacklogRoleActor: mocks.removeBacklogRoleActor,
   removeGlobalPermissionGrant: mocks.removeGlobalPermissionGrant,
   removeGroupMember: mocks.removeGroupMember,
@@ -92,6 +98,7 @@ import {
   createGroupAction,
   moveBacklogRoleActorAction,
   permissionHelperAction,
+  readSecurityHistoryAction,
   removeBacklogRoleActorAction,
   removeGroupMemberAction,
   setBacklogAccessModeAction,
@@ -116,6 +123,10 @@ describe("authorization administration Server Actions", () => {
       user: { id: "actor-session", role: "contributor", twoFactorEnabled: true },
     });
     mocks.requirePermission.mockImplementation(async (input) => allowed(input.scope));
+    mocks.requireBacklogReadPermissionById.mockResolvedValue({
+      backlogId,
+      resourceId: backlogId,
+    });
     mocks.appendPlatformAdministratorBypassEvent.mockResolvedValue(undefined);
     mocks.groupMembershipRequiredPermission.mockResolvedValue("manage_users_groups");
   });
@@ -161,6 +172,92 @@ describe("authorization administration Server Actions", () => {
       error: "Vous n’avez pas la permission « Gérer les membres » pour ce backlog.",
     });
     expect(mocks.assignBacklogRoleActor).not.toHaveBeenCalled();
+  });
+
+  it.each(["absent", "inaccessible"])(
+    "returns the same not-found result for an %s backlog before functional authorization",
+    async () => {
+      mocks.requireBacklogReadPermissionById.mockRejectedValueOnce(
+        Object.assign(new Error("hidden"), { name: "ResourceNotFoundError" }),
+      );
+
+      await expect(
+        assignBacklogRoleActorAction({
+          backlogId,
+          projectRoleId,
+          principal: { type: "user", userId: "member-1" },
+        }),
+      ).resolves.toEqual({
+        ok: false,
+        error: "Action impossible. Réessayez.",
+      });
+
+      expect(mocks.requireBacklogReadPermissionById).toHaveBeenCalledWith({
+        actorId: "actor-session",
+        backlogId,
+        permission: "browse_backlog",
+      });
+      expect(mocks.requirePermission).not.toHaveBeenCalled();
+      expect(mocks.assignBacklogRoleActor).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    {
+      name: "remove role actor",
+      run: () => removeBacklogRoleActorAction({
+        backlogId,
+        projectRoleId,
+        principal: { type: "user" as const, userId: "member-1" },
+      }),
+      service: mocks.removeBacklogRoleActor,
+    },
+    {
+      name: "move role actor",
+      run: () => moveBacklogRoleActorAction({
+        backlogId,
+        sourceProjectRoleId: projectRoleId,
+        targetProjectRoleId: "00000000-0000-4000-8000-000000000009",
+        principal: { type: "user" as const, userId: "member-1" },
+      }),
+      service: mocks.moveBacklogRoleActor,
+    },
+    {
+      name: "associate scheme",
+      run: () => associatePermissionSchemeAction({ backlogId, schemeId }),
+      service: mocks.associatePermissionScheme,
+    },
+    {
+      name: "set access mode",
+      run: () => setBacklogAccessModeAction({ backlogId, mode: "advanced" }),
+      service: mocks.setBacklogAccessMode,
+    },
+    {
+      name: "permission helper",
+      run: () => permissionHelperAction({
+        backlogId,
+        userId: "member-1",
+        permission: "manage_members",
+      }),
+      service: mocks.getPermissionHelperResult,
+    },
+    {
+      name: "security history",
+      run: () => readSecurityHistoryAction({ backlogId }),
+      service: mocks.readSecurityHistory,
+    },
+  ])("applies the common browse gate before $name", async ({ run, service }) => {
+    mocks.requireBacklogReadPermissionById.mockRejectedValueOnce(
+      Object.assign(new Error("hidden"), { name: "ResourceNotFoundError" }),
+    );
+
+    await expect(run()).resolves.toEqual({
+      ok: false,
+      error: "Action impossible. Réessayez.",
+    });
+
+    expect(mocks.requirePermission).not.toHaveBeenCalled();
+    expect(service).not.toHaveBeenCalled();
   });
 
   it("requires administer_backlog for scheme association", async () => {

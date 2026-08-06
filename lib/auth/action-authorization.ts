@@ -141,6 +141,24 @@ export async function requireBacklogReadPermissionByKey(
   return { ...authorized, backlogKey: backlog.key };
 }
 
+export async function requireBacklogReadPermissionById(
+  input: BacklogPermissionInput & { backlogId: string },
+): Promise<AuthorizedResource> {
+  const [backlog] = await db
+    .select({ id: backlogs.id })
+    .from(backlogs)
+    .where(eq(backlogs.id, input.backlogId))
+    .limit(1);
+  if (!backlog) throw new ResourceNotFoundError("backlog", input.backlogId);
+
+  return authorizeResource({
+    ...input,
+    resourceType: "backlog",
+    resourceId: backlog.id,
+    backlogId: backlog.id,
+  }, false);
+}
+
 export async function requireItemPermission(
   input: BacklogPermissionInput & { itemId: string },
 ): Promise<AuthorizedResource> {
