@@ -4,7 +4,7 @@
 
 **Goal:** Make destructive Playwright resets instance-bound, reserve each run exactly once, make every E2E proof immutable and run-scoped, and persist non-secret provenance.
 
-**Architecture:** The reset gate will validate the URL, then use one PostgreSQL `PoolClient` to read `current_database()` and `pg_control_system().system_identifier` immediately before `TRUNCATE`. `globalSetup` alone will acquire an exclusive run lock, verify the database, write an exclusive provenance manifest, and reset. A shared artifact module will map every legacy evidence path to a run-scoped destination and use exclusive text writes or atomic screenshot copies.
+**Architecture:** The reset gate will validate the URL, then use one PostgreSQL `PoolClient` to read `current_database()` and `pg_control_system().system_identifier` immediately before `TRUNCATE`. `globalSetup` alone will acquire an exclusive run lock, verify the database, write an exclusive provenance manifest, and reset. A shared artifact module will map every legacy evidence path to a run-scoped destination and use exclusive text writes or atomic screenshot hard links.
 
 **Tech Stack:** TypeScript, Node 24.13.0, Vitest 4.1.8, Playwright 1.62.1, PostgreSQL 17, node-postgres, Drizzle ORM.
 
@@ -174,26 +174,26 @@ Read Node from `process.version`, pnpm from `pnpm --version`, git SHA from `git 
 
 Run guard/identity/lock/artifact/manifest tests, full Vitest, DB integration, typecheck, lint, and build.
 
-- [ ] **Step 2: Commit harness code**
+- [x] **Step 2: Commit harness code**
 
 Create a local code commit before browser proof so manifest `gitSha` names the exact committed harness under test.
 
-- [ ] **Step 3: Hash every historical audit file**
+- [x] **Step 3: Hash every historical audit file**
 
 Write the hash list outside Git under `.playwright/` and retain it for comparison.
 
-- [ ] **Step 4: Run certified browser proofs**
+- [x] **Step 4: Run certified browser proofs**
 
 Supply Node 24 PATH, explicit reset opt-in, raw local system identifier, `jiroo_e2e`, run ID, command/scenario labels, and persistent artifact flags. Run permissions 10/10, then Chromium 24/24.
 
-- [ ] **Step 5: Compare historical hashes without restore**
+- [x] **Step 5: Compare historical hashes without restore**
 
 Require exact equality of the before/after hash lists. Any changed historical file fails the task.
 
-- [ ] **Step 6: Validate artifacts and provenance**
+- [x] **Step 6: Validate artifacts and provenance**
 
 Scan for secrets, console/page errors, failed requests, unexpected HTTP status, manifest raw identity leakage, file collisions, and incorrect Node/base/SHA provenance.
 
-- [ ] **Step 7: Update audit and commit evidence**
+- [x] **Step 7: Update audit and commit evidence**
 
 Document all findings, the safe operator command for querying the identifier without logging it, both immutable runs, verification counts, and the unchanged-history hash proof. Commit locally, then confirm a clean worktree.

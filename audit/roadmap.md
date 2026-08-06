@@ -367,12 +367,15 @@ et [planification d'un sprint](https://support.atlassian.com/jira-software-cloud
 - cinq identités 2FA réelles et matrice Chromium 10/10, intégrée à une
   régression complète 24/24.
 
-La revue de preuve impose désormais trois invariants de harnais : reset de base
-avec opt-in fourni par l’opérateur, base dédiée `jiroo_e2e` et destination locale
-sans paramètre de redirection ; serveur Next isolé sur `:3100` sans réutilisation ;
-run-id réservé atomiquement avant tout reporter, journal ou capture. La preuve
-d’isolation n’accorde aucun rôle protégé au membre testé ; le chemin groupe →
-rôle personnalisé est le seul qui explique son accès à CASS.
+La revue de preuve impose désormais quatre invariants de harnais : reset avec
+opt-in fourni par l’opérateur, seule base `jiroo_e2e` et identité physique
+explicitement attendue puis vérifiée sur la connexion du `TRUNCATE` ; serveur
+Next isolé sur `:3100` sans réutilisation ; run-id réservé exactement une fois
+par `globalSetup`, sans token réentrant ; tous les journaux/captures run-scoped,
+non écrasables, avec manifeste de provenance non secret. La régression round 3
+confirme 10/10 puis 24/24 et l’égalité SHA-256 des 187 fichiers historiques sans
+restauration. La preuve d’isolation n’accorde aucun rôle protégé au membre testé ;
+le chemin groupe → rôle personnalisé est le seul qui explique son accès à CASS.
 
 La permission `manage_releases` est volontairement disponible avant son
 consommateur produit. Elle ne constitue pas une livraison de Releases.

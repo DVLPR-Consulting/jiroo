@@ -428,7 +428,11 @@ Les mutations UI observées répondent en **21 à 339 ms** ; les explications de
 permission en **75 à 205 ms** ; navigations et rechargements en **248 à
 1 040 ms** sur le serveur local isolé. Les dix scénarios sont propres côté
 console/réseau/HTTP ; leurs durées individuelles et la durée totale sont
-conservées dans le rapport JUnit immuable du run.
+conservées dans le rapport JUnit immuable du run. Le rejeu round 3 confirme la
+matrice **10/10 en 25,4 s** et l’ensemble Chromium **24/24 en 59,8 s**. Les 20
+captures probantes, toutes préfixées par leur run ID, ont été inspectées sans
+écran vide, erreur ou troncature ; les 187 preuves historiques sont restées
+byte-for-byte identiques sans restauration.
 
 L’administration reste dense et desktop-first. La source exacte d’un droit est
 lisible, mais l’historique append-only n’a pas encore de timeline UI filtrable.

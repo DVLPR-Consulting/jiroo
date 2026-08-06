@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "runId": "20260806-review-r3-permissions-01",
+  "timestamps": {
+    "startedAt": "2026-08-06T18:31:17.381Z",
+    "databaseVerifiedAt": "2026-08-06T18:31:17.405Z",
+    "manifestWrittenAt": "2026-08-06T18:31:17.659Z"
+  },
+  "runtime": {
+    "node": "v24.13.0",
+    "pnpm": "10.19.0"
+  },
+  "source": {
+    "gitSha": "9938df3f897bca1f7341923335ecd00d66c67861"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:16ea5a631f99332b04fb222cc60b0827234a62c4a45baab99dd9014cf684982e"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "pnpm --ignore-workspace test:e2e -- e2e/permission-schemes.spec.ts --project=chromium",
+    "scenarios": "matrice schémas de permissions 10/10"
+  },
+  "result": {
+    "junitReport": "audit/runs/20260806-review-r3-permissions-01-junit.xml"
+  }
+}

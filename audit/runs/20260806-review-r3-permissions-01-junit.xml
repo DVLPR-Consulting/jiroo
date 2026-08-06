@@ -1,0 +1,618 @@
+<testsuites id="" name="" tests="24" failures="0" skipped="0" errors="12" time="64.503028">
+<testsuite name="backlog-foundation.spec.ts" timestamp="2026-08-06T18:31:20.118Z" hostname="chromium" tests="6" failures="0" skipped="0" time="12.329" errors="3">
+<testcase name="sélectionne une plage et applique les quatre actions groupées" classname="backlog-foundation.spec.ts" time="5.252">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="path: unsupported mime type &quot;null&quot;" type="Error">
+<![CDATA[  [chromium] › backlog-foundation.spec.ts:82:5 › sélectionne une plage et applique les quatre actions groupées 
+
+    Error: path: unsupported mime type "null"
+
+      168 |     capture.networkLines.push(...timings);
+      169 |     capture.consoleLines.push(`[result] plage ${firstKey} → ${secondKey}, 4 mutations bulk persistées`);
+    > 170 |     await writeAuditScreenshot(BULK_SCREENSHOT, (path) => page.screenshot({ path, fullPage: true }));
+          |                                                                ^
+      171 |     await writeAuditScreenshot(POINTS_SCREENSHOT, (path) => page.screenshot({ path, fullPage: true }));
+      172 |   } finally {
+      173 |     for (const row of originalRows) {
+        at capture (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/backlog-foundation.spec.ts:170:64)
+        at writeAuditScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/audit-artifacts.ts:64:11)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/backlog-foundation.spec.ts:170:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="le lecteur ne reçoit aucun contrôle de planification" classname="backlog-foundation.spec.ts" time="0.765">
+</testcase>
+<testcase name="distingue 5, zéro et non estimé puis restaure la valeur" classname="backlog-foundation.spec.ts" time="2.45">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="path: unsupported mime type &quot;null&quot;" type="Error">
+<![CDATA[  [chromium] › backlog-foundation.spec.ts:231:5 › distingue 5, zéro et non estimé puis restaure la valeur 
+
+    Error: path: unsupported mime type "null"
+
+      278 |     await writeAuditScreenshot(
+      279 |       ESTIMATE_MENU_SCREENSHOT,
+    > 280 |       (path) => page.screenshot({ path, fullPage: true }),
+          |                      ^
+      281 |     );
+      282 |
+      283 |     capture.networkLines.push(
+        at capture (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/backlog-foundation.spec.ts:280:22)
+        at writeAuditScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/audit-artifacts.ts:64:11)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/backlog-foundation.spec.ts:278:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="désactive le classement avec tri ou groupement et conserve le mode Backlog" classname="backlog-foundation.spec.ts" time="1.688">
+</testcase>
+<testcase name="isole la sélection de la Liste et la réinitialise au changement de vue" classname="backlog-foundation.spec.ts" time="1.181">
+</testcase>
+<testcase name="restaure le classement et conserve la sélection après deux échecs réseau injectés" classname="backlog-foundation.spec.ts" time="0.993">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-restaur-57b60-deux-échecs-réseau-injectés-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-restaur-57b60-deux-échecs-réseau-injectés-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-restaur-57b60-deux-échecs-réseau-injectés-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-restaur-57b60-deux-échecs-réseau-injectés-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="path: unsupported mime type &quot;null&quot;" type="Error">
+<![CDATA[  [chromium] › backlog-foundation.spec.ts:340:5 › restaure le classement et conserve la sélection après deux échecs réseau injectés 
+
+    Error: path: unsupported mime type "null"
+
+      380 |   await writeAuditScreenshot(
+      381 |     "audit/screenshots/EXPECTED-backlog-rank-network-rollback.png",
+    > 382 |     (path) => page.screenshot({ path, fullPage: true }),
+          |                    ^
+      383 |   );
+      384 |
+      385 |   const rowCheckboxes = page.getByRole("checkbox", { name: /^Sélectionner CASS-/ });
+        at capture (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/backlog-foundation.spec.ts:382:20)
+        at writeAuditScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/audit-artifacts.ts:64:11)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/backlog-foundation.spec.ts:380:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-restaur-57b60-deux-échecs-réseau-injectés-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-restaur-57b60-deux-échecs-réseau-injectés-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-restaur-57b60-deux-échecs-réseau-injectés-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-restaur-57b60-deux-échecs-réseau-injectés-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-foundation-restaur-57b60-deux-échecs-réseau-injectés-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+</testsuite>
+<testsuite name="backlog-ranking.spec.ts" timestamp="2026-08-06T18:31:20.118Z" hostname="chromium" tests="1" failures="0" skipped="0" time="3.412" errors="1">
+<testcase name="classe à la souris, restaure au clavier et conserve chaque ordre" classname="backlog-ranking.spec.ts" time="3.412">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="path: unsupported mime type &quot;null&quot;" type="Error">
+<![CDATA[  [chromium] › backlog-ranking.spec.ts:11:5 › classe à la souris, restaure au clavier et conserve chaque ordre 
+
+    Error: path: unsupported mime type "null"
+
+      155 |   await writeAuditScreenshot(
+      156 |     SCREENSHOT_PATH,
+    > 157 |     (path) => page.screenshot({ path, fullPage: true }),
+          |                    ^
+      158 |   );
+      159 |
+      160 |   expect(consoleErrors, "Erreurs JavaScript/console").toEqual([]);
+        at capture (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/backlog-ranking.spec.ts:157:20)
+        at writeAuditScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/audit-artifacts.ts:64:11)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/backlog-ranking.spec.ts:155:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-review-r3-permissions-01/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+</testsuite>
+<testsuite name="permission-schemes.spec.ts" timestamp="2026-08-06T18:31:20.118Z" hostname="chromium" tests="10" failures="0" skipped="0" time="16.796" errors="1">
+<testcase name="1. crée un groupe, un rôle personnalisé et un clone de schéma" classname="permission-schemes.spec.ts" time="1.485">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="locator.screenshot: path: unsupported mime type &quot;null&quot;" type="Error">
+<![CDATA[  [chromium] › permission-schemes.spec.ts:104:7 › 1. crée un groupe, un rôle personnalisé et un clone de schéma 
+
+    Error: locator.screenshot: path: unsupported mime type "null"
+
+      93 |   await writeAuditScreenshot(
+      94 |     `audit/screenshots/FIXED-${bugId}.png`,
+    > 95 |     (path) => target.screenshot({ path }),
+         |                      ^
+      96 |   );
+      97 | }
+      98 |
+        at capture (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:95:22)
+        at writeAuditScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/audit-artifacts.ts:64:11)
+        at captureReviewScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:93:3)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:172:5
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:107:7
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-review-r3-permissions-01/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-review-r3-permissions-01/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="2. isole le grant de rôle et l’occupation de groupe à un seul backlog" classname="permission-schemes.spec.ts" time="1.313">
+</testcase>
+<testcase name="3. explique les grants direct, groupe et rôle dans l’Assistant de permissions" classname="permission-schemes.spec.ts" time="1.25">
+</testcase>
+<testcase name="4. rejette une Server Action forgée par le lecteur" classname="permission-schemes.spec.ts" time="1.456">
+</testcase>
+<testcase name="5. donne au spécialiste les contrôles de sprint sans édition d’item ni workflow" classname="permission-schemes.spec.ts" time="0.868">
+</testcase>
+<testcase name="6. expose manage_releases dans l’Assistant sans inventer d’interface Releases" classname="permission-schemes.spec.ts" time="1.429">
+</testcase>
+<testcase name="7. retire browse de la navigation, recherche, récents, notifications et URL" classname="permission-schemes.spec.ts" time="3.706">
+</testcase>
+<testcase name="8. détecte puis récupère un conflit de version sur schéma partagé" classname="permission-schemes.spec.ts" time="2.453">
+</testcase>
+<testcase name="9. conserve un historique de sécurité append-only" classname="permission-schemes.spec.ts" time="0.863">
+</testcase>
+<testcase name="10. persiste après reload et dans un second contexte utilisateur" classname="permission-schemes.spec.ts" time="1.973">
+</testcase>
+</testsuite>
+<testsuite name="sprint-lifecycle.spec.ts" timestamp="2026-08-06T18:31:20.118Z" hostname="chromium" tests="7" failures="0" skipped="0" time="17.129" errors="7">
+<testcase name="planifie, exécute et clôture un sprint sans exposer le backlog sur le Board" classname="sprint-lifecycle.spec.ts" time="0.769">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="path: unsupported mime type &quot;null&quot;" type="Error">
+<![CDATA[  [chromium] › sprint-lifecycle.spec.ts:257:5 › planifie, exécute et clôture un sprint sans exposer le backlog sur le Board 
+
+    Error: path: unsupported mime type "null"
+
+      283 |   await writeAuditScreenshot(
+      284 |     NO_ACTIVE_SCREENSHOT,
+    > 285 |     (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+          |                    ^
+      286 |   );
+      287 |
+      288 |   await page.goto("/b/CASS?view=backlog");
+        at capture (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:285:20)
+        at writeAuditScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/audit-artifacts.ts:64:11)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:283:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="conserve le sprint planifié et explique un échec réseau au démarrage" classname="sprint-lifecycle.spec.ts" time="1.866">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="path: unsupported mime type &quot;null&quot;" type="Error">
+<![CDATA[  [chromium] › sprint-lifecycle.spec.ts:464:5 › conserve le sprint planifié et explique un échec réseau au démarrage 
+
+    Error: path: unsupported mime type "null"
+
+      500 |   await writeAuditScreenshot(
+      501 |     START_FAILURE_SCREENSHOT,
+    > 502 |     (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+          |                    ^
+      503 |   );
+      504 |
+      505 |   await page.unroute("**/*");
+        at capture (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:502:20)
+        at writeAuditScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/audit-artifacts.ts:64:11)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:500:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="recalcule et explique un dépassement de capacité avant démarrage" classname="sprint-lifecycle.spec.ts" time="1.177">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-recalcule-8bb51-de-capacité-avant-démarrage-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-recalcule-8bb51-de-capacité-avant-démarrage-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-recalcule-8bb51-de-capacité-avant-démarrage-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-recalcule-8bb51-de-capacité-avant-démarrage-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="path: unsupported mime type &quot;null&quot;" type="Error">
+<![CDATA[  [chromium] › sprint-lifecycle.spec.ts:559:5 › recalcule et explique un dépassement de capacité avant démarrage 
+
+    Error: path: unsupported mime type "null"
+
+      595 |   await writeAuditScreenshot(
+      596 |     CAPACITY_SCREENSHOT,
+    > 597 |     (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+          |                    ^
+      598 |   );
+      599 |
+      600 |   capture.consoleLines.push(
+        at capture (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:597:20)
+        at writeAuditScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/audit-artifacts.ts:64:11)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:595:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-recalcule-8bb51-de-capacité-avant-démarrage-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-recalcule-8bb51-de-capacité-avant-démarrage-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-recalcule-8bb51-de-capacité-avant-démarrage-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-recalcule-8bb51-de-capacité-avant-démarrage-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-recalcule-8bb51-de-capacité-avant-démarrage-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="restaure sélection et section après deux échecs réseau de planification" classname="sprint-lifecycle.spec.ts" time="2.414">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="path: unsupported mime type &quot;null&quot;" type="Error">
+<![CDATA[  [chromium] › sprint-lifecycle.spec.ts:610:5 › restaure sélection et section après deux échecs réseau de planification 
+
+    Error: path: unsupported mime type "null"
+
+      714 |   await writeAuditScreenshot(
+      715 |     PLANNING_FAILURE_SCREENSHOT,
+    > 716 |     (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+          |                    ^
+      717 |   );
+      718 |
+      719 |   capture.consoleLines.push(
+        at capture (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:716:20)
+        at writeAuditScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/audit-artifacts.ts:64:11)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:714:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ouverte" classname="sprint-lifecycle.spec.ts" time="3.461">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="path: unsupported mime type &quot;null&quot;" type="Error">
+<![CDATA[  [chromium] › sprint-lifecycle.spec.ts:739:5 › clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ouverte 
+
+    Error: path: unsupported mime type "null"
+
+      845 |   await writeAuditScreenshot(
+      846 |     COMPLETION_VARIANTS_SCREENSHOT,
+    > 847 |     (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+          |                    ^
+      848 |   );
+      849 |
+      850 |   capture.consoleLines.push(
+        at capture (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:847:20)
+        at writeAuditScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/audit-artifacts.ts:64:11)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:845:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="laisse le lecteur consulter la planification et le Board sans aucun contrôle" classname="sprint-lifecycle.spec.ts" time="3.674">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/test-failed-2.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="path: unsupported mime type &quot;null&quot;" type="Error">
+<![CDATA[  [chromium] › sprint-lifecycle.spec.ts:866:5 › laisse le lecteur consulter la planification et le Board sans aucun contrôle 
+
+    Error: path: unsupported mime type "null"
+
+      915 |     await writeAuditScreenshot(
+      916 |       VIEWER_SCREENSHOT,
+    > 917 |       (path) => viewer.screenshot({ path, fullPage: true, caret: "initial" }),
+          |                        ^
+      918 |     );
+      919 |
+      920 |     const [stored] = await db
+        at capture (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:917:24)
+        at writeAuditScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/audit-artifacts.ts:64:11)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:915:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="planifie une plage de tâches en masse et conserve la section après rechargement" classname="sprint-lifecycle.spec.ts" time="3.768">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="path: unsupported mime type &quot;null&quot;" type="Error">
+<![CDATA[  [chromium] › sprint-lifecycle.spec.ts:939:5 › planifie une plage de tâches en masse et conserve la section après rechargement 
+
+    Error: path: unsupported mime type "null"
+
+      1027 |   await writeAuditScreenshot(
+      1028 |     PLANNING_SCREENSHOT,
+    > 1029 |     (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+           |                    ^
+      1030 |   );
+      1031 |
+      1032 |   capture.consoleLines.push(
+        at capture (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:1029:20)
+        at writeAuditScreenshot (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/audit-artifacts.ts:64:11)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/sprint-lifecycle.spec.ts:1027:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-review-r3-permissions-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+</testsuite>
+</testsuites>

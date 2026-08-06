@@ -843,20 +843,30 @@ chaque run-id exactement une fois par `wx` `0600`; aucune variable transmissible
 ne permet la réentrance. Journaux et captures sont toujours préfixés par le run
 ID et publiés sans écrasement. Un manifeste `0600` conserve Node/pnpm, SHA Git,
 nom et empreinte de base, serveur, invocation, horodatages et lien JUnit, jamais
-l’identifiant PostgreSQL brut. Lors du round 2, sous Node 24.13.0 et sur
-`jiroo_e2e`, la matrice dédiée passait **10/10 en 26,4 s** et la régression
-Chromium complète **24/24 en 62,0 s**. Les preuves JUnit immuables round 2 sont
-le [run dédié](runs/20260806-review-r2-permissions-02-junit.xml) et
-le [run complet](runs/20260806-review-r2-chromium-01-junit.xml). Chaque
-scénario permissions conserve aussi ses journaux uniques, par exemple
-[console](console/20260806-review-r2-permissions-02-permission-schemes-01-create-group-role-scheme-console.log)
-et [réseau](network/20260806-review-r2-permissions-02-permission-schemes-01-create-group-role-scheme-network.log).
+l’identifiant PostgreSQL brut. Au round 3, sous Node 24.13.0 et sur
+`jiroo_e2e`, la matrice dédiée passe **10/10 en 25,4 s** et la régression
+Chromium complète **24/24 en 59,8 s**. Les preuves immuables sont le
+[run dédié](runs/20260806-review-r3-permissions-02-junit.xml), son
+[manifeste](runs/20260806-review-r3-permissions-02-manifest.json), le
+[run complet](runs/20260806-review-r3-chromium-01-junit.xml), son
+[manifeste](runs/20260806-review-r3-chromium-01-manifest.json) et le
+[contrôle d’intégrité historique](runs/20260806-review-r3-chromium-01-history-integrity.json).
+Chaque scénario permissions conserve aussi ses journaux uniques, par exemple
+[console](console/20260806-review-r3-permissions-02-permission-schemes-01-create-group-role-scheme-console.log)
+et [réseau](network/20260806-review-r3-permissions-02-permission-schemes-01-create-group-role-scheme-network.log).
 Aucun parcours nominal ne contient d’erreur console, de requête échouée ou de
-réponse HTTP inattendue. Les runs round 1 restent conservés sans modification.
+réponse HTTP inattendue. Les six échecs réseau du run complet sont les POST
+interrompus volontairement et marqués `[expected]` par les scénarios de rollback.
+Les 187 fichiers historiques restent byte-for-byte identiques sans restauration.
+Le premier run round 3, qui a révélé puis permis de corriger une extension de
+capture temporaire perdue, est conservé sous son run ID mais n’est pas cité
+comme preuve d’acceptation.
 
 Le détail finding par finding est conservé dans le
 [registre de revue Task 9 round 1/5](reviews/2026-08-06-task9-review-r1.md) et le
-[registre round 2/5](reviews/2026-08-06-task9-review-r2.md).
+[registre round 2/5](reviews/2026-08-06-task9-review-r2.md). Le durcissement
+d’identité, d’immuabilité et de provenance est détaillé dans le
+[registre round 3/5](reviews/2026-08-06-task9-review-r3.md).
 
 ### Bugs et dette observés
 

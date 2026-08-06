@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "runId": "20260806-review-r3-chromium-01",
+  "verifiedAt": "2026-08-06T18:37:40Z",
+  "historicalTrackedFileCount": 187,
+  "beforeHashListSha256": "4bb7ed82a219dd40c4c3416031d6e9ace38ec573943a8b96d4081c8f1da0b250",
+  "afterHashListSha256": "4bb7ed82a219dd40c4c3416031d6e9ace38ec573943a8b96d4081c8f1da0b250",
+  "identical": true,
+  "restorationPerformed": false
+}
