@@ -36,7 +36,7 @@ describe("SprintSectionHeader", () => {
         metrics={metrics}
         expanded={false}
         onExpandedChange={onExpandedChange}
-        canWrite
+        canManage
       />,
     );
 
@@ -54,7 +54,7 @@ describe("SprintSectionHeader", () => {
     expect(onExpandedChange).toHaveBeenCalledWith(true);
   });
 
-  it("renders writer controls and omits every mutation control for a reader", () => {
+  it("renders supplied actions while keeping sprint management controls permissioned", () => {
     const { rerender } = render(
       <SprintSectionHeader
         kind="planned"
@@ -62,7 +62,7 @@ describe("SprintSectionHeader", () => {
         metrics={metrics}
         expanded
         onExpandedChange={vi.fn()}
-        canWrite
+        canManage
         canMoveUp
         canMoveDown
         onMoveUp={vi.fn()}
@@ -81,12 +81,12 @@ describe("SprintSectionHeader", () => {
         metrics={metrics}
         expanded
         onExpandedChange={vi.fn()}
-        canWrite={false}
+        canManage={false}
         canMoveUp
         canMoveDown
         onMoveUp={vi.fn()}
         onMoveDown={vi.fn()}
-        actions={<button type="button">Démarrer</button>}
+        actions={undefined}
       />,
     );
     expect(screen.queryByRole("button", { name: "Monter Sprint paiement" }))
@@ -105,11 +105,32 @@ describe("SprintSectionHeader", () => {
         metrics={{ ...metrics, capacityPoints: null, overCapacityPoints: 0 }}
         expanded
         onExpandedChange={vi.fn()}
-        canWrite
+        canManage
       />,
     );
     expect(screen.getByRole("heading", { name: "Backlog" })).toBeVisible();
     expect(screen.getByText("13 pt")).toBeVisible();
     expect(screen.queryByText("Planifié")).not.toBeInTheDocument();
+  });
+
+  it("lets a sprint manager reorder sprints without an item-edit capability", () => {
+    render(
+      <SprintSectionHeader
+        kind="planned"
+        sprint={sprint}
+        metrics={metrics}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage={false}
+        capabilities={{ rank: false, reparent: false, assignSprint: false, manageSprints: true }}
+        canMoveUp
+        canMoveDown
+        onMoveUp={vi.fn()}
+        onMoveDown={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Monter Sprint paiement" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Descendre Sprint paiement" })).toBeVisible();
   });
 });

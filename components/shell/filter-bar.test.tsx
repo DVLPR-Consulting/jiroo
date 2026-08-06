@@ -22,6 +22,18 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
 
+vi.mock("@/app/actions/items", () => ({
+  bulkUpdateItemsAction: vi.fn(),
+  createItemAction: vi.fn(),
+  softDeleteItemAction: vi.fn(),
+  updateItemAction: vi.fn(),
+}));
+
+vi.mock("@/app/actions/links", () => ({
+  addLinkAction: vi.fn(),
+  removeLinkAction: vi.fn(),
+}));
+
 vi.mock("next/link", () => ({
   default: ({
     children,

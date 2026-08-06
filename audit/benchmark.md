@@ -385,3 +385,48 @@ Sources officielles Jira : [Backlog](https://support.atlassian.com/jira-software
 [burndown](https://support.atlassian.com/jira-software-cloud/docs/what-is-the-sprint-burndown-report/),
 [catalogue des rapports](https://support.atlassian.com/jira-software-cloud/docs/generate-a-report/)
 et [releases/versions](https://support.atlassian.com/jira-software-cloud/docs/enable-releases-and-versions/).
+
+---
+
+# Benchmark — schémas de permissions après incrément 09
+
+## Verdict
+
+Jiroo atteint le socle Jira utile à une petite instance : permissions globales
+et backlog, groupes, utilisateurs directs, rôles de projet, schémas partagés,
+mode simple, explication des droits et refus serveur. Sa matrice navigateur est
+plus explicite que les audits précédents : cinq identités 2FA prouvent la portée
+réelle, pas seulement la présence ou l’absence d’un bouton. La preuve causale
+retire tout rôle protégé du membre testé : son accès CASS vient uniquement du
+groupe occupant le rôle personnalisé, tandis que LABS reste inaccessible. Le
+grant de consultation est aussi ajouté puis retiré dans la matrice UI avant de
+contrôler toutes les surfaces du second utilisateur.
+
+Jira reste devant sur l’étendue des permissions et de leurs consommateurs :
+versions/releases, composants, automatisations et administration à grande
+échelle. Jiroo n’a pas à copier cette taxonomie entière ; il doit conserver un
+catalogue réduit dont chaque permission correspond à une capacité livrée et
+testée. `manage_releases` est aujourd’hui la seule permission volontairement en
+avance sur son interface, clairement signalée comme telle.
+
+| Capacité | Jira | Jiroo observé | Verdict |
+|---|---|---|---|
+| Principaux | utilisateurs, groupes, rôles de projet | mêmes trois familles | socle comparable |
+| Réutilisation | schémas associés aux projets | schéma partagé CASS/LABS avec occupations locales | comparable sur le noyau |
+| Explication | helper de permissions selon l’offre/configuration | Assistant direct/groupe/rôle prouvé | Jiroo très lisible |
+| Concurrence | administration centralisée mature | verrou optimiste et récupération après reload | base sûre, échelle non testée |
+| Audit | journaux et administration étendue | événements append-only, timeline UI manquante | en retrait |
+| Releases | permissions consommées par les versions | droit modélisé, aucune surface Releases | manquant P0 |
+
+## Différenciation crédible
+
+L’avantage de Jiroo peut être la vérifiabilité : depuis tout contrôle refusé,
+ouvrir l’explication exacte, montrer le rôle/groupe source et permettre à un
+administrateur de suivre la corrélation dans l’historique, sans exposer le
+contenu du backlog. Cette chaîne décision → explication → événement doit rester
+compréhensible sans la complexité des dizaines de permissions Jira.
+
+Prochain seuil de comparaison : implémenter Releases, vérifier
+`manage_releases` de bout en bout, puis exposer la timeline de sécurité. Aucune
+parité globale Jira n’est revendiquée avant ces deux livraisons et un audit de
+volumétrie.

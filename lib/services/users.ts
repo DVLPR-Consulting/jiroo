@@ -64,6 +64,9 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
  * action layer, not here, to keep this function testable in isolation.
  */
 export async function setUserRole(userId: string, role: Role): Promise<AdminUserRow> {
+  if (role === "admin") {
+    throw new Error("Le rôle administrateur brut ne peut pas être attribué.");
+  }
   const parsed = setRoleInput.safeParse({ userId, role });
   if (!parsed.success) {
     throw new Error(parsed.error.issues[0]?.message ?? "Rôle invalide.");
@@ -93,13 +96,14 @@ export async function setUserRole(userId: string, role: Role): Promise<AdminUser
  * @throws "Cet e-mail est déjà utilisé." if the email already exists.
  */
 export async function createUser(input: unknown): Promise<AdminUserRow> {
-  const parsed = createUserInput.safeParse(input);
+  const candidate = typeof input === "object" && input !== null ? input : {};
+  const parsed = createUserInput.safeParse({ ...candidate, role: "contributor" });
   if (!parsed.success) {
     // Surface the first Zod validation message as a user-visible error.
     throw new Error(parsed.error.issues[0]?.message ?? "Données invalides.");
   }
 
-  const { email, password, name, role } = parsed.data;
+  const { email, password, name } = parsed.data;
 
   try {
     await auth.api.signUpEmail({ body: { email, password, name } });
@@ -115,9 +119,9 @@ export async function createUser(input: unknown): Promise<AdminUserRow> {
     throw e;
   }
 
-  // better-auth defaults the role to "contributor" via the additionalField
-  // defaultValue. Override it to whatever the admin requested.
-  await db.update(user).set({ role }).where(eq(user.email, email));
+  // New accounts are compatibility contributors only. This legacy value does
+  // not grant backlog access; groups and backlog roles do.
+  await db.update(user).set({ role: "contributor" }).where(eq(user.email, email));
 
   const [created] = await db
     .select({ id: user.id, name: user.name, email: user.email, role: user.role })

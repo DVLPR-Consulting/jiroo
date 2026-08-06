@@ -24,6 +24,7 @@ function trashedItem(overrides: Partial<TrashedItem>): TrashedItem {
     key: "DEMO-1",
     type: "tache",
     title: "Item supprimé",
+    backlogId: "backlog-demo",
     backlogKey: "DEMO",
     backlogName: "Démo",
     backlogColor: "#475569",
@@ -41,7 +42,7 @@ describe("TrashList", () => {
   });
 
   it("explains an empty trash and links back to the backlogs", () => {
-    render(<TrashList groups={[]} />);
+    render(<TrashList groups={[]} restorableBacklogIds={[]} />);
 
     expect(screen.getByRole("heading", { name: "Corbeille vide" })).toBeInTheDocument();
     expect(
@@ -56,9 +57,10 @@ describe("TrashList", () => {
 
     render(
       <TrashList
+        restorableBacklogIds={["backlog-demo"]}
         groups={[
           {
-            backlog: { key: "DEMO", name: "Démo", color: "#475569" },
+            backlog: { id: "backlog-demo", key: "DEMO", name: "Démo", color: "#475569" },
             items: [
               trashedItem({ id: "active", key: "DEMO-1" }),
               trashedItem({
@@ -85,5 +87,29 @@ describe("TrashList", () => {
     expect(
       within(expiredRow!).getByRole("button", { name: "Supprimer définitivement" }),
     ).toBeEnabled();
+  });
+
+  it("keeps reader trash data visible without restore or permanent-delete controls", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+
+    render(
+      <TrashList
+        groups={[
+          {
+            backlog: { id: "backlog-demo", key: "DEMO", name: "Démo", color: "#475569" },
+            items: [trashedItem({})],
+          },
+        ]}
+        restorableBacklogIds={[]}
+      />,
+    );
+
+    expect(screen.getByText("Item supprimé")).toBeVisible();
+    expect(screen.getByText("À faire")).toBeVisible();
+    expect(screen.getByText("Restaurable jusqu’au 31/01/2026")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Restaurer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Supprimer définitivement" }))
+      .not.toBeInTheDocument();
   });
 });

@@ -50,6 +50,7 @@ import {
   restoreCancelledColumns,
 } from "@/lib/items/board-dnd";
 import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
+import type { ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
 
 export type BoardCard = {
   id: string;
@@ -86,7 +87,7 @@ type Status = {
 type Columns = Record<string, BoardCard[]>;
 export type BoardCreateDialogProps = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses" | "sprintId" | "contextLabel"
+  "backlogId" | "items" | "statuses" | "sprintId" | "contextLabel" | "canScheduleItems"
 >;
 
 const sprintDateFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -208,7 +209,9 @@ function SortableCard({
   backlogKey,
   statusDomain,
   onOpen,
-  canWrite,
+  canEditItems,
+  canTransitionItems,
+  canScheduleItems,
   dragDisabled,
 }: {
   card: BoardCard;
@@ -217,7 +220,9 @@ function SortableCard({
   backlogKey: string;
   statusDomain: Status[];
   onOpen: (key: string) => void;
-  canWrite: boolean;
+  canEditItems: boolean;
+  canTransitionItems: boolean;
+  canScheduleItems: boolean;
   dragDisabled: boolean;
 }) {
   const {
@@ -231,7 +236,7 @@ function SortableCard({
   } = useSortable({
     id: card.id,
     data: { type: "card", columnId: colDomId, swimlane, key: card.key, title: card.title },
-    disabled: boardDragDisabled(canWrite, dragDisabled ? 1 : 0),
+    disabled: boardDragDisabled(canScheduleItems, dragDisabled ? 1 : 0),
   });
 
   return (
@@ -249,8 +254,8 @@ function SortableCard({
       <CardInner
         card={card}
         backlogKey={backlogKey}
-        interactivePriority={canWrite}
-        mobileStatus={canWrite ? (
+        interactivePriority={canEditItems}
+        mobileStatus={canEditItems && canTransitionItems ? (
           <InlineStatus
             itemId={card.id}
             backlogKey={backlogKey}
@@ -258,7 +263,7 @@ function SortableCard({
             statuses={statusDomain}
           />
         ) : undefined}
-        dragHandle={canWrite ? (
+        dragHandle={canScheduleItems ? (
           <button
             ref={setActivatorNodeRef}
             {...attributes}
@@ -388,7 +393,7 @@ function CardInner({
         )}
       </div>
       {mobileStatus ? (
-        <div className="mt-1.5 border-t border-border pt-1.5 md:hidden">
+        <div className="mt-1.5 border-t border-border pt-1.5">
           {mobileStatus}
         </div>
       ) : null}
@@ -406,7 +411,10 @@ function Column({
   createDialogProps,
   isOver,
   onOpen,
-  canWrite,
+  canCreateItems,
+  canEditItems,
+  canTransitionItems,
+  canScheduleItems,
   dragDisabled,
 }: {
   status: Status;
@@ -418,13 +426,16 @@ function Column({
   createDialogProps: BoardCreateDialogProps;
   isOver: boolean;
   onOpen: (key: string) => void;
-  canWrite: boolean;
+  canCreateItems: boolean;
+  canEditItems: boolean;
+  canTransitionItems: boolean;
+  canScheduleItems: boolean;
   dragDisabled: boolean;
 }) {
   const { setNodeRef } = useDroppable({
     id: colDomId,
     data: { type: "column", columnId: colDomId, swimlane, statusId: status.id },
-    disabled: !canWrite,
+    disabled: !canScheduleItems,
   });
 
   return (
@@ -435,7 +446,7 @@ function Column({
         <span className="item-key ml-auto rounded-[var(--radius-sm)] bg-[var(--surface)] px-1.5 py-0.5">
           {cards.length}
         </span>
-        {canWrite && (
+        {canCreateItems && (!createDialogProps.contextLabel || canScheduleItems) && (
           <NewItemButton
             {...createDialogProps}
             backlogKey={backlogKey}
@@ -472,7 +483,9 @@ function Column({
               backlogKey={backlogKey}
               statusDomain={statusDomain}
               onOpen={onOpen}
-              canWrite={canWrite}
+              canEditItems={canEditItems}
+              canTransitionItems={canTransitionItems}
+              canScheduleItems={canScheduleItems}
               dragDisabled={dragDisabled}
             />
           ))}
@@ -494,7 +507,12 @@ export function ItemBoard({
   filtersActive = false,
   hasItems,
   clearFiltersHref,
-  canWrite = true,
+  canCreateItems: legacyCanCreateItems = true,
+  canEditItems: legacyCanEditItems = true,
+  canTransitionItems: legacyCanTransitionItems = true,
+  canScheduleItems: legacyCanScheduleItems = true,
+  itemCapabilities,
+  planningCapabilities,
   activeSprint,
   activeSprintMetrics,
   backlogHref,
@@ -511,12 +529,21 @@ export function ItemBoard({
   filtersActive?: boolean;
   hasItems?: boolean;
   clearFiltersHref?: string;
-  canWrite?: boolean;
+  canCreateItems?: boolean;
+  canEditItems?: boolean;
+  canTransitionItems?: boolean;
+  canScheduleItems?: boolean;
+  itemCapabilities?: ItemCapabilities;
+  planningCapabilities?: PlanningCapabilities;
   /** `undefined` preserves the legacy all-items board; `null` means no active sprint. */
   activeSprint?: SprintSummary | null;
   activeSprintMetrics?: SprintMetrics | null;
   backlogHref?: string;
 }) {
+  const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
+  const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
+  const canTransitionItems = itemCapabilities?.transition ?? legacyCanTransitionItems;
+  const canScheduleItems = planningCapabilities?.rank ?? legacyCanScheduleItems;
   const viewUrl = useViewUrlState();
   const dndId = useId();
   // Swimlane bands in first-seen order ("none" last). When ungrouped, a single
@@ -572,7 +599,7 @@ export function ItemBoard({
   };
 
   function onDragStart(event: DragStartEvent) {
-    if (boardDragDisabled(canWrite, pending.current)) return;
+    if (boardDragDisabled(canScheduleItems, pending.current)) return;
     snapshot.current = columns;
     setError(null);
     const id = String(event.active.id);
@@ -581,7 +608,7 @@ export function ItemBoard({
   }
 
   function onDragCancel() {
-    if (boardDragDisabled(canWrite, pending.current)) return;
+    if (boardDragDisabled(canScheduleItems, pending.current)) return;
     setColumns((current) => restoreCancelledColumns(snapshot.current, current));
     snapshot.current = null;
     setActiveId(null);
@@ -590,7 +617,7 @@ export function ItemBoard({
 
   // onDragOver is the SOLE mutator of cross-column membership (placeholder jump).
   function onDragOver(event: DragOverEvent) {
-    if (boardDragDisabled(canWrite, pending.current)) return;
+    if (boardDragDisabled(canScheduleItems, pending.current)) return;
     const { active, over } = event;
     if (!over) return;
     const activeIdStr = String(active.id);
@@ -606,6 +633,10 @@ export function ItemBoard({
     // Swimlanes are display-only: a drop is only valid within the card's own
     // lane. Reject cross-lane targets (leave state untouched so it snaps back).
     if (parseColId(fromCol).swimlane !== parseColId(toCol).swimlane) return;
+    if (
+      parseColId(fromCol).statusId !== parseColId(toCol).statusId &&
+      !canTransitionItems
+    ) return;
     setOverColId(toCol);
     if (fromCol === toCol) return;
 
@@ -632,7 +663,7 @@ export function ItemBoard({
   }
 
   function onDragEnd(event: DragEndEvent) {
-    if (boardDragDisabled(canWrite, pending.current)) return;
+    if (boardDragDisabled(canScheduleItems, pending.current)) return;
     const { active, over } = event;
     const activeIdStr = String(active.id);
     setActiveId(null);
@@ -653,6 +684,11 @@ export function ItemBoard({
     // equivalent to comparing column ids but reads as the true intent.
     const toStatusId = parseColId(toCol).statusId;
     const movedCols = fromCol === null || parseColId(fromCol).statusId !== toStatusId;
+    if (movedCols && !canTransitionItems) {
+      setColumns(base);
+      snapshot.current = null;
+      return;
+    }
 
     // Reorder within the target column to land at the over position.
     let finalCols = columns;
@@ -787,7 +823,7 @@ export function ItemBoard({
                   Effacer les filtres
                 </Link>
               ) : null
-            ) : canWrite ? (
+            ) : canCreateItems && (!createDialogProps.contextLabel || canScheduleItems) ? (
               <NewItemButton backlogKey={backlogKey} {...createDialogProps} />
             ) : null
           }
@@ -856,10 +892,10 @@ export function ItemBoard({
           announcements,
           screenReaderInstructions: BOARD_SCREEN_READER_INSTRUCTIONS,
         }}
-        onDragStart={canWrite ? onDragStart : undefined}
-        onDragOver={canWrite ? onDragOver : undefined}
-        onDragEnd={canWrite ? onDragEnd : undefined}
-        onDragCancel={canWrite ? onDragCancel : undefined}
+        onDragStart={canScheduleItems ? onDragStart : undefined}
+        onDragOver={canScheduleItems ? onDragOver : undefined}
+        onDragEnd={canScheduleItems ? onDragEnd : undefined}
+        onDragCancel={canScheduleItems ? onDragCancel : undefined}
       >
         <div className="flex-1 overflow-x-auto p-4">
           {group === null ? (
@@ -878,7 +914,10 @@ export function ItemBoard({
                     createDialogProps={createDialogProps}
                     isOver={activeId !== null && overColId === id}
                     onOpen={openItem}
-                    canWrite={canWrite}
+                    canCreateItems={canCreateItems}
+                    canEditItems={canEditItems}
+                    canTransitionItems={canTransitionItems}
+                    canScheduleItems={canScheduleItems}
                     dragDisabled={mutationPending}
                   />
                 );
@@ -906,7 +945,10 @@ export function ItemBoard({
                           createDialogProps={createDialogProps}
                           isOver={activeId !== null && overColId === id}
                           onOpen={openItem}
-                          canWrite={canWrite}
+                          canCreateItems={canCreateItems}
+                          canEditItems={canEditItems}
+                          canTransitionItems={canTransitionItems}
+                          canScheduleItems={canScheduleItems}
                           dragDisabled={mutationPending}
                         />
                       );
@@ -918,7 +960,7 @@ export function ItemBoard({
           )}
         </div>
         <DragOverlay modifiers={[restrictToWindowEdges]}>
-          {canWrite && activeCard ? (
+          {canScheduleItems && activeCard ? (
             <div
               className="rounded-[var(--radius-md)] border border-border bg-[var(--surface)] shadow-[var(--shadow-md)]"
               style={{ transform: "rotate(2deg)", width: 280, padding: "var(--card-pad)" }}

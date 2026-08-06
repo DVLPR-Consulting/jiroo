@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { toCountMap } from "@/lib/services/shell";
+
+vi.mock("server-only", () => ({}));
 
 describe("toCountMap", () => {
   it("coerces SQL counts and adds repeated backlog rows", () => {

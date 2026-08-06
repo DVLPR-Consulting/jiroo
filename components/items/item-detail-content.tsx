@@ -1,20 +1,22 @@
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
 import { RecentItemTracker } from "@/components/items/recent-item-tracker";
 import type { ItemType } from "@/lib/design/constants";
-import { getBacklogByKey } from "@/lib/services/backlogs";
+import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
 import { listComments } from "@/lib/services/comments";
 import {
-  getItemByKey,
+  getItemByKeyForBacklog,
   getItemLabelIds,
   listActivities,
   listItems,
   listLabelsForBacklog,
   listUsers,
+  listUsersByIds,
 } from "@/lib/services/items";
 import { listLinksForItem } from "@/lib/services/links";
 import { listRefsForItem } from "@/lib/services/refs";
+import type { ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
 
-type Backlog = NonNullable<Awaited<ReturnType<typeof getBacklogByKey>>>;
+type Backlog = NonNullable<Awaited<ReturnType<typeof getBacklogByKeyForUser>>>;
 type Items = Awaited<ReturnType<typeof listItems>>;
 type Labels = Awaited<ReturnType<typeof listLabelsForBacklog>>;
 type Users = Awaited<ReturnType<typeof listUsers>>;
@@ -30,23 +32,39 @@ export async function ItemDetailContent({
   itemKey,
   backlog,
   users,
+  assigneeCandidates,
+  reporterCandidates,
   statuses,
   labels,
   items,
   currentUserId,
-  canWrite = true,
+  sprints = [],
+  sprintId = null,
+  canEditItems = true,
+  canTransitionItems = true,
+  canAssignItems = true,
+  itemCapabilities,
+  planningCapabilities,
 }: {
   itemKey: string;
   backlog: Backlog;
   users: Users;
+  assigneeCandidates: Users;
+  reporterCandidates: Users;
   statuses: Status[];
   labels: Labels;
   items: Items;
   currentUserId: string;
-  canWrite?: boolean;
+  sprints?: { id: string; name: string }[];
+  sprintId?: string | null;
+  canEditItems?: boolean;
+  canTransitionItems?: boolean;
+  canAssignItems?: boolean;
+  itemCapabilities?: ItemCapabilities;
+  planningCapabilities?: PlanningCapabilities;
 }) {
-  const detail = await getItemByKey(itemKey);
-  if (!detail || detail.backlogId !== backlog.id) return null;
+  const detail = await getItemByKeyForBacklog(itemKey, backlog.id);
+  if (!detail) return null;
 
   const [activities, itemLabelIds, comments, links, refs] = await Promise.all([
     listActivities(detail.id),
@@ -55,6 +73,15 @@ export async function ItemDetailContent({
     listLinksForItem(detail.id),
     listRefsForItem(detail.id),
   ]);
+  const detailReferencedUsers = await listUsersByIds([
+    detail.assigneeId,
+    detail.reporterId,
+    ...activities.map((activity) => activity.actorId),
+    ...comments.map((comment) => comment.authorId),
+  ].filter((id): id is string => typeof id === "string"));
+  const displayUsers = [...new Map(
+    [...users, ...detailReferencedUsers].map((candidate) => [candidate.id, candidate]),
+  ).values()];
   const candidates = items.map((item) => ({
     id: item.id,
     key: item.key,
@@ -79,14 +106,22 @@ export async function ItemDetailContent({
         currentUserId={currentUserId}
         itemLabelIds={itemLabelIds}
         backlogLabels={labels}
-        users={users}
+        users={displayUsers}
+        assigneeCandidates={assigneeCandidates}
+        reporterCandidates={reporterCandidates}
         statuses={statuses}
         backlogKey={backlog.key}
         links={links}
         candidates={candidates}
         refs={refs}
         parent={parent}
-        canWrite={canWrite}
+        sprints={sprints}
+        sprintId={sprintId}
+        canEditItems={canEditItems}
+        canTransitionItems={canTransitionItems}
+        canAssignItems={canAssignItems}
+        itemCapabilities={itemCapabilities}
+        planningCapabilities={planningCapabilities}
       />
     </>
   );

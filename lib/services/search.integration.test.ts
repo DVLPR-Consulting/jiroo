@@ -2,11 +2,17 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { backlogs, items, statuses } from "@/lib/db/schema/domain";
-import { recentItems } from "@/lib/services/search";
+import {
+  createReadVisibilityFixture,
+  deleteReadVisibilityFixture,
+} from "@/lib/services/read-visibility.integration-fixture";
+import { recentItems, searchItems } from "@/lib/services/search";
+
+vi.mock("server-only", () => ({}));
 
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 
@@ -16,8 +22,18 @@ function randomBacklogKey(): string {
 
 describeDb("recentItems", () => {
   it("preserves caller order while hiding deleted, archived, and missing keys", async () => {
-    const [actor] = await db.select({ id: user.id, name: user.name }).from(user).limit(1);
-    if (!actor) throw new Error("Le seed doit contenir un utilisateur.");
+    const actorId = `recent-admin-${randomUUID()}`;
+    const [actor] = await db
+      .insert(user)
+      .values({
+        id: actorId,
+        name: "Administratrice récents",
+        email: `${actorId}@example.test`,
+        emailVerified: true,
+        role: "admin",
+      })
+      .returning({ id: user.id, name: user.name });
+    if (!actor) throw new Error("Impossible de créer l’administratrice de test.");
 
     const activeKey = randomBacklogKey();
     const archivedKey = randomBacklogKey();
@@ -111,7 +127,7 @@ describeDb("recentItems", () => {
     ]);
 
     try {
-      const rows = await recentItems([
+      const rows = await recentItems(actor.id, [
         activeUnassignedKey,
         deletedKey,
         archivedItemKey,
@@ -126,6 +142,41 @@ describeDb("recentItems", () => {
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, activeBacklog!.id));
       await db.delete(backlogs).where(eq(backlogs.id, archivedBacklog!.id));
+      await db.delete(user).where(eq(user.id, actor!.id));
+    }
+  });
+
+  it("filters search and stale recent keys before limiting or materialising rows", async () => {
+    const fixture = await createReadVisibilityFixture("Recherche cloisonnée");
+
+    try {
+      await expect(searchItems(fixture.actorA, "Recherche cloisonnée", 20)).resolves.toEqual([
+        expect.objectContaining({ id: fixture.liveA.id, backlogKey: fixture.backlogA.key }),
+      ]);
+      await expect(searchItems(fixture.actorB, "Recherche cloisonnée", 1)).resolves.toEqual([
+        expect.objectContaining({ id: fixture.liveB.id, backlogKey: fixture.backlogB.key }),
+      ]);
+      expect(
+        (await searchItems(fixture.admin, "Recherche cloisonnée", 20)).map((row) => row.id),
+      ).toEqual(expect.arrayContaining([fixture.liveA.id, fixture.liveB.id]));
+      expect(
+        (await searchItems(fixture.platformAdmin, "Recherche cloisonnée", 20)).map(
+          (row) => row.id,
+        ),
+      ).toEqual(expect.arrayContaining([fixture.liveA.id, fixture.liveB.id]));
+
+      await expect(
+        recentItems(fixture.actorA, [fixture.liveB.key, fixture.liveA.key]),
+      ).resolves.toEqual([
+        expect.objectContaining({ id: fixture.liveA.id, key: fixture.liveA.key }),
+      ]);
+      expect(
+        (await recentItems(fixture.admin, [fixture.liveB.key, fixture.liveA.key])).map(
+          (row) => row.id,
+        ),
+      ).toEqual([fixture.liveB.id, fixture.liveA.id]);
+    } finally {
+      await deleteReadVisibilityFixture(fixture);
     }
   });
 });

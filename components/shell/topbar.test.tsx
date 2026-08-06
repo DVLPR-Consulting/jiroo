@@ -5,6 +5,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { Topbar } from "@/components/shell/topbar";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 
+vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({
   useParams: () => ({ key: "CASS" }),
   usePathname: () => "/b/CASS",

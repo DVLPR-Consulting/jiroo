@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { WorkflowCapabilities } from "@/lib/auth/capabilities";
 
 type StatusCategory = "todo" | "in_progress" | "done";
 
@@ -50,10 +51,12 @@ export function StatusManagerDialog({
   backlogId,
   backlogKey,
   statuses,
+  capabilities = { manage: false },
 }: {
   backlogId: string;
   backlogKey: string;
   statuses: ManagedStatus[];
+  capabilities?: WorkflowCapabilities;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -65,6 +68,7 @@ export function StatusManagerDialog({
   const [replacementStatusId, setReplacementStatusId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  if (!capabilities.manage) return null;
 
   function resetEditor() {
     setMode(null);

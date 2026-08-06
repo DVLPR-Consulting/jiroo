@@ -1,15 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole, type Role } from "@/lib/auth/rbac";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
+import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
+import { requirePermission } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
 import { archiveBacklog, createBacklog, updateBacklog } from "@/lib/services/backlogs";
 
-async function assertAdmin() {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
-  // requireRole throws if there's no session or the user isn't admin.
-  requireRole(session as { user: { id: string; role: Role } } | null, "admin");
-  return session!.user.id;
+  if (!session?.user.id) throw new Error("Forbidden");
+  return session.user.id;
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -20,12 +21,19 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 export async function createBacklogAction(input: { key: string; name: string; color: string }) {
-  await assertAdmin();
+  const actorId = await authenticatedActorId();
   try {
-    const b = await createBacklog(input);
+    await requirePermission({
+      actorId,
+      permission: "create_backlogs",
+      scope: { type: "global" },
+    });
+    const b = await createBacklog(input, actorId);
     revalidatePath("/admin");
     return { ok: true as const, backlog: b };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     const msg = String(e).includes("unique") ? "Cette clé est déjà utilisée." : "Création impossible.";
     return { ok: false as const, error: msg };
   }
@@ -37,9 +45,14 @@ export async function updateBacklogAction(input: {
   name: string;
   color: string;
 }) {
-  const adminId = await assertAdmin();
+  const actorId = await authenticatedActorId();
   try {
-    const result = await updateBacklog(input, adminId);
+    await requireBacklogPermissionById({
+      actorId,
+      backlogId: input.id,
+      permission: "administer_backlog",
+    });
+    const result = await updateBacklog(input, actorId);
     if (!result) return { ok: false as const, error: "Modification impossible." };
 
     for (const path of [
@@ -54,6 +67,8 @@ export async function updateBacklogAction(input: {
     }
     return { ok: true as const };
   } catch (error) {
+    const authorizationError = mapActionAuthorizationError(error);
+    if (authorizationError) return authorizationError;
     return {
       ok: false as const,
       error: isUniqueViolation(error)
@@ -64,8 +79,19 @@ export async function updateBacklogAction(input: {
 }
 
 export async function archiveBacklogAction(id: string) {
-  await assertAdmin();
-  await archiveBacklog(id);
-  revalidatePath("/admin");
-  return { ok: true as const };
+  const actorId = await authenticatedActorId();
+  try {
+    await requireBacklogPermissionById({
+      actorId,
+      backlogId: id,
+      permission: "administer_backlog",
+    });
+    await archiveBacklog(id);
+    revalidatePath("/admin");
+    return { ok: true as const };
+  } catch (error) {
+    const authorizationError = mapActionAuthorizationError(error);
+    if (authorizationError) return authorizationError;
+    throw error;
+  }
 }

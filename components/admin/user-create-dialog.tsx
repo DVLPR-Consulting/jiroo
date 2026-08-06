@@ -15,16 +15,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ROLE_LABELS } from "@/lib/items/users";
 import { toast } from "@/lib/toast";
-import type { Role } from "@/lib/auth/rbac";
 
 export function UserCreateDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<Role>("contributor");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -32,7 +29,6 @@ export function UserCreateDialog() {
     setName("");
     setEmail("");
     setPassword("");
-    setRole("contributor");
     setError(null);
   }
 
@@ -54,7 +50,7 @@ export function UserCreateDialog() {
         <DialogHeader>
           <DialogTitle>Nouvel utilisateur</DialogTitle>
           <DialogDescription>
-            Créez un compte et choisissez ses droits initiaux dans Jiroo.
+            Créez un compte sans accès aux backlogs. Attribuez ensuite ses accès par groupes et rôles.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -63,7 +59,7 @@ export function UserCreateDialog() {
             event.preventDefault();
             setError(null);
             startTransition(async () => {
-              const result = await createUserAction({ name, email, password, role });
+              const result = await createUserAction({ name, email, password });
               if (!result.ok) {
                 setError(result.error);
                 return;
@@ -104,24 +100,10 @@ export function UserCreateDialog() {
             />
             <p className="text-xs text-muted-foreground">8 caractères minimum.</p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="new-user-role">Rôle initial</Label>
-            <select
-              id="new-user-role"
-              value={role}
-              onChange={(event) => setRole(event.target.value as Role)}
-              className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              {(Object.entries(ROLE_LABELS) as Array<[Role, string]>).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
             <Button
+              aria-busy={pending}
               type="submit"
               disabled={pending || !name.trim() || !email.trim() || password.length < 8}
             >

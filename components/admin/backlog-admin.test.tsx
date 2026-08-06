@@ -59,6 +59,11 @@ describe("BacklogAdmin", () => {
     );
   });
 
+  it("relie chaque backlog à ses réglages d’accès", () => {
+    render(<BacklogAdmin backlogs={[backlog]} />);
+    expect(screen.getByRole("link", { name: "Gérer les accès de Site web" })).toHaveAttribute("href", "/b/WEB/settings/access");
+  });
+
   it("keeps the edit dialog open and displays an action error", async () => {
     const user = userEvent.setup();
     mocks.updateBacklogAction.mockResolvedValue({
@@ -72,6 +77,7 @@ describe("BacklogAdmin", () => {
     await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
 
     expect(await within(dialog).findByText("Cette clé est déjà utilisée.")).toBeVisible();
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("Cette clé est déjà utilisée.");
     expect(dialog).toBeVisible();
   });
 });

@@ -14,12 +14,15 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   updateItemAction: vi.fn(),
-  getItemByKey: vi.fn(),
+  getItemByKeyForBacklog: vi.fn(),
   getItemLabelIds: vi.fn(),
   listActivities: vi.fn(),
   listComments: vi.fn(),
   listLinksForItem: vi.fn(),
   listRefsForItem: vi.fn(),
+  listUsersByIds: vi.fn(),
+  moveSprintItemAction: vi.fn(),
+  reparentItemAction: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -35,6 +38,31 @@ vi.mock("@/app/actions/items", () => ({
   restoreItemAction: mocks.restoreItemAction,
   softDeleteItemAction: mocks.softDeleteItemAction,
   updateItemAction: mocks.updateItemAction,
+  reparentItemAction: mocks.reparentItemAction,
+}));
+
+vi.mock("@/app/actions/sprints", () => ({
+  moveSprintItemAction: mocks.moveSprintItemAction,
+}));
+
+vi.mock("@/app/actions/comments", () => ({
+  addCommentAction: vi.fn(),
+  deleteCommentAction: vi.fn(),
+  editCommentAction: vi.fn(),
+}));
+
+vi.mock("@/app/actions/labels", () => ({
+  createLabelAction: vi.fn(),
+}));
+
+vi.mock("@/app/actions/links", () => ({
+  addLinkAction: vi.fn(),
+  removeLinkAction: vi.fn(),
+}));
+
+vi.mock("@/app/actions/refs", () => ({
+  addRefAction: vi.fn(),
+  removeRefAction: vi.fn(),
 }));
 
 vi.mock("@/lib/toast", () => ({
@@ -45,9 +73,10 @@ vi.mock("@/lib/toast", () => ({
 }));
 
 vi.mock("@/lib/services/items", () => ({
-  getItemByKey: mocks.getItemByKey,
+  getItemByKeyForBacklog: mocks.getItemByKeyForBacklog,
   getItemLabelIds: mocks.getItemLabelIds,
   listActivities: mocks.listActivities,
+  listUsersByIds: mocks.listUsersByIds,
 }));
 
 vi.mock("@/lib/services/comments", () => ({
@@ -95,7 +124,13 @@ const baseProps = {
   itemLabelIds: [],
   backlogLabels: [],
   users: [
-    { id: "better-auth-marie", name: "Marie Lemaire", email: "marie@example.test" },
+    { id: "better-auth-marie", name: "Marie Lemaire" },
+  ],
+  assigneeCandidates: [
+    { id: "better-auth-marie", name: "Marie Lemaire" },
+  ],
+  reporterCandidates: [
+    { id: "better-auth-marie", name: "Marie Lemaire" },
   ],
   statuses: [
     {
@@ -114,7 +149,7 @@ const baseProps = {
 function renderPanel(
   parent?: { key: string; title: string },
   detailOverride = detail,
-  canWrite = true,
+  canEditItems = true,
 ) {
   return render(
     <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
@@ -122,7 +157,9 @@ function renderPanel(
         {...baseProps}
         detail={detailOverride}
         parent={parent}
-        canWrite={canWrite}
+        canEditItems={canEditItems}
+        canTransitionItems={canEditItems}
+        canAssignItems={canEditItems}
       />
     </ViewUrlStateProvider>,
   );
@@ -140,6 +177,8 @@ describe("ItemDetailPanel header", () => {
     mocks.toastError.mockReset();
     mocks.toastSuccess.mockReset();
     mocks.updateItemAction.mockReset();
+    mocks.moveSprintItemAction.mockReset();
+    mocks.reparentItemAction.mockReset();
     writeText.mockReset();
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -276,7 +315,12 @@ describe("ItemDetailPanel header", () => {
     const user = userEvent.setup();
     render(
       <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
-        <ItemDetailPanel {...baseProps} canWrite={false} />
+        <ItemDetailPanel
+          {...baseProps}
+          canEditItems={false}
+          canTransitionItems={false}
+          canAssignItems={false}
+        />
       </ViewUrlStateProvider>,
     );
 
@@ -291,16 +335,301 @@ describe("ItemDetailPanel header", () => {
     await user.click(screen.getByRole("button", { name: "Commentaires" }));
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
+
+  it("requires edit plus the exact status or assignee capability", () => {
+    const denied = {
+      canEditItems: false,
+      canTransitionItems: false,
+      canAssignItems: false,
+    } as const;
+
+    const edited = render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel {...baseProps} {...denied} canEditItems />
+      </ViewUrlStateProvider>,
+    );
+    expect(screen.getByRole("button", { name: `Renommer ${detail.key}` })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "Priorité" })).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
+    edited.unmount();
+
+    const transitioned = render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel {...baseProps} {...denied} canTransitionItems />
+      </ViewUrlStateProvider>,
+    );
+    expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: `Renommer ${detail.key}` })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Priorité" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
+    transitioned.unmount();
+
+    const editedAndTransitioned = render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          {...denied}
+          canEditItems
+          canTransitionItems
+        />
+      </ViewUrlStateProvider>,
+    );
+    expect(screen.getByRole("combobox", { name: "Statut" })).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
+    editedAndTransitioned.unmount();
+
+    const assigned = render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel {...baseProps} {...denied} canAssignItems />
+      </ViewUrlStateProvider>,
+    );
+    expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Priorité" })).not.toBeInTheDocument();
+    assigned.unmount();
+
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          {...denied}
+          canEditItems
+          canAssignItems
+        />
+      </ViewUrlStateProvider>,
+    );
+    expect(screen.getByRole("combobox", { name: "Assigné" })).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
+  });
+
+  it("renders current assignee and reporter identities as disabled non-candidate options", () => {
+    const currentAssignee = { id: "former-assignee", name: "Ancienne assignée" };
+    const currentReporter = { id: "former-reporter", name: "Ancien rapporteur" };
+    const assignable = { id: "assignable-user", name: "Candidate assignable" };
+    const reporterCandidate = { id: "reporter-candidate", name: "Rapporteuse candidate" };
+
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          detail={{
+            ...detail,
+            assigneeId: currentAssignee.id,
+            reporterId: currentReporter.id,
+          }}
+          users={[currentAssignee, currentReporter]}
+          assigneeCandidates={[assignable]}
+          reporterCandidates={[reporterCandidate]}
+          canEditItems
+          canAssignItems
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    const assigneeSelect = screen.getByRole("combobox", { name: "Assigné" });
+    expect(assigneeSelect).toHaveValue(currentAssignee.id);
+    expect(
+      within(assigneeSelect).getByRole("option", { name: currentAssignee.name }),
+    ).toBeDisabled();
+    expect(
+      within(assigneeSelect).getByRole("option", { name: assignable.name }),
+    ).toBeEnabled();
+
+    const reporterSelect = screen.getByRole("combobox", { name: "Rapporteur" });
+    expect(reporterSelect).toHaveValue(currentReporter.id);
+    expect(
+      within(reporterSelect).getByRole("option", { name: currentReporter.name }),
+    ).toBeDisabled();
+    expect(
+      within(reporterSelect).getByRole("option", { name: reporterCandidate.name }),
+    ).toBeEnabled();
+  });
+
+  it("grants delete, comments, and links independently from ordinary editing", async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          canEditItems={false}
+          canTransitionItems={false}
+          canAssignItems={false}
+          itemCapabilities={{
+            create: false,
+            edit: false,
+            transition: false,
+            assign: false,
+            delete: true,
+            restore: false,
+            addComments: true,
+            editOwnComments: false,
+            deleteOwnComments: false,
+            deleteAllComments: false,
+            link: true,
+          }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Actions" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Ajouter le lien" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Ajouter" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: `Renommer ${detail.key}` }))
+      .not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Commentaires" }));
+    expect(screen.getByRole("textbox", { name: "Nouveau commentaire" })).toBeVisible();
+  });
+
+  it("lets a scheduler change parent and sprint without editing ordinary fields", async () => {
+    const user = userEvent.setup();
+    mocks.reparentItemAction.mockResolvedValue({ ok: true });
+    mocks.moveSprintItemAction.mockResolvedValue({ ok: true });
+    const taskDetail = { ...detail, type: "tache" as const };
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          detail={taskDetail}
+          parent={{ key: "CASS-1", title: "Epic initial" }}
+          candidates={[
+            { id: detail.parentId!, key: "CASS-1", title: "Epic initial", type: "epic" },
+            { id: "55555555-5555-4555-8555-555555555555", key: "CASS-3", title: "Epic cible", type: "epic" },
+          ]}
+          sprints={[
+            { id: "66666666-6666-4666-8666-666666666666", name: "Sprint actif" },
+          ]}
+          sprintId={null}
+          canEditItems={false}
+          canTransitionItems={false}
+          canAssignItems={false}
+          planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.queryByRole("button", { name: `Renommer ${detail.key}` }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Priorité" })).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByRole("combobox", { name: "Parent" }), "55555555-5555-4555-8555-555555555555");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Sprint" }), "66666666-6666-4666-8666-666666666666");
+
+    await waitFor(() => expect(mocks.reparentItemAction).toHaveBeenCalledWith({
+      backlogKey: "CASS",
+      id: detail.id,
+      newParentId: "55555555-5555-4555-8555-555555555555",
+    }));
+    await waitFor(() => expect(mocks.moveSprintItemAction).toHaveBeenCalledWith({
+      backlogKey: "CASS",
+      backlogId: detail.backlogId,
+      itemId: detail.id,
+      sprintId: "66666666-6666-4666-8666-666666666666",
+      beforeId: null,
+      afterId: null,
+    }));
+  });
+
+  it("rolls back an optimistic planning change and exposes the safe error", async () => {
+    const user = userEvent.setup();
+    let resolveAction!: (result: { ok: false; error: string }) => void;
+    mocks.reparentItemAction.mockReturnValue(
+      new Promise((resolve) => {
+        resolveAction = resolve;
+      }),
+    );
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          detail={{ ...detail, type: "tache" }}
+          parent={{ key: "CASS-1", title: "Epic initial" }}
+          candidates={[
+            { id: detail.parentId!, key: "CASS-1", title: "Epic initial", type: "epic" },
+            { id: "55555555-5555-4555-8555-555555555555", key: "CASS-3", title: "Epic cible", type: "epic" },
+          ]}
+          canEditItems={false}
+          planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    const parentSelect = screen.getByRole("combobox", { name: "Parent" });
+    await user.selectOptions(parentSelect, "55555555-5555-4555-8555-555555555555");
+    expect(parentSelect).toHaveValue("55555555-5555-4555-8555-555555555555");
+    resolveAction({ ok: false, error: "Planification interdite." });
+
+    await waitFor(() => expect(parentSelect).toHaveValue(detail.parentId));
+    expect(screen.getByRole("alert")).toHaveTextContent("Planification interdite.");
+    expect(mocks.toastError).toHaveBeenCalledWith("Planification interdite.");
+  });
+
+  it("rolls back the parent and exposes a safe error when reparenting rejects", async () => {
+    const user = userEvent.setup();
+    mocks.reparentItemAction.mockRejectedValueOnce(new Error("internal parent details"));
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          detail={{ ...detail, type: "tache" }}
+          parent={{ key: "CASS-1", title: "Epic initial" }}
+          candidates={[
+            { id: detail.parentId!, key: "CASS-1", title: "Epic initial", type: "epic" },
+            { id: "55555555-5555-4555-8555-555555555555", key: "CASS-3", title: "Epic cible", type: "epic" },
+          ]}
+          canEditItems={false}
+          planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    const parentSelect = screen.getByRole("combobox", { name: "Parent" });
+    await user.selectOptions(parentSelect, "55555555-5555-4555-8555-555555555555");
+
+    await waitFor(() => expect(parentSelect).toHaveValue(detail.parentId));
+    expect(screen.getByRole("alert")).toHaveTextContent("Impossible de modifier la planification.");
+    expect(mocks.toastError).toHaveBeenCalledWith("Impossible de modifier la planification.");
+  });
+
+  it("rolls back the sprint and exposes a safe error when sprint assignment rejects", async () => {
+    const user = userEvent.setup();
+    mocks.moveSprintItemAction.mockRejectedValueOnce(new Error("internal sprint details"));
+    const initialSprintId = "66666666-6666-4666-8666-666666666666";
+    const targetSprintId = "77777777-7777-4777-8777-777777777777";
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          detail={{ ...detail, type: "tache" }}
+          sprints={[
+            { id: initialSprintId, name: "Sprint initial" },
+            { id: targetSprintId, name: "Sprint cible" },
+          ]}
+          sprintId={initialSprintId}
+          canEditItems={false}
+          planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    const sprintSelect = screen.getByRole("combobox", { name: "Sprint" });
+    await user.selectOptions(sprintSelect, targetSprintId);
+
+    await waitFor(() => expect(sprintSelect).toHaveValue(initialSprintId));
+    expect(screen.getByRole("alert")).toHaveTextContent("Impossible de modifier la planification.");
+    expect(mocks.toastError).toHaveBeenCalledWith("Impossible de modifier la planification.");
+  });
 });
 
 describe("ItemDetailContent parent resolution", () => {
   it("derives the parent breadcrumb from the items already loaded by the view", async () => {
-    mocks.getItemByKey.mockResolvedValueOnce(detail);
+    mocks.getItemByKeyForBacklog.mockResolvedValueOnce(detail);
     mocks.getItemLabelIds.mockResolvedValueOnce([]);
     mocks.listActivities.mockResolvedValueOnce([]);
     mocks.listComments.mockResolvedValueOnce([]);
     mocks.listLinksForItem.mockResolvedValueOnce([]);
     mocks.listRefsForItem.mockResolvedValueOnce([]);
+    mocks.listUsersByIds.mockResolvedValueOnce(baseProps.users);
     const parent = {
       ...detail,
       id: detail.parentId!,
@@ -319,9 +648,10 @@ describe("ItemDetailContent parent resolution", () => {
         name: "Caisse",
         color: "#475569",
         archivedAt: null,
-        createdAt: new Date("2026-08-01T09:00:00.000Z"),
       },
       users: baseProps.users,
+      assigneeCandidates: baseProps.assigneeCandidates,
+      reporterCandidates: baseProps.reporterCandidates,
       statuses: [
         {
           id: detail.statusId,
@@ -342,6 +672,10 @@ describe("ItemDetailContent parent resolution", () => {
       </ViewUrlStateProvider>,
     );
 
+    expect(mocks.getItemByKeyForBacklog).toHaveBeenCalledWith(
+      detail.key,
+      detail.backlogId,
+    );
     expect(screen.getByRole("navigation", { name: "Fil d’Ariane" })).toHaveTextContent(
       "PARENT-1 / CASS-2",
     );

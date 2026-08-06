@@ -763,3 +763,183 @@ en fin d'audit.
    sur l'historique désormais persistant.
 3. Concevoir l'**intégration dépôt/PR** pour relier exécution technique, checks
    CI et release sans confondre `Terminé` avec `Livré`.
+
+## Fin de session — incrément 09 : schémas de permissions Jira-like
+
+### Score global provisoire
+
+**82/100 — confiance élevée sur l’autorisation et le cycle sprint, plus faible
+sur le pilotage produit restant.** Le gain depuis 78 vient d’une matrice réelle
+à cinq identités, d’un setup 2FA autonome et de preuves causales UI/serveur/base
+sur les schémas partagés. Après revue, ce score est conservé uniquement parce
+que le rôle protégé parasite a été retiré, les mutations `browse_backlog` sont
+effectuées dans l’UI et les invariants de non-mutation sont vérifiés en base. Il
+ne crédite aucune interface Releases, encore absente.
+
+| Dimension | Score | Preuve principale |
+|---|---:|---|
+| Couverture fonctionnelle observée | 84/100 | Groupes, rôles, grants, schémas, concurrence et dix scénarios multi-utilisateurs |
+| Fiabilité et feedback | 92/100 | Payload forgé sans mutation métier/audit, conflit stale récupérable et historique exact append-only |
+| Efficacité UX | 80/100 | Mode Simple, mode Avancé et Assistant explicitent les sources de droit |
+| Accessibilité | 86/100 | Un seul `main`, contrôles nommés et surfaces interdites absentes |
+| Responsive | 64/100 | Inchangé : matrice permissions desktop Chromium |
+| Permissions | 98/100 | Cinq comptes 2FA, rôle personnalisé seul en CASS, refus LABS et contrôles UI + serveur + données |
+| Performance locale | 84/100 | Mutations 21–339 ms ; navigations/reloads 248–1 040 ms en développement isolé |
+
+### Ce qui a été testé
+
+- setup Playwright autonome : reset refusé sans opt-in explicite, autorité URL
+  locale et nom de base autorisé ; les paramètres `host`, `hostaddr`, `port`,
+  `database`/`dbname`, `service`, socket et équivalents sont refusés, et tout
+  paramètre inconnu est deny-by-default hors liste TLS/app-name ; exactement
+  cinq comptes, enrôlement TOTP réel, sessions `0600` séparées et fixtures
+  CASS/LABS ;
+- création UI d’un groupe, d’un rôle personnalisé et d’un clone de schéma ;
+- portée backlog du seul chemin `Membre E2E → Équipe delivery → Spécialiste
+  delivery` dans CASS, sans rôle direct/protégé, puis refus dans LABS ;
+- explication des grants direct, groupe et rôle par l’Assistant ;
+- rejeu par un lecteur d’une Server Action capturée, reciblée vers un nom neuf
+  qui aurait muté sans garde : erreur structurée, compte de groupes et historique
+  strictement identiques avant/après ;
+- spécialiste autorisé à gérer les sprints, sans édition d’item ni workflow ;
+- `manage_releases` expliqué sans inventer de page ou contrôle Releases ;
+- ajout puis retrait de `browse_backlog` depuis la matrice UI dans un second
+  contexte admin, répercutés sur navigation, recherche, récents, contenu du
+  panneau notifications et accès URL direct ;
+- conflit de version entre deux éditeurs d’un schéma partagé, puis récupération
+  après reload ;
+- baseline exacte de l’historique `group_created`, deux mutations navigateur,
+  exactement deux événements supplémentaires retrouvés par cible/valeur/
+  corrélation et premier événement byte-for-byte inchangé après le second ;
+  persistance après reload et dans un second contexte utilisateur.
+
+`test:e2e` ne définit jamais le consentement destructif. Le reset accepte
+exclusivement la base locale `jiroo_e2e` et vérifie aussi l’identité physique de
+l’instance sur la même connexion que le `TRUNCATE`. L’URL reste dans
+l’environnement local de l’opérateur ; la commande suivante capture
+l’identifiant sans l’afficher ni l’inscrire dans l’historique shell :
+
+```sh
+export PATH=/Users/nkrmr/.nvm/versions/node/v24.13.0/bin:/usr/local/bin:/usr/bin:/bin
+# DATABASE_URL doit déjà provenir d’un fichier local ignoré ou d’un gestionnaire de secrets.
+JIROO_E2E_DATABASE_SYSTEM_IDENTIFIER="$(
+  psql "$DATABASE_URL" --no-psqlrc --tuples-only --no-align \
+    --command='SELECT system_identifier FROM pg_control_system()'
+)"
+export JIROO_E2E_DATABASE_SYSTEM_IDENTIFIER
+
+JIROO_ALLOW_E2E_RESET=1 \
+JIROO_E2E_RUN_ID='<run-id-unique>' \
+JIROO_E2E_COMMAND_LABEL='pnpm --ignore-workspace test:e2e -- --project=chromium' \
+JIROO_E2E_SCENARIOS='régression Chromium complète' \
+JIROO_E2E_PERSIST_AUDIT=1 \
+pnpm --ignore-workspace test:e2e -- --project=chromium
+```
+
+Le flag unique `JIROO_E2E_PERSIST_AUDIT=1` maintient ensemble le JUnit, le
+manifeste, les journaux et les captures ; une configuration partielle n’est
+plus possible. Playwright lance son propre serveur depuis ce worktree sur `:3100`, avec
+`.next-e2e`, sans réutiliser le serveur manuel `:3000`. `globalSetup` réserve
+chaque run-id exactement une fois par `wx` `0600`; aucune variable transmissible
+ne permet la réentrance. Journaux et captures sont toujours préfixés par le run
+ID et publiés sans écrasement. Un manifeste `0600` conserve Node/pnpm, SHA Git,
+nom et empreinte de base, serveur, invocation, horodatages et lien JUnit, jamais
+l’identifiant PostgreSQL brut. Au round 3, sous Node 24.13.0 et sur
+`jiroo_e2e`, la matrice dédiée passe **10/10 en 25,4 s** et la régression
+Chromium complète **24/24 en 59,8 s**. Les preuves immuables sont le
+[run dédié](runs/20260806-review-r3-permissions-02-junit.xml), son
+[manifeste](runs/20260806-review-r3-permissions-02-manifest.json), le
+[run complet](runs/20260806-review-r3-chromium-01-junit.xml), son
+[manifeste](runs/20260806-review-r3-chromium-01-manifest.json) et le
+[contrôle d’intégrité historique](runs/20260806-review-r3-chromium-01-history-integrity.json).
+Chaque scénario permissions conserve aussi ses journaux uniques, par exemple
+[console](console/20260806-review-r3-permissions-02-permission-schemes-01-create-group-role-scheme-console.log)
+et [réseau](network/20260806-review-r3-permissions-02-permission-schemes-01-create-group-role-scheme-network.log).
+Aucun parcours nominal ne contient d’erreur console, de requête échouée ou de
+réponse HTTP inattendue. Les six échecs réseau du run complet sont les POST
+interrompus volontairement et marqués `[expected]` par les scénarios de rollback.
+Les 187 fichiers historiques restent byte-for-byte identiques sans restauration.
+Le premier run round 3, qui a révélé puis permis de corriger une extension de
+capture temporaire perdue, est conservé sous son run ID mais n’est pas cité
+comme preuve d’acceptation.
+
+La vérification finale Task 10 rejoue la régression complète sur le commit
+`e07fa2f` avec le run conservé `20260806-task10-chromium-01` :
+[JUnit 24/24](runs/20260806-task10-chromium-01-junit.xml),
+[manifeste de provenance](runs/20260806-task10-chromium-01-manifest.json) et
+[revue/ledger](reviews/2026-08-06-task10-review.md). Les dix scénarios de
+permissions restent sans erreur console/page/requête ni statut HTTP 4xx/5xx.
+La revue indépendante suivante a identifié une course de publication JUnit
+entre deux processus ayant chargé la configuration avant la réservation. Les
+commits de correction publient désormais le rapport temporaire du seul
+propriétaire par lien atomique exclusif; un test lance réellement deux processus
+Playwright avec le même run ID. Le run ci-dessus reste la preuve Chromium de
+`e07fa2f` et n'est pas présenté comme une preuve navigateur des corrections.
+
+Après fermeture des quatre findings Important, la preuve finale complète est le
+run immuable `20260806-task10-final-chromium-02` sur `f891d2c` :
+[JUnit 24/24](runs/20260806-task10-final-chromium-02-junit.xml) et
+[manifeste de provenance](runs/20260806-task10-final-chromium-02-manifest.json).
+Ses 60 fichiers sont tous run-scoped : 20 journaux console, 20 journaux réseau,
+18 captures, JUnit et manifeste. Les parcours nominaux ne contiennent aucune
+erreur console/page/requête, aucun échec réseau et aucun statut HTTP 4xx/5xx.
+Les six `ERR_FAILED` sont limités aux trois journaux de rollback injecté. Les
+scans ne trouvent ni motif de secret générique ni identité PostgreSQL brute.
+Le premier essai `20260806-task10-final-chromium-01` est conservé comme diagnostic
+(22 réussites, 2 erreurs) : les sélecteurs E2E attendaient encore les anciens
+libellés avec email. Il n'est pas cité comme preuve d'acceptation.
+
+La re-review R2 suivante a fermé trois autres findings Important par TDD : les
+identités assigné/rapporteur courantes restent affichées séparément des candidats
+et deviennent des options désactivées lorsqu'elles ne sont plus sélectionnables ;
+le Server Action du helper exige maintenant `browse_users` après ses gates
+backlog/admin ; la résolution `assignable_user` utilise deux requêtes DAL bornées
+au lieu d'un `checkPermission` par compte. La preuve de charge ajoute 64 comptes
+d'annuaire et vérifie exactement deux requêtes, tandis que la matrice PostgreSQL
+complète passe 16/16 fichiers et 125/125 tests. Conformément au gate R2, aucun
+Chromium n'a été relancé avant re-review : le run `20260806-task10-final-chromium-02`
+reste uniquement la preuve de son SHA source enregistré `f891d2c`, pas des
+commits R2. Le détail et les SHA sont dans le
+[ledger Task 10](reviews/2026-08-06-task10-review.md).
+
+La R3 indépendante conclut ensuite **PASS, 0 Critical/Important**. La preuve de
+livraison finale est le run immuable unique
+`20260806-task10-delivery-chromium-01` sur le SHA source `3e592090` :
+[JUnit 24/24](runs/20260806-task10-delivery-chromium-01-junit.xml) et
+[manifeste de provenance](runs/20260806-task10-delivery-chromium-01-manifest.json).
+Le gate complet compte 125 fichiers unitaires et 1 051 tests réussis, puis
+16 fichiers/125 tests PostgreSQL, typecheck, ESLint et build Next 16.2.7 verts.
+Les 60 preuves navigateur sont run-scoped : 20 consoles, 20 réseaux,
+18 captures, JUnit et manifeste. Les scans trouvent 0 erreur nominale,
+0 statut HTTP 4xx/5xx, 0 motif de secret et 0 identité PostgreSQL brute ; les
+six `ERR_FAILED` et six `[error]` sont limités aux trois parcours de rollback
+injecté. Ce run remplace les preuves historiques comme preuve de livraison de
+la branche corrigée R2/R3.
+
+Le détail finding par finding est conservé dans le
+[registre de revue Task 9 round 1/5](reviews/2026-08-06-task9-review-r1.md) et le
+[registre round 2/5](reviews/2026-08-06-task9-review-r2.md). Le durcissement
+d’identité, d’immuabilité et de provenance est détaillé dans le
+[registre round 3/5](reviews/2026-08-06-task9-review-r3.md).
+
+### Bugs et dette observés
+
+`BUG-JIR-024` ferme une élévation de privilège via les membres d’un groupe
+administrateur. `BUG-JIR-025` élimine les clés React dupliquées des blockers de
+rôle. `BUG-JIR-026` restaure un unique landmark principal sur la page Accès.
+Le harnais de classement attend maintenant une interaction client réelle avant
+sa capture, ce qui évite une course entre hydratation React et le masquage de
+caret de Playwright.
+
+Restent hors couverture : responsive multi-breakpoints de l’administration,
+lecteurs d’écran réels, volumétrie élevée, concurrence à plus de deux éditeurs
+et visualisation UI complète de l’historique de sécurité. Releases/versions,
+rapport de sprint, vélocité et burndown demeurent des fonctions produit absentes.
+
+### Trois priorités absolues pour la prochaine session
+
+1. Livrer les **releases/versions** et appliquer réellement `manage_releases`.
+2. Exposer l’**historique de sécurité** filtrable dans l’interface et rejouer
+   l’administration aux breakpoints 390/768/1024/1440 px.
+3. Construire le **rapport de sprint**, la vélocité et le burndown à partir des
+   événements persistants, avec totaux explicables item par item.

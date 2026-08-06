@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CommentThread, type CommentRow } from "./comment-thread";
 
@@ -68,7 +68,7 @@ describe("CommentThread", () => {
         comments={[comment]}
         users={[]}
         currentUserId="viewer-1"
-        canWrite={false}
+        capabilities={{ add: false, editOwn: false, deleteOwn: false, deleteAll: false }}
       />,
     );
 
@@ -76,5 +76,74 @@ describe("CommentThread", () => {
     expect(screen.queryByRole("button", { name: "Modifier" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Supprimer" })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("fails closed when a future consumer omits comment capabilities", () => {
+    const comment: CommentRow = {
+      id: "comment-own",
+      authorId: "viewer-1",
+      authorName: "Nina Laurent",
+      body: "Commentaire existant",
+      mentions: [],
+      createdAt: new Date("2026-08-04T08:00:00Z"),
+      editedAt: null,
+      deletedAt: null,
+      deleted: false,
+    };
+
+    render(
+      <CommentThread
+        itemId="item-1"
+        backlogKey="CASS"
+        comments={[comment]}
+        users={[]}
+        currentUserId="viewer-1"
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Modifier" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Supprimer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("separates own-comment editing from delete-all moderation", () => {
+    const own = {
+      id: "comment-own",
+      authorId: "actor-1",
+      authorName: "Ada",
+      body: "Mon commentaire",
+      mentions: [],
+      createdAt: new Date("2026-08-04T08:00:00Z"),
+      editedAt: null,
+      deletedAt: null,
+      deleted: false,
+    } satisfies CommentRow;
+    const other = {
+      ...own,
+      id: "comment-other",
+      authorId: "actor-2",
+      authorName: "Grace",
+      body: "Commentaire externe",
+    } satisfies CommentRow;
+
+    render(
+      <CommentThread
+        itemId="item-1"
+        backlogKey="CASS"
+        comments={[own, other]}
+        users={[]}
+        currentUserId="actor-1"
+        capabilities={{ add: false, editOwn: true, deleteOwn: false, deleteAll: true }}
+      />,
+    );
+
+    const ownComment = screen.getByRole("article", { name: "Commentaire de Ada" });
+    expect(within(ownComment).getByRole("button", { name: "Modifier" })).toBeVisible();
+    expect(within(ownComment).queryByRole("button", { name: "Supprimer" }))
+      .not.toBeInTheDocument();
+    const otherComment = screen.getByRole("article", { name: "Commentaire de Grace" });
+    expect(within(otherComment).queryByRole("button", { name: "Modifier" }))
+      .not.toBeInTheDocument();
+    expect(within(otherComment).getByRole("button", { name: "Supprimer" })).toBeVisible();
   });
 });

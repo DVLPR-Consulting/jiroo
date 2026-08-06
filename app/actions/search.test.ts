@@ -12,7 +12,7 @@ vi.mock("@/lib/services/search", () => ({
   searchItems: mocks.searchItems,
 }));
 
-import { recentItemsAction } from "@/app/actions/search";
+import { recentItemsAction, searchAction } from "@/app/actions/search";
 
 describe("recentItemsAction", () => {
   beforeEach(() => {
@@ -37,7 +37,14 @@ describe("recentItemsAction", () => {
       ok: true,
       results: [],
     });
-    expect(mocks.recentItems).toHaveBeenCalledWith(keys);
+    expect(mocks.recentItems).toHaveBeenCalledWith("viewer-1", keys);
+  });
+
+  it("passes the authenticated server identity to text search", async () => {
+    mocks.searchItems.mockResolvedValue([]);
+
+    await expect(searchAction("DEMO")).resolves.toEqual({ ok: true, results: [] });
+    expect(mocks.searchItems).toHaveBeenCalledWith("viewer-1", "DEMO");
   });
 
   it.each([

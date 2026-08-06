@@ -26,3 +26,12 @@ export const sprintOutcomeEnum = pgEnum("sprint_outcome", [
   "carried_to_backlog",
   "carried_to_sprint",
 ]);
+export const permissionScopeEnum = pgEnum("permission_scope", ["global", "backlog"]);
+export const permissionPrincipalEnum = pgEnum("permission_principal", [
+  "user",
+  "group",
+  "project_role",
+  "authenticated_user",
+]);
+export const accessModeEnum = pgEnum("access_mode", ["simple", "advanced"]);
+export const roleActorTypeEnum = pgEnum("role_actor_type", ["user", "group"]);

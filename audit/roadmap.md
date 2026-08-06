@@ -353,3 +353,64 @@ Références Jira officielles : [releases et versions](https://support.atlassian
 [rapports disponibles](https://support.atlassian.com/jira-software-cloud/docs/generate-a-report/),
 [burndown](https://support.atlassian.com/jira-software-cloud/docs/what-is-the-sprint-burndown-report/)
 et [planification d'un sprint](https://support.atlassian.com/jira-software-cloud/docs/plan-a-sprint/).
+
+## Mise à jour prioritaire — incrément 09 du 6 août 2026
+
+### Fondation permissions — livrée et prouvée
+
+- groupes, utilisateurs directs et rôles de projet comme principaux ;
+- schémas clonables et associables à plusieurs backlogs, avec version optimiste ;
+- modes Simple/Avancé et Assistant expliquant la provenance du droit ;
+- permissions globales et backlog, y compris `browse_backlog`,
+  `manage_sprints`, `manage_releases` et `administer_jiroo` ;
+- invariants des groupes/rôles protégés et historique de sécurité append-only ;
+- cinq identités 2FA réelles et matrice Chromium 10/10, intégrée à une
+  régression complète 24/24.
+
+La revue de preuve impose désormais quatre invariants de harnais : reset avec
+opt-in fourni par l’opérateur, seule base `jiroo_e2e` et identité physique
+explicitement attendue puis vérifiée sur la connexion du `TRUNCATE` ; serveur
+Next isolé sur `:3100` sans réutilisation ; run-id réservé exactement une fois
+par `globalSetup`, sans token réentrant ; tous les journaux/captures run-scoped,
+non écrasables, avec manifeste de provenance non secret. La régression round 3
+confirme 10/10 puis 24/24 et l’égalité SHA-256 des 187 fichiers historiques sans
+restauration. La preuve d’isolation n’accorde aucun rôle protégé au membre testé ;
+le chemin groupe → rôle personnalisé est le seul qui explique son accès à CASS.
+
+La permission `manage_releases` est volontairement disponible avant son
+consommateur produit. Elle ne constitue pas une livraison de Releases.
+
+### P0 — Rendre `manage_releases` opérante
+
+**Livrable :** modèle version/release, affectation unitaire et bulk, filtres,
+progression, publication/archivage, historique et protection de chaque mutation
+par `manage_releases`.
+
+**Acceptation :** administrateur et spécialiste autorisés voient les contrôles ;
+membre/lecteur ne les voient pas ; une Server Action forgée est refusée ; état,
+historique et explications restent identiques après reload et second contexte.
+
+### P1 — Rendre l’audit de sécurité exploitable
+
+**Livrable :** timeline paginée et filtrable par acteur, permission, backlog,
+cible, résultat et corrélation, sans possibilité d’édition ni suppression.
+
+**Acceptation :** deux mutations concurrentes et un bypass administrateur sont
+retrouvés dans l’UI et correspondent exactement aux lignes PostgreSQL. Navigation
+clavier, lecteur d’écran et responsive 390/768/1024/1440 sont rejoués.
+
+### P1 — Durcir la matrice d’autorisation
+
+**Livrable :** exécution CI des cinq sessions 2FA sur une base dédiée
+`jiroo_e2e`, parallélisation sûre des fixtures, volumétrie groupes/rôles/grants
+et concurrence à plus de deux éditeurs.
+
+**Acceptation :** zéro fuite cross-backlog, zéro donnée interdite dans les
+payloads RSC, temps et seuils documentés, artefacts automatiques uniquement sur
+la date du run.
+
+### Ordre immédiat recommandé
+
+1. Releases/versions et consommation de `manage_releases`.
+2. Timeline de sécurité visible et audit responsive/accessibilité.
+3. Rapport sprint/vélocité/burndown fondé sur l’événementiel.

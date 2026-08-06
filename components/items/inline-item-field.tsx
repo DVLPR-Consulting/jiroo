@@ -342,18 +342,22 @@ export function InlineAssignee({
   itemId,
   backlogKey,
   assigneeId,
+  assigneeName,
   users,
   readOnly = false,
 }: {
   itemId: string;
   backlogKey: string;
   assigneeId: string | null;
+  assigneeName?: string | null;
   users: UserOption[];
   readOnly?: boolean;
 }) {
   const { error, pending, update } = useInlineUpdate(itemId, backlogKey);
   const errorId = useId();
-  const selected = users.find((user) => user.id === assigneeId);
+  const selected =
+    users.find((user) => user.id === assigneeId) ??
+    (assigneeId && assigneeName ? { id: assigneeId, name: assigneeName } : undefined);
   const label = selected?.name ?? "Non assigné";
 
   if (readOnly) {

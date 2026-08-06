@@ -1,14 +1,18 @@
+import type { ReactNode } from "react";
+import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   authGetSession: vi.fn(),
+  checkPermission: vi.fn(),
   headers: vi.fn(),
   redirect: vi.fn(),
-  listBacklogs: vi.fn(),
+  listBacklogsForUser: vi.fn(),
   listVisibleViews: vi.fn(),
   unreadCount: vi.fn(),
   listRecentNotifications: vi.fn(),
   getShellCounts: vi.fn(),
+  sidebar: vi.fn(() => null),
 }));
 
 vi.mock("next/headers", () => ({ headers: mocks.headers }));
@@ -16,15 +20,22 @@ vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: mocks.authGetSession } },
 }));
-vi.mock("@/lib/services/backlogs", () => ({ listBacklogs: mocks.listBacklogs }));
+vi.mock("@/lib/auth/authorization", () => ({
+  checkPermission: mocks.checkPermission,
+}));
+vi.mock("@/lib/services/backlogs", () => ({
+  listBacklogsForUser: mocks.listBacklogsForUser,
+}));
 vi.mock("@/lib/services/views", () => ({ listVisibleViews: mocks.listVisibleViews }));
 vi.mock("@/lib/services/notifications", () => ({
   unreadCount: mocks.unreadCount,
   listRecentNotifications: mocks.listRecentNotifications,
 }));
 vi.mock("@/lib/services/shell", () => ({ getShellCounts: mocks.getShellCounts }));
-vi.mock("@/components/shell/app-shell", () => ({ AppShell: () => null }));
-vi.mock("@/components/shell/sidebar", () => ({ Sidebar: () => null }));
+vi.mock("@/components/shell/app-shell", () => ({
+  AppShell: ({ sidebar }: { sidebar: ReactNode }) => sidebar,
+}));
+vi.mock("@/components/shell/sidebar", () => ({ Sidebar: mocks.sidebar }));
 vi.mock("@/components/shell/topbar", () => ({ Topbar: () => null }));
 
 import AppLayout from "@/app/(app)/layout";
@@ -62,11 +73,12 @@ describe("AppLayout 2FA access guard", () => {
     mocks.redirect.mockImplementation((destination: string) => {
       throw new Error(`redirect:${destination}`);
     });
-    mocks.listBacklogs.mockResolvedValue([]);
+    mocks.listBacklogsForUser.mockResolvedValue([]);
     mocks.listVisibleViews.mockResolvedValue([]);
     mocks.unreadCount.mockResolvedValue(0);
     mocks.listRecentNotifications.mockResolvedValue([]);
     mocks.getShellCounts.mockResolvedValue({});
+    mocks.checkPermission.mockResolvedValue({ allowed: true });
   });
 
   it("redirects direct app access to enrollment before loading app data", async () => {
@@ -74,14 +86,34 @@ describe("AppLayout 2FA access guard", () => {
 
     await expect(AppLayout({ children: null })).rejects.toThrow("redirect:/2fa/enroll");
     expect(mocks.redirect).toHaveBeenCalledWith("/2fa/enroll");
-    expect(mocks.listBacklogs).not.toHaveBeenCalled();
+    expect(mocks.listBacklogsForUser).not.toHaveBeenCalled();
   });
 
   it("loads the shell for a fully enrolled session", async () => {
     mocks.authGetSession.mockResolvedValue(authSession(true));
 
-    await expect(AppLayout({ children: null })).resolves.toBeTruthy();
+    render(await AppLayout({ children: null }));
     expect(mocks.redirect).not.toHaveBeenCalled();
-    expect(mocks.listBacklogs).toHaveBeenCalledTimes(1);
+    expect(mocks.listBacklogsForUser).toHaveBeenCalledWith("user-1");
+    expect(mocks.checkPermission).toHaveBeenCalledWith(expect.objectContaining({ actorId: "user-1", permission: "administer_jiroo" }));
+    expect(mocks.sidebar).toHaveBeenCalledWith(
+      expect.objectContaining({ canAdminister: true }),
+      undefined,
+    );
+  });
+
+  it("expose l’administration pour une permission globale dédiée, jamais pour manage_members seul", async () => {
+    mocks.authGetSession.mockResolvedValue(authSession(true));
+    mocks.checkPermission.mockImplementation(async ({ permission }: { permission: string }) => ({ allowed: permission === "manage_users_groups" }));
+    render(await AppLayout({ children: null }));
+    expect(mocks.sidebar).toHaveBeenLastCalledWith(expect.objectContaining({ canAdminister: true, adminHref: "/admin?tab=users" }), undefined);
+
+    vi.clearAllMocks();
+    mocks.headers.mockResolvedValue(new Headers());
+    mocks.authGetSession.mockResolvedValue(authSession(true));
+    mocks.listBacklogsForUser.mockResolvedValue([]); mocks.listVisibleViews.mockResolvedValue([]); mocks.unreadCount.mockResolvedValue(0); mocks.listRecentNotifications.mockResolvedValue([]); mocks.getShellCounts.mockResolvedValue({});
+    mocks.checkPermission.mockResolvedValue({ allowed: false });
+    render(await AppLayout({ children: null }));
+    expect(mocks.sidebar).toHaveBeenLastCalledWith(expect.objectContaining({ canAdminister: false }), undefined);
   });
 });

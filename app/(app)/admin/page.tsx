@@ -1,37 +1,102 @@
 import { redirect } from "next/navigation";
+import { checkPermission } from "@/lib/auth/authorization";
 import { requireAppPageSession } from "@/lib/auth/session";
-import { listBacklogs } from "@/lib/services/backlogs";
+import { listBacklogsForUser } from "@/lib/services/backlogs";
 import { listAdminUsers } from "@/lib/services/users";
+import {
+  listGroups,
+  listGlobalPermissionGrants,
+  listPermissionSchemes,
+  listProjectRoles,
+} from "@/lib/services/authorization-admin";
 import { AdminTabs, type AdminTab } from "@/components/admin/admin-tabs";
+
+const ADMIN_TABS = ["backlogs", "users", "groups", "roles", "schemes"] as const;
+
+function requestedTab(value: string | string[] | undefined): AdminTab {
+  return typeof value === "string" && ADMIN_TABS.includes(value as AdminTab)
+    ? (value as AdminTab)
+    : "backlogs";
+}
+
+const TAB_PERMISSION = {
+  backlogs: "create_backlogs",
+  users: "manage_users_groups",
+  groups: "manage_users_groups",
+  roles: "manage_users_groups",
+  schemes: "administer_jiroo",
+} as const;
 
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string | string[] }>;
+  searchParams: Promise<{ tab?: string | string[]; scheme?: string | string[] }>;
 }) {
   const session = await requireAppPageSession();
-  const role = (session.user as { role?: string }).role;
-  if (role !== "admin") redirect("/");
-  const [{ tab }, backlogs, users] = await Promise.all([
-    searchParams,
-    listBacklogs({ includeArchived: true }),
-    listAdminUsers(),
-  ]);
-  const activeTab: AdminTab = tab === "users" ? "users" : "backlogs";
+  const { tab, scheme } = await searchParams;
+  const activeTab = requestedTab(tab);
+  const decision = await checkPermission({
+    actorId: session.user.id,
+    permission: TAB_PERMISSION[activeTab],
+    scope: { type: "global" },
+  });
+  if (!decision.allowed) redirect("/");
+  const browseUsersDecision = ["users", "groups", "schemes"].includes(activeTab)
+    ? await checkPermission({
+        actorId: session.user.id,
+        permission: "browse_users",
+        scope: { type: "global" },
+      })
+    : { allowed: false };
+  if (activeTab === "users" && !browseUsersDecision.allowed) redirect("/");
+
+  const data = activeTab === "backlogs"
+    ? {
+        tab: "backlogs" as const,
+        backlogs: await listBacklogsForUser(session.user.id, { includeArchived: true }),
+      }
+    : activeTab === "users"
+      ? { tab: "users" as const, users: (await listAdminUsers()).map(({ id, name, email }) => ({ id, name, email })), currentUserId: session.user.id }
+      : activeTab === "groups"
+        ? await (async () => {
+            const globalDecision = await checkPermission({ actorId: session.user.id, permission: "administer_jiroo", scope: { type: "global" } });
+            const [groups, rawUsers, globalGrants] = await Promise.all([
+              listGroups(),
+              browseUsersDecision.allowed ? listAdminUsers() : Promise.resolve([]),
+              listGlobalPermissionGrants(),
+            ]);
+            return { tab: "groups" as const, groups, users: rawUsers.map(({ id, name }) => ({ id, name })), globalGrants, canAdministerGlobals: globalDecision.allowed };
+          })()
+        : activeTab === "roles"
+          ? { tab: "roles" as const, roles: await listProjectRoles() }
+          : await (async () => {
+              const [schemes, rawUsers, rawGroups, rawRoles] = await Promise.all([
+                listPermissionSchemes(),
+                browseUsersDecision.allowed ? listAdminUsers() : Promise.resolve([]),
+                listGroups(),
+                listProjectRoles(),
+              ]);
+              return {
+                tab: "schemes" as const,
+                schemes,
+                users: rawUsers.map(({ id, name }) => ({ id, name })),
+                groups: rawGroups.map(({ id, name }) => ({ id, name })),
+                roles: rawRoles.map(({ id, name }) => ({ id, name })),
+                initialSchemeId: typeof scheme === "string" ? scheme : undefined,
+              };
+            })();
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-8">
       <div className="space-y-1">
         <h1 className="t-h1">Administration</h1>
         <p className="text-sm text-muted-foreground">
-          Gestion des backlogs, des utilisateurs et de leurs rôles.
+          Gestion des backlogs, des identités et des schémas d’accès.
         </p>
       </div>
       <AdminTabs
-        backlogs={backlogs}
-        users={users}
-        currentUserId={session.user.id}
         activeTab={activeTab}
+        data={data}
       />
     </div>
   );

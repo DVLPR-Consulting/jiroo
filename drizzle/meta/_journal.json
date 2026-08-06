@@ -71,6 +71,13 @@
       "when": 1785932517685,
       "tag": "0009_jira_sprints",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786003133051,
+      "tag": "0010_jira_permission_schemes",
+      "breakpoints": true
     }
   ]
 }

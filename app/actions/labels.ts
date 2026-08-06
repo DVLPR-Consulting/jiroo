@@ -1,15 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { type Role, canWriteItems } from "@/lib/auth/rbac";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
+import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
 import { createLabel } from "@/lib/services/labels";
 
-// Auth gate — creating a label is a write operation.
-async function requireWriter(): Promise<string> {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
-  const role = (session?.user as { role?: Role } | undefined)?.role;
-  if (!session || !role || !canWriteItems(role)) throw new Error("Forbidden");
+  if (!session?.user.id) throw new Error("Forbidden");
   return session.user.id;
 }
 
@@ -26,12 +25,19 @@ export async function createLabelAction(input: {
   backlogId: string;
   name: string;
 }) {
-  await requireWriter();
+  const actorId = await authenticatedActorId();
   try {
+    await requireBacklogPermissionById({
+      actorId,
+      backlogId: input.backlogId,
+      permission: "edit_items",
+    });
     const label = await createLabel({ backlogId: input.backlogId, name: input.name });
     revalidatePath(`/b/${input.backlogKey}`);
     return { ok: true as const, label };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapError(e) };
   }
 }

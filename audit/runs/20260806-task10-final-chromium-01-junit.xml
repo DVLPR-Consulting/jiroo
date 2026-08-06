@@ -1,0 +1,192 @@
+<testsuites id="" name="" tests="24" failures="0" skipped="0" errors="2" time="121.202839">
+<testsuite name="backlog-foundation.spec.ts" timestamp="2026-08-06T21:04:53.710Z" hostname="chromium" tests="6" failures="0" skipped="0" time="11.726" errors="0">
+<testcase name="sélectionne une plage et applique les quatre actions groupées" classname="backlog-foundation.spec.ts" time="4.741">
+</testcase>
+<testcase name="le lecteur ne reçoit aucun contrôle de planification" classname="backlog-foundation.spec.ts" time="0.729">
+</testcase>
+<testcase name="distingue 5, zéro et non estimé puis restaure la valeur" classname="backlog-foundation.spec.ts" time="2.228">
+</testcase>
+<testcase name="désactive le classement avec tri ou groupement et conserve le mode Backlog" classname="backlog-foundation.spec.ts" time="1.55">
+</testcase>
+<testcase name="isole la sélection de la Liste et la réinitialise au changement de vue" classname="backlog-foundation.spec.ts" time="1.111">
+</testcase>
+<testcase name="restaure le classement et conserve la sélection après deux échecs réseau injectés" classname="backlog-foundation.spec.ts" time="1.367">
+</testcase>
+</testsuite>
+<testsuite name="backlog-ranking.spec.ts" timestamp="2026-08-06T21:04:53.710Z" hostname="chromium" tests="1" failures="0" skipped="0" time="3.107" errors="0">
+<testcase name="classe à la souris, restaure au clavier et conserve chaque ordre" classname="backlog-ranking.spec.ts" time="3.107">
+</testcase>
+</testsuite>
+<testsuite name="permission-schemes.spec.ts" timestamp="2026-08-06T21:04:53.710Z" hostname="chromium" tests="10" failures="0" skipped="0" time="77.147" errors="2">
+<testcase name="1. crée un groupe, un rôle personnalisé et un clone de schéma" classname="permission-schemes.spec.ts" time="2.757">
+</testcase>
+<testcase name="2. isole le grant de rôle et l’occupation de groupe à un seul backlog" classname="permission-schemes.spec.ts" time="1.285">
+</testcase>
+<testcase name="3. explique les grants direct, groupe et rôle dans l’Assistant de permissions" classname="permission-schemes.spec.ts" time="30.809">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="Test timeout of 30000ms exceeded." type="Error">
+<![CDATA[  [chromium] › permission-schemes.spec.ts:104:7 › 3. explique les grants direct, groupe et rôle dans l’Assistant de permissions 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.selectOption: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('combobox', { name: 'Utilisateur à vérifier' })
+        - locator resolved to <select aria-label="Utilisateur à vérifier" class="h-8 rounded-lg border bg-background px-2 text-sm">…</select>
+      - attempting select option action
+        2 × waiting for element to be visible and enabled
+          - did not find some options
+        - retrying select option action
+        - waiting 20ms
+        2 × waiting for element to be visible and enabled
+          - did not find some options
+        - retrying select option action
+          - waiting 100ms
+        60 × waiting for element to be visible and enabled
+           - did not find some options
+         - retrying select option action
+           - waiting 500ms
+
+
+      129 |
+      130 | async function selectHelper(page: Page, userLabel: string, permissionLabel: string) {
+    > 131 |   await page.getByRole("combobox", { name: "Utilisateur à vérifier" }).selectOption({ label: userLabel });
+          |                                                                        ^
+      132 |   await page.getByRole("combobox", { name: "Permission à vérifier" }).selectOption({ label: permissionLabel });
+      133 |   await page.getByRole("button", { name: "Vérifier la permission" }).click();
+      134 |   await expect(page.getByRole("heading", { name: /^(Autorisé|Refusé)$/ })).toBeVisible();
+        at selectHelper (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:131:72)
+        at operation (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:265:55)
+        at timed (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:71:24)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:265:11
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:107:7
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="4. rejette une Server Action forgée par le lecteur" classname="permission-schemes.spec.ts" time="1.641">
+</testcase>
+<testcase name="5. donne au spécialiste les contrôles de sprint sans édition d’item ni workflow" classname="permission-schemes.spec.ts" time="0.9">
+</testcase>
+<testcase name="6. expose manage_releases dans l’Assistant sans inventer d’interface Releases" classname="permission-schemes.spec.ts" time="30.84">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/trace.zip]]
+]]>
+</system-out>
+<error message="Test timeout of 30000ms exceeded." type="Error">
+<![CDATA[  [chromium] › permission-schemes.spec.ts:104:7 › 6. expose manage_releases dans l’Assistant sans inventer d’interface Releases 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.selectOption: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('combobox', { name: 'Utilisateur à vérifier' })
+        - locator resolved to <select aria-label="Utilisateur à vérifier" class="h-8 rounded-lg border bg-background px-2 text-sm">…</select>
+      - attempting select option action
+        2 × waiting for element to be visible and enabled
+          - did not find some options
+        - retrying select option action
+        - waiting 20ms
+        2 × waiting for element to be visible and enabled
+          - did not find some options
+        - retrying select option action
+          - waiting 100ms
+        60 × waiting for element to be visible and enabled
+           - did not find some options
+         - retrying select option action
+           - waiting 500ms
+
+
+      129 |
+      130 | async function selectHelper(page: Page, userLabel: string, permissionLabel: string) {
+    > 131 |   await page.getByRole("combobox", { name: "Utilisateur à vérifier" }).selectOption({ label: userLabel });
+          |                                                                        ^
+      132 |   await page.getByRole("combobox", { name: "Permission à vérifier" }).selectOption({ label: permissionLabel });
+      133 |   await page.getByRole("button", { name: "Vérifier la permission" }).click();
+      134 |   await expect(page.getByRole("heading", { name: /^(Autorisé|Refusé)$/ })).toBeVisible();
+        at selectHelper (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:131:72)
+        at operation (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:350:60)
+        at timed (/Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:71:24)
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:350:11
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-permission-schemes/e2e/permission-schemes.spec.ts:107:7
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260806-task10-final-chromium-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="7. retire browse de la navigation, recherche, récents, notifications et URL" classname="permission-schemes.spec.ts" time="3.911">
+</testcase>
+<testcase name="8. détecte puis récupère un conflit de version sur schéma partagé" classname="permission-schemes.spec.ts" time="2.194">
+</testcase>
+<testcase name="9. conserve un historique de sécurité append-only" classname="permission-schemes.spec.ts" time="0.932">
+</testcase>
+<testcase name="10. persiste après reload et dans un second contexte utilisateur" classname="permission-schemes.spec.ts" time="1.878">
+</testcase>
+</testsuite>
+<testsuite name="sprint-lifecycle.spec.ts" timestamp="2026-08-06T21:04:53.710Z" hostname="chromium" tests="7" failures="0" skipped="0" time="21.923" errors="0">
+<testcase name="planifie, exécute et clôture un sprint sans exposer le backlog sur le Board" classname="sprint-lifecycle.spec.ts" time="6.176">
+</testcase>
+<testcase name="conserve le sprint planifié et explique un échec réseau au démarrage" classname="sprint-lifecycle.spec.ts" time="2.658">
+</testcase>
+<testcase name="recalcule et explique un dépassement de capacité avant démarrage" classname="sprint-lifecycle.spec.ts" time="1.088">
+</testcase>
+<testcase name="restaure sélection et section après deux échecs réseau de planification" classname="sprint-lifecycle.spec.ts" time="2.016">
+</testcase>
+<testcase name="clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ouverte" classname="sprint-lifecycle.spec.ts" time="3.138">
+</testcase>
+<testcase name="laisse le lecteur consulter la planification et le Board sans aucun contrôle" classname="sprint-lifecycle.spec.ts" time="3.511">
+</testcase>
+<testcase name="planifie une plage de tâches en masse et conserve la section après rechargement" classname="sprint-lifecycle.spec.ts" time="3.336">
+</testcase>
+</testsuite>
+</testsuites>

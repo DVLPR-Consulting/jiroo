@@ -43,7 +43,9 @@ const props = {
   ],
   views: [],
   userId: "admin-1",
-  user: { name: "Ada Lovelace", email: "ada@example.com", role: "admin" },
+  user: { name: "Ada Lovelace", email: "ada@example.com", role: "contributor" },
+  canAdminister: true,
+  adminHref: "/admin?tab=users",
   counts: { allByBacklog: { CASS: 42 }, mine: 7, trash: 3 },
 };
 
@@ -85,6 +87,32 @@ describe("Sidebar", () => {
       "href",
       "/trash",
     );
+    expect(screen.getByRole("link", { name: "Administration" })).toHaveAttribute(
+      "href",
+      "/admin?tab=users",
+    );
+  });
+
+  it("shows filtered trash to every member without exposing administration", () => {
+    render(
+      <SidebarStateProvider>
+        <ViewUrlStateProvider initialEntries={[["view", "board"]]}>
+          <Sidebar
+            {...props}
+            user={{ ...props.user, role: "admin" }}
+            canAdminister={false}
+          />
+        </ViewUrlStateProvider>
+      </SidebarStateProvider>,
+    );
+
+    expect(screen.getByRole("link", { name: /Corbeille 3/ })).toHaveAttribute(
+      "href",
+      "/trash",
+    );
+    expect(
+      screen.queryByRole("link", { name: "Administration" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders the complete wordmark without an internal collapse control", () => {

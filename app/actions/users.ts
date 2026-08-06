@@ -1,20 +1,27 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole, type Role } from "@/lib/auth/rbac";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
+import { requirePermission } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
-import { createUser, setUserRole } from "@/lib/services/users";
+import { createUser } from "@/lib/services/users";
 
 // ---------------------------------------------------------------------------
 // Auth gate
 // ---------------------------------------------------------------------------
 
-/** Throws if there is no session or the current user is not an admin.
- *  Returns the admin's userId so callers can use it for self-demotion guards. */
-async function requireAdmin(): Promise<string> {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
-  requireRole(session as { user: { id: string; role: Role } } | null, "admin");
-  return (session as { user: { id: string } }).user.id;
+  if (!session?.user.id) throw new Error("Forbidden");
+  return session.user.id;
+}
+
+async function requireUserAdministrator(actorId: string): Promise<void> {
+  await requirePermission({
+    actorId,
+    permission: "manage_users_groups",
+    scope: { type: "global" },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -45,36 +52,25 @@ function mapUserError(e: unknown): string {
 export async function createUserAction(input: {
   email: string;
   name: string;
-  role: string;
   password: string;
 }) {
-  await requireAdmin();
+  const actorId = await authenticatedActorId();
   try {
-    const u = await createUser(input);
+    await requireUserAdministrator(actorId);
+    const u = await createUser({ ...input, role: "contributor" });
     revalidatePath("/admin");
     return { ok: true as const, user: u };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapUserError(e) };
   }
 }
 
 export async function setUserRoleAction(input: { userId: string; role: string }) {
-  const adminId = await requireAdmin();
-
-  // Prevent the admin from accidentally revoking their own admin role, which
-  // would lock them out of the admin panel with no way back.
-  if (input.userId === adminId && input.role !== "admin") {
-    return {
-      ok: false as const,
-      error: "Vous ne pouvez pas retirer votre propre rôle administrateur.",
-    };
-  }
-
-  try {
-    await setUserRole(input.userId, input.role as Role);
-    revalidatePath("/admin");
-    return { ok: true as const };
-  } catch (e) {
-    return { ok: false as const, error: mapUserError(e) };
-  }
+  void input;
+  return {
+    ok: false as const,
+    error: "Les rôles de compte hérités ne peuvent plus être modifiés.",
+  };
 }

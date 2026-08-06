@@ -167,6 +167,26 @@ describe("compact inline item editors", () => {
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
   });
 
+  it("renders the current assignee without offering a non-candidate target", async () => {
+    const user = userEvent.setup();
+    render(
+      <InlineAssignee
+        itemId="item-3"
+        backlogKey="DEMO"
+        assigneeId="former-member"
+        assigneeName="Ancienne membre"
+        users={[{ id: "assignable", name: "Candidate assignable" }]}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Assigné : Ancienne membre" }),
+    );
+
+    expect(screen.queryByRole("menuitem", { name: "Ancienne membre" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Candidate assignable" })).toBeVisible();
+  });
+
   it("distinguishes an unestimated task from zero and sends a decimal estimate", async () => {
     const user = userEvent.setup();
     mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: {} });

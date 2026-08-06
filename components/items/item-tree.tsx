@@ -20,6 +20,7 @@ import type {
   moveItemAction as MoveItemAction,
   reparentItemAction as ReparentItemAction,
 } from "@/app/actions/items";
+import type { ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
 
 export type TreeItem = {
   id: string;
@@ -146,8 +147,11 @@ type ItemTreeProps = {
   filtersActive?: boolean;
   hasItems?: boolean;
   clearFiltersHref?: string;
-  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses">;
-  canWrite?: boolean;
+  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems">;
+  canCreateItems?: boolean;
+  canScheduleItems?: boolean;
+  itemCapabilities?: ItemCapabilities;
+  planningCapabilities?: PlanningCapabilities;
 };
 
 export function ItemTree({
@@ -162,8 +166,13 @@ export function ItemTree({
   hasItems,
   clearFiltersHref,
   createDialogProps,
-  canWrite = true,
+  canCreateItems: legacyCanCreateItems = true,
+  canScheduleItems: legacyCanScheduleItems = true,
+  itemCapabilities,
+  planningCapabilities,
 }: ItemTreeProps) {
+  const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
+  const canScheduleItems = planningCapabilities?.reparent ?? legacyCanScheduleItems;
   const viewUrl = useViewUrlState();
   const [treeItems, setTreeItems] = useState<TreeItem[]>(() => seed(items));
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -195,7 +204,7 @@ export function ItemTree({
   const roots = buildTree(treeItems);
 
   function onDragStart(e: DragEvent<HTMLDivElement>, item: TreeItem) {
-    if (!canWrite) return;
+    if (!canScheduleItems) return;
     setDragId(item.id);
     setError(null);
     dragDescendants.current = descendantIds(treeItems, item.id);
@@ -210,7 +219,7 @@ export function ItemTree({
   }
 
   function onDragOver(e: DragEvent<HTMLDivElement>, row: TreeItem) {
-    if (!canWrite) return;
+    if (!canScheduleItems) return;
     e.preventDefault();
     if (dragId === null) return;
     // Dropping a node onto itself or into its own subtree would create a cycle.
@@ -230,7 +239,7 @@ export function ItemTree({
   }
 
   function onDrop(e: DragEvent<HTMLDivElement>, targetId: string, zone: Zone) {
-    if (!canWrite) return;
+    if (!canScheduleItems) return;
     e.preventDefault();
     const id = dragId;
     if (id === null || id === targetId || dragDescendants.current.has(targetId)) {
@@ -349,11 +358,11 @@ export function ItemTree({
     return (
       <div key={node.id}>
         <div
-          draggable={canWrite && !isContext}
-          onDragStart={!canWrite || isContext ? undefined : (e) => onDragStart(e, node)}
-          onDragEnd={!canWrite || isContext ? undefined : onDragEnd}
-          onDragOver={!canWrite || isContext ? undefined : (e) => onDragOver(e, node)}
-          onDrop={!canWrite || isContext ? undefined : (e) => onDrop(e, node.id, zone ?? "into")}
+          draggable={canScheduleItems && !isContext}
+          onDragStart={!canScheduleItems || isContext ? undefined : (e) => onDragStart(e, node)}
+          onDragEnd={!canScheduleItems || isContext ? undefined : onDragEnd}
+          onDragOver={!canScheduleItems || isContext ? undefined : (e) => onDragOver(e, node)}
+          onDrop={!canScheduleItems || isContext ? undefined : (e) => onDrop(e, node.id, zone ?? "into")}
           onClick={isContext ? undefined : () => openItem(node.key)}
           onKeyDown={isContext ? undefined : (e) => {
             // Only the row itself activates; let the chevron button handle its own keys.
@@ -370,7 +379,7 @@ export function ItemTree({
           className={`group relative flex items-center gap-2 py-1.5 pr-3 text-sm transition-colors ${
             isContext
               ? "cursor-default"
-              : `${canWrite ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${isSelected ? "bg-[var(--accent-subtle)]" : "hover:bg-muted/50"}`
+              : `${canScheduleItems ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${isSelected ? "bg-[var(--accent-subtle)]" : "hover:bg-muted/50"}`
           }`}
           style={{
             paddingLeft: 8 + node.depth * 20,
@@ -460,7 +469,7 @@ export function ItemTree({
                   Effacer les filtres
                 </Link>
               ) : null
-            ) : canWrite && createDialogProps ? (
+            ) : canCreateItems && createDialogProps ? (
               <NewItemButton backlogKey={backlogKey} {...createDialogProps} />
             ) : null
           }

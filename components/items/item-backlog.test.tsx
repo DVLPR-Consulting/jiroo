@@ -115,7 +115,16 @@ function props(): React.ComponentProps<typeof ItemBacklog> {
     filtersActive: false,
     hasItems: true,
     clearFiltersHref: "/b/DEMO?view=backlog",
-    canWrite: true,
+    createDialogProps: {
+      items: items.map(({ id, key, type, title }) => ({ id, key, type, title })),
+      statuses: statuses.map(({ id, name }) => ({ id, name })),
+    },
+    canCreateItems: true,
+    canEditItems: true,
+    canTransitionItems: true,
+    canAssignItems: true,
+    canScheduleItems: true,
+    canManageSprints: true,
   };
 }
 
@@ -204,7 +213,16 @@ function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
     filtersActive: false,
     hasItems: true,
     clearFiltersHref: "/b/DEMO?view=backlog",
-    canWrite: true,
+    createDialogProps: {
+      items: items.map(({ id, key, type, title }) => ({ id, key, type, title })),
+      statuses: statuses.map(({ id, name }) => ({ id, name })),
+    },
+    canCreateItems: true,
+    canEditItems: true,
+    canTransitionItems: true,
+    canAssignItems: true,
+    canScheduleItems: true,
+    canManageSprints: true,
   };
 }
 
@@ -400,7 +418,17 @@ describe("ItemBacklog", () => {
   });
 
   it("keeps viewer rows readable without edit or drag controls", () => {
-    render(<ItemBacklog {...props()} canWrite={false} />);
+    render(
+      <ItemBacklog
+        {...props()}
+        canCreateItems={false}
+        canEditItems={false}
+        canTransitionItems={false}
+        canAssignItems={false}
+        canScheduleItems={false}
+        canManageSprints={false}
+      />,
+    );
 
     const first = screen.getByRole("row", {
       name: "DEMO-1 — Authentification",
@@ -413,6 +441,76 @@ describe("ItemBacklog", () => {
       screen.queryByRole("button", { name: /Déplacer DEMO-/ }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
+  it("separates sprint management, task scheduling, and item creation", () => {
+    const denied = {
+      canCreateItems: false,
+      canEditItems: false,
+      canTransitionItems: false,
+      canAssignItems: false,
+      canScheduleItems: false,
+      canManageSprints: false,
+    } as const;
+
+    const manager = render(
+      <ItemBacklog
+        {...sprintProps()}
+        {...denied}
+        planningCapabilities={{ rank: false, reparent: false, assignSprint: false, manageSprints: true }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Créer un sprint" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Créer une tâche dans Sprint actif" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Déplacer DEMO-/ }),
+    ).not.toBeInTheDocument();
+    manager.unmount();
+
+    const scheduler = render(
+      <ItemBacklog
+        {...sprintProps()}
+        {...denied}
+        planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Déplacer DEMO-1" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Créer un sprint" }),
+    ).not.toBeInTheDocument();
+    scheduler.unmount();
+
+    const creator = render(<ItemBacklog {...sprintProps()} {...denied} canCreateItems />);
+    expect(
+      screen.getByRole("button", { name: "Créer une tâche dans Backlog" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Créer une tâche dans Sprint actif" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Créer une tâche dans Sprint futur" }),
+    ).not.toBeInTheDocument();
+    creator.unmount();
+
+    render(
+      <ItemBacklog
+        {...sprintProps()}
+        {...denied}
+        canCreateItems
+        canScheduleItems
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Créer une tâche dans Sprint actif" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Créer un sprint" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Déplacer DEMO-1" }),
+    ).toBeVisible();
   });
 
   it("selects one row, extends a range and exposes an indeterminate header", async () => {

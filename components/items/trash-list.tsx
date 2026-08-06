@@ -27,10 +27,13 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-type BacklogMeta = { key: string; name: string; color: string };
+type BacklogMeta = { id: string; key: string; name: string; color: string };
 type Group = { backlog: BacklogMeta; items: TrashedItem[] };
 
-export type TrashListProps = { groups: Group[] };
+export type TrashListProps = {
+  groups: Group[];
+  restorableBacklogIds: string[];
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -103,7 +106,7 @@ function PurgeConfirmDialog({
 // TrashRow
 // ---------------------------------------------------------------------------
 
-function TrashRow({ item }: { item: TrashedItem }) {
+function TrashRow({ item, canRestoreItems }: { item: TrashedItem; canRestoreItems: boolean }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [purgeOpen, setPurgeOpen] = useState(false);
@@ -160,7 +163,7 @@ function TrashRow({ item }: { item: TrashedItem }) {
         </span>
 
         {/* Actions */}
-        <div className="flex shrink-0 items-center gap-1.5">
+        {canRestoreItems ? <div className="flex shrink-0 items-center gap-1.5">
           <Button
             variant="outline"
             size="sm"
@@ -177,17 +180,17 @@ function TrashRow({ item }: { item: TrashedItem }) {
           >
             Supprimer définitivement
           </Button>
-        </div>
+        </div> : null}
       </li>
 
-      <PurgeConfirmDialog
+      {canRestoreItems ? <PurgeConfirmDialog
         open={purgeOpen}
         onOpenChange={setPurgeOpen}
         itemKey={item.key}
         itemTitle={item.title}
         pending={isPending}
         onConfirm={handlePurgeConfirm}
-      />
+      /> : null}
     </>
   );
 }
@@ -196,7 +199,7 @@ function TrashRow({ item }: { item: TrashedItem }) {
 // TrashList
 // ---------------------------------------------------------------------------
 
-export function TrashList({ groups }: TrashListProps) {
+export function TrashList({ groups, restorableBacklogIds }: TrashListProps) {
   if (groups.length === 0) {
     return (
       <div className="grid flex-1 place-items-center p-10">
@@ -213,6 +216,8 @@ export function TrashList({ groups }: TrashListProps) {
       </div>
     );
   }
+
+  const restorableBacklogs = new Set(restorableBacklogIds);
 
   return (
     <div className="flex-1 overflow-auto">
@@ -232,7 +237,11 @@ export function TrashList({ groups }: TrashListProps) {
 
           <ul>
             {items.map((item) => (
-              <TrashRow key={item.id} item={item} />
+              <TrashRow
+                key={item.id}
+                item={item}
+                canRestoreItems={restorableBacklogs.has(backlog.id)}
+              />
             ))}
           </ul>
         </details>

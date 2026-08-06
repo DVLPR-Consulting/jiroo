@@ -100,9 +100,9 @@ function CommentItem({
   itemId,
   backlogKey,
   users,
-  isOwn,
   isEditing,
-  canWrite,
+  canEdit,
+  canDelete,
   onEditStart,
   onEditDone,
 }: {
@@ -110,9 +110,9 @@ function CommentItem({
   itemId: string;
   backlogKey: string;
   users: { id: string; name: string }[];
-  isOwn: boolean;
   isEditing: boolean;
-  canWrite: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
   onEditStart: () => void;
   onEditDone: () => void;
 }) {
@@ -135,7 +135,10 @@ function CommentItem({
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <article
+      aria-label={`Commentaire de ${comment.authorName}`}
+      className="flex flex-col gap-1"
+    >
       {/* Header row: author + date + edited marker + actions */}
       <div className="flex items-baseline gap-2">
         <span className="text-sm font-semibold text-foreground">
@@ -149,17 +152,17 @@ function CommentItem({
         )}
 
         {/* Own comment affordances (always visible, not hover-only for accessibility) */}
-        {canWrite && isOwn && !comment.deleted && (
+        {(canEdit || canDelete) && !comment.deleted && (
           <div className="ml-auto flex items-center gap-1">
-            <button
+            {canEdit && <button
               type="button"
               onClick={onEditStart}
               disabled={isEditing}
               className="rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground disabled:opacity-50"
             >
               Modifier
-            </button>
-            <button
+            </button>}
+            {canDelete && <button
               type="button"
               onClick={() => {
                 setDeleteError(null);
@@ -168,7 +171,7 @@ function CommentItem({
               className="rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground"
             >
               Supprimer
-            </button>
+            </button>}
           </div>
         )}
       </div>
@@ -178,7 +181,7 @@ function CommentItem({
         <p className="text-sm italic text-muted-foreground">
           Commentaire supprimé
         </p>
-      ) : canWrite && isEditing ? (
+      ) : canEdit && isEditing ? (
         <CommentComposer
           itemId={itemId}
           backlogKey={backlogKey}
@@ -200,7 +203,7 @@ function CommentItem({
       )}
 
       {/* Delete confirm dialog */}
-      {canWrite && (
+      {canDelete && (
         <DeleteCommentDialog
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
@@ -209,7 +212,7 @@ function CommentItem({
           onConfirm={handleDelete}
         />
       )}
-    </div>
+    </article>
   );
 }
 
@@ -223,14 +226,19 @@ export function CommentThread({
   comments,
   users,
   currentUserId,
-  canWrite = true,
+  capabilities = { add: false, editOwn: false, deleteOwn: false, deleteAll: false },
 }: {
   itemId: string;
   backlogKey: string;
   comments: CommentRow[];
   users: { id: string; name: string }[];
   currentUserId: string;
-  canWrite?: boolean;
+  capabilities?: {
+    add: boolean;
+    editOwn: boolean;
+    deleteOwn: boolean;
+    deleteAll: boolean;
+  };
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -241,25 +249,26 @@ export function CommentThread({
         <p className="text-sm text-muted-foreground">Aucun commentaire.</p>
       ) : (
         <div className="flex flex-col gap-4">
-          {comments.map((c) => (
-            <CommentItem
+          {comments.map((c) => {
+            const isOwn = c.authorId === currentUserId;
+            return <CommentItem
               key={c.id}
               comment={c}
               itemId={itemId}
               backlogKey={backlogKey}
               users={users}
-              isOwn={c.authorId === currentUserId}
               isEditing={editingId === c.id}
-              canWrite={canWrite}
+              canEdit={isOwn && capabilities.editOwn}
+              canDelete={isOwn ? capabilities.deleteOwn : capabilities.deleteAll}
               onEditStart={() => setEditingId(c.id)}
               onEditDone={() => setEditingId(null)}
-            />
-          ))}
+            />;
+          })}
         </div>
       )}
 
       {/* New comment composer — pinned at the bottom */}
-      {canWrite && (
+      {capabilities.add && (
         <div className="border-t border-border pt-4">
           <CommentComposer
             itemId={itemId}

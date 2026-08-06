@@ -2,13 +2,20 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
+import {
+  checkPermission,
+  listAssignableUsersForBacklog,
+} from "@/lib/auth/authorization";
+import { projectBacklogCapabilities } from "@/lib/auth/capabilities";
 import { items as itemRowsTable, statuses } from "@/lib/db/schema/domain";
-import { getBacklogByKey } from "@/lib/services/backlogs";
+import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
 import {
   listItemLabelPairs,
   listItems,
   listLabelsForBacklog,
   listUsers,
+  listUsersByIds,
 } from "@/lib/services/items";
 import { blockedItemIds } from "@/lib/services/links";
 import { moveItemAction, reparentItemAction } from "@/app/actions/items";
@@ -24,8 +31,7 @@ import {
 } from "@/lib/items/filter";
 import { PRIORITY_LABELS } from "@/lib/design/constants";
 import { requireAppPageSession } from "@/lib/auth/session";
-import { canWriteItems, type Role } from "@/lib/auth/rbac";
-import { getViewById } from "@/lib/services/views";
+import { getViewByIdForUser } from "@/lib/services/views";
 import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
 import { ViewBar } from "@/components/shell/view-bar";
 import { GroupControl } from "@/components/shell/group-control";
@@ -79,21 +85,22 @@ export async function BacklogViewContent({
 
   const session = await requireAppPageSession();
   const userId = session.user.id;
-  const role = (session.user as { role?: Role }).role;
-  const canWrite = role ? canWriteItems(role) : false;
 
   const VIEWS = ["backlog", "board", "list", "tree"] as const;
   const view = (VIEWS as readonly string[]).includes(rawView ?? "")
     ? (rawView as string)
     : "board";
 
-  const backlog = await getBacklogByKey(key);
+  const backlog = await getBacklogByKeyForUser(key, userId);
   if (!backlog || backlog.archivedAt) notFound();
+  const capabilities = await getBacklogCapabilities(userId, backlog.id);
+  if (!capabilities) notFound();
+  const productCapabilities = projectBacklogCapabilities(capabilities);
 
   // Load and validate the active saved view from ?v=.
   // A stale, foreign, or inaccessible view id is silently treated as "no active view".
   const v = firstSearchParam(sp.v);
-  const rawActiveView = v ? await getViewById(v) : null;
+  const rawActiveView = v ? await getViewByIdForUser(v, userId) : null;
   const activeViewRow =
     rawActiveView &&
     rawActiveView.backlogId === backlog.id &&
@@ -213,6 +220,7 @@ export async function BacklogViewContent({
   );
   const createDialogProps = {
     backlogId: backlog.id,
+    canScheduleItems: capabilities.scheduleItems,
     items: items.map((item) => ({
       id: item.id,
       key: item.key,
@@ -222,13 +230,27 @@ export async function BacklogViewContent({
     statuses: statusRows.map((status) => ({ id: status.id, name: status.name })),
   };
 
-  // Single user fetch reused by both the filter bar facet and assignee-name resolution.
-  // Backlog labels fetched once and reused by the filter facet and (when open) the detail panel.
-  const [usersForFilter, backlogLabelRows] = await Promise.all([
-    listUsers(),
+  const referencedUserIds = items.flatMap((item) =>
+    [item.assigneeId, item.reporterId].filter((id): id is string => id !== null),
+  );
+  const browseUsersDecision = await checkPermission({
+    actorId: userId,
+    permission: "browse_users",
+    scope: { type: "global" },
+  });
+  const [referencedUsers, rawDirectoryUsers, assigneeCandidates, backlogLabelRows] = await Promise.all([
+    listUsersByIds(referencedUserIds),
+    browseUsersDecision.allowed ? listUsers() : Promise.resolve([]),
+    browseUsersDecision.allowed
+      ? listAssignableUsersForBacklog(backlog.id)
+      : Promise.resolve([]),
     listLabelsForBacklog(backlog.id),
   ]);
-  const userName = new Map(usersForFilter.map((u) => [u.id, u.name]));
+  const directoryUsers = rawDirectoryUsers.map(({ id, name }) => ({ id, name }));
+  const displayUsers = [...new Map(
+    [...referencedUsers, ...directoryUsers].map((candidate) => [candidate.id, candidate]),
+  ).values()];
+  const userName = new Map(displayUsers.map((u) => [u.id, u.name]));
   const estimateByItem = new Map(items.map((item) => [item.id, item.estimatePoints]));
 
   const groupLabel = (key: string): string => {
@@ -454,15 +476,18 @@ export async function BacklogViewContent({
             sort={viewState.sort}
           />
         }
-        workflowSlot={view === "board" && role === "admin" ? (
+        workflowSlot={view === "board" && productCapabilities.workflow.manage ? (
           <StatusManagerDialog
             key={statusList.map((status) => `${status.id}:${status.order}:${status.name}:${status.category}:${status.itemCount}`).join("|")}
             backlogId={backlog.id}
             backlogKey={backlog.key}
             statuses={statusList}
+            capabilities={productCapabilities.workflow}
           />
         ) : null}
-        newItemSlot={canWrite && (view !== "board" || activeSprint !== null) ? (
+        newItemSlot={capabilities.createItems && (
+          view !== "board" || (activeSprint !== null && capabilities.scheduleItems)
+        ) ? (
           <NewItemButton
             backlogKey={backlog.key}
             {...createDialogProps}
@@ -476,7 +501,7 @@ export async function BacklogViewContent({
       <FilterBar
         state={viewState}
         statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}
-        users={usersForFilter.map((u) => ({ id: u.id, name: u.name }))}
+        users={referencedUsers}
         labels={backlogLabelRows.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
         hierarchy={items.map((item) => ({
           id: item.id,
@@ -493,14 +518,23 @@ export async function BacklogViewContent({
           createDialogProps={createDialogProps}
           grouped={viewState.group !== null}
           statuses={statusList}
-          users={usersForFilter.map((user) => ({ id: user.id, name: user.name }))}
+          users={assigneeCandidates}
           backlogKey={key}
           backlogId={backlog.id}
           selectedKey={itemKey}
           filtersActive={filtersOn}
           hasItems={hasBacklogItems}
           clearFiltersHref={clearFiltersHref}
-          canWrite={canWrite}
+          canCreateItems={capabilities.createItems}
+          canEditItems={capabilities.editItems}
+          canTransitionItems={capabilities.transitionItems}
+          canAssignItems={capabilities.assignItems}
+          canScheduleItems={capabilities.scheduleItems}
+          canManageSprints={capabilities.manageSprints}
+          canBulkChangeItems={capabilities.bulkChangeItems}
+          itemCapabilities={productCapabilities.items}
+          planningCapabilities={productCapabilities.planning}
+          bulkCapabilities={productCapabilities.bulk}
           manualOrder={viewState.sort === null && viewState.group === null}
         />
       )}
@@ -520,7 +554,7 @@ export async function BacklogViewContent({
           }))}
           grouped={viewState.group !== null}
           statuses={statusList}
-          users={usersForFilter.map((user) => ({ id: user.id, name: user.name }))}
+          users={assigneeCandidates}
           backlogId={backlog.id}
           backlogKey={key}
           selectedKey={itemKey}
@@ -529,7 +563,13 @@ export async function BacklogViewContent({
           hasItems={items.length > 0}
           clearFiltersHref={clearFiltersHref}
           createDialogProps={createDialogProps}
-          canWrite={canWrite}
+          canCreateItems={capabilities.createItems}
+          canEditItems={capabilities.editItems}
+          canTransitionItems={capabilities.transitionItems}
+          canAssignItems={capabilities.assignItems}
+          canBulkChangeItems={capabilities.bulkChangeItems}
+          itemCapabilities={productCapabilities.items}
+          bulkCapabilities={productCapabilities.bulk}
         />
       )}
       {view === "board" && (
@@ -550,7 +590,12 @@ export async function BacklogViewContent({
           filtersActive={filtersOn}
           hasItems={(activeSection?.items.length ?? 0) > 0}
           clearFiltersHref={clearFiltersHref}
-          canWrite={canWrite}
+          canCreateItems={capabilities.createItems}
+          canEditItems={capabilities.editItems}
+          canTransitionItems={capabilities.transitionItems}
+          canScheduleItems={capabilities.scheduleItems}
+          itemCapabilities={productCapabilities.items}
+          planningCapabilities={productCapabilities.planning}
           activeSprint={activeSprint}
           activeSprintMetrics={activeSection?.metrics ?? null}
           backlogHref={backlogHref}
@@ -569,7 +614,10 @@ export async function BacklogViewContent({
           hasItems={items.length > 0}
           clearFiltersHref={clearFiltersHref}
           createDialogProps={createDialogProps}
-          canWrite={canWrite}
+          canCreateItems={capabilities.createItems}
+          canScheduleItems={capabilities.scheduleItems}
+          itemCapabilities={productCapabilities.items}
+          planningCapabilities={productCapabilities.planning}
         />
       )}
       {itemKey && (
@@ -579,10 +627,26 @@ export async function BacklogViewContent({
             backlog={backlog}
             currentUserId={userId}
             labels={backlogLabelRows}
-            users={usersForFilter}
+            users={displayUsers}
+            assigneeCandidates={assigneeCandidates}
+            reporterCandidates={directoryUsers}
             statuses={statusList}
             items={items}
-            canWrite={canWrite}
+            sprints={sprintSnapshot.sprints
+              .filter((sprint) => sprint.state !== "completed")
+              .map((sprint) => ({ id: sprint.id, name: sprint.name }))}
+            sprintId={
+              sprintSnapshot.memberships.find(
+                (membership) =>
+                  membership.itemId === items.find((item) => item.key === itemKey)?.id &&
+                  membership.leftAt === null,
+              )?.sprintId ?? null
+            }
+            canEditItems={capabilities.editItems}
+            canTransitionItems={capabilities.transitionItems}
+            canAssignItems={capabilities.assignItems}
+            itemCapabilities={productCapabilities.items}
+            planningCapabilities={productCapabilities.planning}
           />
         </Suspense>
       )}

@@ -1,4 +1,5 @@
 import { and, count, desc, eq, isNull } from "drizzle-orm";
+import { browseAccessPredicate } from "@/lib/auth/accessible-backlogs";
 import { db } from "@/lib/db";
 import { backlogs, comments, items, notifications } from "@/lib/db/schema/domain";
 import { user } from "@/lib/db/schema/auth";
@@ -10,7 +11,17 @@ export async function unreadCount(userId: string): Promise<number> {
   const [row] = await db
     .select({ value: count() })
     .from(notifications)
-    .where(and(eq(notifications.userId, userId), isNull(notifications.readAt)));
+    .innerJoin(items, eq(notifications.itemId, items.id))
+    .innerJoin(backlogs, eq(items.backlogId, backlogs.id))
+    .where(
+      and(
+        eq(notifications.userId, userId),
+        isNull(notifications.readAt),
+        isNull(items.deletedAt),
+        isNull(backlogs.archivedAt),
+        browseAccessPredicate(userId),
+      ),
+    );
   return Number(row?.value ?? 0);
 }
 
@@ -61,9 +72,16 @@ export async function listRecentNotifications(
     .from(notifications)
     .leftJoin(comments, eq(notifications.commentId, comments.id))
     .leftJoin(user, eq(comments.authorId, user.id))
-    .leftJoin(items, eq(notifications.itemId, items.id))
-    .leftJoin(backlogs, eq(items.backlogId, backlogs.id))
-    .where(eq(notifications.userId, userId))
+    .innerJoin(items, eq(notifications.itemId, items.id))
+    .innerJoin(backlogs, eq(items.backlogId, backlogs.id))
+    .where(
+      and(
+        eq(notifications.userId, userId),
+        isNull(items.deletedAt),
+        isNull(backlogs.archivedAt),
+        browseAccessPredicate(userId),
+      ),
+    )
     .orderBy(desc(notifications.createdAt))
     .limit(limit);
 

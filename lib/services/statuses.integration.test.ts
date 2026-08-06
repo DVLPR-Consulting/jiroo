@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
@@ -14,11 +14,29 @@ import {
 } from "@/lib/services/statuses";
 import { moveItem } from "@/lib/services/items";
 
+vi.mock("server-only", () => ({}));
+
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
+const actorId = `status-workflow-actor-${randomUUID()}`;
+
+beforeAll(async () => {
+  if (process.env.JIROO_RUN_DB_TESTS !== "1") return;
+  await db.insert(user).values({
+    id: actorId,
+    name: "Acteur workflow",
+    email: `${actorId}@example.test`,
+    emailVerified: true,
+    role: "contributor",
+  });
+});
+
+afterAll(async () => {
+  if (process.env.JIROO_RUN_DB_TESTS !== "1") return;
+  await db.delete(user).where(eq(user.id, actorId));
+});
 
 async function fixture() {
-  const [actor] = await db.select({ id: user.id }).from(user).limit(1);
-  if (!actor) throw new Error("Le seed doit contenir un utilisateur.");
+  const actor = { id: actorId };
   const key = randomUUID().replace(/[^a-f]/gi, "").slice(0, 6).toUpperCase();
   const [backlog] = await db
     .insert(backlogs)
@@ -204,6 +222,14 @@ describeDb("configurable statuses", () => {
       statusId: f.doing.id,
       reporterId: f.actor.id,
       closedAt: null,
+    });
+    await db.insert(activities).values({
+      itemId: item.id,
+      actorId: f.actor.id,
+      action: "status_change",
+      field: "status",
+      oldValue: f.todo.id,
+      newValue: f.doing.id,
     });
     try {
       await expect(

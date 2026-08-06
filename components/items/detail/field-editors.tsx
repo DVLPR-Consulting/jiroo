@@ -23,7 +23,7 @@ import {
 import { useOptimisticFieldUpdate } from "@/components/items/detail/use-optimistic-field-update";
 
 type StatusLite = { id: string; name: string; color: string; category: string };
-type UserLite = { id: string; name: string; email: string };
+type UserLite = { id: string; name: string };
 type LabelLite = { id: string; name: string; color: string };
 
 function FieldError({ error }: { error: string | null }) {
@@ -250,11 +250,13 @@ export function AssigneeField({
   itemId,
   backlogKey,
   assigneeId,
+  currentAssignee,
   users,
 }: {
   itemId: string;
   backlogKey: string;
   assigneeId: string | null;
+  currentAssignee?: UserLite;
   users: UserLite[];
 }) {
   const field = useOptimisticFieldUpdate({
@@ -275,6 +277,11 @@ export function AssigneeField({
         aria-busy={field.pending}
       >
         <option value="">Non assigné</option>
+        {currentAssignee && !users.some((user) => user.id === currentAssignee.id) ? (
+          <option value={currentAssignee.id} disabled>
+            {currentAssignee.name}
+          </option>
+        ) : null}
         {users.map((u) => (
           <option key={u.id} value={u.id}>
             {u.name}
@@ -290,11 +297,13 @@ export function ReporterField({
   itemId,
   backlogKey,
   reporterId,
+  currentReporter,
   users,
 }: {
   itemId: string;
   backlogKey: string;
   reporterId: string;
+  currentReporter?: UserLite;
   users: UserLite[];
 }) {
   const field = useOptimisticFieldUpdate({
@@ -314,6 +323,11 @@ export function ReporterField({
         aria-label="Rapporteur"
         aria-busy={field.pending}
       >
+        {currentReporter && !users.some((user) => user.id === currentReporter.id) ? (
+          <option value={currentReporter.id} disabled>
+            {currentReporter.name}
+          </option>
+        ) : null}
         {users.map((u) => (
           <option key={u.id} value={u.id}>
             {u.name}

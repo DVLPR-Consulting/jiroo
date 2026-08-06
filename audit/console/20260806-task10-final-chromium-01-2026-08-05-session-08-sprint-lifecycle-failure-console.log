@@ -1,0 +1,10 @@
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[error] Failed to load resource: net::ERR_FAILED
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 103ms
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[error] Failed to load resource: net::ERR_FAILED
+[expected] POST de démarrage et POST de clôture interrompus volontairement
+[result] dialogues conservés, messages français visibles, états planifié puis actif inchangés

@@ -1,17 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { permissionDeniedError } from "@/test-utils/action-authorization-errors";
 
 const mocks = vi.hoisted(() => ({
   createStatus: vi.fn(),
   deleteStatus: vi.fn(),
   getSession: vi.fn(),
   reorderStatuses: vi.fn(),
-  requireRole: vi.fn(),
+  requireBacklogPermissionById: vi.fn(),
+  requireStatusPermission: vi.fn(),
   revalidatePath: vi.fn(),
   updateStatus: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
-vi.mock("@/lib/auth/rbac", () => ({ requireRole: mocks.requireRole }));
+vi.mock("@/lib/auth/action-authorization", () => ({
+  requireBacklogPermissionById: mocks.requireBacklogPermissionById,
+  requireStatusPermission: mocks.requireStatusPermission,
+}));
+vi.mock("@/lib/auth/authorization", () => ({ ResourceNotFoundError: Error }));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/services/statuses", () => ({
   createStatus: mocks.createStatus,
@@ -34,6 +40,91 @@ describe("workflow status actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getSession.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    mocks.requireBacklogPermissionById.mockResolvedValue({ backlogId, resourceId: backlogId });
+    mocks.requireStatusPermission.mockImplementation(async ({ statusId: id }) => ({
+      backlogId,
+      resourceId: id,
+    }));
+  });
+
+  it("requires manage_workflows on the stored resource before every workflow mutation", async () => {
+    const replacementStatusId = "33333333-3333-4333-8333-333333333333";
+    mocks.createStatus.mockResolvedValue({ id: statusId });
+    mocks.updateStatus.mockResolvedValue({ id: statusId });
+    mocks.deleteStatus.mockResolvedValue({ deletedId: statusId, migratedItems: 0 });
+
+    await createStatusAction({
+      backlogId,
+      backlogKey: "FORGED",
+      name: "En revue",
+      category: "in_progress",
+      color: "#8b5cf6",
+    });
+    expect(mocks.requireBacklogPermissionById).toHaveBeenLastCalledWith({
+      actorId: "admin-1",
+      backlogId,
+      permission: "manage_workflows",
+    });
+
+    await updateStatusAction({
+      id: statusId,
+      backlogId,
+      backlogKey: "FORGED",
+      name: "Livré",
+      category: "done",
+      color: "#3aa675",
+    });
+    expect(mocks.requireStatusPermission).toHaveBeenLastCalledWith({
+      actorId: "admin-1",
+      statusId,
+      permission: "manage_workflows",
+    });
+
+    await deleteStatusAction({
+      id: statusId,
+      backlogId,
+      backlogKey: "FORGED",
+      replacementStatusId,
+    });
+    expect(mocks.requireStatusPermission.mock.calls.slice(-2).map(([input]) => input)).toEqual([
+      { actorId: "admin-1", statusId, permission: "manage_workflows" },
+      { actorId: "admin-1", statusId: replacementStatusId, permission: "manage_workflows" },
+    ]);
+  });
+
+  it("returns a structured workflow permission denial", async () => {
+    mocks.requireStatusPermission.mockRejectedValueOnce(
+      permissionDeniedError("manage_workflows", { type: "backlog", backlogId }),
+    );
+
+    await expect(
+      updateStatusAction({
+        id: statusId,
+        backlogId,
+        backlogKey: "FORGED",
+        name: "Livré",
+        category: "done",
+        color: "#3aa675",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Gérer les workflows » pour ce backlog.",
+    });
+    expect(mocks.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("checks every stored status before reordering", async () => {
+    const secondStatusId = "33333333-3333-4333-8333-333333333333";
+    await reorderStatusesAction({
+      backlogId,
+      backlogKey: "FORGED",
+      statusIds: [statusId, secondStatusId],
+    });
+
+    expect(mocks.requireStatusPermission.mock.calls.map(([input]) => input)).toEqual([
+      { actorId: "admin-1", statusId, permission: "manage_workflows" },
+      { actorId: "admin-1", statusId: secondStatusId, permission: "manage_workflows" },
+    ]);
   });
 
   it("creates a status as an admin and revalidates every backlog surface", async () => {
@@ -51,10 +142,11 @@ describe("workflow status actions", () => {
       ok: true,
       status: { id: statusId, name: "En revue", order: 4 },
     });
-    expect(mocks.requireRole).toHaveBeenCalledWith(
-      { user: { id: "admin-1", role: "admin" } },
-      "admin",
-    );
+    expect(mocks.requireBacklogPermissionById).toHaveBeenCalledWith({
+      actorId: "admin-1",
+      backlogId,
+      permission: "manage_workflows",
+    });
     expect(mocks.createStatus).toHaveBeenCalledWith({
       backlogId,
       name: "En revue",

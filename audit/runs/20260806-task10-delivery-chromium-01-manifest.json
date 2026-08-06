@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "runId": "20260806-task10-delivery-chromium-01",
+  "timestamps": {
+    "startedAt": "2026-08-06T21:57:19.997Z",
+    "databaseVerifiedAt": "2026-08-06T21:57:20.016Z",
+    "manifestWrittenAt": "2026-08-06T21:57:20.258Z"
+  },
+  "runtime": {
+    "node": "v24.13.0",
+    "pnpm": "10.19.0"
+  },
+  "source": {
+    "gitSha": "3e592090b9dcee053ac574a30fba4b37ebd1cb02"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:16ea5a631f99332b04fb222cc60b0827234a62c4a45baab99dd9014cf684982e"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "pnpm --ignore-workspace test:e2e -- --project=chromium",
+    "scenarios": "Task 10 final delivery regression Chromium complete 24 scenarios after R3 PASS"
+  },
+  "result": {
+    "junitReport": "audit/runs/20260806-task10-delivery-chromium-01-junit.xml"
+  }
+}

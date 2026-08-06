@@ -1,16 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { type Role, canWriteItems } from "@/lib/auth/rbac";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
+import {
+  requireItemPermission,
+  requireLinkPermission,
+} from "@/lib/auth/action-authorization";
+import { ResourceNotFoundError } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
 import type { LinkType } from "@/lib/items/links";
 import { addLink, removeLink } from "@/lib/services/links";
 
-// Authz gate: session-only actorId, never client input.
-async function requireWriter(): Promise<string> {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
-  const role = (session?.user as { role?: Role } | undefined)?.role;
-  if (!session || !role || !canWriteItems(role)) throw new Error("Forbidden");
+  if (!session?.user.id) throw new Error("Forbidden");
   return session.user.id;
 }
 
@@ -30,25 +33,47 @@ export async function addLinkAction(input: {
   targetId: string;
   type: LinkType;
 }) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
   const { backlogKey, sourceId, targetId, type } = input;
   try {
+    const source = await requireItemPermission({
+      actorId,
+      itemId: input.sourceId,
+      permission: "link_items",
+    });
+    const target = await requireItemPermission({
+      actorId,
+      itemId: input.targetId,
+      permission: "link_items",
+    });
+    if (source.backlogId !== target.backlogId) {
+      throw new ResourceNotFoundError("item", target.resourceId);
+    }
     const link = await addLink({ sourceId, targetId, type }, actorId);
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, link };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapLinkError(e) };
   }
 }
 
 export async function removeLinkAction(input: { backlogKey: string; id: string }) {
-  await requireWriter();
+  const actorId = await authenticatedActorId();
   const { backlogKey, id } = input;
   try {
+    await requireLinkPermission({
+      actorId,
+      linkId: input.id,
+      permission: "link_items",
+    });
     await removeLink(id);
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapLinkError(e) };
   }
 }

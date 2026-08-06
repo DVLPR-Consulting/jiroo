@@ -1,15 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { type Role, canWriteItems } from "@/lib/auth/rbac";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
+import {
+  requireItemPermission,
+  requireRefPermission,
+} from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
 import { addRef, removeRef } from "@/lib/services/refs";
 
-// Authz gate: session-only actorId, never client input.
-async function requireWriter(): Promise<string> {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
-  const role = (session?.user as { role?: Role } | undefined)?.role;
-  if (!session || !role || !canWriteItems(role)) throw new Error("Forbidden");
+  if (!session?.user.id) throw new Error("Forbidden");
   return session.user.id;
 }
 
@@ -29,13 +31,20 @@ export async function addRefAction(input: {
   itemId: string;
   url: string;
 }) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
   const { backlogKey, itemId, url } = input;
   try {
+    await requireItemPermission({
+      actorId,
+      itemId: input.itemId,
+      permission: "link_items",
+    });
     const ref = await addRef({ itemId, url }, actorId);
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, ref };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapRefError(e) };
   }
 }
@@ -45,13 +54,20 @@ export async function addRefAction(input: {
 // ---------------------------------------------------------------------------
 
 export async function removeRefAction(input: { backlogKey: string; id: string }) {
-  await requireWriter();
+  const actorId = await authenticatedActorId();
   const { backlogKey, id } = input;
   try {
+    await requireRefPermission({
+      actorId,
+      refId: input.id,
+      permission: "link_items",
+    });
     await removeRef(id);
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapRefError(e) };
   }
 }

@@ -14,6 +14,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
 
+vi.mock("@/app/actions/items", () => ({
+  createItemAction: vi.fn(),
+  softDeleteItemAction: vi.fn(),
+}));
+
 const reviewStatusId = "33333333-3333-4333-8333-333333333333";
 
 const statuses: Array<{
@@ -209,7 +214,8 @@ describe("ItemTree", () => {
           statuses={statuses}
           reparentItemAction={vi.fn()}
           moveItemAction={vi.fn()}
-          canWrite={false}
+          canCreateItems={false}
+          canScheduleItems={false}
         />
       </ViewUrlStateProvider>,
     );
@@ -218,6 +224,65 @@ describe("ItemTree", () => {
     expect(row).toHaveAttribute("draggable", "false");
     await user.click(screen.getByText("Authentication"));
     expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=tree&item=DEMO-1");
+  });
+
+  it("separates hierarchy scheduling from item creation", () => {
+    const createOnly = render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[item]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          canScheduleItems={false}
+          canCreateItems
+        />
+      </ViewUrlStateProvider>,
+    );
+    expect(
+      screen.getByRole("button", { name: "DEMO-1 — Authentication" }),
+    ).toHaveAttribute("draggable", "false");
+    createOnly.unmount();
+
+    const scheduled = render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[item]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          canScheduleItems={false}
+          canCreateItems={false}
+          planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+    expect(
+      screen.getByRole("button", { name: "DEMO-1 — Authentication" }),
+    ).toHaveAttribute("draggable", "true");
+    scheduled.unmount();
+
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          createDialogProps={{
+            backlogId: "backlog-id",
+            items: [],
+            statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
+          }}
+          canScheduleItems={false}
+          canCreateItems
+        />
+      </ViewUrlStateProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Nouvel item" })).toBeVisible();
   });
 
   it("does not offer creation to a viewer in an empty backlog", () => {
@@ -234,7 +299,8 @@ describe("ItemTree", () => {
             items: [],
             statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
           }}
-          canWrite={false}
+          canCreateItems={false}
+          canScheduleItems={false}
         />
       </ViewUrlStateProvider>,
     );

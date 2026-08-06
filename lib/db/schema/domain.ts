@@ -17,13 +17,17 @@ import {
 } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 import {
+  accessModeEnum,
   activityActionEnum,
   displayModeEnum,
   itemKindEnum,
   itemTypeEnum,
   linkTypeEnum,
   notificationTypeEnum,
+  permissionPrincipalEnum,
+  permissionScopeEnum,
   refKindEnum,
+  roleActorTypeEnum,
   sprintOutcomeEnum,
   sprintStateEnum,
   statusCategoryEnum,
@@ -338,3 +342,166 @@ export const itemRefs = pgTable(
   },
   (t) => [index("item_refs_item_idx").on(t.itemId)],
 );
+
+export const userGroups = pgTable("user_groups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  key: text("key").notNull().unique(),
+  name: text("name").notNull(),
+  protected: boolean("protected").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const groupMembers = pgTable(
+  "group_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => userGroups.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("group_members_group_user_idx").on(t.groupId, t.userId)],
+);
+
+export const projectRoles = pgTable("project_roles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  key: text("key").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  protected: boolean("protected").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const backlogRoleActors = pgTable(
+  "backlog_role_actors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    backlogId: uuid("backlog_id")
+      .notNull()
+      .references(() => backlogs.id, { onDelete: "cascade" }),
+    projectRoleId: uuid("project_role_id")
+      .notNull()
+      .references(() => projectRoles.id, { onDelete: "restrict" }),
+    actorType: roleActorTypeEnum("actor_type").notNull(),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    groupId: uuid("group_id").references(() => userGroups.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "backlog_role_actors_principal_consistent",
+      sql`(
+        (${t.actorType} = 'user' and ${t.userId} is not null and ${t.groupId} is null)
+        or (${t.actorType} = 'group' and ${t.groupId} is not null and ${t.userId} is null)
+      )`,
+    ),
+    uniqueIndex("backlog_role_actors_user_idx")
+      .on(t.backlogId, t.projectRoleId, t.userId)
+      .where(sql`${t.actorType} = 'user'`),
+    uniqueIndex("backlog_role_actors_group_idx")
+      .on(t.backlogId, t.projectRoleId, t.groupId)
+      .where(sql`${t.actorType} = 'group'`),
+  ],
+);
+
+export const permissionSchemes = pgTable("permission_schemes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  key: text("key").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  protected: boolean("protected").notNull().default(false),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const permissionGrants = pgTable(
+  "permission_grants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scope: permissionScopeEnum("scope").notNull(),
+    permissionSchemeId: uuid("permission_scheme_id").references(() => permissionSchemes.id, {
+      onDelete: "cascade",
+    }),
+    permissionKey: text("permission_key").notNull(),
+    principalType: permissionPrincipalEnum("principal_type").notNull(),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    groupId: uuid("group_id").references(() => userGroups.id, { onDelete: "restrict" }),
+    projectRoleId: uuid("project_role_id").references(() => projectRoles.id, {
+      onDelete: "restrict",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "permission_grants_scope_consistent",
+      sql`(
+        (${t.scope} = 'global' and ${t.permissionSchemeId} is null and ${t.principalType} in ('user', 'group'))
+        or (${t.scope} = 'backlog' and ${t.permissionSchemeId} is not null)
+      )`,
+    ),
+    check(
+      "permission_grants_principal_consistent",
+      sql`(
+        (${t.principalType} = 'user' and ${t.userId} is not null and ${t.groupId} is null and ${t.projectRoleId} is null)
+        or (${t.principalType} = 'group' and ${t.groupId} is not null and ${t.userId} is null and ${t.projectRoleId} is null)
+        or (${t.principalType} = 'project_role' and ${t.projectRoleId} is not null and ${t.userId} is null and ${t.groupId} is null)
+        or (${t.principalType} = 'authenticated_user' and ${t.userId} is null and ${t.groupId} is null and ${t.projectRoleId} is null)
+      )`,
+    ),
+    uniqueIndex("permission_grants_global_user_idx")
+      .on(t.permissionKey, t.userId)
+      .where(sql`${t.scope} = 'global' and ${t.principalType} = 'user'`),
+    uniqueIndex("permission_grants_global_group_idx")
+      .on(t.permissionKey, t.groupId)
+      .where(sql`${t.scope} = 'global' and ${t.principalType} = 'group'`),
+    uniqueIndex("permission_grants_backlog_user_idx")
+      .on(t.permissionSchemeId, t.permissionKey, t.userId)
+      .where(sql`${t.scope} = 'backlog' and ${t.principalType} = 'user'`),
+    uniqueIndex("permission_grants_backlog_group_idx")
+      .on(t.permissionSchemeId, t.permissionKey, t.groupId)
+      .where(sql`${t.scope} = 'backlog' and ${t.principalType} = 'group'`),
+    uniqueIndex("permission_grants_backlog_project_role_idx")
+      .on(t.permissionSchemeId, t.permissionKey, t.projectRoleId)
+      .where(sql`${t.scope} = 'backlog' and ${t.principalType} = 'project_role'`),
+    uniqueIndex("permission_grants_backlog_authenticated_user_idx")
+      .on(t.permissionSchemeId, t.permissionKey)
+      .where(sql`${t.scope} = 'backlog' and ${t.principalType} = 'authenticated_user'`),
+  ],
+);
+
+export const backlogPermissionConfigs = pgTable(
+  "backlog_permission_configs",
+  {
+    backlogId: uuid("backlog_id")
+      .primaryKey()
+      .references(() => backlogs.id, { onDelete: "cascade" }),
+    permissionSchemeId: uuid("permission_scheme_id")
+      .notNull()
+      .references(() => permissionSchemes.id, { onDelete: "restrict" }),
+    accessMode: accessModeEnum("access_mode").notNull().default("simple"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("backlog_permission_configs_scheme_idx").on(t.permissionSchemeId)],
+);
+
+export const securityAuditEvents = pgTable("security_audit_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  actorId: text("actor_id").references(() => user.id, { onDelete: "set null" }),
+  actorLabel: text("actor_label").notNull(),
+  action: text("action").notNull(),
+  scope: permissionScopeEnum("scope").notNull(),
+  backlogId: uuid("backlog_id").references(() => backlogs.id, { onDelete: "set null" }),
+  targetType: text("target_type").notNull(),
+  targetId: text("target_id").notNull(),
+  oldValue: jsonb("old_value"),
+  newValue: jsonb("new_value"),
+  requestCorrelationId: text("request_correlation_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

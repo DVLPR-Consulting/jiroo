@@ -1,16 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole, type Role } from "@/lib/auth/rbac";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
+import { requireItemPermission } from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
 import { purgeItem, restoreItem } from "@/lib/services/items";
 
-// Admin gate: throws if there is no session or the user is not an admin.
-// Returns the admin's userId so callers can pass it to service functions.
-async function requireAdmin(): Promise<string> {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
-  requireRole(session as { user: { id: string; role: Role } } | null, "admin");
-  return (session as { user: { id: string } }).user.id;
+  if (!session?.user.id) throw new Error("Forbidden");
+  return session.user.id;
 }
 
 function mapTrashError(e: unknown): string {
@@ -23,23 +22,29 @@ function mapTrashError(e: unknown): string {
 }
 
 export async function restoreTrashedItemAction(input: { id: string }) {
-  const actorId = await requireAdmin();
+  const actorId = await authenticatedActorId();
   try {
+    await requireItemPermission({ actorId, itemId: input.id, permission: "restore_items" });
     await restoreItem({ id: input.id }, actorId);
     revalidatePath("/trash");
     return { ok: true as const };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapTrashError(e) };
   }
 }
 
 export async function purgeItemAction(input: { id: string }) {
-  await requireAdmin();
+  const actorId = await authenticatedActorId();
   try {
+    await requireItemPermission({ actorId, itemId: input.id, permission: "restore_items" });
     await purgeItem(input.id);
     revalidatePath("/trash");
     return { ok: true as const };
   } catch (e) {
+    const authorizationError = mapActionAuthorizationError(e);
+    if (authorizationError) return authorizationError;
     return { ok: false as const, error: mapTrashError(e) };
   }
 }

@@ -65,6 +65,80 @@ describe("BulkItemToolbar", () => {
     expect(mocks.bulkUpdateItemsAction).not.toHaveBeenCalled();
   });
 
+  it("hides commands when backlog permissions exist without global bulk permission", () => {
+    render(
+      <BulkItemToolbar
+        {...props()}
+        canBulkChangeItems={false}
+        canEditItems
+        canTransitionItems
+        canAssignItems
+        canScheduleItems
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Modifier le statut" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Modifier la priorité" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Modifier l’assigné" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Modifier le sprint" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton", { name: "Estimation groupée" })).not.toBeInTheDocument();
+  });
+
+  it("hides commands when global bulk exists without a matching backlog permission", () => {
+    render(
+      <BulkItemToolbar
+        {...props()}
+        canBulkChangeItems
+        canEditItems={false}
+        canTransitionItems={false}
+        canAssignItems={false}
+        canScheduleItems={false}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Modifier le statut" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Modifier la priorité" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Modifier l’assigné" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Modifier le sprint" })).not.toBeInTheDocument();
+  });
+
+  it("shows only a command backed by global bulk plus its exact backlog permission", () => {
+    render(
+      <BulkItemToolbar
+        {...props()}
+        canBulkChangeItems
+        canEditItems={false}
+        canTransitionItems
+        canAssignItems={false}
+        canScheduleItems={false}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Modifier le statut" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Modifier la priorité" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Modifier l’assigné" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Modifier le sprint" })).not.toBeInTheDocument();
+  });
+
+  it("consumes already-composed bulk action capabilities", () => {
+    render(
+      <BulkItemToolbar
+        {...props()}
+        canBulkChangeItems={false}
+        canEditItems={false}
+        canTransitionItems={false}
+        canAssignItems={false}
+        canScheduleItems={false}
+        capabilities={{ edit: false, transition: true, assign: false, schedule: false }}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Modifier le statut" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Modifier la priorité" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Modifier l’assigné" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Modifier le sprint" })).not.toBeInTheDocument();
+  });
+
   it("sends exact status, priority and assignee patches with sorted ids", async () => {
     const user = userEvent.setup();
     mocks.bulkUpdateItemsAction.mockResolvedValue({

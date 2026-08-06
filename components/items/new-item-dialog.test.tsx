@@ -123,6 +123,27 @@ describe("NewItemButton", () => {
     );
   });
 
+  it("does not expose parent-bearing item types without scheduling permission", async () => {
+    const user = userEvent.setup();
+    render(
+      <NewItemButton
+        {...dialogProps()}
+        items={[
+          { id: "component-id", key: "DEMO-1", type: "composant", title: "Plateforme" },
+          { id: "epic-id", key: "DEMO-2", type: "epic", title: "Paiement" },
+        ]}
+        canScheduleItems={false}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+
+    expect(screen.getByRole("option", { name: "Composant" })).toBeVisible();
+    expect(screen.queryByRole("option", { name: "Epic" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Tâche" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Parent" })).not.toBeInTheDocument();
+  });
+
   it("restores the supplied initial status after close and reopen", async () => {
     const user = userEvent.setup();
     render(<NewItemButton {...dialogProps()} initialStatusId="doing-id" />);

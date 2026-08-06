@@ -8,6 +8,7 @@ import { STATUS_CATEGORY } from "@/lib/design/constants";
 import { nextItemKey } from "@/lib/items/key";
 import { buildPath, childDepth } from "@/lib/tree/path";
 import { rankLast } from "@/lib/tree/rank";
+import { seedAuthorizationDefaults } from "@/lib/services/authorization-seed";
 
 const STATUS_SEED = [
   { id: "todo", name: "À faire", color: "#9aa0a6" },
@@ -29,99 +30,108 @@ async function main() {
   const [admin] = await db.select().from(user).where(eq(user.email, email));
   if (!admin) throw new Error("seed: admin not found after signup");
 
-  // 2) CASS backlog (skip if present).
+  // 2) CASS backlog (skip item seed if present).
   const existing = await db.select().from(backlogs).where(eq(backlogs.key, "CASS"));
+  let backlogId: string;
   if (existing.length > 0) {
     console.log("seed: CASS backlog already present, skipping item seed");
-    return;
+    backlogId = existing[0]!.id;
+  } else {
+    // nextval is non-transactional (sequence values don't roll back), so
+    // precompute the three item keys before opening the transaction.
+    const composantKey = await nextItemKey(db, "CASS");
+    const epicKey = await nextItemKey(db, "CASS");
+    const tacheKey = await nextItemKey(db, "CASS");
+
+    // Generate item ids app-side up front so each row's stored `path` ends with
+    // the row's own id-label (the self-inclusive invariant enforced by the
+    // items_path_self_inclusive CHECK constraint).
+    const composantId = crypto.randomUUID();
+    const epicId = crypto.randomUUID();
+    const tacheId = crypto.randomUUID();
+    const composantPath = buildPath(null, composantId);
+    const epicPath = buildPath(composantPath, epicId);
+    const tachePath = buildPath(epicPath, tacheId);
+
+    // 3) Backlog, statuses and a valid demo tree (composant > epic > tache),
+    // inserted atomically so it's all-or-nothing.
+    backlogId = await db.transaction(async (tx) => {
+      const [backlog] = await tx
+        .insert(backlogs)
+        .values({ key: "CASS", name: "Cour de cassation", color: "#7c3030" })
+        .returning();
+
+      const insertedStatuses = await tx
+        .insert(statuses)
+        .values(
+          STATUS_SEED.map((s, i) => ({
+            backlogId: backlog!.id,
+            name: s.name,
+            category: STATUS_CATEGORY[s.id],
+            order: i,
+            color: s.color,
+          })),
+        )
+        .returning();
+      const todo = insertedStatuses.find((s) => s.order === 0)!;
+
+      // Rank is a single global order per backlog, so the demo items get distinct, increasing
+      // ranks chained in depth-first order (root → epic → tache).
+      const rootRank = rankLast(null);
+      const epicRank = rankLast(rootRank);
+      const tacheRank = rankLast(epicRank);
+
+      await tx.insert(items).values({
+        id: composantId,
+        key: composantKey,
+        type: "composant",
+        backlogId: backlog!.id,
+        title: "Authentification",
+        statusId: todo.id,
+        reporterId: admin.id,
+        rank: rootRank,
+        path: composantPath,
+        depth: childDepth(null),
+      });
+
+      await tx.insert(items).values({
+        id: epicId,
+        key: epicKey,
+        type: "epic",
+        backlogId: backlog!.id,
+        title: "2FA TOTP",
+        statusId: todo.id,
+        reporterId: admin.id,
+        parentId: composantId,
+        rank: epicRank,
+        path: epicPath,
+        depth: childDepth(0),
+      });
+
+      await tx.insert(items).values({
+        id: tacheId,
+        key: tacheKey,
+        type: "tache",
+        backlogId: backlog!.id,
+        title: "Écran de vérification du code",
+        statusId: todo.id,
+        reporterId: admin.id,
+        parentId: epicId,
+        rank: tacheRank,
+        path: tachePath,
+        depth: childDepth(1),
+      });
+
+      return backlog!.id;
+    });
   }
-  // nextval is non-transactional (sequence values don't roll back), so
-  // precompute the three item keys before opening the transaction.
-  const composantKey = await nextItemKey(db, "CASS");
-  const epicKey = await nextItemKey(db, "CASS");
-  const tacheKey = await nextItemKey(db, "CASS");
 
-  // Generate item ids app-side up front so each row's stored `path` ends with
-  // the row's own id-label (the self-inclusive invariant enforced by the
-  // items_path_self_inclusive CHECK constraint).
-  const composantId = crypto.randomUUID();
-  const epicId = crypto.randomUUID();
-  const tacheId = crypto.randomUUID();
-  const composantPath = buildPath(null, composantId);
-  const epicPath = buildPath(composantPath, epicId);
-  const tachePath = buildPath(epicPath, tacheId);
-
-  // 3) Backlog, statuses and a valid demo tree (composant > epic > tache),
-  // inserted atomically so it's all-or-nothing.
-  await db.transaction(async (tx) => {
-    const [backlog] = await tx
-      .insert(backlogs)
-      .values({ key: "CASS", name: "Cour de cassation", color: "#7c3030" })
-      .returning();
-
-    const insertedStatuses = await tx
-      .insert(statuses)
-      .values(
-        STATUS_SEED.map((s, i) => ({
-          backlogId: backlog!.id,
-          name: s.name,
-          category: STATUS_CATEGORY[s.id],
-          order: i,
-          color: s.color,
-        })),
-      )
-      .returning();
-    const todo = insertedStatuses.find((s) => s.order === 0)!;
-
-    // Rank is a single global order per backlog, so the demo items get distinct, increasing
-    // ranks chained in depth-first order (root → epic → tache).
-    const rootRank = rankLast(null);
-    const epicRank = rankLast(rootRank);
-    const tacheRank = rankLast(epicRank);
-
-    await tx.insert(items).values({
-      id: composantId,
-      key: composantKey,
-      type: "composant",
-      backlogId: backlog!.id,
-      title: "Authentification",
-      statusId: todo.id,
-      reporterId: admin.id,
-      rank: rootRank,
-      path: composantPath,
-      depth: childDepth(null),
-    });
-
-    await tx.insert(items).values({
-      id: epicId,
-      key: epicKey,
-      type: "epic",
-      backlogId: backlog!.id,
-      title: "2FA TOTP",
-      statusId: todo.id,
-      reporterId: admin.id,
-      parentId: composantId,
-      rank: epicRank,
-      path: epicPath,
-      depth: childDepth(0),
-    });
-
-    await tx.insert(items).values({
-      id: tacheId,
-      key: tacheKey,
-      type: "tache",
-      backlogId: backlog!.id,
-      title: "Écran de vérification du code",
-      statusId: todo.id,
-      reporterId: admin.id,
-      parentId: epicId,
-      rank: tacheRank,
-      path: tachePath,
-      depth: childDepth(1),
-    });
+  await seedAuthorizationDefaults({
+    platformAdministratorIds: [admin.id],
+    backlogAdministrators: [{ backlogId, userIds: [admin.id] }],
   });
 
-  console.log(`seed: created admin ${email}, backlog CASS, 4 statuses, 3 demo items`);
+  console.log(`seed: ensured admin ${email}, backlog CASS, and authorization defaults`);
 }
 
 main()
