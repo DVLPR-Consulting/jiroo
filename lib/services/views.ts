@@ -96,9 +96,14 @@ export async function createView(input: unknown, ownerId: string) {
 /**
  * Overwrites the display state (displayMode / groupBy / filters / sort) of an
  * existing view in-place. This is the "Save" action for a dirty view.
- * Only the view owner may call this.
+ * Owner-only by default; an action may pass an already-authorized shared-view override.
  */
-export async function updateView(id: string, input: unknown, actorId: string) {
+export async function updateView(
+  id: string,
+  input: unknown,
+  actorId: string,
+  options: { allowAny: boolean } = { allowAny: false },
+) {
   // State-only schema: name/shared/backlogId are NOT accepted here, so a caller
   // can't think a rename happened just because it passed a `name` field.
   const data = updateViewStateInput.parse(input);
@@ -115,7 +120,9 @@ export async function updateView(id: string, input: unknown, actorId: string) {
       .where(eq(views.id, id))
       .for("update");
     if (!cur) throw new Error("Vue introuvable.");
-    if (!canMutateView(cur, actorId)) throw new Error("Action réservée au propriétaire de la vue.");
+    if (!options.allowAny && !canMutateView(cur, actorId)) {
+      throw new Error("Action réservée au propriétaire de la vue.");
+    }
 
     const [updated] = await tx
       .update(views)
@@ -132,9 +139,14 @@ export async function updateView(id: string, input: unknown, actorId: string) {
 }
 
 /**
- * Renames a saved view. Only the owner may rename.
+ * Renames a saved view. Owner-only unless shared-view authorization was resolved upstream.
  */
-export async function renameView(id: string, input: unknown, actorId: string) {
+export async function renameView(
+  id: string,
+  input: unknown,
+  actorId: string,
+  options: { allowAny: boolean } = { allowAny: false },
+) {
   const data = renameViewInput.parse(input);
 
   return db.transaction(async (tx: Tx) => {
@@ -144,7 +156,9 @@ export async function renameView(id: string, input: unknown, actorId: string) {
       .where(eq(views.id, id))
       .for("update");
     if (!cur) throw new Error("Vue introuvable.");
-    if (!canMutateView(cur, actorId)) throw new Error("Action réservée au propriétaire de la vue.");
+    if (!options.allowAny && !canMutateView(cur, actorId)) {
+      throw new Error("Action réservée au propriétaire de la vue.");
+    }
 
     const [updated] = await tx
       .update(views)
@@ -156,9 +170,14 @@ export async function renameView(id: string, input: unknown, actorId: string) {
 }
 
 /**
- * Sets the `shared` flag on a view. Only the owner may change visibility.
+ * Sets the `shared` flag. Owner-only unless shared-view authorization was resolved upstream.
  */
-export async function setShared(id: string, input: unknown, actorId: string) {
+export async function setShared(
+  id: string,
+  input: unknown,
+  actorId: string,
+  options: { allowAny: boolean } = { allowAny: false },
+) {
   const data = setSharedInput.parse(input);
 
   return db.transaction(async (tx: Tx) => {
@@ -168,7 +187,9 @@ export async function setShared(id: string, input: unknown, actorId: string) {
       .where(eq(views.id, id))
       .for("update");
     if (!cur) throw new Error("Vue introuvable.");
-    if (!canMutateView(cur, actorId)) throw new Error("Action réservée au propriétaire de la vue.");
+    if (!options.allowAny && !canMutateView(cur, actorId)) {
+      throw new Error("Action réservée au propriétaire de la vue.");
+    }
 
     const [updated] = await tx
       .update(views)
@@ -180,9 +201,13 @@ export async function setShared(id: string, input: unknown, actorId: string) {
 }
 
 /**
- * Permanently deletes a saved view. Only the owner may delete.
+ * Permanently deletes a view. Owner-only unless shared-view authorization was resolved upstream.
  */
-export async function deleteView(id: string, actorId: string) {
+export async function deleteView(
+  id: string,
+  actorId: string,
+  options: { allowAny: boolean } = { allowAny: false },
+) {
   return db.transaction(async (tx: Tx) => {
     const [cur] = await tx
       .select()
@@ -190,7 +215,9 @@ export async function deleteView(id: string, actorId: string) {
       .where(eq(views.id, id))
       .for("update");
     if (!cur) throw new Error("Vue introuvable.");
-    if (!canMutateView(cur, actorId)) throw new Error("Action réservée au propriétaire de la vue.");
+    if (!options.allowAny && !canMutateView(cur, actorId)) {
+      throw new Error("Action réservée au propriétaire de la vue.");
+    }
 
     await tx.delete(views).where(eq(views.id, id));
     return cur;

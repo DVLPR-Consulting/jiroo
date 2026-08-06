@@ -37,6 +37,26 @@ vi.mock("@/app/actions/items", () => ({
   updateItemAction: mocks.updateItemAction,
 }));
 
+vi.mock("@/app/actions/comments", () => ({
+  addCommentAction: vi.fn(),
+  deleteCommentAction: vi.fn(),
+  editCommentAction: vi.fn(),
+}));
+
+vi.mock("@/app/actions/labels", () => ({
+  createLabelAction: vi.fn(),
+}));
+
+vi.mock("@/app/actions/links", () => ({
+  addLinkAction: vi.fn(),
+  removeLinkAction: vi.fn(),
+}));
+
+vi.mock("@/app/actions/refs", () => ({
+  addRefAction: vi.fn(),
+  removeRefAction: vi.fn(),
+}));
+
 vi.mock("@/lib/toast", () => ({
   toast: {
     error: mocks.toastError,

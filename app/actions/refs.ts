@@ -1,15 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { type Role, canWriteItems } from "@/lib/auth/rbac";
+import {
+  requireItemPermission,
+  requireRefPermission,
+} from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
 import { addRef, removeRef } from "@/lib/services/refs";
 
-// Authz gate: session-only actorId, never client input.
-async function requireWriter(): Promise<string> {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
-  const role = (session?.user as { role?: Role } | undefined)?.role;
-  if (!session || !role || !canWriteItems(role)) throw new Error("Forbidden");
+  if (!session?.user.id) throw new Error("Forbidden");
   return session.user.id;
 }
 
@@ -29,7 +30,12 @@ export async function addRefAction(input: {
   itemId: string;
   url: string;
 }) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  await requireItemPermission({
+    actorId,
+    itemId: input.itemId,
+    permission: "link_items",
+  });
   const { backlogKey, itemId, url } = input;
   try {
     const ref = await addRef({ itemId, url }, actorId);
@@ -45,7 +51,12 @@ export async function addRefAction(input: {
 // ---------------------------------------------------------------------------
 
 export async function removeRefAction(input: { backlogKey: string; id: string }) {
-  await requireWriter();
+  const actorId = await authenticatedActorId();
+  await requireRefPermission({
+    actorId,
+    refId: input.id,
+    permission: "link_items",
+  });
   const { backlogKey, id } = input;
   try {
     await removeRef(id);

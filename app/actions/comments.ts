@@ -1,15 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { type Role, canWriteItems } from "@/lib/auth/rbac";
+import {
+  requireCommentPermission,
+  requireItemPermission,
+} from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
 import { addComment, editComment, softDeleteComment } from "@/lib/services/comments";
 
-// Authz FIRST on every action; actorId from the session, never client input.
-async function requireWriter(): Promise<string> {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
-  const role = (session?.user as { role?: Role } | undefined)?.role;
-  if (!session || !role || !canWriteItems(role)) throw new Error("Forbidden");
+  if (!session?.user.id) throw new Error("Forbidden");
   return session.user.id;
 }
 
@@ -30,7 +31,12 @@ export async function addCommentAction(input: {
   body: string;
   mentionIds: string[];
 }) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  await requireItemPermission({
+    actorId,
+    itemId: input.itemId,
+    permission: "add_comments",
+  });
   const { backlogKey, itemId, body, mentionIds } = input;
   try {
     const comment = await addComment({ itemId, body, mentionIds }, actorId);
@@ -47,7 +53,12 @@ export async function editCommentAction(input: {
   body: string;
   mentionIds: string[];
 }) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  await requireCommentPermission({
+    actorId,
+    commentId: input.id,
+    ownPermission: "edit_own_comments",
+  });
   const { backlogKey, id, body, mentionIds } = input;
   try {
     const comment = await editComment(id, { body, mentionIds }, actorId);
@@ -62,10 +73,18 @@ export async function deleteCommentAction(input: {
   backlogKey: string;
   id: string;
 }) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  const authorization = await requireCommentPermission({
+    actorId,
+    commentId: input.id,
+    ownPermission: "delete_own_comments",
+    otherPermission: "delete_all_comments",
+  });
   const { backlogKey, id } = input;
   try {
-    await softDeleteComment(id, actorId);
+    await softDeleteComment(id, actorId, {
+      allowAny: authorization.authorId !== actorId,
+    });
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const };
   } catch (e) {

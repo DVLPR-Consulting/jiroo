@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole, type Role } from "@/lib/auth/rbac";
+import { requirePermission } from "@/lib/auth/authorization";
+import type { Role } from "@/lib/auth/rbac";
 import { getSession } from "@/lib/auth/session";
 import { createUser, setUserRole } from "@/lib/services/users";
 
@@ -9,12 +10,15 @@ import { createUser, setUserRole } from "@/lib/services/users";
 // Auth gate
 // ---------------------------------------------------------------------------
 
-/** Throws if there is no session or the current user is not an admin.
- *  Returns the admin's userId so callers can use it for self-demotion guards. */
-async function requireAdmin(): Promise<string> {
+async function requireUserAdministrator(): Promise<string> {
   const session = await getSession();
-  requireRole(session as { user: { id: string; role: Role } } | null, "admin");
-  return (session as { user: { id: string } }).user.id;
+  if (!session?.user.id) throw new Error("Forbidden");
+  await requirePermission({
+    actorId: session.user.id,
+    permission: "manage_users_groups",
+    scope: { type: "global" },
+  });
+  return session.user.id;
 }
 
 // ---------------------------------------------------------------------------
@@ -48,7 +52,7 @@ export async function createUserAction(input: {
   role: string;
   password: string;
 }) {
-  await requireAdmin();
+  await requireUserAdministrator();
   try {
     const u = await createUser(input);
     revalidatePath("/admin");
@@ -59,7 +63,7 @@ export async function createUserAction(input: {
 }
 
 export async function setUserRoleAction(input: { userId: string; role: string }) {
-  const adminId = await requireAdmin();
+  const adminId = await requireUserAdministrator();
 
   // Prevent the admin from accidentally revoking their own admin role, which
   // would lock them out of the admin panel with no way back.

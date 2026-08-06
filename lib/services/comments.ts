@@ -150,16 +150,22 @@ export async function editComment(id: string, input: unknown, actorId: string) {
   });
 }
 
-// ---- softDeleteComment: validate → tx(set deletedAt) ----
+// ---- softDeleteComment: validate → ownership policy → tx(set deletedAt) ----
 
-export async function softDeleteComment(id: string, actorId: string) {
+export async function softDeleteComment(
+  id: string,
+  actorId: string,
+  options: { allowAny: boolean } = { allowAny: false },
+) {
   return db.transaction(async (tx) => {
     const [comment] = await tx
       .select()
       .from(comments)
       .where(eq(comments.id, id));
     if (!comment) throw new Error("Commentaire introuvable.");
-    if (comment.authorId !== actorId) throw new Error("Action réservée à l'auteur du commentaire.");
+    if (comment.authorId !== actorId && !options.allowAny) {
+      throw new Error("Action réservée à l'auteur du commentaire.");
+    }
 
     const [updated] = await tx
       .update(comments)

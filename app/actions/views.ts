@@ -1,6 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  requireBacklogPermissionById,
+  requireViewMutationPermission,
+} from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
 import type { DisplayMode } from "@/lib/items/views";
 import type { Filters, GroupKey, SortDir, SortField } from "@/lib/items/filter";
@@ -84,6 +88,11 @@ function mapViewError(e: unknown): string {
 /** Creates a new saved view owned by the authenticated user. */
 export async function createViewAction(input: CreateViewActionInput) {
   const ownerId = await requireUser();
+  await requireBacklogPermissionById({
+    actorId: ownerId,
+    backlogId: input.backlogId,
+    permission: input.shared ? "manage_shared_views" : "browse_backlog",
+  });
   const { backlogKey, ...data } = input;
   try {
     const view = await createView(data, ownerId);
@@ -97,9 +106,15 @@ export async function createViewAction(input: CreateViewActionInput) {
 /** Overwrites the display state of an existing view in-place ("Save"). */
 export async function updateViewAction(input: UpdateViewActionInput) {
   const actorId = await requireUser();
+  const authorization = await requireViewMutationPermission({
+    actorId,
+    viewId: input.id,
+  });
   const { backlogKey, id, ...stateFields } = input;
   try {
-    const view = await updateView(id, stateFields, actorId);
+    const view = await updateView(id, stateFields, actorId, {
+      allowAny: authorization.shared && authorization.ownerId !== actorId,
+    });
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, view };
   } catch (e) {
@@ -110,9 +125,15 @@ export async function updateViewAction(input: UpdateViewActionInput) {
 /** Renames a saved view. Only the owner may rename. */
 export async function renameViewAction(input: RenameViewActionInput) {
   const actorId = await requireUser();
+  const authorization = await requireViewMutationPermission({
+    actorId,
+    viewId: input.id,
+  });
   const { backlogKey, id, name } = input;
   try {
-    const view = await renameView(id, { name }, actorId);
+    const view = await renameView(id, { name }, actorId, {
+      allowAny: authorization.shared && authorization.ownerId !== actorId,
+    });
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, view };
   } catch (e) {
@@ -123,9 +144,16 @@ export async function renameViewAction(input: RenameViewActionInput) {
 /** Sets the shared flag on a view. Only the owner may change visibility. */
 export async function setSharedViewAction(input: SetSharedViewActionInput) {
   const actorId = await requireUser();
+  const authorization = await requireViewMutationPermission({
+    actorId,
+    viewId: input.id,
+    sharedMutation: true,
+  });
   const { backlogKey, id, shared } = input;
   try {
-    const view = await setShared(id, { shared }, actorId);
+    const view = await setShared(id, { shared }, actorId, {
+      allowAny: authorization.shared && authorization.ownerId !== actorId,
+    });
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, view };
   } catch (e) {
@@ -136,9 +164,15 @@ export async function setSharedViewAction(input: SetSharedViewActionInput) {
 /** Permanently deletes a saved view. Only the owner may delete. */
 export async function deleteViewAction(input: DeleteViewActionInput) {
   const actorId = await requireUser();
+  const authorization = await requireViewMutationPermission({
+    actorId,
+    viewId: input.id,
+  });
   const { backlogKey, id } = input;
   try {
-    await deleteView(id, actorId);
+    await deleteView(id, actorId, {
+      allowAny: authorization.shared && authorization.ownerId !== actorId,
+    });
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const };
   } catch (e) {

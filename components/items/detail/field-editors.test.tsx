@@ -16,6 +16,10 @@ vi.mock("@/app/actions/items", () => ({
   updateItemAction: mocks.updateItemAction,
 }));
 
+vi.mock("@/app/actions/labels", () => ({
+  createLabelAction: vi.fn(),
+}));
+
 const users = [
   { id: "better-auth-marie", name: "Marie Lemaire", email: "marie@example.test" },
   { id: "better-auth-nora", name: "Nora Benali", email: "nora@example.test" },

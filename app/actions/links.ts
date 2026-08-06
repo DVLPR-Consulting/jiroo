@@ -1,16 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { type Role, canWriteItems } from "@/lib/auth/rbac";
+import {
+  requireItemPermission,
+  requireLinkPermission,
+} from "@/lib/auth/action-authorization";
+import { ResourceNotFoundError } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
 import type { LinkType } from "@/lib/items/links";
 import { addLink, removeLink } from "@/lib/services/links";
 
-// Authz gate: session-only actorId, never client input.
-async function requireWriter(): Promise<string> {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
-  const role = (session?.user as { role?: Role } | undefined)?.role;
-  if (!session || !role || !canWriteItems(role)) throw new Error("Forbidden");
+  if (!session?.user.id) throw new Error("Forbidden");
   return session.user.id;
 }
 
@@ -30,7 +32,20 @@ export async function addLinkAction(input: {
   targetId: string;
   type: LinkType;
 }) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  const source = await requireItemPermission({
+    actorId,
+    itemId: input.sourceId,
+    permission: "link_items",
+  });
+  const target = await requireItemPermission({
+    actorId,
+    itemId: input.targetId,
+    permission: "link_items",
+  });
+  if (source.backlogId !== target.backlogId) {
+    throw new ResourceNotFoundError("item", target.resourceId);
+  }
   const { backlogKey, sourceId, targetId, type } = input;
   try {
     const link = await addLink({ sourceId, targetId, type }, actorId);
@@ -42,7 +57,12 @@ export async function addLinkAction(input: {
 }
 
 export async function removeLinkAction(input: { backlogKey: string; id: string }) {
-  await requireWriter();
+  const actorId = await authenticatedActorId();
+  await requireLinkPermission({
+    actorId,
+    linkId: input.id,
+    permission: "link_items",
+  });
   const { backlogKey, id } = input;
   try {
     await removeLink(id);

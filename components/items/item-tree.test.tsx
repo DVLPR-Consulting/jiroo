@@ -14,6 +14,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
 
+vi.mock("@/app/actions/items", () => ({
+  createItemAction: vi.fn(),
+  softDeleteItemAction: vi.fn(),
+}));
+
 const reviewStatusId = "33333333-3333-4333-8333-333333333333";
 
 const statuses: Array<{

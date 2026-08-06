@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   moveItemToSprint: vi.fn(),
   reorderSprint: vi.fn(),
+  requireBacklogPermissionById: vi.fn(),
+  requireItemPermission: vi.fn(),
+  requireSprintPermission: vi.fn(),
   revalidatePath: vi.fn(),
   startSprint: vi.fn(),
   updateSprint: vi.fn(),
@@ -15,6 +18,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/auth/rbac", () => ({ canWriteItems: mocks.canWriteItems }));
+vi.mock("@/lib/auth/action-authorization", () => ({
+  requireBacklogPermissionById: mocks.requireBacklogPermissionById,
+  requireItemPermission: mocks.requireItemPermission,
+  requireSprintPermission: mocks.requireSprintPermission,
+}));
+vi.mock("@/lib/auth/authorization", () => ({ ResourceNotFoundError: Error }));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/services/sprints", () => ({
   assignItemsToSprint: mocks.assignItemsToSprint,
@@ -50,6 +59,112 @@ describe("sprint actions", () => {
     mocks.getSession.mockResolvedValue({
       user: { id: "writer-1", role: "contributor" },
     });
+    mocks.requireBacklogPermissionById.mockResolvedValue({ backlogId, resourceId: backlogId });
+    mocks.requireItemPermission.mockImplementation(async ({ itemId: id }) => ({
+      backlogId,
+      resourceId: id,
+    }));
+    mocks.requireSprintPermission.mockImplementation(async ({ sprintId: id }) => ({
+      backlogId,
+      resourceId: id,
+    }));
+  });
+
+  it("maps sprint lifecycle operations to manage_sprints by stored ownership", async () => {
+    mocks.createSprint.mockResolvedValue({ id: sprintId });
+    mocks.updateSprint.mockResolvedValue({ id: sprintId });
+    mocks.reorderSprint.mockResolvedValue({ id: sprintId });
+    mocks.startSprint.mockResolvedValue({ sprintId });
+    mocks.completeSprint.mockResolvedValue({ sprintId });
+
+    await createSprintAction({ backlogKey: "FORGED", backlogId });
+    await updateSprintAction({ backlogKey: "FORGED", id: sprintId, backlogId, name: "Sprint" });
+    await reorderSprintAction({
+      backlogKey: "FORGED",
+      id: sprintId,
+      backlogId,
+      beforeId: null,
+      afterId: null,
+    });
+    await startSprintAction({
+      backlogKey: "FORGED",
+      id: sprintId,
+      backlogId,
+      name: "Sprint",
+      goal: null,
+      startAt: "2026-08-05T09:00:00.000Z",
+      endAt: "2026-08-19T09:00:00.000Z",
+      capacityPoints: null,
+    });
+    await completeSprintAction({
+      backlogKey: "FORGED",
+      id: sprintId,
+      backlogId,
+      destination: { type: "backlog" },
+    });
+
+    expect(mocks.requireBacklogPermissionById).toHaveBeenCalledWith({
+      actorId: "writer-1",
+      backlogId,
+      permission: "manage_sprints",
+    });
+    expect(mocks.requireSprintPermission.mock.calls.map(([input]) => input)).toEqual(
+      Array.from({ length: 4 }, () => ({
+        actorId: "writer-1",
+        sprintId,
+        permission: "manage_sprints",
+      })),
+    );
+  });
+
+  it("maps sprint membership operations to schedule_items on every stored item", async () => {
+    const secondItemId = "44444444-4444-4444-8444-444444444444";
+    mocks.assignItemsToSprint.mockResolvedValue({ changedCount: 2, unchangedCount: 0 });
+    mocks.moveItemToSprint.mockResolvedValue({ id: itemId });
+
+    await assignSprintItemsAction({
+      backlogKey: "FORGED",
+      backlogId,
+      itemIds: [itemId, secondItemId],
+      sprintId,
+    });
+    expect(mocks.requireItemPermission.mock.calls.map(([input]) => input)).toEqual([
+      { actorId: "writer-1", itemId, permission: "schedule_items" },
+      { actorId: "writer-1", itemId: secondItemId, permission: "schedule_items" },
+    ]);
+
+    vi.clearAllMocks();
+    mocks.getSession.mockResolvedValue({ user: { id: "writer-1", role: "contributor" } });
+    mocks.requireItemPermission.mockResolvedValue({ backlogId, resourceId: itemId });
+    mocks.requireSprintPermission.mockResolvedValue({ backlogId, resourceId: sprintId });
+    mocks.moveItemToSprint.mockResolvedValue({ id: itemId });
+    await moveSprintItemAction({
+      backlogKey: "FORGED",
+      backlogId,
+      itemId,
+      sprintId,
+      beforeId: null,
+      afterId: null,
+    });
+    expect(mocks.requireItemPermission).toHaveBeenCalledWith({
+      actorId: "writer-1",
+      itemId,
+      permission: "schedule_items",
+    });
+  });
+
+  it("does not let manage_sprints substitute for schedule_items", async () => {
+    mocks.requireItemPermission.mockRejectedValueOnce(new Error("Forbidden"));
+
+    await expect(
+      assignSprintItemsAction({
+        backlogKey: "DEMO",
+        backlogId,
+        itemIds: [itemId],
+        sprintId,
+      }),
+    ).rejects.toThrow("Forbidden");
+    expect(mocks.assignItemsToSprint).not.toHaveBeenCalled();
   });
 
   it("forwards planning commands with the authenticated actor and revalidates", async () => {
@@ -171,7 +286,9 @@ describe("sprint actions", () => {
   });
 
   it("blocks a viewer before every planning and lifecycle service call", async () => {
-    mocks.canWriteItems.mockReturnValue(false);
+    mocks.requireBacklogPermissionById.mockRejectedValue(new Error("Forbidden"));
+    mocks.requireItemPermission.mockRejectedValue(new Error("Forbidden"));
+    mocks.requireSprintPermission.mockRejectedValue(new Error("Forbidden"));
     mocks.getSession.mockResolvedValue({ user: { id: "viewer-1", role: "viewer" } });
 
     const calls = [

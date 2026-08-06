@@ -6,9 +6,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   requireBacklogPermissionById,
   requireBacklogPermissionByKey,
+  requireCommentPermission,
   requireItemPermission,
+  requireLinkPermission,
+  requireRefPermission,
   requireSprintPermission,
   requireStatusPermission,
+  requireViewMutationPermission,
   requireViewPermission,
 } from "@/lib/auth/action-authorization";
 import {
@@ -20,6 +24,9 @@ import { user } from "@/lib/db/schema/auth";
 import {
   backlogPermissionConfigs,
   backlogs,
+  comments,
+  itemLinks,
+  itemRefs,
   items,
   permissionGrants,
   permissionSchemes,
@@ -47,6 +54,12 @@ let statusAId = "";
 let statusBId = "";
 let viewAId = "";
 let viewBId = "";
+let commentAId = "";
+let otherCommentAId = "";
+let linkAId = "";
+let refAId = "";
+let sharedViewAId = "";
+let privateOtherViewAId = "";
 
 describeDb("ownership-aware authorization helpers", () => {
   beforeAll(async () => {
@@ -97,6 +110,10 @@ describeDb("ownership-aware authorization helpers", () => {
         "manage_sprints",
         "manage_workflows",
         "manage_shared_views",
+        "edit_own_comments",
+        "delete_own_comments",
+        "delete_all_comments",
+        "link_items",
       ].map((permissionKey) => ({
         scope: "backlog" as const,
         permissionSchemeId: schemeIds[0]!,
@@ -162,6 +179,32 @@ describeDb("ownership-aware authorization helpers", () => {
       },
     ]);
 
+    const [createdCommentA, createdOtherCommentA] = await db
+      .insert(comments)
+      .values([
+        { itemId: itemAId, authorId: actorId, body: "Commentaire propriétaire" },
+        { itemId: itemAId, authorId: browseOnlyActorId, body: "Commentaire tiers" },
+      ])
+      .returning({ id: comments.id });
+    commentAId = createdCommentA!.id;
+    otherCommentAId = createdOtherCommentA!.id;
+
+    const [createdLinkA] = await db
+      .insert(itemLinks)
+      .values({ sourceId: itemAId, targetId: itemBId, type: "relates", createdBy: actorId })
+      .returning({ id: itemLinks.id });
+    linkAId = createdLinkA!.id;
+    const [createdRefA] = await db
+      .insert(itemRefs)
+      .values({
+        itemId: itemAId,
+        url: "https://github.com/openai/openai-node/pull/1",
+        kind: "pr",
+        createdBy: actorId,
+      })
+      .returning({ id: itemRefs.id });
+    refAId = createdRefA!.id;
+
     const [createdSprintA, createdSprintB] = await db
       .insert(sprints)
       .values([
@@ -172,15 +215,24 @@ describeDb("ownership-aware authorization helpers", () => {
     sprintAId = createdSprintA!.id;
     sprintBId = createdSprintB!.id;
 
-    const [createdViewA, createdViewB] = await db
+    const [createdViewA, createdViewB, createdSharedViewA, createdPrivateOtherViewA] = await db
       .insert(views)
       .values([
         { name: "Vue A", ownerId: actorId, backlogId: backlogA.id },
         { name: "Vue B", ownerId: actorId, backlogId: backlogB.id },
+        {
+          name: "Vue A partagée",
+          ownerId: browseOnlyActorId,
+          backlogId: backlogA.id,
+          shared: true,
+        },
+        { name: "Vue A privée tierce", ownerId: browseOnlyActorId, backlogId: backlogA.id },
       ])
       .returning({ id: views.id });
     viewAId = createdViewA!.id;
     viewBId = createdViewB!.id;
+    sharedViewAId = createdSharedViewA!.id;
+    privateOtherViewAId = createdPrivateOtherViewA!.id;
   });
 
   afterAll(async () => {
@@ -262,6 +314,58 @@ describeDb("ownership-aware authorization helpers", () => {
         permission: "manage_shared_views",
       }),
     ).rejects.toBeInstanceOf(ResourceNotFoundError);
+  });
+
+  it("resolves comment ownership before selecting own or all comment permission", async () => {
+    await expect(
+      requireCommentPermission({
+        actorId,
+        commentId: commentAId,
+        ownPermission: "edit_own_comments",
+      }),
+    ).resolves.toMatchObject({
+      backlogId: backlogA.id,
+      resourceId: commentAId,
+      authorId: actorId,
+    });
+
+    await expect(
+      requireCommentPermission({
+        actorId,
+        commentId: otherCommentAId,
+        ownPermission: "delete_own_comments",
+        otherPermission: "delete_all_comments",
+      }),
+    ).resolves.toMatchObject({ authorId: browseOnlyActorId });
+
+    await expect(
+      requireCommentPermission({
+        actorId,
+        commentId: otherCommentAId,
+        ownPermission: "edit_own_comments",
+      }),
+    ).rejects.toBeInstanceOf(PermissionDeniedError);
+  });
+
+  it("resolves stored link and reference ownership", async () => {
+    await expect(
+      requireLinkPermission({ actorId, linkId: linkAId, permission: "link_items" }),
+    ).resolves.toMatchObject({ backlogId: backlogA.id, resourceId: linkAId });
+    await expect(
+      requireRefPermission({ actorId, refId: refAId, permission: "link_items" }),
+    ).resolves.toMatchObject({ backlogId: backlogA.id, resourceId: refAId });
+  });
+
+  it("keeps personal views owner-scoped while shared views use manage_shared_views", async () => {
+    await expect(
+      requireViewMutationPermission({ actorId, viewId: viewAId }),
+    ).resolves.toMatchObject({ ownerId: actorId, shared: false });
+    await expect(
+      requireViewMutationPermission({ actorId, viewId: sharedViewAId }),
+    ).resolves.toMatchObject({ ownerId: browseOnlyActorId, shared: true });
+    await expect(
+      requireViewMutationPermission({ actorId, viewId: privateOtherViewAId }),
+    ).rejects.toBeInstanceOf(PermissionDeniedError);
   });
 
   it("hides every existing resource when its backlog cannot be browsed", async () => {

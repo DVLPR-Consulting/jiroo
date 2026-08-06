@@ -1,15 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole, type Role } from "@/lib/auth/rbac";
+import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
+import { requirePermission } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
 import { archiveBacklog, createBacklog, updateBacklog } from "@/lib/services/backlogs";
 
-async function assertAdmin() {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
-  // requireRole throws if there's no session or the user isn't admin.
-  requireRole(session as { user: { id: string; role: Role } } | null, "admin");
-  return session!.user.id;
+  if (!session?.user.id) throw new Error("Forbidden");
+  return session.user.id;
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -20,7 +20,12 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 export async function createBacklogAction(input: { key: string; name: string; color: string }) {
-  await assertAdmin();
+  const actorId = await authenticatedActorId();
+  await requirePermission({
+    actorId,
+    permission: "create_backlogs",
+    scope: { type: "global" },
+  });
   try {
     const b = await createBacklog(input);
     revalidatePath("/admin");
@@ -37,9 +42,14 @@ export async function updateBacklogAction(input: {
   name: string;
   color: string;
 }) {
-  const adminId = await assertAdmin();
+  const actorId = await authenticatedActorId();
+  await requireBacklogPermissionById({
+    actorId,
+    backlogId: input.id,
+    permission: "administer_backlog",
+  });
   try {
-    const result = await updateBacklog(input, adminId);
+    const result = await updateBacklog(input, actorId);
     if (!result) return { ok: false as const, error: "Modification impossible." };
 
     for (const path of [
@@ -64,7 +74,12 @@ export async function updateBacklogAction(input: {
 }
 
 export async function archiveBacklogAction(id: string) {
-  await assertAdmin();
+  const actorId = await authenticatedActorId();
+  await requireBacklogPermissionById({
+    actorId,
+    backlogId: id,
+    permission: "administer_backlog",
+  });
   await archiveBacklog(id);
   revalidatePath("/admin");
   return { ok: true as const };

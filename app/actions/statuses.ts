@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
-import { requireRole, type Role } from "@/lib/auth/rbac";
+import {
+  requireBacklogPermissionById,
+  requireStatusPermission,
+  type AuthorizedResource,
+} from "@/lib/auth/action-authorization";
+import { ResourceNotFoundError } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
 import {
   createStatus,
@@ -25,10 +30,16 @@ const SAFE_ERRORS = new Set([
   "Choisissez un statut de destination pour les items existants.",
 ]);
 
-async function assertAdmin() {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
-  requireRole(session as { user: { id: string; role: Role } } | null, "admin");
-  return session!.user.id;
+  if (!session?.user.id) throw new Error("Forbidden");
+  return session.user.id;
+}
+
+function assertStatusBacklog(status: AuthorizedResource, backlogId: string): void {
+  if (status.backlogId !== backlogId) {
+    throw new ResourceNotFoundError("status", status.resourceId);
+  }
 }
 
 function actionError(error: unknown) {
@@ -52,7 +63,12 @@ export async function createStatusAction(input: {
   category: StatusCategory;
   color: string;
 }) {
-  await assertAdmin();
+  const actorId = await authenticatedActorId();
+  await requireBacklogPermissionById({
+    actorId,
+    backlogId: input.backlogId,
+    permission: "manage_workflows",
+  });
   try {
     const status = await createStatus({
       backlogId: input.backlogId,
@@ -75,7 +91,13 @@ export async function updateStatusAction(input: {
   category: StatusCategory;
   color: string;
 }) {
-  const actorId = await assertAdmin();
+  const actorId = await authenticatedActorId();
+  const statusAuthorization = await requireStatusPermission({
+    actorId,
+    statusId: input.id,
+    permission: "manage_workflows",
+  });
+  assertStatusBacklog(statusAuthorization, input.backlogId);
   try {
     const status = await updateStatus(
       {
@@ -99,7 +121,20 @@ export async function reorderStatusesAction(input: {
   backlogKey: string;
   statusIds: string[];
 }) {
-  await assertAdmin();
+  const actorId = await authenticatedActorId();
+  await requireBacklogPermissionById({
+    actorId,
+    backlogId: input.backlogId,
+    permission: "manage_workflows",
+  });
+  for (const statusId of input.statusIds) {
+    const statusAuthorization = await requireStatusPermission({
+      actorId,
+      statusId,
+      permission: "manage_workflows",
+    });
+    assertStatusBacklog(statusAuthorization, input.backlogId);
+  }
   try {
     await reorderStatuses({ backlogId: input.backlogId, statusIds: input.statusIds });
     revalidateWorkflow(input.backlogKey);
@@ -115,7 +150,21 @@ export async function deleteStatusAction(input: {
   backlogKey: string;
   replacementStatusId?: string | null;
 }) {
-  const actorId = await assertAdmin();
+  const actorId = await authenticatedActorId();
+  const statusAuthorization = await requireStatusPermission({
+    actorId,
+    statusId: input.id,
+    permission: "manage_workflows",
+  });
+  assertStatusBacklog(statusAuthorization, input.backlogId);
+  if (input.replacementStatusId) {
+    const replacementAuthorization = await requireStatusPermission({
+      actorId,
+      statusId: input.replacementStatusId,
+      permission: "manage_workflows",
+    });
+    assertStatusBacklog(replacementAuthorization, statusAuthorization.backlogId);
+  }
   try {
     const result = await deleteStatus(
       {

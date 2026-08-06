@@ -1,7 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { type Role, canWriteItems } from "@/lib/auth/rbac";
+import {
+  requireBacklogPermissionById,
+  requireItemPermission,
+  requireSprintPermission,
+  requireStatusPermission,
+  type AuthorizedResource,
+} from "@/lib/auth/action-authorization";
+import { requirePermission, ResourceNotFoundError } from "@/lib/auth/authorization";
+import type { BacklogPermissionKey } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
 import { mapZodActionError } from "@/lib/validation/action-error";
@@ -48,12 +56,84 @@ type UpdateItemActionInput = {
   kind?: ItemKind;
 };
 
-// Authz FIRST on every action; actorId from the session, never client input.
-async function requireWriter(): Promise<string> {
+async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
-  const role = (session?.user as { role?: Role } | undefined)?.role;
-  if (!session || !role || !canWriteItems(role)) throw new Error("Forbidden");
+  if (!session?.user.id) throw new Error("Forbidden");
   return session.user.id;
+}
+
+function hasOwnField<T extends object>(input: T, field: PropertyKey): boolean {
+  return Object.prototype.hasOwnProperty.call(input, field);
+}
+
+function assertSameBacklog(
+  expected: AuthorizedResource,
+  actual: AuthorizedResource,
+  resourceType: string,
+): void {
+  if (expected.backlogId !== actual.backlogId) {
+    throw new ResourceNotFoundError(resourceType, actual.resourceId);
+  }
+}
+
+async function requireAssignableUser(input: {
+  assigneeId: string | null | undefined;
+  backlogId: string;
+}): Promise<void> {
+  if (!input.assigneeId) return;
+  await requirePermission({
+    actorId: input.assigneeId,
+    permission: "assignable_user",
+    scope: { type: "backlog", backlogId: input.backlogId },
+  });
+}
+
+async function authorizeItemUpdate(
+  actorId: string,
+  input: UpdateItemActionInput,
+): Promise<AuthorizedResource> {
+  const item = await requireItemPermission({
+    actorId,
+    itemId: input.id,
+    permission: "edit_items",
+  });
+  if (hasOwnField(input, "statusId")) {
+    await requireItemPermission({
+      actorId,
+      itemId: input.id,
+      permission: "transition_items",
+    });
+    if (input.statusId) {
+      const status = await requireStatusPermission({
+        actorId,
+        statusId: input.statusId,
+        permission: "transition_items",
+      });
+      assertSameBacklog(item, status, "status");
+    }
+  }
+  if (hasOwnField(input, "assigneeId")) {
+    await requireItemPermission({
+      actorId,
+      itemId: input.id,
+      permission: "assign_items",
+    });
+    await requireAssignableUser({ assigneeId: input.assigneeId, backlogId: item.backlogId });
+  }
+  return item;
+}
+
+function bulkPatchPermission(patch: BulkItemPatch): BacklogPermissionKey {
+  switch (patch.field) {
+    case "statusId":
+      return "transition_items";
+    case "assigneeId":
+      return "assign_items";
+    case "sprintId":
+      return "schedule_items";
+    default:
+      return "edit_items";
+  }
 }
 
 function mapCreateError(e: unknown): string {
@@ -95,7 +175,28 @@ function mapBulkError(error: unknown): string {
 }
 
 export async function createItemAction(input: CreateItemActionInput) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  const backlog = await requireBacklogPermissionById({
+    actorId,
+    backlogId: input.backlogId,
+    permission: "create_items",
+  });
+  if (input.sprintId) {
+    const sprint = await requireSprintPermission({
+      actorId,
+      sprintId: input.sprintId,
+      permission: "schedule_items",
+    });
+    assertSameBacklog(backlog, sprint, "sprint");
+  }
+  if (hasOwnField(input, "assigneeId")) {
+    await requireBacklogPermissionById({
+      actorId,
+      backlogId: backlog.backlogId,
+      permission: "assign_items",
+    });
+    await requireAssignableUser({ assigneeId: input.assigneeId, backlogId: backlog.backlogId });
+  }
   const { backlogKey, ...data } = input;
   try {
     const item = await createItem(data, actorId);
@@ -109,7 +210,8 @@ export async function createItemAction(input: CreateItemActionInput) {
 }
 
 export async function updateItemAction(input: UpdateItemActionInput) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  await authorizeItemUpdate(actorId, input);
   const { backlogKey, ...data } = input;
   try {
     const item = await updateItem(data, actorId);
@@ -136,7 +238,39 @@ export async function bulkUpdateItemsAction(input: {
   itemIds: string[];
   patch: BulkItemPatch;
 }) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  await requirePermission({
+    actorId,
+    permission: "bulk_change_items",
+    scope: { type: "global" },
+  });
+  const permission = bulkPatchPermission(input.patch);
+  const authorizedItems: AuthorizedResource[] = [];
+  for (const itemId of input.itemIds) {
+    authorizedItems.push(await requireItemPermission({ actorId, itemId, permission }));
+  }
+  const authorizedBacklogs = new Map(
+    authorizedItems.map((item) => [item.backlogId, item]),
+  );
+  if (input.patch.field === "statusId") {
+    const status = await requireStatusPermission({
+      actorId,
+      statusId: input.patch.value,
+      permission: "transition_items",
+    });
+    for (const item of authorizedBacklogs.values()) assertSameBacklog(item, status, "status");
+  } else if (input.patch.field === "sprintId" && input.patch.value) {
+    const sprint = await requireSprintPermission({
+      actorId,
+      sprintId: input.patch.value,
+      permission: "schedule_items",
+    });
+    for (const item of authorizedBacklogs.values()) assertSameBacklog(item, sprint, "sprint");
+  } else if (input.patch.field === "assigneeId") {
+    for (const backlogId of authorizedBacklogs.keys()) {
+      await requireAssignableUser({ assigneeId: input.patch.value, backlogId });
+    }
+  }
   const { backlogKey, ...serviceInput } = input;
   try {
     const result = await bulkUpdateItems(serviceInput, actorId);
@@ -150,7 +284,8 @@ export async function bulkUpdateItemsAction(input: {
 }
 
 export async function softDeleteItemAction(input: { id: string; backlogKey: string }) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  await requireItemPermission({ actorId, itemId: input.id, permission: "delete_items" });
   try {
     const item = await softDeleteItem({ id: input.id }, actorId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
@@ -163,7 +298,8 @@ export async function softDeleteItemAction(input: { id: string; backlogKey: stri
 }
 
 export async function restoreItemAction(input: { id: string; backlogKey: string }) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  await requireItemPermission({ actorId, itemId: input.id, permission: "restore_items" });
   let item: Awaited<ReturnType<typeof restoreItem>>;
   try {
     item = await restoreItem({ id: input.id }, actorId);
@@ -211,7 +347,8 @@ const RANK_DOMAIN_ERRORS = [
 ] as const;
 
 export async function rankBacklogItemAction(input: RankBacklogItemActionInput) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  await requireItemPermission({ actorId, itemId: input.id, permission: "schedule_items" });
   const { backlogKey, ...data } = input;
   try {
     const item = await rankBacklogItem(data, actorId);
@@ -243,7 +380,27 @@ function mapMoveError(e: unknown): string {
 }
 
 export async function moveItemAction(input: MoveItemActionInput) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  const item = await requireItemPermission({
+    actorId,
+    itemId: input.id,
+    permission: "schedule_items",
+  });
+  if (hasOwnField(input, "statusId")) {
+    await requireItemPermission({
+      actorId,
+      itemId: input.id,
+      permission: "transition_items",
+    });
+    if (input.statusId) {
+      const status = await requireStatusPermission({
+        actorId,
+        statusId: input.statusId,
+        permission: "transition_items",
+      });
+      assertSameBacklog(item, status, "status");
+    }
+  }
   const { backlogKey, ...data } = input;
   try {
     const item = await moveItem(data, actorId);
@@ -256,7 +413,8 @@ export async function moveItemAction(input: MoveItemActionInput) {
 }
 
 export async function reparentItemAction(input: ReparentItemActionInput) {
-  const actorId = await requireWriter();
+  const actorId = await authenticatedActorId();
+  await requireItemPermission({ actorId, itemId: input.id, permission: "schedule_items" });
   const { backlogKey, ...data } = input;
   try {
     const item = await reparentItem(data, actorId);

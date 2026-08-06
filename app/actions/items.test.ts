@@ -5,22 +5,40 @@ const mocks = vi.hoisted(() => ({
   canWriteItems: vi.fn(),
   createItem: vi.fn(),
   getSession: vi.fn(),
+  moveItem: vi.fn(),
   rankBacklogItem: vi.fn(),
+  reparentItem: vi.fn(),
+  requireBacklogPermissionById: vi.fn(),
+  requireItemPermission: vi.fn(),
+  requirePermission: vi.fn(),
+  requireSprintPermission: vi.fn(),
+  requireStatusPermission: vi.fn(),
   revalidatePath: vi.fn(),
   restoreItem: vi.fn(),
+  softDeleteItem: vi.fn(),
   updateItem: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/auth/rbac", () => ({ canWriteItems: mocks.canWriteItems }));
+vi.mock("@/lib/auth/action-authorization", () => ({
+  requireBacklogPermissionById: mocks.requireBacklogPermissionById,
+  requireItemPermission: mocks.requireItemPermission,
+  requireSprintPermission: mocks.requireSprintPermission,
+  requireStatusPermission: mocks.requireStatusPermission,
+}));
+vi.mock("@/lib/auth/authorization", () => ({
+  requirePermission: mocks.requirePermission,
+  ResourceNotFoundError: Error,
+}));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/services/items", () => ({
   createItem: mocks.createItem,
-  moveItem: vi.fn(),
+  moveItem: mocks.moveItem,
   rankBacklogItem: mocks.rankBacklogItem,
-  reparentItem: vi.fn(),
+  reparentItem: mocks.reparentItem,
   restoreItem: mocks.restoreItem,
-  softDeleteItem: vi.fn(),
+  softDeleteItem: mocks.softDeleteItem,
   updateItem: mocks.updateItem,
 }));
 vi.mock("@/lib/services/item-bulk", () => ({
@@ -30,12 +48,279 @@ vi.mock("@/lib/services/item-bulk", () => ({
 import {
   bulkUpdateItemsAction,
   createItemAction,
+  moveItemAction,
   rankBacklogItemAction,
+  reparentItemAction,
   restoreItemAction,
+  softDeleteItemAction,
   updateItemAction,
 } from "@/app/actions/items";
 import { bulkUpdateItemsSchema } from "@/lib/validation/bulk-item";
 import { createItemSchema, updateItemSchema } from "@/lib/validation/item";
+
+const backlogId = "11111111-1111-4111-8111-111111111111";
+const itemId = "22222222-2222-4222-9222-222222222222";
+const secondItemId = "33333333-3333-4333-8333-333333333333";
+const statusId = "44444444-4444-4444-8444-444444444444";
+const sprintId = "55555555-5555-4555-8555-555555555555";
+
+function authorizeStoredResource(id: string) {
+  return { backlogId, resourceId: id };
+}
+
+describe("item action permission mapping", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.canWriteItems.mockReturnValue(true);
+    mocks.getSession.mockResolvedValue({ user: { id: "writer-1", role: "contributor" } });
+    mocks.requireBacklogPermissionById.mockImplementation(async ({ backlogId: id }) =>
+      authorizeStoredResource(id),
+    );
+    mocks.requireItemPermission.mockImplementation(async ({ itemId: id }) =>
+      authorizeStoredResource(id),
+    );
+    mocks.requireSprintPermission.mockImplementation(async ({ sprintId: id }) =>
+      authorizeStoredResource(id),
+    );
+    mocks.requireStatusPermission.mockImplementation(async ({ statusId: id }) =>
+      authorizeStoredResource(id),
+    );
+    mocks.createItem.mockResolvedValue({ id: itemId });
+    mocks.updateItem.mockResolvedValue({ id: itemId });
+    mocks.bulkUpdateItems.mockResolvedValue({ changedCount: 2, unchangedCount: 0 });
+    mocks.rankBacklogItem.mockResolvedValue({ id: itemId });
+    mocks.moveItem.mockResolvedValue({ id: itemId });
+    mocks.reparentItem.mockResolvedValue({ id: itemId });
+    mocks.softDeleteItem.mockResolvedValue({ id: itemId });
+    mocks.restoreItem.mockResolvedValue({ id: itemId });
+  });
+
+  it("requires create_items and schedule_items when creating directly in a sprint", async () => {
+    await createItemAction({
+      backlogKey: "FORGED",
+      backlogId,
+      type: "tache",
+      parentId: itemId,
+      title: "Planifiée",
+      sprintId,
+    });
+
+    expect(mocks.requireBacklogPermissionById).toHaveBeenCalledWith({
+      actorId: "writer-1",
+      backlogId,
+      permission: "create_items",
+    });
+    expect(mocks.requireSprintPermission).toHaveBeenCalledWith({
+      actorId: "writer-1",
+      sprintId,
+      permission: "schedule_items",
+    });
+    expect(mocks.createItem).toHaveBeenCalled();
+  });
+
+  it.each([
+    { field: "title", value: "Nouveau", permissions: ["edit_items"] },
+    { field: "statusId", value: statusId, permissions: ["edit_items", "transition_items"] },
+    { field: "assigneeId", value: "assignee-1", permissions: ["edit_items", "assign_items"] },
+  ])("requires $permissions when updating $field", async ({ field, value, permissions }) => {
+    await updateItemAction({ backlogKey: "FORGED", id: itemId, [field]: value });
+
+    expect(mocks.requireItemPermission.mock.calls.map(([input]) => input)).toEqual(
+      permissions.map((permission) => ({ actorId: "writer-1", itemId, permission })),
+    );
+  });
+
+  it.each([
+    { patch: { field: "priority" as const, value: 4 }, permission: "edit_items" },
+    { patch: { field: "statusId" as const, value: statusId }, permission: "transition_items" },
+    { patch: { field: "assigneeId" as const, value: "assignee-1" }, permission: "assign_items" },
+    { patch: { field: "sprintId" as const, value: sprintId }, permission: "schedule_items" },
+  ])("requires global bulk plus $permission for every selected item", async ({ patch, permission }) => {
+    await bulkUpdateItemsAction({
+      backlogKey: "FORGED",
+      backlogId,
+      itemIds: [itemId, secondItemId],
+      patch,
+    });
+
+    expect(mocks.requirePermission).toHaveBeenCalledWith({
+      actorId: "writer-1",
+      permission: "bulk_change_items",
+      scope: { type: "global" },
+    });
+    expect(mocks.requireItemPermission.mock.calls.map(([input]) => input)).toEqual([
+      { actorId: "writer-1", itemId, permission },
+      { actorId: "writer-1", itemId: secondItemId, permission },
+    ]);
+  });
+
+  it.each([
+    {
+      name: "rank",
+      run: () =>
+        rankBacklogItemAction({
+          backlogKey: "FORGED",
+          backlogId,
+          id: itemId,
+          beforeId: null,
+          afterId: null,
+        }),
+    },
+    {
+      name: "reparent",
+      run: () =>
+        reparentItemAction({
+          backlogKey: "FORGED",
+          id: itemId,
+          newParentId: null,
+          beforeId: null,
+          afterId: null,
+        }),
+    },
+  ])("requires schedule_items by stored item for $name", async ({ run }) => {
+    await run();
+    expect(mocks.requireItemPermission).toHaveBeenCalledWith({
+      actorId: "writer-1",
+      itemId,
+      permission: "schedule_items",
+    });
+  });
+
+  it("combines schedule and transition permission for a ranked status move", async () => {
+    await moveItemAction({
+      backlogKey: "FORGED",
+      id: itemId,
+      statusId,
+      beforeId: null,
+      afterId: null,
+    });
+
+    expect(mocks.requireItemPermission.mock.calls.map(([input]) => input.permission)).toEqual([
+      "schedule_items",
+      "transition_items",
+    ]);
+  });
+
+  it.each([
+    { name: "soft delete", run: () => softDeleteItemAction({ id: itemId, backlogKey: "FORGED" }), permission: "delete_items" },
+    { name: "restore", run: () => restoreItemAction({ id: itemId, backlogKey: "FORGED" }), permission: "restore_items" },
+  ])("requires $permission by stored item before $name", async ({ run, permission }) => {
+    await run();
+    expect(mocks.requireItemPermission).toHaveBeenCalledWith({
+      actorId: "writer-1",
+      itemId,
+      permission,
+    });
+  });
+
+  it("does not let a forged backlog key authorize an item from another backlog", async () => {
+    mocks.requireItemPermission.mockRejectedValueOnce(new Error("Forbidden"));
+
+    await expect(
+      updateItemAction({ backlogKey: "AUTHORIZED-BUT-FORGED", id: itemId, title: "Interdit" }),
+    ).rejects.toThrow("Forbidden");
+    expect(mocks.updateItem).not.toHaveBeenCalled();
+  });
+
+  it("does not let global bulk_change_items substitute for item edit permission", async () => {
+    mocks.requireItemPermission.mockRejectedValueOnce(new Error("Forbidden"));
+
+    await expect(
+      bulkUpdateItemsAction({
+        backlogKey: "DEMO",
+        backlogId,
+        itemIds: [itemId],
+        patch: { field: "priority", value: 4 },
+      }),
+    ).rejects.toThrow("Forbidden");
+    expect(mocks.requirePermission).toHaveBeenCalledWith({
+      actorId: "writer-1",
+      permission: "bulk_change_items",
+      scope: { type: "global" },
+    });
+    expect(mocks.bulkUpdateItems).not.toHaveBeenCalled();
+  });
+
+  it("rejects an assignee who lacks assignable_user in the stored item backlog", async () => {
+    mocks.requirePermission.mockRejectedValueOnce(new Error("Forbidden"));
+
+    await expect(
+      updateItemAction({
+        backlogKey: "DEMO",
+        id: itemId,
+        assigneeId: "unassignable-1",
+      }),
+    ).rejects.toThrow("Forbidden");
+    expect(mocks.requirePermission).toHaveBeenCalledWith({
+      actorId: "unassignable-1",
+      permission: "assignable_user",
+      scope: { type: "backlog", backlogId },
+    });
+    expect(mocks.updateItem).not.toHaveBeenCalled();
+  });
+
+  it("requires the assignee to be assignable in every backlog represented by a bulk patch", async () => {
+    mocks.requireItemPermission.mockImplementation(async ({ itemId: id }) => ({
+      backlogId: id === itemId ? "backlog-1" : "backlog-2",
+      resourceId: id,
+    }));
+    mocks.requirePermission.mockImplementation(async ({ permission, scope }) => {
+      if (permission === "assignable_user" && scope.backlogId === "backlog-2") {
+        throw new Error("Forbidden");
+      }
+    });
+
+    await expect(
+      bulkUpdateItemsAction({
+        backlogKey: "DEMO",
+        backlogId,
+        itemIds: [itemId, secondItemId],
+        patch: { field: "assigneeId", value: "assignee-1" },
+      }),
+    ).rejects.toThrow("Forbidden");
+    expect(mocks.requirePermission.mock.calls.map(([input]) => input)).toEqual([
+      { actorId: "writer-1", permission: "bulk_change_items", scope: { type: "global" } },
+      {
+        actorId: "assignee-1",
+        permission: "assignable_user",
+        scope: { type: "backlog", backlogId: "backlog-1" },
+      },
+      {
+        actorId: "assignee-1",
+        permission: "assignable_user",
+        scope: { type: "backlog", backlogId: "backlog-2" },
+      },
+    ]);
+    expect(mocks.bulkUpdateItems).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      name: "sprint",
+      run: () =>
+        createItemAction({
+          backlogKey: "DEMO",
+          backlogId,
+          type: "tache",
+          parentId: itemId,
+          title: "Croisée",
+          sprintId,
+        }),
+      helper: mocks.requireSprintPermission,
+      service: mocks.createItem,
+    },
+    {
+      name: "status",
+      run: () => updateItemAction({ backlogKey: "DEMO", id: itemId, statusId }),
+      helper: mocks.requireStatusPermission,
+      service: mocks.updateItem,
+    },
+  ])("rejects a stored $name target from another backlog", async ({ name, run, helper, service }) => {
+    helper.mockResolvedValueOnce({ backlogId: "backlog-2", resourceId: `${name}-other` });
+    await expect(run()).rejects.toThrow();
+    expect(service).not.toHaveBeenCalled();
+  });
+});
 
 describe("item action validation", () => {
   beforeEach(() => {
@@ -191,7 +476,7 @@ describe("rankBacklogItemAction", () => {
   });
 
   it("rejects viewers before calling the service", async () => {
-    mocks.canWriteItems.mockReturnValue(false);
+    mocks.requireItemPermission.mockRejectedValueOnce(new Error("Forbidden"));
     mocks.getSession.mockResolvedValueOnce({
       user: { id: "viewer-1", role: "viewer", twoFactorEnabled: true },
     });
@@ -305,7 +590,7 @@ describe("bulkUpdateItemsAction", () => {
   });
 
   it("rejects viewers before calling the bulk service", async () => {
-    mocks.canWriteItems.mockReturnValue(false);
+    mocks.requirePermission.mockRejectedValueOnce(new Error("Forbidden"));
     mocks.getSession.mockResolvedValueOnce({
       user: { id: "viewer-1", role: "viewer", twoFactorEnabled: true },
     });

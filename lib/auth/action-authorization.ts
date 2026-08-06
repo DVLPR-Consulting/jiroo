@@ -8,7 +8,16 @@ import {
 } from "@/lib/auth/authorization";
 import type { BacklogPermissionKey } from "@/lib/auth/permissions";
 import { db } from "@/lib/db";
-import { backlogs, items, sprints, statuses, views } from "@/lib/db/schema/domain";
+import {
+  backlogs,
+  comments,
+  itemLinks,
+  itemRefs,
+  items,
+  sprints,
+  statuses,
+  views,
+} from "@/lib/db/schema/domain";
 
 export type AuthorizedResource = {
   backlogId: string;
@@ -160,5 +169,128 @@ export async function requireViewPermission(
     resourceType: "view",
     resourceId: view.id,
     backlogId: view.backlogId,
+  });
+}
+
+export async function requireViewMutationPermission(input: {
+  actorId: string;
+  viewId: string;
+  sharedMutation?: boolean;
+}): Promise<AuthorizedResource & { ownerId: string; shared: boolean }> {
+  const [view] = await db
+    .select({
+      id: views.id,
+      backlogId: views.backlogId,
+      ownerId: views.ownerId,
+      shared: views.shared,
+    })
+    .from(views)
+    .where(eq(views.id, input.viewId))
+    .limit(1);
+  if (!view) throw new ResourceNotFoundError("view", input.viewId);
+
+  const permission = input.sharedMutation || view.shared
+    ? "manage_shared_views"
+    : "browse_backlog";
+  const authorized = await authorizeResource({
+    actorId: input.actorId,
+    permission,
+    resourceType: "view",
+    resourceId: view.id,
+    backlogId: view.backlogId,
+  });
+  if (!view.shared && view.ownerId !== input.actorId) {
+    throw new PermissionDeniedError({
+      allowed: false,
+      permission,
+      scope: { type: "backlog", backlogId: authorized.backlogId },
+      reasons: [{ type: "no_matching_grant" }],
+    });
+  }
+  return { ...authorized, ownerId: view.ownerId, shared: view.shared };
+}
+
+export async function requireCommentPermission(input: {
+  actorId: string;
+  commentId: string;
+  ownPermission: "edit_own_comments" | "delete_own_comments";
+  otherPermission?: "delete_all_comments";
+}): Promise<AuthorizedResource & { authorId: string }> {
+  const [comment] = await db
+    .select({
+      id: comments.id,
+      authorId: comments.authorId,
+      backlogId: items.backlogId,
+    })
+    .from(comments)
+    .innerJoin(items, eq(comments.itemId, items.id))
+    .where(eq(comments.id, input.commentId))
+    .limit(1);
+  if (!comment) throw new ResourceNotFoundError("comment", input.commentId);
+
+  if (comment.authorId !== input.actorId && !input.otherPermission) {
+    await authorizeResource({
+      actorId: input.actorId,
+      permission: "browse_backlog",
+      resourceType: "comment",
+      resourceId: comment.id,
+      backlogId: comment.backlogId,
+    });
+    throw new PermissionDeniedError({
+      allowed: false,
+      permission: input.ownPermission,
+      scope: { type: "backlog", backlogId: comment.backlogId },
+      reasons: [{ type: "no_matching_grant" }],
+    });
+  }
+
+  const authorized = await authorizeResource({
+    actorId: input.actorId,
+    permission:
+      comment.authorId === input.actorId
+        ? input.ownPermission
+        : input.otherPermission!,
+    resourceType: "comment",
+    resourceId: comment.id,
+    backlogId: comment.backlogId,
+  });
+  return { ...authorized, authorId: comment.authorId };
+}
+
+export async function requireLinkPermission(
+  input: BacklogPermissionInput & { linkId: string },
+): Promise<AuthorizedResource> {
+  const [link] = await db
+    .select({ id: itemLinks.id, backlogId: items.backlogId })
+    .from(itemLinks)
+    .innerJoin(items, eq(itemLinks.sourceId, items.id))
+    .where(eq(itemLinks.id, input.linkId))
+    .limit(1);
+  if (!link) throw new ResourceNotFoundError("link", input.linkId);
+
+  return authorizeResource({
+    ...input,
+    resourceType: "link",
+    resourceId: link.id,
+    backlogId: link.backlogId,
+  });
+}
+
+export async function requireRefPermission(
+  input: BacklogPermissionInput & { refId: string },
+): Promise<AuthorizedResource> {
+  const [ref] = await db
+    .select({ id: itemRefs.id, backlogId: items.backlogId })
+    .from(itemRefs)
+    .innerJoin(items, eq(itemRefs.itemId, items.id))
+    .where(eq(itemRefs.id, input.refId))
+    .limit(1);
+  if (!ref) throw new ResourceNotFoundError("reference", input.refId);
+
+  return authorizeResource({
+    ...input,
+    resourceType: "reference",
+    resourceId: ref.id,
+    backlogId: ref.backlogId,
   });
 }

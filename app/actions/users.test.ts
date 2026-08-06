@@ -3,13 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   createUser: vi.fn(),
   getSession: vi.fn(),
-  requireRole: vi.fn(),
+  requirePermission: vi.fn(),
   revalidatePath: vi.fn(),
   setUserRole: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
-vi.mock("@/lib/auth/rbac", () => ({ requireRole: mocks.requireRole }));
+vi.mock("@/lib/auth/authorization", () => ({ requirePermission: mocks.requirePermission }));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/services/users", () => ({
   createUser: mocks.createUser,
@@ -24,6 +24,39 @@ describe("user admin actions", () => {
     mocks.getSession.mockResolvedValue({
       user: { id: "admin-1", role: "admin", twoFactorEnabled: true },
     });
+  });
+
+  it.each([
+    {
+      name: "create",
+      run: () =>
+        createUserAction({
+          email: "user@example.test",
+          name: "User",
+          role: "viewer",
+          password: "password-123",
+        }),
+      service: mocks.createUser,
+    },
+    {
+      name: "change role",
+      run: () => setUserRoleAction({ userId: "user-2", role: "viewer" }),
+      service: mocks.setUserRole,
+    },
+  ])("requires manage_users_groups before $name", async ({ run, service }) => {
+    mocks.createUser.mockResolvedValue({ id: "user-2" });
+    mocks.setUserRole.mockResolvedValue({ id: "user-2" });
+
+    await run();
+
+    expect(mocks.requirePermission).toHaveBeenCalledWith({
+      actorId: "admin-1",
+      permission: "manage_users_groups",
+      scope: { type: "global" },
+    });
+    expect(mocks.requirePermission.mock.invocationCallOrder[0]).toBeLessThan(
+      service.mock.invocationCallOrder[0]!,
+    );
   });
 
   it.each([

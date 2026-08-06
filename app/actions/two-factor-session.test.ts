@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   authGetSession: vi.fn(),
   headers: vi.fn(),
+  requireItemPermission: vi.fn(),
+  requirePermission: vi.fn(),
   revalidatePath: vi.fn(),
   restoreItem: vi.fn(),
 }));
@@ -11,6 +13,13 @@ vi.mock("next/headers", () => ({ headers: mocks.headers }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: mocks.authGetSession } },
+}));
+vi.mock("@/lib/auth/action-authorization", () => ({
+  requireItemPermission: mocks.requireItemPermission,
+}));
+vi.mock("@/lib/auth/authorization", () => ({
+  requirePermission: mocks.requirePermission,
+  ResourceNotFoundError: Error,
 }));
 vi.mock("@/lib/services/items", () => ({
   createItem: vi.fn(),

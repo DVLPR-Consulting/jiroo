@@ -4,13 +4,19 @@ const mocks = vi.hoisted(() => ({
   archiveBacklog: vi.fn(),
   createBacklog: vi.fn(),
   getSession: vi.fn(),
-  requireRole: vi.fn(),
+  requireBacklogPermissionById: vi.fn(),
+  requirePermission: vi.fn(),
   revalidatePath: vi.fn(),
   updateBacklog: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
-vi.mock("@/lib/auth/rbac", () => ({ requireRole: mocks.requireRole }));
+vi.mock("@/lib/auth/action-authorization", () => ({
+  requireBacklogPermissionById: mocks.requireBacklogPermissionById,
+}));
+vi.mock("@/lib/auth/authorization", () => ({
+  requirePermission: mocks.requirePermission,
+}));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/services/backlogs", () => ({
   archiveBacklog: mocks.archiveBacklog,
@@ -18,7 +24,68 @@ vi.mock("@/lib/services/backlogs", () => ({
   updateBacklog: mocks.updateBacklog,
 }));
 
-import { updateBacklogAction } from "@/app/actions/backlogs";
+import {
+  archiveBacklogAction,
+  createBacklogAction,
+  updateBacklogAction,
+} from "@/app/actions/backlogs";
+
+describe("backlog action permissions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getSession.mockResolvedValue({
+      user: { id: "admin-1", role: "admin", twoFactorEnabled: true },
+    });
+    mocks.createBacklog.mockResolvedValue({ id: "backlog-created", key: "API" });
+    mocks.updateBacklog.mockResolvedValue({
+      previousKey: "WEB",
+      backlog: { id: "backlog-1", key: "PLAT", name: "Plateforme", color: "#2b6cb0" },
+    });
+  });
+
+  it("requires the exact global permission before creating a backlog", async () => {
+    await createBacklogAction({ key: "API", name: "API", color: "#475569" });
+
+    expect(mocks.requirePermission).toHaveBeenCalledWith({
+      actorId: "admin-1",
+      permission: "create_backlogs",
+      scope: { type: "global" },
+    });
+    expect(mocks.requirePermission.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.createBacklog.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it.each([
+    {
+      name: "update",
+      run: () =>
+        updateBacklogAction({
+          id: "backlog-1",
+          key: "PLAT",
+          name: "Plateforme",
+          color: "#2b6cb0",
+        }),
+      service: mocks.updateBacklog,
+    },
+    {
+      name: "archive",
+      run: () => archiveBacklogAction("backlog-1"),
+      service: mocks.archiveBacklog,
+    },
+  ])("requires administer_backlog by stored id before $name", async ({ run, service }) => {
+    await run();
+
+    expect(mocks.requireBacklogPermissionById).toHaveBeenCalledWith({
+      actorId: "admin-1",
+      backlogId: "backlog-1",
+      permission: "administer_backlog",
+    });
+    expect(mocks.requireBacklogPermissionById.mock.invocationCallOrder[0]).toBeLessThan(
+      service.mock.invocationCallOrder[0]!,
+    );
+  });
+});
 
 describe("updateBacklogAction", () => {
   beforeEach(() => {
