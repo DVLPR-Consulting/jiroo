@@ -275,6 +275,7 @@ function ItemRow({
           itemId={item.id}
           backlogKey={backlogKey}
           assigneeId={item.assigneeId}
+          assigneeName={item.assigneeName}
           users={users}
           readOnly={!canEditItems || !canAssignItems}
         />

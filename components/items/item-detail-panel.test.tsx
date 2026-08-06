@@ -403,6 +403,49 @@ describe("ItemDetailPanel header", () => {
     expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
   });
 
+  it("renders current assignee and reporter identities as disabled non-candidate options", () => {
+    const currentAssignee = { id: "former-assignee", name: "Ancienne assignée" };
+    const currentReporter = { id: "former-reporter", name: "Ancien rapporteur" };
+    const assignable = { id: "assignable-user", name: "Candidate assignable" };
+    const reporterCandidate = { id: "reporter-candidate", name: "Rapporteuse candidate" };
+
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          detail={{
+            ...detail,
+            assigneeId: currentAssignee.id,
+            reporterId: currentReporter.id,
+          }}
+          users={[currentAssignee, currentReporter]}
+          assigneeCandidates={[assignable]}
+          reporterCandidates={[reporterCandidate]}
+          canEditItems
+          canAssignItems
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    const assigneeSelect = screen.getByRole("combobox", { name: "Assigné" });
+    expect(assigneeSelect).toHaveValue(currentAssignee.id);
+    expect(
+      within(assigneeSelect).getByRole("option", { name: currentAssignee.name }),
+    ).toBeDisabled();
+    expect(
+      within(assigneeSelect).getByRole("option", { name: assignable.name }),
+    ).toBeEnabled();
+
+    const reporterSelect = screen.getByRole("combobox", { name: "Rapporteur" });
+    expect(reporterSelect).toHaveValue(currentReporter.id);
+    expect(
+      within(reporterSelect).getByRole("option", { name: currentReporter.name }),
+    ).toBeDisabled();
+    expect(
+      within(reporterSelect).getByRole("option", { name: reporterCandidate.name }),
+    ).toBeEnabled();
+  });
+
   it("grants delete, comments, and links independently from ordinary editing", async () => {
     const user = userEvent.setup();
     render(

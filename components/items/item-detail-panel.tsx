@@ -551,6 +551,7 @@ export function ItemDetailPanel({
                   itemId={detail.id}
                   backlogKey={backlogKey}
                   assigneeId={detail.assigneeId}
+                  currentAssignee={assignee}
                   users={assigneeCandidates}
                 />
               ) : assignee?.name ?? "Non assigné"}
@@ -562,6 +563,7 @@ export function ItemDetailPanel({
                   itemId={detail.id}
                   backlogKey={backlogKey}
                   reporterId={detail.reporterId}
+                  currentReporter={reporter}
                   users={reporterCandidates}
                 />
               ) : reporter?.name ?? "—"}
