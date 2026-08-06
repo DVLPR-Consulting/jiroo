@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   listItemLabelPairs: vi.fn(),
   listItems: vi.fn(),
   listLabelsForBacklog: vi.fn(),
+  listAssignableUsersForBacklog: vi.fn(),
   listSprintsForBacklog: vi.fn(),
   listUsers: vi.fn(),
   listUsersByIds: vi.fn(),
@@ -36,6 +37,7 @@ vi.mock("@/lib/auth/accessible-backlogs", () => ({
 }));
 vi.mock("@/lib/auth/authorization", () => ({
   checkPermission: mocks.checkPermission,
+  listAssignableUsersForBacklog: mocks.listAssignableUsersForBacklog,
 }));
 vi.mock("@/lib/db", () => ({ db: { select: mocks.select } }));
 vi.mock("@/lib/services/backlogs", () => ({
@@ -119,6 +121,7 @@ describe("BacklogViewContent read boundary", () => {
     mocks.blockedItemIds.mockResolvedValue([]);
     mocks.listUsers.mockResolvedValue([]);
     mocks.listUsersByIds.mockResolvedValue([]);
+    mocks.listAssignableUsersForBacklog.mockResolvedValue([]);
     mocks.checkPermission.mockResolvedValue({
       allowed: false,
       permission: "browse_users",
@@ -357,6 +360,7 @@ describe("BacklogViewContent read boundary", () => {
       scope: { type: "global" },
     });
     expect(mocks.listUsers).not.toHaveBeenCalled();
+    expect(mocks.listAssignableUsersForBacklog).not.toHaveBeenCalled();
     expect(mocks.filterBarProps).toHaveBeenCalledWith(
       expect.objectContaining({
         users: [{ id: "referenced-1", name: "Referenced User" }],
@@ -400,6 +404,9 @@ describe("BacklogViewContent read boundary", () => {
       { id: "blocked-1", name: "Blocked User", email: "blocked@example.test" },
       { id: "assignable-1", name: "Assignable User", email: "assignable@example.test" },
     ]);
+    mocks.listAssignableUsersForBacklog.mockResolvedValue([
+      { id: "assignable-1", name: "Assignable User" },
+    ]);
     mocks.checkPermission.mockImplementation(async ({ actorId, permission }) => ({
       allowed: permission === "browse_users" || actorId === "assignable-1",
       permission,
@@ -429,6 +436,54 @@ describe("BacklogViewContent read boundary", () => {
           { id: "assignable-1", name: "Assignable User" },
         ],
       }),
+    );
+  });
+
+  it("resolves a large assignable directory with one bounded DAL call", async () => {
+    mocks.getBacklogByKeyForUser.mockResolvedValue({
+      id: "backlog-1",
+      key: "DEMO",
+      name: "Demo",
+      color: "#2563eb",
+      archivedAt: null,
+    });
+    mocks.getBacklogCapabilities.mockResolvedValue({
+      createItems: false,
+      editItems: true,
+      transitionItems: false,
+      scheduleItems: false,
+      assignItems: true,
+      manageSprints: false,
+      manageWorkflow: false,
+      manageMembers: false,
+      bulkChangeItems: false,
+    });
+    const directoryUsers = Array.from({ length: 128 }, (_, index) => ({
+      id: `directory-${index}`,
+      name: `Directory User ${index}`,
+    }));
+    const assignableUsers = [directoryUsers[7]!, directoryUsers[93]!];
+    mocks.listUsers.mockResolvedValue(directoryUsers);
+    mocks.listAssignableUsersForBacklog.mockResolvedValue(assignableUsers);
+    mocks.checkPermission.mockResolvedValue({
+      allowed: true,
+      permission: "browse_users",
+      scope: { type: "global" },
+      reasons: [{ type: "user_grant", id: "viewer-1", label: "Viewer" }],
+    });
+
+    render(
+      await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "list" }),
+      }),
+    );
+
+    expect(mocks.listAssignableUsersForBacklog).toHaveBeenCalledOnce();
+    expect(mocks.listAssignableUsersForBacklog).toHaveBeenCalledWith("backlog-1");
+    expect(mocks.checkPermission).toHaveBeenCalledTimes(1);
+    expect(mocks.itemListProps).toHaveBeenCalledWith(
+      expect.objectContaining({ users: assignableUsers }),
     );
   });
 });

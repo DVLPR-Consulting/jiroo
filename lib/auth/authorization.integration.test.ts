@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   checkPermission,
   explainPermission,
+  listAssignableUsersForBacklog,
   PermissionDeniedError,
   requirePermission,
   ResourceNotFoundError,
@@ -41,6 +42,10 @@ const ids = {
   noAccess: `auth-no-access-${fixtureId}`,
   admin: `auth-admin-${fixtureId}`,
 } as const;
+const largeDirectoryIds = Array.from(
+  { length: 64 },
+  (_, index) => `auth-directory-${index}-${fixtureId}`,
+);
 
 let backlogAId = "";
 let backlogBId = "";
@@ -55,15 +60,22 @@ let roleGroupId = "";
 
 describeDb("server-only authorization resolver", () => {
   beforeAll(async () => {
-    await db.insert(user).values(
-      Object.entries(ids).map(([kind, id]) => ({
+    await db.insert(user).values([
+      ...Object.entries(ids).map(([kind, id]) => ({
         id,
         name: kind === "admin" ? "Administratrice plateforme" : `Utilisateur ${kind}`,
         email: `${id}@example.test`,
         emailVerified: true,
         role: kind === "admin" ? "admin" : "contributor",
       })),
-    );
+      ...largeDirectoryIds.map((id, index) => ({
+        id,
+        name: `Utilisateur annuaire ${index}`,
+        email: `${id}@example.test`,
+        emailVerified: true,
+        role: "contributor",
+      })),
+    ]);
 
     const [backlogA, backlogB, backlogC, unconfiguredBacklog] = await db
       .insert(backlogs)
@@ -200,6 +212,34 @@ describeDb("server-only authorization resolver", () => {
         permissionKey,
         principalType: "authenticated_user" as const,
       })),
+      {
+        scope: "backlog",
+        permissionSchemeId: schemeAId,
+        permissionKey: "assignable_user",
+        principalType: "user",
+        userId: ids.direct,
+      },
+      {
+        scope: "backlog",
+        permissionSchemeId: schemeAId,
+        permissionKey: "assignable_user",
+        principalType: "user",
+        userId: ids.noBrowse,
+      },
+      {
+        scope: "backlog",
+        permissionSchemeId: schemeAId,
+        permissionKey: "assignable_user",
+        principalType: "group",
+        groupId: teamGroupId,
+      },
+      {
+        scope: "backlog",
+        permissionSchemeId: schemeAId,
+        permissionKey: "assignable_user",
+        principalType: "project_role",
+        projectRoleId: deliveryRoleId,
+      },
     ]);
   });
 
@@ -238,7 +278,7 @@ describeDb("server-only authorization resolver", () => {
     if (deliveryRoleId) {
       await db.delete(projectRoles).where(eq(projectRoles.id, deliveryRoleId));
     }
-    await db.delete(user).where(inArray(user.id, Object.values(ids)));
+    await db.delete(user).where(inArray(user.id, [...Object.values(ids), ...largeDirectoryIds]));
   });
 
   it("resolves direct user and group grants with business labels", async () => {
@@ -317,6 +357,30 @@ describeDb("server-only authorization resolver", () => {
       allowed: false,
       reasons: [{ type: "missing_prerequisite", permission: "browse_backlog" }],
     });
+  });
+
+  it("resolves assignable users in two queries for a significant directory", async () => {
+    const executeSpy = vi.spyOn(db, "execute");
+    const candidates = await listAssignableUsersForBacklog(backlogAId);
+    expect(executeSpy).toHaveBeenCalledTimes(2);
+    executeSpy.mockRestore();
+
+    const fixtureCandidateIds = new Set(
+      candidates
+        .map((candidate) => candidate.id)
+        .filter((candidateId) =>
+          Object.values(ids).includes(candidateId as (typeof ids)[keyof typeof ids]) ||
+          largeDirectoryIds.includes(candidateId),
+        ),
+    );
+    expect(fixtureCandidateIds).toEqual(new Set([
+      ids.admin,
+      ids.direct,
+      ids.group,
+      ids.multiple,
+      ids.roleGroup,
+      ids.roleUser,
+    ]));
   });
 
   it("fails closed for unknown permission keys and unknown actors", async () => {

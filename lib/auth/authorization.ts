@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { and, eq, exists, isNull, or } from "drizzle-orm";
+import { and, eq, exists, isNull, or, sql } from "drizzle-orm";
 import {
   evaluatePermission,
   type GrantMatch,
@@ -314,6 +314,119 @@ export async function checkPermission(
     hasBrowse,
     matches,
   });
+}
+
+export type AssignableUserIdentity = { id: string; name: string };
+
+function backlogPermissionMatchSql(input: {
+  backlogId: string;
+  permissionSchemeId: string | null;
+  permission: "browse_backlog" | "assignable_user";
+}) {
+  return sql`exists (
+    select 1
+    from permission_grants as candidate_grant
+    where candidate_grant.scope = 'backlog'
+      and candidate_grant.permission_scheme_id = ${input.permissionSchemeId}
+      and candidate_grant.permission_key = ${input.permission}
+      and (
+        (candidate_grant.principal_type = 'user' and candidate_grant.user_id = directory_user.id)
+        or (
+          candidate_grant.principal_type = 'group'
+          and exists (
+            select 1
+            from group_members as candidate_group_member
+            where candidate_group_member.group_id = candidate_grant.group_id
+              and candidate_group_member.user_id = directory_user.id
+          )
+        )
+        or (
+          candidate_grant.principal_type = 'project_role'
+          and exists (
+            select 1
+            from backlog_role_actors as candidate_role_actor
+            where candidate_role_actor.backlog_id = ${input.backlogId}
+              and candidate_role_actor.project_role_id = candidate_grant.project_role_id
+              and (
+                (
+                  candidate_role_actor.actor_type = 'user'
+                  and candidate_role_actor.user_id = directory_user.id
+                )
+                or (
+                  candidate_role_actor.actor_type = 'group'
+                  and exists (
+                    select 1
+                    from group_members as candidate_role_group_member
+                    where candidate_role_group_member.group_id = candidate_role_actor.group_id
+                      and candidate_role_group_member.user_id = directory_user.id
+                  )
+                )
+              )
+          )
+        )
+        or candidate_grant.principal_type = 'authenticated_user'
+      )
+  )`;
+}
+
+export async function listAssignableUsersForBacklog(
+  backlogId: string,
+): Promise<AssignableUserIdentity[]> {
+  const contextResult = await db.execute<{ permissionSchemeId: string | null }>(sql`
+    select backlog_permission_configs.permission_scheme_id as "permissionSchemeId"
+    from backlogs
+    left join backlog_permission_configs
+      on backlog_permission_configs.backlog_id = backlogs.id
+    where backlogs.id = ${backlogId}
+    limit 1
+  `);
+  const context = contextResult.rows[0];
+  if (!context) return [];
+
+  const browseMatch = backlogPermissionMatchSql({
+    backlogId,
+    permissionSchemeId: context.permissionSchemeId,
+    permission: "browse_backlog",
+  });
+  const assignableMatch = backlogPermissionMatchSql({
+    backlogId,
+    permissionSchemeId: context.permissionSchemeId,
+    permission: "assignable_user",
+  });
+  const candidateResult = await db.execute<AssignableUserIdentity>(sql`
+    select directory_user.id, directory_user.name
+    from "user" as directory_user
+    where directory_user.role = 'admin'
+      or exists (
+        select 1
+        from permission_grants as administrator_grant
+        where administrator_grant.scope = 'global'
+          and administrator_grant.permission_scheme_id is null
+          and administrator_grant.permission_key = 'administer_jiroo'
+          and (
+            (
+              administrator_grant.principal_type = 'user'
+              and administrator_grant.user_id = directory_user.id
+            )
+            or (
+              administrator_grant.principal_type = 'group'
+              and exists (
+                select 1
+                from group_members as administrator_group_member
+                where administrator_group_member.group_id = administrator_grant.group_id
+                  and administrator_group_member.user_id = directory_user.id
+              )
+            )
+          )
+      )
+      or (
+        cast(${context.permissionSchemeId} as uuid) is not null
+        and ${browseMatch}
+        and ${assignableMatch}
+      )
+    order by lower(directory_user.name), directory_user.id
+  `);
+  return candidateResult.rows;
 }
 
 export function explainPermission(input: CheckPermissionInput): Promise<AuthorizationDecision> {

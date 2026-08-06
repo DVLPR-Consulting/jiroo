@@ -3,7 +3,10 @@ import { notFound } from "next/navigation";
 import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
-import { checkPermission } from "@/lib/auth/authorization";
+import {
+  checkPermission,
+  listAssignableUsersForBacklog,
+} from "@/lib/auth/authorization";
 import { projectBacklogCapabilities } from "@/lib/auth/capabilities";
 import { items as itemRowsTable, statuses } from "@/lib/db/schema/domain";
 import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
@@ -235,25 +238,15 @@ export async function BacklogViewContent({
     permission: "browse_users",
     scope: { type: "global" },
   });
-  const [referencedUsers, rawDirectoryUsers, backlogLabelRows] = await Promise.all([
+  const [referencedUsers, rawDirectoryUsers, assigneeCandidates, backlogLabelRows] = await Promise.all([
     listUsersByIds(referencedUserIds),
     browseUsersDecision.allowed ? listUsers() : Promise.resolve([]),
+    browseUsersDecision.allowed
+      ? listAssignableUsersForBacklog(backlog.id)
+      : Promise.resolve([]),
     listLabelsForBacklog(backlog.id),
   ]);
   const directoryUsers = rawDirectoryUsers.map(({ id, name }) => ({ id, name }));
-  const assignableDecisions = await Promise.all(
-    directoryUsers.map(async (candidate) => ({
-      candidate,
-      decision: await checkPermission({
-        actorId: candidate.id,
-        permission: "assignable_user",
-        scope: { type: "backlog", backlogId: backlog.id },
-      }),
-    })),
-  );
-  const assigneeCandidates = assignableDecisions
-    .filter(({ decision }) => decision.allowed)
-    .map(({ candidate }) => candidate);
   const displayUsers = [...new Map(
     [...referencedUsers, ...directoryUsers].map((candidate) => [candidate.id, candidate]),
   ).values()];
