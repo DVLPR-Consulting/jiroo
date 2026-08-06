@@ -863,6 +863,13 @@ Le premier run round 3, qui a révélé puis permis de corriger une extension de
 capture temporaire perdue, est conservé sous son run ID mais n’est pas cité
 comme preuve d’acceptation.
 
+La vérification finale Task 10 rejoue la régression complète sur le commit
+`e07fa2f` avec le run immuable `20260806-task10-chromium-01` :
+[JUnit 24/24](runs/20260806-task10-chromium-01-junit.xml),
+[manifeste de provenance](runs/20260806-task10-chromium-01-manifest.json) et
+[revue/ledger](reviews/2026-08-06-task10-review.md). Les dix scénarios de
+permissions restent sans erreur console/page/requête ni statut HTTP 4xx/5xx.
+
 Le détail finding par finding est conservé dans le
 [registre de revue Task 9 round 1/5](reviews/2026-08-06-task9-review-r1.md) et le
 [registre round 2/5](reviews/2026-08-06-task9-review-r2.md). Le durcissement

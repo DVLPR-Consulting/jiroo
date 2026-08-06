@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "runId": "20260806-task10-chromium-01",
+  "timestamps": {
+    "startedAt": "2026-08-06T19:26:57.972Z",
+    "databaseVerifiedAt": "2026-08-06T19:26:57.991Z",
+    "manifestWrittenAt": "2026-08-06T19:26:58.240Z"
+  },
+  "runtime": {
+    "node": "v24.13.0",
+    "pnpm": "10.19.0"
+  },
+  "source": {
+    "gitSha": "e07fa2f4dc284ee470ee9934d905519095afed92"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:16ea5a631f99332b04fb222cc60b0827234a62c4a45baab99dd9014cf684982e"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "pnpm --ignore-workspace test:e2e -- --project=chromium",
+    "scenarios": "Task 10 regression Chromium complete 24 scenarios"
+  },
+  "result": {
+    "junitReport": "audit/runs/20260806-task10-chromium-01-junit.xml"
+  }
+}
