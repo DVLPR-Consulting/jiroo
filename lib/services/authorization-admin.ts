@@ -3,7 +3,11 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { explainPermission } from "@/lib/auth/authorization";
-import { permissionDefinition, PROTECTED_ROLE_PERMISSION_KEYS } from "@/lib/auth/permissions";
+import {
+  BACKLOG_PERMISSION_DEFINITIONS,
+  permissionDefinition,
+  PROTECTED_ROLE_PERMISSION_KEYS,
+} from "@/lib/auth/permissions";
 import { resolvePlatformAdministratorIds } from "@/lib/auth/platform-administrator";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -371,6 +375,13 @@ type SchemeGrantProjection = {
   };
 };
 
+function isKnownBacklogPermissionKey(permissionKey: string): boolean {
+  return Object.prototype.hasOwnProperty.call(
+    BACKLOG_PERMISSION_DEFINITIONS,
+    permissionKey,
+  );
+}
+
 async function assertCanonicalSimpleMatrix(
   tx: Transaction,
   schemeId: string,
@@ -388,8 +399,19 @@ async function assertCanonicalSimpleMatrix(
     .leftJoin(projectRoles, eq(projectRoles.id, permissionGrants.projectRoleId))
     .where(eq(permissionGrants.permissionSchemeId, schemeId));
 
+  const excludedGrant = projection.excludeGrantId
+    ? grants.find((grant) => grant.id === projection.excludeGrantId)
+    : undefined;
+  const cleansUpUnknownPermission =
+    excludedGrant !== undefined &&
+    !isKnownBacklogPermissionKey(excludedGrant.permissionKey);
+
   const projected = grants
     .filter((grant) => grant.id !== projection.excludeGrantId)
+    .filter(
+      (grant) =>
+        !cleansUpUnknownPermission || isKnownBacklogPermissionKey(grant.permissionKey),
+    )
     .map((grant) => ({
       permissionKey: grant.permissionKey,
       principalType: grant.principalType,

@@ -889,6 +889,107 @@ describeDb("transactional authorization administration", () => {
     expect(await storedVersion(removeSchemeId)).toBe(1);
   });
 
+  it("removes multiple unknown Simple grants successively and audits every cleanup", async () => {
+    const schemeId = await createCanonicalScheme("Simple unknown cleanup Task 8");
+    const backlog = await createConfiguredBacklog(
+      schemeId,
+      "simple",
+      "Simple unknown cleanup Task 8",
+    );
+    const [legacyAdminGrant, legacyMemberGrant] = await db
+      .insert(permissionGrants)
+      .values([
+        {
+          scope: "backlog" as const,
+          permissionSchemeId: schemeId,
+          permissionKey: "retired_admin_permission",
+          principalType: "project_role" as const,
+          projectRoleId: protectedRoleIds.get("administrators")!,
+        },
+        {
+          scope: "backlog" as const,
+          permissionSchemeId: schemeId,
+          permissionKey: "retired_member_permission",
+          principalType: "project_role" as const,
+          projectRoleId: protectedRoleIds.get("members")!,
+        },
+      ])
+      .returning({ id: permissionGrants.id });
+
+    await expect(removeSchemeGrant({
+      schemeId,
+      grantId: legacyAdminGrant!.id,
+      expectedVersion: 1,
+      expectedAffectedBacklogIds: [backlog.id],
+    }, actorId, correlation("unknown-cleanup-admin"))).resolves.toMatchObject({
+      id: legacyAdminGrant!.id,
+      version: 2,
+    });
+    expect(await db.select({ id: permissionGrants.id }).from(permissionGrants).where(
+      eq(permissionGrants.id, legacyMemberGrant!.id),
+    )).toEqual([{ id: legacyMemberGrant!.id }]);
+
+    await expect(removeSchemeGrant({
+      schemeId,
+      grantId: legacyMemberGrant!.id,
+      expectedVersion: 2,
+      expectedAffectedBacklogIds: [backlog.id],
+    }, actorId, correlation("unknown-cleanup-member"))).resolves.toMatchObject({
+      id: legacyMemberGrant!.id,
+      version: 3,
+    });
+
+    const history = await readSecurityHistory({ limit: 200 });
+    expect(history).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        action: "permission_scheme_grant_removed",
+        targetId: legacyAdminGrant!.id,
+        requestCorrelationId: correlation("unknown-cleanup-admin"),
+      }),
+      expect.objectContaining({
+        action: "permission_scheme_grant_removed",
+        targetId: legacyMemberGrant!.id,
+        requestCorrelationId: correlation("unknown-cleanup-member"),
+      }),
+    ]));
+  });
+
+  it("does not hide a known Simple-matrix violation during unknown-grant cleanup", async () => {
+    const schemeId = await createCanonicalScheme("Simple unknown guarded Task 8");
+    const backlog = await createConfiguredBacklog(
+      schemeId,
+      "simple",
+      "Simple unknown guarded Task 8",
+    );
+    const [unknownGrant] = await db.insert(permissionGrants).values({
+      scope: "backlog",
+      permissionSchemeId: schemeId,
+      permissionKey: "retired_permission_with_known_violation",
+      principalType: "project_role",
+      projectRoleId: protectedRoleIds.get("members")!,
+    }).returning({ id: permissionGrants.id });
+    await db.insert(permissionGrants).values({
+      scope: "backlog",
+      permissionSchemeId: schemeId,
+      permissionKey: "delete_items",
+      principalType: "user",
+      userId: memberId,
+    });
+
+    await expect(removeSchemeGrant({
+      schemeId,
+      grantId: unknownGrant!.id,
+      expectedVersion: 1,
+      expectedAffectedBacklogIds: [backlog.id],
+    }, actorId, correlation("unknown-cleanup-known-violation"))).rejects.toThrow(
+      "Le mode Simple est indisponible : ce schéma contient des autorisations avancées.",
+    );
+    expect(await storedVersion(schemeId)).toBe(1);
+    expect(await db.select({ id: permissionGrants.id }).from(permissionGrants).where(
+      eq(permissionGrants.id, unknownGrant!.id),
+    )).toEqual([{ id: unknownGrant!.id }]);
+  });
+
   it("blocks associations that make a Simple configuration shared or non-canonical", async () => {
     const sourceSchemeId = await createCanonicalScheme("Simple source Task 4");
     const simpleBacklog = await createConfiguredBacklog(
