@@ -11,11 +11,13 @@ const mocks = vi.hoisted(() => ({
   itemDetailProps: vi.fn(),
   itemListProps: vi.fn(),
   itemTreeProps: vi.fn(),
+  listItemFixVersionPairs: vi.fn(),
   listItemLabelPairs: vi.fn(),
   listItems: vi.fn(),
   listLabelsForBacklog: vi.fn(),
   listAssignableUsersForBacklog: vi.fn(),
   listSprintsForBacklog: vi.fn(),
+  listReleaseSummaries: vi.fn(),
   listUsers: vi.fn(),
   listUsersByIds: vi.fn(),
   blockedItemIds: vi.fn(),
@@ -52,6 +54,12 @@ vi.mock("@/lib/services/items", () => ({
 }));
 vi.mock("@/lib/services/links", () => ({
   blockedItemIds: mocks.blockedItemIds,
+}));
+vi.mock("@/lib/services/item-fix-versions", () => ({
+  listItemFixVersionPairs: mocks.listItemFixVersionPairs,
+}));
+vi.mock("@/lib/services/releases", () => ({
+  listReleaseSummaries: mocks.listReleaseSummaries,
 }));
 vi.mock("@/lib/services/sprints", () => ({
   listSprintsForBacklog: mocks.listSprintsForBacklog,
@@ -117,6 +125,7 @@ describe("BacklogViewContent read boundary", () => {
       throw new Error("not-found");
     });
     mocks.listItems.mockResolvedValue([]);
+    mocks.listItemFixVersionPairs.mockResolvedValue([]);
     mocks.listItemLabelPairs.mockResolvedValue([]);
     mocks.blockedItemIds.mockResolvedValue([]);
     mocks.listUsers.mockResolvedValue([]);
@@ -130,6 +139,7 @@ describe("BacklogViewContent read boundary", () => {
     });
     mocks.listLabelsForBacklog.mockResolvedValue([]);
     mocks.listSprintsForBacklog.mockResolvedValue({ sprints: [], memberships: [] });
+    mocks.listReleaseSummaries.mockResolvedValue([]);
     mocks.getViewByIdForUser.mockResolvedValue(null);
     mocks.select.mockImplementation(() => {
       const query = {
@@ -485,5 +495,102 @@ describe("BacklogViewContent read boundary", () => {
     expect(mocks.itemListProps).toHaveBeenCalledWith(
       expect.objectContaining({ users: assignableUsers }),
     );
+  });
+
+  it("batch-projects fix versions, filters by version, and keeps a selected archived option", async () => {
+    mocks.getBacklogByKeyForUser.mockResolvedValue({
+      id: "backlog-1",
+      key: "DEMO",
+      name: "Demo",
+      color: "#2563eb",
+      archivedAt: null,
+    });
+    mocks.getBacklogCapabilities.mockResolvedValue({
+      createItems: false,
+      editItems: false,
+      transitionItems: false,
+      scheduleItems: false,
+      assignItems: false,
+      manageSprints: false,
+      manageWorkflow: false,
+      manageMembers: false,
+      bulkChangeItems: false,
+    });
+    const item = (id: string, key: string, rank: string) => ({
+      id,
+      backlogId: "backlog-1",
+      key,
+      sequence: Number(key.split("-")[1]),
+      type: "tache",
+      kind: "story",
+      title: key,
+      description: null,
+      statusId: "status-1",
+      priority: 2,
+      estimatePoints: null,
+      assigneeId: null,
+      reporterId: null,
+      parentId: null,
+      path: id,
+      depth: 0,
+      dueDate: null,
+      rank,
+      deletedAt: null,
+      createdAt: new Date("2026-08-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    mocks.listItems.mockResolvedValue([
+      item("item-1", "DEMO-1", "a"),
+      item("item-2", "DEMO-2", "b"),
+    ]);
+    mocks.listItemFixVersionPairs.mockResolvedValue([
+      { itemId: "item-1", releaseId: "release-active", name: "2026.10" },
+      { itemId: "item-2", releaseId: "release-selected", name: "2026.09" },
+    ]);
+    mocks.listReleaseSummaries.mockResolvedValue([
+      { id: "release-active", name: "2026.10", released: false, archived: false },
+      { id: "release-selected", name: "2026.09", released: true, archived: true },
+      { id: "release-hidden", name: "2026.08", released: true, archived: true },
+    ]);
+
+    render(
+      await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({
+          view: "list",
+          version: "release-selected",
+        }),
+      }),
+    );
+
+    expect(mocks.listItemFixVersionPairs).toHaveBeenCalledOnce();
+    expect(mocks.listItemFixVersionPairs).toHaveBeenCalledWith("backlog-1");
+    expect(mocks.listReleaseSummaries).toHaveBeenCalledOnce();
+    expect(mocks.listReleaseSummaries).toHaveBeenCalledWith("backlog-1", {
+      includeArchived: true,
+    });
+    expect(mocks.filterBarProps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        releases: [
+          { id: "release-active", name: "2026.10", released: false, archived: false },
+          { id: "release-selected", name: "2026.09", released: true, archived: true },
+        ],
+        state: expect.objectContaining({
+          filters: expect.objectContaining({ releaseIds: ["release-selected"] }),
+        }),
+      }),
+    );
+    const listProps = mocks.itemListProps.mock.calls[0]?.[0] as {
+      groups: Array<{ items: Array<Record<string, unknown>> }>;
+    };
+    expect(listProps.groups.flatMap((group) => group.items)).toEqual([
+      expect.objectContaining({
+        id: "item-2",
+        fixVersionIds: ["release-selected"],
+        fixVersions: [
+          { id: "release-selected", name: "2026.09", released: true, archived: true },
+        ],
+      }),
+    ]);
   });
 });

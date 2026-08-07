@@ -23,6 +23,12 @@ import {
 type StatusOpt = { id: string; name: string };
 type UserOpt = { id: string; name: string };
 type LabelOpt = { id: string; name: string; color: string };
+type ReleaseOpt = {
+  id: string;
+  name: string;
+  released: boolean;
+  archived: boolean;
+};
 type HierarchyOpt = { id: string; key: string; title: string; type: string };
 
 function activeLabel(options: Option[], selected: string[]): string | undefined {
@@ -36,6 +42,7 @@ export function FilterBar({
   statuses,
   users,
   labels,
+  releases,
   hierarchy,
   resultCount,
 }: {
@@ -43,6 +50,7 @@ export function FilterBar({
   statuses: StatusOpt[];
   users: UserOpt[];
   labels: LabelOpt[];
+  releases: ReleaseOpt[];
   hierarchy: HierarchyOpt[];
   resultCount: number;
 }) {
@@ -97,6 +105,10 @@ export function FilterBar({
     ...users.map((u) => ({ value: u.id, label: u.name })),
   ];
   const labelOpts: Option[] = labels.map((l) => ({ value: l.id, label: l.name }));
+  const releaseOpts: Option[] = releases.map((release) => ({
+    value: release.id,
+    label: release.name,
+  }));
   const kindOpts: Option[] = ITEM_KINDS.map((k) => ({
     value: k,
     label: ITEM_KIND_LABELS[k],
@@ -152,6 +164,14 @@ export function FilterBar({
         onClear={() => setFilters({ labels: [] })}
       />
       <FilterMenu
+        label="Version"
+        options={releaseOpts}
+        selected={state.filters.releaseIds}
+        onChange={(v) => setFilters({ releaseIds: v })}
+        activeLabel={activeLabel(releaseOpts, state.filters.releaseIds)}
+        onClear={() => setFilters({ releaseIds: [] })}
+      />
+      <FilterMenu
         label="Assigné"
         options={assigneeOpts}
         selected={state.filters.assignees}
@@ -191,6 +211,7 @@ export function FilterBar({
                 priorities: [],
                 assignees: [],
                 labels: [],
+                releaseIds: [],
                 kind: [],
                 underIds: [],
               },

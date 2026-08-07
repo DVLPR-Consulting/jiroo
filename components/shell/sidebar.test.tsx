@@ -185,6 +185,7 @@ describe("Sidebar", () => {
                 priorities: [],
                 assignees: [],
                 labels: [],
+                releaseIds: [],
                 kind: [],
                 underIds: [],
               },
@@ -194,6 +195,7 @@ describe("Sidebar", () => {
             statuses={[]}
             users={[]}
             labels={[]}
+            releases={[]}
             hierarchy={[]}
             resultCount={1}
           />

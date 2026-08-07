@@ -129,6 +129,10 @@ export function columnsToViewState(row: {
     ? (rawFilters.labels as unknown[]).filter((l): l is string => typeof l === "string")
     : [];
 
+  const releaseIds: string[] = Array.isArray(rawFilters.releaseIds)
+    ? (rawFilters.releaseIds as unknown[]).filter((id): id is string => typeof id === "string")
+    : [];
+
   // Defensive default for `kind`: legacy saved views may not have this key.
   const kind: ItemKind[] = Array.isArray(rawFilters.kind)
     ? (rawFilters.kind as unknown[]).filter(
@@ -142,7 +146,7 @@ export function columnsToViewState(row: {
     : [];
 
   const state: ViewState = {
-    filters: { q, types, statusIds, priorities, assignees, labels, kind, underIds },
+    filters: { q, types, statusIds, priorities, assignees, labels, releaseIds, kind, underIds },
     group,
     sort,
   };
@@ -188,6 +192,7 @@ export function isViewDirty(
   if (!sameSet(vs.filters.priorities, cs.filters.priorities)) return true;
   if (!sameSet(vs.filters.assignees, cs.filters.assignees)) return true;
   if (!sameSet(vs.filters.labels, cs.filters.labels)) return true;
+  if (!sameSet(vs.filters.releaseIds, cs.filters.releaseIds)) return true;
   if (!sameSet(vs.filters.kind, cs.filters.kind)) return true;
   if (!sameSet(vs.filters.underIds, cs.filters.underIds)) return true;
 
@@ -215,6 +220,7 @@ const ACTIVE_BACKLOG_VIEW_PARAM_KEYS = [
   "prio",
   "assignee",
   "label",
+  "version",
   "kind",
   "under",
   "group",
@@ -269,6 +275,7 @@ const filtersSchema = z.object({
   priorities: z.array(z.number()).default([]),
   assignees: z.array(z.string()).default([]),
   labels: z.array(z.string()).default([]),
+  releaseIds: z.array(z.string()).default([]),
   kind: z.array(z.enum(ITEM_KINDS)).default([]),
   underIds: z.array(z.string()).default([]),
 });

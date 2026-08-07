@@ -18,7 +18,7 @@ import {
 } from "./filter";
 
 const empty: ViewState = {
-  filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] },
+  filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
   group: null,
   sort: null,
 };
@@ -40,6 +40,7 @@ describe("parseViewState", () => {
         priorities: [3, 4],
         assignees: ["none", "u1"],
         labels: [],
+        releaseIds: [],
         kind: [], underIds: [],
       },
       group: "assignee",
@@ -87,12 +88,18 @@ describe("parseViewState", () => {
   it("returns empty kind array when param is absent", () => {
     expect(parseViewState(new URLSearchParams()).filters.kind).toEqual([]);
   });
+
+  it("parses version ids in URL order and deduplicates them", () => {
+    expect(
+      parseViewState(new URLSearchParams("version=v2,v1,v2")).filters.releaseIds,
+    ).toEqual(["v2", "v1"]);
+  });
 });
 
 describe("writeViewState ⇄ parseViewState round-trip", () => {
   it("round-trips a full state", () => {
     const state: ViewState = {
-      filters: { q: "abc", types: ["epic"], statusIds: ["s1"], priorities: [0], assignees: ["none"], labels: [], kind: [], underIds: [] },
+      filters: { q: "abc", types: ["epic"], statusIds: ["s1"], priorities: [0], assignees: ["none"], labels: [], releaseIds: [], kind: [], underIds: [] },
       group: "priority",
       sort: { field: "key", dir: "asc" },
     };
@@ -112,7 +119,7 @@ describe("writeViewState ⇄ parseViewState round-trip", () => {
 
   it("round-trips label ids", () => {
     const state: ViewState = {
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: ["id1", "id2"], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: ["id1", "id2"], releaseIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
     };
@@ -130,7 +137,7 @@ describe("writeViewState ⇄ parseViewState round-trip", () => {
 
   it("round-trips kind param", () => {
     const state: ViewState = {
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: ["bug"], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: ["bug"], underIds: [] },
       group: null,
       sort: null,
     };
@@ -159,6 +166,27 @@ describe("writeViewState ⇄ parseViewState round-trip", () => {
     writeViewState(sp, empty);
     expect(sp.get("kind")).toBeNull();
   });
+
+  it("round-trips version filters without reordering them", () => {
+    const state: ViewState = {
+      ...empty,
+      filters: { ...empty.filters, releaseIds: ["v2", "v1"] },
+    };
+    const sp = new URLSearchParams();
+
+    writeViewState(sp, state);
+
+    expect(sp.get("version")).toBe("v2,v1");
+    expect(parseViewState(sp)).toEqual(state);
+  });
+
+  it("removes the version key when the facet is cleared", () => {
+    const sp = new URLSearchParams("version=v1");
+
+    writeViewState(sp, empty);
+
+    expect(sp.has("version")).toBe(false);
+  });
 });
 
 const item = (over: Partial<FilterItem> = {}): FilterItem => ({
@@ -166,7 +194,7 @@ const item = (over: Partial<FilterItem> = {}): FilterItem => ({
   statusId: "s1", priority: 2, assigneeId: "u1", parentId: "p1", path: "aa.bb",
   depth: 0,
   dueDate: null, createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-02"), rank: "a1",
-  labelIds: [], ancestorIds: [], componentId: null, statusOrder: 0,
+  labelIds: [], fixVersionIds: [], ancestorIds: [], componentId: null, statusOrder: 0,
   ...over,
 });
 
@@ -179,22 +207,23 @@ const hierarchyItem = (over: Partial<FilterItem> = {}): HierarchyItem => {
 
 describe("isFiltersActive", () => {
   it("is false for the empty filter set", () => {
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] })).toBe(false);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] })).toBe(false);
   });
   it("is true when any dimension is set", () => {
-    expect(isFiltersActive({ q: "", types: ["tache"], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] })).toBe(true);
-    expect(isFiltersActive({ q: "x", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: ["s1"], priorities: [], assignees: [], labels: [], kind: [], underIds: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [2], assignees: [], labels: [], kind: [], underIds: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: ["u1"], labels: [], kind: [], underIds: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: ["lbl-1"], kind: [], underIds: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: ["bug"], underIds: [] })).toBe(true);
-    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: ["epic-1"] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: ["tache"], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "x", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: ["s1"], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [2], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: ["u1"], labels: [], releaseIds: [], kind: [], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: ["lbl-1"], releaseIds: [], kind: [], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: ["bug"], underIds: [] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: ["epic-1"] })).toBe(true);
+    expect(isFiltersActive({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: ["v1"], kind: [], underIds: [] })).toBe(true);
   });
 });
 
 describe("matchItem", () => {
-  const f = (over: Partial<Filters> = {}): Filters => ({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [], ...over });
+  const f = (over: Partial<Filters> = {}): Filters => ({ q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [], ...over });
 
   it("matches everything when no filter is active", () => {
     expect(matchItem(item(), f())).toBe(true);
@@ -234,6 +263,7 @@ describe("matchItem", () => {
     ["priority", { priorities: [2] }, { priority: 2 }, { priority: 4 }],
     ["assignee", { assignees: ["u1"] }, { assigneeId: "u1" }, { assigneeId: "u2" }],
     ["label", { labels: ["label-1"] }, { labelIds: ["label-1"] }, { labelIds: ["label-2"] }],
+    ["version", { releaseIds: ["v2", "v3"] }, { fixVersionIds: ["v1", "v2"] }, { fixVersionIds: ["v1"] }],
     ["kind", { kind: ["feature"] }, { kind: "feature" }, { kind: "bug" }],
     ["hierarchy", { underIds: ["component-1"] }, { ancestorIds: ["component-1"] }, { ancestorIds: ["other"] }],
   ] satisfies Array<[
@@ -254,6 +284,7 @@ describe("matchItem", () => {
       priorities: [4, 2],
       assignees: ["none", "u1"],
       labels: ["label-9", "label-1"],
+      releaseIds: ["v9", "v2"],
       kind: ["bug", "feature"],
       underIds: ["epic-9", "component-1"],
     });
@@ -264,6 +295,7 @@ describe("matchItem", () => {
       priority: 2,
       assigneeId: "u1",
       labelIds: ["label-1"],
+      fixVersionIds: ["v2"],
       kind: "feature",
       ancestorIds: ["component-1"],
     });
@@ -276,6 +308,7 @@ describe("matchItem", () => {
       item({ ...matching, priority: 1 }),
       item({ ...matching, assigneeId: "u2" }),
       item({ ...matching, labelIds: ["label-2"] }),
+      item({ ...matching, fixVersionIds: ["v1"] }),
       item({ ...matching, kind: "feature", ancestorIds: ["other"] }),
     ].every((candidate) => !matchItem(candidate, filters))).toBe(true);
   });
@@ -311,6 +344,16 @@ describe("matchItem", () => {
   it("label facet: inactive (labels: []) ignores labelIds entirely", () => {
     expect(matchItem(item({ labelIds: [] }), f({ labels: [] }))).toBe(true);
     expect(matchItem(item({ labelIds: ["lbl-1"] }), f({ labels: [] }))).toBe(true);
+  });
+
+  it("version facet matches any selected Fix version and rejects items without one", () => {
+    expect(
+      matchItem(item({ fixVersionIds: ["v1", "v2"] }), f({ releaseIds: ["v2", "v3"] })),
+    ).toBe(true);
+    expect(matchItem(item({ fixVersionIds: ["v1"] }), f({ releaseIds: ["v2", "v3"] }))).toBe(
+      false,
+    );
+    expect(matchItem(item({ fixVersionIds: [] }), f({ releaseIds: ["v2"] }))).toBe(false);
   });
 
   it("kind facet: item with matching kind passes (feature)", () => {

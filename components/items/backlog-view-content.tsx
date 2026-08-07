@@ -18,6 +18,8 @@ import {
   listUsersByIds,
 } from "@/lib/services/items";
 import { blockedItemIds } from "@/lib/services/links";
+import { listItemFixVersionPairs } from "@/lib/services/item-fix-versions";
+import { listReleaseSummaries } from "@/lib/services/releases";
 import { moveItemAction, reparentItemAction } from "@/app/actions/items";
 import {
   parseViewState,
@@ -60,6 +62,7 @@ const VIEW_STATE_PARAM_KEYS = [
   "prio",
   "assignee",
   "label",
+  "version",
   "kind",
   "under",
   "group",
@@ -116,9 +119,20 @@ export async function BacklogViewContent({
       displayMode: view as DisplayMode,
     });
 
-  const [items, labelPairs, blockedIds, statusRows, statusCountRows, sprintSnapshot] = await Promise.all([
+  const [
+    items,
+    labelPairs,
+    fixVersionPairs,
+    releaseSummaries,
+    blockedIds,
+    statusRows,
+    statusCountRows,
+    sprintSnapshot,
+  ] = await Promise.all([
     listItems(backlog.id),
     listItemLabelPairs(backlog.id),
+    listItemFixVersionPairs(backlog.id),
+    listReleaseSummaries(backlog.id, { includeArchived: true }),
     blockedItemIds(backlog.id),
     db
       .select()
@@ -147,6 +161,32 @@ export async function BacklogViewContent({
     labelsByItem.set(p.itemId, arr);
   }
 
+  const releaseOptions = releaseSummaries.map(({ id, name, released, archived }) => ({
+    id,
+    name,
+    released,
+    archived,
+  }));
+  const releaseById = new Map(releaseOptions.map((release) => [release.id, release]));
+  const fixVersionIdsByItem = new Map<string, string[]>();
+  const fixVersionsByItem = new Map<string, typeof releaseOptions>();
+  for (const pair of fixVersionPairs) {
+    const ids = fixVersionIdsByItem.get(pair.itemId) ?? [];
+    ids.push(pair.releaseId);
+    fixVersionIdsByItem.set(pair.itemId, ids);
+
+    const release = releaseById.get(pair.releaseId);
+    if (release) {
+      const versions = fixVersionsByItem.get(pair.itemId) ?? [];
+      versions.push(release);
+      fixVersionsByItem.set(pair.itemId, versions);
+    }
+  }
+  const selectedReleaseIds = new Set(viewState.filters.releaseIds);
+  const releaseFilterOptions = releaseOptions.filter(
+    (release) => !release.archived || selectedReleaseIds.has(release.id),
+  );
+
   const statusOrderById = new Map(statusRows.map((status) => [status.id, status.order]));
   const filterRows: FilterItem[] = enrichHierarchy(items.map((i) => ({
     id: i.id,
@@ -165,6 +205,7 @@ export async function BacklogViewContent({
     updatedAt: i.updatedAt,
     rank: i.rank,
     labelIds: (labelsByItem.get(i.id) ?? []).map((l) => l.id),
+    fixVersionIds: fixVersionIdsByItem.get(i.id) ?? [],
     kind: i.kind,
     statusOrder: statusOrderById.get(i.statusId) ?? 0,
   })));
@@ -301,6 +342,7 @@ export async function BacklogViewContent({
           rank: item.rank,
           blocked: blockedSet.has(item.id),
           done: statusCategoryById.get(item.statusId) === "done",
+          fixVersions: fixVersionsByItem.get(item.id) ?? [],
         },
       ]),
   );
@@ -365,6 +407,7 @@ export async function BacklogViewContent({
       blocked: blockedSet.has(i.id),
       kind: i.kind,
       dueDate: i.dueDate,
+      fixVersions: fixVersionsByItem.get(i.id) ?? [],
     }));
   const resultCount =
     view === "backlog"
@@ -435,6 +478,7 @@ export async function BacklogViewContent({
             labels: labelsByItem.get(i.id) ?? [],
             assigneeId: i.assigneeId,
             assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
+            fixVersions: fixVersionsByItem.get(i.id) ?? [],
           }))
       : [];
 
@@ -503,6 +547,7 @@ export async function BacklogViewContent({
         statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}
         users={referencedUsers}
         labels={backlogLabelRows.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
+        releases={releaseFilterOptions}
         hierarchy={items.map((item) => ({
           id: item.id,
           key: item.key,
@@ -549,6 +594,7 @@ export async function BacklogViewContent({
               dueDate: r.dueDate?.toISOString() ?? null,
               assigneeName: r.assigneeId ? (userName.get(r.assigneeId) ?? null) : null,
               labels: labelsByItem.get(r.id) ?? [],
+              fixVersions: fixVersionsByItem.get(r.id) ?? [],
               blocked: blockedSet.has(r.id),
             })),
           }))}

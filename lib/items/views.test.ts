@@ -22,7 +22,7 @@ import type { ViewState } from "./filter";
 // ---------------------------------------------------------------------------
 
 const empty: ViewState = {
-  filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] },
+  filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
   group: null,
   sort: null,
 };
@@ -35,6 +35,7 @@ const full: ViewState = {
     priorities: [0, 2],
     assignees: ["u1", "none"],
     labels: [],
+    releaseIds: ["v2", "v1"],
     kind: [], underIds: [],
   },
   group: "priority",
@@ -78,7 +79,7 @@ describe("viewStateToColumns", () => {
 
   it("preserves priority 0 in filters (regression guard)", () => {
     const state: ViewState = {
-      filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
     };
@@ -193,6 +194,7 @@ describe("columnsToViewState", () => {
       priorities: [],
       assignees: [],
       labels: [],
+      releaseIds: [],
       kind: [], underIds: [],
     });
   });
@@ -216,6 +218,25 @@ describe("columnsToViewState", () => {
     ).toEqual([]);
   });
 
+  it("restores version filters defensively and defaults legacy views to none", () => {
+    expect(
+      columnsToViewState({
+        displayMode: "board",
+        groupBy: null,
+        filters: { releaseIds: ["v2", 42, "v1"] },
+        sort: "manual",
+      }).state.filters.releaseIds,
+    ).toEqual(["v2", "v1"]);
+    expect(
+      columnsToViewState({
+        displayMode: "board",
+        groupBy: null,
+        filters: {},
+        sort: "manual",
+      }).state.filters.releaseIds,
+    ).toEqual([]);
+  });
+
   it("drops invalid types and priorities defensively", () => {
     const { state } = columnsToViewState({
       displayMode: "board",
@@ -236,7 +257,7 @@ describe("columnsToViewState", () => {
   it("preserves priority 0 in round-trip (regression guard)", () => {
     const cols = viewStateToColumns(
       {
-        filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], kind: [], underIds: [] },
+        filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
         group: null,
         sort: null,
       },
@@ -342,6 +363,20 @@ describe("isViewDirty", () => {
     expect(isViewDirty(saved, { state: current, displayMode: "list" })).toBe(false);
   });
 
+  it("compares saved version filters as an order-insensitive set", () => {
+    const reordered: ViewState = {
+      ...full,
+      filters: { ...full.filters, releaseIds: ["v1", "v2"] },
+    };
+    const changed: ViewState = {
+      ...full,
+      filters: { ...full.filters, releaseIds: ["v2"] },
+    };
+
+    expect(isViewDirty(saved, { state: reordered, displayMode: "list" })).toBe(false);
+    expect(isViewDirty(saved, { state: changed, displayMode: "list" })).toBe(true);
+  });
+
   it("detects a length difference in statusIds", () => {
     const current: ViewState = {
       ...full,
@@ -360,7 +395,7 @@ describe("isViewDirty", () => {
 
   it("preserves priority 0 comparison correctly (regression guard)", () => {
     const withZero: ViewState = {
-      filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
     };
@@ -417,6 +452,13 @@ describe("buildViewUrl", () => {
     expect(sp.get("q")).toBe("bug");
   });
 
+  it("encodes selected versions into saved-view URLs", () => {
+    const url = buildViewUrl(view, "/backlogs/b1");
+    const sp = new URLSearchParams(url.split("?")[1]);
+
+    expect(sp.get("version")).toBe("v2,v1");
+  });
+
   it("produces no query string noise for an empty state", () => {
     const emptyView = { id: "v1", state: empty, displayMode: "board" as DisplayMode };
     const url = buildViewUrl(emptyView, "/backlogs/b1");
@@ -433,7 +475,7 @@ describe("buildViewUrl", () => {
     const prioView = {
       id: "v2",
       state: {
-        filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], kind: [], underIds: [] },
+        filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
         group: null,
         sort: null,
       } satisfies ViewState,
@@ -454,7 +496,7 @@ describe("buildViewUrl", () => {
 describe("saved-view URL mutations", () => {
   const staleParams = () =>
     new URLSearchParams(
-      "q=old&type=epic&status=old&prio=4&assignee=old&label=old" +
+      "q=old&type=epic&status=old&prio=4&assignee=old&label=old&version=old" +
         "&kind=bug&under=old&group=status&sort=title%3Adesc" +
         "&view=tree&v=view-old&item=DEMO-1&tag=a&tag=b",
     );
@@ -470,7 +512,7 @@ describe("saved-view URL mutations", () => {
 
     expect(params.toString()).toBe(
       "tag=a&tag=b&q=bug&type=tache&status=s1%2Cs2&prio=0%2C2" +
-        "&assignee=u1%2Cnone&group=priority&sort=dueDate%3Aasc" +
+        "&assignee=u1%2Cnone&version=v2%2Cv1&group=priority&sort=dueDate%3Aasc" +
         "&view=list&v=view-abc",
     );
     expect(params.has("item")).toBe(false);
@@ -492,12 +534,27 @@ describe("saved-view URL mutations", () => {
 // ---------------------------------------------------------------------------
 
 describe("createViewInput", () => {
+  it("preserves version filters in validated saved-view input", () => {
+    const result = createViewInput.safeParse({
+      name: "Versions",
+      backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
+      displayMode: "board",
+      filters: { ...empty.filters, releaseIds: ["v2", "v1"] },
+      group: null,
+      sort: null,
+      shared: false,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.filters.releaseIds).toEqual(["v2", "v1"]);
+  });
+
   it("accepts a valid input", () => {
     const result = createViewInput.safeParse({
       name: "My view",
       backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -509,7 +566,7 @@ describe("createViewInput", () => {
     const result = createViewInput.safeParse({
       name: "",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -521,7 +578,7 @@ describe("createViewInput", () => {
     const result = createViewInput.safeParse({
       name: "a".repeat(81),
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -534,7 +591,7 @@ describe("createViewInput", () => {
       name: "  My view  ",
       backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -547,7 +604,7 @@ describe("createViewInput", () => {
     const result = createViewInput.safeParse({
       name: "ok",
       displayMode: "kanban",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -561,7 +618,7 @@ describe("createViewInput", () => {
         name: "ok",
         backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
         displayMode: mode,
-        filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] },
+        filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
         group: null,
         sort: null,
         shared: false,
@@ -575,7 +632,7 @@ describe("createViewInput", () => {
       name: "ok",
       backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
       displayMode: "list",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
       group: "priority",
       sort: { field: "key", dir: "asc" },
       shared: true,
@@ -587,7 +644,7 @@ describe("createViewInput", () => {
     const result = createViewInput.safeParse({
       name: "ok",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -600,7 +657,7 @@ describe("createViewInput", () => {
       name: "ok",
       backlogId: "not-a-uuid",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -612,7 +669,7 @@ describe("createViewInput", () => {
 describe("updateViewStateInput", () => {
   const validState = {
     displayMode: "list",
-    filters: { q: "bug", types: ["tache"], statusIds: ["s1"], priorities: [2], assignees: ["u1"], labels: [], kind: [], underIds: [] },
+    filters: { q: "bug", types: ["tache"], statusIds: ["s1"], priorities: [2], assignees: ["u1"], labels: [], releaseIds: [], kind: [], underIds: [] },
     group: "priority",
     sort: { field: "key", dir: "asc" },
   };
