@@ -144,6 +144,7 @@ export type BacklogCapabilities = {
   manageSprints: boolean;
   manageWorkflow: boolean;
   manageMembers: boolean;
+  manageReleases?: boolean;
   bulkChangeItems: boolean;
 };
 
@@ -163,6 +164,7 @@ const CAPABILITY_PERMISSIONS = {
   manageSprints: "manage_sprints",
   manageWorkflow: "manage_workflows",
   manageMembers: "manage_members",
+  manageReleases: "manage_releases",
 } as const;
 
 export async function getBacklogCapabilities(

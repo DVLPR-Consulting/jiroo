@@ -93,6 +93,8 @@ const statusId = "44444444-4444-4444-8444-444444444444";
 const sprintId = "55555555-5555-4555-8555-555555555555";
 const otherBacklogId = "66666666-6666-4666-8666-666666666666";
 const absentBacklogId = "77777777-7777-4777-8777-777777777777";
+const releaseId = "88888888-8888-4888-8888-888888888888";
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function authorizeStoredResource(id: string) {
   return { backlogId, resourceId: id };
@@ -246,6 +248,7 @@ describe("item action permission mapping", () => {
     { field: "title", value: "Nouveau", permissions: ["edit_items"] },
     { field: "statusId", value: statusId, permissions: ["edit_items", "transition_items"] },
     { field: "assigneeId", value: "assignee-1", permissions: ["edit_items", "assign_items"] },
+    { field: "fixVersionIds", value: [releaseId], permissions: ["edit_items"] },
   ])("requires $permissions when updating $field", async ({ field, value, permissions }) => {
     await updateItemAction({ backlogKey: "FORGED", id: itemId, [field]: value });
 
@@ -259,6 +262,10 @@ describe("item action permission mapping", () => {
     { patch: { field: "statusId" as const, value: statusId }, permission: "transition_items" },
     { patch: { field: "assigneeId" as const, value: "assignee-1" }, permission: "assign_items" },
     { patch: { field: "sprintId" as const, value: sprintId }, permission: "schedule_items" },
+    {
+      patch: { field: "fixVersionIds" as const, mode: "replace" as const, value: [releaseId] },
+      permission: "edit_items",
+    },
   ])("requires global bulk plus $permission for every selected item", async ({ patch, permission }) => {
     await bulkUpdateItemsAction({
       backlogKey: "FORGED",
@@ -402,6 +409,62 @@ describe("item action permission mapping", () => {
       scope: { type: "global" },
     });
     expect(mocks.bulkUpdateItems).not.toHaveBeenCalled();
+  });
+
+  it("lets an editor assign fix versions but stops a reader before mutation", async () => {
+    await updateItemAction({ backlogKey: "FORGED", id: itemId, fixVersionIds: [releaseId] });
+
+    expect(mocks.requireItemPermission).toHaveBeenCalledWith({
+      actorId: "writer-1",
+      itemId,
+      permission: "edit_items",
+    });
+    expect(mocks.updateItem).toHaveBeenCalledWith(
+      { id: itemId, fixVersionIds: [releaseId] },
+      "writer-1",
+      expect.stringMatching(uuidPattern),
+    );
+
+    vi.clearAllMocks();
+    mocks.getSession.mockResolvedValue({ user: { id: "reader-1", role: "viewer" } });
+    mocks.requireItemPermission.mockRejectedValueOnce(
+      permissionDeniedError("edit_items", { type: "backlog", backlogId }),
+    );
+    await expect(
+      updateItemAction({ backlogKey: "FORGED", id: itemId, fixVersionIds: [releaseId] }),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Modifier les éléments » pour ce backlog.",
+    });
+    expect(mocks.updateItem).not.toHaveBeenCalled();
+  });
+
+  it("uses create_items for creation-time fix versions and passes one correlation", async () => {
+    await createItemAction({
+      backlogKey: "FORGED",
+      backlogId,
+      type: "composant",
+      parentId: null,
+      title: "Versionnée",
+      fixVersionIds: [releaseId],
+    });
+
+    expect(mocks.requireBacklogPermissionById).toHaveBeenCalledWith({
+      actorId: "writer-1",
+      backlogId,
+      permission: "create_items",
+    });
+    expect(mocks.createItem).toHaveBeenCalledWith(
+      {
+        backlogId,
+        type: "composant",
+        parentId: null,
+        title: "Versionnée",
+        fixVersionIds: [releaseId],
+      },
+      "writer-1",
+      expect.stringMatching(uuidPattern),
+    );
   });
 
   it.each([
@@ -619,6 +682,7 @@ describe("item action validation", () => {
         sprintId,
       },
       "writer-1",
+      expect.stringMatching(uuidPattern),
     );
   });
 
@@ -658,6 +722,7 @@ describe("item action validation", () => {
     expect(mocks.updateItem).toHaveBeenCalledWith(
       { id: "22222222-2222-4222-9222-222222222222", estimatePoints: 2.5 },
       "writer-1",
+      expect.stringMatching(uuidPattern),
     );
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
   });
@@ -829,6 +894,7 @@ describe("bulkUpdateItemsAction", () => {
         patch: input.patch,
       },
       "writer-1",
+      expect.stringMatching(uuidPattern),
     );
     expect(mocks.revalidatePath).toHaveBeenCalledTimes(1);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");

@@ -46,6 +46,7 @@ describe("projectBacklogCapabilities", () => {
         manageSprints: false,
       },
       workflow: { manage: false },
+      releases: { manage: false, assignItems: false, bulkAssignItems: false },
       bulk: { edit: false, transition: false, assign: false, schedule: false },
     });
   });
@@ -70,6 +71,11 @@ describe("projectBacklogCapabilities", () => {
       transition: true,
       assign: true,
       schedule: true,
+    });
+    expect(projected.releases).toEqual({
+      manage: false,
+      assignItems: true,
+      bulkAssignItems: true,
     });
   });
 
@@ -96,6 +102,26 @@ describe("projectBacklogCapabilities", () => {
       deleteOwnComments: false,
       deleteAllComments: true,
       link: true,
+    });
+    expect(
+      projectBacklogCapabilities({
+        ...denied,
+        manageReleases: true,
+        editItems: false,
+        bulkChangeItems: true,
+      }).releases,
+    ).toEqual({
+      manage: true,
+      assignItems: false,
+      bulkAssignItems: false,
+    });
+  });
+
+  it("defaults legacy release capability inputs closed", () => {
+    expect(projectBacklogCapabilities(denied).releases).toEqual({
+      manage: false,
+      assignItems: false,
+      bulkAssignItems: false,
     });
   });
 });

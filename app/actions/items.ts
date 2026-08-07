@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
@@ -45,6 +46,7 @@ type CreateItemActionInput = {
   labelIds?: string[];
   kind?: ItemKind;
   sprintId?: string | null;
+  fixVersionIds?: string[];
 };
 
 type UpdateItemActionInput = {
@@ -60,6 +62,7 @@ type UpdateItemActionInput = {
   dueDate?: string | null;
   labelIds?: string[];
   kind?: ItemKind;
+  fixVersionIds?: string[];
 };
 
 async function authenticatedActorId(): Promise<string> {
@@ -201,6 +204,8 @@ const BULK_DOMAIN_ERRORS = [
   "Le sprint appartient à un autre backlog.",
   "Un sprint terminé ne peut plus recevoir d’items.",
   "Seules les tâches peuvent être planifiées dans un sprint.",
+  "Une ou plusieurs releases sont invalides pour ce backlog.",
+  "Une release archivée ne peut pas être ajoutée.",
 ] as const;
 
 function mapBulkError(error: unknown): string {
@@ -239,7 +244,7 @@ export async function createItemAction(input: CreateItemActionInput) {
       await requireAssignableUser({ assigneeId: input.assigneeId, backlogId: backlog.backlogId });
     }
     const { backlogKey, ...data } = input;
-    const item = await createItem(data, actorId);
+    const item = await createItem(data, actorId, randomUUID());
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, item };
   } catch (e) {
@@ -256,7 +261,7 @@ export async function updateItemAction(input: UpdateItemActionInput) {
   try {
     await authorizeItemUpdate(actorId, input);
     const { backlogKey, ...data } = input;
-    const item = await updateItem(data, actorId);
+    const item = await updateItem(data, actorId, randomUUID());
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, item };
   } catch (e) {
@@ -319,7 +324,7 @@ export async function bulkUpdateItemsAction(input: {
       }
     }
     const { backlogKey, ...serviceInput } = input;
-    const result = await bulkUpdateItems(serviceInput, actorId);
+    const result = await bulkUpdateItems(serviceInput, actorId, randomUUID());
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, ...result };
   } catch (error) {

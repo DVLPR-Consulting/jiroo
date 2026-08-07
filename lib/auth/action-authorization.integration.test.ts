@@ -270,7 +270,11 @@ describeDb("ownership-aware authorization helpers", () => {
         backlogId: backlogA.id,
         permission: "edit_items",
       }),
-    ).resolves.toMatchObject({ backlogId: backlogA.id, resourceId: backlogA.id });
+    ).resolves.toMatchObject({
+      backlogId: backlogA.id,
+      backlogKey: backlogA.key,
+      resourceId: backlogA.id,
+    });
 
     await expect(
       requireBacklogPermissionByKey({
