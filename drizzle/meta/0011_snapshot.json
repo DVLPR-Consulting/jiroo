@@ -1,5 +1,5 @@
 {
-  "id": "0019db28-612c-49db-a5c2-fe7057173d9b",
+  "id": "ba7dec01-6a7b-46f0-ba91-5ab130efa12f",
   "prevId": "e40250ec-e5e5-4f37-b8a3-a65a089d2033",
   "version": "7",
   "dialect": "postgresql",
@@ -2394,6 +2394,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "release_name": {
+          "name": "release_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "actor_id": {
           "name": "actor_id",
           "type": "text",
@@ -2475,33 +2481,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "release_events_release_id_releases_id_fk": {
-          "name": "release_events_release_id_releases_id_fk",
-          "tableFrom": "release_events",
-          "tableTo": "releases",
-          "columnsFrom": [
-            "release_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "release_events_publication_id_release_publications_id_fk": {
-          "name": "release_events_publication_id_release_publications_id_fk",
-          "tableFrom": "release_events",
-          "tableTo": "release_publications",
-          "columnsFrom": [
-            "publication_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
+          "onDelete": "restrict",
           "onUpdate": "no action"
         },
         "release_events_actor_id_user_id_fk": {
@@ -2512,6 +2492,36 @@
             "actor_id"
           ],
           "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "release_events_release_same_backlog_fk": {
+          "name": "release_events_release_same_backlog_fk",
+          "tableFrom": "release_events",
+          "tableTo": "releases",
+          "columnsFrom": [
+            "backlog_id",
+            "release_id"
+          ],
+          "columnsTo": [
+            "backlog_id",
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "release_events_publication_same_backlog_fk": {
+          "name": "release_events_publication_same_backlog_fk",
+          "tableFrom": "release_events",
+          "tableTo": "release_publications",
+          "columnsFrom": [
+            "backlog_id",
+            "publication_id"
+          ],
+          "columnsTo": [
+            "backlog_id",
             "id"
           ],
           "onDelete": "set null",
@@ -2552,6 +2562,24 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "item_key": {
+          "name": "item_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_title": {
+          "name": "item_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status_name": {
+          "name": "status_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
         "disposition": {
           "name": "disposition",
@@ -2607,19 +2635,6 @@
         }
       },
       "foreignKeys": {
-        "release_publication_items_publication_id_release_publications_id_fk": {
-          "name": "release_publication_items_publication_id_release_publications_id_fk",
-          "tableFrom": "release_publication_items",
-          "tableTo": "release_publications",
-          "columnsFrom": [
-            "publication_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "release_publication_items_backlog_id_backlogs_id_fk": {
           "name": "release_publication_items_backlog_id_backlogs_id_fk",
           "tableFrom": "release_publication_items",
@@ -2630,17 +2645,34 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "release_publication_items_item_id_items_id_fk": {
-          "name": "release_publication_items_item_id_items_id_fk",
+        "release_publication_items_publication_same_backlog_fk": {
+          "name": "release_publication_items_publication_same_backlog_fk",
+          "tableFrom": "release_publication_items",
+          "tableTo": "release_publications",
+          "columnsFrom": [
+            "backlog_id",
+            "publication_id"
+          ],
+          "columnsTo": [
+            "backlog_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "release_publication_items_item_same_backlog_fk": {
+          "name": "release_publication_items_item_same_backlog_fk",
           "tableFrom": "release_publication_items",
           "tableTo": "items",
           "columnsFrom": [
+            "backlog_id",
             "item_id"
           ],
           "columnsTo": [
+            "backlog_id",
             "id"
           ],
           "onDelete": "set null",
@@ -2694,11 +2726,17 @@
           "name": "release_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "release_revision": {
           "name": "release_revision",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "release_name": {
+          "name": "release_name",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -2757,6 +2795,27 @@
           "method": "btree",
           "with": {}
         },
+        "release_publications_backlog_id_idx": {
+          "name": "release_publications_backlog_id_idx",
+          "columns": [
+            {
+              "expression": "backlog_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "release_publications_one_active_per_release_idx": {
           "name": "release_publications_one_active_per_release_idx",
           "columns": [
@@ -2785,7 +2844,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "restrict",
           "onUpdate": "no action"
         },
         "release_publications_published_by_user_id_fk": {
@@ -2813,7 +2872,7 @@
             "backlog_id",
             "id"
           ],
-          "onDelete": "restrict",
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "release_publications_destination_same_backlog_fk": {
@@ -2839,6 +2898,10 @@
         "release_publications_revision_positive": {
           "name": "release_publications_revision_positive",
           "value": "\"release_publications\".\"release_revision\" > 0"
+        },
+        "release_publications_superseded_order": {
+          "name": "release_publications_superseded_order",
+          "value": "\"release_publications\".\"superseded_at\" is null or \"release_publications\".\"superseded_at\" >= \"release_publications\".\"published_at\""
         },
         "release_publications_incomplete_disposition_consistent": {
           "name": "release_publications_incomplete_disposition_consistent",
@@ -2894,6 +2957,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": 1
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_by": {
           "name": "created_by",
@@ -2998,7 +3067,7 @@
         },
         "releases_dates_order": {
           "name": "releases_dates_order",
-          "value": "\"releases\".\"release_date\" is null or (\"releases\".\"start_date\" is not null and \"releases\".\"release_date\" >= \"releases\".\"start_date\")"
+          "value": "\"releases\".\"start_date\" is null or \"releases\".\"release_date\" is null or \"releases\".\"release_date\" >= \"releases\".\"start_date\""
         }
       },
       "isRLSEnabled": false

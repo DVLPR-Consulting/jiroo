@@ -185,6 +185,7 @@ export const releases = pgTable(
     startDate: date("start_date", { mode: "string" }),
     releaseDate: date("release_date", { mode: "string" }),
     revision: integer("revision").notNull().default(1),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdBy: text("created_by")
       .notNull()
       .references(() => user.id),
@@ -197,7 +198,7 @@ export const releases = pgTable(
     check("releases_revision_positive", sql`${t.revision} > 0`),
     check(
       "releases_dates_order",
-      sql`${t.releaseDate} is null or (${t.startDate} is not null and ${t.releaseDate} >= ${t.startDate})`,
+      sql`${t.startDate} is null or ${t.releaseDate} is null or ${t.releaseDate} >= ${t.startDate}`,
     ),
   ],
 );
@@ -234,9 +235,10 @@ export const releasePublications = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     backlogId: uuid("backlog_id")
       .notNull()
-      .references(() => backlogs.id, { onDelete: "cascade" }),
-    releaseId: uuid("release_id").notNull(),
+      .references(() => backlogs.id, { onDelete: "restrict" }),
+    releaseId: uuid("release_id"),
     releaseRevision: integer("release_revision").notNull(),
+    releaseName: text("release_name").notNull(),
     effectiveDate: date("effective_date", { mode: "string" }).notNull(),
     incompleteDisposition: releaseIncompleteDispositionEnum("incomplete_disposition").notNull(),
     destinationReleaseId: uuid("destination_release_id"),
@@ -248,10 +250,15 @@ export const releasePublications = pgTable(
   },
   (t) => [
     index("release_publications_backlog_idx").on(t.backlogId),
+    uniqueIndex("release_publications_backlog_id_idx").on(t.backlogId, t.id),
     uniqueIndex("release_publications_one_active_per_release_idx")
       .on(t.releaseId)
       .where(sql`${t.supersededAt} is null`),
     check("release_publications_revision_positive", sql`${t.releaseRevision} > 0`),
+    check(
+      "release_publications_superseded_order",
+      sql`${t.supersededAt} is null or ${t.supersededAt} >= ${t.publishedAt}`,
+    ),
     check(
       "release_publications_incomplete_disposition_consistent",
       sql`(
@@ -263,7 +270,7 @@ export const releasePublications = pgTable(
       columns: [t.backlogId, t.releaseId],
       foreignColumns: [releases.backlogId, releases.id],
       name: "release_publications_release_same_backlog_fk",
-    }).onDelete("restrict"),
+    }).onDelete("set null"),
     foreignKey({
       columns: [t.backlogId, t.destinationReleaseId],
       foreignColumns: [releases.backlogId, releases.id],
@@ -276,13 +283,14 @@ export const releasePublicationItems = pgTable(
   "release_publication_items",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    publicationId: uuid("publication_id")
-      .notNull()
-      .references(() => releasePublications.id, { onDelete: "cascade" }),
+    publicationId: uuid("publication_id").notNull(),
     backlogId: uuid("backlog_id")
       .notNull()
-      .references(() => backlogs.id, { onDelete: "cascade" }),
-    itemId: uuid("item_id").references(() => items.id, { onDelete: "set null" }),
+      .references(() => backlogs.id, { onDelete: "restrict" }),
+    itemId: uuid("item_id"),
+    itemKey: text("item_key").notNull(),
+    itemTitle: text("item_title").notNull(),
+    statusName: text("status_name").notNull(),
     disposition: releaseItemDispositionEnum("disposition").notNull(),
     destinationReleaseId: uuid("destination_release_id"),
   },
@@ -299,6 +307,16 @@ export const releasePublicationItems = pgTable(
       )`,
     ),
     foreignKey({
+      columns: [t.backlogId, t.publicationId],
+      foreignColumns: [releasePublications.backlogId, releasePublications.id],
+      name: "release_publication_items_publication_same_backlog_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.backlogId, t.itemId],
+      foreignColumns: [items.backlogId, items.id],
+      name: "release_publication_items_item_same_backlog_fk",
+    }).onDelete("set null"),
+    foreignKey({
       columns: [t.backlogId, t.destinationReleaseId],
       foreignColumns: [releases.backlogId, releases.id],
       name: "release_publication_items_destination_same_backlog_fk",
@@ -312,11 +330,10 @@ export const releaseEvents = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     backlogId: uuid("backlog_id")
       .notNull()
-      .references(() => backlogs.id, { onDelete: "cascade" }),
-    releaseId: uuid("release_id").references(() => releases.id, { onDelete: "set null" }),
-    publicationId: uuid("publication_id").references(() => releasePublications.id, {
-      onDelete: "set null",
-    }),
+      .references(() => backlogs.id, { onDelete: "restrict" }),
+    releaseId: uuid("release_id"),
+    publicationId: uuid("publication_id"),
+    releaseName: text("release_name").notNull(),
     actorId: text("actor_id").references(() => user.id, { onDelete: "set null" }),
     action: text("action").notNull(),
     oldValue: jsonb("old_value"),
@@ -324,7 +341,20 @@ export const releaseEvents = pgTable(
     requestCorrelationId: text("request_correlation_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("release_events_release_idx").on(t.releaseId), index("release_events_backlog_idx").on(t.backlogId)],
+  (t) => [
+    index("release_events_release_idx").on(t.releaseId),
+    index("release_events_backlog_idx").on(t.backlogId),
+    foreignKey({
+      columns: [t.backlogId, t.releaseId],
+      foreignColumns: [releases.backlogId, releases.id],
+      name: "release_events_release_same_backlog_fk",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [t.backlogId, t.publicationId],
+      foreignColumns: [releasePublications.backlogId, releasePublications.id],
+      name: "release_events_publication_same_backlog_fk",
+    }).onDelete("set null"),
+  ],
 );
 
 export const sprintItems = pgTable(

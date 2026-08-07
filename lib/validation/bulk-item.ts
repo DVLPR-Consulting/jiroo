@@ -27,7 +27,12 @@ export const bulkItemPatchSchema = z.discriminatedUnion("field", [
   z.object({
     field: z.literal("fixVersionIds"),
     mode: z.enum(["add", "replace", "remove"]),
-    value: z.array(z.uuid()).max(100),
+    value: z
+      .array(z.uuid())
+      .max(100)
+      .refine((ids) => new Set(ids).size === ids.length, {
+        message: "Les versions contiennent des doublons.",
+      }),
   }),
 ]);
 

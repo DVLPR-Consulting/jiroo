@@ -63,4 +63,12 @@ describe("bulkUpdateItemsSchema", () => {
       expect(bulkUpdateItemsSchema.safeParse(candidate).success).toBe(false);
     }
   });
+
+  it("rejects duplicate fix version ids", () => {
+    expect(
+      bulkUpdateItemsSchema.safeParse(
+        input({ field: "fixVersionIds", mode: "replace", value: [SPRINT_ID, SPRINT_ID] }),
+      ).success,
+    ).toBe(false);
+  });
 });
