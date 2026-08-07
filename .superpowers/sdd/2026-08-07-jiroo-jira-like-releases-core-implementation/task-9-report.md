@@ -58,3 +58,29 @@ The final non-persistent run wrote exactly 30 audit logs under `.playwright/evid
 - Commit hook note: Husky's pnpm wrapper fails in this linked worktree with `packages field missing or empty`. The exact hook-equivalent full test, typecheck, lint, build, DB, Playwright, and diff checks were run manually before committing; the atomic commit therefore disables Husky for that invocation only.
 - Cleanup: a read-only primary-database preview resolved exactly 10 orphaned test backlogs (five `Bulk`, five `Étranger`) out of 12 total, using their exact IDs, fixed test correlations, and fixture item/release counts. After explicit authorization, one transaction locked and deleted only those 10 IDs with cascades. Post-checks reported exact-ID residual `0`, named-fixture residual `0`, and total backlogs `2`; no other backlog was touched. The deletion is recoverable only from a database backup.
 - No unresolved product or data concern remains.
+
+## External review round 1 corrections
+
+The four Important findings from review round 1 were corrected without changing production behavior or weakening the database guard.
+
+- S01 now creates two versions through the administrator UI, edits both after creation, and changes both start and target dates. Its DB oracle verifies exactly the two scenario rows, their final descriptions and dates, and revision 2 for each.
+- S02 no longer calls the administrator-side `assignVersions` fixture. The editor authenticated state opens the item detail picker, selects two versions through two real POST actions, and the DB plus both release-detail scopes verify the resulting two assignments.
+- S13 now clicks `Recharger la version`, waits for the stale dialog to close and the refreshed edit trigger to appear, reopens the dialog, and checks the server name, description, start date, and target date. A successful second-context save then proves that the refreshed revision replaced the stale revision; the DB oracle ends at revision 3.
+- The audit harness now owns secondary contexts until after failure capture, associates every console/page/request/HTTP fault occurrence with its originating page, consumes expected fragments one-to-one, emits `[defect]` before all failures (including final unexpected-error gates), and screenshots the fault or explicitly selected assertion page before cleanup. Scenario blocks select their page with `audit.use(page)`; background console/network activity never changes that selection.
+
+### Review-fix RED / GREEN evidence
+
+- RED `20260807-releases-fix1-red-02`: all three targeted scenarios failed for the missing reviewed behavior. S01 lacked the second version and changed dates, S02 had no UI-created assignment, and S13 retained the local stale value.
+- Targeted GREEN `20260807-releases-fix1-targeted-01`: S01, S02, and S13 passed 3/3 in 17.8 seconds.
+- Temporary harness probe `20260807-releases-fix1-audit-probe-01`: an unexpected console error injected on the editor secondary page failed the scenario, wrote `[defect] BUG-JIR-029`, and produced a 1280×720 screenshot of that editor page.
+- Temporary harness probe `20260807-releases-fix1-assertion-probe-01`: a forced locator assertion failure on the same secondary page also wrote `[defect] BUG-JIR-029` and captured that editor page rather than the unused default admin page. Both probe injections were removed before the final run.
+- The first internal fix review then found that asynchronous background activity could overwrite the assertion-page selection. Probe `20260807-releases-fix1-multipage-probe-01` selected the stale second S13 page, emitted later console activity from the first page, and forced an assertion failure on the second; `BUG-JIR-040` captured the second page. Probe `20260807-releases-fix1-reader-fault-probe-01` emitted editor activity then injected a monitored reader error; `BUG-JIR-039` captured the reader. Both probes were removed after inspection.
+- Final GREEN `20260807-releases-fix1-final-02`: Chromium passed 15/15 in 43.2 seconds. JUnit reports 15 tests, 0 failures, and 0 errors. The run contains exactly 15 console logs and 15 network logs; expected injected failures remain labeled only in S07, S12, and S14.
+
+### Review-fix verification
+
+- Full Vitest suite: 135 files passed, 19 skipped; 1,163 tests passed, 172 skipped; 32.71 seconds.
+- Guard-verified `jiroo_e2e` DB integration set (releases, item-fix-versions, items, item-bulk): 4 files and 56/56 tests passed in 11.07 seconds.
+- TypeScript `tsc --noEmit`: passed.
+- ESLint: passed with zero warnings.
+- Next.js 16.2.7 production build: passed; 12 static pages generated and Releases routes compiled. The existing Better Auth build-time environment warnings were non-fatal.

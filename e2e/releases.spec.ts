@@ -4,6 +4,7 @@ import {
   expect,
   test,
   type Browser,
+  type BrowserContext,
   type Page,
 } from "@playwright/test";
 import { and, asc, count, eq } from "drizzle-orm";
@@ -46,13 +47,17 @@ const EMAIL = {
 type Capture = {
   console: string[];
   network: string[];
-  consoleErrors: string[];
-  pageErrors: string[];
-  requestFailures: string[];
-  httpErrors: string[];
   expectedRequestFailures: string[];
   expectedHttpErrors: string[];
   expectedConsoleErrors: string[];
+  contexts: Set<BrowserContext>;
+  pages: Set<Page>;
+  activePage: Page;
+  faults: Array<{
+    kind: "console" | "page" | "request" | "http";
+    line: string;
+    page: Page;
+  }>;
 };
 
 type ForgedRequest = {
@@ -61,30 +66,35 @@ type ForgedRequest = {
   headers: Record<string, string>;
 };
 
-function newCapture(): Capture {
+function newCapture(page: Page): Capture {
   return {
     console: [],
     network: [],
-    consoleErrors: [],
-    pageErrors: [],
-    requestFailures: [],
-    httpErrors: [],
     expectedRequestFailures: [],
     expectedHttpErrors: [],
     expectedConsoleErrors: [],
+    contexts: new Set(),
+    pages: new Set(),
+    activePage: page,
+    faults: [],
   };
 }
 
 function observe(page: Page, capture: Capture, actor: string) {
+  if (capture.pages.has(page)) return;
+  capture.pages.add(page);
+  capture.activePage = page;
   page.on("console", (message) => {
     const line = `[${actor}] ${message.type()}: ${message.text()}`;
     capture.console.push(line);
-    if (message.type() === "error") capture.consoleErrors.push(line);
+    if (message.type() === "error") {
+      capture.faults.push({ kind: "console", line, page });
+    }
   });
   page.on("pageerror", (error) => {
     const line = `[${actor}] pageerror: ${error.message}`;
     capture.console.push(line);
-    capture.pageErrors.push(line);
+    capture.faults.push({ kind: "page", line, page });
   });
   page.on("request", (request) => {
     capture.network.push(`[request] [${actor}] ${request.method()} ${request.url()}`);
@@ -92,19 +102,43 @@ function observe(page: Page, capture: Capture, actor: string) {
   page.on("response", (response) => {
     const line = `[response] [${actor}] ${response.request().method()} ${response.status()} ${response.url()}`;
     capture.network.push(line);
-    if (response.status() >= 400) capture.httpErrors.push(line);
+    if (response.status() >= 400) {
+      capture.faults.push({ kind: "http", line, page });
+    }
   });
   page.on("requestfailed", (request) => {
     const line = `[failed] [${actor}] ${request.method()} ${request.url()} ${request.failure()?.errorText ?? "unknown"}`;
     capture.network.push(line);
-    capture.requestFailures.push(line);
+    capture.faults.push({ kind: "request", line, page });
   });
 }
 
-function withoutExpected(lines: string[], expectedFragments: string[]) {
+function activatePage(capture: Capture, page: Page) {
+  capture.activePage = page;
+}
+
+async function observedPage(
+  browser: Browser,
+  capture: Capture,
+  actor: string,
+  storageState: (typeof AUTH)[keyof typeof AUTH],
+) {
+  const context = await browser.newContext({ storageState });
+  capture.contexts.add(context);
+  const page = await context.newPage();
+  observe(page, capture, actor);
+  return page;
+}
+
+function unexpectedFaults(
+  capture: Capture,
+  kind: Capture["faults"][number]["kind"],
+  expectedFragments: string[] = [],
+) {
   const remaining = [...expectedFragments];
-  return lines.filter((line) => {
-    const index = remaining.findIndex((fragment) => line.includes(fragment));
+  return capture.faults.filter((fault) => {
+    if (fault.kind !== kind) return false;
+    const index = remaining.findIndex((fragment) => fault.line.includes(fragment));
     if (index < 0) return true;
     remaining.splice(index, 1);
     return false;
@@ -114,55 +148,65 @@ function withoutExpected(lines: string[], expectedFragments: string[]) {
 function audited(
   number: number,
   title: string,
-  body: (fixtures: { page: Page; browser: Browser; capture: Capture }) => Promise<void>,
+  body: (fixtures: {
+    page: Page;
+    browser: Browser;
+    capture: Capture;
+    audit: { use: (activePage: Page) => void };
+  }) => Promise<void>,
 ) {
   test(`${String(number).padStart(2, "0")} — ${title}`, async ({ page, browser }) => {
     const startedAt = performance.now();
-    const capture = newCapture();
+    const capture = newCapture(page);
     observe(page, capture, "admin");
-    let bodyFailure: unknown;
+    let failure: unknown;
     try {
-      await body({ page, browser, capture });
+      await body({
+        page,
+        browser,
+        capture,
+        audit: { use: (activePage) => activatePage(capture, activePage) },
+      });
     } catch (error) {
-      bodyFailure = error;
+      failure = error;
+    }
+
+    const unexpected = [
+      ...unexpectedFaults(capture, "console", capture.expectedConsoleErrors),
+      ...unexpectedFaults(capture, "page"),
+      ...unexpectedFaults(capture, "request", capture.expectedRequestFailures),
+      ...unexpectedFaults(capture, "http", capture.expectedHttpErrors),
+    ];
+    const unexpectedLines = unexpected.map((fault) => fault.line);
+    if (!failure && unexpectedLines.length > 0) {
+      failure = new Error(`Erreurs navigateur inattendues:\n${unexpectedLines.join("\n")}`);
+    }
+
+    if (failure) {
       const bugId = `BUG-JIR-${String(27 + number).padStart(3, "0")}`;
-      capture.console.push(`[defect] ${bugId} ${error instanceof Error ? error.message : String(error)}`);
-      if (!page.isClosed()) {
+      capture.console.push(`[defect] ${bugId} ${failure instanceof Error ? failure.message : String(failure)}`);
+      const faultPage = unexpected[0]?.page;
+      const screenshotPage = [faultPage, capture.activePage, page]
+        .find((candidate): candidate is Page => candidate !== undefined && !candidate.isClosed());
+      if (screenshotPage) {
         await writeAuditScreenshot(
           `audit/screenshots/${bugId}-releases-s${String(number).padStart(2, "0")}.png`,
-          (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+          (path) => screenshotPage.screenshot({ path, fullPage: true, caret: "initial" }),
         );
-      }
-      throw error;
-    } finally {
-      capture.console.push(`[duration] scenario ${number}: ${Math.round(performance.now() - startedAt)}ms`);
-      await writeAuditText(
-        `audit/console/releases-s${String(number).padStart(2, "0")}.log`,
-        `${capture.console.join("\n")}\n`,
-      );
-      await writeAuditText(
-        `audit/network/releases-s${String(number).padStart(2, "0")}.log`,
-        `${capture.network.join("\n")}\n`,
-      );
-      if (!bodyFailure) {
-        const unexpectedRequestFailures = withoutExpected(
-          capture.requestFailures,
-          capture.expectedRequestFailures,
-        );
-        const unexpectedHttpErrors = withoutExpected(
-          capture.httpErrors,
-          capture.expectedHttpErrors,
-        );
-        const unexpectedConsoleErrors = withoutExpected(
-          capture.consoleErrors,
-          capture.expectedConsoleErrors,
-        );
-        expect(unexpectedConsoleErrors).toEqual([]);
-        expect(capture.pageErrors).toEqual([]);
-        expect(unexpectedRequestFailures).toEqual([]);
-        expect(unexpectedHttpErrors).toEqual([]);
       }
     }
+
+    capture.console.push(`[duration] scenario ${number}: ${Math.round(performance.now() - startedAt)}ms`);
+    await writeAuditText(
+      `audit/console/releases-s${String(number).padStart(2, "0")}.log`,
+      `${capture.console.join("\n")}\n`,
+    );
+    await writeAuditText(
+      `audit/network/releases-s${String(number).padStart(2, "0")}.log`,
+      `${capture.network.join("\n")}\n`,
+    );
+    await Promise.allSettled([...capture.contexts].map((context) => context.close()));
+    if (failure) throw failure;
   });
 }
 
@@ -320,61 +364,72 @@ async function replayForgedRequest(page: Page, request: ForgedRequest) {
 }
 
 audited(1, "crée puis modifie une version", async ({ page }) => {
-  const name = "R09-S01 Création";
   await page.goto("/b/CASS/releases");
-  await page.getByRole("button", { name: "Créer une version" }).click();
-  const create = page.getByRole("dialog", { name: "Créer une version" });
-  await create.getByRole("textbox", { name: "Nom" }).fill(name);
-  await create.getByRole("textbox", { name: "Description" }).fill("Description initiale");
-  await create.getByLabel("Date de début").fill("2026-08-10");
-  await create.getByLabel("Date cible").fill("2026-08-20");
-  await clickPost(page, () => create.getByRole("button", { name: "Créer", exact: true }).click());
-  const article = page.getByRole("article", { name });
-  await expect(article).toBeVisible();
-  await article.getByRole("button", { name: `Modifier ${name}` }).click();
-  const edit = page.getByRole("dialog", { name: `Modifier ${name}` });
-  await edit.getByRole("textbox", { name: "Nom" }).fill("R09-S01 Modifiée");
-  await edit.getByRole("textbox", { name: "Description" }).fill("Description finale");
-  await clickPost(page, () => edit.getByRole("button", { name: "Enregistrer" }).click());
-  await expect(page.getByRole("article", { name: "R09-S01 Modifiée" })).toBeVisible();
+  async function createThenEdit(input: {
+    initialName: string; finalName: string; initialDescription: string; finalDescription: string;
+    initialStartDate: string; initialTargetDate: string; finalStartDate: string; finalTargetDate: string;
+  }) {
+    await page.getByRole("button", { name: "Créer une version" }).click();
+    const create = page.getByRole("dialog", { name: "Créer une version" });
+    await create.getByRole("textbox", { name: "Nom" }).fill(input.initialName);
+    await create.getByRole("textbox", { name: "Description" }).fill(input.initialDescription);
+    await create.getByLabel("Date de début").fill(input.initialStartDate);
+    await create.getByLabel("Date cible").fill(input.initialTargetDate);
+    await clickPost(page, () => create.getByRole("button", { name: "Créer", exact: true }).click());
+    const article = page.getByRole("article", { name: input.initialName });
+    await expect(article).toBeVisible();
+    await article.getByRole("button", { name: `Modifier ${input.initialName}` }).click();
+    const edit = page.getByRole("dialog", { name: `Modifier ${input.initialName}` });
+    await edit.getByRole("textbox", { name: "Nom" }).fill(input.finalName);
+    await edit.getByRole("textbox", { name: "Description" }).fill(input.finalDescription);
+    await edit.getByLabel("Date de début").fill(input.finalStartDate);
+    await edit.getByLabel("Date cible").fill(input.finalTargetDate);
+    await clickPost(page, () => edit.getByRole("button", { name: "Enregistrer" }).click());
+    await expect(page.getByRole("article", { name: input.finalName })).toBeVisible();
+  }
+  await createThenEdit({ initialName: "R09-S01 Création", finalName: "R09-S01 Modifiée", initialDescription: "Description initiale", finalDescription: "Description finale", initialStartDate: "2026-08-10", initialTargetDate: "2026-08-20", finalStartDate: "2026-08-11", finalTargetDate: "2026-08-22" });
+  await createThenEdit({ initialName: "R09-S01 Seconde", finalName: "R09-S01 Seconde modifiée", initialDescription: "Deuxième description initiale", finalDescription: "Deuxième description finale", initialStartDate: "2026-09-10", initialTargetDate: "2026-09-20", finalStartDate: "2026-09-12", finalTargetDate: "2026-09-24" });
   const stored = await db.select({
     name: releases.name,
     description: releases.description,
+    startDate: releases.startDate,
+    targetDate: releases.releaseDate,
     revision: releases.revision,
-  })
-    .from(releases).where(eq(releases.name, "R09-S01 Modifiée"));
-  expect(stored).toEqual([{
-    name: "R09-S01 Modifiée",
-    description: "Description finale",
-    revision: 2,
-  }]);
+  }).from(releases);
+  expect(stored.filter((row) => row.name.startsWith("R09-S01"))
+    .sort((left, right) => left.name.localeCompare(right.name))).toEqual([
+    { name: "R09-S01 Modifiée", description: "Description finale", startDate: "2026-08-11", targetDate: "2026-08-22", revision: 2 },
+    { name: "R09-S01 Seconde modifiée", description: "Deuxième description finale", startDate: "2026-09-12", targetDate: "2026-09-24", revision: 2 },
+  ]);
 });
 
-audited(2, "affiche un item lié à plusieurs versions sur les détails", async ({ page }) => {
+audited(2, "affiche un item lié à plusieurs versions sur les détails", async ({ browser, capture, audit }) => {
   const first = await fixtureRelease("R09-S02 Alpha");
   const second = await fixtureRelease("R09-S02 Beta");
   const item = await fixtureTask("R09-S02 multi-version", { points: 3 });
-  await assignVersions(item.id, [first.id, second.id]);
-
-  await page.goto(`/b/CASS?view=list&item=${item.key}`);
-  const selected = page.getByRole("list", { name: "Versions sélectionnées" });
+  const editor = await observedPage(browser, capture, "editor-multi-version", AUTH.editor);
+  audit.use(editor);
+  await editor.goto(`/b/CASS?view=list&item=${item.key}`);
+  await editor.getByRole("button", { name: "Versions", exact: true }).click();
+  await clickPost(editor, () => editor.getByRole("menuitemcheckbox", { name: first.name }).click());
+  await clickPost(editor, () => editor.getByRole("menuitemcheckbox", { name: second.name }).click());
+  const selected = editor.getByRole("list", { name: "Versions sélectionnées" });
   await expect(selected).toContainText(first.name);
   await expect(selected).toContainText(second.name);
-  await page.goto(`/b/CASS/releases/${first.id}`);
-  await expect(page.getByRole("region", { name: "Périmètre actuel" })).toContainText(item.key);
-  await page.goto(`/b/CASS/releases/${second.id}`);
-  await expect(page.getByRole("region", { name: "Périmètre actuel" })).toContainText(item.key);
+  await editor.goto(`/b/CASS/releases/${first.id}`);
+  await expect(editor.getByRole("region", { name: "Périmètre actuel" })).toContainText(item.key);
+  await editor.goto(`/b/CASS/releases/${second.id}`);
+  await expect(editor.getByRole("region", { name: "Périmètre actuel" })).toContainText(item.key);
+  expect(await assignedVersionIds(item.id)).toEqual([first.id, second.id].sort());
 });
 
-audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser, capture }) => {
+audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser, capture, audit }) => {
   const first = await fixtureRelease("R09-S03 Ajouter");
   const second = await fixtureRelease("R09-S03 Remplacer");
   const one = await fixtureTask("R09-S03 bulk un");
   const two = await fixtureTask("R09-S03 bulk deux");
-  const editorContext = await browser.newContext({ storageState: AUTH.editor });
-  const editor = await editorContext.newPage();
-  observe(editor, capture, "editor");
-  try {
+  const editor = await observedPage(browser, capture, "editor", AUTH.editor);
+  audit.use(editor);
     await editor.goto("/b/CASS?view=list");
     await editor.getByRole("checkbox", { name: `Sélectionner ${one.key}` }).check();
     await editor.getByRole("checkbox", { name: `Sélectionner ${two.key}` }).check();
@@ -398,9 +453,6 @@ audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser,
     await clickPost(editor, () => editor.getByRole("menuitem", { name: "Retirer des versions" }).click());
     expect(await assignedVersionIds(one.id)).toEqual([]);
     expect(await assignedVersionIds(two.id)).toEqual([]);
-  } finally {
-    await editorContext.close();
-  }
 });
 
 audited(4, "conserve le filtre Version après reload et dans une vue enregistrée", async ({ page }) => {
@@ -451,16 +503,14 @@ audited(5, "calcule la progression depuis les items et leurs points", async ({ p
   );
 });
 
-audited(6, "permet au spécialiste de publier en conservant les incomplets", async ({ browser, capture }) => {
+audited(6, "permet au spécialiste de publier en conservant les incomplets", async ({ browser, capture, audit }) => {
   const release = await fixtureRelease("R09-S06 Keep spécialiste");
   const done = await fixtureTask("R09-S06 terminé", { status: "done", points: 5 });
   const open = await fixtureTask("R09-S06 incomplet", { status: "todo", points: 3 });
   await assignVersions(done.id, [release.id]);
   await assignVersions(open.id, [release.id]);
-  const context = await browser.newContext({ storageState: AUTH.specialist });
-  const specialist = await context.newPage();
-  observe(specialist, capture, "specialist");
-  try {
+  const specialist = await observedPage(browser, capture, "specialist", AUTH.specialist);
+  audit.use(specialist);
     await specialist.goto(`/b/CASS/releases/${release.id}`);
     await specialist.getByRole("button", { name: `Publier ${release.name}` }).click();
     const dialog = specialist.getByRole("dialog", { name: `Publier ${release.name}` });
@@ -476,12 +526,9 @@ audited(6, "permet au spécialiste de publier en conservant les incomplets", asy
       .from(releaseEvents)
       .where(and(eq(releaseEvents.releaseId, release.id), eq(releaseEvents.action, "release_published")));
     expect(event).toEqual({ actorId: specialistId, action: "release_published" });
-  } finally {
-    await context.close();
-  }
 });
 
-audited(7, "refuse un publish move forgé par le spécialiste", async ({ page, browser, capture }) => {
+audited(7, "refuse un publish move forgé par le spécialiste", async ({ page, browser, capture, audit }) => {
   const source = await fixtureRelease("R09-S07 Source");
   const destination = await fixtureRelease("R09-S07 Destination");
   const item = await fixtureTask("R09-S07 incomplet");
@@ -498,10 +545,8 @@ audited(7, "refuse un publish move forgé par le spécialiste", async ({ page, b
   const forged = intercepted();
   await page.unroute("**/*");
 
-  const context = await browser.newContext({ storageState: AUTH.specialist });
-  const specialist = await context.newPage();
-  observe(specialist, capture, "specialist-forged");
-  try {
+  const specialist = await observedPage(browser, capture, "specialist-forged", AUTH.specialist);
+  audit.use(specialist);
     await specialist.goto(`/b/CASS/releases/${source.id}`);
     const response = await replayForgedRequest(specialist, forged);
     expect(response.status).toBeLessThan(500);
@@ -510,9 +555,6 @@ audited(7, "refuse un publish move forgé par le spécialiste", async ({ page, b
     const publications = await db.select({ id: releasePublications.id })
       .from(releasePublications).where(eq(releasePublications.releaseId, source.id));
     expect(publications).toEqual([]);
-  } finally {
-    await context.close();
-  }
 });
 
 audited(8, "conserve deux snapshots après dépublication et republication", async ({ page }) => {
@@ -595,13 +637,11 @@ audited(10, "masque une version archivée des candidats tout en gardant l’affe
   await expect(page.getByLabel(release.name)).toBeVisible();
 });
 
-audited(11, "autorise l’éditeur à affecter sans exposer le cycle de vie", async ({ browser, capture }) => {
+audited(11, "autorise l’éditeur à affecter sans exposer le cycle de vie", async ({ browser, capture, audit }) => {
   const release = await fixtureRelease("R09-S11 Assignation éditeur");
   const item = await fixtureTask("R09-S11 item éditeur");
-  const context = await browser.newContext({ storageState: AUTH.editor });
-  const editor = await context.newPage();
-  observe(editor, capture, "editor");
-  try {
+  const editor = await observedPage(browser, capture, "editor", AUTH.editor);
+  audit.use(editor);
     await editor.goto(`/b/CASS?view=list&item=${item.key}`);
     await editor.getByRole("button", { name: "Versions", exact: true }).click();
     await clickPost(editor, () => editor.getByRole("menuitemcheckbox", { name: release.name }).click());
@@ -612,36 +652,25 @@ audited(11, "autorise l’éditeur à affecter sans exposer le cycle de vie", as
     await expect(editor.getByRole("button", { name: `Archiver ${release.name}` })).toHaveCount(0);
     await editor.goto("/b/CASS/releases");
     await expect(editor.getByRole("button", { name: "Créer une version" })).toHaveCount(0);
-  } finally {
-    await context.close();
-  }
 });
 
-audited(12, "refuse la requête forgée du lecteur sans changer DB ni historique", async ({ browser, capture }) => {
+audited(12, "refuse la requête forgée du lecteur sans changer DB ni historique", async ({ browser, capture, audit }) => {
   const release = await fixtureRelease("R09-S12 Forgée lecteur");
   const item = await fixtureTask("R09-S12 item protégé");
-  const editorContext = await browser.newContext({ storageState: AUTH.editor });
-  const editor = await editorContext.newPage();
-  observe(editor, capture, "editor-capture");
-  let forged: ForgedRequest;
-  try {
+  const editor = await observedPage(browser, capture, "editor-capture", AUTH.editor);
+  audit.use(editor);
     await editor.goto(`/b/CASS?view=list&item=${item.key}`);
     const intercepted = await interceptNextPost(editor, "/b/CASS", capture);
     await editor.getByRole("button", { name: "Versions", exact: true }).click();
     await editor.getByRole("menuitemcheckbox", { name: release.name }).click();
     await expect(editor.getByRole("alert")).toContainText("Mise à jour impossible");
-    forged = intercepted();
+    const forged = intercepted();
     await editor.unroute("**/*");
-  } finally {
-    await editorContext.close();
-  }
   const [activityBefore] = await db.select({ value: count() }).from(activities)
     .where(eq(activities.itemId, item.id));
 
-  const readerContext = await browser.newContext({ storageState: AUTH.reader });
-  const reader = await readerContext.newPage();
-  observe(reader, capture, "reader-forged");
-  try {
+  const reader = await observedPage(browser, capture, "reader-forged", AUTH.reader);
+  audit.use(reader);
     await reader.goto(`/b/CASS?view=list&item=${item.key}`);
     const response = await replayForgedRequest(reader, forged!);
     expect(response.status).toBeLessThan(500);
@@ -650,20 +679,13 @@ audited(12, "refuse la requête forgée du lecteur sans changer DB ni historique
     const [activityAfter] = await db.select({ value: count() }).from(activities)
       .where(eq(activities.itemId, item.id));
     expect(activityAfter?.value).toBe(activityBefore?.value);
-  } finally {
-    await readerContext.close();
-  }
 });
 
-audited(13, "détecte une édition stale entre deux contextes", async ({ browser, capture }) => {
+audited(13, "détecte une édition stale entre deux contextes", async ({ browser, capture, audit }) => {
   const release = await fixtureRelease("R09-S13 Stale");
-  const firstContext = await browser.newContext({ storageState: AUTH.admin });
-  const secondContext = await browser.newContext({ storageState: AUTH.admin });
-  const first = await firstContext.newPage();
-  const second = await secondContext.newPage();
-  observe(first, capture, "admin-first");
-  observe(second, capture, "admin-stale");
-  try {
+  const first = await observedPage(browser, capture, "admin-first", AUTH.admin);
+  const second = await observedPage(browser, capture, "admin-stale", AUTH.admin);
+    audit.use(first);
     await Promise.all([
       first.goto(`/b/CASS/releases/${release.id}`),
       second.goto(`/b/CASS/releases/${release.id}`),
@@ -671,22 +693,39 @@ audited(13, "détecte une édition stale entre deux contextes", async ({ browser
     await first.getByRole("button", { name: `Modifier ${release.name}` }).click();
     const firstDialog = first.getByRole("dialog", { name: `Modifier ${release.name}` });
     await firstDialog.getByRole("textbox", { name: "Nom" }).fill("R09-S13 Serveur");
+    await firstDialog.getByRole("textbox", { name: "Description" }).fill("R09-S13 Valeur serveur");
+    await firstDialog.getByLabel("Date de début").fill("2026-08-05");
+    await firstDialog.getByLabel("Date cible").fill("2026-09-05");
     await clickPost(first, () => firstDialog.getByRole("button", { name: "Enregistrer" }).click());
 
+    audit.use(second);
     await second.getByRole("button", { name: `Modifier ${release.name}` }).click();
     const staleDialog = second.getByRole("dialog", { name: `Modifier ${release.name}` });
     await staleDialog.getByRole("textbox", { name: "Nom" }).fill("R09-S13 Saisie locale");
     await clickPost(second, () => staleDialog.getByRole("button", { name: "Enregistrer" }).click());
     await expect(staleDialog.getByRole("alert")).toContainText("a changé");
     await expect(staleDialog.getByRole("textbox", { name: "Nom" })).toHaveValue("R09-S13 Saisie locale");
-    await expect(staleDialog.getByRole("button", { name: "Recharger la version" })).toBeVisible();
-    const [stored] = await db.select({ name: releases.name, revision: releases.revision })
+    await staleDialog.getByRole("button", { name: "Recharger la version" }).click();
+    await expect(staleDialog).toHaveCount(0);
+    await expect(second.getByRole("button", { name: "Modifier R09-S13 Serveur" })).toBeVisible();
+    await second.getByRole("button", { name: "Modifier R09-S13 Serveur" }).click();
+    const freshDialog = second.getByRole("dialog", { name: "Modifier R09-S13 Serveur" });
+    await expect(freshDialog.getByRole("textbox", { name: "Nom" })).toHaveValue("R09-S13 Serveur");
+    await expect(freshDialog.getByRole("textbox", { name: "Description" }))
+      .toHaveValue("R09-S13 Valeur serveur");
+    await expect(freshDialog.getByLabel("Date de début")).toHaveValue("2026-08-05");
+    await expect(freshDialog.getByLabel("Date cible")).toHaveValue("2026-09-05");
+    await freshDialog.getByRole("textbox", { name: "Description" }).fill("R09-S13 Confirmée par le second");
+    await clickPost(second, () => freshDialog.getByRole("button", { name: "Enregistrer" }).click());
+    const [stored] = await db.select({
+      name: releases.name,
+      description: releases.description,
+      startDate: releases.startDate,
+      targetDate: releases.releaseDate,
+      revision: releases.revision,
+    })
       .from(releases).where(eq(releases.id, release.id));
-    expect(stored).toEqual({ name: "R09-S13 Serveur", revision: 2 });
-  } finally {
-    await firstContext.close();
-    await secondContext.close();
-  }
+    expect(stored).toEqual({ name: "R09-S13 Serveur", description: "R09-S13 Confirmée par le second", startDate: "2026-08-05", targetDate: "2026-09-05", revision: 3 });
 });
 
 audited(14, "garde le dialogue ouvert et rollback après publish intercepté", async ({ page, capture }) => {
@@ -711,17 +750,15 @@ audited(14, "garde le dialogue ouvert et rollback après publish intercepté", a
   await page.unroute("**/*");
 });
 
-audited(15, "rend la release visible au second utilisateur et isole CASS de LABS", async ({ page, browser, capture }) => {
+audited(15, "rend la release visible au second utilisateur et isole CASS de LABS", async ({ page, browser, capture, audit }) => {
   const release = await fixtureRelease("R09-S15 Isolation CASS");
   await page.goto("/b/LABS/releases");
   await expect(page.getByText(release.name, { exact: true })).toHaveCount(0);
   await page.goto(`/b/LABS/releases/${release.id}`);
   await expect(page.getByRole("heading", { name: release.name })).toHaveCount(0);
 
-  const readerContext = await browser.newContext({ storageState: AUTH.reader });
-  const reader = await readerContext.newPage();
-  observe(reader, capture, "reader-second-user");
-  try {
+  const reader = await observedPage(browser, capture, "reader-second-user", AUTH.reader);
+  audit.use(reader);
     await reader.goto("/b/CASS/releases");
     await expect(reader.getByRole("link", { name: release.name })).toBeVisible();
     await reader.reload();
@@ -729,9 +766,6 @@ audited(15, "rend la release visible au second utilisateur et isole CASS de LABS
     await expect(reader.getByRole("button", { name: "Créer une version" })).toHaveCount(0);
     await reader.goto("/b/LABS/releases");
     await expect(reader.getByText(release.name, { exact: true })).toHaveCount(0);
-  } finally {
-    await readerContext.close();
-  }
   const [labs] = await db.select({ id: backlogs.id }).from(backlogs).where(eq(backlogs.key, "LABS"));
   if (!labs) throw new Error("Backlog LABS introuvable.");
   const rows = await db.select({ id: releases.id }).from(releases)
