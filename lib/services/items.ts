@@ -498,6 +498,7 @@ export async function createItem(
           tx,
           { backlogId: data.backlogId, itemIds: [id], sprintId: data.sprintId },
           actorId,
+          requestCorrelationId,
         );
       }
 

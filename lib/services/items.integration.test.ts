@@ -745,7 +745,7 @@ describeDb("updateItem reporter transaction", () => {
 });
 
 describeDb("item fix version integration", () => {
-  it("creates an item and its fix versions atomically with correlated audit", async () => {
+  it("creates an item with sprint and fix versions under one correlated audit", async () => {
     const fixture = await createTaskUpdateFixture();
     const [release] = await db
       .insert(releases)
@@ -756,6 +756,15 @@ describeDb("item fix version integration", () => {
         createdBy: fixture.actorId,
       })
       .returning();
+    const [sprint] = await db
+      .insert(sprints)
+      .values({
+        backlogId: fixture.backlogId,
+        name: "Create sprint target",
+        rank: "create-sprint-target",
+        createdBy: fixture.actorId,
+      })
+      .returning();
     try {
       const created = await createItem(
         {
@@ -763,6 +772,7 @@ describeDb("item fix version integration", () => {
           title: "Créée avec version",
           type: "tache",
           parentId: fixture.epicId,
+          sprintId: sprint!.id,
           fixVersionIds: [release!.id],
         },
         fixture.actorId,
@@ -786,6 +796,7 @@ describeDb("item fix version integration", () => {
           .orderBy(asc(activities.field)),
       ).toEqual([
         { field: "fix_versions", correlationId: "item-create-fix-versions" },
+        { field: "sprint", correlationId: "item-create-fix-versions" },
         { field: null, correlationId: "item-create-fix-versions" },
       ]);
     } finally {

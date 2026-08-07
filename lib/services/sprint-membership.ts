@@ -14,6 +14,7 @@ export async function assignItemsToSprintInTx(
   tx: SprintTx,
   input: { backlogId: string; itemIds: string[]; sprintId: string | null },
   actorId: string,
+  requestCorrelationId?: string,
 ): Promise<{ changedCount: number; unchangedCount: number }> {
   const [backlog] = await tx
     .select({ id: backlogs.id })
@@ -115,6 +116,7 @@ export async function assignItemsToSprintInTx(
       field: "sprint",
       oldValue: currentSprint?.name ?? null,
       newValue: destination?.name ?? null,
+      requestCorrelationId,
     });
     changedCount += 1;
   }
