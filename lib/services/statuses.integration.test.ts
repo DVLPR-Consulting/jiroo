@@ -9,6 +9,7 @@ import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
 import {
   createStatus,
   deleteStatus,
+  listStatusIdsByCategory,
   reorderStatuses,
   updateStatus,
 } from "@/lib/services/statuses";
@@ -80,6 +81,22 @@ async function insertItem(input: {
 }
 
 describeDb("configurable statuses", () => {
+  it("groups exact status IDs by workflow category for release progress filters", async () => {
+    const f = await fixture();
+    try {
+      const selectSpy = vi.spyOn(db, "select");
+      await expect(listStatusIdsByCategory(f.backlog.id)).resolves.toEqual({
+        todo: [f.todo.id],
+        inProgress: [f.doing.id],
+        done: [f.done.id],
+      });
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      selectSpy.mockRestore();
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, f.backlog.id));
+    }
+  });
+
   it("creates a unique appended status and rejects a duplicate name", async () => {
     const f = await fixture();
     try {

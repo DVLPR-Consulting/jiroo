@@ -91,6 +91,7 @@ export type PublicationSnapshotItem = {
 
 export type ReleaseEvent = {
   id: string;
+  publicationId: string | null;
   releaseName: string;
   actor: { id: string | null; name: string };
   action: string;
@@ -122,6 +123,11 @@ const pageCommand = z.object({
 });
 const releasePageCommand = pageCommand.extend({ releaseId: z.uuid() });
 const publicationPageCommand = pageCommand.extend({ publicationId: z.uuid() });
+const publicationSelectionCommand = z.object({
+  backlogId: z.uuid(),
+  releaseId: z.uuid(),
+  preferredPublicationId: z.uuid().nullable().optional(),
+});
 const RELEASE_WRITE_BATCH_SIZE = 1_000;
 
 async function lockBacklog(tx: Tx, backlogId: string) {
@@ -925,6 +931,30 @@ export async function listPublicationSnapshotItems(
   };
 }
 
+export async function resolveReleasePublicationId(input: unknown): Promise<string | null> {
+  const data = publicationSelectionCommand.parse(input);
+  const rows = await db
+    .select({ id: releasePublications.id })
+    .from(releasePublications)
+    .where(
+      and(
+        eq(releasePublications.backlogId, data.backlogId),
+        eq(releasePublications.releaseId, data.releaseId),
+      ),
+    )
+    .orderBy(
+      ...(data.preferredPublicationId
+        ? [
+            desc(sql<number>`case when ${releasePublications.id} = ${data.preferredPublicationId} then 1 else 0 end`),
+          ]
+        : []),
+      desc(releasePublications.sequence),
+      desc(releasePublications.id),
+    )
+    .limit(1);
+  return rows[0]?.id ?? null;
+}
+
 export async function listReleaseEvents(input: unknown): Promise<Page<ReleaseEvent>> {
   const data = releasePageCommand.parse(input);
   const where = and(
@@ -935,6 +965,7 @@ export async function listReleaseEvents(input: unknown): Promise<Page<ReleaseEve
     db
       .select({
         id: releaseEvents.id,
+        publicationId: releaseEvents.publicationId,
         releaseName: releaseEvents.releaseName,
         actorId: releaseEvents.actorId,
         actorLabel: releaseEvents.actorLabel,
@@ -955,6 +986,7 @@ export async function listReleaseEvents(input: unknown): Promise<Page<ReleaseEve
     total: totalRows[0]?.total ?? 0,
     rows: rows.map((row) => ({
       id: row.id,
+      publicationId: row.publicationId,
       releaseName: row.releaseName,
       actor: { id: row.actorId, name: row.actorLabel },
       action: row.action,

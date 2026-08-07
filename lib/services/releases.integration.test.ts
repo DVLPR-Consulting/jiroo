@@ -23,6 +23,7 @@ import {
   listReleaseEvents,
   listReleaseScopeItems,
   listReleaseSummaries,
+  resolveReleasePublicationId,
   publishRelease,
   unarchiveRelease,
   unreleaseRelease,
@@ -644,6 +645,91 @@ describeDb("release metadata and read models", () => {
         pageSize: 101,
       }),
     ).rejects.toThrow("100");
+  });
+
+  it("projects publication IDs explicitly in paginated release events", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Publication event projection");
+    const release = await createRelease(
+      { backlogId: backlog.id, name: "Projected publication", driverId: actor.id },
+      actor.id,
+      "projection-create",
+    );
+    const published = await publishRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: release.id,
+        expectedRevision: release.revision,
+        effectiveDate: "2026-10-01",
+        incompleteDisposition: "keep",
+      },
+      actor.id,
+      "projection-publish",
+    );
+
+    await expect(
+      listReleaseEvents({
+        backlogId: backlog.id,
+        releaseId: release.id,
+        page: 1,
+        pageSize: 20,
+      }),
+    ).resolves.toMatchObject({
+      rows: expect.arrayContaining([
+        expect.objectContaining({
+          action: "release_published",
+          publicationId: published.publicationId,
+        }),
+      ]),
+    });
+  });
+
+  it("resolves a validated historical publication or falls back to the latest", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Publication selection");
+    const created = await createRelease(
+      { backlogId: backlog.id, name: "Selectable publication", driverId: actor.id },
+      actor.id,
+      "selection-create",
+    );
+    const first = await publishRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: created.id,
+        expectedRevision: created.revision,
+        effectiveDate: "2026-10-01",
+        incompleteDisposition: "keep",
+      },
+      actor.id,
+      "selection-first",
+    );
+    const unpublished = await unreleaseRelease(
+      { backlogId: backlog.id, releaseId: created.id, expectedRevision: first.release.revision },
+      actor.id,
+      "selection-unrelease",
+    );
+    const second = await publishRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: created.id,
+        expectedRevision: unpublished.release.revision,
+        effectiveDate: "2026-10-02",
+        incompleteDisposition: "keep",
+      },
+      actor.id,
+      "selection-second",
+    );
+
+    await expect(resolveReleasePublicationId({
+      backlogId: backlog.id,
+      releaseId: created.id,
+      preferredPublicationId: first.publicationId,
+    })).resolves.toBe(first.publicationId);
+    await expect(resolveReleasePublicationId({
+      backlogId: backlog.id,
+      releaseId: created.id,
+      preferredPublicationId: "99999999-9999-4999-8999-999999999999",
+    })).resolves.toBe(second.publicationId);
   });
 
   it("keeps summary query count fixed for 100 releases and 1,000 links", async () => {

@@ -17,6 +17,29 @@ export class StatusReplacementRequiredError extends Error {
   }
 }
 
+export type StatusIdsByCategory = {
+  todo: string[];
+  inProgress: string[];
+  done: string[];
+};
+
+export async function listStatusIdsByCategory(
+  backlogId: string,
+): Promise<StatusIdsByCategory> {
+  const rows = await db
+    .select({ id: statuses.id, category: statuses.category })
+    .from(statuses)
+    .where(eq(statuses.backlogId, backlogId))
+    .orderBy(asc(statuses.order), asc(statuses.id));
+  return {
+    todo: rows.filter(({ category }) => category === "todo").map(({ id }) => id),
+    inProgress: rows
+      .filter(({ category }) => category === "in_progress")
+      .map(({ id }) => id),
+    done: rows.filter(({ category }) => category === "done").map(({ id }) => id),
+  };
+}
+
 export function buildStatusMigrationActivities(
   affected: Array<{ id: string }>,
   current: { id: string; name: string },

@@ -14,12 +14,14 @@ const TABS = [
 
 export function ViewBar({
   view,
+  backlogKey,
   groupControlSlot,
   viewActionsSlot,
   workflowSlot,
   newItemSlot,
 }: {
   view: string;
+  backlogKey?: string;
   /** Rendered right after the tabs group, before saved-view actions. */
   groupControlSlot?: React.ReactNode;
   /** Rendered after grouping, before the ml-auto cluster. */
@@ -55,6 +57,14 @@ export function ViewBar({
             </Link>
           );
         })}
+        {backlogKey ? (
+          <Link
+            href={`/b/${backlogKey}/releases`}
+            className="rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium text-[var(--subtle-foreground)] transition-colors hover:text-foreground"
+          >
+            Versions
+          </Link>
+        ) : null}
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-3">
         {groupControlSlot}

@@ -88,4 +88,14 @@ describe("ViewBar", () => {
       "/b/CASS?item=CASS-42&q=auth&view=backlog&tag=alpha&tag=beta",
     );
   });
+
+  it("links natively to the backlog releases route without carrying view state", () => {
+    render(<ViewBar view="board" backlogKey="CASS" />);
+
+    const releasesLink = screen.getByRole("link", { name: "Versions" });
+    expect(releasesLink).toHaveAttribute("href", "/b/CASS/releases");
+
+    fireEvent.click(releasesLink);
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
 });

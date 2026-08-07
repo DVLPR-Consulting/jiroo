@@ -497,6 +497,7 @@ export async function BacklogViewContent({
     <div className="flex h-full flex-col">
       <ViewBar
         view={view}
+        backlogKey={backlog.key}
         groupControlSlot={
           <GroupControl
             view={view as DisplayMode}
