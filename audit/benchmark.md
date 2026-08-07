@@ -430,3 +430,39 @@ Prochain seuil de comparaison : implémenter Releases, vérifier
 `manage_releases` de bout en bout, puis exposer la timeline de sécurité. Aucune
 parité globale Jira n’est revendiquée avant ces deux livraisons et un audit de
 volumétrie.
+
+---
+
+# Benchmark — Releases / Versions après découverte du 7 août 2026
+
+## Verdict
+
+Jira fait très nettement mieux : sa Release est une **Version de projet** et
+les items y sont associés par le champ multivalué `Fix versions`. Jiroo ne
+possède aujourd’hui ni modèle, ni route, ni champ, ni filtre ; `manage_releases`
+est uniquement une permission sans consommateur.
+
+| Capacité | Jira Cloud | Jiroo observé | Verdict |
+|---|---|---|---|
+| Modèle | version par projet, plusieurs `Fix versions` par item | absent | manquant P0 |
+| Métadonnées | nom, description, responsable, dates début/release | absent | manquant P0 |
+| Cycle | non publiée, publiée, archivée ; unrelease/unarchive | absent | manquant P0 |
+| Planification | création, détail, backlog, filtres et bulk | absent | manquant P0 |
+| Publication | date effective et traitement des items incomplets | absent | manquant P0 |
+| Progression | catégories À faire/En cours/Terminé et retard | absent | manquant P0 |
+| Administration | permission Manage versions/releases | permission présente, aucune action | fondation seule |
+| Avancé | merge, suppression/transfert, ordre, notes et related work | absent | Should/Later |
+
+## Seuil de parité recommandé
+
+Le premier incrément ne doit pas simuler une Release par un simple champ texte.
+Il doit livrer une relation many-to-many item/version, le cycle complet, les
+items incomplets à la publication, les filtres et l’autorisation serveur. Merge,
+suppression avec transfert, ordre manuel, notes et travail connexe peuvent être
+livrés dans un second incrément sans fragiliser le noyau.
+
+Sources officielles : [Manage versions](https://support.atlassian.com/jira-cloud-administration/docs/manage-versions/),
+[Create a version](https://support.atlassian.com/jira-software-cloud/docs/create-a-version-in-a-classic-project/),
+[Release a version](https://support.atlassian.com/jira-software-cloud/docs/release-a-version-in-your-classic-project/),
+[Release progress](https://support.atlassian.com/jira-software-cloud/docs/use-the-release-page-to-check-the-progress-of-a-version/)
+et [Release notes](https://support.atlassian.com/jira-cloud-administration/docs/create-release-notes/).

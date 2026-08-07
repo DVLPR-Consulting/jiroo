@@ -1,0 +1,205 @@
+Total messages: 3 (Errors: 1, Warnings: 0)
+Returning 189 messages for level "debug"
+
+[ERROR] WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=3FZ_5h0XyotJDEqgC3TiF' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/_next/static/chunks/1188_next_dist_client_0q_pr2c._.js:13422
+[ERROR] WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=3FZ_5h0XyotJDEqgC3TiF' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/_next/static/chunks/1188_next_dist_client_0q_pr2c._.js:13422
+[ERROR] WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=3FZ_5h0XyotJDEqgC3TiF' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/_next/static/chunks/1188_next_dist_client_0q_pr2c._.js:13422
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 876ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 515ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[VERBOSE] [DOM] Password forms should have (optionally hidden) username fields for accessibility: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:3000/2fa/enroll:0
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 1349ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 499ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 87ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 28ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 39ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 37ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 34ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 31ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 41ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 99ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 35ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 39ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 98ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 91ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 43ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 36ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 158ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 111ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 135ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 68ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 93ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 227ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 479ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 60ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 50ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 224ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 114ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 28ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 208ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 178ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 116ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 201ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 447ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 175ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 175ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 203ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 380ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 219ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 488ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 113ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 159ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 112ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 452ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 331ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 258ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 378ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 124ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 265ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 105ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 183ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 151ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 116ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 274ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 211ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[ERROR] Failed to load resource: the server responded with a status of 401 (UNAUTHORIZED) @ http://localhost:3000/api/auth/sign-in/email:0
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 108ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 116ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 210ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 101ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 173ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 533ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 295ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 296ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 244ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 215ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 92ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 104ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 108ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 239ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 222ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 260ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [Fast Refresh] done in 260ms @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[ERROR] Failed to load resource: the server responded with a status of 401 (UNAUTHORIZED) @ http://localhost:3000/api/auth/sign-in/email:0
+[ERROR] WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=mnADu91y3HFi_XtFQMP5v' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/_next/static/chunks/1188_next_dist_client_0q_pr2c._.js:13422
+[ERROR] WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=mnADu91y3HFi_XtFQMP5v' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/_next/static/chunks/1188_next_dist_client_0q_pr2c._.js:13422
+[ERROR] WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=mnADu91y3HFi_XtFQMP5v' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/_next/static/chunks/1188_next_dist_client_0q_pr2c._.js:13422
+[ERROR] WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=mnADu91y3HFi_XtFQMP5v' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/_next/static/chunks/1188_next_dist_client_0q_pr2c._.js:13422
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[VERBOSE] [DOM] Password forms should have (optionally hidden) username fields for accessibility: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:3000/2fa/enroll:0
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/b/CASS/releases:0
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/b/CASS/versions:0
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+[LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1188_next_dist_07_k0ws._.js:2477
+Error: Module [next]/entry/page-loader.ts { PAGE => "[project]/node_modules/.pnpm/next@16.2.7_@babel+core@7.29.7_react-dom@19.2.4_react@19.2.4__react@19.2.4/node_modules/next/dist/pages/_error.js [client] (ecmascript)" } [client] (ecmascript) was instantiated because it was required from module [hmr-entry]/hmr-entry.js { ENTRY => "[project]/pages/_error" }, but the module factory is not available.
+This is often caused by a stale browser cache, misconfigured Cache-Control headers, or a service worker serving outdated responses.
+To fix this, make sure your Cache-Control headers allow revalidation of chunks and review your service worker configuration. As an immediate workaround, try hard-reloading the page, clearing the browser cache, or unregistering any service workers.
+    at instantiateModuleShared (http://localhost:3000/_next/static/chunks/turbopack-pages__app_0qvzeuc._.js:1272:15)
+    at instantiateModule (http://localhost:3000/_next/static/chunks/turbopack-pages__app_0qvzeuc._.js:1621:12)
+    at getOrInstantiateModuleFromParent (http://localhost:3000/_next/static/chunks/turbopack-pages__app_0qvzeuc._.js:1604:12)
+    at DevContext.commonJsRequire [as r] (http://localhost:3000/_next/static/chunks/turbopack-pages__app_0qvzeuc._.js:299:12)
+    at module evaluation (http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__02sxxph._.js:472:23)
+    at http://localhost:3000/_next/static/chunks/turbopack-pages__app_0qvzeuc._.js:1307:27
+    at runModuleExecutionHooks (http://localhost:3000/_next/static/chunks/turbopack-pages__app_0qvzeuc._.js:1636:13)
+    at instantiateModuleShared (http://localhost:3000/_next/static/chunks/turbopack-pages__app_0qvzeuc._.js:1305:9)
+    at instantiateModule (http://localhost:3000/_next/static/chunks/turbopack-pages__app_0qvzeuc._.js:1621:12)
+    at getOrInstantiateRuntimeModule (http://localhost:3000/_next/static/chunks/turbopack-pages__app_0qvzeuc._.js:1582:12)
+    at Object.registerChunk (http://localhost:3000/_next/static/chunks/turbopack-pages__app_0qvzeuc._.js:1988:21)

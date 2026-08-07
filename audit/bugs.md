@@ -1325,3 +1325,51 @@ La première collecte de remédiation contient les deux 401 TOTP historiques de 
 | BUG-JIR-021 | nom accessible strict `Créer` malgré l'icône de type | Vitest + création contextuelle Playwright |
 | BUG-JIR-022 | collision pointeur priorisant ligne exacte ou section vide | Vitest + Playwright souris 5/5 + rollback |
 | BUG-JIR-023 | collation SQL binaire sur tous les rangs items/sprints | intégration PostgreSQL RED/GREEN + 7 scénarios Chromium |
+
+## BUG-JIR-027 — Releases/Versions totalement absentes malgré la permission dédiée
+
+- **Gravité :** bloquante
+- **Priorité :** P0
+- **Statut :** ouvert, confirmé le 7 août 2026
+- **Fonctionnalité :** releases / versions / planification produit
+
+### Étapes de reproduction
+
+1. Se connecter comme administrateur et ouvrir `/b/CASS?view=backlog`.
+2. Inspecter navigation, filtres, colonnes et barre d’actions groupées.
+3. Ouvrir la création d’item puis le détail d’une tâche.
+4. Ouvrir `/b/CASS/settings/access` et constater que `Gérer les releases`
+   existe dans l’Assistant de permissions.
+5. Naviguer directement vers `/b/CASS/releases` puis `/b/CASS/versions`.
+
+### Résultat obtenu
+
+Aucun point d’entrée, champ, filtre, colonne ou action Release/Version n’existe.
+Les deux URL directes répondent 404. Seule la permission future est visible.
+
+### Résultat attendu
+
+Un backlog doit exposer ses Versions, permettre d’y affecter plusieurs items
+via `Fix versions`, visualiser leur progression et gérer leur cycle de
+publication/archivage selon `manage_releases`.
+
+### Impacts
+
+- **Utilisateur :** impossible de planifier ou expliquer ce qui sera livré.
+- **Métier :** impossible de répondre à « qu’avons-nous réellement livré ? » ;
+  Jiroo ne couvre pas la gestion produit de bout en bout.
+- **Produit :** la permission sans consommateur crée une promesse fonctionnelle
+  incohérente et bloque toute parité crédible avec Jira.
+
+### Hypothèse sur la cause
+
+La fondation d’autorisation a volontairement livré `manage_releases` avant son
+modèle et ses routes. Aucun schéma Version, relation item/version ni écran
+métier n’a encore été implémenté.
+
+### Preuves
+
+- [Capture du Backlog sans colonne, filtre ou action Release](screenshots/BUG-JIR-027-releases-absentes-backlog.png)
+- [Console nominale](console/2026-08-07-session-10-releases-nominal-console.log)
+- [Réseau nominal](network/2026-08-07-session-10-releases-nominal-network.log)
+- [GET directs en 404](network/2026-08-07-session-10-releases-direct-routes-network.log)

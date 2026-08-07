@@ -414,3 +414,38 @@ la date du run.
 1. Releases/versions et consommation de `manage_releases`.
 2. Timeline de sécurité visible et audit responsive/accessibilité.
 3. Rapport sprint/vélocité/burndown fondé sur l’événementiel.
+
+---
+
+## Mise à jour — audit Releases du 7 août 2026
+
+`BUG-JIR-027` confirme dans Playwright que Releases/Versions est entièrement
+absent. Le prochain incrément P0 doit donc partir du modèle métier, sans tenter
+de raccorder une interface à un champ texte provisoire.
+
+### PR Release 1 — noyau Jira sûr
+
+- Version appartenant à un backlog : nom, description, responsable, date de
+  début optionnelle, date cible optionnelle, état non publiée/publiée/archivée ;
+- relation many-to-many `Fix versions` permettant plusieurs versions par item ;
+- affectation depuis création, détail et bulk Backlog ;
+- filtre Version sur Backlog/Board et progression par catégories de statut ;
+- publication avec date effective et décision explicite pour les items non
+  terminés ; unrelease, archive et unarchive ;
+- chaque mutation de cycle protégée par `manage_releases`, chaque affectation
+  d’item par `edit_items`, avec historique corrélé.
+
+### PR Release 2 — profondeur Jira
+
+- fusion de versions et transfert atomique des références ;
+- suppression avec transfert ou retrait explicite des `Fix versions` ;
+- ordre manuel ;
+- notes de release générées depuis l’état courant, export Markdown/HTML ;
+- travail connexe et préparation des futures alertes dépôt/PR/déploiement.
+
+### Matrice Playwright d’acceptation
+
+Créer deux versions, affecter un item à plusieurs versions, planifier un lot par
+bulk, filtrer Backlog/Board, modifier les dates, publier avec un item incomplet,
+déplacer ou conserver cet item, archiver/unarchive, vérifier historique et
+permissions, puis recharger et répéter dans un second contexte utilisateur.

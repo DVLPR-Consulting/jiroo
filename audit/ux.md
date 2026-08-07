@@ -450,3 +450,28 @@ de dupliquer les sélecteurs complexes de l’écran d’administration.
    différences par rapport au schéma par défaut.
 3. Rejouer toute l’administration au clavier et aux quatre breakpoints avant
    d’ajouter Releases ; réutiliser l’Assistant dans les écrans métier refusés.
+
+---
+
+## Mise à jour UX — découverte Releases du 7 août 2026
+
+La fonctionnalité n’est pas seulement difficile à découvrir : elle est absente.
+Le parcours demande donc un nombre de clics et un temps **infinis** pour créer
+une version ou y affecter un item. Aucun état vide ne guide vers une première
+Release, aucun lien de navigation n’existe et la permission dédiée n’explique
+pas où exercer le droit accordé.
+
+Le Backlog est l’emplacement naturel de planification, mais sa table s’arrête à
+Points et Assigné. La barre bulk propose Statut, Priorité, Assigné, Sprint et
+Estimation, sans Version. Le détail expose Sprint et Échéance, mais pas
+`Fix versions`; la création ne permet pas non plus de planifier une version.
+
+### Dette UX à traiter dans le design
+
+1. Ajouter « Releases » dans la navigation du backlog avec un état vide utile.
+2. Réutiliser un même sélecteur multivalué de Versions dans création, détail et
+   bulk, sans fabriquer trois interactions différentes.
+3. Montrer la progression et les items incomplets avant l’action Publier ; ne
+   jamais assimiler silencieusement statut `Done` et livraison effective.
+4. Rendre les versions filtrables depuis Backlog/Board et conserver le filtre
+   dans l’URL et les vues enregistrées.

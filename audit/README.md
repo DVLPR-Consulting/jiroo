@@ -943,3 +943,50 @@ rapport de sprint, vélocité et burndown demeurent des fonctions produit absent
    l’administration aux breakpoints 390/768/1024/1440 px.
 3. Construire le **rapport de sprint**, la vélocité et le burndown à partir des
    événements persistants, avec totaux explicables item par item.
+
+---
+
+## Fin de session — incrément 10 : découverte Releases / Versions
+
+### Verdict
+
+**Fonctionnalité manquante — P0.** Playwright confirme que Jiroo ne possède
+aucun consommateur métier de `manage_releases`. La permission est visible dans
+l’Assistant d’accès, mais aucune Release/Version ne peut être créée, consultée,
+affectée à un item, filtrée, publiée ou archivée.
+
+Le score global reste **82/100** : les incréments précédents n’accordaient déjà
+aucun crédit à Releases. La confiance sur ce constat est élevée, car les
+surfaces principales et les URL directes ont été testées dans Chromium.
+
+### Ce qui a été testé
+
+- navigation principale et administration : aucun menu Releases/Versions ;
+- Backlog : aucune colonne, aucun filtre et aucune action bulk Release/Version ;
+- création d’item : aucun champ de planification de version ;
+- détail d’item : aucun champ `Fix versions` ;
+- page Accès : `Gérer les releases` existe bien dans l’Assistant ;
+- `/b/CASS/releases` et `/b/CASS/versions` : réponses HTTP 404 ;
+- serveur `main` redémarré et compte d’audit réinitialisé avant le parcours
+  nominal ; ce parcours ne produit aucune erreur console ou réseau inattendue.
+
+Preuves : [Backlog sans Release](screenshots/BUG-JIR-027-releases-absentes-backlog.png),
+[console nominale](console/2026-08-07-session-10-releases-nominal-console.log),
+[réseau nominal](network/2026-08-07-session-10-releases-nominal-network.log),
+[console des routes directes](console/2026-08-07-session-10-releases-direct-routes-console.log)
+et [réseau des routes directes](network/2026-08-07-session-10-releases-direct-routes-network.log).
+
+### Ce qui reste à tester
+
+La fonctionnalité étant absente, aucun cycle de création, affectation,
+publication, archivage, permission ou concurrence ne peut encore être exécuté.
+Ces scénarios constitueront la matrice d’acceptation de l’implémentation.
+
+### Trois priorités absolues pour la prochaine session
+
+1. Valider le design du modèle Jira : Version de backlog et champ multivalué
+   `Fix versions` sur les items.
+2. Livrer le cycle non publiée → publiée → archivée, l’affectation unitaire/bulk,
+   les filtres et la progression sous `manage_releases`.
+3. Prouver dans Playwright la publication avec items incomplets, la persistance,
+   les refus serveur et un second contexte utilisateur.
