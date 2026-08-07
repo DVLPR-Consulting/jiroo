@@ -40,6 +40,7 @@ type SharedProps = {
 };
 
 type FieldsProps = SharedProps & {
+  allowEmptyDriver: boolean;
   prefix: string;
   name: string;
   setName: (value: string) => void;
@@ -56,6 +57,7 @@ type FieldsProps = SharedProps & {
 };
 
 function ReleaseFields({
+  allowEmptyDriver,
   actor,
   canBrowseUsers,
   description,
@@ -126,7 +128,7 @@ function ReleaseFields({
             value={driverId}
             onChange={(event) => setDriverId(event.target.value)}
           >
-            <option value="">Aucun pilote</option>
+            {allowEmptyDriver ? <option value="">Aucun pilote</option> : null}
             {driverOptions.map((driver) => (
               <option key={driver.id} value={driver.id}>{driver.name}</option>
             ))}
@@ -190,7 +192,7 @@ export function CreateReleaseDialog({
           description: description.trim() || null,
           startDate: startDate || null,
           targetDate: targetDate || null,
-          ...(canBrowseUsers && driverId ? { driverId } : {}),
+          driverId: canBrowseUsers ? driverId : actor.id,
         });
         if (!result.ok) {
           setError(result.error);
@@ -217,6 +219,7 @@ export function CreateReleaseDialog({
             {error ? <p role="alert" className="rounded-lg bg-destructive/10 p-2 text-sm text-destructive">{error}</p> : null}
           </div>
           <ReleaseFields
+            allowEmptyDriver={false}
             backlog={backlog}
             actor={actor}
             driverOptions={driverOptions}
@@ -327,6 +330,7 @@ function EditReleaseDialogState({
             {error ? <p role="alert" className="rounded-lg bg-destructive/10 p-2 text-sm text-destructive">{error}</p> : null}
           </div>
           <ReleaseFields
+            allowEmptyDriver
             backlog={backlog}
             actor={actor}
             driverOptions={driverOptions}

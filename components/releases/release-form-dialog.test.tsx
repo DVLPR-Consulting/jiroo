@@ -80,6 +80,62 @@ describe("release form dialogs", () => {
     expect(screen.getByRole("button", { name: "Créer" })).toBeDisabled();
   });
 
+  it("uses the actor as the required default driver for creation", async () => {
+    const user = userEvent.setup();
+    mocks.createReleaseAction.mockResolvedValueOnce({ ok: true, result: { id: release.id } });
+    render(
+      <CreateReleaseDialog
+        backlog={backlog}
+        actor={actor}
+        driverOptions={driverOptions}
+        canBrowseUsers
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Créer une version" }));
+
+    expect(screen.getByRole("combobox", { name: "Pilote" })).toHaveValue("actor-1");
+    expect(screen.queryByRole("option", { name: "Aucun pilote" })).not.toBeInTheDocument();
+    await user.type(screen.getByRole("textbox", { name: "Nom" }), "Version par défaut");
+    await user.click(screen.getByRole("button", { name: "Créer" }));
+
+    await waitFor(() => expect(mocks.createReleaseAction).toHaveBeenCalledWith({
+      backlogId: backlog.id,
+      backlogKey: backlog.key,
+      name: "Version par défaut",
+      description: null,
+      startDate: null,
+      targetDate: null,
+      driverId: "actor-1",
+    }));
+  });
+
+  it("submits the explicitly selected creation driver", async () => {
+    const user = userEvent.setup();
+    mocks.createReleaseAction.mockResolvedValueOnce({ ok: true, result: { id: release.id } });
+    render(
+      <CreateReleaseDialog
+        backlog={backlog}
+        actor={actor}
+        driverOptions={driverOptions}
+        canBrowseUsers
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Créer une version" }));
+    await user.type(screen.getByRole("textbox", { name: "Nom" }), "Version pilotée");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Pilote" }), "driver-2");
+    await user.click(screen.getByRole("button", { name: "Créer" }));
+
+    await waitFor(() => expect(mocks.createReleaseAction).toHaveBeenCalledWith({
+      backlogId: backlog.id,
+      backlogKey: backlog.key,
+      name: "Version pilotée",
+      description: null,
+      startDate: null,
+      targetDate: null,
+      driverId: "driver-2",
+    }));
+  });
+
   it("rejects reversed dates locally and focuses the target date", async () => {
     const user = userEvent.setup();
     render(
@@ -220,5 +276,36 @@ describe("release form dialogs", () => {
     );
     await user.click(screen.getByRole("button", { name: "Modifier Version serveur" }));
     expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("Version serveur");
+  });
+
+  it("keeps the nullable driver option for editing and submits null", async () => {
+    const user = userEvent.setup();
+    mocks.updateReleaseAction.mockResolvedValueOnce({ ok: true, result: { id: release.id } });
+    render(
+      <EditReleaseDialog
+        backlog={backlog}
+        release={release}
+        actor={actor}
+        driverOptions={driverOptions}
+        canBrowseUsers
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Modifier Version 1" }));
+    const picker = screen.getByRole("combobox", { name: "Pilote" });
+    expect(screen.getByRole("option", { name: "Aucun pilote" })).toBeInTheDocument();
+    await user.selectOptions(picker, "");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await waitFor(() => expect(mocks.updateReleaseAction).toHaveBeenCalledWith({
+      backlogId: backlog.id,
+      backlogKey: backlog.key,
+      releaseId: release.id,
+      expectedRevision: 3,
+      name: "Version 1",
+      description: "Description initiale",
+      startDate: "2026-09-01",
+      targetDate: "2026-09-30",
+      driverId: null,
+    }));
   });
 });

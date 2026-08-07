@@ -52,3 +52,19 @@ The brief's pnpm wrappers could not run in this linked worktree because pnpm rep
 - Commit: `feat(releases): add release planning pages` (this report is included in that atomic commit).
 - Independent review: approved after remediation.
 - Ledger concern: release and browsable-user collections remain unpaginated. They are fixed-count queries and correctly permission-gated, but payload cost grows with the backlog/installation; pagination is deferred beyond Task 7 scope.
+
+## Fix round 1 — création avec pilote explicite
+
+The shared driver picker previously offered `Aucun pilote` during creation even
+though the create action replaces an omitted driver with the actor. Creation
+now has no nullable option, starts on the actor, and always submits the explicit
+actor or selected driver. Editing retains `Aucun pilote` because the update
+schema and service intentionally support `driverId: null`.
+
+- RED: the creation picker incorrectly exposed `Aucun pilote` (the two later
+  failures in that run were queued-mock cascades after the early assertion).
+- GREEN: form suite 9 tests passed, including exact actor, selected-driver, and
+  nullable-edit payloads.
+- Task 7 UI suite: 8 files, 39 tests passed.
+- TypeScript, full ESLint, and `git diff --check`: passed.
+- No server change was required.
