@@ -170,7 +170,7 @@ async function mutateItemFixVersionsInTx(
     if (!changed) continue;
 
     for (const releaseId of toAdd) {
-      additions.push({ backlogId: input.backlogId, itemId, releaseId });
+      additions.push({ backlogId: input.backlogId, itemId, releaseId, addedBy: actorId });
     }
     if (toRemove.length > 0) removals.set(itemId, toRemove);
     activityRows.push({

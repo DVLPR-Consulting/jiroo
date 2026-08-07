@@ -504,8 +504,8 @@ describeDb("bulkUpdateItems transaction", () => {
       ])
       .returning();
     await db.insert(itemFixVersions).values([
-      { backlogId: fixture.backlogId, itemId: fixture.taskAId, releaseId: releaseA!.id },
-      { backlogId: fixture.backlogId, itemId: fixture.taskAId, releaseId: releaseB!.id },
+      { backlogId: fixture.backlogId, itemId: fixture.taskAId, releaseId: releaseA!.id, addedBy: fixture.actorId },
+      { backlogId: fixture.backlogId, itemId: fixture.taskAId, releaseId: releaseB!.id, addedBy: fixture.actorId },
     ]);
     try {
       await expect(
@@ -603,6 +603,7 @@ describeDb("bulkUpdateItems transaction", () => {
         backlogId: fixture.backlogId,
         name: "Bulk archived",
         archivedAt: new Date(),
+        archivedBy: fixture.actorId,
         createdBy: fixture.actorId,
       })
       .returning();
@@ -610,6 +611,7 @@ describeDb("bulkUpdateItems transaction", () => {
       backlogId: fixture.backlogId,
       itemId: fixture.taskAId,
       releaseId: archived!.id,
+      addedBy: fixture.actorId,
     });
     try {
       await expect(
@@ -662,6 +664,7 @@ describeDb("bulkUpdateItems transaction", () => {
       backlogId: fixture.backlogId,
       itemId: fixture.taskAId,
       releaseId: local!.id,
+      addedBy: fixture.actorId,
     });
     try {
       await expect(

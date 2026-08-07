@@ -124,11 +124,12 @@ async function createTargetedSnapshots(client: PoolClient): Promise<{
   const publicationId = publication.rows[0]!.id;
   const snapshot = await client.query<{ id: string }>(
     `insert into release_publication_items
-      (publication_id, backlog_id, item_id, item_key, item_title, status_name,
-       disposition, destination_release_id, destination_release_name)
-     values ($1, $2, $3, 'NULL-1', 'Cible directe', 'À faire', 'moved', $4, '6.1')
+      (publication_id, backlog_id, item_id, item_key, item_title, item_type, status_id,
+       status_name, status_category, disposition, destination_release_id, destination_release_name)
+     values ($1, $2, $3, 'NULL-1', 'Cible directe', 'composant', $4,
+       'À faire', 'todo', 'moved', $5, '6.1')
      returning id`,
-    [publicationId, backlogId, itemId, destinationReleaseId],
+    [publicationId, backlogId, itemId, status.rows[0]!.id, destinationReleaseId],
   );
   return { publicationId, snapshotId: snapshot.rows[0]!.id };
 }
@@ -211,10 +212,20 @@ describeDb("release persistence constraints", () => {
        where table_schema = 'public'
          and (table_name, column_name) in (
            ('releases', 'archived_at'),
+           ('releases', 'archived_by'),
+           ('releases', 'released_at'),
+           ('releases', 'released_by'),
+           ('releases', 'effective_release_date'),
            ('release_publications', 'release_name'),
            ('release_publications', 'sequence'),
+           ('release_publications', 'snapshot_sealed_at'),
+           ('release_publications', 'unreleased_at'),
+           ('release_publications', 'unreleased_by'),
            ('release_publication_items', 'completed'),
            ('release_publication_items', 'estimate_points'),
+           ('release_publication_items', 'item_type'),
+           ('release_publication_items', 'status_id'),
+           ('release_publication_items', 'status_category'),
            ('release_publications', 'destination_release_name'),
            ('release_publication_items', 'item_key'),
            ('release_publication_items', 'item_title'),
@@ -235,13 +246,162 @@ describeDb("release persistence constraints", () => {
       { table_name: "release_publication_items", column_name: "estimate_points" },
       { table_name: "release_publication_items", column_name: "item_key" },
       { table_name: "release_publication_items", column_name: "item_title" },
+      { table_name: "release_publication_items", column_name: "item_type" },
+      { table_name: "release_publication_items", column_name: "status_category" },
+      { table_name: "release_publication_items", column_name: "status_id" },
       { table_name: "release_publication_items", column_name: "status_name" },
       { table_name: "release_publications", column_name: "destination_release_name" },
       { table_name: "release_publications", column_name: "release_name" },
       { table_name: "release_publications", column_name: "sequence" },
+      { table_name: "release_publications", column_name: "snapshot_sealed_at" },
+      { table_name: "release_publications", column_name: "unreleased_at" },
+      { table_name: "release_publications", column_name: "unreleased_by" },
       { table_name: "releases", column_name: "archived_at" },
+      { table_name: "releases", column_name: "archived_by" },
       { table_name: "releases", column_name: "driver_id" },
+      { table_name: "releases", column_name: "effective_release_date" },
+      { table_name: "releases", column_name: "released_at" },
+      { table_name: "releases", column_name: "released_by" },
     ]);
+  });
+
+  it("stores assignment provenance and enforces normalized release names", async () => {
+    const provenance = await pool.query<{ column_name: string }>(
+      `select column_name
+       from information_schema.columns
+       where table_schema = 'public'
+         and table_name = 'item_fix_versions'
+         and column_name in ('added_at', 'added_by')
+       order by column_name`,
+    );
+    expect(provenance.rows).toEqual([
+      { column_name: "added_at" },
+      { column_name: "added_by" },
+    ]);
+
+    await transaction(async (client) => {
+      const backlogId = await createBacklog(client, "TRIMNAME");
+      const createdBy = await actorId(client);
+      await expectStatementRejected(
+        client,
+        "insert into releases (backlog_id, name, created_by) values ($1, '   ', $2)",
+        [backlogId, createdBy],
+      );
+      await createRelease(client, backlogId, createdBy, "Version 1");
+      await expectStatementRejected(
+        client,
+        "insert into releases (backlog_id, name, created_by) values ($1, ' version 1 ', $2)",
+        [backlogId, createdBy],
+      );
+    });
+  });
+
+  it("enforces all-or-none active publication fields", async () => {
+    await transaction(async (client) => {
+      const backlogId = await createBacklog(client, "CURRENTSTATE");
+      const actor = await actorId(client);
+      await expectStatementRejected(
+        client,
+        `insert into releases
+          (backlog_id, name, created_by, released_at)
+         values ($1, 'Partial released state', $2, current_timestamp)`,
+        [backlogId, actor],
+      );
+      await expect(
+        client.query(
+          `insert into releases
+            (backlog_id, name, created_by, released_at, released_by, effective_release_date)
+           values ($1, 'Complete released state', $2, current_timestamp, $2, '2026-08-07')`,
+          [backlogId, actor],
+        ),
+      ).resolves.toBeTruthy();
+    });
+  });
+
+  it("seals completed publication snapshots against late inserts", async () => {
+    await transaction(async (client) => {
+      const backlogId = await createBacklog(client, "SEALED");
+      const actor = await actorId(client);
+      const releaseId = await createRelease(client, backlogId, actor, "Sealed 1.0");
+      const publicationId = await createPublication(
+        client,
+        backlogId,
+        releaseId,
+        actor,
+        "Sealed 1.0",
+      );
+      await client.query(
+        `insert into release_publication_items
+          (publication_id, backlog_id, item_key, item_title, item_type, status_id,
+           status_name, status_category, disposition)
+         values ($1, $2, 'SEALED-1', 'Initial snapshot', 'tache', $3,
+           'Terminé', 'done', 'retained')`,
+        [publicationId, backlogId, randomUUID()],
+      );
+      await client.query(
+        "update release_publications set snapshot_sealed_at = current_timestamp where id = $1",
+        [publicationId],
+      );
+      await expectStatementRejected(
+        client,
+        `insert into release_publication_items
+          (publication_id, backlog_id, item_key, item_title, item_type, status_id,
+           status_name, status_category, disposition)
+         values ($1, $2, 'SEALED-2', 'Late snapshot', 'tache', $3,
+           'Terminé', 'done', 'retained')`,
+        [publicationId, backlogId, randomUUID()],
+      );
+    });
+  });
+
+  it("protects release events as append-only while allowing FK nullification", async () => {
+    await transaction(async (client) => {
+      const backlogId = await createBacklog(client, "EVENTLEDGER");
+      const actor = await actorId(client);
+      const releaseId = await createRelease(client, backlogId, actor, "Ledger 1.0");
+      const event = await client.query<{ id: string }>(
+        `insert into release_events
+          (backlog_id, release_id, release_name, actor_id, actor_label, action)
+         values ($1, $2, 'Ledger 1.0', $3, 'Historical actor', 'release_created')
+         returning id`,
+        [backlogId, releaseId, actor],
+      );
+      const eventId = event.rows[0]!.id;
+      await expectStatementRejected(
+        client,
+        "update release_events set actor_label = 'Altered' where id = $1",
+        [eventId],
+      );
+      await expectStatementRejected(client, "delete from release_events where id = $1", [eventId]);
+      await client.query("delete from releases where id = $1", [releaseId]);
+      await expect(
+        client.query<{ release_id: string | null }>(
+          "select release_id from release_events where id = $1",
+          [eventId],
+        ),
+      ).resolves.toMatchObject({ rows: [{ release_id: null }] });
+    });
+  });
+
+  it("preserves release events after their backlog is deleted", async () => {
+    await transaction(async (client) => {
+      const backlogId = await createBacklog(client, "EVENTBACKLOG");
+      const actor = await actorId(client);
+      const event = await client.query<{ id: string }>(
+        `insert into release_events
+          (backlog_id, release_name, actor_id, actor_label, action)
+         values ($1, 'Deleted backlog release', $2, 'Historical actor', 'release_created')
+         returning id`,
+        [backlogId, actor],
+      );
+      await client.query("delete from backlogs where id = $1", [backlogId]);
+      await expect(
+        client.query<{ backlog_id: string | null }>(
+          "select backlog_id from release_events where id = $1",
+          [event.rows[0]!.id],
+        ),
+      ).resolves.toMatchObject({ rows: [{ backlog_id: null }] });
+    });
   });
 
   it("allows a release date without a start date", async () => {
@@ -250,22 +410,23 @@ describeDb("release persistence constraints", () => {
       const createdBy = await actorId(client);
       await expect(
         client.query(
-          `insert into releases (backlog_id, name, release_date, archived_at, created_by)
-           values ($1, '1.0', '2026-08-07', '2026-08-08T09:00:00Z', $2)`,
+          `insert into releases
+            (backlog_id, name, release_date, archived_at, archived_by, created_by)
+           values ($1, '1.0', '2026-08-07', '2026-08-08T09:00:00Z', $2, $2)`,
           [backlogId, createdBy],
         ),
       ).resolves.toBeTruthy();
     });
   });
 
-  it("constrains supersededAt to follow publishedAt", async () => {
+  it("constrains unreleasedAt to follow publishedAt", async () => {
     const result = await pool.query<{ definition: string }>(
       `select pg_get_constraintdef(oid) as definition
        from pg_constraint
-       where conname = 'release_publications_superseded_order'`,
+       where conname = 'release_publications_unreleased_order'`,
     );
     expect(result.rows).toEqual([
-      { definition: expect.stringMatching(/superseded_at.*published_at/) },
+      { definition: expect.stringMatching(/unreleased_at.*published_at/) },
     ]);
   });
 
@@ -298,9 +459,11 @@ describeDb("release persistence constraints", () => {
       const publicationId = await createPublication(client, backlogId, releaseId, actor, "3.0");
       await client.query(
         `insert into release_publication_items
-          (publication_id, backlog_id, item_id, item_key, item_title, status_name, disposition)
-         values ($1, $2, $3, $4, 'Titre historique', 'Terminé', 'retained')`,
-        [publicationId, backlogId, itemId, itemKey],
+          (publication_id, backlog_id, item_id, item_key, item_title, item_type, status_id,
+           status_name, status_category, disposition)
+         values ($1, $2, $3, $4, 'Titre historique', 'composant', $5,
+           'Terminé', 'done', 'retained')`,
+        [publicationId, backlogId, itemId, itemKey, status.rows[0]!.id],
       );
       await client.query(
         `insert into release_events
@@ -360,10 +523,12 @@ describeDb("release persistence constraints", () => {
       const publicationId = publication.rows[0]!.id;
       await client.query(
         `insert into release_publication_items
-          (publication_id, backlog_id, item_key, item_title, status_name, disposition,
-           destination_release_id, destination_release_name)
-         values ($1, $2, 'DEST-1', 'Item déplacé', 'À faire', 'moved', $3, '4.1')`,
-        [publicationId, backlogId, destinationReleaseId],
+          (publication_id, backlog_id, item_key, item_title, item_type, status_id,
+           status_name, status_category, disposition, destination_release_id,
+           destination_release_name)
+         values ($1, $2, 'DEST-1', 'Item déplacé', 'tache', $3,
+           'À faire', 'todo', 'moved', $4, '4.1')`,
+        [publicationId, backlogId, randomUUID(), destinationReleaseId],
       );
 
       await expect(
@@ -397,10 +562,12 @@ describeDb("release persistence constraints", () => {
       const publicationId = await createPublication(client, backlogId, releaseId, actor, "5.0");
       const snapshot = await client.query<{ id: string }>(
         `insert into release_publication_items
-          (publication_id, backlog_id, item_key, item_title, status_name, disposition)
-         values ($1, $2, 'IMM-1', 'Titre figé', 'Terminé', 'retained')
+          (publication_id, backlog_id, item_key, item_title, item_type, status_id,
+           status_name, status_category, disposition)
+         values ($1, $2, 'IMM-1', 'Titre figé', 'tache', $3,
+           'Terminé', 'done', 'retained')
          returning id`,
-        [publicationId, backlogId],
+        [publicationId, backlogId, randomUUID()],
       );
       const snapshotId = snapshot.rows[0]!.id;
 
@@ -436,8 +603,10 @@ describeDb("release persistence constraints", () => {
 
       await expect(
         client.query(
-          "update release_publications set superseded_at = published_at where id = $1",
-          [publicationId],
+          `update release_publications
+           set unreleased_at = published_at, unreleased_by = $2
+           where id = $1`,
+          [publicationId, actor],
         ),
       ).resolves.toBeTruthy();
     });

@@ -184,8 +184,12 @@ export const releases = pgTable(
     description: text("description"),
     startDate: date("start_date", { mode: "string" }),
     releaseDate: date("release_date", { mode: "string" }),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+    releasedBy: text("released_by").references(() => user.id),
+    effectiveReleaseDate: date("effective_release_date", { mode: "string" }),
     revision: integer("revision").notNull().default(1),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
+    archivedBy: text("archived_by").references(() => user.id),
     driverId: text("driver_id").references(() => user.id, { onDelete: "set null" }),
     createdBy: text("created_by")
       .notNull()
@@ -195,11 +199,20 @@ export const releases = pgTable(
   },
   (t) => [
     uniqueIndex("releases_backlog_id_idx").on(t.backlogId, t.id),
-    uniqueIndex("releases_backlog_name_idx").on(t.backlogId, sql`lower(${t.name})`),
+    uniqueIndex("releases_backlog_name_idx").on(t.backlogId, sql`lower(btrim(${t.name}))`),
+    check("releases_name_nonempty", sql`btrim(${t.name}) <> ''`),
     check("releases_revision_positive", sql`${t.revision} > 0`),
     check(
       "releases_dates_order",
       sql`${t.startDate} is null or ${t.releaseDate} is null or ${t.releaseDate} >= ${t.startDate}`,
+    ),
+    check(
+      "releases_publication_state_complete",
+      sql`num_nonnulls(${t.releasedAt}, ${t.releasedBy}, ${t.effectiveReleaseDate}) in (0, 3)`,
+    ),
+    check(
+      "releases_archive_state_complete",
+      sql`num_nonnulls(${t.archivedAt}, ${t.archivedBy}) in (0, 2)`,
     ),
   ],
 );
@@ -212,7 +225,10 @@ export const itemFixVersions = pgTable(
       .references(() => backlogs.id, { onDelete: "cascade" }),
     itemId: uuid("item_id").notNull(),
     releaseId: uuid("release_id").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    addedBy: text("added_by")
+      .notNull()
+      .references(() => user.id),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     primaryKey({ columns: [t.itemId, t.releaseId] }),
@@ -249,7 +265,9 @@ export const releasePublications = pgTable(
       .notNull()
       .references(() => user.id),
     publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
-    supersededAt: timestamp("superseded_at", { withTimezone: true }),
+    snapshotSealedAt: timestamp("snapshot_sealed_at", { withTimezone: true }),
+    unreleasedAt: timestamp("unreleased_at", { withTimezone: true }),
+    unreleasedBy: text("unreleased_by").references(() => user.id),
   },
   (t) => [
     index("release_publications_backlog_idx").on(t.backlogId),
@@ -257,12 +275,16 @@ export const releasePublications = pgTable(
     uniqueIndex("release_publications_release_sequence_idx").on(t.releaseId, t.sequence),
     uniqueIndex("release_publications_one_active_per_release_idx")
       .on(t.releaseId)
-      .where(sql`${t.supersededAt} is null`),
+      .where(sql`${t.unreleasedAt} is null`),
     check("release_publications_revision_positive", sql`${t.releaseRevision} > 0`),
     check("release_publications_sequence_positive", sql`${t.sequence} > 0`),
     check(
-      "release_publications_superseded_order",
-      sql`${t.supersededAt} is null or ${t.supersededAt} >= ${t.publishedAt}`,
+      "release_publications_unreleased_order",
+      sql`${t.unreleasedAt} is null or ${t.unreleasedAt} >= ${t.publishedAt}`,
+    ),
+    check(
+      "release_publications_unreleased_complete",
+      sql`num_nonnulls(${t.unreleasedAt}, ${t.unreleasedBy}) in (0, 2)`,
     ),
     check(
       "release_publications_incomplete_disposition_consistent",
@@ -295,7 +317,10 @@ export const releasePublicationItems = pgTable(
     itemId: uuid("item_id"),
     itemKey: text("item_key").notNull(),
     itemTitle: text("item_title").notNull(),
+    itemType: itemTypeEnum("item_type").notNull(),
+    statusId: uuid("status_id").notNull(),
     statusName: text("status_name").notNull(),
+    statusCategory: statusCategoryEnum("status_category").notNull(),
     completed: boolean("completed").notNull().default(false),
     estimatePoints: numeric("estimate_points", {
       precision: 5,
@@ -307,9 +332,10 @@ export const releasePublicationItems = pgTable(
     destinationReleaseName: text("destination_release_name"),
   },
   (t) => [
-    uniqueIndex("release_publication_items_publication_item_idx")
-      .on(t.publicationId, t.itemId)
-      .where(sql`${t.itemId} is not null`),
+    uniqueIndex("release_publication_items_publication_key_idx").on(
+      t.publicationId,
+      t.itemKey,
+    ),
     index("release_publication_items_item_idx").on(t.itemId),
     check(
       "release_publication_items_disposition_consistent",
@@ -340,9 +366,7 @@ export const releaseEvents = pgTable(
   "release_events",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    backlogId: uuid("backlog_id")
-      .notNull()
-      .references(() => backlogs.id, { onDelete: "restrict" }),
+    backlogId: uuid("backlog_id").references(() => backlogs.id, { onDelete: "set null" }),
     releaseId: uuid("release_id"),
     publicationId: uuid("publication_id"),
     releaseName: text("release_name").notNull(),

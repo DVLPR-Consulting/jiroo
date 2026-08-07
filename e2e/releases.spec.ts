@@ -571,14 +571,14 @@ audited(8, "conserve deux snapshots après dépublication et republication", asy
   const publications = await db.select({
     id: releasePublications.id,
     sequence: releasePublications.sequence,
-    supersededAt: releasePublications.supersededAt,
+    unreleasedAt: releasePublications.unreleasedAt,
   }).from(releasePublications)
     .where(eq(releasePublications.releaseId, release.id))
     .orderBy(asc(releasePublications.sequence));
   expect(publications).toHaveLength(2);
   expect(publications.map((row) => row.sequence)).toEqual([1, 2]);
-  expect(publications[0]?.supersededAt).toBeInstanceOf(Date);
-  expect(publications[1]?.supersededAt).toBeNull();
+  expect(publications[0]?.unreleasedAt).toBeInstanceOf(Date);
+  expect(publications[1]?.unreleasedAt).toBeNull();
   const snapshots = await db.select({ publicationId: releasePublicationItems.publicationId })
     .from(releasePublicationItems)
     .where(eq(releasePublicationItems.itemId, item.id));

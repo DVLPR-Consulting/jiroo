@@ -121,8 +121,8 @@ async function cleanupFixtures() {
         backlogId,
       ]);
       await client.query("delete from release_publications where backlog_id = $1", [backlogId]);
-      await client.query("set local session_replication_role = 'origin'");
       await client.query("delete from release_events where backlog_id = $1", [backlogId]);
+      await client.query("set local session_replication_role = 'origin'");
       await client.query("delete from backlogs where id = $1", [backlogId]);
       await client.query("commit");
     } catch (error) {
@@ -414,7 +414,10 @@ describeDb("release metadata and read models", () => {
       },
     });
 
-    await db.update(releases).set({ archivedAt: new Date() }).where(eq(releases.id, created.id));
+    await db
+      .update(releases)
+      .set({ archivedAt: new Date(), archivedBy: actor.id })
+      .where(eq(releases.id, created.id));
     await expect(listReleaseSummaries(backlog.id)).resolves.toEqual([]);
     const archived = await listReleaseSummaries(backlog.id, { includeArchived: true });
     expect(archived).toHaveLength(1);
@@ -472,6 +475,7 @@ describeDb("release metadata and read models", () => {
         backlogId: backlog.id,
         itemId: item.id,
         releaseId: created.id,
+        addedBy: actor.id,
       })),
     );
     await updateRelease(
@@ -593,7 +597,10 @@ describeDb("release metadata and read models", () => {
         backlogId: backlog.id,
         itemKey: `${backlog.key}-1`,
         itemTitle: "Snapshot 1",
+        itemType: "tache",
+        statusId: randomUUID(),
         statusName: "Terminé",
+        statusCategory: "done",
         disposition: "retained",
       },
       {
@@ -601,7 +608,10 @@ describeDb("release metadata and read models", () => {
         backlogId: backlog.id,
         itemKey: `${backlog.key}-2`,
         itemTitle: "Snapshot 2",
+        itemType: "tache",
+        statusId: randomUUID(),
         statusName: "À faire",
+        statusCategory: "todo",
         disposition: "moved",
         destinationReleaseId: destination.id,
         destinationReleaseName: "Next",
@@ -611,7 +621,10 @@ describeDb("release metadata and read models", () => {
         backlogId: backlog.id,
         itemKey: `${backlog.key}-3`,
         itemTitle: "Snapshot 3",
+        itemType: "tache",
+        statusId: randomUUID(),
         statusName: "Terminé",
+        statusCategory: "done",
         disposition: "retained",
       },
     ]);
@@ -777,6 +790,7 @@ describeDb("release metadata and read models", () => {
         backlogId: backlog.id,
         itemId: item.id,
         releaseId: releaseRows[Math.floor(index / 10)]!.id,
+        addedBy: actor.id,
       })),
     );
 
@@ -841,9 +855,9 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       ordinal: 2,
     });
     await db.insert(itemFixVersions).values([
-      { backlogId: backlog.id, itemId: doneItem.id, releaseId: source.id },
-      { backlogId: backlog.id, itemId: todoItem.id, releaseId: source.id },
-      { backlogId: backlog.id, itemId: todoItem.id, releaseId: unrelated.id },
+      { backlogId: backlog.id, itemId: doneItem.id, releaseId: source.id, addedBy: actor.id },
+      { backlogId: backlog.id, itemId: todoItem.id, releaseId: source.id, addedBy: actor.id },
+      { backlogId: backlog.id, itemId: todoItem.id, releaseId: unrelated.id, addedBy: actor.id },
     ]);
 
     const result = await publishRelease(
@@ -866,6 +880,26 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       incompleteCount: 1,
       movedCount: 1,
     });
+    await expect(
+      db
+        .select({
+          releasedAt: releases.releasedAt,
+          releasedBy: releases.releasedBy,
+          effectiveReleaseDate: releases.effectiveReleaseDate,
+        })
+        .from(releases)
+        .where(eq(releases.id, source.id)),
+    ).resolves.toEqual([{
+      releasedAt: expect.any(Date),
+      releasedBy: actor.id,
+      effectiveReleaseDate: "2026-08-07",
+    }]);
+    await expect(
+      db
+        .select({ snapshotSealedAt: releasePublications.snapshotSealedAt })
+        .from(releasePublications)
+        .where(eq(releasePublications.id, result.publicationId)),
+    ).resolves.toEqual([{ snapshotSealedAt: expect.any(Date) }]);
     const snapshots = await db
       .select({
         itemKey: releasePublicationItems.itemKey,
@@ -901,17 +935,21 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
     ]);
 
     const links = await db
-      .select({ itemId: itemFixVersions.itemId, releaseId: itemFixVersions.releaseId })
+      .select({
+        itemId: itemFixVersions.itemId,
+        releaseId: itemFixVersions.releaseId,
+        addedBy: itemFixVersions.addedBy,
+      })
       .from(itemFixVersions)
       .where(inArray(itemFixVersions.itemId, [doneItem.id, todoItem.id]))
       .orderBy(asc(itemFixVersions.itemId), asc(itemFixVersions.releaseId));
     expect(links.filter((row) => row.itemId === doneItem.id)).toEqual([
-      { itemId: doneItem.id, releaseId: source.id },
+      { itemId: doneItem.id, releaseId: source.id, addedBy: actor.id },
     ]);
     expect(links.filter((row) => row.itemId === todoItem.id)).toEqual(
       [destination.id, unrelated.id]
         .sort()
-        .map((releaseId) => ({ itemId: todoItem.id, releaseId })),
+        .map((releaseId) => ({ itemId: todoItem.id, releaseId, addedBy: actor.id })),
     );
     await expect(
       db
@@ -951,7 +989,7 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
     });
     await db
       .insert(itemFixVersions)
-      .values({ backlogId: backlog.id, itemId: item.id, releaseId: release.id });
+      .values({ backlogId: backlog.id, itemId: item.id, releaseId: release.id, addedBy: actor.id });
 
     const result = await publishRelease(
       {
@@ -1009,7 +1047,7 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
     );
     await db
       .update(releases)
-      .set({ archivedAt: new Date() })
+      .set({ archivedAt: new Date(), archivedBy: actor.id })
       .where(eq(releases.id, archivedDestination.id));
 
     await expect(
@@ -1109,7 +1147,7 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
     });
     await db
       .insert(itemFixVersions)
-      .values({ backlogId: backlog.id, itemId: item.id, releaseId: release.id });
+      .values({ backlogId: backlog.id, itemId: item.id, releaseId: release.id, addedBy: actor.id });
     const suffix = randomUUID().replaceAll("-", "");
     const functionName = `fail_release_snapshot_${suffix}`;
     const triggerName = `fail_release_snapshot_${suffix}`;
@@ -1201,6 +1239,20 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       effectiveReleaseDate: null,
       revision: 3,
     });
+    await expect(
+      db
+        .select({
+          releasedAt: releases.releasedAt,
+          releasedBy: releases.releasedBy,
+          effectiveReleaseDate: releases.effectiveReleaseDate,
+        })
+        .from(releases)
+        .where(eq(releases.id, release.id)),
+    ).resolves.toEqual([{
+      releasedAt: null,
+      releasedBy: null,
+      effectiveReleaseDate: null,
+    }]);
 
     const second = await publishRelease(
       {
@@ -1220,7 +1272,8 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
         id: releasePublications.id,
         sequence: releasePublications.sequence,
         effectiveDate: releasePublications.effectiveDate,
-        supersededAt: releasePublications.supersededAt,
+        unreleasedAt: releasePublications.unreleasedAt,
+        unreleasedBy: releasePublications.unreleasedBy,
       })
       .from(releasePublications)
       .where(eq(releasePublications.releaseId, release.id))
@@ -1230,13 +1283,15 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
         id: first.publicationId,
         sequence: 1,
         effectiveDate: "2026-08-11",
-        supersededAt: expect.any(Date),
+        unreleasedAt: expect.any(Date),
+        unreleasedBy: actor.id,
       },
       {
         id: second.publicationId,
         sequence: 2,
         effectiveDate: "2026-08-12",
-        supersededAt: null,
+        unreleasedAt: null,
+        unreleasedBy: null,
       },
     ]);
     const events = await db
@@ -1281,6 +1336,12 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       "archive-test",
     );
     expect(archived.revision).toBe(3);
+    await expect(
+      db
+        .select({ archivedAt: releases.archivedAt, archivedBy: releases.archivedBy })
+        .from(releases)
+        .where(eq(releases.id, published.id)),
+    ).resolves.toEqual([{ archivedAt: expect.any(Date), archivedBy: actor.id }]);
     await expect(getReleaseDetail(backlog.id, published.id)).resolves.toMatchObject({
       archived: true,
       released: true,
@@ -1295,10 +1356,10 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
     expect(unarchived.revision).toBe(4);
     await expect(
       db
-        .select({ id: releasePublications.id, supersededAt: releasePublications.supersededAt })
+        .select({ id: releasePublications.id, unreleasedAt: releasePublications.unreleasedAt })
         .from(releasePublications)
         .where(eq(releasePublications.id, publication.publicationId)),
-    ).resolves.toEqual([{ id: publication.publicationId, supersededAt: null }]);
+    ).resolves.toEqual([{ id: publication.publicationId, unreleasedAt: null }]);
 
     const unpublished = await createRelease(
       { backlogId: backlog.id, name: "Archived unpublished", driverId: actor.id },
@@ -1355,7 +1416,7 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
     });
     await db
       .insert(itemFixVersions)
-      .values({ backlogId: backlog.id, itemId: item.id, releaseId: release.id });
+      .values({ backlogId: backlog.id, itemId: item.id, releaseId: release.id, addedBy: actor.id });
     const result = await publishRelease(
       {
         backlogId: backlog.id,
@@ -1371,7 +1432,10 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       itemId: item.id,
       itemKey: item.key,
       itemTitle: "Titre original",
+      itemType: "tache",
+      statusId: done!.id,
       statusName: "Terminé",
+      statusCategory: "done",
       completed: true,
       estimatePoints: 3.5,
     };
@@ -1442,6 +1506,7 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       backlogId: backlog.id,
       itemId: item.id,
       releaseId: source.id,
+      addedBy: actor.id,
     }));
     for (let offset = 0; offset < fixVersionRows.length; offset += 1_000) {
       await db.insert(itemFixVersions).values(fixVersionRows.slice(offset, offset + 1_000));
@@ -1463,7 +1528,7 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
           from release_publication_items snapshot
           inner join release_publications publication on publication.id = snapshot.publication_id
           where publication.release_id = old.release_id
-            and publication.superseded_at is null;
+            and publication.unreleased_at is null;
           if snapshot_count <> 7000 then
             raise exception 'move started before every snapshot existed';
           end if;
@@ -1562,7 +1627,7 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       db
         .select({ id: releasePublications.id })
         .from(releasePublications)
-        .where(and(eq(releasePublications.releaseId, release.id), isNull(releasePublications.supersededAt))),
+        .where(and(eq(releasePublications.releaseId, release.id), isNull(releasePublications.unreleasedAt))),
     ).resolves.toHaveLength(1);
     await expect(
       db.select({ revision: releases.revision }).from(releases).where(eq(releases.id, release.id)),

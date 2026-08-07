@@ -1,5 +1,5 @@
 {
-  "id": "dc3896cb-3f1c-47bc-bb92-cbcb06cc4274",
+  "id": "09f2a5e3-e2b0-47b2-b2be-80b31ea8f4d9",
   "prevId": "e40250ec-e5e5-4f37-b8a3-a65a089d2033",
   "version": "7",
   "dialect": "postgresql",
@@ -1083,8 +1083,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "created_at": {
-          "name": "created_at",
+        "added_by": {
+          "name": "added_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "added_at": {
+          "name": "added_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -1120,6 +1126,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "item_fix_versions_added_by_user_id_fk": {
+          "name": "item_fix_versions_added_by_user_id_fk",
+          "tableFrom": "item_fix_versions",
+          "tableTo": "user",
+          "columnsFrom": [
+            "added_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         },
         "item_fix_versions_item_same_backlog_fk": {
@@ -2380,7 +2399,7 @@
           "name": "backlog_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "release_id": {
           "name": "release_id",
@@ -2487,7 +2506,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "restrict",
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "release_events_actor_id_user_id_fk": {
@@ -2581,9 +2600,29 @@
           "primaryKey": false,
           "notNull": true
         },
+        "item_type": {
+          "name": "item_type",
+          "type": "item_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status_id": {
+          "name": "status_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "status_name": {
           "name": "status_name",
           "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status_category": {
+          "name": "status_category",
+          "type": "status_category",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -2621,8 +2660,8 @@
         }
       },
       "indexes": {
-        "release_publication_items_publication_item_idx": {
-          "name": "release_publication_items_publication_item_idx",
+        "release_publication_items_publication_key_idx": {
+          "name": "release_publication_items_publication_key_idx",
           "columns": [
             {
               "expression": "publication_id",
@@ -2631,14 +2670,13 @@
               "nulls": "last"
             },
             {
-              "expression": "item_id",
+              "expression": "item_key",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
-          "where": "\"release_publication_items\".\"item_id\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2810,9 +2848,21 @@
           "notNull": true,
           "default": "now()"
         },
-        "superseded_at": {
-          "name": "superseded_at",
+        "snapshot_sealed_at": {
+          "name": "snapshot_sealed_at",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unreleased_at": {
+          "name": "unreleased_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unreleased_by": {
+          "name": "unreleased_by",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         }
@@ -2886,7 +2936,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"release_publications\".\"superseded_at\" is null",
+          "where": "\"release_publications\".\"unreleased_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2912,6 +2962,19 @@
           "tableTo": "user",
           "columnsFrom": [
             "published_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "release_publications_unreleased_by_user_id_fk": {
+          "name": "release_publications_unreleased_by_user_id_fk",
+          "tableFrom": "release_publications",
+          "tableTo": "user",
+          "columnsFrom": [
+            "unreleased_by"
           ],
           "columnsTo": [
             "id"
@@ -2962,9 +3025,13 @@
           "name": "release_publications_sequence_positive",
           "value": "\"release_publications\".\"sequence\" > 0"
         },
-        "release_publications_superseded_order": {
-          "name": "release_publications_superseded_order",
-          "value": "\"release_publications\".\"superseded_at\" is null or \"release_publications\".\"superseded_at\" >= \"release_publications\".\"published_at\""
+        "release_publications_unreleased_order": {
+          "name": "release_publications_unreleased_order",
+          "value": "\"release_publications\".\"unreleased_at\" is null or \"release_publications\".\"unreleased_at\" >= \"release_publications\".\"published_at\""
+        },
+        "release_publications_unreleased_complete": {
+          "name": "release_publications_unreleased_complete",
+          "value": "num_nonnulls(\"release_publications\".\"unreleased_at\", \"release_publications\".\"unreleased_by\") in (0, 2)"
         },
         "release_publications_incomplete_disposition_consistent": {
           "name": "release_publications_incomplete_disposition_consistent",
@@ -3014,6 +3081,24 @@
           "primaryKey": false,
           "notNull": false
         },
+        "released_at": {
+          "name": "released_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "released_by": {
+          "name": "released_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "effective_release_date": {
+          "name": "effective_release_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
         "revision": {
           "name": "revision",
           "type": "integer",
@@ -3024,6 +3109,12 @@
         "archived_at": {
           "name": "archived_at",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "archived_by": {
+          "name": "archived_by",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -3086,7 +3177,7 @@
               "nulls": "last"
             },
             {
-              "expression": "lower(\"name\")",
+              "expression": "lower(btrim(\"name\"))",
               "asc": true,
               "isExpression": true,
               "nulls": "last"
@@ -3110,6 +3201,32 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "releases_released_by_user_id_fk": {
+          "name": "releases_released_by_user_id_fk",
+          "tableFrom": "releases",
+          "tableTo": "user",
+          "columnsFrom": [
+            "released_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "releases_archived_by_user_id_fk": {
+          "name": "releases_archived_by_user_id_fk",
+          "tableFrom": "releases",
+          "tableTo": "user",
+          "columnsFrom": [
+            "archived_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         },
         "releases_driver_id_user_id_fk": {
@@ -3143,6 +3260,10 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "releases_name_nonempty": {
+          "name": "releases_name_nonempty",
+          "value": "btrim(\"releases\".\"name\") <> ''"
+        },
         "releases_revision_positive": {
           "name": "releases_revision_positive",
           "value": "\"releases\".\"revision\" > 0"
@@ -3150,6 +3271,14 @@
         "releases_dates_order": {
           "name": "releases_dates_order",
           "value": "\"releases\".\"start_date\" is null or \"releases\".\"release_date\" is null or \"releases\".\"release_date\" >= \"releases\".\"start_date\""
+        },
+        "releases_publication_state_complete": {
+          "name": "releases_publication_state_complete",
+          "value": "num_nonnulls(\"releases\".\"released_at\", \"releases\".\"released_by\", \"releases\".\"effective_release_date\") in (0, 3)"
+        },
+        "releases_archive_state_complete": {
+          "name": "releases_archive_state_complete",
+          "value": "num_nonnulls(\"releases\".\"archived_at\", \"releases\".\"archived_by\") in (0, 2)"
         }
       },
       "isRLSEnabled": false

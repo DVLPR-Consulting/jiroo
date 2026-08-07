@@ -118,6 +118,7 @@ async function createFixture() {
         backlogId: backlog.id,
         name: "2026.07",
         archivedAt: new Date(),
+        archivedBy: actor.id,
         createdBy: actor.id,
       },
       { backlogId: foreignBacklog.id, name: "FOREIGN", createdBy: actor.id },
@@ -200,6 +201,17 @@ describeDb("item fix version transactions", () => {
           name: release.name,
         })),
       );
+      const provenance = await db
+        .select({ addedBy: itemFixVersions.addedBy, addedAt: itemFixVersions.addedAt })
+        .from(itemFixVersions)
+        .where(eq(itemFixVersions.itemId, fixture.itemId));
+      expect(provenance).toHaveLength(2);
+      expect(provenance).toEqual(
+        expect.arrayContaining([
+          { addedBy: fixture.actorId, addedAt: expect.any(Date) },
+          { addedBy: fixture.actorId, addedAt: expect.any(Date) },
+        ]),
+      );
       const audit = await db
         .select({
           field: activities.field,
@@ -260,6 +272,7 @@ describeDb("item fix version transactions", () => {
       backlogId: fixture.backlog.id,
       itemId: fixture.itemId,
       releaseId: fixture.draft.id,
+      addedBy: fixture.actorId,
     });
     try {
       await expect(
@@ -312,6 +325,7 @@ describeDb("item fix version transactions", () => {
         backlogId: fixture.backlog.id,
         itemId: fixture.itemId,
         releaseId: fixture.archived.id,
+        addedBy: fixture.actorId,
       });
       await expect(
         changeItemFixVersions(
@@ -341,6 +355,7 @@ describeDb("item fix version transactions", () => {
       backlogId: fixture.backlog.id,
       itemId: fixture.itemId,
       releaseId: fixture.draft.id,
+      addedBy: fixture.actorId,
     });
     try {
       await changeItemFixVersions(

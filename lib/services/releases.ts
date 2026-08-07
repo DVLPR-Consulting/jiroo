@@ -82,7 +82,10 @@ export type PublicationSnapshotItem = {
   itemId: string | null;
   itemKey: string;
   itemTitle: string;
+  itemType: typeof items.$inferSelect.type;
+  statusId: string;
   statusName: string;
+  statusCategory: typeof statuses.$inferSelect.category;
   completed: boolean;
   estimatePoints: number | null;
   disposition: typeof releasePublicationItems.$inferSelect.disposition;
@@ -382,7 +385,7 @@ export async function publishRelease(
         and(
           eq(releasePublications.backlogId, data.backlogId),
           eq(releasePublications.releaseId, current.id),
-          isNull(releasePublications.supersededAt),
+          isNull(releasePublications.unreleasedAt),
         ),
       )
       .limit(1)
@@ -394,6 +397,7 @@ export async function publishRelease(
         id: items.id,
         key: items.key,
         title: items.title,
+        type: items.type,
         statusId: items.statusId,
         estimatePoints: items.estimatePoints,
       })
@@ -463,7 +467,7 @@ export async function publishRelease(
         destinationReleaseName: destination?.name ?? null,
         publishedBy: actor.id,
       })
-      .returning({ id: releasePublications.id });
+      .returning({ id: releasePublications.id, publishedAt: releasePublications.publishedAt });
     if (!publication) throw new Error("Publication impossible.");
 
     const completedItemIds: string[] = [];
@@ -481,7 +485,10 @@ export async function publishRelease(
         itemId: item.id,
         itemKey: item.key,
         itemTitle: item.title,
+        itemType: item.type,
+        statusId: status.id,
         statusName: status.name,
+        statusCategory: status.category,
         completed,
         estimatePoints: item.estimatePoints,
         disposition: moved ? ("moved" as const) : ("retained" as const),
@@ -494,6 +501,10 @@ export async function publishRelease(
         .insert(releasePublicationItems)
         .values(snapshotRows.slice(offset, offset + RELEASE_WRITE_BATCH_SIZE));
     }
+    await tx
+      .update(releasePublications)
+      .set({ snapshotSealedAt: new Date() })
+      .where(eq(releasePublications.id, publication.id));
 
     if (data.incompleteDisposition === "move" && incompleteItemIds.length > 0) {
       for (
@@ -524,6 +535,7 @@ export async function publishRelease(
               backlogId: data.backlogId,
               itemId,
               releaseId: destination!.id,
+              addedBy: actor.id,
             })),
           )
           .onConflictDoNothing();
@@ -532,7 +544,13 @@ export async function publishRelease(
 
     const [updated] = await tx
       .update(releases)
-      .set({ revision: nextRevision, updatedAt: new Date() })
+      .set({
+        releasedAt: publication.publishedAt,
+        releasedBy: actor.id,
+        effectiveReleaseDate: data.effectiveDate,
+        revision: nextRevision,
+        updatedAt: new Date(),
+      })
       .where(eq(releases.id, current.id))
       .returning({ id: releases.id, revision: releases.revision });
     if (!updated) throw new Error("Publication impossible.");
@@ -584,7 +602,7 @@ export async function unreleaseRelease(
         and(
           eq(releasePublications.backlogId, data.backlogId),
           eq(releasePublications.releaseId, current.id),
-          isNull(releasePublications.supersededAt),
+          isNull(releasePublications.unreleasedAt),
         ),
       )
       .limit(1)
@@ -594,12 +612,19 @@ export async function unreleaseRelease(
     await tx
       .update(releasePublications)
       .set({
-        supersededAt: sql`greatest(current_timestamp, ${releasePublications.publishedAt})`,
+        unreleasedAt: sql`greatest(current_timestamp, ${releasePublications.publishedAt})`,
+        unreleasedBy: actor.id,
       })
       .where(eq(releasePublications.id, publication.id));
     const [updated] = await tx
       .update(releases)
-      .set({ revision: current.revision + 1, updatedAt: new Date() })
+      .set({
+        releasedAt: null,
+        releasedBy: null,
+        effectiveReleaseDate: null,
+        revision: current.revision + 1,
+        updatedAt: new Date(),
+      })
       .where(eq(releases.id, current.id))
       .returning({ id: releases.id, revision: releases.revision });
     if (!updated) throw new Error("Dépublication impossible.");
@@ -646,6 +671,7 @@ async function setReleaseArchived(
       .update(releases)
       .set({
         archivedAt: archived ? new Date() : null,
+        archivedBy: archived ? actor.id : null,
         revision: current.revision + 1,
         updatedAt: new Date(),
       })
@@ -734,7 +760,7 @@ function releaseSummaryQuery(
       and(
         eq(releasePublications.backlogId, backlogId),
         isNotNull(releasePublications.releaseId),
-        isNull(releasePublications.supersededAt),
+        isNull(releasePublications.unreleasedAt),
       ),
     )
     .as("active_release_publication");
@@ -919,7 +945,10 @@ export async function listPublicationSnapshotItems(
       itemId: row.itemId,
       itemKey: row.itemKey,
       itemTitle: row.itemTitle,
+      itemType: row.itemType,
+      statusId: row.statusId,
       statusName: row.statusName,
+      statusCategory: row.statusCategory,
       completed: row.completed,
       estimatePoints: row.estimatePoints,
       disposition: row.disposition,
