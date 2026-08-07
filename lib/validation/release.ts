@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const uuid = z.uuid();
 const revision = z.number().int().positive();
+const publicationScopeRevision = z.string().regex(/^[0-9a-f]{32}$/);
 const optionalDate = z.preprocess(
   (value) => (value === "" || value == null ? null : value),
   z.iso.date().nullable(),
@@ -71,6 +72,7 @@ export const publishReleaseSchema = z
       backlogId: uuid,
       releaseId: uuid,
       expectedRevision: revision,
+      expectedScopeRevision: publicationScopeRevision,
       effectiveDate: z.iso.date(),
       incompleteDisposition: z.literal("keep"),
     }).strict(),
@@ -78,6 +80,7 @@ export const publishReleaseSchema = z
       backlogId: uuid,
       releaseId: uuid,
       expectedRevision: revision,
+      expectedScopeRevision: publicationScopeRevision,
       effectiveDate: z.iso.date(),
       incompleteDisposition: z.literal("move"),
       destinationReleaseId: uuid,

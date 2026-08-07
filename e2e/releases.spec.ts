@@ -978,3 +978,52 @@ audited(15, "rend la release visible au second utilisateur et isole CASS de LABS
     .where(and(eq(releases.id, release.id), eq(releases.backlogId, labs.id)));
   expect(rows).toEqual([]);
 });
+
+audited(16, "refuse un publish quand le périmètre change entre deux contextes", async ({ page, browser, capture, audit }) => {
+  const release = await fixtureRelease("R09-S16 Périmètre stale");
+  const firstItem = await fixtureTask("R09-S16 premier incomplet");
+  const secondItem = await fixtureTask("R09-S16 second incomplet");
+  await assignVersions(firstItem.id, [release.id]);
+
+  await page.goto(`/b/CASS/releases/${release.id}`);
+  await page.getByRole("button", { name: `Publier ${release.name}` }).click();
+  const staleDialog = page.getByRole("dialog", { name: `Publier ${release.name}` });
+  await staleDialog.getByLabel("Date de publication").fill("2026-08-07");
+  await staleDialog.getByLabel("Conserver dans cette version").check();
+
+  const second = await observedPage(browser, capture, "admin-scope-change", AUTH.admin);
+  audit.use(second);
+  await second.goto(`/b/CASS?view=list&item=${firstItem.key}`);
+  await second.getByRole("button", { name: "Versions", exact: true }).click();
+  await clickPost(second, () =>
+    second.getByRole("menuitemcheckbox", { name: release.name }).click(),
+  );
+  await second.goto(`/b/CASS?view=list&item=${secondItem.key}`);
+  await second.getByRole("button", { name: "Versions", exact: true }).click();
+  await clickPost(second, () =>
+    second.getByRole("menuitemcheckbox", { name: release.name }).click(),
+  );
+  expect(await assignedVersionIds(firstItem.id)).toEqual([]);
+  expect(await assignedVersionIds(secondItem.id)).toEqual([release.id]);
+
+  audit.use(page);
+  await clickPost(page, () =>
+    staleDialog.getByRole("button", { name: "Publier", exact: true }).click(),
+  );
+  await expect(staleDialog.getByRole("alert")).toContainText("périmètre de publication a changé");
+  await expect(staleDialog.getByLabel("Date de publication")).toHaveValue("2026-08-07");
+  await expect(staleDialog.getByRole("button", { name: "Publier", exact: true })).toBeDisabled();
+  await expect(
+    db.select({ id: releasePublications.id }).from(releasePublications)
+      .where(eq(releasePublications.releaseId, release.id)),
+  ).resolves.toEqual([]);
+
+  await page.reload();
+  await publishFromDialog(page, release.name, "keep");
+  await expect(page.getByText("Publiée", { exact: true })).toBeVisible();
+  const snapshots = await db.select({ itemId: releasePublicationItems.itemId })
+    .from(releasePublicationItems)
+    .innerJoin(releasePublications, eq(releasePublications.id, releasePublicationItems.publicationId))
+    .where(eq(releasePublications.releaseId, release.id));
+  expect(snapshots).toEqual([{ itemId: secondItem.id }]);
+});

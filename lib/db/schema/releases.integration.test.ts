@@ -395,6 +395,7 @@ describeDb("release persistence constraints", () => {
          returning id`,
         [backlogId, releaseId, actor],
       );
+      await client.query("delete from releases where id = $1", [releaseId]);
       await client.query("delete from backlogs where id = $1", [backlogId]);
       await expect(
         client.query<{ backlog_id: string | null; release_id: string | null }>(
@@ -402,6 +403,22 @@ describeDb("release persistence constraints", () => {
           [event.rows[0]!.id],
         ),
       ).resolves.toMatchObject({ rows: [{ backlog_id: null, release_id: null }] });
+    });
+  });
+
+  it("restricts backlog deletion while a draft release and its metadata links exist", async () => {
+    await transaction(async (client) => {
+      const backlogId = await createBacklog(client, "DRAFTRESTRICT");
+      const actor = await actorId(client);
+      const releaseId = await createRelease(client, backlogId, actor, "Protected draft");
+
+      await expectStatementRejected(client, "delete from backlogs where id = $1", [backlogId]);
+      await expect(
+        client.query<{ backlog_id: string; created_by: string }>(
+          "select backlog_id, created_by from releases where id = $1",
+          [releaseId],
+        ),
+      ).resolves.toMatchObject({ rows: [{ backlog_id: backlogId, created_by: actor }] });
     });
   });
 

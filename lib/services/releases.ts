@@ -10,6 +10,7 @@ import {
   ne,
   sql,
 } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -55,6 +56,7 @@ export type ReleaseSummary = {
   archived: boolean;
   overdue: boolean;
   revision: number;
+  publicationScopeRevision: string;
   progress: ReleaseProgress;
 };
 
@@ -137,6 +139,30 @@ const publicationSelectionCommand = z.object({
   preferredPublicationId: z.uuid().nullable().optional(),
 });
 const RELEASE_WRITE_BATCH_SIZE = 1_000;
+const EMPTY_PUBLICATION_SCOPE_REVISION = createHash("md5").update("").digest("hex");
+
+type PublicationScopeRevisionRow = {
+  id: string;
+  statusCategory: typeof statuses.$inferSelect.category;
+};
+
+function publicationScopeRevision(rows: PublicationScopeRevisionRow[]) {
+  return createHash("md5")
+    .update(rows.map((row) => `${row.id}:${row.statusCategory}`).join("\n"))
+    .digest("hex");
+}
+
+export class PublicationScopeChangedError extends Error {
+  readonly code = "RELEASE_PUBLICATION_SCOPE_STALE" as const;
+
+  constructor(
+    readonly currentScopeRevision: string,
+    readonly currentIncompleteCount: number,
+  ) {
+    super("Le périmètre de publication a changé. Vérifiez-le avant de réessayer.");
+    this.name = "PublicationScopeChangedError";
+  }
+}
 
 async function lockBacklog(tx: Tx, backlogId: string) {
   const [backlog] = await tx
@@ -413,6 +439,8 @@ export async function publishRelease(
         type: items.type,
         statusId: items.statusId,
         estimatePoints: items.estimatePoints,
+        statusName: statuses.name,
+        statusCategory: statuses.category,
       })
       .from(itemFixVersions)
       .innerJoin(
@@ -421,6 +449,10 @@ export async function publishRelease(
           eq(items.id, itemFixVersions.itemId),
           eq(items.backlogId, itemFixVersions.backlogId),
         ),
+      )
+      .innerJoin(
+        statuses,
+        and(eq(statuses.id, items.statusId), eq(statuses.backlogId, items.backlogId)),
       )
       .where(
         and(
@@ -431,27 +463,13 @@ export async function publishRelease(
       )
       .orderBy(asc(items.id))
       .for("update");
-    const statusIds = [...new Set(scopeItems.map((item) => item.statusId))].sort();
-    const statusRows =
-      statusIds.length === 0
-        ? []
-        : await tx
-            .select({
-              id: statuses.id,
-              backlogId: statuses.backlogId,
-              name: statuses.name,
-              category: statuses.category,
-            })
-            .from(statuses)
-            .where(inArray(statuses.id, statusIds))
-            .orderBy(asc(statuses.id));
-    if (
-      statusRows.length !== statusIds.length ||
-      statusRows.some((status) => status.backlogId !== data.backlogId)
-    ) {
-      throw new Error("Le scope de la release est incohérent.");
+    const currentScopeRevision = publicationScopeRevision(scopeItems);
+    const currentIncompleteCount = scopeItems.filter(
+      (item) => item.statusCategory !== "done",
+    ).length;
+    if (currentScopeRevision !== data.expectedScopeRevision) {
+      throw new PublicationScopeChangedError(currentScopeRevision, currentIncompleteCount);
     }
-    const statusById = new Map(statusRows.map((status) => [status.id, status]));
     const actor = await readUser(tx, actorId, "Acteur");
     const [sequenceRow] = await tx
       .select({
@@ -486,9 +504,7 @@ export async function publishRelease(
     const completedItemIds: string[] = [];
     const incompleteItemIds: string[] = [];
     const snapshotRows = scopeItems.map((item) => {
-      const status = statusById.get(item.statusId);
-      if (!status) throw new Error("Le scope de la release est incohérent.");
-      const completed = status.category === "done";
+      const completed = item.statusCategory === "done";
       if (completed) completedItemIds.push(item.id);
       else incompleteItemIds.push(item.id);
       const moved = !completed && data.incompleteDisposition === "move";
@@ -499,9 +515,9 @@ export async function publishRelease(
         itemKey: item.key,
         itemTitle: item.title,
         itemType: item.type,
-        statusId: status.id,
-        statusName: status.name,
-        statusCategory: status.category,
+        statusId: item.statusId,
+        statusName: item.statusName,
+        statusCategory: item.statusCategory,
         completed,
         estimatePoints: item.estimatePoints,
         disposition: moved ? ("moved" as const) : ("retained" as const),
@@ -817,6 +833,10 @@ function releaseSummaryQuery(
         sql<number>`count(*) filter (where ${items.estimatePoints} is null)::int`.as(
           "unestimated",
         ),
+      publicationScopeRevision:
+        sql<string>`md5(coalesce(string_agg(${items.id}::text || ':' || ${statuses.category}::text, E'\n' order by ${items.id}), ''))`.as(
+          "publication_scope_revision",
+        ),
     })
     .from(itemFixVersions)
     .innerJoin(
@@ -862,6 +882,7 @@ function releaseSummaryQuery(
       archived: sql<boolean>`${releases.archivedAt} is not null`,
       overdue: sql<boolean>`coalesce(${publication.releaseId} is null and ${releases.archivedAt} is null and ${releases.releaseDate} < current_date, false)`,
       revision: releases.revision,
+      publicationScopeRevision: sql<string>`coalesce(${progress.publicationScopeRevision}, ${EMPTY_PUBLICATION_SCOPE_REVISION})`,
       total: sql<number>`coalesce(${progress.total}, 0)::int`,
       todo: sql<number>`coalesce(${progress.todo}, 0)::int`,
       inProgress: sql<number>`coalesce(${progress.inProgress}, 0)::int`,
@@ -901,6 +922,7 @@ function toReleaseSummary(row: SummaryRow): ReleaseSummary {
     archived: row.archived,
     overdue: row.overdue,
     revision: row.revision,
+    publicationScopeRevision: row.publicationScopeRevision,
     progress: {
       total: row.total,
       todo: row.todo,

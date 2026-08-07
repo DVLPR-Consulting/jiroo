@@ -179,7 +179,7 @@ export const releases = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     backlogId: uuid("backlog_id")
       .notNull()
-      .references(() => backlogs.id, { onDelete: "cascade" }),
+      .references(() => backlogs.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     description: text("description"),
     startDate: date("start_date", { mode: "string" }),

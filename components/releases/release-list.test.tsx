@@ -77,6 +77,7 @@ describe("ReleaseList", () => {
             archived: true,
             overdue: true,
             revision: 4,
+            publicationScopeRevision: "0123456789abcdef0123456789abcdef",
             progress: {
               total: 6,
               todo: 2,
@@ -99,6 +100,7 @@ describe("ReleaseList", () => {
             archived: false,
             overdue: false,
             revision: 2,
+            publicationScopeRevision: "0123456789abcdef0123456789abcdef",
             progress: {
               total: 0,
               todo: 0,
@@ -121,6 +123,7 @@ describe("ReleaseList", () => {
             archived: false,
             overdue: true,
             revision: 1,
+            publicationScopeRevision: "0123456789abcdef0123456789abcdef",
             progress: {
               total: 0,
               todo: 0,
@@ -181,6 +184,7 @@ describe("ReleaseList", () => {
           archived: false,
           overdue: false,
           revision: 1,
+          publicationScopeRevision: "0123456789abcdef0123456789abcdef",
           progress: { total: 0, todo: 0, inProgress: 0, done: 0, totalPoints: 0, donePoints: 0, unestimated: 0 },
         }]}
       />,

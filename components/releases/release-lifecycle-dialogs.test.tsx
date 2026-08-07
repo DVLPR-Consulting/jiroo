@@ -24,6 +24,7 @@ const release = {
   id: "22222222-2222-4222-8222-222222222222",
   name: "Version 1",
   revision: 4,
+  publicationScopeRevision: "0123456789abcdef0123456789abcdef",
   released: false,
   archived: false,
   progress: { todo: 2, inProgress: 1 },
@@ -102,6 +103,7 @@ describe("release lifecycle dialogs", () => {
       backlogKey: backlog.key,
       releaseId: release.id,
       expectedRevision: release.revision,
+      expectedScopeRevision: release.publicationScopeRevision,
       effectiveDate: "2026-10-01",
       incompleteDisposition: "keep",
     }));
@@ -135,6 +137,39 @@ describe("release lifecycle dialogs", () => {
     expect(screen.getByRole("radio", { name: /déplacer/i })).toBeChecked();
     expect(destination).toHaveValue(destinations[0]!.id);
     expect(screen.getByRole("dialog", { name: "Publier Version 1" })).toBeVisible();
+  });
+
+  it("surfaces a stale scope, refreshes it, and requires an explicit new decision", async () => {
+    const user = userEvent.setup();
+    mocks.publishReleaseAction.mockResolvedValueOnce({
+      ok: false,
+      reason: "stale_scope",
+      error: "Le périmètre de publication a changé. Vérifiez-le avant de réessayer.",
+      currentScopeRevision: "fedcba9876543210fedcba9876543210",
+      currentIncompleteCount: 4,
+    });
+    render(
+      <ReleaseLifecycleDialogs
+        backlog={backlog}
+        release={release}
+        destinations={destinations}
+        canAssignItems
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Publier Version 1" }));
+    await user.type(screen.getByLabelText("Date de publication"), "2026-10-01");
+    await user.click(screen.getByRole("radio", { name: /conserver/i }));
+    await user.click(screen.getByRole("button", { name: "Publier" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("périmètre de publication a changé");
+    expect(screen.getByLabelText("Date de publication")).toHaveValue("2026-10-01");
+    expect(screen.getByRole("button", { name: "Publier" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Examiner le périmètre actualisé" }));
+    expect(mocks.refresh).toHaveBeenCalledOnce();
+    expect(screen.getByText(/4 éléments non terminés/i)).toBeVisible();
+    expect(screen.getByRole("radio", { name: /conserver/i })).not.toBeChecked();
+    expect(screen.getByLabelText("Date de publication")).toHaveValue("2026-10-01");
   });
 
   it.each([

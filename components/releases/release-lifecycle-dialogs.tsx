@@ -30,6 +30,7 @@ type LifecycleRelease = {
   id: string;
   name: string;
   revision: number;
+  publicationScopeRevision: string;
   released: boolean;
   archived: boolean;
   progress: { todo: number; inProgress: number };
@@ -56,6 +57,14 @@ function PublishDialog({
   const [effectiveDate, setEffectiveDate] = useState("");
   const [disposition, setDisposition] = useState<"" | "keep" | "move">(defaultDisposition);
   const [destinationReleaseId, setDestinationReleaseId] = useState("");
+  const [preview, setPreview] = useState({
+    scopeRevision: release.publicationScopeRevision,
+    incompleteCount,
+  });
+  const [stalePreview, setStalePreview] = useState<null | {
+    scopeRevision: string;
+    incompleteCount: number;
+  }>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -63,6 +72,8 @@ function PublishDialog({
     setEffectiveDate("");
     setDisposition(defaultDisposition);
     setDestinationReleaseId("");
+    setPreview({ scopeRevision: release.publicationScopeRevision, incompleteCount });
+    setStalePreview(null);
     setError(null);
   }
 
@@ -79,12 +90,19 @@ function PublishDialog({
           backlogKey: backlog.key,
           releaseId: release.id,
           expectedRevision: release.revision,
+          expectedScopeRevision: preview.scopeRevision,
           effectiveDate,
           incompleteDisposition: disposition,
           ...(disposition === "move" ? { destinationReleaseId } : {}),
         });
         if (!result.ok) {
           setError(result.error);
+          if ("reason" in result && result.reason === "stale_scope") {
+            setStalePreview({
+              scopeRevision: result.currentScopeRevision,
+              incompleteCount: result.currentIncompleteCount,
+            });
+          }
           return;
         }
         reset();
@@ -100,8 +118,11 @@ function PublishDialog({
   const canSubmit = Boolean(
     effectiveDate
       && disposition
-      && (disposition !== "move" || destinationReleaseId),
+      && (disposition !== "move" || destinationReleaseId)
+      && !stalePreview,
   );
+
+  const previewIncompleteCount = preview.incompleteCount;
 
   return (
     <Dialog
@@ -120,9 +141,9 @@ function PublishDialog({
         <DialogHeader>
           <DialogTitle>Publier {release.name}</DialogTitle>
           <DialogDescription>
-            {incompleteCount === 0
+            {previewIncompleteCount === 0
               ? "Aucun élément non terminé : le périmètre sera conservé."
-              : `Choisissez le traitement de ${incompleteCount} éléments non terminés.`}
+              : `Choisissez le traitement de ${previewIncompleteCount} éléments non terminés.`}
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
@@ -142,7 +163,7 @@ function PublishDialog({
               onChange={(event) => setEffectiveDate(event.target.value)}
             />
           </div>
-          {incompleteCount > 0 ? <fieldset className="space-y-2">
+          {previewIncompleteCount > 0 ? <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Éléments non terminés</legend>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -172,7 +193,7 @@ function PublishDialog({
           <p className="text-sm text-muted-foreground">
             Terminé signifie que le statut appartient à la catégorie « Done » du workflow.
           </p>
-          {incompleteCount > 0 && canAssignItems && disposition === "move" ? (
+          {previewIncompleteCount > 0 && canAssignItems && disposition === "move" ? (
             <div className="space-y-2">
               <Label htmlFor={`${prefix}-destination`}>Version de destination</Label>
               <select
@@ -189,6 +210,22 @@ function PublishDialog({
             </div>
           ) : null}
           <DialogFooter>
+            {stalePreview ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setPreview(stalePreview);
+                  setDisposition(stalePreview.incompleteCount === 0 ? "keep" : "");
+                  setDestinationReleaseId("");
+                  setStalePreview(null);
+                  setError(null);
+                  router.refresh();
+                }}
+              >
+                Examiner le périmètre actualisé
+              </Button>
+            ) : null}
             <Button type="submit" disabled={pending || !canSubmit} aria-busy={pending || undefined}>
               {pending ? "Publication…" : "Publier"}
             </Button>

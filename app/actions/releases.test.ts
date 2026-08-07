@@ -69,6 +69,7 @@ const keepInput = {
   backlogId,
   releaseId,
   expectedRevision: 1,
+  expectedScopeRevision: "0123456789abcdef0123456789abcdef",
   effectiveDate: "2026-09-30",
   incompleteDisposition: "keep" as const,
 };
@@ -269,6 +270,7 @@ describe("release server action permissions", () => {
         backlogId,
         releaseId,
         expectedRevision: 1,
+        expectedScopeRevision: keepInput.expectedScopeRevision,
         effectiveDate: "2026-09-30",
         incompleteDisposition: "keep",
       },
@@ -293,6 +295,27 @@ describe("release server action permissions", () => {
       permission: "manage_releases",
     });
     expect(mocks.publishRelease).toHaveBeenCalledOnce();
+  });
+
+  it("returns structured canonical scope data for a stale publication preview", async () => {
+    const stale = Object.assign(
+      new Error("Le périmètre de publication a changé. Vérifiez-le avant de réessayer."),
+      {
+        code: "RELEASE_PUBLICATION_SCOPE_STALE" as const,
+        currentScopeRevision: "fedcba9876543210fedcba9876543210",
+        currentIncompleteCount: 2,
+      },
+    );
+    mocks.publishRelease.mockRejectedValueOnce(stale);
+
+    await expect(publishReleaseAction(keepInput)).resolves.toEqual({
+      ok: false,
+      reason: "stale_scope",
+      error: "Le périmètre de publication a changé. Vérifiez-le avant de réessayer.",
+      currentScopeRevision: "fedcba9876543210fedcba9876543210",
+      currentIncompleteCount: 2,
+    });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("requires edit_items in addition to manage_releases before publish move", async () => {

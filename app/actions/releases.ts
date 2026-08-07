@@ -69,6 +69,27 @@ function safeReleaseError(error: unknown, fallback: string) {
   };
 }
 
+function stalePublicationScopeResult(error: unknown) {
+  if (
+    !(error instanceof Error) ||
+    !("code" in error) ||
+    error.code !== "RELEASE_PUBLICATION_SCOPE_STALE" ||
+    !("currentScopeRevision" in error) ||
+    typeof error.currentScopeRevision !== "string" ||
+    !("currentIncompleteCount" in error) ||
+    typeof error.currentIncompleteCount !== "number"
+  ) {
+    return null;
+  }
+  return {
+    ok: false as const,
+    reason: "stale_scope" as const,
+    error: error.message,
+    currentScopeRevision: error.currentScopeRevision,
+    currentIncompleteCount: error.currentIncompleteCount,
+  };
+}
+
 function revalidateReleasePaths(backlogKey: string, releaseId?: string) {
   revalidatePath(`/b/${backlogKey}`);
   revalidatePath(`/b/${backlogKey}/releases`);
@@ -150,6 +171,8 @@ export async function publishReleaseAction(input: unknown) {
     revalidateReleasePaths(backlog.backlogKey, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
+    const staleScope = stalePublicationScopeResult(error);
+    if (staleScope) return staleScope;
     return safeReleaseError(error, "Publication impossible.");
   }
 }

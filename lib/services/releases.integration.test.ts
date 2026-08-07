@@ -25,7 +25,7 @@ import {
   listReleaseScopeItems,
   listReleaseSummaries,
   resolveReleasePublicationId,
-  publishRelease,
+  publishRelease as publishReleaseService,
   unarchiveRelease,
   unreleaseRelease,
   updateRelease,
@@ -36,6 +36,26 @@ vi.mock("server-only", () => ({}));
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 const fixtureBacklogIds = new Set<string>();
 const fixtureUserIds = new Set<string>();
+
+async function publishRelease(
+  input: Record<string, unknown>,
+  actorId: string,
+  requestCorrelationId: string,
+) {
+  const backlogId = input.backlogId as string;
+  const releaseId = input.releaseId as string;
+  const detail = await getReleaseDetail(backlogId, releaseId);
+  if (!detail) throw new Error("Release fixture introuvable.");
+  return publishReleaseService(
+    {
+      ...input,
+      expectedScopeRevision:
+        (input.expectedScopeRevision as string | undefined) ?? detail.publicationScopeRevision,
+    },
+    actorId,
+    requestCorrelationId,
+  );
+}
 
 async function actorFixture() {
   const [actor] = await db.select({ id: user.id, name: user.name }).from(user).limit(1);
@@ -123,6 +143,7 @@ async function cleanupFixtures() {
       ]);
       await client.query("delete from release_publications where backlog_id = $1", [backlogId]);
       await client.query("delete from release_events where backlog_id = $1", [backlogId]);
+      await client.query("delete from releases where backlog_id = $1", [backlogId]);
       await client.query("set local session_replication_role = 'origin'");
       await client.query("delete from backlogs where id = $1", [backlogId]);
       await client.query("commit");
@@ -1105,6 +1126,121 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
         .from(releasePublicationItems)
         .where(eq(releasePublicationItems.publicationId, result.publicationId)),
     ).resolves.toEqual([{ completed: false, disposition: "retained" }]);
+  });
+
+  it("rejects publication when incomplete membership changes but the count stays equal", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Publish stale membership");
+    const [todo] = await statusFixture(backlog.id, [{ name: "À faire", category: "todo" }]);
+    const release = await createRelease(
+      { backlogId: backlog.id, name: "Stale membership", driverId: actor.id },
+      actor.id,
+      "stale-membership-create",
+    );
+    const first = await itemFixture({
+      backlogId: backlog.id,
+      backlogKey: backlog.key,
+      reporterId: actor.id,
+      statusId: todo!.id,
+      title: "Premier incomplet",
+      ordinal: 1,
+    });
+    const second = await itemFixture({
+      backlogId: backlog.id,
+      backlogKey: backlog.key,
+      reporterId: actor.id,
+      statusId: todo!.id,
+      title: "Second incomplet",
+      ordinal: 2,
+    });
+    await db.insert(itemFixVersions).values({
+      backlogId: backlog.id,
+      itemId: first.id,
+      releaseId: release.id,
+      addedBy: actor.id,
+    });
+    const preview = await getReleaseDetail(backlog.id, release.id);
+    await db.delete(itemFixVersions).where(eq(itemFixVersions.itemId, first.id));
+    await db.insert(itemFixVersions).values({
+      backlogId: backlog.id,
+      itemId: second.id,
+      releaseId: release.id,
+      addedBy: actor.id,
+    });
+
+    await expect(
+      publishReleaseService(
+        {
+          backlogId: backlog.id,
+          releaseId: release.id,
+          expectedRevision: 1,
+          expectedScopeRevision: preview!.publicationScopeRevision,
+          effectiveDate: "2026-08-08",
+          incompleteDisposition: "keep",
+        },
+        actor.id,
+        "stale-membership-publish",
+      ),
+    ).rejects.toMatchObject({
+      code: "RELEASE_PUBLICATION_SCOPE_STALE",
+      currentIncompleteCount: 1,
+    });
+    await expect(
+      db.select({ id: releasePublications.id }).from(releasePublications)
+        .where(eq(releasePublications.releaseId, release.id)),
+    ).resolves.toEqual([]);
+  });
+
+  it("rejects publication when completion state changes after preview", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Publish stale status");
+    const [todo, done] = await statusFixture(backlog.id, [
+      { name: "À faire", category: "todo" },
+      { name: "Terminé", category: "done" },
+    ]);
+    const release = await createRelease(
+      { backlogId: backlog.id, name: "Stale status", driverId: actor.id },
+      actor.id,
+      "stale-status-create",
+    );
+    const item = await itemFixture({
+      backlogId: backlog.id,
+      backlogKey: backlog.key,
+      reporterId: actor.id,
+      statusId: todo!.id,
+      title: "Change de catégorie",
+      ordinal: 1,
+    });
+    await db.insert(itemFixVersions).values({
+      backlogId: backlog.id,
+      itemId: item.id,
+      releaseId: release.id,
+      addedBy: actor.id,
+    });
+    const preview = await getReleaseDetail(backlog.id, release.id);
+    await db.update(items).set({ statusId: done!.id }).where(eq(items.id, item.id));
+
+    await expect(
+      publishReleaseService(
+        {
+          backlogId: backlog.id,
+          releaseId: release.id,
+          expectedRevision: 1,
+          expectedScopeRevision: preview!.publicationScopeRevision,
+          effectiveDate: "2026-08-08",
+          incompleteDisposition: "keep",
+        },
+        actor.id,
+        "stale-status-publish",
+      ),
+    ).rejects.toMatchObject({
+      code: "RELEASE_PUBLICATION_SCOPE_STALE",
+      currentIncompleteCount: 0,
+    });
+    await expect(
+      db.select({ id: releasePublications.id }).from(releasePublications)
+        .where(eq(releasePublications.releaseId, release.id)),
+    ).resolves.toEqual([]);
   });
 
   it("rejects publish destinations that are missing, invalid, cross-backlog, same, or archived", async () => {

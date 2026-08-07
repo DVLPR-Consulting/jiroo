@@ -133,6 +133,7 @@ describe("releases list route", () => {
         archived: false,
         overdue: false,
         revision: 1,
+        publicationScopeRevision: "0123456789abcdef0123456789abcdef",
         progress: {
           total: 0,
           todo: 0,

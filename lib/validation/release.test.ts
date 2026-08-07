@@ -7,6 +7,28 @@ import {
 } from "@/lib/validation/release";
 
 describe("release validation", () => {
+  it("requires a canonical publication scope revision", () => {
+    expect(
+      publishReleaseSchema.safeParse({
+        backlogId: crypto.randomUUID(),
+        releaseId: crypto.randomUUID(),
+        expectedRevision: 1,
+        effectiveDate: "2026-08-07",
+        incompleteDisposition: "keep",
+      }).success,
+    ).toBe(false);
+    expect(
+      publishReleaseSchema.safeParse({
+        backlogId: crypto.randomUUID(),
+        releaseId: crypto.randomUUID(),
+        expectedRevision: 1,
+        expectedScopeRevision: "not-a-scope-revision",
+        effectiveDate: "2026-08-07",
+        incompleteDisposition: "keep",
+      }).success,
+    ).toBe(false);
+  });
+
   it("requires a destination when incomplete items move", () => {
     expect(() =>
       publishReleaseSchema.parse({

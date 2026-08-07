@@ -125,7 +125,12 @@ async function mutateItemFixVersionsInTx(
           archivedAt: releases.archivedAt,
         })
         .from(releases)
-        .where(inArray(releases.id, candidateIds))
+        .where(
+          and(
+            eq(releases.backlogId, input.backlogId),
+            inArray(releases.id, candidateIds),
+          ),
+        )
         .orderBy(asc(releases.id))
         .for("update")
     : [];

@@ -152,6 +152,7 @@ async function cleanupFixture(fixture: Awaited<ReturnType<typeof createFixture>>
       backlogIds,
     ]);
     await client.query("delete from release_publications where backlog_id = any($1)", [backlogIds]);
+    await client.query("delete from releases where backlog_id = any($1)", [backlogIds]);
     await client.query("set local session_replication_role = 'origin'");
     await client.query("delete from backlogs where id = any($1)", [backlogIds]);
     await client.query("commit");
@@ -266,7 +267,7 @@ describeDb("item fix version transactions", () => {
     }
   });
 
-  it("rolls back a cross-backlog replacement and preserves the existing version", async () => {
+  it("rejects a foreign release UUID with a generic error and rolls back the existing version", async () => {
     const fixture = await createFixture();
     await db.insert(itemFixVersions).values({
       backlogId: fixture.backlog.id,
