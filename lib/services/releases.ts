@@ -26,7 +26,7 @@ import {
 import {
   createReleaseSchema,
   publishReleaseSchema,
-  releaseIdentitySchema,
+  revisionedReleaseIdentitySchema,
   updateReleaseSchema,
 } from "@/lib/validation/release";
 
@@ -122,9 +122,6 @@ const pageCommand = z.object({
 });
 const releasePageCommand = pageCommand.extend({ releaseId: z.uuid() });
 const publicationPageCommand = pageCommand.extend({ publicationId: z.uuid() });
-const revisionedReleaseIdentitySchema = releaseIdentitySchema
-  .extend({ expectedRevision: z.number().int().positive() })
-  .strict();
 const RELEASE_WRITE_BATCH_SIZE = 1_000;
 
 async function lockBacklog(tx: Tx, backlogId: string) {

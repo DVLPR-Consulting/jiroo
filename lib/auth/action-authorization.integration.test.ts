@@ -16,6 +16,7 @@ import {
   requireViewMutationPermission,
   requireViewPermission,
 } from "@/lib/auth/action-authorization";
+import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
   PermissionDeniedError,
   ResourceNotFoundError,
@@ -287,6 +288,28 @@ describeDb("ownership-aware authorization helpers", () => {
       backlogKey: backlogA.key,
       resourceId: backlogA.id,
     });
+  });
+
+  it("maps inaccessible and absent backlog IDs to the same action-boundary result", async () => {
+    const mapRejection = async (backlogId: string) => {
+      try {
+        await requireBacklogPermissionById({
+          actorId,
+          backlogId,
+          permission: "manage_releases",
+        });
+        throw new Error("Expected backlog authorization to fail.");
+      } catch (error) {
+        return mapActionAuthorizationError(error);
+      }
+    };
+
+    await expect(
+      Promise.all([mapRejection(backlogB.id), mapRejection(randomUUID())]),
+    ).resolves.toEqual([
+      { ok: false, error: "La ressource demandée est introuvable." },
+      { ok: false, error: "La ressource demandée est introuvable." },
+    ]);
   });
 
   it("authorizes an item from its stored backlog and ignores a forged backlog key", async () => {

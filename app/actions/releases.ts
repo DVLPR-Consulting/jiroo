@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { z, type ZodType } from "zod";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
 import { requirePermission } from "@/lib/auth/authorization";
@@ -15,24 +16,14 @@ import {
   updateRelease,
 } from "@/lib/services/releases";
 import { mapZodActionError } from "@/lib/validation/action-error";
-import type {
-  CreateReleaseInput,
-  PublishReleaseInput,
-  UpdateReleaseInput,
+import {
+  createReleaseWithOptionalDriverSchema,
+  publishReleaseSchema,
+  revisionedReleaseIdentitySchema,
+  updateReleaseSchema,
 } from "@/lib/validation/release";
 
-type WithBacklogKey<T> = T & { backlogKey: string };
-type CreateReleaseActionInput = WithBacklogKey<
-  Omit<CreateReleaseInput, "driverId"> & { driverId?: string }
->;
-type UpdateReleaseActionInput = WithBacklogKey<UpdateReleaseInput>;
-type PublishReleaseActionInput = WithBacklogKey<PublishReleaseInput>;
-type RevisionedReleaseActionInput = {
-  backlogKey: string;
-  backlogId: string;
-  releaseId: string;
-  expectedRevision: number;
-};
+const releaseActionEnvelopeSchema = z.looseObject({ backlogKey: z.string() });
 
 const RELEASE_DOMAIN_ERRORS = new Set([
   "Backlog introuvable.",
@@ -76,10 +67,10 @@ function revalidateReleasePaths(backlogKey: string, releaseId?: string) {
   if (releaseId) revalidatePath(`/b/${backlogKey}/releases/${releaseId}`);
 }
 
-function stripClientBacklogKey<T extends object>(input: WithBacklogKey<T>): T {
-  const { backlogKey, ...serviceInput } = input;
+function parseReleaseActionCommand<T>(input: unknown, commandSchema: ZodType<T>) {
+  const { backlogKey, ...rawCommand } = releaseActionEnvelopeSchema.parse(input);
   void backlogKey;
-  return serviceInput as T;
+  return commandSchema.parse(rawCommand);
 }
 
 async function authorizeReleaseManagement(actorId: string, backlogId: string) {
@@ -102,15 +93,15 @@ async function requireDriverBrowsePermission(
   });
 }
 
-export async function createReleaseAction(input: CreateReleaseActionInput) {
-  const actorId = await authenticatedActorId();
+export async function createReleaseAction(input: unknown) {
   try {
-    const backlog = await authorizeReleaseManagement(actorId, input.backlogId);
-    const driverId = input.driverId ?? actorId;
+    const command = parseReleaseActionCommand(input, createReleaseWithOptionalDriverSchema);
+    const actorId = await authenticatedActorId();
+    const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
+    const driverId = command.driverId ?? actorId;
     await requireDriverBrowsePermission(actorId, driverId);
-    const serviceInput = stripClientBacklogKey(input);
     const result = await createRelease(
-      { ...serviceInput, driverId },
+      { ...command, driverId },
       actorId,
       randomUUID(),
     );
@@ -121,73 +112,73 @@ export async function createReleaseAction(input: CreateReleaseActionInput) {
   }
 }
 
-export async function updateReleaseAction(input: UpdateReleaseActionInput) {
-  const actorId = await authenticatedActorId();
+export async function updateReleaseAction(input: unknown) {
   try {
-    const backlog = await authorizeReleaseManagement(actorId, input.backlogId);
-    await requireDriverBrowsePermission(actorId, input.driverId);
-    const serviceInput = stripClientBacklogKey(input);
-    const result = await updateRelease(serviceInput, actorId, randomUUID());
-    revalidateReleasePaths(backlog.backlogKey, input.releaseId);
+    const command = parseReleaseActionCommand(input, updateReleaseSchema);
+    const actorId = await authenticatedActorId();
+    const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
+    await requireDriverBrowsePermission(actorId, command.driverId);
+    const result = await updateRelease(command, actorId, randomUUID());
+    revalidateReleasePaths(backlog.backlogKey, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
     return safeReleaseError(error, "Mise à jour de release impossible.");
   }
 }
 
-export async function publishReleaseAction(input: PublishReleaseActionInput) {
-  const actorId = await authenticatedActorId();
+export async function publishReleaseAction(input: unknown) {
   try {
-    const backlog = await authorizeReleaseManagement(actorId, input.backlogId);
-    if (input.incompleteDisposition === "move") {
+    const command = parseReleaseActionCommand(input, publishReleaseSchema);
+    const actorId = await authenticatedActorId();
+    const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
+    if (command.incompleteDisposition === "move") {
       await requireBacklogPermissionById({
         actorId,
         backlogId: backlog.backlogId,
         permission: "edit_items",
       });
     }
-    const serviceInput = stripClientBacklogKey(input);
-    const result = await publishRelease(serviceInput, actorId, randomUUID());
-    revalidateReleasePaths(backlog.backlogKey, input.releaseId);
+    const result = await publishRelease(command, actorId, randomUUID());
+    revalidateReleasePaths(backlog.backlogKey, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
     return safeReleaseError(error, "Publication impossible.");
   }
 }
 
-export async function unreleaseReleaseAction(input: RevisionedReleaseActionInput) {
-  const actorId = await authenticatedActorId();
+export async function unreleaseReleaseAction(input: unknown) {
   try {
-    const backlog = await authorizeReleaseManagement(actorId, input.backlogId);
-    const serviceInput = stripClientBacklogKey(input);
-    const result = await unreleaseRelease(serviceInput, actorId, randomUUID());
-    revalidateReleasePaths(backlog.backlogKey, input.releaseId);
+    const command = parseReleaseActionCommand(input, revisionedReleaseIdentitySchema);
+    const actorId = await authenticatedActorId();
+    const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
+    const result = await unreleaseRelease(command, actorId, randomUUID());
+    revalidateReleasePaths(backlog.backlogKey, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
     return safeReleaseError(error, "Dépublication impossible.");
   }
 }
 
-export async function archiveReleaseAction(input: RevisionedReleaseActionInput) {
-  const actorId = await authenticatedActorId();
+export async function archiveReleaseAction(input: unknown) {
   try {
-    const backlog = await authorizeReleaseManagement(actorId, input.backlogId);
-    const serviceInput = stripClientBacklogKey(input);
-    const result = await archiveRelease(serviceInput, actorId, randomUUID());
-    revalidateReleasePaths(backlog.backlogKey, input.releaseId);
+    const command = parseReleaseActionCommand(input, revisionedReleaseIdentitySchema);
+    const actorId = await authenticatedActorId();
+    const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
+    const result = await archiveRelease(command, actorId, randomUUID());
+    revalidateReleasePaths(backlog.backlogKey, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
     return safeReleaseError(error, "Archivage impossible.");
   }
 }
 
-export async function unarchiveReleaseAction(input: RevisionedReleaseActionInput) {
-  const actorId = await authenticatedActorId();
+export async function unarchiveReleaseAction(input: unknown) {
   try {
-    const backlog = await authorizeReleaseManagement(actorId, input.backlogId);
-    const serviceInput = stripClientBacklogKey(input);
-    const result = await unarchiveRelease(serviceInput, actorId, randomUUID());
-    revalidateReleasePaths(backlog.backlogKey, input.releaseId);
+    const command = parseReleaseActionCommand(input, revisionedReleaseIdentitySchema);
+    const actorId = await authenticatedActorId();
+    const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
+    const result = await unarchiveRelease(command, actorId, randomUUID());
+    revalidateReleasePaths(backlog.backlogKey, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
     return safeReleaseError(error, "Désarchivage impossible.");

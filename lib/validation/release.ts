@@ -23,7 +23,7 @@ const dateOrderIssue = {
   path: ["targetDate"],
 };
 
-export const createReleaseSchema = z
+const createReleaseBaseSchema = z
   .object({
     backlogId: uuid,
     name: releaseName,
@@ -32,7 +32,14 @@ export const createReleaseSchema = z
     startDate: optionalDate.optional(),
     targetDate: optionalDate.optional(),
   })
-  .strict()
+  .strict();
+
+export const createReleaseSchema = createReleaseBaseSchema.refine(
+  datesAreOrdered,
+  dateOrderIssue,
+);
+export const createReleaseWithOptionalDriverSchema = createReleaseBaseSchema
+  .extend({ driverId: createReleaseBaseSchema.shape.driverId.optional() })
   .refine(datesAreOrdered, dateOrderIssue);
 
 export const updateReleaseSchema = z
@@ -66,7 +73,7 @@ export const publishReleaseSchema = z
       expectedRevision: revision,
       effectiveDate: z.iso.date(),
       incompleteDisposition: z.literal("keep"),
-    }),
+    }).strict(),
     z.object({
       backlogId: uuid,
       releaseId: uuid,
@@ -74,7 +81,7 @@ export const publishReleaseSchema = z
       effectiveDate: z.iso.date(),
       incompleteDisposition: z.literal("move"),
       destinationReleaseId: uuid,
-    }),
+    }).strict(),
   ])
   .refine(
     (data) =>
@@ -82,7 +89,10 @@ export const publishReleaseSchema = z
     { message: "La destination doit différer de la release publiée.", path: ["destinationReleaseId"] },
   );
 
-export const releaseIdentitySchema = z.object({ backlogId: uuid, releaseId: uuid });
+export const releaseIdentitySchema = z.object({ backlogId: uuid, releaseId: uuid }).strict();
+export const revisionedReleaseIdentitySchema = releaseIdentitySchema
+  .extend({ expectedRevision: revision })
+  .strict();
 
 export const changeItemFixVersionsSchema = z.object({
   backlogId: uuid,

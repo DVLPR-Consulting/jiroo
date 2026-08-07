@@ -99,6 +99,123 @@ function resetMocks() {
 describe("release server action permissions", () => {
   beforeEach(resetMocks);
 
+  it.each([
+    {
+      name: "create",
+      invoke: () => createReleaseAction(createInput),
+      service: () => mocks.createRelease,
+      error: "Création de release impossible.",
+    },
+    {
+      name: "update",
+      invoke: () => updateReleaseAction(updateInput),
+      service: () => mocks.updateRelease,
+      error: "Mise à jour de release impossible.",
+    },
+    {
+      name: "publish",
+      invoke: () => publishReleaseAction(keepInput),
+      service: () => mocks.publishRelease,
+      error: "Publication impossible.",
+    },
+    {
+      name: "unrelease",
+      invoke: () => unreleaseReleaseAction(identityInput),
+      service: () => mocks.unreleaseRelease,
+      error: "Dépublication impossible.",
+    },
+    {
+      name: "archive",
+      invoke: () => archiveReleaseAction(identityInput),
+      service: () => mocks.archiveRelease,
+      error: "Archivage impossible.",
+    },
+    {
+      name: "unarchive",
+      invoke: () => unarchiveReleaseAction(identityInput),
+      service: () => mocks.unarchiveRelease,
+      error: "Désarchivage impossible.",
+    },
+  ])("returns a safe result for a missing session before $name", async ({ invoke, service, error }) => {
+    mocks.getSession.mockResolvedValueOnce(null);
+
+    await expect(invoke()).resolves.toEqual({ ok: false, error });
+    expect(mocks.requireBacklogPermissionById).not.toHaveBeenCalled();
+    expect(mocks.requirePermission).not.toHaveBeenCalled();
+    expect(service()).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      name: "create backlog ID",
+      invoke: () => createReleaseAction({ ...createInput, backlogId: "not-a-uuid" }),
+      service: () => mocks.createRelease,
+    },
+    {
+      name: "create driver",
+      invoke: () => createReleaseAction({ ...createInput, driverId: " " }),
+      service: () => mocks.createRelease,
+    },
+    {
+      name: "update release ID",
+      invoke: () => updateReleaseAction({ ...updateInput, releaseId: "not-a-uuid" }),
+      service: () => mocks.updateRelease,
+    },
+    {
+      name: "update revision",
+      invoke: () => updateReleaseAction({ ...updateInput, expectedRevision: 0 }),
+      service: () => mocks.updateRelease,
+    },
+    {
+      name: "update date",
+      invoke: () => updateReleaseAction({ ...updateInput, targetDate: "not-a-date" }),
+      service: () => mocks.updateRelease,
+    },
+    {
+      name: "publish effective date",
+      invoke: () => publishReleaseAction({ ...keepInput, effectiveDate: "not-a-date" }),
+      service: () => mocks.publishRelease,
+    },
+    {
+      name: "publish disposition",
+      invoke: () => publishReleaseAction({ ...keepInput, incompleteDisposition: "drop" } as never),
+      service: () => mocks.publishRelease,
+    },
+    {
+      name: "publish destination release ID",
+      invoke: () =>
+        publishReleaseAction({
+          ...keepInput,
+          incompleteDisposition: "move",
+          destinationReleaseId: "not-a-uuid",
+        }),
+      service: () => mocks.publishRelease,
+    },
+    {
+      name: "unrelease revision",
+      invoke: () => unreleaseReleaseAction({ ...identityInput, expectedRevision: -1 }),
+      service: () => mocks.unreleaseRelease,
+    },
+    {
+      name: "archive release ID",
+      invoke: () => archiveReleaseAction({ ...identityInput, releaseId: "not-a-uuid" }),
+      service: () => mocks.archiveRelease,
+    },
+    {
+      name: "unarchive revision type",
+      invoke: () => unarchiveReleaseAction({ ...identityInput, expectedRevision: "1" } as never),
+      service: () => mocks.unarchiveRelease,
+    },
+  ])("rejects malformed $name before authentication or authorization", async ({ invoke, service }) => {
+    await expect(invoke()).resolves.toMatchObject({ ok: false });
+    expect(mocks.getSession).not.toHaveBeenCalled();
+    expect(mocks.requireBacklogPermissionById).not.toHaveBeenCalled();
+    expect(mocks.requirePermission).not.toHaveBeenCalled();
+    expect(service()).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
   it("maps all six lifecycle actions to manage_releases and one action correlation", async () => {
     await createReleaseAction(createInput);
     await updateReleaseAction(updateInput);
@@ -264,15 +381,18 @@ describe("release server action permissions", () => {
     expect(mocks.archiveRelease).not.toHaveBeenCalled();
   });
 
-  it.each(["hidden", "absent"])(
-    "returns the same result for an %s backlog and never calls the service",
-    async (kind) => {
+  it.each([
+    { kind: "hidden", inaccessibleBacklogId: "44444444-4444-4444-8444-444444444444" },
+    { kind: "absent", inaccessibleBacklogId: "55555555-5555-4555-8555-555555555555" },
+  ])(
+    "returns the same result for an $kind backlog and never calls the service",
+    async ({ inaccessibleBacklogId }) => {
       mocks.requireBacklogPermissionById.mockRejectedValueOnce(
-        resourceNotFoundError("backlog", `${kind}-backlog`),
+        resourceNotFoundError("backlog", inaccessibleBacklogId),
       );
 
       await expect(
-        createReleaseAction({ ...createInput, backlogId: `${kind}-backlog` }),
+        createReleaseAction({ ...createInput, backlogId: inaccessibleBacklogId }),
       ).resolves.toEqual({
         ok: false,
         error: "La ressource demandée est introuvable.",
