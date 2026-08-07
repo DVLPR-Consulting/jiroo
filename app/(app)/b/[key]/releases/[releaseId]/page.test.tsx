@@ -125,6 +125,7 @@ describe("release detail route", () => {
     mocks.listReleaseSummaries.mockResolvedValue([
       release,
       { ...release, id: "55555555-5555-4555-8555-555555555555", name: "Version suivante", released: false },
+      { ...release, id: "66666666-6666-4666-8666-666666666666", name: "Déjà publiée", released: true },
     ]);
     mocks.listReleaseScopeItems.mockResolvedValue({ rows: [], total: 0 });
     mocks.listReleaseEvents.mockResolvedValue({
@@ -283,6 +284,9 @@ describe("release detail route", () => {
       driverOptions: [
         { id: "actor-1", name: "Ada" },
         { id: "driver-2", name: "Lin" },
+      ],
+      destinations: [
+        { id: "55555555-5555-4555-8555-555555555555", name: "Version suivante" },
       ],
     }));
     const serialized = JSON.stringify(props);

@@ -14,6 +14,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
+  activities,
   backlogs,
   itemFixVersions,
   items,
@@ -378,19 +379,27 @@ export async function publishRelease(
       }
     }
 
-    const [activePublication] = await tx
-      .select({ id: releasePublications.id })
+    const activePublications = await tx
+      .select({ id: releasePublications.id, releaseId: releasePublications.releaseId })
       .from(releasePublications)
       .where(
         and(
           eq(releasePublications.backlogId, data.backlogId),
-          eq(releasePublications.releaseId, current.id),
+          inArray(releasePublications.releaseId, releaseIds),
           isNull(releasePublications.unreleasedAt),
         ),
       )
-      .limit(1)
+      .orderBy(asc(releasePublications.releaseId))
       .for("update");
-    if (activePublication) throw new Error("Cette release est déjà publiée.");
+    const activePublicationByRelease = new Map(
+      activePublications.map((publication) => [publication.releaseId, publication]),
+    );
+    if (activePublicationByRelease.has(current.id)) {
+      throw new Error("Cette release est déjà publiée.");
+    }
+    if (destination && activePublicationByRelease.has(destination.id)) {
+      throw new Error("La release de destination doit être non publiée.");
+    }
 
     const scopeItems = await tx
       .select({
@@ -507,6 +516,52 @@ export async function publishRelease(
       .where(eq(releasePublications.id, publication.id));
 
     if (data.incompleteDisposition === "move" && incompleteItemIds.length > 0) {
+      const currentFixVersionRows = await tx
+        .select({
+          itemId: itemFixVersions.itemId,
+          releaseId: releases.id,
+          releaseName: releases.name,
+        })
+        .from(itemFixVersions)
+        .innerJoin(
+          releases,
+          and(
+            eq(releases.id, itemFixVersions.releaseId),
+            eq(releases.backlogId, itemFixVersions.backlogId),
+          ),
+        )
+        .where(
+          and(
+            eq(itemFixVersions.backlogId, data.backlogId),
+            inArray(itemFixVersions.itemId, incompleteItemIds),
+          ),
+        )
+        .orderBy(asc(itemFixVersions.itemId), asc(releases.id));
+      const currentLabelsByItem = new Map<string, Array<{ id: string; name: string }>>();
+      for (const row of currentFixVersionRows) {
+        const labels = currentLabelsByItem.get(row.itemId) ?? [];
+        labels.push({ id: row.releaseId, name: row.releaseName });
+        currentLabelsByItem.set(row.itemId, labels);
+      }
+      const moveActivityRows = incompleteItemIds.map((itemId) => {
+        const before = currentLabelsByItem.get(itemId) ?? [];
+        const afterById = new Map(
+          before
+            .filter((release) => release.id !== current.id)
+            .map((release) => [release.id, release]),
+        );
+        afterById.set(destination!.id, { id: destination!.id, name: destination!.name });
+        const after = [...afterById.values()].sort((a, b) => a.id.localeCompare(b.id));
+        return {
+          itemId,
+          actorId: actor.id,
+          action: "update" as const,
+          field: "fix_versions",
+          oldValue: JSON.stringify(before),
+          newValue: JSON.stringify(after),
+          requestCorrelationId,
+        };
+      });
       for (
         let offset = 0;
         offset < incompleteItemIds.length;
@@ -540,6 +595,11 @@ export async function publishRelease(
           )
           .onConflictDoNothing();
       }
+      for (let offset = 0; offset < moveActivityRows.length; offset += RELEASE_WRITE_BATCH_SIZE) {
+        await tx.insert(activities).values(
+          moveActivityRows.slice(offset, offset + RELEASE_WRITE_BATCH_SIZE),
+        );
+      }
     }
 
     const [updated] = await tx
@@ -554,6 +614,22 @@ export async function publishRelease(
       .where(eq(releases.id, current.id))
       .returning({ id: releases.id, revision: releases.revision });
     if (!updated) throw new Error("Publication impossible.");
+    if (data.incompleteDisposition === "move" && incompleteItemIds.length > 0) {
+      await appendReleaseEvent(tx, {
+        backlogId: data.backlogId,
+        releaseId: current.id,
+        publicationId: publication.id,
+        releaseName: current.name,
+        actor,
+        action: "release_incomplete_items_moved",
+        oldValue: { movedCount: 0 },
+        newValue: {
+          movedCount: incompleteItemIds.length,
+          destinationRelease: { id: destination!.id, name: destination!.name },
+        },
+        requestCorrelationId,
+      });
+    }
     await appendReleaseEvent(tx, {
       backlogId: data.backlogId,
       releaseId: current.id,
@@ -595,6 +671,9 @@ export async function unreleaseRelease(
     await lockBacklog(tx, data.backlogId);
     const current = await lockRelease(tx, data.backlogId, data.releaseId);
     assertExpectedRevision(current, data.expectedRevision);
+    if (current.archivedAt !== null) {
+      throw new Error("Cette release doit être désarchivée avant dépublication.");
+    }
     const [publication] = await tx
       .select()
       .from(releasePublications)
@@ -661,10 +740,10 @@ async function setReleaseArchived(
     const current = await lockRelease(tx, data.backlogId, data.releaseId);
     assertExpectedRevision(current, data.expectedRevision);
     if (archived && current.archivedAt !== null) {
-      throw new Error("Cette release est déjà archivée.");
+      return { id: current.id, revision: current.revision };
     }
     if (!archived && current.archivedAt === null) {
-      throw new Error("Cette release n’est pas archivée.");
+      return { id: current.id, revision: current.revision };
     }
     const actor = await readUser(tx, actorId, "Acteur");
     const [updated] = await tx
@@ -777,7 +856,7 @@ function releaseSummaryQuery(
       effectiveReleaseDate: publication.effectiveDate,
       released: sql<boolean>`${publication.releaseId} is not null`,
       archived: sql<boolean>`${releases.archivedAt} is not null`,
-      overdue: sql<boolean>`coalesce(${publication.releaseId} is null and ${releases.releaseDate} < current_date, false)`,
+      overdue: sql<boolean>`coalesce(${publication.releaseId} is null and ${releases.archivedAt} is null and ${releases.releaseDate} < current_date, false)`,
       revision: releases.revision,
       total: sql<number>`coalesce(${progress.total}, 0)::int`,
       todo: sql<number>`coalesce(${progress.todo}, 0)::int`,

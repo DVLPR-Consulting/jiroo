@@ -38,8 +38,10 @@ const RELEASE_DOMAIN_ERRORS = new Set([
   "Cette release est déjà archivée.",
   "Cette release n’est pas archivée.",
   "Une release archivée ne peut pas être publiée.",
+  "Cette release doit être désarchivée avant dépublication.",
   "La release de destination est invalide pour ce backlog.",
   "La release de destination est archivée.",
+  "La release de destination doit être non publiée.",
   "Le scope de la release est incohérent.",
 ]);
 

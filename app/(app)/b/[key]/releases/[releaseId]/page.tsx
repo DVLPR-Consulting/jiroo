@@ -122,7 +122,9 @@ export default async function ReleaseDetailPage({
       capabilities={capabilities}
       statusIds={statusIds}
       destinations={releaseSummaries
-        .filter((candidate) => candidate.id !== releaseId && !candidate.archived)
+        .filter(
+          (candidate) => candidate.id !== releaseId && !candidate.archived && !candidate.released,
+        )
         .map(({ id, name }) => ({ id, name }))}
       scope={{ page: scopePage, total: scopeResult.total, rows: scopeResult.rows }}
       events={{

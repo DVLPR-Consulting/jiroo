@@ -6,6 +6,7 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 import { databasePool, db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
+  activities,
   backlogs,
   itemFixVersions,
   items,
@@ -425,6 +426,25 @@ describeDb("release metadata and read models", () => {
 
     const detail = await getReleaseDetail(backlog.id, created.id);
     expect(detail).toMatchObject({ id: created.id, archived: true, progress: visible[0]!.progress });
+
+    const past = await createRelease(
+      {
+        backlogId: backlog.id,
+        name: "Ancienne archivée",
+        driverId: actor.id,
+        targetDate: "2000-01-01",
+      },
+      actor.id,
+      "past-archived-create",
+    );
+    await archiveRelease(
+      { backlogId: backlog.id, releaseId: past.id, expectedRevision: 1 },
+      actor.id,
+      "past-archived-archive",
+    );
+    const archivedPast = (await listReleaseSummaries(backlog.id, { includeArchived: true }))
+      .find((release) => release.id === past.id);
+    expect(archivedPast).toMatchObject({ archived: true, released: false, overdue: false });
   });
 
   it("returns scope items and release events with bounded pagination", async () => {
@@ -957,17 +977,57 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
         .from(releasePublications)
         .where(eq(releasePublications.id, result.publicationId)),
     ).resolves.toEqual([{ sequence: 1, releaseRevision: 2 }]);
-    await expect(
-      db
-        .select({ action: releaseEvents.action, correlation: releaseEvents.requestCorrelationId })
-        .from(releaseEvents)
-        .where(
-          and(
-            eq(releaseEvents.publicationId, result.publicationId),
-            eq(releaseEvents.action, "release_published"),
-          ),
+    const moveActivity = await db
+      .select({
+        field: activities.field,
+        oldValue: activities.oldValue,
+        newValue: activities.newValue,
+        correlation: activities.requestCorrelationId,
+      })
+      .from(activities)
+      .where(
+        and(
+          eq(activities.itemId, todoItem.id),
+          eq(activities.requestCorrelationId, "publish-move-test"),
         ),
-    ).resolves.toEqual([{ action: "release_published", correlation: "publish-move-test" }]);
+      );
+    expect(moveActivity).toEqual([{
+      field: "fix_versions",
+      oldValue: JSON.stringify(
+        [
+          { id: source.id, name: "2026.10" },
+          { id: unrelated.id, name: "Maintenance" },
+        ]
+          .sort((a, b) => a.id.localeCompare(b.id))
+      ),
+      newValue: JSON.stringify(
+        [
+          { id: destination.id, name: "2026.11" },
+          { id: unrelated.id, name: "Maintenance" },
+        ]
+          .sort((a, b) => a.id.localeCompare(b.id))
+      ),
+      correlation: "publish-move-test",
+    }]);
+    const publicationEvents = await db
+      .select({
+        action: releaseEvents.action,
+        newValue: releaseEvents.newValue,
+        correlation: releaseEvents.requestCorrelationId,
+      })
+      .from(releaseEvents)
+      .where(eq(releaseEvents.publicationId, result.publicationId));
+    expect(publicationEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: "release_published", correlation: "publish-move-test" }),
+      {
+        action: "release_incomplete_items_moved",
+        newValue: {
+          movedCount: 1,
+          destinationRelease: { id: destination.id, name: "2026.11" },
+        },
+        correlation: "publish-move-test",
+      },
+    ]));
   });
 
   it("publishes with keep without moving incomplete scope", async () => {
@@ -1027,7 +1087,7 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
     const backlog = await backlogFixture("Publish gates");
     const otherBacklog = await backlogFixture("Publish cross backlog");
     const sources = await Promise.all(
-      Array.from({ length: 5 }, (_, index) =>
+      Array.from({ length: 6 }, (_, index) =>
         createRelease(
           { backlogId: backlog.id, name: `Source ${index}`, driverId: actor.id },
           actor.id,
@@ -1049,6 +1109,22 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       .update(releases)
       .set({ archivedAt: new Date(), archivedBy: actor.id })
       .where(eq(releases.id, archivedDestination.id));
+    const publishedDestination = await createRelease(
+      { backlogId: backlog.id, name: "Published destination", driverId: actor.id },
+      actor.id,
+      "published-destination-create",
+    );
+    const destinationPublication = await publishRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: publishedDestination.id,
+        expectedRevision: 1,
+        effectiveDate: "2026-08-09",
+        incompleteDisposition: "keep",
+      },
+      actor.id,
+      "published-destination-publish",
+    );
 
     await expect(
       publishRelease(
@@ -1119,13 +1195,27 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
         "archived-destination",
       ),
     ).rejects.toThrow("archivée");
+    await expect(
+      publishRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: sources[5]!.id,
+          expectedRevision: 1,
+          effectiveDate: "2026-08-09",
+          incompleteDisposition: "move",
+          destinationReleaseId: publishedDestination.id,
+        },
+        actor.id,
+        "published-destination",
+      ),
+    ).rejects.toThrow("non publiée");
 
     await expect(
       db
         .select({ id: releasePublications.id })
         .from(releasePublications)
         .where(eq(releasePublications.backlogId, backlog.id)),
-    ).resolves.toEqual([]);
+    ).resolves.toEqual([{ id: destinationPublication.publicationId }]);
   });
 
   it("rolls back publish when snapshot insertion fails", async () => {
@@ -1348,6 +1438,24 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       effectiveReleaseDate: "2026-08-13",
       revision: 3,
     });
+    await expect(
+      unreleaseRelease(
+        { backlogId: backlog.id, releaseId: published.id, expectedRevision: 3 },
+        actor.id,
+        "archived-unrelease-forged",
+      ),
+    ).rejects.toThrow("désarchivée");
+    await expect(getReleaseDetail(backlog.id, published.id)).resolves.toMatchObject({
+      archived: true,
+      released: true,
+      revision: 3,
+    });
+    await expect(
+      db
+        .select({ id: releaseEvents.id })
+        .from(releaseEvents)
+        .where(eq(releaseEvents.requestCorrelationId, "archived-unrelease-forged")),
+    ).resolves.toEqual([]);
     const unarchived = await unarchiveRelease(
       { backlogId: backlog.id, releaseId: published.id, expectedRevision: 3 },
       actor.id,
@@ -1391,6 +1499,61 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
         "archive-stale",
       ),
     ).rejects.toThrow("a changé");
+  });
+
+  it("treats a current-revision archive intention as idempotent but still rejects stale intent", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Archive idempotency");
+    const release = await createRelease(
+      { backlogId: backlog.id, name: "Idempotent", driverId: actor.id },
+      actor.id,
+      "idempotent-create",
+    );
+    await expect(
+      archiveRelease(
+        { backlogId: backlog.id, releaseId: release.id, expectedRevision: 1 },
+        actor.id,
+        "idempotent-archive-first",
+      ),
+    ).resolves.toEqual({ id: release.id, revision: 2 });
+    await expect(
+      archiveRelease(
+        { backlogId: backlog.id, releaseId: release.id, expectedRevision: 2 },
+        actor.id,
+        "idempotent-archive-repeat",
+      ),
+    ).resolves.toEqual({ id: release.id, revision: 2 });
+    await expect(
+      archiveRelease(
+        { backlogId: backlog.id, releaseId: release.id, expectedRevision: 1 },
+        actor.id,
+        "idempotent-archive-stale",
+      ),
+    ).rejects.toThrow("a changé");
+    await expect(
+      unarchiveRelease(
+        { backlogId: backlog.id, releaseId: release.id, expectedRevision: 2 },
+        actor.id,
+        "idempotent-unarchive-first",
+      ),
+    ).resolves.toEqual({ id: release.id, revision: 3 });
+    await expect(
+      unarchiveRelease(
+        { backlogId: backlog.id, releaseId: release.id, expectedRevision: 3 },
+        actor.id,
+        "idempotent-unarchive-repeat",
+      ),
+    ).resolves.toEqual({ id: release.id, revision: 3 });
+    const events = await db
+      .select({ action: releaseEvents.action })
+      .from(releaseEvents)
+      .where(
+        and(
+          eq(releaseEvents.releaseId, release.id),
+          inArray(releaseEvents.action, ["release_archived", "release_unarchived"]),
+        ),
+      );
+    expect(events).toHaveLength(2);
   });
 
   it("keeps a published snapshot immutable after source edits and purge", async () => {

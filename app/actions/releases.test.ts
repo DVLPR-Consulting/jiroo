@@ -412,4 +412,26 @@ describe("release server action permissions", () => {
     ]);
     expect(mocks.revalidatePath).not.toHaveBeenCalledWith("/b/FORGED");
   });
+
+  it.each([
+    {
+      invoke: () => publishReleaseAction({
+        ...keepInput,
+        incompleteDisposition: "move" as const,
+        destinationReleaseId,
+      }),
+      service: () => mocks.publishRelease,
+      message: "La release de destination doit être non publiée.",
+    },
+    {
+      invoke: () => unreleaseReleaseAction(identityInput),
+      service: () => mocks.unreleaseRelease,
+      message: "Cette release doit être désarchivée avant dépublication.",
+    },
+  ])("returns the safe lifecycle error: $message", async ({ invoke, service, message }) => {
+    service().mockRejectedValueOnce(new Error(message));
+
+    await expect(invoke()).resolves.toEqual({ ok: false, error: message });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
 });
