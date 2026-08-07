@@ -2,10 +2,12 @@
 
 ## Status
 
-**DONE_WITH_CONCERNS.** The Releases core objective is implemented, reviewed,
-and accepted locally. Delivery remains pending the controller’s final
-whole-branch review. No push, PR creation, merge, or remote mutation is part of
-this proof commit.
+**READY_FOR_DELIVERY.** The Releases core objective is implemented, reviewed,
+and accepted locally. The final whole-branch review found three Important
+findings and one security Minor; the single remediation wave closed all four,
+and its scoped re-review returned `All findings addressed, no new
+Critical/Important breakage`. No push, PR creation, merge, or remote mutation
+is part of this proof record.
 
 ## Exact scope and provenance
 
@@ -48,6 +50,10 @@ completion-category drift, action validation, structured UI recovery with
 preserved date input, foreign UUID rollback, and a real two-context Chromium
 scenario that rejects the stale submit before allowing a fresh explicit
 decision.
+
+The scoped final re-review of `b085f85..2d1b9a7` verdicts every finding
+`ADDRESSED`, reports no new breakage in the fix diff, and no out-of-scope
+observation.
 
 ## Delivered requirement ledger
 
@@ -218,11 +224,9 @@ accepted core, and none is represented by a placeholder control.
 
 ## Remaining concerns and next priorities
 
-1. The controller’s final whole-branch review is still pending; therefore the
-   delivery status remains `DONE_WITH_CONCERNS` and no push/PR/merge occurred.
-2. Responsive 390/768/1024/1440, zoom 200 %, VoiceOver/NVDA and high-volume UI
+1. Responsive 390/768/1024/1440, zoom 200 %, VoiceOver/NVDA and high-volume UI
    lists remain outside this desktop Chromium acceptance.
-3. Sprint report, velocity and burndown are still absent even though the data
+2. Sprint report, velocity and burndown are still absent even though the data
    foundations now support explainable reporting.
 
 Deferred Minors are recorded without scope expansion: privileged cleanup-role
