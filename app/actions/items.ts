@@ -196,7 +196,6 @@ function mapCreateError(e: unknown): string {
 const BULK_DOMAIN_ERRORS = [
   "Backlog introuvable.",
   "Un ou plusieurs items sont introuvables.",
-  "Tous les items doivent appartenir au backlog.",
   "Statut invalide pour ce backlog.",
   "Assigné introuvable.",
   "Seules les tâches peuvent être estimées.",
@@ -210,6 +209,9 @@ const BULK_DOMAIN_ERRORS = [
 
 function mapBulkError(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
+  if (message === "Tous les items doivent appartenir au backlog.") {
+    return "Un ou plusieurs items sont introuvables.";
+  }
   return BULK_DOMAIN_ERRORS.find((candidate) => candidate === message)
     ?? "Modification groupée impossible.";
 }

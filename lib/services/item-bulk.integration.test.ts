@@ -352,19 +352,21 @@ describeDb("bulkUpdateItems transaction", () => {
     }
   });
 
-  it("rolls back every row when one selected item belongs to another backlog", async () => {
+  it("makes foreign and absent selected items indistinguishable and rolls back every row", async () => {
     const fixture = await createBulkFixture();
     try {
-      await expect(
-        bulkUpdateItems(
-          {
-            backlogId: fixture.backlogId,
-            itemIds: [fixture.taskAId, fixture.foreignTaskId],
-            patch: { field: "priority", value: 4 },
-          },
-          fixture.actorId,
-        ),
-      ).rejects.toThrow("Tous les items doivent appartenir au backlog.");
+      for (const concealedItemId of [fixture.foreignTaskId, randomUUID()]) {
+        await expect(
+          bulkUpdateItems(
+            {
+              backlogId: fixture.backlogId,
+              itemIds: [fixture.taskAId, concealedItemId],
+              patch: { field: "priority", value: 4 },
+            },
+            fixture.actorId,
+          ),
+        ).rejects.toThrow("Un ou plusieurs items sont introuvables.");
+      }
       const stored = await db
         .select({ priority: items.priority })
         .from(items)

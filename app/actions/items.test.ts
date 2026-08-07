@@ -956,7 +956,6 @@ describe("bulkUpdateItemsAction", () => {
   it.each([
     "Backlog introuvable.",
     "Un ou plusieurs items sont introuvables.",
-    "Tous les items doivent appartenir au backlog.",
     "Statut invalide pour ce backlog.",
     "Assigné introuvable.",
     "Seules les tâches peuvent être estimées.",
@@ -970,6 +969,19 @@ describe("bulkUpdateItemsAction", () => {
     await expect(bulkUpdateItemsAction(input)).resolves.toEqual({
       ok: false,
       error: message,
+    });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "Un ou plusieurs items sont introuvables.",
+    "Tous les items doivent appartenir au backlog.",
+  ])("does not expose whether a selected item is absent or belongs to a hidden backlog", async (message) => {
+    mocks.bulkUpdateItems.mockRejectedValueOnce(new Error(message));
+
+    await expect(bulkUpdateItemsAction(input)).resolves.toEqual({
+      ok: false,
+      error: "Un ou plusieurs items sont introuvables.",
     });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });

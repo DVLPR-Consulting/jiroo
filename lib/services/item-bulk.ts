@@ -84,16 +84,16 @@ export async function bulkUpdateItems(
     const selected = await tx
       .select()
       .from(items)
-      .where(and(inArray(items.id, data.itemIds), isNull(items.deletedAt)))
+      .where(and(
+        eq(items.backlogId, data.backlogId),
+        inArray(items.id, data.itemIds),
+        isNull(items.deletedAt),
+      ))
       .orderBy(asc(items.id))
       .for("update");
     if (selected.length !== data.itemIds.length) {
       throw new Error("Un ou plusieurs items sont introuvables.");
     }
-    if (selected.some((row) => row.backlogId !== data.backlogId)) {
-      throw new Error("Tous les items doivent appartenir au backlog.");
-    }
-
     if (data.patch.field === "sprintId") {
       return assignItemsToSprintInTx(
         tx,
