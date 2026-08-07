@@ -117,9 +117,9 @@ BEGIN
      (to_jsonb(OLD) - ARRAY['release_id', 'destination_release_id', 'superseded_at'])
      OR NOT (
        (NEW.release_id IS NOT DISTINCT FROM OLD.release_id
-        OR (OLD.release_id IS NOT NULL AND NEW.release_id IS NULL))
+        OR (pg_trigger_depth() > 1 AND OLD.release_id IS NOT NULL AND NEW.release_id IS NULL))
        AND (NEW.destination_release_id IS NOT DISTINCT FROM OLD.destination_release_id
-        OR (OLD.destination_release_id IS NOT NULL AND NEW.destination_release_id IS NULL))
+        OR (pg_trigger_depth() > 1 AND OLD.destination_release_id IS NOT NULL AND NEW.destination_release_id IS NULL))
        AND (NEW.superseded_at IS NOT DISTINCT FROM OLD.superseded_at
         OR (OLD.superseded_at IS NULL AND NEW.superseded_at IS NOT NULL))
      ) THEN
@@ -144,9 +144,9 @@ BEGIN
      (to_jsonb(OLD) - ARRAY['item_id', 'destination_release_id'])
      OR NOT (
        (NEW.item_id IS NOT DISTINCT FROM OLD.item_id
-        OR (OLD.item_id IS NOT NULL AND NEW.item_id IS NULL))
+        OR (pg_trigger_depth() > 1 AND OLD.item_id IS NOT NULL AND NEW.item_id IS NULL))
        AND (NEW.destination_release_id IS NOT DISTINCT FROM OLD.destination_release_id
-        OR (OLD.destination_release_id IS NOT NULL AND NEW.destination_release_id IS NULL))
+        OR (pg_trigger_depth() > 1 AND OLD.destination_release_id IS NOT NULL AND NEW.destination_release_id IS NULL))
      ) THEN
     RAISE EXCEPTION 'release publication item snapshots are immutable' USING ERRCODE = '55000';
   END IF;

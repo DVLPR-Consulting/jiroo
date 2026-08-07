@@ -85,6 +85,54 @@ async function createPublication(
   return result.rows[0]!.id;
 }
 
+async function createTargetedSnapshots(client: PoolClient): Promise<{
+  publicationId: string;
+  snapshotId: string;
+}> {
+  const backlogId = await createBacklog(client, "DIRECTNULL");
+  const actor = await actorId(client);
+  const status = await client.query<{ id: string }>(
+    `insert into statuses (backlog_id, name, category, "order", color)
+     values ($1, 'À faire', 'todo', 0, '#123456') returning id`,
+    [backlogId],
+  );
+  const itemId = randomUUID();
+  await client.query(
+    `insert into items
+      (id, key, type, backlog_id, title, status_id, reporter_id, rank, path)
+     values ($1, $2, 'composant', $3, 'Cible directe', $4, $5, $6, $7)`,
+    [
+      itemId,
+      `NULL-${randomUUID().replaceAll("-", "").slice(0, 6)}`,
+      backlogId,
+      status.rows[0]!.id,
+      actor,
+      `rank-${randomUUID()}`,
+      `root.${itemId.replaceAll("-", "")}`,
+    ],
+  );
+  const sourceReleaseId = await createRelease(client, backlogId, actor, "6.0");
+  const destinationReleaseId = await createRelease(client, backlogId, actor, "6.1");
+  const publication = await client.query<{ id: string }>(
+    `insert into release_publications
+      (backlog_id, release_id, release_revision, release_name, effective_date,
+       incomplete_disposition, destination_release_id, destination_release_name, published_by)
+     values ($1, $2, 1, '6.0', '2026-08-07', 'move', $3, '6.1', $4)
+     returning id`,
+    [backlogId, sourceReleaseId, destinationReleaseId, actor],
+  );
+  const publicationId = publication.rows[0]!.id;
+  const snapshot = await client.query<{ id: string }>(
+    `insert into release_publication_items
+      (publication_id, backlog_id, item_id, item_key, item_title, status_name,
+       disposition, destination_release_id, destination_release_name)
+     values ($1, $2, $3, 'NULL-1', 'Cible directe', 'À faire', 'moved', $4, '6.1')
+     returning id`,
+    [publicationId, backlogId, itemId, destinationReleaseId],
+  );
+  return { publicationId, snapshotId: snapshot.rows[0]!.id };
+}
+
 afterAll(async () => {
   await pool.end();
 });
@@ -377,6 +425,32 @@ describeDb("release persistence constraints", () => {
           [publicationId],
         ),
       ).resolves.toBeTruthy();
+    });
+  });
+
+  it.each([
+    ["release_publications.release_id", "release_publications", "release_id", "publicationId"],
+    [
+      "release_publications.destination_release_id",
+      "release_publications",
+      "destination_release_id",
+      "publicationId",
+    ],
+    ["release_publication_items.item_id", "release_publication_items", "item_id", "snapshotId"],
+    [
+      "release_publication_items.destination_release_id",
+      "release_publication_items",
+      "destination_release_id",
+      "snapshotId",
+    ],
+  ] as const)("rejects direct nullification of %s", async (_label, table, column, idKey) => {
+    await transaction(async (client) => {
+      const fixture = await createTargetedSnapshots(client);
+      await expectStatementRejected(
+        client,
+        `update ${table} set ${column} = null where id = $1`,
+        [fixture[idKey]],
+      );
     });
   });
 });
