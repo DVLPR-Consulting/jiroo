@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "runId": "20260807-releases-core-delivery-03",
+  "timestamps": {
+    "startedAt": "2026-08-07T19:54:38.446Z",
+    "databaseVerifiedAt": "2026-08-07T19:54:38.469Z",
+    "manifestWrittenAt": "2026-08-07T19:54:38.699Z"
+  },
+  "runtime": {
+    "node": "v24.13.0",
+    "pnpm": "10.19.0"
+  },
+  "source": {
+    "gitSha": "8eef265f971ca8244e67299926223046a3529cda"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:16ea5a631f99332b04fb222cc60b0827234a62c4a45baab99dd9014cf684982e"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "corepack pnpm exec playwright test --project chromium",
+    "scenarios": "Final Releases core remediation: full Chromium regression, legacy plus 16 Releases scenarios including two-context stale publication scope rejection"
+  },
+  "result": {
+    "junitReport": "audit/runs/20260807-releases-core-delivery-03-junit.xml"
+  }
+}

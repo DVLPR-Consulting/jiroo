@@ -1004,7 +1004,7 @@ et les `Fix versions` multivaluées participent réellement à la planification.
 
 | Dimension | Score | Preuve principale |
 |---|---:|---|
-| Couverture fonctionnelle observée | 91/100 | Cycle, affectations, filtres, progression et 15 scénarios Releases prouvés |
+| Couverture fonctionnelle observée | 91/100 | Cycle, affectations, filtres, progression et 16 scénarios Releases prouvés |
 | Fiabilité et feedback | 95/100 | Transactions, snapshots append-only, stale conflict, rollback et persistance |
 | Efficacité UX | 86/100 | Navigation dédiée, sélecteur partagé, bulk, filtres URL et drilldowns |
 | Accessibilité | 88/100 | Contrôles nommés, permissions visibles et régression clavier conservée ; lecteur d’écran réel restant |
@@ -1054,21 +1054,29 @@ suppression, audit de cycle/move, oracle bulk, rechargements, IDs malformés,
 ancêtres hiérarchiques et détail non filtré. La revue finale du delta E2E
 `92a00b8..88b8171` passe également avec **0/0/0**.
 
-Vérification finale sur `88b817134aaed3c3909f0c3585b3e358b3e6a89e` :
+Vérification finale autoritative sur
+`8eef265f971ca8244e67299926223046a3529cda` :
 
-- Vitest hors DB : **135 fichiers, 1 179 tests**, 23,92 s ;
-- PostgreSQL gardé `jiroo_e2e` : **19 fichiers, 181 tests**, 34,21 s ;
+- Vitest hors DB : **135 fichiers, 1 182 tests**, 29,14 s Vitest ;
+- PostgreSQL gardé `jiroo_e2e` : **19 fichiers, 184 tests**, 32,52 s Vitest ;
 - TypeScript, ESLint, merge-base exact et `git diff --check` : verts ;
 - build Next.js 16.2.7 : vert, compilation 4,7 s et TypeScript 8,6 s ;
-- Chromium persistant : [JUnit **39/39**](runs/20260807-releases-core-delivery-02-junit.xml),
-  0 échec/erreur/skip, 114,635 s JUnit, avec
-  [manifeste](runs/20260807-releases-core-delivery-02-manifest.json) exact ;
-- preuve : **90 fichiers run-scoped** — 35 consoles, 35 réseaux,
-  18 captures, JUnit et manifeste ;
+- Chromium persistant : [JUnit **40/40**](runs/20260807-releases-core-delivery-03-junit.xml),
+  0 échec/erreur/skip, 124,838 s JUnit, avec
+  [manifeste](runs/20260807-releases-core-delivery-03-manifest.json) exact ;
+- preuve : **93 fichiers run-scoped** — 36 consoles, 36 réseaux,
+  18 captures, JUnit, manifeste et [résumé de scan](runs/20260807-releases-core-delivery-03-scan.txt) ;
 - scans : 0 statut HTTP 4xx/5xx, 0 secret, 0 URL/variable DB, 0 header
-  auth/cookie, 0 token et 0 identité PostgreSQL brute. Les six erreurs console
-  et six requêtes échouées sont confinées aux trois scénarios de rollback
-  explicitement injectés et accompagnées de huit marqueurs `[expected]`.
+  auth/cookie, 0 token et 0 identité PostgreSQL brute. Les **neuf erreurs
+  console et neuf requêtes échouées** sont confinées aux six scénarios
+  délibérément injectés : les trois logs legacy backlog-foundation-failure,
+  sprint-lifecycle-failure et sprint-planning-failure, plus Releases S07, S12
+  et S14 ; ils sont accompagnés de huit marqueurs `[expected]`.
+
+Correction historique : le run immuable delivery-02 reste **39/39** et 90
+fichiers, mais son scan compte lui aussi **9 + 9 dans ces six scénarios**. La
+formulation antérieure 6 + 6 / trois scénarios avait omis S07, S12 et S14 sans
+modifier les artefacts gelés. Delivery-03 est désormais la preuve autoritative.
 
 Le run persistant `20260807-releases-core-delivery-01` sur le SHA
 `92a00b8489c747a6ad2fd693964658b11e722dff` est conservé comme diagnostic :

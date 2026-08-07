@@ -1349,12 +1349,12 @@ La première collecte de remédiation contient les deux 401 TOTP historiques de 
 
 ### Niveau de preuve
 
-La matrice Chromium persistante
-[`20260807-releases-core-delivery-02`](runs/20260807-releases-core-delivery-02-junit.xml)
-passe **39/39**, dont 15 scénarios Releases, sur le SHA source
-`88b817134aaed3c3909f0c3585b3e358b3e6a89e`. La matrice PostgreSQL passe
-**19/19 fichiers et 181/181 tests** ; le manifeste de provenance est
-[conservé ici](runs/20260807-releases-core-delivery-02-manifest.json).
+La matrice Chromium persistante autoritative
+[`20260807-releases-core-delivery-03`](runs/20260807-releases-core-delivery-03-junit.xml)
+passe **40/40**, dont 16 scénarios Releases, sur le SHA source
+`8eef265f971ca8244e67299926223046a3529cda`. La matrice PostgreSQL passe
+**19/19 fichiers et 184/184 tests** ; le manifeste de provenance est
+[conservé ici](runs/20260807-releases-core-delivery-03-manifest.json).
 
 Les scénarios prouvent notamment deux versions par item, ajout/remplacement/
 retrait bulk, filtres et reload, calculs de progression, publication et move

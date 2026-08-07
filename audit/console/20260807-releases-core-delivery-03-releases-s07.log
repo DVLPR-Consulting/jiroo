@@ -1,0 +1,7 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[expected] interruption volontaire du prochain POST /b/CASS/releases/3779ed8a-f2cd-4318-b2ab-2a90dd32708a
+[admin] error: Failed to load resource: net::ERR_FAILED
+[specialist-forged] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[specialist-forged] log: [HMR] connected
+[duration] scenario 7: 1295ms

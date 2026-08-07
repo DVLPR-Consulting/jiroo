@@ -511,4 +511,4 @@ ajoute une readiness fondée sur PR/checks/déploiement plutôt qu’un simple �
 6. prévision de release reliée à vélocité et burndown.
 
 Aucune parité globale Jira n’est revendiquée : ce verdict couvre uniquement la
-PR Release 1 acceptée par 15 scénarios métier et la régression Chromium 39/39.
+PR Release 1 acceptée par 16 scénarios métier et la régression Chromium 40/40.

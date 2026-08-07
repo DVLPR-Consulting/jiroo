@@ -459,8 +459,8 @@ permissions, puis recharger et répéter dans un second contexte utilisateur.
 Le noyau Jira sûr défini ci-dessus est livré et accepté. La relation
 many-to-many `Fix versions`, le cycle non publiée/publiée/archivée, les
 affectations création/détail/bulk, les filtres, la progression, le traitement
-des incomplets, les snapshots et les permissions sont prouvés par 15 scénarios
-Releases au sein de la régression Chromium **39/39**. `BUG-JIR-027` est fermé.
+des incomplets, les snapshots et les permissions sont prouvés par 16 scénarios
+Releases au sein de la régression Chromium **40/40**. `BUG-JIR-027` est fermé.
 
 ### PR Release 2 — portée explicite restante
 

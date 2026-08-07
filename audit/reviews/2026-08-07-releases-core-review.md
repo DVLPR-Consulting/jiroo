@@ -11,7 +11,9 @@ this proof commit.
 
 - Original base and merge-base: `f828afe0a538d35a535a9ae0fdf2c28f0b0a1d0b`.
 - Original reviewed head: `70ab6966912786ea959b0700e43ea1333ecbd03e`.
-- Final pre-proof source: `88b817134aaed3c3909f0c3585b3e358b3e6a89e`.
+- Prior accepted source: `88b817134aaed3c3909f0c3585b3e358b3e6a89e`.
+- Authoritative final pre-proof source:
+  `8eef265f971ca8244e67299926223046a3529cda`.
 - Runtime: Node `v24.13.0`, pnpm `10.19.0`, Next.js `16.2.7`.
 - Browser database: guarded local `jiroo_e2e`; its physical identifier was
   checked in-process and never printed. The manifest stores only a SHA-256
@@ -21,6 +23,31 @@ The implementation was split into atomic production/test commits. The final
 E2E-only alignment commit is `88b8171 test(e2e): align regressions with releases`.
 The audit proof commit contains only `audit/` paths and does not alter the
 source SHA recorded by the acceptance manifest.
+
+## Final whole-branch remediation
+
+The controller's final review found three Important findings and one security
+Minor. All four are closed in the authoritative source:
+
+1. publication preview and submit are bound by a server-generated ordered
+   fingerprint of `{itemId, completion category}`; publication recomputes it
+   from canonical rows after deterministic backlog/release/scope locks and
+   returns a structured stale-scope result without writing;
+2. `releases.backlog_id` is restrictive in the schema, amended migration
+   `0011`, and its snapshot; a DB regression proves a backlog with a draft
+   release cannot be deleted and its release metadata remains;
+3. this review corrects the delivery-02 artifact scan from 6 + 6 in three
+   scenarios to the actual **9 console + 9 request failures in six deliberate
+   scenarios**: the three legacy failure logs plus Releases S07, S12 and S14;
+4. Fix-version mutation now scopes the release-locking query by canonical
+   `backlog_id` before any foreign UUID can be locked, while preserving one
+   generic rejection and full rollback.
+
+RED/GREEN proof includes same-incomplete-count/different-item membership drift,
+completion-category drift, action validation, structured UI recovery with
+preserved date input, foreign UUID rollback, and a real two-context Chromium
+scenario that rejects the stale submit before allowing a fresh explicit
+decision.
 
 ## Delivered requirement ledger
 
@@ -81,22 +108,25 @@ integration case proves two exact matches and one direct item query.
   detail context.
 - `92a00b8` stabilizes visibility fixture keys.
 - `88b8171` aligns the legacy Chromium matrix with the delivered Releases UI.
+- `fbf6bd0` binds publication to canonical scope, scopes foreign release locks,
+  and makes the backlog FK restrictive.
+- `8eef265` updates release-owning DB fixture teardown for the restrictive FK.
 
 ## Fresh final verification
 
-All final gates below ran after the last source commit:
+All authoritative gates below ran after the last source commit:
 
-- full non-DB Vitest: **135 files passed, 19 skipped; 1,179 tests passed,
-  181 skipped**, 23.92 s;
-- exhaustive guarded PostgreSQL matrix: **19/19 files, 181/181 tests**,
-  34.21 s, without inter-file parallelism;
-- TypeScript: passed in 2.21 s;
-- ESLint: passed in 7.99 s;
+- full non-DB Vitest: **135 files passed, 19 skipped; 1,182 tests passed,
+  184 skipped**, 29.14 s Vitest / 29.79 s wall;
+- exhaustive guarded PostgreSQL matrix: **19/19 files, 184/184 tests**,
+  32.52 s Vitest / 32.98 s wall, without inter-file parallelism;
+- TypeScript: passed in 2.55 s;
+- ESLint: passed in 9.48 s;
 - exact merge-base and `git diff --check`: passed;
-- environment-backed Next.js 16.2.7 build: passed; compiled in 4.7 s,
-  TypeScript in 8.6 s, 12/12 static pages generated, including both Releases
-  routes;
-- final nonpersistent Chromium rehearsal: **39/39**, 1.9 min.
+- environment-backed Next.js 16.2.7 build: passed in 16.47 s; compiled in
+  5.4 s, TypeScript in 8.8 s, and 12/12 static pages generated, including both
+  Releases routes;
+- final nonpersistent Chromium rehearsal: **40/40**, 123.39 s wall.
 
 The first exhaustive DB wrapper attempt passed 18/19 files and 180/181 tests
 but omitted the explicit reset-guard environment required by the guard’s own
@@ -121,7 +151,7 @@ exposed three legacy assumptions after Releases landed:
 These were test-oracle/fixture defects, not accepted product failures. The run
 is preserved for traceability and is never cited as delivery proof.
 
-### Acceptance run
+### Historical acceptance run — corrected, retained
 
 The unique persistent run `20260807-releases-core-delivery-02` records exact
 source `88b817134aaed3c3909f0c3585b3e358b3e6a89e`:
@@ -135,15 +165,41 @@ source `88b817134aaed3c3909f0c3585b3e358b3e6a89e`:
   JUnit and manifest;
 - 15/15 Releases scenarios and all 24 legacy scenarios passed.
 
-Artifact scan:
+Corrected artifact scan:
 
 - 0 HTTP 4xx/5xx lines;
-- 6 console error lines and 6 request-failure lines, confined to three named
-  injected rollback logs (backlog bulk/rank and sprint lifecycle/planning);
+- **9 console error lines and 9 request-failure lines**, confined to six named
+  deliberate scenarios: backlog-foundation-failure, sprint-lifecycle-failure,
+  sprint-planning-failure, Releases S07, Releases S12 and Releases S14;
 - 8 matching `[expected]` markers;
 - 0 raw PostgreSQL system identifier;
 - 0 PostgreSQL URL, DB environment assignment, auth/cookie header, password,
   or session token across all 72 text artifacts.
+
+The previous 6 + 6 / three-scenario wording counted only the three legacy
+failure logs and accidentally omitted the three deliberate Releases injection
+logs. The frozen delivery-02 artifacts themselves are unchanged.
+
+### Authoritative final acceptance run
+
+The unique persistent run `20260807-releases-core-delivery-03` records exact
+source `8eef265f971ca8244e67299926223046a3529cda`:
+
+- [JUnit](../runs/20260807-releases-core-delivery-03-junit.xml): **40 tests,
+  0 failures, 0 errors, 0 skipped**, 124.837637 s;
+- [manifest](../runs/20260807-releases-core-delivery-03-manifest.json): exact
+  Node, pnpm, source SHA, derived database fingerprint, port, command and
+  scenario label;
+- [reproducible scan summary](../runs/20260807-releases-core-delivery-03-scan.txt);
+- **93 run-scoped files**: 36 console logs, 36 network logs, 18 screenshots,
+  JUnit, manifest and scan summary;
+- 16/16 Releases scenarios and all 24 legacy scenarios passed.
+
+The 74 generated text artifacts scanned before the summary was written contain
+0 HTTP 4xx/5xx response, 0 credential/header/token/DB URL or environment
+assignment, and 0 raw PostgreSQL system identifier. The exact 9 + 9 deliberate
+ERR_FAILED lines are confined to the same six named scenarios above, with 8
+matching `[expected]` markers.
 
 ## Deliberate deviations and PR2 exclusions
 
@@ -168,6 +224,15 @@ accepted core, and none is represented by a placeholder control.
    lists remain outside this desktop Chromium acceptance.
 3. Sprint report, velocity and burndown are still absent even though the data
    foundations now support explainable reporting.
+
+Deferred Minors are recorded without scope expansion: privileged cleanup-role
+portability; correlation validation/nullability; canonical cache revalidation;
+release/user option pagination; extreme page clamping; stricter expected-fault
+allowlist accounting; a preexisting destination-link fixture; late post-write
+rollback injection; extreme PostgreSQL bind limits; duplicate release IDs in
+saved views; and a configurable Backlog `Fix versions` column. The earlier
+published-destination ledger item is superseded by the approved design and its
+explicit server rejection regression, not carried as open debt.
 
 Next work should deliver reporting first, then Release PR2, then Git/PR-based
 readiness and the multi-breakpoint/accessibility matrix.
