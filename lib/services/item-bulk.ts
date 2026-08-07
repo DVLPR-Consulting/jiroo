@@ -1,7 +1,9 @@
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
+import { bulkChangeItemFixVersionsInTx } from "@/lib/services/item-fix-versions";
 import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
 import {
   bulkUpdateItemsSchema,
@@ -64,7 +66,11 @@ function activityForPatch(
   }
 }
 
-export async function bulkUpdateItems(input: unknown, actorId: string) {
+export async function bulkUpdateItems(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string = randomUUID(),
+) {
   const data = bulkUpdateItemsSchema.parse(input);
 
   return db.transaction(async (tx) => {
@@ -101,7 +107,17 @@ export async function bulkUpdateItems(input: unknown, actorId: string) {
     }
 
     if (data.patch.field === "fixVersionIds") {
-      throw new Error("Le patch de versions doit utiliser la transaction de versions.");
+      return bulkChangeItemFixVersionsInTx(
+        tx,
+        {
+          backlogId: data.backlogId,
+          itemIds: data.itemIds,
+          mode: data.patch.mode,
+          releaseIds: data.patch.value,
+        },
+        actorId,
+        requestCorrelationId,
+      );
     }
 
     let destinationStatus:

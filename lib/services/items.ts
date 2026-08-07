@@ -7,6 +7,7 @@ import { activities, backlogs, itemLabels, items, labels, statuses } from "@/lib
 import { user } from "@/lib/db/schema/auth";
 import { nextItemKey } from "@/lib/items/key";
 import { canRestore } from "@/lib/items/trash";
+import { replaceItemFixVersionsInTx } from "@/lib/services/item-fix-versions";
 import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
 import { ROOT_LABEL, buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
@@ -364,7 +365,11 @@ export async function rankAtDrop(
 }
 
 // ---- createItem: validate → tx(mutate + activity) ----
-export async function createItem(input: unknown, actorId: string) {
+export async function createItem(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string = randomUUID(),
+) {
   const data = createItemSchema.parse(input);
   return withRetry(() =>
     db.transaction(async (tx) => {
@@ -478,6 +483,13 @@ export async function createItem(input: unknown, actorId: string) {
 
       await tx.insert(activities).values(activityRow(id, actorId, "create", null, null, key));
 
+      await replaceItemFixVersionsInTx(
+        tx,
+        { backlogId: data.backlogId, itemId: id, releaseIds: data.fixVersionIds },
+        actorId,
+        requestCorrelationId,
+      );
+
       if (data.sprintId) {
         await assignItemsToSprintInTx(
           tx,
@@ -492,14 +504,20 @@ export async function createItem(input: unknown, actorId: string) {
 }
 
 // ---- updateItem: field-diff → tx(update + per-field activity) ----
-export async function updateItem(input: unknown, actorId: string) {
+export async function updateItem(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string = randomUUID(),
+) {
   const data = updateItemSchema.parse(input);
   return db.transaction(async (tx) => {
+    const needsBacklogLock =
+      data.statusId !== undefined || data.fixVersionIds !== undefined;
     const lockedBacklogId =
-      data.statusId === undefined
+      !needsBacklogLock
         ? null
         : await lockBacklogForItemStatusMutation(tx, data.id);
-    if (data.statusId !== undefined && !lockedBacklogId) return null;
+    if (needsBacklogLock && !lockedBacklogId) return null;
     const [cur] = await tx
       .select()
       .from(items)
@@ -622,6 +640,18 @@ export async function updateItem(input: unknown, actorId: string) {
         const newCsv = [...newSet].sort().join(",") || null;
         acts.push(activityRow(cur.id, actorId, "update", "labels", oldCsv, newCsv));
       }
+    }
+    if (data.fixVersionIds !== undefined) {
+      await replaceItemFixVersionsInTx(
+        tx,
+        {
+          backlogId: cur.backlogId,
+          itemId: cur.id,
+          releaseIds: data.fixVersionIds,
+        },
+        actorId,
+        requestCorrelationId,
+      );
     }
 
     if (acts.length === 0) return cur;

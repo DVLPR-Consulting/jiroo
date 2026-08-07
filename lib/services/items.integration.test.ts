@@ -8,7 +8,9 @@ import { user } from "@/lib/db/schema/auth";
 import {
   activities,
   backlogs,
+  itemFixVersions,
   items,
+  releases,
   sprintItems,
   sprints,
   statuses,
@@ -738,6 +740,186 @@ describeDb("updateItem reporter transaction", () => {
       expect(audit).toEqual([]);
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
+
+describeDb("item fix version integration", () => {
+  it("creates an item and its fix versions atomically with correlated audit", async () => {
+    const fixture = await createTaskUpdateFixture();
+    const [release] = await db
+      .insert(releases)
+      .values({
+        backlogId: fixture.backlogId,
+        name: "Create target",
+        releaseDate: "2026-08-07",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    try {
+      const created = await createItem(
+        {
+          backlogId: fixture.backlogId,
+          title: "Créée avec version",
+          type: "tache",
+          parentId: fixture.epicId,
+          fixVersionIds: [release!.id],
+        },
+        fixture.actorId,
+        "item-create-fix-versions",
+      );
+
+      expect(
+        await db
+          .select({ itemId: itemFixVersions.itemId, releaseId: itemFixVersions.releaseId })
+          .from(itemFixVersions)
+          .where(eq(itemFixVersions.itemId, created.id)),
+      ).toEqual([{ itemId: created.id, releaseId: release!.id }]);
+      expect(
+        await db
+          .select({
+            field: activities.field,
+            correlationId: activities.requestCorrelationId,
+          })
+          .from(activities)
+          .where(and(eq(activities.itemId, created.id), eq(activities.field, "fix_versions"))),
+      ).toEqual([
+        { field: "fix_versions", correlationId: "item-create-fix-versions" },
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("rolls back item creation when a fix version belongs to another backlog", async () => {
+    const fixture = await createTaskUpdateFixture();
+    const [foreignBacklog] = await db
+      .insert(backlogs)
+      .values({ key: randomBacklogKey(), name: "Version create étrangère", color: "#64748b" })
+      .returning();
+    const [foreignRelease] = await db
+      .insert(releases)
+      .values({
+        backlogId: foreignBacklog!.id,
+        name: "Foreign create target",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    try {
+      await expect(
+        createItem(
+          {
+            backlogId: fixture.backlogId,
+            title: "Création à annuler",
+            type: "tache",
+            parentId: fixture.epicId,
+            fixVersionIds: [foreignRelease!.id],
+          },
+          fixture.actorId,
+          "item-create-rollback",
+        ),
+      ).rejects.toThrow("Une ou plusieurs releases sont invalides pour ce backlog.");
+      expect(
+        await db
+          .select({ id: items.id })
+          .from(items)
+          .where(
+            and(
+              eq(items.backlogId, fixture.backlogId),
+              eq(items.title, "Création à annuler"),
+            ),
+          ),
+      ).toEqual([]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+      await db.delete(backlogs).where(eq(backlogs.id, foreignBacklog!.id));
+    }
+  });
+
+  it("updates scalar fields and fix versions in one transaction", async () => {
+    const fixture = await createUpdateFixture();
+    const [release] = await db
+      .insert(releases)
+      .values({
+        backlogId: fixture.backlogId,
+        name: "Update target",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    try {
+      const updated = await updateItem(
+        {
+          id: fixture.item.id,
+          title: "Rapport versionné",
+          fixVersionIds: [release!.id],
+        },
+        fixture.actorId,
+        "item-update-fix-versions",
+      );
+
+      expect(updated?.title).toBe("Rapport versionné");
+      expect(
+        await db
+          .select({ releaseId: itemFixVersions.releaseId })
+          .from(itemFixVersions)
+          .where(eq(itemFixVersions.itemId, fixture.item.id)),
+      ).toEqual([{ releaseId: release!.id }]);
+      expect(
+        await db
+          .select({ correlationId: activities.requestCorrelationId })
+          .from(activities)
+          .where(
+            and(
+              eq(activities.itemId, fixture.item.id),
+              eq(activities.field, "fix_versions"),
+            ),
+          ),
+      ).toEqual([{ correlationId: "item-update-fix-versions" }]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("rolls back scalar updates when a replacement fix version is invalid", async () => {
+    const fixture = await createUpdateFixture();
+    const [foreignBacklog] = await db
+      .insert(backlogs)
+      .values({ key: randomBacklogKey(), name: "Version update étrangère", color: "#64748b" })
+      .returning();
+    const [foreignRelease] = await db
+      .insert(releases)
+      .values({
+        backlogId: foreignBacklog!.id,
+        name: "Foreign update target",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    try {
+      await expect(
+        updateItem(
+          {
+            id: fixture.item.id,
+            title: "Titre à annuler",
+            fixVersionIds: [foreignRelease!.id],
+          },
+          fixture.actorId,
+          "item-update-rollback",
+        ),
+      ).rejects.toThrow("Une ou plusieurs releases sont invalides pour ce backlog.");
+      const [stored] = await db
+        .select({ title: items.title })
+        .from(items)
+        .where(eq(items.id, fixture.item.id));
+      expect(stored?.title).toBe(fixture.item.title);
+      expect(
+        await db
+          .select({ id: activities.id })
+          .from(activities)
+          .where(eq(activities.itemId, fixture.item.id)),
+      ).toEqual([]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+      await db.delete(backlogs).where(eq(backlogs.id, foreignBacklog!.id));
     }
   });
 });

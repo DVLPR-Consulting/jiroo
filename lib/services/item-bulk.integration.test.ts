@@ -1,14 +1,16 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
   activities,
   backlogs,
+  itemFixVersions,
   items,
+  releases,
   sprintItems,
   sprints,
   statuses,
@@ -138,6 +140,62 @@ async function cleanupFixture(fixture: Awaited<ReturnType<typeof createBulkFixtu
 }
 
 describeDb("bulkUpdateItems transaction", () => {
+  it("supports the validated maximum of 500 items and 100 fix versions", async () => {
+    const fixture = await createBulkFixture();
+    try {
+      const extraItemIds = Array.from({ length: 498 }, () => randomUUID());
+      await db.insert(items).values(
+        extraItemIds.map((id, index) => ({
+          id,
+          key: `SCALE-${id}`,
+          type: "tache" as const,
+          backlogId: fixture.backlogId,
+          title: `Tâche volume ${index}`,
+          statusId: fixture.todoId,
+          reporterId: fixture.actorId,
+          rank: `scale-${index.toString().padStart(3, "0")}`,
+          path: `root.${id.replaceAll("-", "")}`,
+          depth: 0,
+        })),
+      );
+      const releaseRows = await db
+        .insert(releases)
+        .values(
+          Array.from({ length: 100 }, (_, index) => ({
+            backlogId: fixture.backlogId,
+            name: `Volume ${index.toString().padStart(3, "0")}`,
+            createdBy: fixture.actorId,
+          })),
+        )
+        .returning({ id: releases.id });
+      const itemIds = [fixture.taskAId, fixture.taskBId, ...extraItemIds];
+
+      await expect(
+        bulkUpdateItems(
+          {
+            backlogId: fixture.backlogId,
+            itemIds,
+            patch: {
+              field: "fixVersionIds",
+              mode: "replace",
+              value: releaseRows.map(({ id }) => id),
+            },
+          },
+          fixture.actorId,
+          "fix-version-scale-test",
+        ),
+      ).resolves.toEqual({ changedCount: 500, unchangedCount: 0 });
+
+      const counts = await db
+        .select({ assignmentCount: sql<number>`count(*)::int` })
+        .from(itemFixVersions)
+        .where(inArray(itemFixVersions.itemId, itemIds));
+      expect(counts[0]?.assignmentCount).toBe(50_000);
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
   it("updates two priorities and writes one activity per changed item", async () => {
     const fixture = await createBulkFixture();
     try {
@@ -431,6 +489,204 @@ describeDb("bulkUpdateItems transaction", () => {
           ),
         );
       expect(current).toEqual([]);
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("counts mixed fix-version no-ops exactly and preserves unrelated versions", async () => {
+    const fixture = await createBulkFixture();
+    const [releaseA, releaseB] = await db
+      .insert(releases)
+      .values([
+        { backlogId: fixture.backlogId, name: "Bulk A", createdBy: fixture.actorId },
+        { backlogId: fixture.backlogId, name: "Bulk B", createdBy: fixture.actorId },
+      ])
+      .returning();
+    await db.insert(itemFixVersions).values([
+      { backlogId: fixture.backlogId, itemId: fixture.taskAId, releaseId: releaseA!.id },
+      { backlogId: fixture.backlogId, itemId: fixture.taskAId, releaseId: releaseB!.id },
+    ]);
+    try {
+      await expect(
+        bulkUpdateItems(
+          {
+            backlogId: fixture.backlogId,
+            itemIds: [fixture.taskBId, fixture.taskAId],
+            patch: { field: "fixVersionIds", mode: "add", value: [releaseA!.id] },
+          },
+          fixture.actorId,
+          "bulk-mixed",
+        ),
+      ).resolves.toEqual({ changedCount: 1, unchangedCount: 1 });
+      await expect(
+        bulkUpdateItems(
+          {
+            backlogId: fixture.backlogId,
+            itemIds: [fixture.taskAId],
+            patch: { field: "fixVersionIds", mode: "remove", value: [releaseA!.id] },
+          },
+          fixture.actorId,
+          "bulk-remove",
+        ),
+      ).resolves.toEqual({ changedCount: 1, unchangedCount: 0 });
+
+      const taskARows = await db
+        .select({ releaseId: itemFixVersions.releaseId })
+        .from(itemFixVersions)
+        .where(eq(itemFixVersions.itemId, fixture.taskAId));
+      expect(taskARows).toEqual([{ releaseId: releaseB!.id }]);
+      const mixedAudit = await db
+        .select({ itemId: activities.itemId, correlationId: activities.requestCorrelationId })
+        .from(activities)
+        .where(eq(activities.requestCorrelationId, "bulk-mixed"));
+      expect(mixedAudit).toEqual([
+        { itemId: fixture.taskBId, correlationId: "bulk-mixed" },
+      ]);
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("uses one correlation for every changed item and records JSON labels", async () => {
+    const fixture = await createBulkFixture();
+    const [release] = await db
+      .insert(releases)
+      .values({
+        backlogId: fixture.backlogId,
+        name: "Bulk shared",
+        releaseDate: "2026-08-07",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    try {
+      await expect(
+        bulkUpdateItems(
+          {
+            backlogId: fixture.backlogId,
+            itemIds: [fixture.taskBId, fixture.taskAId],
+            patch: { field: "fixVersionIds", mode: "replace", value: [release!.id] },
+          },
+          fixture.actorId,
+          "bulk-shared-correlation",
+        ),
+      ).resolves.toEqual({ changedCount: 2, unchangedCount: 0 });
+
+      const audit = await db
+        .select({
+          itemId: activities.itemId,
+          oldValue: activities.oldValue,
+          newValue: activities.newValue,
+          correlationId: activities.requestCorrelationId,
+        })
+        .from(activities)
+        .where(eq(activities.requestCorrelationId, "bulk-shared-correlation"))
+        .orderBy(asc(activities.itemId));
+      expect(audit).toEqual(
+        [fixture.taskAId, fixture.taskBId].sort().map((itemId) => ({
+          itemId,
+          oldValue: "[]",
+          newValue: JSON.stringify([{ id: release!.id, name: release!.name }]),
+          correlationId: "bulk-shared-correlation",
+        })),
+      );
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("allows archived removal but rejects archived addition for the whole bulk operation", async () => {
+    const fixture = await createBulkFixture();
+    const [archived] = await db
+      .insert(releases)
+      .values({
+        backlogId: fixture.backlogId,
+        name: "Bulk archived",
+        archivedAt: new Date(),
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    await db.insert(itemFixVersions).values({
+      backlogId: fixture.backlogId,
+      itemId: fixture.taskAId,
+      releaseId: archived!.id,
+    });
+    try {
+      await expect(
+        bulkUpdateItems(
+          {
+            backlogId: fixture.backlogId,
+            itemIds: [fixture.taskAId, fixture.taskBId],
+            patch: { field: "fixVersionIds", mode: "remove", value: [archived!.id] },
+          },
+          fixture.actorId,
+          "bulk-archived-remove",
+        ),
+      ).resolves.toEqual({ changedCount: 1, unchangedCount: 1 });
+      await expect(
+        bulkUpdateItems(
+          {
+            backlogId: fixture.backlogId,
+            itemIds: [fixture.taskAId, fixture.taskBId],
+            patch: { field: "fixVersionIds", mode: "add", value: [archived!.id] },
+          },
+          fixture.actorId,
+          "bulk-archived-add",
+        ),
+      ).rejects.toThrow("Une release archivée ne peut pas être ajoutée.");
+      expect(
+        await db
+          .select({ id: itemFixVersions.itemId })
+          .from(itemFixVersions)
+          .where(inArray(itemFixVersions.itemId, [fixture.taskAId, fixture.taskBId])),
+      ).toEqual([]);
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("rolls back every fix-version row when the requested release is foreign", async () => {
+    const fixture = await createBulkFixture();
+    const [local, foreign] = await db
+      .insert(releases)
+      .values([
+        { backlogId: fixture.backlogId, name: "Bulk local", createdBy: fixture.actorId },
+        {
+          backlogId: fixture.foreignBacklogId,
+          name: "Bulk foreign",
+          createdBy: fixture.actorId,
+        },
+      ])
+      .returning();
+    await db.insert(itemFixVersions).values({
+      backlogId: fixture.backlogId,
+      itemId: fixture.taskAId,
+      releaseId: local!.id,
+    });
+    try {
+      await expect(
+        bulkUpdateItems(
+          {
+            backlogId: fixture.backlogId,
+            itemIds: [fixture.taskAId, fixture.taskBId],
+            patch: { field: "fixVersionIds", mode: "replace", value: [foreign!.id] },
+          },
+          fixture.actorId,
+          "bulk-foreign",
+        ),
+      ).rejects.toThrow("Une ou plusieurs releases sont invalides pour ce backlog.");
+      expect(
+        await db
+          .select({ itemId: itemFixVersions.itemId, releaseId: itemFixVersions.releaseId })
+          .from(itemFixVersions)
+          .where(inArray(itemFixVersions.itemId, [fixture.taskAId, fixture.taskBId])),
+      ).toEqual([{ itemId: fixture.taskAId, releaseId: local!.id }]);
+      expect(
+        await db
+          .select({ id: activities.id })
+          .from(activities)
+          .where(eq(activities.requestCorrelationId, "bulk-foreign")),
+      ).toEqual([]);
     } finally {
       await cleanupFixture(fixture);
     }
