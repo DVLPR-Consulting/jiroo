@@ -212,6 +212,8 @@ describeDb("release persistence constraints", () => {
          and (table_name, column_name) in (
            ('releases', 'archived_at'),
            ('release_publications', 'release_name'),
+           ('release_publications', 'sequence'),
+           ('release_publication_items', 'completed'),
            ('release_publications', 'destination_release_name'),
            ('release_publication_items', 'item_key'),
            ('release_publication_items', 'item_title'),
@@ -227,12 +229,14 @@ describeDb("release persistence constraints", () => {
     expect(result.rows).toEqual([
       { table_name: "release_events", column_name: "actor_label" },
       { table_name: "release_events", column_name: "release_name" },
+      { table_name: "release_publication_items", column_name: "completed" },
       { table_name: "release_publication_items", column_name: "destination_release_name" },
       { table_name: "release_publication_items", column_name: "item_key" },
       { table_name: "release_publication_items", column_name: "item_title" },
       { table_name: "release_publication_items", column_name: "status_name" },
       { table_name: "release_publications", column_name: "destination_release_name" },
       { table_name: "release_publications", column_name: "release_name" },
+      { table_name: "release_publications", column_name: "sequence" },
       { table_name: "releases", column_name: "archived_at" },
       { table_name: "releases", column_name: "driver_id" },
     ]);

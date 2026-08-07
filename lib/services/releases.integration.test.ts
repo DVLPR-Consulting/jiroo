@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { databasePool, db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -16,12 +16,16 @@ import {
   statuses,
 } from "@/lib/db/schema/domain";
 import {
+  archiveRelease,
   createRelease,
   getReleaseDetail,
   listPublicationSnapshotItems,
   listReleaseEvents,
   listReleaseScopeItems,
   listReleaseSummaries,
+  publishRelease,
+  unarchiveRelease,
+  unreleaseRelease,
   updateRelease,
 } from "@/lib/services/releases";
 
@@ -708,5 +712,659 @@ describeDb("release metadata and read models", () => {
     } finally {
       querySpy.mockRestore();
     }
+  });
+});
+
+describeDb("release publish, unrelease, and archive lifecycle", () => {
+  it("publishes snapshots before moving incomplete items and preserves unrelated Fix versions", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Publish move");
+    const [todo, done] = await statusFixture(backlog.id, [
+      { name: "À faire", category: "todo" },
+      { name: "Terminé", category: "done" },
+    ]);
+    const source = await createRelease(
+      { backlogId: backlog.id, name: "2026.10", driverId: actor.id },
+      actor.id,
+      "publish-source-create",
+    );
+    const destination = await createRelease(
+      { backlogId: backlog.id, name: "2026.11", driverId: actor.id },
+      actor.id,
+      "publish-destination-create",
+    );
+    const unrelated = await createRelease(
+      { backlogId: backlog.id, name: "Maintenance", driverId: actor.id },
+      actor.id,
+      "publish-unrelated-create",
+    );
+    const doneItem = await itemFixture({
+      backlogId: backlog.id,
+      backlogKey: backlog.key,
+      reporterId: actor.id,
+      statusId: done!.id,
+      title: "Livré",
+      ordinal: 1,
+    });
+    const todoItem = await itemFixture({
+      backlogId: backlog.id,
+      backlogKey: backlog.key,
+      reporterId: actor.id,
+      statusId: todo!.id,
+      title: "À reporter",
+      ordinal: 2,
+    });
+    await db.insert(itemFixVersions).values([
+      { backlogId: backlog.id, itemId: doneItem.id, releaseId: source.id },
+      { backlogId: backlog.id, itemId: todoItem.id, releaseId: source.id },
+      { backlogId: backlog.id, itemId: todoItem.id, releaseId: unrelated.id },
+    ]);
+
+    const result = await publishRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: source.id,
+        expectedRevision: 1,
+        effectiveDate: "2026-08-07",
+        incompleteDisposition: "move",
+        destinationReleaseId: destination.id,
+      },
+      actor.id,
+      "publish-move-test",
+    );
+
+    expect(result).toMatchObject({
+      release: { id: source.id, revision: 2 },
+      totalCount: 2,
+      completedCount: 1,
+      incompleteCount: 1,
+      movedCount: 1,
+    });
+    const snapshots = await db
+      .select({
+        itemKey: releasePublicationItems.itemKey,
+        itemTitle: releasePublicationItems.itemTitle,
+        statusName: releasePublicationItems.statusName,
+        completed: releasePublicationItems.completed,
+        disposition: releasePublicationItems.disposition,
+        destinationReleaseId: releasePublicationItems.destinationReleaseId,
+        destinationReleaseName: releasePublicationItems.destinationReleaseName,
+      })
+      .from(releasePublicationItems)
+      .where(eq(releasePublicationItems.publicationId, result.publicationId))
+      .orderBy(asc(releasePublicationItems.itemKey));
+    expect(snapshots).toEqual([
+      {
+        itemKey: doneItem.key,
+        itemTitle: "Livré",
+        statusName: "Terminé",
+        completed: true,
+        disposition: "retained",
+        destinationReleaseId: null,
+        destinationReleaseName: null,
+      },
+      {
+        itemKey: todoItem.key,
+        itemTitle: "À reporter",
+        statusName: "À faire",
+        completed: false,
+        disposition: "moved",
+        destinationReleaseId: destination.id,
+        destinationReleaseName: "2026.11",
+      },
+    ]);
+
+    const links = await db
+      .select({ itemId: itemFixVersions.itemId, releaseId: itemFixVersions.releaseId })
+      .from(itemFixVersions)
+      .where(inArray(itemFixVersions.itemId, [doneItem.id, todoItem.id]))
+      .orderBy(asc(itemFixVersions.itemId), asc(itemFixVersions.releaseId));
+    expect(links.filter((row) => row.itemId === doneItem.id)).toEqual([
+      { itemId: doneItem.id, releaseId: source.id },
+    ]);
+    expect(links.filter((row) => row.itemId === todoItem.id)).toEqual(
+      [destination.id, unrelated.id]
+        .sort()
+        .map((releaseId) => ({ itemId: todoItem.id, releaseId })),
+    );
+    await expect(
+      db
+        .select({ sequence: releasePublications.sequence, releaseRevision: releasePublications.releaseRevision })
+        .from(releasePublications)
+        .where(eq(releasePublications.id, result.publicationId)),
+    ).resolves.toEqual([{ sequence: 1, releaseRevision: 2 }]);
+    await expect(
+      db
+        .select({ action: releaseEvents.action, correlation: releaseEvents.requestCorrelationId })
+        .from(releaseEvents)
+        .where(
+          and(
+            eq(releaseEvents.publicationId, result.publicationId),
+            eq(releaseEvents.action, "release_published"),
+          ),
+        ),
+    ).resolves.toEqual([{ action: "release_published", correlation: "publish-move-test" }]);
+  });
+
+  it("publishes with keep without moving incomplete scope", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Publish keep");
+    const [todo] = await statusFixture(backlog.id, [{ name: "À faire", category: "todo" }]);
+    const release = await createRelease(
+      { backlogId: backlog.id, name: "Keep", driverId: actor.id },
+      actor.id,
+      "keep-create",
+    );
+    const item = await itemFixture({
+      backlogId: backlog.id,
+      backlogKey: backlog.key,
+      reporterId: actor.id,
+      statusId: todo!.id,
+      title: "Conservé",
+      ordinal: 1,
+    });
+    await db
+      .insert(itemFixVersions)
+      .values({ backlogId: backlog.id, itemId: item.id, releaseId: release.id });
+
+    const result = await publishRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: release.id,
+        expectedRevision: 1,
+        effectiveDate: "2026-08-08",
+        incompleteDisposition: "keep",
+      },
+      actor.id,
+      "publish-keep-test",
+    );
+    expect(result).toMatchObject({
+      totalCount: 1,
+      completedCount: 0,
+      incompleteCount: 1,
+      movedCount: 0,
+    });
+    await expect(
+      db
+        .select({ releaseId: itemFixVersions.releaseId })
+        .from(itemFixVersions)
+        .where(eq(itemFixVersions.itemId, item.id)),
+    ).resolves.toEqual([{ releaseId: release.id }]);
+    await expect(
+      db
+        .select({ completed: releasePublicationItems.completed, disposition: releasePublicationItems.disposition })
+        .from(releasePublicationItems)
+        .where(eq(releasePublicationItems.publicationId, result.publicationId)),
+    ).resolves.toEqual([{ completed: false, disposition: "retained" }]);
+  });
+
+  it("rejects publish destinations that are missing, invalid, cross-backlog, same, or archived", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Publish gates");
+    const otherBacklog = await backlogFixture("Publish cross backlog");
+    const sources = await Promise.all(
+      Array.from({ length: 5 }, (_, index) =>
+        createRelease(
+          { backlogId: backlog.id, name: `Source ${index}`, driverId: actor.id },
+          actor.id,
+          `gate-source-${index}`,
+        ),
+      ),
+    );
+    const crossBacklogDestination = await createRelease(
+      { backlogId: otherBacklog.id, name: "Cross", driverId: actor.id },
+      actor.id,
+      "cross-destination",
+    );
+    const archivedDestination = await createRelease(
+      { backlogId: backlog.id, name: "Archived destination", driverId: actor.id },
+      actor.id,
+      "archived-destination",
+    );
+    await db
+      .update(releases)
+      .set({ archivedAt: new Date() })
+      .where(eq(releases.id, archivedDestination.id));
+
+    await expect(
+      publishRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: sources[0]!.id,
+          expectedRevision: 1,
+          effectiveDate: "2026-08-09",
+          incompleteDisposition: "move",
+        },
+        actor.id,
+        "missing-destination",
+      ),
+    ).rejects.toThrow();
+    await expect(
+      publishRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: sources[1]!.id,
+          expectedRevision: 1,
+          effectiveDate: "2026-08-09",
+          incompleteDisposition: "move",
+          destinationReleaseId: randomUUID(),
+        },
+        actor.id,
+        "invalid-destination",
+      ),
+    ).rejects.toThrow("destination");
+    await expect(
+      publishRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: sources[2]!.id,
+          expectedRevision: 1,
+          effectiveDate: "2026-08-09",
+          incompleteDisposition: "move",
+          destinationReleaseId: crossBacklogDestination.id,
+        },
+        actor.id,
+        "cross-destination",
+      ),
+    ).rejects.toThrow("destination");
+    await expect(
+      publishRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: sources[3]!.id,
+          expectedRevision: 1,
+          effectiveDate: "2026-08-09",
+          incompleteDisposition: "move",
+          destinationReleaseId: sources[3]!.id,
+        },
+        actor.id,
+        "same-destination",
+      ),
+    ).rejects.toThrow("différer");
+    await expect(
+      publishRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: sources[4]!.id,
+          expectedRevision: 1,
+          effectiveDate: "2026-08-09",
+          incompleteDisposition: "move",
+          destinationReleaseId: archivedDestination.id,
+        },
+        actor.id,
+        "archived-destination",
+      ),
+    ).rejects.toThrow("archivée");
+
+    await expect(
+      db
+        .select({ id: releasePublications.id })
+        .from(releasePublications)
+        .where(eq(releasePublications.backlogId, backlog.id)),
+    ).resolves.toEqual([]);
+  });
+
+  it("rolls back publish when snapshot insertion fails", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Publish rollback");
+    const [todo] = await statusFixture(backlog.id, [{ name: "À faire", category: "todo" }]);
+    const release = await createRelease(
+      { backlogId: backlog.id, name: "Rollback", driverId: actor.id },
+      actor.id,
+      "rollback-create",
+    );
+    const item = await itemFixture({
+      backlogId: backlog.id,
+      backlogKey: backlog.key,
+      reporterId: actor.id,
+      statusId: todo!.id,
+      title: "Doit rester",
+      ordinal: 1,
+    });
+    await db
+      .insert(itemFixVersions)
+      .values({ backlogId: backlog.id, itemId: item.id, releaseId: release.id });
+    const suffix = randomUUID().replaceAll("-", "");
+    const functionName = `fail_release_snapshot_${suffix}`;
+    const triggerName = `fail_release_snapshot_${suffix}`;
+    await databasePool.query(
+      `create function "${functionName}"() returns trigger language plpgsql as $fn$
+       begin
+         if new.backlog_id = '${backlog.id}'::uuid then
+           raise exception 'forced snapshot failure';
+         end if;
+         return new;
+       end;
+       $fn$`,
+    );
+    await databasePool.query(
+      `create trigger "${triggerName}" before insert on release_publication_items
+       for each row execute function "${functionName}"()`,
+    );
+    try {
+      await expect(
+        publishRelease(
+          {
+            backlogId: backlog.id,
+            releaseId: release.id,
+            expectedRevision: 1,
+            effectiveDate: "2026-08-10",
+            incompleteDisposition: "keep",
+          },
+          actor.id,
+          "publish-rollback-test",
+        ),
+      ).rejects.toThrow();
+    } finally {
+      await databasePool.query(
+        `drop trigger if exists "${triggerName}" on release_publication_items`,
+      );
+      await databasePool.query(`drop function if exists "${functionName}"()`);
+    }
+
+    await expect(
+      db
+        .select({ revision: releases.revision })
+        .from(releases)
+        .where(eq(releases.id, release.id)),
+    ).resolves.toEqual([{ revision: 1 }]);
+    await expect(
+      db
+        .select({ id: releasePublications.id })
+        .from(releasePublications)
+        .where(eq(releasePublications.releaseId, release.id)),
+    ).resolves.toEqual([]);
+    await expect(
+      db
+        .select({ releaseId: itemFixVersions.releaseId })
+        .from(itemFixVersions)
+        .where(eq(itemFixVersions.itemId, item.id)),
+    ).resolves.toEqual([{ releaseId: release.id }]);
+  });
+
+  it("unreleases and re-publishes with an appended sequence and untouched history", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Unrelease sequence");
+    const release = await createRelease(
+      { backlogId: backlog.id, name: "Sequence", driverId: actor.id },
+      actor.id,
+      "sequence-create",
+    );
+    const first = await publishRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: release.id,
+        expectedRevision: 1,
+        effectiveDate: "2026-08-11",
+        incompleteDisposition: "keep",
+      },
+      actor.id,
+      "publish-sequence-1",
+    );
+    const unreleased = await unreleaseRelease(
+      { backlogId: backlog.id, releaseId: release.id, expectedRevision: 2 },
+      actor.id,
+      "unrelease-sequence",
+    );
+    expect(unreleased).toMatchObject({
+      release: { id: release.id, revision: 3 },
+      publicationId: first.publicationId,
+    });
+    await expect(getReleaseDetail(backlog.id, release.id)).resolves.toMatchObject({
+      released: false,
+      effectiveReleaseDate: null,
+      revision: 3,
+    });
+
+    const second = await publishRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: release.id,
+        expectedRevision: 3,
+        effectiveDate: "2026-08-12",
+        incompleteDisposition: "keep",
+      },
+      actor.id,
+      "publish-sequence-2",
+    );
+    expect(second.release.revision).toBe(4);
+    expect(second.publicationId).not.toBe(first.publicationId);
+    const history = await db
+      .select({
+        id: releasePublications.id,
+        sequence: releasePublications.sequence,
+        effectiveDate: releasePublications.effectiveDate,
+        supersededAt: releasePublications.supersededAt,
+      })
+      .from(releasePublications)
+      .where(eq(releasePublications.releaseId, release.id))
+      .orderBy(asc(releasePublications.sequence));
+    expect(history).toEqual([
+      {
+        id: first.publicationId,
+        sequence: 1,
+        effectiveDate: "2026-08-11",
+        supersededAt: expect.any(Date),
+      },
+      {
+        id: second.publicationId,
+        sequence: 2,
+        effectiveDate: "2026-08-12",
+        supersededAt: null,
+      },
+    ]);
+    const events = await db
+      .select({ action: releaseEvents.action, correlation: releaseEvents.requestCorrelationId })
+      .from(releaseEvents)
+      .where(
+        and(
+          eq(releaseEvents.releaseId, release.id),
+          inArray(releaseEvents.action, ["release_published", "release_unreleased"]),
+        ),
+      )
+      .orderBy(asc(releaseEvents.createdAt));
+    expect(events).toEqual([
+      { action: "release_published", correlation: "publish-sequence-1" },
+      { action: "release_unreleased", correlation: "unrelease-sequence" },
+      { action: "release_published", correlation: "publish-sequence-2" },
+    ]);
+  });
+
+  it("archives and unarchives without changing active published state", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Archive lifecycle");
+    const published = await createRelease(
+      { backlogId: backlog.id, name: "Published archive", driverId: actor.id },
+      actor.id,
+      "archive-published-create",
+    );
+    const publication = await publishRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: published.id,
+        expectedRevision: 1,
+        effectiveDate: "2026-08-13",
+        incompleteDisposition: "keep",
+      },
+      actor.id,
+      "archive-publish",
+    );
+    const archived = await archiveRelease(
+      { backlogId: backlog.id, releaseId: published.id, expectedRevision: 2 },
+      actor.id,
+      "archive-test",
+    );
+    expect(archived.revision).toBe(3);
+    await expect(getReleaseDetail(backlog.id, published.id)).resolves.toMatchObject({
+      archived: true,
+      released: true,
+      effectiveReleaseDate: "2026-08-13",
+      revision: 3,
+    });
+    const unarchived = await unarchiveRelease(
+      { backlogId: backlog.id, releaseId: published.id, expectedRevision: 3 },
+      actor.id,
+      "unarchive-test",
+    );
+    expect(unarchived.revision).toBe(4);
+    await expect(
+      db
+        .select({ id: releasePublications.id, supersededAt: releasePublications.supersededAt })
+        .from(releasePublications)
+        .where(eq(releasePublications.id, publication.publicationId)),
+    ).resolves.toEqual([{ id: publication.publicationId, supersededAt: null }]);
+
+    const unpublished = await createRelease(
+      { backlogId: backlog.id, name: "Archived unpublished", driverId: actor.id },
+      actor.id,
+      "archive-unpublished-create",
+    );
+    await archiveRelease(
+      { backlogId: backlog.id, releaseId: unpublished.id, expectedRevision: 1 },
+      actor.id,
+      "archive-unpublished",
+    );
+    await expect(
+      publishRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: unpublished.id,
+          expectedRevision: 2,
+          effectiveDate: "2026-08-13",
+          incompleteDisposition: "keep",
+        },
+        actor.id,
+        "publish-archived",
+      ),
+    ).rejects.toThrow("archivée");
+    await expect(
+      archiveRelease(
+        { backlogId: backlog.id, releaseId: unpublished.id, expectedRevision: 1 },
+        actor.id,
+        "archive-stale",
+      ),
+    ).rejects.toThrow("a changé");
+  });
+
+  it("keeps a published snapshot immutable after source edits and purge", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Published snapshot immutability");
+    const [todo, done] = await statusFixture(backlog.id, [
+      { name: "À faire", category: "todo" },
+      { name: "Terminé", category: "done" },
+    ]);
+    const release = await createRelease(
+      { backlogId: backlog.id, name: "Immutable", driverId: actor.id },
+      actor.id,
+      "immutable-create",
+    );
+    const item = await itemFixture({
+      backlogId: backlog.id,
+      backlogKey: backlog.key,
+      reporterId: actor.id,
+      statusId: done!.id,
+      title: "Titre original",
+      ordinal: 1,
+    });
+    await db
+      .insert(itemFixVersions)
+      .values({ backlogId: backlog.id, itemId: item.id, releaseId: release.id });
+    const result = await publishRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: release.id,
+        expectedRevision: 1,
+        effectiveDate: "2026-08-14",
+        incompleteDisposition: "keep",
+      },
+      actor.id,
+      "publish-immutable",
+    );
+    const original = {
+      itemId: item.id,
+      itemKey: item.key,
+      itemTitle: "Titre original",
+      statusName: "Terminé",
+      completed: true,
+    };
+    await expect(
+      db
+        .select({
+          itemId: releasePublicationItems.itemId,
+          itemKey: releasePublicationItems.itemKey,
+          itemTitle: releasePublicationItems.itemTitle,
+          statusName: releasePublicationItems.statusName,
+          completed: releasePublicationItems.completed,
+        })
+        .from(releasePublicationItems)
+        .where(eq(releasePublicationItems.publicationId, result.publicationId)),
+    ).resolves.toEqual([original]);
+
+    await db
+      .update(items)
+      .set({ key: `${backlog.key}-999`, title: "Titre modifié", statusId: todo!.id })
+      .where(eq(items.id, item.id));
+    await db.update(statuses).set({ name: "Done renommé" }).where(eq(statuses.id, done!.id));
+    await db.delete(items).where(eq(items.id, item.id));
+
+    await expect(
+      db
+        .select({
+          itemId: releasePublicationItems.itemId,
+          itemKey: releasePublicationItems.itemKey,
+          itemTitle: releasePublicationItems.itemTitle,
+          statusName: releasePublicationItems.statusName,
+          completed: releasePublicationItems.completed,
+        })
+        .from(releasePublicationItems)
+        .where(eq(releasePublicationItems.publicationId, result.publicationId)),
+    ).resolves.toEqual([{ ...original, itemId: null }]);
+  });
+
+  it("serializes simultaneous publish attempts and rejects the stale writer", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Simultaneous publish");
+    const release = await createRelease(
+      { backlogId: backlog.id, name: "Concurrent", driverId: actor.id },
+      actor.id,
+      "concurrent-create",
+    );
+    const command = {
+      backlogId: backlog.id,
+      releaseId: release.id,
+      expectedRevision: 1,
+      effectiveDate: "2026-08-15",
+      incompleteDisposition: "keep" as const,
+    };
+    const results = await Promise.allSettled([
+      publishRelease(command, actor.id, "publish-concurrent-a"),
+      publishRelease(command, actor.id, "publish-concurrent-b"),
+    ]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const rejected = results.find((result) => result.status === "rejected");
+    expect(rejected).toMatchObject({ status: "rejected", reason: expect.any(Error) });
+    if (rejected?.status === "rejected") {
+      expect(rejected.reason.message).toContain("a changé");
+    }
+    await expect(
+      db
+        .select({ id: releasePublications.id })
+        .from(releasePublications)
+        .where(and(eq(releasePublications.releaseId, release.id), isNull(releasePublications.supersededAt))),
+    ).resolves.toHaveLength(1);
+    await expect(
+      db.select({ revision: releases.revision }).from(releases).where(eq(releases.id, release.id)),
+    ).resolves.toEqual([{ revision: 2 }]);
+    await expect(
+      db
+        .select({ id: releaseEvents.id })
+        .from(releaseEvents)
+        .where(
+          and(
+            eq(releaseEvents.releaseId, release.id),
+            eq(releaseEvents.action, "release_published"),
+          ),
+        ),
+    ).resolves.toHaveLength(1);
   });
 });

@@ -1,5 +1,5 @@
 {
-  "id": "140b25cc-39f4-4f0e-8f5b-0f1961790ab3",
+  "id": "18f083e9-40b8-44d9-8436-4a84e9c54618",
   "prevId": "e40250ec-e5e5-4f37-b8a3-a65a089d2033",
   "version": "7",
   "dialect": "postgresql",
@@ -2587,6 +2587,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "completed": {
+          "name": "completed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "disposition": {
           "name": "disposition",
           "type": "release_item_disposition",
@@ -2740,6 +2747,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "sequence": {
+          "name": "sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
         "release_revision": {
           "name": "release_revision",
           "type": "integer",
@@ -2834,6 +2848,27 @@
           "method": "btree",
           "with": {}
         },
+        "release_publications_release_sequence_idx": {
+          "name": "release_publications_release_sequence_idx",
+          "columns": [
+            {
+              "expression": "release_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sequence",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "release_publications_one_active_per_release_idx": {
           "name": "release_publications_one_active_per_release_idx",
           "columns": [
@@ -2916,6 +2951,10 @@
         "release_publications_revision_positive": {
           "name": "release_publications_revision_positive",
           "value": "\"release_publications\".\"release_revision\" > 0"
+        },
+        "release_publications_sequence_positive": {
+          "name": "release_publications_sequence_positive",
+          "value": "\"release_publications\".\"sequence\" > 0"
         },
         "release_publications_superseded_order": {
           "name": "release_publications_superseded_order",

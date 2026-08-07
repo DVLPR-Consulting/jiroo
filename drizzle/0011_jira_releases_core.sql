@@ -31,6 +31,7 @@ CREATE TABLE "release_publication_items" (
 	"item_key" text NOT NULL,
 	"item_title" text NOT NULL,
 	"status_name" text NOT NULL,
+	"completed" boolean DEFAULT false NOT NULL,
 	"disposition" "release_item_disposition" NOT NULL,
 	"destination_release_id" uuid,
 	"destination_release_name" text,
@@ -44,6 +45,7 @@ CREATE TABLE "release_publications" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"backlog_id" uuid NOT NULL,
 	"release_id" uuid,
+	"sequence" integer DEFAULT 1 NOT NULL,
 	"release_revision" integer NOT NULL,
 	"release_name" text NOT NULL,
 	"effective_date" date NOT NULL,
@@ -54,6 +56,7 @@ CREATE TABLE "release_publications" (
 	"published_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"superseded_at" timestamp with time zone,
 	CONSTRAINT "release_publications_revision_positive" CHECK ("release_publications"."release_revision" > 0),
+	CONSTRAINT "release_publications_sequence_positive" CHECK ("release_publications"."sequence" > 0),
 	CONSTRAINT "release_publications_superseded_order" CHECK ("release_publications"."superseded_at" is null or "release_publications"."superseded_at" >= "release_publications"."published_at"),
 	CONSTRAINT "release_publications_incomplete_disposition_consistent" CHECK ((
         ("release_publications"."incomplete_disposition" = 'keep' and "release_publications"."destination_release_id" is null and "release_publications"."destination_release_name" is null)
@@ -106,6 +109,7 @@ CREATE INDEX "release_events_backlog_idx" ON "release_events" USING btree ("back
 CREATE UNIQUE INDEX "release_publication_items_publication_item_idx" ON "release_publication_items" USING btree ("publication_id","item_id") WHERE "release_publication_items"."item_id" is not null;--> statement-breakpoint
 CREATE INDEX "release_publication_items_item_idx" ON "release_publication_items" USING btree ("item_id");--> statement-breakpoint
 CREATE INDEX "release_publications_backlog_idx" ON "release_publications" USING btree ("backlog_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "release_publications_release_sequence_idx" ON "release_publications" USING btree ("release_id","sequence");--> statement-breakpoint
 CREATE UNIQUE INDEX "release_publications_one_active_per_release_idx" ON "release_publications" USING btree ("release_id") WHERE "release_publications"."superseded_at" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "releases_backlog_name_idx" ON "releases" USING btree ("backlog_id",lower("name"));--> statement-breakpoint
 CREATE FUNCTION "protect_release_publications_snapshot"() RETURNS trigger

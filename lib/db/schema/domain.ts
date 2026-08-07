@@ -238,6 +238,7 @@ export const releasePublications = pgTable(
       .notNull()
       .references(() => backlogs.id, { onDelete: "restrict" }),
     releaseId: uuid("release_id"),
+    sequence: integer("sequence").notNull().default(1),
     releaseRevision: integer("release_revision").notNull(),
     releaseName: text("release_name").notNull(),
     effectiveDate: date("effective_date", { mode: "string" }).notNull(),
@@ -253,10 +254,12 @@ export const releasePublications = pgTable(
   (t) => [
     index("release_publications_backlog_idx").on(t.backlogId),
     uniqueIndex("release_publications_backlog_id_idx").on(t.backlogId, t.id),
+    uniqueIndex("release_publications_release_sequence_idx").on(t.releaseId, t.sequence),
     uniqueIndex("release_publications_one_active_per_release_idx")
       .on(t.releaseId)
       .where(sql`${t.supersededAt} is null`),
     check("release_publications_revision_positive", sql`${t.releaseRevision} > 0`),
+    check("release_publications_sequence_positive", sql`${t.sequence} > 0`),
     check(
       "release_publications_superseded_order",
       sql`${t.supersededAt} is null or ${t.supersededAt} >= ${t.publishedAt}`,
@@ -293,6 +296,7 @@ export const releasePublicationItems = pgTable(
     itemKey: text("item_key").notNull(),
     itemTitle: text("item_title").notNull(),
     statusName: text("status_name").notNull(),
+    completed: boolean("completed").notNull().default(false),
     disposition: releaseItemDispositionEnum("disposition").notNull(),
     destinationReleaseId: uuid("destination_release_id"),
     destinationReleaseName: text("destination_release_name"),

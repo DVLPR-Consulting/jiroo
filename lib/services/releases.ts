@@ -4,6 +4,7 @@ import {
   count,
   desc,
   eq,
+  inArray,
   isNotNull,
   isNull,
   ne,
@@ -24,6 +25,8 @@ import {
 } from "@/lib/db/schema/domain";
 import {
   createReleaseSchema,
+  publishReleaseSchema,
+  releaseIdentitySchema,
   updateReleaseSchema,
 } from "@/lib/validation/release";
 
@@ -80,6 +83,7 @@ export type PublicationSnapshotItem = {
   itemKey: string;
   itemTitle: string;
   statusName: string;
+  completed: boolean;
   disposition: typeof releasePublicationItems.$inferSelect.disposition;
   destinationRelease: { id: string | null; name: string } | null;
 };
@@ -97,6 +101,15 @@ export type ReleaseEvent = {
 
 type Page<T> = { rows: T[]; total: number };
 
+export type PublishReleaseResult = {
+  release: { id: string; revision: number };
+  publicationId: string;
+  totalCount: number;
+  completedCount: number;
+  incompleteCount: number;
+  movedCount: number;
+};
+
 const pageCommand = z.object({
   backlogId: z.uuid(),
   page: z.number().int().min(1),
@@ -108,6 +121,9 @@ const pageCommand = z.object({
 });
 const releasePageCommand = pageCommand.extend({ releaseId: z.uuid() });
 const publicationPageCommand = pageCommand.extend({ publicationId: z.uuid() });
+const revisionedReleaseIdentitySchema = releaseIdentitySchema
+  .extend({ expectedRevision: z.number().int().positive() })
+  .strict();
 
 async function lockBacklog(tx: Tx, backlogId: string) {
   const [backlog] = await tx
@@ -127,6 +143,16 @@ async function lockRelease(tx: Tx, backlogId: string, releaseId: string) {
     .for("update");
   if (!release) throw new Error("Release introuvable.");
   return release;
+}
+
+async function lockReleases(tx: Tx, backlogId: string, releaseIds: string[]) {
+  const sortedIds = [...new Set(releaseIds)].sort();
+  return tx
+    .select()
+    .from(releases)
+    .where(and(eq(releases.backlogId, backlogId), inArray(releases.id, sortedIds)))
+    .orderBy(asc(releases.id))
+    .for("update");
 }
 
 async function readUser(tx: Tx, userId: string, label: "Acteur" | "Pilote") {
@@ -187,6 +213,7 @@ async function appendReleaseEvent(
   event: {
     backlogId: string;
     releaseId: string;
+    publicationId?: string;
     releaseName: string;
     actor: { id: string; name: string };
     action: string;
@@ -301,6 +328,337 @@ export async function updateRelease(
     });
     return { id: updated.id, revision: updated.revision };
   });
+}
+
+function assertExpectedRevision(current: { revision: number }, expectedRevision: number) {
+  if (current.revision !== expectedRevision) {
+    throw new Error("Cette release a changé. Rechargez-la avant de réessayer.");
+  }
+}
+
+export async function publishRelease(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string,
+): Promise<PublishReleaseResult> {
+  const data = publishReleaseSchema.parse(input);
+  return db.transaction(async (tx) => {
+    await lockBacklog(tx, data.backlogId);
+    const releaseIds = [
+      data.releaseId,
+      ...(data.incompleteDisposition === "move" ? [data.destinationReleaseId] : []),
+    ];
+    const lockedReleases = await lockReleases(tx, data.backlogId, releaseIds);
+    const releaseById = new Map(lockedReleases.map((release) => [release.id, release]));
+    const current = releaseById.get(data.releaseId);
+    if (!current) throw new Error("Release introuvable.");
+    assertExpectedRevision(current, data.expectedRevision);
+    if (current.archivedAt !== null) {
+      throw new Error("Une release archivée ne peut pas être publiée.");
+    }
+
+    const destination =
+      data.incompleteDisposition === "move"
+        ? releaseById.get(data.destinationReleaseId)
+        : undefined;
+    if (data.incompleteDisposition === "move") {
+      if (!destination) {
+        throw new Error("La release de destination est invalide pour ce backlog.");
+      }
+      if (destination.archivedAt !== null) {
+        throw new Error("La release de destination est archivée.");
+      }
+    }
+
+    const [activePublication] = await tx
+      .select({ id: releasePublications.id })
+      .from(releasePublications)
+      .where(
+        and(
+          eq(releasePublications.backlogId, data.backlogId),
+          eq(releasePublications.releaseId, current.id),
+          isNull(releasePublications.supersededAt),
+        ),
+      )
+      .limit(1)
+      .for("update");
+    if (activePublication) throw new Error("Cette release est déjà publiée.");
+
+    const scopeItems = await tx
+      .select({
+        id: items.id,
+        key: items.key,
+        title: items.title,
+        statusId: items.statusId,
+      })
+      .from(itemFixVersions)
+      .innerJoin(
+        items,
+        and(
+          eq(items.id, itemFixVersions.itemId),
+          eq(items.backlogId, itemFixVersions.backlogId),
+        ),
+      )
+      .where(
+        and(
+          eq(itemFixVersions.backlogId, data.backlogId),
+          eq(itemFixVersions.releaseId, current.id),
+          isNull(items.deletedAt),
+        ),
+      )
+      .orderBy(asc(items.id))
+      .for("update");
+    const statusIds = [...new Set(scopeItems.map((item) => item.statusId))].sort();
+    const statusRows =
+      statusIds.length === 0
+        ? []
+        : await tx
+            .select({
+              id: statuses.id,
+              backlogId: statuses.backlogId,
+              name: statuses.name,
+              category: statuses.category,
+            })
+            .from(statuses)
+            .where(inArray(statuses.id, statusIds))
+            .orderBy(asc(statuses.id));
+    if (
+      statusRows.length !== statusIds.length ||
+      statusRows.some((status) => status.backlogId !== data.backlogId)
+    ) {
+      throw new Error("Le scope de la release est incohérent.");
+    }
+    const statusById = new Map(statusRows.map((status) => [status.id, status]));
+    const actor = await readUser(tx, actorId, "Acteur");
+    const [sequenceRow] = await tx
+      .select({
+        sequence: sql<number>`coalesce(max(${releasePublications.sequence}), 0)::int`,
+      })
+      .from(releasePublications)
+      .where(
+        and(
+          eq(releasePublications.backlogId, data.backlogId),
+          eq(releasePublications.releaseId, current.id),
+        ),
+      );
+    const sequence = (sequenceRow?.sequence ?? 0) + 1;
+    const nextRevision = current.revision + 1;
+    const [publication] = await tx
+      .insert(releasePublications)
+      .values({
+        backlogId: data.backlogId,
+        releaseId: current.id,
+        sequence,
+        releaseRevision: nextRevision,
+        releaseName: current.name,
+        effectiveDate: data.effectiveDate,
+        incompleteDisposition: data.incompleteDisposition,
+        destinationReleaseId: destination?.id ?? null,
+        destinationReleaseName: destination?.name ?? null,
+        publishedBy: actor.id,
+      })
+      .returning({ id: releasePublications.id });
+    if (!publication) throw new Error("Publication impossible.");
+
+    const completedItemIds: string[] = [];
+    const incompleteItemIds: string[] = [];
+    if (scopeItems.length > 0) {
+      await tx.insert(releasePublicationItems).values(
+        scopeItems.map((item) => {
+          const status = statusById.get(item.statusId);
+          if (!status) throw new Error("Le scope de la release est incohérent.");
+          const completed = status.category === "done";
+          if (completed) completedItemIds.push(item.id);
+          else incompleteItemIds.push(item.id);
+          const moved = !completed && data.incompleteDisposition === "move";
+          return {
+            publicationId: publication.id,
+            backlogId: data.backlogId,
+            itemId: item.id,
+            itemKey: item.key,
+            itemTitle: item.title,
+            statusName: status.name,
+            completed,
+            disposition: moved ? ("moved" as const) : ("retained" as const),
+            destinationReleaseId: moved ? destination!.id : null,
+            destinationReleaseName: moved ? destination!.name : null,
+          };
+        }),
+      );
+    }
+
+    if (data.incompleteDisposition === "move" && incompleteItemIds.length > 0) {
+      await tx
+        .delete(itemFixVersions)
+        .where(
+          and(
+            eq(itemFixVersions.backlogId, data.backlogId),
+            eq(itemFixVersions.releaseId, current.id),
+            inArray(itemFixVersions.itemId, incompleteItemIds),
+          ),
+        );
+      await tx
+        .insert(itemFixVersions)
+        .values(
+          incompleteItemIds.map((itemId) => ({
+            backlogId: data.backlogId,
+            itemId,
+            releaseId: destination!.id,
+          })),
+        )
+        .onConflictDoNothing();
+    }
+
+    const [updated] = await tx
+      .update(releases)
+      .set({ revision: nextRevision, updatedAt: new Date() })
+      .where(eq(releases.id, current.id))
+      .returning({ id: releases.id, revision: releases.revision });
+    if (!updated) throw new Error("Publication impossible.");
+    await appendReleaseEvent(tx, {
+      backlogId: data.backlogId,
+      releaseId: current.id,
+      publicationId: publication.id,
+      releaseName: current.name,
+      actor,
+      action: "release_published",
+      oldValue: { released: false, revision: current.revision },
+      newValue: {
+        released: true,
+        revision: updated.revision,
+        publicationId: publication.id,
+        sequence,
+        effectiveDate: data.effectiveDate,
+        incompleteDisposition: data.incompleteDisposition,
+        destinationRelease: destination ? { id: destination.id, name: destination.name } : null,
+      },
+      requestCorrelationId,
+    });
+
+    return {
+      release: updated,
+      publicationId: publication.id,
+      totalCount: scopeItems.length,
+      completedCount: completedItemIds.length,
+      incompleteCount: incompleteItemIds.length,
+      movedCount: data.incompleteDisposition === "move" ? incompleteItemIds.length : 0,
+    };
+  });
+}
+
+export async function unreleaseRelease(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string,
+): Promise<{ release: { id: string; revision: number }; publicationId: string }> {
+  const data = revisionedReleaseIdentitySchema.parse(input);
+  return db.transaction(async (tx) => {
+    await lockBacklog(tx, data.backlogId);
+    const current = await lockRelease(tx, data.backlogId, data.releaseId);
+    assertExpectedRevision(current, data.expectedRevision);
+    const [publication] = await tx
+      .select()
+      .from(releasePublications)
+      .where(
+        and(
+          eq(releasePublications.backlogId, data.backlogId),
+          eq(releasePublications.releaseId, current.id),
+          isNull(releasePublications.supersededAt),
+        ),
+      )
+      .limit(1)
+      .for("update");
+    if (!publication) throw new Error("Cette release n’est pas publiée.");
+    const actor = await readUser(tx, actorId, "Acteur");
+    await tx
+      .update(releasePublications)
+      .set({
+        supersededAt: sql`greatest(current_timestamp, ${releasePublications.publishedAt})`,
+      })
+      .where(eq(releasePublications.id, publication.id));
+    const [updated] = await tx
+      .update(releases)
+      .set({ revision: current.revision + 1, updatedAt: new Date() })
+      .where(eq(releases.id, current.id))
+      .returning({ id: releases.id, revision: releases.revision });
+    if (!updated) throw new Error("Dépublication impossible.");
+    await appendReleaseEvent(tx, {
+      backlogId: data.backlogId,
+      releaseId: current.id,
+      publicationId: publication.id,
+      releaseName: current.name,
+      actor,
+      action: "release_unreleased",
+      oldValue: {
+        released: true,
+        revision: current.revision,
+        publicationId: publication.id,
+        sequence: publication.sequence,
+        effectiveDate: publication.effectiveDate,
+      },
+      newValue: { released: false, revision: updated.revision },
+      requestCorrelationId,
+    });
+    return { release: updated, publicationId: publication.id };
+  });
+}
+
+async function setReleaseArchived(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string,
+  archived: boolean,
+): Promise<{ id: string; revision: number }> {
+  const data = revisionedReleaseIdentitySchema.parse(input);
+  return db.transaction(async (tx) => {
+    await lockBacklog(tx, data.backlogId);
+    const current = await lockRelease(tx, data.backlogId, data.releaseId);
+    assertExpectedRevision(current, data.expectedRevision);
+    if (archived && current.archivedAt !== null) {
+      throw new Error("Cette release est déjà archivée.");
+    }
+    if (!archived && current.archivedAt === null) {
+      throw new Error("Cette release n’est pas archivée.");
+    }
+    const actor = await readUser(tx, actorId, "Acteur");
+    const [updated] = await tx
+      .update(releases)
+      .set({
+        archivedAt: archived ? new Date() : null,
+        revision: current.revision + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(releases.id, current.id))
+      .returning({ id: releases.id, revision: releases.revision });
+    if (!updated) throw new Error("Changement d’archivage impossible.");
+    await appendReleaseEvent(tx, {
+      backlogId: data.backlogId,
+      releaseId: current.id,
+      releaseName: current.name,
+      actor,
+      action: archived ? "release_archived" : "release_unarchived",
+      oldValue: { archived: !archived, revision: current.revision },
+      newValue: { archived, revision: updated.revision },
+      requestCorrelationId,
+    });
+    return updated;
+  });
+}
+
+export function archiveRelease(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string,
+) {
+  return setReleaseArchived(input, actorId, requestCorrelationId, true);
+}
+
+export function unarchiveRelease(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string,
+) {
+  return setReleaseArchived(input, actorId, requestCorrelationId, false);
 }
 
 function releaseSummaryQuery(
@@ -541,6 +899,7 @@ export async function listPublicationSnapshotItems(
       itemKey: row.itemKey,
       itemTitle: row.itemTitle,
       statusName: row.statusName,
+      completed: row.completed,
       disposition: row.disposition,
       destinationRelease:
         row.destinationReleaseName === null
