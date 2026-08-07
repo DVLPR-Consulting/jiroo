@@ -367,8 +367,10 @@ export const releaseEvents = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     backlogId: uuid("backlog_id").references(() => backlogs.id, { onDelete: "set null" }),
-    releaseId: uuid("release_id"),
-    publicationId: uuid("publication_id"),
+    releaseId: uuid("release_id").references(() => releases.id, { onDelete: "set null" }),
+    publicationId: uuid("publication_id").references(() => releasePublications.id, {
+      onDelete: "set null",
+    }),
     releaseName: text("release_name").notNull(),
     actorId: text("actor_id").references(() => user.id, { onDelete: "set null" }),
     actorLabel: text("actor_label").notNull(),

@@ -387,20 +387,21 @@ describeDb("release persistence constraints", () => {
     await transaction(async (client) => {
       const backlogId = await createBacklog(client, "EVENTBACKLOG");
       const actor = await actorId(client);
+      const releaseId = await createRelease(client, backlogId, actor, "Deleted backlog release");
       const event = await client.query<{ id: string }>(
         `insert into release_events
-          (backlog_id, release_name, actor_id, actor_label, action)
-         values ($1, 'Deleted backlog release', $2, 'Historical actor', 'release_created')
+          (backlog_id, release_id, release_name, actor_id, actor_label, action)
+         values ($1, $2, 'Deleted backlog release', $3, 'Historical actor', 'release_created')
          returning id`,
-        [backlogId, actor],
+        [backlogId, releaseId, actor],
       );
       await client.query("delete from backlogs where id = $1", [backlogId]);
       await expect(
-        client.query<{ backlog_id: string | null }>(
-          "select backlog_id from release_events where id = $1",
+        client.query<{ backlog_id: string | null; release_id: string | null }>(
+          "select backlog_id, release_id from release_events where id = $1",
           [event.rows[0]!.id],
         ),
-      ).resolves.toMatchObject({ rows: [{ backlog_id: null }] });
+      ).resolves.toMatchObject({ rows: [{ backlog_id: null, release_id: null }] });
     });
   });
 

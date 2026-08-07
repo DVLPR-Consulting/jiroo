@@ -2522,6 +2522,32 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
+        "release_events_release_id_releases_id_fk": {
+          "name": "release_events_release_id_releases_id_fk",
+          "tableFrom": "release_events",
+          "tableTo": "releases",
+          "columnsFrom": [
+            "release_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "release_events_publication_id_release_publications_id_fk": {
+          "name": "release_events_publication_id_release_publications_id_fk",
+          "tableFrom": "release_events",
+          "tableTo": "release_publications",
+          "columnsFrom": [
+            "publication_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "release_events_release_same_backlog_fk": {
           "name": "release_events_release_same_backlog_fk",
           "tableFrom": "release_events",
