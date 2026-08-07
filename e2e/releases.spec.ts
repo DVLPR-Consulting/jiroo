@@ -25,6 +25,8 @@ import {
 import { changeItemFixVersions } from "../lib/services/item-fix-versions";
 import { createItem, updateItem } from "../lib/services/items";
 import { createRelease } from "../lib/services/releases";
+import { startSprint } from "../lib/services/sprint-lifecycle";
+import { createSprint } from "../lib/services/sprints";
 import {
   writeAuditScreenshot,
   writeAuditText,
@@ -252,7 +254,11 @@ async function fixtureRelease(name: string, backlogKey = "CASS") {
 
 async function fixtureTask(
   title: string,
-  input: { status?: "todo" | "in_progress" | "done"; points?: number | null } = {},
+  input: {
+    status?: "todo" | "in_progress" | "done";
+    points?: number | null;
+    sprintId?: string;
+  } = {},
 ) {
   const backlog = await backlogFixture();
   const actorId = await accountId(EMAIL.admin);
@@ -261,6 +267,7 @@ async function fixtureTask(
     type: "tache",
     parentId: backlog.epicId,
     title,
+    ...(input.sprintId ? { sprintId: input.sprintId } : {}),
   }, actorId, `e2e-item-${title}`);
   await updateItem({
     id: created.id,
@@ -326,6 +333,7 @@ async function applyBulkFixVersions(
     | "Retirer des versions"
     | "Effacer toutes les versions",
   selectedCount: number,
+  expectedConsequences: string[],
 ) {
   const toolbar = page.getByRole("region", { name: "Actions groupées" });
   await toolbar.getByRole("button", { name: "Appliquer les versions" }).click();
@@ -336,6 +344,9 @@ async function applyBulkFixVersions(
   await expect(dialog).toContainText(
     `${selectedCount} ${selectedCount === 1 ? "item sélectionné" : "items sélectionnés"}`,
   );
+  for (const consequence of expectedConsequences) {
+    await expect(dialog).toContainText(consequence);
+  }
   await clickPost(page, () =>
     dialog.getByRole("button", {
       name: `Appliquer à ${selectedCount} ${selectedCount === 1 ? "item" : "items"}`,
@@ -519,7 +530,10 @@ audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser,
     await editor.goto("/b/CASS?view=list&fvcol=1");
     await selectBulkItems(editor, [one, two]);
     await chooseBulkFixVersions(editor, [first.name]);
-    await applyBulkFixVersions(editor, "Ajouter aux versions", 2);
+    await applyBulkFixVersions(editor, "Ajouter aux versions", 2, [
+      first.name,
+      "seront ajoutées sans retirer les Fix versions existantes",
+    ]);
     await editor.reload();
     expect(await assignedVersionIds(one.id)).toEqual([first.id]);
     expect(await assignedVersionIds(two.id)).toEqual([first.id]);
@@ -528,7 +542,10 @@ audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser,
 
     await selectBulkItems(editor, [one, two]);
     await chooseBulkFixVersions(editor, [second.name]);
-    await applyBulkFixVersions(editor, "Remplacer les versions", 2);
+    await applyBulkFixVersions(editor, "Remplacer les versions", 2, [
+      second.name,
+      "Les Fix versions existantes seront remplacées",
+    ]);
     await editor.reload();
     expect(await assignedVersionIds(one.id)).toEqual([second.id]);
     expect(await assignedVersionIds(two.id)).toEqual([second.id]);
@@ -537,7 +554,10 @@ audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser,
 
     await selectBulkItems(editor, [one, two]);
     await chooseBulkFixVersions(editor, [second.name]);
-    await applyBulkFixVersions(editor, "Retirer des versions", 2);
+    await applyBulkFixVersions(editor, "Retirer des versions", 2, [
+      second.name,
+      "seront retirées. Les autres Fix versions seront conservées",
+    ]);
     await editor.reload();
     expect(await assignedVersionIds(one.id)).toEqual([]);
     expect(await assignedVersionIds(two.id)).toEqual([]);
@@ -546,9 +566,15 @@ audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser,
 
     await selectBulkItems(editor, [one, two]);
     await chooseBulkFixVersions(editor, [first.name, second.name]);
-    await applyBulkFixVersions(editor, "Ajouter aux versions", 2);
+    await applyBulkFixVersions(editor, "Ajouter aux versions", 2, [
+      first.name,
+      second.name,
+      "seront ajoutées sans retirer les Fix versions existantes",
+    ]);
     expect(await assignedVersionIds(one.id)).toEqual([first.id, second.id].sort());
-    await applyBulkFixVersions(editor, "Effacer toutes les versions", 2);
+    await applyBulkFixVersions(editor, "Effacer toutes les versions", 2, [
+      "Toutes les Fix versions seront retirées",
+    ]);
     await editor.reload();
     expect(await assignedVersionIds(one.id)).toEqual([]);
     expect(await assignedVersionIds(two.id)).toEqual([]);
@@ -558,8 +584,20 @@ audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser,
 
 audited(4, "conserve le filtre Version après reload et dans une vue enregistrée", async ({ page }) => {
   const release = await fixtureRelease("R09-S04 Filtrée");
-  const matching = await fixtureTask("R09-S04 visible");
-  const hidden = await fixtureTask("R09-S04 masquée");
+  const backlog = await backlogFixture();
+  const actorId = await accountId(EMAIL.admin);
+  const sprint = await createSprint({ backlogId: backlog.id }, actorId);
+  const matching = await fixtureTask("R09-S04 visible", { sprintId: sprint.id });
+  const hidden = await fixtureTask("R09-S04 masquée", { sprintId: sprint.id });
+  await startSprint({
+    id: sprint.id,
+    backlogId: backlog.id,
+    name: "R09-S04 Sprint filtre",
+    goal: "Prouver le filtre Version partagé",
+    startAt: "2026-08-05T09:00:00.000Z",
+    endAt: "2026-08-19T18:00:00.000Z",
+    capacityPoints: 13,
+  }, actorId);
   await assignVersions(matching.id, [release.id]);
 
   await page.goto("/b/CASS?view=list");
@@ -570,6 +608,8 @@ audited(4, "conserve le filtre Version après reload et dans une vue enregistré
   await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole("button", { name: new RegExp(`Version.*${release.name}`) })).toBeVisible();
+  await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
+  await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Enregistrer la vue" }).click();
   await page.getByRole("menuitem", { name: "Enregistrer sous…" }).click();
@@ -579,6 +619,15 @@ audited(4, "conserve le filtre Version après reload et dans une vue enregistré
   await expect(page.getByRole("button", { name: /R09-S04 Vue version/ })).toBeVisible();
   await page.reload();
   await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
+  await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
+
+  await page.goto(`/b/CASS?view=board&version=${release.id}`);
+  await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
+  await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("button", { name: new RegExp(`Version.*${release.name}`) })).toBeVisible();
+  await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
+  await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
   const [stored] = await db.select({ filters: views.filters }).from(views)
     .where(eq(views.name, "R09-S04 Vue version"));
   expect(stored?.filters).toMatchObject({ releaseIds: [release.id] });
