@@ -51,9 +51,13 @@ export function listTrashedItems(userId: string) {
 }
 
 export function listItems(backlogId: string, options: { releaseIds?: string[] } = {}) {
-  const releaseIds = [...new Set(options.releaseIds ?? [])];
-  const releaseFilter = releaseIds.length > 0
-    ? exists(
+  const requestedReleaseIds = [...new Set(options.releaseIds ?? [])];
+  const releaseIds = requestedReleaseIds.filter((id) => idInputSchema.safeParse({ id }).success);
+  const releaseFilter = requestedReleaseIds.length === 0
+    ? undefined
+    : releaseIds.length === 0
+      ? sql<boolean>`false`
+      : exists(
         db
           .select({ itemId: itemFixVersions.itemId })
           .from(itemFixVersions)
@@ -64,8 +68,7 @@ export function listItems(backlogId: string, options: { releaseIds?: string[] } 
               inArray(itemFixVersions.releaseId, releaseIds),
             ),
           ),
-      )
-    : undefined;
+      );
 
   return db
     .select()

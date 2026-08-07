@@ -152,9 +152,15 @@ export async function BacklogViewContent({
     listSprintsForBacklog(backlog.id),
   ]);
   const releaseMatchedIds = new Set(releaseFilteredItems.map((item) => item.id));
-  const items = view === "tree" && viewState.filters.releaseIds.length > 0
-    ? await listItemsWithAncestors(backlog.id, [...releaseMatchedIds])
-    : releaseFilteredItems;
+  const releaseFilterActive = viewState.filters.releaseIds.length > 0;
+  const [items, detailItems] = await Promise.all([
+    releaseFilterActive
+      ? listItemsWithAncestors(backlog.id, [...releaseMatchedIds])
+      : Promise.resolve(releaseFilteredItems),
+    itemKey && releaseFilterActive
+      ? listItems(backlog.id)
+      : Promise.resolve(releaseFilteredItems),
+  ]);
 
   // Set of item ids that are blocked by an unfinished item — used to drive the badge.
   const blockedSet = new Set(blockedIds);
@@ -221,12 +227,15 @@ export async function BacklogViewContent({
   const matchedIds = new Set(
     filterRows
       .filter((r) =>
-        (viewState.filters.releaseIds.length === 0 || releaseMatchedIds.has(r.id))
+        (!releaseFilterActive || releaseMatchedIds.has(r.id))
         && matchItem(r, nonReleaseFilters),
       )
       .map((r) => r.id),
   );
   const isMatch = (id: string) => !filtersOn || matchedIds.has(id);
+  const detailItem = itemKey
+    ? detailItems.find((item) => item.key === itemKey)
+    : undefined;
 
   // List view: sort then group the filtered rows.
   const listRows = filterRows.filter((r) => isMatch(r.id));
@@ -695,14 +704,14 @@ export async function BacklogViewContent({
             assigneeCandidates={assigneeCandidates}
             reporterCandidates={directoryUsers}
             statuses={statusList}
-            items={items}
+            items={detailItems}
             sprints={sprintSnapshot.sprints
               .filter((sprint) => sprint.state !== "completed")
               .map((sprint) => ({ id: sprint.id, name: sprint.name }))}
             sprintId={
               sprintSnapshot.memberships.find(
                 (membership) =>
-                  membership.itemId === items.find((item) => item.key === itemKey)?.id &&
+                  membership.itemId === detailItem?.id &&
                   membership.leftAt === null,
               )?.sprintId ?? null
             }
@@ -712,7 +721,7 @@ export async function BacklogViewContent({
             itemCapabilities={productCapabilities.items}
             planningCapabilities={productCapabilities.planning}
             fixVersions={fixVersionsByItem.get(
-              items.find((item) => item.key === itemKey)?.id ?? "",
+              detailItem?.id ?? "",
             ) ?? []}
             releaseOptions={assignableReleaseOptions}
             releaseCapabilities={productCapabilities.releases}

@@ -664,13 +664,15 @@ describeDb("rankBacklogItem transaction", () => {
 
 describeDb("updateItem reporter transaction", () => {
   it("updates an existing reporter and writes the reporter audit", async () => {
+    const [existingReporter] = await db.select({ id: user.id }).from(user).limit(1);
+    if (!existingReporter) throw new Error("Le seed doit contenir un utilisateur.");
     const reporterId = `reporter-${randomUUID()}`;
     await db.insert(user).values({
       id: reporterId,
       name: "Nouveau rapporteur",
       email: `${reporterId}@example.test`,
     });
-    const fixture = await createUpdateFixture();
+    const fixture = await createUpdateFixture(existingReporter.id);
 
     try {
       const updated = await updateItem(
@@ -747,6 +749,17 @@ describeDb("updateItem reporter transaction", () => {
 });
 
 describeDb("item fix version integration", () => {
+  it("treats a malformed release filter like a non-matching foreign release", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await expect(listItems(fixture.backlogId, {
+        releaseIds: ["not-a-uuid"],
+      })).resolves.toEqual([]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
   it("filters 1,000 Fix-version links in one query with OR semantics", async () => {
     const fixture = await createUpdateFixture();
     const secondId = randomUUID();
