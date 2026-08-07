@@ -481,7 +481,10 @@ export async function createItem(
         await tx.insert(itemLabels).values(data.labelIds.map((labelId) => ({ itemId: id, labelId })));
       }
 
-      await tx.insert(activities).values(activityRow(id, actorId, "create", null, null, key));
+      await tx.insert(activities).values({
+        ...activityRow(id, actorId, "create", null, null, key),
+        requestCorrelationId,
+      });
 
       await replaceItemFixVersionsInTx(
         tx,
@@ -661,7 +664,9 @@ export async function updateItem(
       .set({ ...patch, updatedAt: new Date() })
       .where(eq(items.id, cur.id))
       .returning();
-    await tx.insert(activities).values(acts);
+    await tx
+      .insert(activities)
+      .values(acts.map((act) => ({ ...act, requestCorrelationId })));
     return updated!;
   });
 }

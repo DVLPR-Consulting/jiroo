@@ -782,9 +782,11 @@ describeDb("item fix version integration", () => {
             correlationId: activities.requestCorrelationId,
           })
           .from(activities)
-          .where(and(eq(activities.itemId, created.id), eq(activities.field, "fix_versions"))),
+          .where(eq(activities.itemId, created.id))
+          .orderBy(asc(activities.field)),
       ).toEqual([
         { field: "fix_versions", correlationId: "item-create-fix-versions" },
+        { field: null, correlationId: "item-create-fix-versions" },
       ]);
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
@@ -854,7 +856,6 @@ describeDb("item fix version integration", () => {
           fixVersionIds: [release!.id],
         },
         fixture.actorId,
-        "item-update-fix-versions",
       );
 
       expect(updated?.title).toBe("Rapport versionné");
@@ -864,17 +865,23 @@ describeDb("item fix version integration", () => {
           .from(itemFixVersions)
           .where(eq(itemFixVersions.itemId, fixture.item.id)),
       ).toEqual([{ releaseId: release!.id }]);
-      expect(
-        await db
-          .select({ correlationId: activities.requestCorrelationId })
-          .from(activities)
-          .where(
-            and(
-              eq(activities.itemId, fixture.item.id),
-              eq(activities.field, "fix_versions"),
-            ),
-          ),
-      ).toEqual([{ correlationId: "item-update-fix-versions" }]);
+      const audit = await db
+        .select({
+          field: activities.field,
+          correlationId: activities.requestCorrelationId,
+        })
+        .from(activities)
+        .where(eq(activities.itemId, fixture.item.id))
+        .orderBy(asc(activities.field));
+      expect(audit).toHaveLength(2);
+      expect(audit[0]).toEqual({
+        field: "fix_versions",
+        correlationId: expect.any(String),
+      });
+      expect(audit[1]).toEqual({
+        field: "title",
+        correlationId: audit[0]?.correlationId,
+      });
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
     }
