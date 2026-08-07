@@ -15,12 +15,12 @@ const fixVersionIds = z
 
 const datesAreOrdered = (data: {
   startDate?: string | null;
-  releaseDate?: string | null;
+  targetDate?: string | null;
 }) =>
-  data.startDate == null || data.releaseDate == null || data.releaseDate >= data.startDate;
+  data.startDate == null || data.targetDate == null || data.targetDate >= data.startDate;
 const dateOrderIssue = {
   message: "La date cible doit suivre la date de début.",
-  path: ["releaseDate"],
+  path: ["targetDate"],
 };
 
 export const createReleaseSchema = z
@@ -28,9 +28,11 @@ export const createReleaseSchema = z
     backlogId: uuid,
     name: releaseName,
     description,
+    driverId: z.string().trim().min(1),
     startDate: optionalDate.optional(),
-    releaseDate: optionalDate.optional(),
+    targetDate: optionalDate.optional(),
   })
+  .strict()
   .refine(datesAreOrdered, dateOrderIssue);
 
 export const updateReleaseSchema = z
@@ -40,10 +42,21 @@ export const updateReleaseSchema = z
     expectedRevision: revision,
     name: releaseName.optional(),
     description,
+    driverId: z.string().trim().min(1).nullable().optional(),
     startDate: optionalDate.optional(),
-    releaseDate: optionalDate.optional(),
+    targetDate: optionalDate.optional(),
   })
-  .refine(datesAreOrdered, dateOrderIssue);
+  .strict()
+  .refine(datesAreOrdered, dateOrderIssue)
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.description !== undefined ||
+      data.driverId !== undefined ||
+      data.startDate !== undefined ||
+      data.targetDate !== undefined,
+    { message: "Aucune modification fournie." },
+  );
 
 export const publishReleaseSchema = z
   .discriminatedUnion("incompleteDisposition", [

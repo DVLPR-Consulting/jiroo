@@ -15,6 +15,7 @@ CREATE TABLE "release_events" (
 	"publication_id" uuid,
 	"release_name" text NOT NULL,
 	"actor_id" text,
+	"actor_label" text NOT NULL,
 	"action" text NOT NULL,
 	"old_value" jsonb,
 	"new_value" jsonb,
@@ -69,6 +70,7 @@ CREATE TABLE "releases" (
 	"release_date" date,
 	"revision" integer DEFAULT 1 NOT NULL,
 	"archived_at" timestamp with time zone,
+	"driver_id" text,
 	"created_by" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -96,6 +98,7 @@ ALTER TABLE "release_publications" ADD CONSTRAINT "release_publications_publishe
 ALTER TABLE "release_publications" ADD CONSTRAINT "release_publications_release_same_backlog_fk" FOREIGN KEY ("backlog_id","release_id") REFERENCES "public"."releases"("backlog_id","id") ON DELETE set null ("release_id") ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "release_publications" ADD CONSTRAINT "release_publications_destination_same_backlog_fk" FOREIGN KEY ("backlog_id","destination_release_id") REFERENCES "public"."releases"("backlog_id","id") ON DELETE set null ("destination_release_id") ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "releases" ADD CONSTRAINT "releases_backlog_id_backlogs_id_fk" FOREIGN KEY ("backlog_id") REFERENCES "public"."backlogs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "releases" ADD CONSTRAINT "releases_driver_id_user_id_fk" FOREIGN KEY ("driver_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "releases" ADD CONSTRAINT "releases_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "item_fix_versions_release_idx" ON "item_fix_versions" USING btree ("release_id");--> statement-breakpoint
 CREATE INDEX "release_events_release_idx" ON "release_events" USING btree ("release_id");--> statement-breakpoint

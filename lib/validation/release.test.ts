@@ -57,14 +57,31 @@ describe("release validation", () => {
     ).toBe(false);
   });
 
-  it("normalizes an optional release date", () => {
+  it("preserves the canonical driver and target date command fields", () => {
     expect(
       createReleaseSchema.parse({
         backlogId: crypto.randomUUID(),
         name: "1.0",
-        releaseDate: "",
-      }).releaseDate,
+        driverId: "driver-a",
+        targetDate: "",
+      }),
+    ).toMatchObject({ driverId: "driver-a", targetDate: null });
+    expect(
+      updateReleaseSchema.parse({
+        backlogId: crypto.randomUUID(),
+        releaseId: crypto.randomUUID(),
+        expectedRevision: 1,
+        driverId: null,
+      }).driverId,
     ).toBeNull();
+    expect(
+      createReleaseSchema.safeParse({
+        backlogId: crypto.randomUUID(),
+        name: "legacy",
+        driverId: "driver-a",
+        releaseDate: "2026-08-07",
+      }).success,
+    ).toBe(false);
   });
 
   it("allows a target date without a start date", () => {
@@ -72,7 +89,8 @@ describe("release validation", () => {
       createReleaseSchema.safeParse({
         backlogId: crypto.randomUUID(),
         name: "1.1",
-        releaseDate: "2026-08-07",
+        driverId: "driver-a",
+        targetDate: "2026-08-07",
       }).success,
     ).toBe(true);
   });
@@ -80,12 +98,13 @@ describe("release validation", () => {
   it("rejects a target date before an explicitly supplied start date", () => {
     const fields = {
       startDate: "2026-08-08",
-      releaseDate: "2026-08-07",
+      targetDate: "2026-08-07",
     };
     expect(
       createReleaseSchema.safeParse({
         backlogId: crypto.randomUUID(),
         name: "1.2",
+        driverId: "driver-a",
         ...fields,
       }).success,
     ).toBe(false);
@@ -95,6 +114,16 @@ describe("release validation", () => {
         releaseId: crypto.randomUUID(),
         expectedRevision: 1,
         ...fields,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects an update with no metadata change", () => {
+    expect(
+      updateReleaseSchema.safeParse({
+        backlogId: crypto.randomUUID(),
+        releaseId: crypto.randomUUID(),
+        expectedRevision: 1,
       }).success,
     ).toBe(false);
   });

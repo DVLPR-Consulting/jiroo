@@ -29,6 +29,7 @@ vi.mock("server-only", () => ({}));
 
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 const fixtureBacklogIds = new Set<string>();
+const fixtureUserIds = new Set<string>();
 
 async function actorFixture() {
   const [actor] = await db.select({ id: user.id, name: user.name }).from(user).limit(1);
@@ -45,6 +46,17 @@ async function backlogFixture(name = "Release service test") {
   if (!backlog) throw new Error("Fixture backlog impossible.");
   fixtureBacklogIds.add(backlog.id);
   return backlog;
+}
+
+async function userFixture(name: string) {
+  const id = `release-test-${randomUUID()}`;
+  const [created] = await db
+    .insert(user)
+    .values({ id, name, email: `${id}@example.test` })
+    .returning({ id: user.id, name: user.name });
+  if (!created) throw new Error("Fixture utilisateur impossible.");
+  fixtureUserIds.add(created.id);
+  return created;
 }
 
 async function statusFixture(
@@ -115,6 +127,9 @@ async function cleanupFixtures() {
       client.release();
     }
   }
+  for (const userId of fixtureUserIds) {
+    await db.delete(user).where(eq(user.id, userId));
+  }
 }
 
 afterAll(cleanupFixtures);
@@ -167,7 +182,8 @@ describeDb("release metadata and read models", () => {
       .select({
         name: releases.name,
         revision: releases.revision,
-        driverId: releases.createdBy,
+        createdBy: releases.createdBy,
+        driverId: releases.driverId,
         startDate: releases.startDate,
         targetDate: releases.releaseDate,
       })
@@ -176,6 +192,7 @@ describeDb("release metadata and read models", () => {
     expect(stored).toEqual({
       name: "2026.09 GA",
       revision: 2,
+      createdBy: actor.id,
       driverId: actor.id,
       startDate: "2026-08-01",
       targetDate: "2026-09-15",
@@ -193,18 +210,66 @@ describeDb("release metadata and read models", () => {
       .orderBy(asc(releaseEvents.createdAt));
     expect(events).toEqual([
       {
-        action: "created",
+        action: "release_created",
         releaseName: "2026.09",
         actorId: actor.id,
         correlationId: "release-create-test",
       },
       {
-        action: "updated",
+        action: "release_updated",
         releaseName: "2026.09 GA",
         actorId: actor.id,
         correlationId: "update-1",
       },
     ]);
+  });
+
+  it("keeps creator provenance while the driver changes and can later disappear", async () => {
+    const actor = await actorFixture();
+    const firstDriver = await userFixture("Premier pilote");
+    const secondDriver = await userFixture("Deuxième pilote");
+    const backlog = await backlogFixture();
+    const created = await createRelease(
+      { backlogId: backlog.id, name: "Pilotage", driverId: firstDriver.id },
+      actor.id,
+      "driver-create",
+    );
+
+    await expect(getReleaseDetail(backlog.id, created.id)).resolves.toMatchObject({
+      driver: firstDriver,
+    });
+    await updateRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: created.id,
+        expectedRevision: 1,
+        driverId: secondDriver.id,
+      },
+      actor.id,
+      "driver-change",
+    );
+    const [stored] = await db
+      .select({ createdBy: releases.createdBy, driverId: releases.driverId })
+      .from(releases)
+      .where(eq(releases.id, created.id));
+    expect(stored).toEqual({ createdBy: actor.id, driverId: secondDriver.id });
+    await expect(getReleaseDetail(backlog.id, created.id)).resolves.toMatchObject({
+      driver: secondDriver,
+      revision: 2,
+    });
+
+    await db.delete(user).where(eq(user.id, secondDriver.id));
+    fixtureUserIds.delete(secondDriver.id);
+    await expect(getReleaseDetail(backlog.id, created.id)).resolves.toMatchObject({
+      driver: null,
+      revision: 2,
+    });
+    await expect(
+      db
+        .select({ createdBy: releases.createdBy, driverId: releases.driverId })
+        .from(releases)
+        .where(eq(releases.id, created.id)),
+    ).resolves.toEqual([{ createdBy: actor.id, driverId: null }]);
   });
 
   it("rejects normalized duplicate names, cross-backlog IDs, and missing drivers", async () => {
@@ -356,6 +421,7 @@ describeDb("release metadata and read models", () => {
 
   it("returns scope items and release events with bounded pagination", async () => {
     const actor = await actorFixture();
+    const updater = await userFixture("Acteur historique");
     const backlog = await backlogFixture();
     const [todo, doing, done] = await statusFixture(backlog.id, [
       { name: "À faire", category: "todo" },
@@ -410,7 +476,7 @@ describeDb("release metadata and read models", () => {
         expectedRevision: 1,
         description: "Événement page 2",
       },
-      actor.id,
+      updater.id,
       "scope-update",
     );
 
@@ -446,11 +512,29 @@ describeDb("release metadata and read models", () => {
     });
     expect(eventPage.total).toBe(2);
     expect(eventPage.rows[0]).toMatchObject({
-      action: "updated",
+      action: "release_updated",
       releaseName: "Scope",
-      actor,
+      actor: updater,
       requestCorrelationId: "scope-update",
     });
+
+    await db.update(user).set({ name: "Acteur renommé" }).where(eq(user.id, updater.id));
+    const renamedActorPage = await listReleaseEvents({
+      backlogId: backlog.id,
+      releaseId: created.id,
+      page: 1,
+      pageSize: 1,
+    });
+    expect(renamedActorPage.rows[0]?.actor).toEqual(updater);
+    await db.delete(user).where(eq(user.id, updater.id));
+    fixtureUserIds.delete(updater.id);
+    const deletedActorPage = await listReleaseEvents({
+      backlogId: backlog.id,
+      releaseId: created.id,
+      page: 1,
+      pageSize: 1,
+    });
+    expect(deletedActorPage.rows[0]?.actor).toEqual({ id: null, name: updater.name });
 
     await expect(
       listReleaseScopeItems({

@@ -152,6 +152,7 @@ describeDb("release persistence constraints", () => {
         "release_publication_items_destination_same_backlog_fk",
         "release_publications_destination_same_backlog_fk",
         "release_publications_release_same_backlog_fk",
+        "releases_driver_id_user_id_fk",
       ]],
     );
 
@@ -196,6 +197,10 @@ describeDb("release persistence constraints", () => {
           /FOREIGN KEY \(backlog_id, release_id\).*ON DELETE SET NULL \(release_id\)/,
         ),
       },
+      {
+        conname: "releases_driver_id_user_id_fk",
+        definition: expect.stringMatching(/FOREIGN KEY \(driver_id\).*ON DELETE SET NULL/),
+      },
     ]);
   });
 
@@ -212,12 +217,15 @@ describeDb("release persistence constraints", () => {
            ('release_publication_items', 'item_title'),
            ('release_publication_items', 'status_name'),
            ('release_publication_items', 'destination_release_name'),
-           ('release_events', 'release_name')
+           ('release_events', 'actor_label'),
+           ('release_events', 'release_name'),
+           ('releases', 'driver_id')
          )
        order by table_name, column_name`,
     );
 
     expect(result.rows).toEqual([
+      { table_name: "release_events", column_name: "actor_label" },
       { table_name: "release_events", column_name: "release_name" },
       { table_name: "release_publication_items", column_name: "destination_release_name" },
       { table_name: "release_publication_items", column_name: "item_key" },
@@ -226,6 +234,7 @@ describeDb("release persistence constraints", () => {
       { table_name: "release_publications", column_name: "destination_release_name" },
       { table_name: "release_publications", column_name: "release_name" },
       { table_name: "releases", column_name: "archived_at" },
+      { table_name: "releases", column_name: "driver_id" },
     ]);
   });
 
@@ -289,8 +298,8 @@ describeDb("release persistence constraints", () => {
       );
       await client.query(
         `insert into release_events
-          (backlog_id, release_id, publication_id, release_name, actor_id, action)
-         values ($1, $2, $3, '3.0', $4, 'published')`,
+          (backlog_id, release_id, publication_id, release_name, actor_id, actor_label, action)
+         values ($1, $2, $3, '3.0', $4, 'Historical actor', 'release_published')`,
         [backlogId, releaseId, publicationId, actor],
       );
 

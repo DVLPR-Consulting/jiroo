@@ -186,6 +186,7 @@ export const releases = pgTable(
     releaseDate: date("release_date", { mode: "string" }),
     revision: integer("revision").notNull().default(1),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
+    driverId: text("driver_id").references(() => user.id, { onDelete: "set null" }),
     createdBy: text("created_by")
       .notNull()
       .references(() => user.id),
@@ -337,6 +338,7 @@ export const releaseEvents = pgTable(
     publicationId: uuid("publication_id"),
     releaseName: text("release_name").notNull(),
     actorId: text("actor_id").references(() => user.id, { onDelete: "set null" }),
+    actorLabel: text("actor_label").notNull(),
     action: text("action").notNull(),
     oldValue: jsonb("old_value"),
     newValue: jsonb("new_value"),

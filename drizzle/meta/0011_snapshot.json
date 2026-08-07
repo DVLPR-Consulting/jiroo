@@ -1,5 +1,5 @@
 {
-  "id": "5c597370-0bff-4119-8837-684f12935c80",
+  "id": "140b25cc-39f4-4f0e-8f5b-0f1961790ab3",
   "prevId": "e40250ec-e5e5-4f37-b8a3-a65a089d2033",
   "version": "7",
   "dialect": "postgresql",
@@ -2406,6 +2406,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "actor_label": {
+          "name": "actor_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "action": {
           "name": "action",
           "type": "text",
@@ -2976,6 +2982,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "driver_id": {
+          "name": "driver_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_by": {
           "name": "created_by",
           "type": "text",
@@ -3053,6 +3065,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "releases_driver_id_user_id_fk": {
+          "name": "releases_driver_id_user_id_fk",
+          "tableFrom": "releases",
+          "tableTo": "user",
+          "columnsFrom": [
+            "driver_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "releases_created_by_user_id_fk": {

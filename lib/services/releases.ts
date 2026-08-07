@@ -22,6 +22,10 @@ import {
   releases,
   statuses,
 } from "@/lib/db/schema/domain";
+import {
+  createReleaseSchema,
+  updateReleaseSchema,
+} from "@/lib/validation/release";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -83,7 +87,7 @@ export type PublicationSnapshotItem = {
 export type ReleaseEvent = {
   id: string;
   releaseName: string;
-  actor: { id: string; name: string } | null;
+  actor: { id: string | null; name: string };
   action: string;
   oldValue: unknown;
   newValue: unknown;
@@ -93,40 +97,6 @@ export type ReleaseEvent = {
 
 type Page<T> = { rows: T[]; total: number };
 
-const date = z.preprocess(
-  (value) => (value === "" || value == null ? null : value),
-  z.iso.date().nullable(),
-);
-const name = z.string().trim().min(1).max(255);
-const description = z.string().trim().max(20_000).nullable().optional();
-const createReleaseCommand = z.object({
-  backlogId: z.uuid(),
-  name,
-  description,
-  driverId: z.string().trim().min(1),
-  startDate: date.optional(),
-  targetDate: date.optional(),
-});
-const updateReleaseCommand = z
-  .object({
-    backlogId: z.uuid(),
-    releaseId: z.uuid(),
-    expectedRevision: z.number().int().positive(),
-    name: name.optional(),
-    description,
-    driverId: z.string().trim().min(1).optional(),
-    startDate: date.optional(),
-    targetDate: date.optional(),
-  })
-  .refine(
-    (value) =>
-      value.name !== undefined ||
-      value.description !== undefined ||
-      value.driverId !== undefined ||
-      value.startDate !== undefined ||
-      value.targetDate !== undefined,
-    { message: "Aucune modification fournie." },
-  );
 const pageCommand = z.object({
   backlogId: z.uuid(),
   page: z.number().int().min(1),
@@ -198,9 +168,9 @@ function assertDateOrder(startDate: string | null, targetDate: string | null) {
 function eventSnapshot(
   release: Pick<
     typeof releases.$inferSelect,
-    "name" | "description" | "createdBy" | "startDate" | "releaseDate" | "revision"
+    "name" | "description" | "driverId" | "startDate" | "releaseDate" | "revision"
   >,
-  driver: { id: string; name: string },
+  driver: { id: string; name: string } | null,
 ) {
   return {
     name: release.name,
@@ -218,14 +188,19 @@ async function appendReleaseEvent(
     backlogId: string;
     releaseId: string;
     releaseName: string;
-    actorId: string;
+    actor: { id: string; name: string };
     action: string;
     oldValue: unknown;
     newValue: unknown;
     requestCorrelationId: string;
   },
 ) {
-  await tx.insert(releaseEvents).values(event);
+  const { actor, ...values } = event;
+  await tx.insert(releaseEvents).values({
+    ...values,
+    actorId: actor.id,
+    actorLabel: actor.name,
+  });
 }
 
 export async function createRelease(
@@ -233,7 +208,7 @@ export async function createRelease(
   actorId: string,
   requestCorrelationId: string,
 ): Promise<{ id: string; revision: number }> {
-  const data = createReleaseCommand.parse(input);
+  const data = createReleaseSchema.parse(input);
   const startDate = data.startDate ?? null;
   const targetDate = data.targetDate ?? null;
   assertDateOrder(startDate, targetDate);
@@ -249,7 +224,8 @@ export async function createRelease(
         backlogId: data.backlogId,
         name: data.name,
         description: data.description ?? null,
-        createdBy: driver.id,
+        driverId: driver.id,
+        createdBy: actor.id,
         startDate,
         releaseDate: targetDate,
       })
@@ -259,8 +235,8 @@ export async function createRelease(
       backlogId: data.backlogId,
       releaseId: created.id,
       releaseName: created.name,
-      actorId: actor.id,
-      action: "created",
+      actor,
+      action: "release_created",
       oldValue: null,
       newValue: eventSnapshot(created, driver),
       requestCorrelationId,
@@ -274,7 +250,7 @@ export async function updateRelease(
   actorId: string,
   requestCorrelationId: string,
 ): Promise<{ id: string; revision: number }> {
-  const data = updateReleaseCommand.parse(input);
+  const data = updateReleaseSchema.parse(input);
   return db.transaction(async (tx) => {
     await lockBacklog(tx, data.backlogId);
     const current = await lockRelease(tx, data.backlogId, data.releaseId);
@@ -282,11 +258,16 @@ export async function updateRelease(
       throw new Error("Cette release a changé. Rechargez-la avant de réessayer.");
     }
     const actor = await readUser(tx, actorId, "Acteur");
-    const currentDriver = await readUser(tx, current.createdBy, "Pilote");
+    const currentDriver =
+      current.driverId === null ? null : await readUser(tx, current.driverId, "Pilote");
     const driver =
-      data.driverId === undefined || data.driverId === current.createdBy
+      data.driverId === undefined
         ? currentDriver
-        : await readUser(tx, data.driverId, "Pilote");
+        : data.driverId === null
+          ? null
+          : data.driverId === current.driverId
+            ? currentDriver
+            : await readUser(tx, data.driverId, "Pilote");
     const startDate = data.startDate === undefined ? current.startDate : data.startDate;
     const targetDate = data.targetDate === undefined ? current.releaseDate : data.targetDate;
     assertDateOrder(startDate, targetDate);
@@ -299,7 +280,7 @@ export async function updateRelease(
       .set({
         name: data.name ?? current.name,
         description: data.description === undefined ? current.description : data.description,
-        createdBy: driver.id,
+        driverId: driver?.id ?? null,
         startDate,
         releaseDate: targetDate,
         revision: current.revision + 1,
@@ -312,8 +293,8 @@ export async function updateRelease(
       backlogId: data.backlogId,
       releaseId: updated.id,
       releaseName: updated.name,
-      actorId: actor.id,
-      action: "updated",
+      actor,
+      action: "release_updated",
       oldValue: eventSnapshot(current, currentDriver),
       newValue: eventSnapshot(updated, driver),
       requestCorrelationId,
@@ -404,7 +385,7 @@ function releaseSummaryQuery(
       updatedAt: releases.updatedAt,
     })
     .from(releases)
-    .leftJoin(user, eq(user.id, releases.createdBy))
+    .leftJoin(user, eq(user.id, releases.driverId))
     .leftJoin(progress, eq(progress.releaseId, releases.id))
     .leftJoin(publication, eq(publication.releaseId, releases.id))
     .where(
@@ -581,7 +562,7 @@ export async function listReleaseEvents(input: unknown): Promise<Page<ReleaseEve
         id: releaseEvents.id,
         releaseName: releaseEvents.releaseName,
         actorId: releaseEvents.actorId,
-        actorName: user.name,
+        actorLabel: releaseEvents.actorLabel,
         action: releaseEvents.action,
         oldValue: releaseEvents.oldValue,
         newValue: releaseEvents.newValue,
@@ -589,7 +570,6 @@ export async function listReleaseEvents(input: unknown): Promise<Page<ReleaseEve
         createdAt: releaseEvents.createdAt,
       })
       .from(releaseEvents)
-      .leftJoin(user, eq(user.id, releaseEvents.actorId))
       .where(where)
       .orderBy(desc(releaseEvents.createdAt), desc(releaseEvents.id))
       .limit(data.pageSize)
@@ -601,7 +581,7 @@ export async function listReleaseEvents(input: unknown): Promise<Page<ReleaseEve
     rows: rows.map((row) => ({
       id: row.id,
       releaseName: row.releaseName,
-      actor: row.actorId && row.actorName ? { id: row.actorId, name: row.actorName } : null,
+      actor: { id: row.actorId, name: row.actorLabel },
       action: row.action,
       oldValue: row.oldValue,
       newValue: row.newValue,
