@@ -2,7 +2,11 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/app/actions/releases", () => ({
+  archiveReleaseAction: vi.fn(),
   createReleaseAction: vi.fn(),
+  publishReleaseAction: vi.fn(),
+  unarchiveReleaseAction: vi.fn(),
+  unreleaseReleaseAction: vi.fn(),
   updateReleaseAction: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
@@ -17,6 +21,7 @@ const baseProps = {
     name: "Cassini",
   },
   releases: [],
+  showArchived: false,
   actor: { id: "actor-1", name: "Ada" },
   driverOptions: [] as Array<{ id: string; name: string }>,
   canBrowseUsers: false,
@@ -40,6 +45,8 @@ describe("ReleaseList", () => {
     expect(screen.getByText(/planifier les livraisons/i)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Créer une version" }))
       .not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Afficher les versions archivées" }))
+      .toHaveAttribute("href", "/b/CASS/releases?archived=1");
   });
 
   it("offers creation from the empty state only to a release manager", () => {
@@ -135,6 +142,7 @@ describe("ReleaseList", () => {
     expect(archived).toHaveTextContent("1 sept. 2026");
     expect(archived).toHaveTextContent("30 sept. 2026");
     expect(archived).toHaveTextContent("3 terminés sur 6");
+    expect(archived).toHaveTextContent("3 éléments non terminés");
     expect(archived).toHaveTextContent("8 / 13 points");
     expect(archived).toHaveTextContent("1 non estimé");
 
@@ -147,5 +155,38 @@ describe("ReleaseList", () => {
       "href",
       "/b/CASS/releases/22222222-2222-4222-8222-222222222222",
     );
+  });
+
+  it("offers a URL-backed archived toggle and a complete manager action menu", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    render(
+      <ReleaseList
+        {...baseProps}
+        showArchived
+        capabilities={{ ...baseProps.capabilities, manage: true, assignItems: true }}
+        releases={[{
+          id: "44444444-4444-4444-8444-444444444444",
+          name: "Version active",
+          description: null,
+          driver: null,
+          startDate: null,
+          targetDate: null,
+          effectiveReleaseDate: null,
+          released: false,
+          archived: false,
+          overdue: false,
+          revision: 1,
+          progress: { total: 0, todo: 0, inProgress: 0, done: 0, totalPoints: 0, donePoints: 0, unestimated: 0 },
+        }]}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Masquer les versions archivées" }))
+      .toHaveAttribute("href", "/b/CASS/releases");
+    expect(screen.getByText("Actions pour Version active")).toBeVisible();
+    await user.click(screen.getByText("Actions pour Version active"));
+    expect(screen.getByRole("button", { name: "Modifier Version active" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Publier Version active" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Archiver Version active" })).toBeVisible();
   });
 });

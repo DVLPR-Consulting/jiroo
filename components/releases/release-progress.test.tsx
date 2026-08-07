@@ -22,6 +22,7 @@ describe("ReleaseProgress", () => {
           inProgress: ["doing-1"],
           done: ["done-1"],
         }}
+        detailHref="/b/CASS/releases/22222222-2222-4222-8222-222222222222"
       />,
     );
 
@@ -39,6 +40,18 @@ describe("ReleaseProgress", () => {
     expect(screen.getByRole("link", { name: "Terminés : 3" })).toHaveAttribute(
       "href",
       "/b/CASS?view=list&version=22222222-2222-4222-8222-222222222222&status=done-1",
+    );
+    expect(screen.getByRole("link", { name: "3 terminés sur 6" })).toHaveAttribute(
+      "href",
+      "/b/CASS/releases/22222222-2222-4222-8222-222222222222",
+    );
+    expect(screen.getByRole("link", { name: "8 / 13 points" })).toHaveAttribute(
+      "href",
+      "/b/CASS/releases/22222222-2222-4222-8222-222222222222?scopeEstimate=estimated",
+    );
+    expect(screen.getByRole("link", { name: "1 non estimé" })).toHaveAttribute(
+      "href",
+      "/b/CASS/releases/22222222-2222-4222-8222-222222222222?scopeEstimate=unestimated",
     );
   });
 

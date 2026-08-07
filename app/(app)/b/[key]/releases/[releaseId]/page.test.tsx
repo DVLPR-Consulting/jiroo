@@ -203,6 +203,8 @@ describe("release detail route", () => {
       params: Promise.resolve({ key: "cass", releaseId }),
       searchParams: Promise.resolve({
         scopePage: "2",
+        scopeStatus: "in_progress",
+        scopeEstimate: "unestimated",
         eventPage: "3",
         snapshot: publicationId,
         snapshotPage: "4",
@@ -210,7 +212,12 @@ describe("release detail route", () => {
     }));
 
     expect(mocks.listReleaseScopeItems).toHaveBeenCalledWith({
-      backlogId, releaseId, page: 2, pageSize: 20,
+      backlogId,
+      releaseId,
+      page: 2,
+      pageSize: 20,
+      statusCategory: "in_progress",
+      estimate: "unestimated",
     });
     expect(mocks.listReleaseEvents).toHaveBeenCalledWith({
       backlogId, releaseId, page: 3, pageSize: 20,
@@ -219,6 +226,25 @@ describe("release detail route", () => {
     expect(mocks.listPublicationSnapshotItems).toHaveBeenCalledWith({
       backlogId, publicationId, page: 4, pageSize: 20,
     });
+  });
+
+  it("ignores invalid scope filters", async () => {
+    render(await ReleaseDetailPage({
+      params: Promise.resolve({ key: "CASS", releaseId }),
+      searchParams: Promise.resolve({ scopeStatus: "secret", scopeEstimate: "huge" }),
+    }));
+
+    expect(mocks.listReleaseScopeItems).toHaveBeenCalledWith({
+      backlogId,
+      releaseId,
+      page: 1,
+      pageSize: 20,
+      statusCategory: null,
+      estimate: null,
+    });
+    expect(mocks.detailProps).toHaveBeenCalledWith(
+      expect.objectContaining({ scopeFilters: { statusCategory: null, estimate: null } }),
+    );
   });
 
   it("ignores a forged snapshot ID and loads the latest visible publication once", async () => {

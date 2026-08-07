@@ -125,7 +125,11 @@ const pageCommand = z.object({
     .min(1)
     .max(100, "La taille de page ne peut pas dépasser 100."),
 });
-const releasePageCommand = pageCommand.extend({ releaseId: z.uuid() });
+const releasePageCommand = pageCommand.extend({
+  releaseId: z.uuid(),
+  statusCategory: z.enum(["todo", "in_progress", "done"]).nullable().optional(),
+  estimate: z.enum(["estimated", "unestimated"]).nullable().optional(),
+});
 const publicationPageCommand = pageCommand.extend({ publicationId: z.uuid() });
 const publicationSelectionCommand = z.object({
   backlogId: z.uuid(),
@@ -937,6 +941,9 @@ export async function listReleaseScopeItems(input: unknown): Promise<Page<Releas
     eq(itemFixVersions.backlogId, data.backlogId),
     eq(itemFixVersions.releaseId, data.releaseId),
     isNull(items.deletedAt),
+    data.statusCategory ? eq(statuses.category, data.statusCategory) : undefined,
+    data.estimate === "estimated" ? isNotNull(items.estimatePoints) : undefined,
+    data.estimate === "unestimated" ? isNull(items.estimatePoints) : undefined,
   );
   const [rows, totalRows] = await Promise.all([
     db
@@ -977,6 +984,10 @@ export async function listReleaseScopeItems(input: unknown): Promise<Page<Releas
           eq(items.id, itemFixVersions.itemId),
           eq(items.backlogId, itemFixVersions.backlogId),
         ),
+      )
+      .innerJoin(
+        statuses,
+        and(eq(statuses.id, items.statusId), eq(statuses.backlogId, items.backlogId)),
       )
       .where(where),
   ]);

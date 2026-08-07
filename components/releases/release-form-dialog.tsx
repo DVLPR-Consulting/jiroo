@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/lib/toast";
 import type { ReleaseSummary } from "@/lib/services/releases";
 import type { ReleasePersonOption } from "@/components/releases/release-list";
 
@@ -54,6 +55,8 @@ type FieldsProps = SharedProps & {
   setDriverId: (value: string) => void;
   fixedDriverName: string;
   targetDateRef: React.RefObject<HTMLInputElement | null>;
+  nameRef: React.RefObject<HTMLInputElement | null>;
+  fieldErrors: Partial<Record<"name" | "targetDate", string[]>>;
 };
 
 function ReleaseFields({
@@ -74,19 +77,29 @@ function ReleaseFields({
   startDate,
   targetDate,
   targetDateRef,
+  nameRef,
+  fieldErrors,
 }: FieldsProps) {
   return (
     <>
       <div className="space-y-2">
         <Label htmlFor={`${prefix}-name`}>Nom</Label>
         <Input
+          ref={nameRef}
           id={`${prefix}-name`}
           required
           autoFocus
           maxLength={255}
           value={name}
           onChange={(event) => setName(event.target.value)}
+          aria-invalid={fieldErrors.name ? true : undefined}
+          aria-describedby={fieldErrors.name ? `${prefix}-name-error` : undefined}
         />
+        {fieldErrors.name ? (
+          <p id={`${prefix}-name-error`} className="text-sm text-destructive">
+            {fieldErrors.name[0]}
+          </p>
+        ) : null}
       </div>
       <div className="space-y-2">
         <Label htmlFor={`${prefix}-description`}>Description</Label>
@@ -116,7 +129,14 @@ function ReleaseFields({
             type="date"
             value={targetDate}
             onChange={(event) => setTargetDate(event.target.value)}
+            aria-invalid={fieldErrors.targetDate ? true : undefined}
+            aria-describedby={fieldErrors.targetDate ? `${prefix}-target-error` : undefined}
           />
+          {fieldErrors.targetDate ? (
+            <p id={`${prefix}-target-error`} className="text-sm text-destructive">
+              {fieldErrors.targetDate[0]}
+            </p>
+          ) : null}
         </div>
       </div>
       <div className="space-y-2">
@@ -147,6 +167,14 @@ function invalidDateOrder(startDate: string, targetDate: string) {
   return Boolean(startDate && targetDate && targetDate < startDate);
 }
 
+function releaseFieldErrors(result: { fieldErrors?: unknown }) {
+  const raw = result.fieldErrors as Record<string, string[] | undefined> | undefined;
+  return {
+    ...(raw?.name ? { name: raw.name } : {}),
+    ...(raw?.targetDate ? { targetDate: raw.targetDate } : {}),
+  };
+}
+
 export function CreateReleaseDialog({
   backlog,
   actor,
@@ -156,6 +184,7 @@ export function CreateReleaseDialog({
 }: SharedProps & { trigger?: ReactNode }) {
   const router = useRouter();
   const prefix = useId();
+  const nameRef = useRef<HTMLInputElement>(null);
   const targetDateRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -165,6 +194,7 @@ export function CreateReleaseDialog({
   const [targetDate, setTargetDate] = useState("");
   const [driverId, setDriverId] = useState(actor.id);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<"name" | "targetDate", string[]>>>({});
 
   function reset() {
     setName("");
@@ -173,16 +203,19 @@ export function CreateReleaseDialog({
     setTargetDate("");
     setDriverId(actor.id);
     setError(null);
+    setFieldErrors({});
   }
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     if (invalidDateOrder(startDate, targetDate)) {
       setError("La date cible doit suivre la date de début.");
+      setFieldErrors({ targetDate: ["La date cible doit suivre la date de début."] });
       targetDateRef.current?.focus();
       return;
     }
     setError(null);
+    setFieldErrors({});
     startTransition(async () => {
       try {
         const result = await createReleaseAction({
@@ -196,10 +229,15 @@ export function CreateReleaseDialog({
         });
         if (!result.ok) {
           setError(result.error);
+          const nextFieldErrors = releaseFieldErrors(result);
+          setFieldErrors(nextFieldErrors);
+          if (nextFieldErrors.name) nameRef.current?.focus();
+          else if (nextFieldErrors.targetDate) targetDateRef.current?.focus();
           return;
         }
         reset();
         setOpen(false);
+        toast.success("Release créée.");
         router.refresh();
       } catch {
         setError("Création de release impossible.");
@@ -237,6 +275,8 @@ export function CreateReleaseDialog({
             setDriverId={setDriverId}
             fixedDriverName={actor.name}
             targetDateRef={targetDateRef}
+            nameRef={nameRef}
+            fieldErrors={fieldErrors}
           />
           <DialogFooter>
             <Button type="submit" disabled={pending || !name.trim()} aria-busy={pending || undefined}>
@@ -264,6 +304,7 @@ function EditReleaseDialogState({
 }: EditReleaseDialogProps) {
   const router = useRouter();
   const prefix = useId();
+  const nameRef = useRef<HTMLInputElement>(null);
   const targetDateRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -273,6 +314,7 @@ function EditReleaseDialogState({
   const [targetDate, setTargetDate] = useState(release.targetDate ?? "");
   const [driverId, setDriverId] = useState(release.driver?.id ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<"name" | "targetDate", string[]>>>({});
   const stale = error?.includes("a changé") === true;
 
   function reset() {
@@ -282,16 +324,19 @@ function EditReleaseDialogState({
     setTargetDate(release.targetDate ?? "");
     setDriverId(release.driver?.id ?? "");
     setError(null);
+    setFieldErrors({});
   }
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     if (invalidDateOrder(startDate, targetDate)) {
       setError("La date cible doit suivre la date de début.");
+      setFieldErrors({ targetDate: ["La date cible doit suivre la date de début."] });
       targetDateRef.current?.focus();
       return;
     }
     setError(null);
+    setFieldErrors({});
     startTransition(async () => {
       try {
         const result = await updateReleaseAction({
@@ -307,10 +352,15 @@ function EditReleaseDialogState({
         });
         if (!result.ok) {
           setError(result.error);
+          const nextFieldErrors = releaseFieldErrors(result);
+          setFieldErrors(nextFieldErrors);
+          if (nextFieldErrors.name) nameRef.current?.focus();
+          else if (nextFieldErrors.targetDate) targetDateRef.current?.focus();
           return;
         }
         reset();
         setOpen(false);
+        toast.success("Release mise à jour.");
         router.refresh();
       } catch {
         setError("Mise à jour de release impossible.");
@@ -348,6 +398,8 @@ function EditReleaseDialogState({
             setDriverId={setDriverId}
             fixedDriverName={release.driver?.name ?? actor.name}
             targetDateRef={targetDateRef}
+            nameRef={nameRef}
+            fieldErrors={fieldErrors}
           />
           <DialogFooter>
             {stale ? (

@@ -533,6 +533,31 @@ describeDb("release metadata and read models", () => {
     });
     expect(secondPage.rows.map((row) => row.title)).toEqual(["Troisième"]);
 
+    const inProgressUnestimated = await listReleaseScopeItems({
+      backlogId: backlog.id,
+      releaseId: created.id,
+      page: 1,
+      pageSize: 20,
+      statusCategory: "in_progress",
+      estimate: "unestimated",
+    });
+    expect(inProgressUnestimated).toMatchObject({
+      total: 1,
+      rows: [{ title: "Deuxième", estimatePoints: null, status: { category: "in_progress" } }],
+    });
+    const doneEstimated = await listReleaseScopeItems({
+      backlogId: backlog.id,
+      releaseId: created.id,
+      page: 1,
+      pageSize: 20,
+      statusCategory: "done",
+      estimate: "estimated",
+    });
+    expect(doneEstimated).toMatchObject({
+      total: 1,
+      rows: [{ title: "Troisième", estimatePoints: 5, status: { category: "done" } }],
+    });
+
     const eventPage = await listReleaseEvents({
       backlogId: backlog.id,
       releaseId: created.id,

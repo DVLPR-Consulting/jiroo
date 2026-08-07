@@ -26,6 +26,7 @@ const release = {
   revision: 4,
   released: false,
   archived: false,
+  progress: { todo: 2, inProgress: 1 },
 };
 const destinations = [
   { id: "33333333-3333-4333-8333-333333333333", name: "Version 2" },
@@ -50,6 +51,31 @@ describe("release lifecycle dialogs", () => {
     expect(screen.getByRole("radio", { name: /conserver/i })).not.toBeChecked();
     expect(screen.getByRole("radio", { name: /déplacer/i })).not.toBeChecked();
     expect(screen.getByRole("button", { name: "Publier" })).toBeDisabled();
+    expect(screen.getByText(/3 éléments non terminés/i)).toBeVisible();
+    expect(screen.getByText(/terminé signifie que le statut appartient à la catégorie/i)).toBeVisible();
+  });
+
+  it("uses an automatic keep disposition when there is no incomplete work", async () => {
+    const user = userEvent.setup();
+    mocks.publishReleaseAction.mockResolvedValueOnce({ ok: true, result: {} });
+    render(
+      <ReleaseLifecycleDialogs
+        backlog={backlog}
+        release={{ ...release, progress: { todo: 0, inProgress: 0 } }}
+        destinations={destinations}
+        canAssignItems
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Publier Version 1" }));
+
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+    expect(screen.getByText(/aucun élément non terminé/i)).toBeVisible();
+    await user.type(screen.getByLabelText("Date de publication"), "2026-10-01");
+    await user.click(screen.getByRole("button", { name: "Publier" }));
+
+    await waitFor(() => expect(mocks.publishReleaseAction).toHaveBeenCalledWith(
+      expect.objectContaining({ incompleteDisposition: "keep" }),
+    ));
   });
 
   it("keeps the keep disposition but hides move without assignItems", async () => {

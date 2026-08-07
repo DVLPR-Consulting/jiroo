@@ -57,9 +57,15 @@ function safeReleaseError(error: unknown, fallback: string) {
   const validation = mapZodActionError(error);
   if (validation) return { ok: false as const, ...validation };
   const message = error instanceof Error ? error.message : "";
+  const fieldErrors = message === "Une release portant ce nom existe déjà."
+    ? { name: [message] }
+    : message === "La date cible doit suivre la date de début."
+      ? { targetDate: [message] }
+      : undefined;
   return {
     ok: false as const,
     error: RELEASE_DOMAIN_ERRORS.has(message) ? message : fallback,
+    ...(fieldErrors ? { fieldErrors } : {}),
   };
 }
 

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/lib/toast";
 
 const SELECT =
   "h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -31,6 +32,7 @@ type LifecycleRelease = {
   revision: number;
   released: boolean;
   archived: boolean;
+  progress: { todo: number; inProgress: number };
 };
 type Destination = { id: string; name: string };
 type RevisionAction = "archive" | "unarchive" | "unrelease";
@@ -48,16 +50,18 @@ function PublishDialog({
 }) {
   const router = useRouter();
   const prefix = useId();
+  const incompleteCount = release.progress.todo + release.progress.inProgress;
+  const defaultDisposition = incompleteCount === 0 ? "keep" : "";
   const [open, setOpen] = useState(false);
   const [effectiveDate, setEffectiveDate] = useState("");
-  const [disposition, setDisposition] = useState<"" | "keep" | "move">("");
+  const [disposition, setDisposition] = useState<"" | "keep" | "move">(defaultDisposition);
   const [destinationReleaseId, setDestinationReleaseId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function reset() {
     setEffectiveDate("");
-    setDisposition("");
+    setDisposition(defaultDisposition);
     setDestinationReleaseId("");
     setError(null);
   }
@@ -85,6 +89,7 @@ function PublishDialog({
         }
         reset();
         setOpen(false);
+        toast.success("Release publiée.");
         router.refresh();
       } catch {
         setError("Publication impossible.");
@@ -115,7 +120,9 @@ function PublishDialog({
         <DialogHeader>
           <DialogTitle>Publier {release.name}</DialogTitle>
           <DialogDescription>
-            Choisissez la date et le traitement des éléments non terminés.
+            {incompleteCount === 0
+              ? "Aucun élément non terminé : le périmètre sera conservé."
+              : `Choisissez le traitement de ${incompleteCount} éléments non terminés.`}
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
@@ -135,7 +142,7 @@ function PublishDialog({
               onChange={(event) => setEffectiveDate(event.target.value)}
             />
           </div>
-          <fieldset className="space-y-2">
+          {incompleteCount > 0 ? <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Éléments non terminés</legend>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -146,6 +153,7 @@ function PublishDialog({
                 onChange={() => setDisposition("keep")}
               />
               Conserver dans cette version
+              <span className="text-muted-foreground">Ils resteront associés après publication.</span>
             </label>
             {canAssignItems ? (
               <label className="flex items-center gap-2 text-sm">
@@ -157,10 +165,14 @@ function PublishDialog({
                   onChange={() => setDisposition("move")}
                 />
                 Déplacer vers une autre version
+                <span className="text-muted-foreground">Ils quitteront cette release.</span>
               </label>
             ) : null}
-          </fieldset>
-          {canAssignItems && disposition === "move" ? (
+          </fieldset> : null}
+          <p className="text-sm text-muted-foreground">
+            Terminé signifie que le statut appartient à la catégorie « Done » du workflow.
+          </p>
+          {incompleteCount > 0 && canAssignItems && disposition === "move" ? (
             <div className="space-y-2">
               <Label htmlFor={`${prefix}-destination`}>Version de destination</Label>
               <select
@@ -193,6 +205,7 @@ const REVISION_COPY: Record<RevisionAction, {
   description: string;
   confirm: string;
   fallback: string;
+  success: string;
 }> = {
   archive: {
     trigger: "Archiver",
@@ -200,6 +213,7 @@ const REVISION_COPY: Record<RevisionAction, {
     description: "La version restera consultable et pourra être désarchivée.",
     confirm: "Confirmer l’archivage",
     fallback: "Archivage impossible.",
+    success: "Release archivée.",
   },
   unarchive: {
     trigger: "Désarchiver",
@@ -207,6 +221,7 @@ const REVISION_COPY: Record<RevisionAction, {
     description: "La version redeviendra active.",
     confirm: "Confirmer le désarchivage",
     fallback: "Désarchivage impossible.",
+    success: "Release désarchivée.",
   },
   unrelease: {
     trigger: "Annuler la publication",
@@ -214,6 +229,7 @@ const REVISION_COPY: Record<RevisionAction, {
     description: "L’instantané publié reste dans l’historique de la version.",
     confirm: "Confirmer l’annulation",
     fallback: "Dépublication impossible.",
+    success: "Publication annulée.",
   },
 };
 
@@ -252,6 +268,7 @@ function RevisionActionDialog({
           return;
         }
         setOpen(false);
+        toast.success(copy.success);
         router.refresh();
       } catch {
         setError(copy.fallback);

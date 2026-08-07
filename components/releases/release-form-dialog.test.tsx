@@ -9,6 +9,7 @@ import {
 const mocks = vi.hoisted(() => ({
   createReleaseAction: vi.fn(),
   refresh: vi.fn(),
+  toastSuccess: vi.fn(),
   updateReleaseAction: vi.fn(),
 }));
 
@@ -19,6 +20,7 @@ vi.mock("@/app/actions/releases", () => ({
   createReleaseAction: mocks.createReleaseAction,
   updateReleaseAction: mocks.updateReleaseAction,
 }));
+vi.mock("@/lib/toast", () => ({ toast: { success: mocks.toastSuccess } }));
 
 const backlog = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -196,6 +198,31 @@ describe("release form dialogs", () => {
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
+  it("links a server name error to its field and focuses it", async () => {
+    const user = userEvent.setup();
+    mocks.createReleaseAction.mockResolvedValueOnce({
+      ok: false,
+      error: "Une release portant ce nom existe déjà.",
+      fieldErrors: { name: ["Une release portant ce nom existe déjà."] },
+    });
+    render(
+      <CreateReleaseDialog
+        backlog={backlog}
+        actor={actor}
+        driverOptions={driverOptions}
+        canBrowseUsers
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Créer une version" }));
+    const name = screen.getByRole("textbox", { name: "Nom" });
+    await user.type(name, "Version doublon");
+    await user.click(screen.getByRole("button", { name: "Créer" }));
+
+    await waitFor(() => expect(name).toHaveFocus());
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(name).toHaveAccessibleDescription("Une release portant ce nom existe déjà.");
+  });
+
   it("shows the actor as fixed driver without exposing a directory picker", async () => {
     const user = userEvent.setup();
     mocks.createReleaseAction.mockResolvedValueOnce({ ok: true, result: { id: release.id } });
@@ -229,6 +256,7 @@ describe("release form dialogs", () => {
     await user.type(screen.getByRole("textbox", { name: "Nom" }), "Version créée");
     await user.click(screen.getByRole("button", { name: "Créer" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Release créée.");
 
     await user.click(trigger);
     expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("");

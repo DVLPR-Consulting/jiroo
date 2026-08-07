@@ -13,10 +13,13 @@ import { listStatusIdsByCategory } from "@/lib/services/statuses";
 
 export default async function ReleasesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ key: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { key } = await params;
+  const [{ key }, query = {}] = await Promise.all([params, searchParams]);
+  const showArchived = query.archived === "1";
   const session = await requireAppPageSession();
   const backlog = await getBacklogByKeyForUser(key, session.user.id);
   if (!backlog || backlog.archivedAt) notFound();
@@ -32,7 +35,7 @@ export default async function ReleasesPage({
       })
     : { allowed: false };
   const [releases, rawDriverOptions, statusIds] = await Promise.all([
-    listReleaseSummaries(backlog.id, { includeArchived: true }),
+    listReleaseSummaries(backlog.id, { includeArchived: showArchived }),
     browseUsersDecision.allowed ? listUsers() : Promise.resolve([]),
     listStatusIdsByCategory(backlog.id),
   ]);
@@ -40,7 +43,7 @@ export default async function ReleasesPage({
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6 lg:p-8">
       <header>
-        <h1 className="t-h1">Versions — {backlog.name}</h1>
+        <h1 className="t-h1">Releases — {backlog.name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Planifiez les livraisons et suivez leur progression.
         </p>
@@ -52,6 +55,7 @@ export default async function ReleasesPage({
         capabilities={capabilities}
         driverOptions={rawDriverOptions.map(({ id, name }) => ({ id, name }))}
         releases={releases}
+        showArchived={showArchived}
         statusIds={statusIds}
       />
     </div>

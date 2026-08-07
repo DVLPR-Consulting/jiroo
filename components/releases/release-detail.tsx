@@ -81,6 +81,7 @@ export function ReleaseDetail({
   scope,
   events,
   snapshot,
+  scopeFilters,
 }: {
   backlog: { id: string; key: string; name: string };
   release: SerializableRelease;
@@ -93,6 +94,10 @@ export function ReleaseDetail({
   scope: Page<ReleaseScopeItem>;
   events: Page<SafeReleaseEvent>;
   snapshot: (Page<PublicationSnapshotItem> & { publicationId: string }) | null;
+  scopeFilters: {
+    statusCategory: "todo" | "in_progress" | "done" | null;
+    estimate: "estimated" | "unestimated" | null;
+  };
 }) {
   const path = `/b/${backlog.key}/releases/${release.id}`;
   const dateFormat = new Intl.DateTimeFormat("fr-FR", {
@@ -113,6 +118,23 @@ export function ReleaseDetail({
         snapshotPage: String(snapshot.page),
       }
     : {};
+  const scopeFilterState: Record<string, string> = {
+    ...(scopeFilters.statusCategory ? { scopeStatus: scopeFilters.statusCategory } : {}),
+    ...(scopeFilters.estimate ? { scopeEstimate: scopeFilters.estimate } : {}),
+  };
+  const scopeHref = (
+    statusCategory: typeof scopeFilters.statusCategory,
+    estimate: typeof scopeFilters.estimate,
+  ) => {
+    const query = new URLSearchParams({
+      ...(statusCategory ? { scopeStatus: statusCategory } : {}),
+      ...(estimate ? { scopeEstimate: estimate } : {}),
+      eventPage: String(events.page),
+      ...snapshotState,
+    });
+    return `${path}?${query.toString()}`;
+  };
+  const incompleteCount = release.progress.todo + release.progress.inProgress;
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 p-6 lg:p-8">
@@ -166,7 +188,16 @@ export function ReleaseDetail({
           releaseId={release.id}
           progress={release.progress}
           statusIds={statusIds}
+          detailHref={path}
         />
+        {incompleteCount > 0 && !release.released ? (
+          <p role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+            {incompleteCount} éléments non terminés seront concernés au moment de la publication.
+          </p>
+        ) : null}
+        <p className="text-sm text-muted-foreground">
+          Terminé signifie que le statut appartient à la catégorie « Done » du workflow.
+        </p>
       </header>
 
       <section role="region" aria-labelledby="current-scope-title" className="space-y-3">
@@ -174,6 +205,37 @@ export function ReleaseDetail({
         <p className="text-sm text-muted-foreground">
           Éléments actuellement associés à cette version.
         </p>
+        <nav aria-label="Filtrer le périmètre" className="flex flex-wrap gap-2 text-sm">
+          {([
+            [null, "Tous les statuts"],
+            ["todo", "À faire"],
+            ["in_progress", "En cours"],
+            ["done", "Terminés"],
+          ] as const).map(([value, label]) => (
+            <Link
+              key={label}
+              href={scopeHref(value, scopeFilters.estimate)}
+              aria-current={scopeFilters.statusCategory === value ? "page" : undefined}
+              className="rounded-full border px-2.5 py-1 aria-current:bg-muted"
+            >
+              {label}
+            </Link>
+          ))}
+          {([
+            [null, "Toutes les estimations"],
+            ["estimated", "Estimés"],
+            ["unestimated", "Non estimés"],
+          ] as const).map(([value, label]) => (
+            <Link
+              key={label}
+              href={scopeHref(scopeFilters.statusCategory, value)}
+              aria-current={scopeFilters.estimate === value ? "page" : undefined}
+              className="rounded-full border px-2.5 py-1 aria-current:bg-muted"
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
         {scope.rows.length === 0 ? (
           <p className="rounded-xl border p-4 text-sm text-muted-foreground">Aucun élément associé.</p>
         ) : (
@@ -196,7 +258,7 @@ export function ReleaseDetail({
           total={scope.total}
           pageParam="scopePage"
           path={path}
-          extra={{ eventPage: String(events.page), ...snapshotState }}
+          extra={{ eventPage: String(events.page), ...snapshotState, ...scopeFilterState }}
         />
       </section>
 
@@ -242,6 +304,7 @@ export function ReleaseDetail({
               snapshot: snapshot.publicationId,
               scopePage: String(scope.page),
               eventPage: String(events.page),
+              ...scopeFilterState,
             }}
           />
         ) : null}
@@ -264,6 +327,7 @@ export function ReleaseDetail({
                         snapshot: event.publicationId,
                         scopePage: String(scope.page),
                         eventPage: String(events.page),
+                        ...scopeFilterState,
                       }).toString()}`}
                     >
                       Voir l’instantané
@@ -282,7 +346,7 @@ export function ReleaseDetail({
           total={events.total}
           pageParam="eventPage"
           path={path}
-          extra={{ scopePage: String(scope.page), ...snapshotState }}
+          extra={{ scopePage: String(scope.page), ...snapshotState, ...scopeFilterState }}
         />
       </section>
     </div>

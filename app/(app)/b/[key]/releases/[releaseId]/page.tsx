@@ -29,6 +29,14 @@ function pageNumber(value: string | string[] | undefined) {
   return Number.isInteger(parsed) && parsed >= 1 ? parsed : 1;
 }
 
+function enumValue<T extends string>(
+  value: string | string[] | undefined,
+  values: readonly T[],
+): T | null {
+  const candidate = firstValue(value);
+  return candidate && values.includes(candidate as T) ? candidate as T : null;
+}
+
 export default async function ReleaseDetailPage({
   params,
   searchParams,
@@ -58,6 +66,8 @@ export default async function ReleaseDetailPage({
       })
     : { allowed: false };
   const scopePage = pageNumber(query.scopePage);
+  const scopeStatus = enumValue(query.scopeStatus, ["todo", "in_progress", "done"] as const);
+  const scopeEstimate = enumValue(query.scopeEstimate, ["estimated", "unestimated"] as const);
   const eventPage = pageNumber(query.eventPage);
   const requestedSnapshot = firstValue(query.snapshot);
   const preferredPublicationId = requestedSnapshot
@@ -77,6 +87,8 @@ export default async function ReleaseDetailPage({
       releaseId,
       page: scopePage,
       pageSize: PAGE_SIZE,
+      statusCategory: scopeStatus,
+      estimate: scopeEstimate,
     }),
     listReleaseEvents({
       backlogId: backlog.id,
@@ -127,6 +139,7 @@ export default async function ReleaseDetailPage({
         )
         .map(({ id, name }) => ({ id, name }))}
       scope={{ page: scopePage, total: scopeResult.total, rows: scopeResult.rows }}
+      scopeFilters={{ statusCategory: scopeStatus, estimate: scopeEstimate }}
       events={{
         page: eventPage,
         total: eventResult.total,

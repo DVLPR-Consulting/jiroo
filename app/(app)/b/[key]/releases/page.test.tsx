@@ -145,7 +145,14 @@ describe("releases list route", () => {
       },
     ]);
 
-    render(await ReleasesPage({ params: Promise.resolve({ key: "cass" }) }));
+    render(await ReleasesPage({
+      params: Promise.resolve({ key: "cass" }),
+      searchParams: Promise.resolve({}),
+    }));
+
+    expect(mocks.listReleaseSummaries).toHaveBeenCalledWith(backlog.id, {
+      includeArchived: false,
+    });
 
     expect(mocks.checkPermission).toHaveBeenCalledWith({
       actorId: "actor-1",
@@ -166,6 +173,7 @@ describe("releases list route", () => {
         { id: "driver-2", name: "Lin" },
       ],
       releases: expect.any(Array),
+      showArchived: false,
       statusIds: {
         todo: ["todo-1"],
         inProgress: ["doing-1"],
@@ -174,6 +182,20 @@ describe("releases list route", () => {
     });
     expect(JSON.stringify(mocks.releaseListProps.mock.calls[0]?.[0]))
       .not.toContain("@example.test");
+  });
+
+  it("includes archived releases only when the URL toggle is active", async () => {
+    render(await ReleasesPage({
+      params: Promise.resolve({ key: "CASS" }),
+      searchParams: Promise.resolve({ archived: "1" }),
+    }));
+
+    expect(mocks.listReleaseSummaries).toHaveBeenCalledWith(backlog.id, {
+      includeArchived: true,
+    });
+    expect(mocks.releaseListProps).toHaveBeenCalledWith(
+      expect.objectContaining({ showArchived: true }),
+    );
   });
 
   it("does not read or send the directory without browse_users", async () => {

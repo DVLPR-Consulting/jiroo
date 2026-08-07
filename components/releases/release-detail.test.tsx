@@ -78,6 +78,7 @@ const props = {
       destinationRelease: { id: "33333333-3333-4333-8333-333333333333", name: "Version 2" },
     }],
   },
+  scopeFilters: { statusCategory: null, estimate: null },
 };
 
 describe("ReleaseDetail", () => {
@@ -137,5 +138,33 @@ describe("ReleaseDetail", () => {
       const href = within(pager).getByRole("link", { name: "Précédent" }).getAttribute("href");
       for (const parameter of expectedState) expect(href).toContain(parameter);
     }
+  });
+
+  it("warns about incomplete work, explains Done, and exposes URL-backed scope filters", () => {
+    render(
+      <ReleaseDetail
+        {...props}
+        release={{
+          ...props.release,
+          released: false,
+          effectiveReleaseDate: null,
+          progress: { ...props.release.progress, total: 3, todo: 1, inProgress: 1, done: 1 },
+        }}
+        scopeFilters={{ statusCategory: "in_progress", estimate: "unestimated" }}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("2 éléments non terminés");
+    expect(screen.getByText(/terminé signifie que le statut appartient à la catégorie/i)).toBeVisible();
+    expect(screen.getByRole("link", { name: "En cours" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "Non estimés" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "À faire" }).getAttribute("href"))
+      .toContain("scopeStatus=todo");
   });
 });

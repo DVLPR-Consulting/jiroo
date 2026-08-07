@@ -92,7 +92,7 @@ describe("ViewBar", () => {
   it("links natively to the backlog releases route without carrying view state", () => {
     render(<ViewBar view="board" backlogKey="CASS" />);
 
-    const releasesLink = screen.getByRole("link", { name: "Versions" });
+    const releasesLink = screen.getByRole("link", { name: "Releases" });
     expect(releasesLink).toHaveAttribute("href", "/b/CASS/releases");
 
     fireEvent.click(releasesLink);

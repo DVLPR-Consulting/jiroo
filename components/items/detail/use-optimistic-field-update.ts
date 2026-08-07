@@ -14,11 +14,13 @@ export function useOptimisticFieldUpdate<T>({
   itemId,
   backlogKey,
   toPatch,
+  onSuccess,
 }: {
   value: T;
   itemId: string;
   backlogKey: string;
   toPatch: (next: T) => UpdatePatch;
+  onSuccess?: () => void;
 }) {
   const router = useRouter();
   const [optimistic, setOptimistic] = useState(value);
@@ -57,6 +59,7 @@ export function useOptimisticFieldUpdate<T>({
           }
           confirmedRef.current = next;
           setOptimistic(next);
+          onSuccess?.();
           router.refresh();
         } catch {
           if (revision !== revisionRef.current) return;
@@ -70,7 +73,7 @@ export function useOptimisticFieldUpdate<T>({
         }
       })();
     },
-    [backlogKey, itemId, router, toPatch],
+    [backlogKey, itemId, onSuccess, router, toPatch],
   );
 
   return { value: optimistic, pending, error, update };

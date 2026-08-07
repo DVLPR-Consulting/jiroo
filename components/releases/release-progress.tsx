@@ -13,11 +13,13 @@ export function ReleaseProgress({
   releaseId,
   progress,
   statusIds,
+  detailHref,
 }: {
   backlogKey: string;
   releaseId: string;
   progress: ReleaseProgressDto;
   statusIds: StatusIdsByCategory;
+  detailHref?: string;
 }) {
   if (progress.total === 0) {
     return <p className="text-sm text-muted-foreground">Aucun élément associé</p>;
@@ -49,10 +51,22 @@ export function ReleaseProgress({
         })}
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span>{progress.done} terminés sur {progress.total}</span>
-        <span>{progress.donePoints} / {progress.totalPoints} points</span>
+        {detailHref ? (
+          <Link className="underline-offset-2 hover:underline" href={detailHref}>
+            {progress.done} terminés sur {progress.total}
+          </Link>
+        ) : <span>{progress.done} terminés sur {progress.total}</span>}
+        {detailHref ? (
+          <Link className="underline-offset-2 hover:underline" href={`${detailHref}?scopeEstimate=estimated`}>
+            {progress.donePoints} / {progress.totalPoints} points
+          </Link>
+        ) : <span>{progress.donePoints} / {progress.totalPoints} points</span>}
         {progress.unestimated > 0 ? (
-          <span>{progress.unestimated} non estimé{progress.unestimated > 1 ? "s" : ""}</span>
+          detailHref ? (
+            <Link className="underline-offset-2 hover:underline" href={`${detailHref}?scopeEstimate=unestimated`}>
+              {progress.unestimated} non estimé{progress.unestimated > 1 ? "s" : ""}
+            </Link>
+          ) : <span>{progress.unestimated} non estimé{progress.unestimated > 1 ? "s" : ""}</span>
         ) : null}
       </div>
     </div>

@@ -62,7 +62,7 @@ export function ViewBar({
             href={`/b/${backlogKey}/releases`}
             className="rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium text-[var(--subtle-foreground)] transition-colors hover:text-foreground"
           >
-            Versions
+            Releases
           </Link>
         ) : null}
       </div>

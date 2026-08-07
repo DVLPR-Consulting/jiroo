@@ -522,6 +522,9 @@ describe("ItemDetailPanel header", () => {
       backlogKey: "CASS",
       fixVersionIds: [activeVersion.id, publishedVersion.id],
     }));
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith(
+      "Fix versions mises à jour.",
+    ));
   });
 
   it("optimistically updates Fix versions, rolls back a safe failure, and keeps the menu open", async () => {

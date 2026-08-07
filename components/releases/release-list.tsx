@@ -6,6 +6,7 @@ import {
   EditReleaseDialog,
 } from "@/components/releases/release-form-dialog";
 import { ReleaseProgress } from "@/components/releases/release-progress";
+import { ReleaseLifecycleDialogs } from "@/components/releases/release-lifecycle-dialogs";
 import type { ReleaseCapabilities } from "@/lib/auth/capabilities";
 import type { ReleaseSummary } from "@/lib/services/releases";
 import type { StatusIdsByCategory } from "@/lib/services/statuses";
@@ -20,6 +21,7 @@ export function ReleaseList({
   canBrowseUsers,
   capabilities,
   statusIds,
+  showArchived,
 }: {
   backlog: { id: string; key: string; name: string };
   releases: ReleaseSummary[];
@@ -28,25 +30,37 @@ export function ReleaseList({
   canBrowseUsers: boolean;
   capabilities: ReleaseCapabilities;
   statusIds: StatusIdsByCategory;
+  showArchived: boolean;
 }) {
+  const archivedToggle = (
+    <Link
+      className="text-sm underline-offset-2 hover:underline"
+      href={showArchived ? `/b/${backlog.key}/releases` : `/b/${backlog.key}/releases?archived=1`}
+    >
+      {showArchived ? "Masquer les versions archivées" : "Afficher les versions archivées"}
+    </Link>
+  );
   if (releases.length === 0) {
     return (
-      <EmptyState
-        className="mx-auto py-20"
-        icon={<PackageOpen className="size-5" />}
-        title="Aucune version"
-        description="Les versions permettent de planifier les livraisons et de suivre leur progression."
-        action={
-          capabilities.manage ? (
-            <CreateReleaseDialog
-              backlog={backlog}
-              actor={actor}
-              driverOptions={driverOptions}
-              canBrowseUsers={canBrowseUsers}
-            />
-          ) : undefined
-        }
-      />
+      <div className="space-y-4">
+        <div className="flex justify-end">{archivedToggle}</div>
+        <EmptyState
+          className="mx-auto py-20"
+          icon={<PackageOpen className="size-5" />}
+          title="Aucune version"
+          description="Les versions permettent de planifier les livraisons et de suivre leur progression."
+          action={
+            capabilities.manage ? (
+              <CreateReleaseDialog
+                backlog={backlog}
+                actor={actor}
+                driverOptions={driverOptions}
+                canBrowseUsers={canBrowseUsers}
+              />
+            ) : undefined
+          }
+        />
+      </div>
     );
   }
 
@@ -61,7 +75,8 @@ export function ReleaseList({
   return (
     <div className="space-y-4">
       {capabilities.manage ? (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {archivedToggle}
           <CreateReleaseDialog
             backlog={backlog}
             actor={actor}
@@ -69,7 +84,7 @@ export function ReleaseList({
             canBrowseUsers={canBrowseUsers}
           />
         </div>
-      ) : null}
+      ) : <div className="flex justify-end">{archivedToggle}</div>}
       <ul className="space-y-3">
       {releases.map((release) => (
         <li key={release.id}>
@@ -90,13 +105,28 @@ export function ReleaseList({
                 </div>
               </div>
               {capabilities.manage ? (
-                <EditReleaseDialog
-                  backlog={backlog}
-                  actor={actor}
-                  driverOptions={driverOptions}
-                  canBrowseUsers={canBrowseUsers}
-                  release={release}
-                />
+                <details className="rounded-lg border p-2">
+                  <summary className="cursor-pointer text-sm font-medium">
+                    Actions pour {release.name}
+                  </summary>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <EditReleaseDialog
+                      backlog={backlog}
+                      actor={actor}
+                      driverOptions={driverOptions}
+                      canBrowseUsers={canBrowseUsers}
+                      release={release}
+                    />
+                    <ReleaseLifecycleDialogs
+                      backlog={backlog}
+                      release={release}
+                      destinations={releases
+                        .filter((candidate) => candidate.id !== release.id && !candidate.archived && !candidate.released)
+                        .map(({ id, name }) => ({ id, name }))}
+                      canAssignItems={capabilities.assignItems}
+                    />
+                  </div>
+                </details>
               ) : null}
             </div>
             <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
@@ -110,6 +140,11 @@ export function ReleaseList({
               progress={release.progress}
               statusIds={statusIds}
             />
+            {release.progress.todo + release.progress.inProgress > 0 ? (
+              <p className="text-sm font-medium">
+                {release.progress.todo + release.progress.inProgress} éléments non terminés
+              </p>
+            ) : null}
           </article>
         </li>
       ))}

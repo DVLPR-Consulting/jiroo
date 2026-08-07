@@ -413,6 +413,26 @@ describe("release server action permissions", () => {
     expect(mocks.revalidatePath).not.toHaveBeenCalledWith("/b/FORGED");
   });
 
+  it("maps actionable domain failures to release form fields", async () => {
+    mocks.createRelease.mockRejectedValueOnce(
+      new Error("Une release portant ce nom existe déjà."),
+    );
+    mocks.updateRelease.mockRejectedValueOnce(
+      new Error("La date cible doit suivre la date de début."),
+    );
+
+    await expect(createReleaseAction(createInput)).resolves.toEqual({
+      ok: false,
+      error: "Une release portant ce nom existe déjà.",
+      fieldErrors: { name: ["Une release portant ce nom existe déjà."] },
+    });
+    await expect(updateReleaseAction(updateInput)).resolves.toEqual({
+      ok: false,
+      error: "La date cible doit suivre la date de début.",
+      fieldErrors: { targetDate: ["La date cible doit suivre la date de début."] },
+    });
+  });
+
   it.each([
     {
       invoke: () => publishReleaseAction({

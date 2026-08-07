@@ -188,6 +188,7 @@ export function ItemDetailPanel({
     itemId: detail.id,
     backlogKey,
     toPatch: (next) => ({ fixVersionIds: next }),
+    onSuccess: () => toast.success("Fix versions mises à jour."),
   });
   const fixVersionOptions = useMemo(
     () => [...new Map(
