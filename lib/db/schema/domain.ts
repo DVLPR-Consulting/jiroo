@@ -297,6 +297,11 @@ export const releasePublicationItems = pgTable(
     itemTitle: text("item_title").notNull(),
     statusName: text("status_name").notNull(),
     completed: boolean("completed").notNull().default(false),
+    estimatePoints: numeric("estimate_points", {
+      precision: 5,
+      scale: 2,
+      mode: "number",
+    }),
     disposition: releaseItemDispositionEnum("disposition").notNull(),
     destinationReleaseId: uuid("destination_release_id"),
     destinationReleaseName: text("destination_release_name"),

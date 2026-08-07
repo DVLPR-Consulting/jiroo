@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { databasePool, db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -1265,6 +1265,7 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       statusId: done!.id,
       title: "Titre original",
       ordinal: 1,
+      estimatePoints: 3.5,
     });
     await db
       .insert(itemFixVersions)
@@ -1286,40 +1287,162 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       itemTitle: "Titre original",
       statusName: "Terminé",
       completed: true,
+      estimatePoints: 3.5,
     };
     await expect(
-      db
-        .select({
-          itemId: releasePublicationItems.itemId,
-          itemKey: releasePublicationItems.itemKey,
-          itemTitle: releasePublicationItems.itemTitle,
-          statusName: releasePublicationItems.statusName,
-          completed: releasePublicationItems.completed,
-        })
-        .from(releasePublicationItems)
-        .where(eq(releasePublicationItems.publicationId, result.publicationId)),
-    ).resolves.toEqual([original]);
+      listPublicationSnapshotItems({
+        backlogId: backlog.id,
+        publicationId: result.publicationId,
+        page: 1,
+        pageSize: 10,
+      }),
+    ).resolves.toMatchObject({ rows: [original] });
 
     await db
       .update(items)
-      .set({ key: `${backlog.key}-999`, title: "Titre modifié", statusId: todo!.id })
+      .set({
+        key: `${backlog.key}-999`,
+        title: "Titre modifié",
+        statusId: todo!.id,
+        estimatePoints: 8,
+      })
       .where(eq(items.id, item.id));
     await db.update(statuses).set({ name: "Done renommé" }).where(eq(statuses.id, done!.id));
     await db.delete(items).where(eq(items.id, item.id));
 
     await expect(
+      listPublicationSnapshotItems({
+        backlogId: backlog.id,
+        publicationId: result.publicationId,
+        page: 1,
+        pageSize: 10,
+      }),
+    ).resolves.toMatchObject({ rows: [{ ...original, itemId: null }] });
+  });
+
+  it("publishes an oversized move scope in bounded batches after every snapshot exists", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Oversized publish scope");
+    const [todo] = await statusFixture(backlog.id, [{ name: "À faire", category: "todo" }]);
+    const source = await createRelease(
+      { backlogId: backlog.id, name: "Oversized source", driverId: actor.id },
+      actor.id,
+      "oversized-source-create",
+    );
+    const destination = await createRelease(
+      { backlogId: backlog.id, name: "Oversized destination", driverId: actor.id },
+      actor.id,
+      "oversized-destination-create",
+    );
+    const scopeSize = 7_000;
+    const itemRows = Array.from({ length: scopeSize }, (_, index) => {
+      const id = randomUUID();
+      return {
+        id,
+        key: `${backlog.key}-${index + 1}`,
+        type: "tache" as const,
+        backlogId: backlog.id,
+        title: `Élément ${index + 1}`,
+        statusId: todo!.id,
+        reporterId: actor.id,
+        rank: `oversized${index.toString().padStart(8, "0")}`,
+        path: `root.${id.replaceAll("-", "")}`,
+      };
+    });
+    for (let offset = 0; offset < itemRows.length; offset += 500) {
+      await db.insert(items).values(itemRows.slice(offset, offset + 500));
+    }
+    const fixVersionRows = itemRows.map((item) => ({
+      backlogId: backlog.id,
+      itemId: item.id,
+      releaseId: source.id,
+    }));
+    for (let offset = 0; offset < fixVersionRows.length; offset += 1_000) {
+      await db.insert(itemFixVersions).values(fixVersionRows.slice(offset, offset + 1_000));
+    }
+
+    await databasePool.query(`
+      create function test_release_snapshots_complete_before_move() returns trigger
+      language plpgsql as $$
+      declare snapshot_count integer;
+      begin
+        select count(*)::int into snapshot_count
+        from release_publication_items snapshot
+        inner join release_publications publication on publication.id = snapshot.publication_id
+        where publication.release_id = old.release_id
+          and publication.superseded_at is null;
+        if snapshot_count <> 7000 then
+          raise exception 'move started before every snapshot existed';
+        end if;
+        return old;
+      end;
+      $$;
+    `);
+    await databasePool.query(`
+      create trigger test_release_snapshots_complete_before_move
+      before delete on item_fix_versions
+      for each row execute function test_release_snapshots_complete_before_move();
+    `);
+
+    const result = await (async () => {
+      try {
+        return await publishRelease(
+          {
+            backlogId: backlog.id,
+            releaseId: source.id,
+            expectedRevision: 1,
+            effectiveDate: "2026-08-16",
+            incompleteDisposition: "move",
+            destinationReleaseId: destination.id,
+          },
+          actor.id,
+          "publish-oversized",
+        );
+      } finally {
+        await databasePool.query(
+          "drop trigger if exists test_release_snapshots_complete_before_move on item_fix_versions",
+        );
+        await databasePool.query(
+          "drop function if exists test_release_snapshots_complete_before_move()",
+        );
+      }
+    })();
+
+    expect(result).toMatchObject({
+      totalCount: scopeSize,
+      completedCount: 0,
+      incompleteCount: scopeSize,
+      movedCount: scopeSize,
+    });
+    await expect(
       db
-        .select({
-          itemId: releasePublicationItems.itemId,
-          itemKey: releasePublicationItems.itemKey,
-          itemTitle: releasePublicationItems.itemTitle,
-          statusName: releasePublicationItems.statusName,
-          completed: releasePublicationItems.completed,
-        })
+        .select({ value: count() })
         .from(releasePublicationItems)
         .where(eq(releasePublicationItems.publicationId, result.publicationId)),
-    ).resolves.toEqual([{ ...original, itemId: null }]);
-  });
+    ).resolves.toEqual([{ value: scopeSize }]);
+    await expect(
+      db
+        .select({ value: count() })
+        .from(itemFixVersions)
+        .where(
+          and(
+            eq(itemFixVersions.backlogId, backlog.id),
+            eq(itemFixVersions.releaseId, source.id),
+          ),
+        ),
+    ).resolves.toEqual([{ value: 0 }]);
+    await expect(
+      db
+        .select({ value: count() })
+        .from(itemFixVersions)
+        .where(
+          and(
+            eq(itemFixVersions.backlogId, backlog.id),
+            eq(itemFixVersions.releaseId, destination.id),
+          ),
+        ),
+    ).resolves.toEqual([{ value: scopeSize }]);
+  }, 60_000);
 
   it("serializes simultaneous publish attempts and rejects the stale writer", async () => {
     const actor = await actorFixture();

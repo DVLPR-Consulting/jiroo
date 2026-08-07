@@ -84,6 +84,7 @@ export type PublicationSnapshotItem = {
   itemTitle: string;
   statusName: string;
   completed: boolean;
+  estimatePoints: number | null;
   disposition: typeof releasePublicationItems.$inferSelect.disposition;
   destinationRelease: { id: string | null; name: string } | null;
 };
@@ -124,6 +125,7 @@ const publicationPageCommand = pageCommand.extend({ publicationId: z.uuid() });
 const revisionedReleaseIdentitySchema = releaseIdentitySchema
   .extend({ expectedRevision: z.number().int().positive() })
   .strict();
+const RELEASE_WRITE_BATCH_SIZE = 1_000;
 
 async function lockBacklog(tx: Tx, backlogId: string) {
   const [backlog] = await tx
@@ -390,6 +392,7 @@ export async function publishRelease(
         key: items.key,
         title: items.title,
         statusId: items.statusId,
+        estimatePoints: items.estimatePoints,
       })
       .from(itemFixVersions)
       .innerJoin(
@@ -462,51 +465,66 @@ export async function publishRelease(
 
     const completedItemIds: string[] = [];
     const incompleteItemIds: string[] = [];
-    if (scopeItems.length > 0) {
-      await tx.insert(releasePublicationItems).values(
-        scopeItems.map((item) => {
-          const status = statusById.get(item.statusId);
-          if (!status) throw new Error("Le scope de la release est incohérent.");
-          const completed = status.category === "done";
-          if (completed) completedItemIds.push(item.id);
-          else incompleteItemIds.push(item.id);
-          const moved = !completed && data.incompleteDisposition === "move";
-          return {
-            publicationId: publication.id,
-            backlogId: data.backlogId,
-            itemId: item.id,
-            itemKey: item.key,
-            itemTitle: item.title,
-            statusName: status.name,
-            completed,
-            disposition: moved ? ("moved" as const) : ("retained" as const),
-            destinationReleaseId: moved ? destination!.id : null,
-            destinationReleaseName: moved ? destination!.name : null,
-          };
-        }),
-      );
+    const snapshotRows = scopeItems.map((item) => {
+      const status = statusById.get(item.statusId);
+      if (!status) throw new Error("Le scope de la release est incohérent.");
+      const completed = status.category === "done";
+      if (completed) completedItemIds.push(item.id);
+      else incompleteItemIds.push(item.id);
+      const moved = !completed && data.incompleteDisposition === "move";
+      return {
+        publicationId: publication.id,
+        backlogId: data.backlogId,
+        itemId: item.id,
+        itemKey: item.key,
+        itemTitle: item.title,
+        statusName: status.name,
+        completed,
+        estimatePoints: item.estimatePoints,
+        disposition: moved ? ("moved" as const) : ("retained" as const),
+        destinationReleaseId: moved ? destination!.id : null,
+        destinationReleaseName: moved ? destination!.name : null,
+      };
+    });
+    for (let offset = 0; offset < snapshotRows.length; offset += RELEASE_WRITE_BATCH_SIZE) {
+      await tx
+        .insert(releasePublicationItems)
+        .values(snapshotRows.slice(offset, offset + RELEASE_WRITE_BATCH_SIZE));
     }
 
     if (data.incompleteDisposition === "move" && incompleteItemIds.length > 0) {
-      await tx
-        .delete(itemFixVersions)
-        .where(
-          and(
-            eq(itemFixVersions.backlogId, data.backlogId),
-            eq(itemFixVersions.releaseId, current.id),
-            inArray(itemFixVersions.itemId, incompleteItemIds),
-          ),
-        );
-      await tx
-        .insert(itemFixVersions)
-        .values(
-          incompleteItemIds.map((itemId) => ({
-            backlogId: data.backlogId,
-            itemId,
-            releaseId: destination!.id,
-          })),
-        )
-        .onConflictDoNothing();
+      for (
+        let offset = 0;
+        offset < incompleteItemIds.length;
+        offset += RELEASE_WRITE_BATCH_SIZE
+      ) {
+        const itemIdBatch = incompleteItemIds.slice(offset, offset + RELEASE_WRITE_BATCH_SIZE);
+        await tx
+          .delete(itemFixVersions)
+          .where(
+            and(
+              eq(itemFixVersions.backlogId, data.backlogId),
+              eq(itemFixVersions.releaseId, current.id),
+              inArray(itemFixVersions.itemId, itemIdBatch),
+            ),
+          );
+      }
+      for (
+        let offset = 0;
+        offset < incompleteItemIds.length;
+        offset += RELEASE_WRITE_BATCH_SIZE
+      ) {
+        await tx
+          .insert(itemFixVersions)
+          .values(
+            incompleteItemIds.slice(offset, offset + RELEASE_WRITE_BATCH_SIZE).map((itemId) => ({
+              backlogId: data.backlogId,
+              itemId,
+              releaseId: destination!.id,
+            })),
+          )
+          .onConflictDoNothing();
+      }
     }
 
     const [updated] = await tx
@@ -900,6 +918,7 @@ export async function listPublicationSnapshotItems(
       itemTitle: row.itemTitle,
       statusName: row.statusName,
       completed: row.completed,
+      estimatePoints: row.estimatePoints,
       disposition: row.disposition,
       destinationRelease:
         row.destinationReleaseName === null

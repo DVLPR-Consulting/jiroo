@@ -32,6 +32,7 @@ CREATE TABLE "release_publication_items" (
 	"item_title" text NOT NULL,
 	"status_name" text NOT NULL,
 	"completed" boolean DEFAULT false NOT NULL,
+	"estimate_points" numeric(5, 2),
 	"disposition" "release_item_disposition" NOT NULL,
 	"destination_release_id" uuid,
 	"destination_release_name" text,
