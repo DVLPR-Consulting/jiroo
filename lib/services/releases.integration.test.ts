@@ -1447,52 +1447,55 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       await db.insert(itemFixVersions).values(fixVersionRows.slice(offset, offset + 1_000));
     }
 
-    await databasePool.query(`
-      create function test_release_snapshots_complete_before_move() returns trigger
-      language plpgsql as $$
-      declare snapshot_count integer;
-      begin
-        select count(*)::int into snapshot_count
-        from release_publication_items snapshot
-        inner join release_publications publication on publication.id = snapshot.publication_id
-        where publication.release_id = old.release_id
-          and publication.superseded_at is null;
-        if snapshot_count <> 7000 then
-          raise exception 'move started before every snapshot existed';
-        end if;
-        return old;
-      end;
-      $$;
-    `);
-    await databasePool.query(`
-      create trigger test_release_snapshots_complete_before_move
-      before delete on item_fix_versions
-      for each row execute function test_release_snapshots_complete_before_move();
-    `);
-
-    const result = await (async () => {
-      try {
-        return await publishRelease(
-          {
-            backlogId: backlog.id,
-            releaseId: source.id,
-            expectedRevision: 1,
-            effectiveDate: "2026-08-16",
-            incompleteDisposition: "move",
-            destinationReleaseId: destination.id,
-          },
-          actor.id,
-          "publish-oversized",
-        );
-      } finally {
-        await databasePool.query(
-          "drop trigger if exists test_release_snapshots_complete_before_move on item_fix_versions",
-        );
-        await databasePool.query(
-          "drop function if exists test_release_snapshots_complete_before_move()",
-        );
-      }
-    })();
+    let result!: Awaited<ReturnType<typeof publishRelease>>;
+    try {
+      await databasePool.query(`
+        create function test_release_snapshots_complete_before_move() returns trigger
+        language plpgsql as $$
+        declare
+          guarded_release_id uuid := TG_ARGV[0]::uuid;
+          snapshot_count integer;
+        begin
+          if old.release_id <> guarded_release_id then
+            return old;
+          end if;
+          select count(*)::int into snapshot_count
+          from release_publication_items snapshot
+          inner join release_publications publication on publication.id = snapshot.publication_id
+          where publication.release_id = old.release_id
+            and publication.superseded_at is null;
+          if snapshot_count <> 7000 then
+            raise exception 'move started before every snapshot existed';
+          end if;
+          return old;
+        end;
+        $$;
+      `);
+      await databasePool.query(`
+        create trigger test_release_snapshots_complete_before_move
+        before delete on item_fix_versions
+        for each row execute function test_release_snapshots_complete_before_move('${source.id}');
+      `);
+      result = await publishRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: source.id,
+          expectedRevision: 1,
+          effectiveDate: "2026-08-16",
+          incompleteDisposition: "move",
+          destinationReleaseId: destination.id,
+        },
+        actor.id,
+        "publish-oversized",
+      );
+    } finally {
+      await databasePool.query(
+        "drop trigger if exists test_release_snapshots_complete_before_move on item_fix_versions",
+      );
+      await databasePool.query(
+        "drop function if exists test_release_snapshots_complete_before_move()",
+      );
+    }
 
     expect(result).toMatchObject({
       totalCount: scopeSize,
