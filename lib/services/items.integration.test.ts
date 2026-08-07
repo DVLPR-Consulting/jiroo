@@ -29,6 +29,11 @@ vi.mock("server-only", () => ({}));
 
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 
+async function cleanupReleaseBacklogs(backlogIds: string[]) {
+  await db.delete(releases).where(inArray(releases.backlogId, backlogIds));
+  await db.delete(backlogs).where(inArray(backlogs.id, backlogIds));
+}
+
 function randomBacklogKey(): string {
   return `R${randomUUID().replace(/[^a-f]/gi, "").slice(0, 5).toUpperCase()}`;
 }
@@ -836,7 +841,7 @@ describeDb("item fix version integration", () => {
         secondId,
       ]);
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+      await cleanupReleaseBacklogs([fixture.backlogId]);
     }
   });
 
@@ -895,7 +900,7 @@ describeDb("item fix version integration", () => {
         { field: null, correlationId: "item-create-fix-versions" },
       ]);
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+      await cleanupReleaseBacklogs([fixture.backlogId]);
     }
   });
 
@@ -939,8 +944,7 @@ describeDb("item fix version integration", () => {
           ),
       ).toEqual([]);
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
-      await db.delete(backlogs).where(eq(backlogs.id, foreignBacklog!.id));
+      await cleanupReleaseBacklogs([fixture.backlogId, foreignBacklog!.id]);
     }
   });
 
@@ -989,7 +993,7 @@ describeDb("item fix version integration", () => {
         correlationId: audit[0]?.correlationId,
       });
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+      await cleanupReleaseBacklogs([fixture.backlogId]);
     }
   });
 
@@ -1031,8 +1035,7 @@ describeDb("item fix version integration", () => {
           .where(eq(activities.itemId, fixture.item.id)),
       ).toEqual([]);
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
-      await db.delete(backlogs).where(eq(backlogs.id, foreignBacklog!.id));
+      await cleanupReleaseBacklogs([fixture.backlogId, foreignBacklog!.id]);
     }
   });
 });

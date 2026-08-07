@@ -136,6 +136,9 @@ async function createBulkFixture() {
 
 async function cleanupFixture(fixture: Awaited<ReturnType<typeof createBulkFixture>>) {
   await db
+    .delete(releases)
+    .where(inArray(releases.backlogId, [fixture.backlogId, fixture.foreignBacklogId]));
+  await db
     .delete(backlogs)
     .where(inArray(backlogs.id, [fixture.backlogId, fixture.foreignBacklogId]));
 }
