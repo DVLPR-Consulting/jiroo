@@ -13,6 +13,7 @@ import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
 import {
   listItemLabelPairs,
   listItems,
+  listItemsWithAncestors,
   listLabelsForBacklog,
   listUsers,
   listUsersByIds,
@@ -121,7 +122,7 @@ export async function BacklogViewContent({
     });
 
   const [
-    items,
+    releaseFilteredItems,
     labelPairs,
     fixVersionPairs,
     releaseSummaries,
@@ -130,7 +131,7 @@ export async function BacklogViewContent({
     statusCountRows,
     sprintSnapshot,
   ] = await Promise.all([
-    listItems(backlog.id),
+    listItems(backlog.id, { releaseIds: viewState.filters.releaseIds }),
     listItemLabelPairs(backlog.id),
     listItemFixVersionPairs(backlog.id),
     listReleaseSummaries(backlog.id, { includeArchived: true }),
@@ -150,6 +151,10 @@ export async function BacklogViewContent({
       .groupBy(itemRowsTable.statusId),
     listSprintsForBacklog(backlog.id),
   ]);
+  const releaseMatchedIds = new Set(releaseFilteredItems.map((item) => item.id));
+  const items = view === "tree" && viewState.filters.releaseIds.length > 0
+    ? await listItemsWithAncestors(backlog.id, [...releaseMatchedIds])
+    : releaseFilteredItems;
 
   // Set of item ids that are blocked by an unfinished item — used to drive the badge.
   const blockedSet = new Set(blockedIds);
@@ -212,9 +217,13 @@ export async function BacklogViewContent({
     statusOrder: statusOrderById.get(i.statusId) ?? 0,
   })));
   const filtersOn = isFiltersActive(viewState.filters);
+  const nonReleaseFilters = { ...viewState.filters, releaseIds: [] };
   const matchedIds = new Set(
     filterRows
-      .filter((r) => matchItem(r, viewState.filters))
+      .filter((r) =>
+        (viewState.filters.releaseIds.length === 0 || releaseMatchedIds.has(r.id))
+        && matchItem(r, nonReleaseFilters),
+      )
       .map((r) => r.id),
   );
   const isMatch = (id: string) => !filtersOn || matchedIds.has(id);

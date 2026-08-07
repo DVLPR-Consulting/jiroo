@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { Client } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -18,6 +19,7 @@ import {
 import {
   createItem,
   listItems,
+  listItemsWithAncestors,
   rankBacklogItem,
   restoreItem,
   updateItem,
@@ -745,6 +747,86 @@ describeDb("updateItem reporter transaction", () => {
 });
 
 describeDb("item fix version integration", () => {
+  it("filters 1,000 Fix-version links in one query with OR semantics", async () => {
+    const fixture = await createUpdateFixture();
+    const secondId = randomUUID();
+    const excludedId = randomUUID();
+    await db.insert(items).values([
+      {
+        id: secondId,
+        key: `${randomBacklogKey()}-2`,
+        type: "tache",
+        backlogId: fixture.backlogId,
+        title: "Deuxième correspondance",
+        statusId: fixture.item.statusId,
+        reporterId: fixture.actorId,
+        rank: "a1",
+        parentId: excludedId,
+        path: `root.${excludedId.replaceAll("-", "")}.${secondId.replaceAll("-", "")}`,
+        depth: 1,
+      },
+      {
+        id: excludedId,
+        key: `${randomBacklogKey()}-3`,
+        type: "composant",
+        backlogId: fixture.backlogId,
+        title: "Sans correspondance",
+        statusId: fixture.item.statusId,
+        reporterId: fixture.actorId,
+        rank: "a2",
+        path: `root.${excludedId.replaceAll("-", "")}`,
+        depth: 0,
+      },
+    ]);
+    const releaseRows = await db
+      .insert(releases)
+      .values(Array.from({ length: 1_000 }, (_, index) => ({
+        backlogId: fixture.backlogId,
+        name: `Filtre volume ${index.toString().padStart(4, "0")}`,
+        createdBy: fixture.actorId,
+      })))
+      .returning({ id: releases.id });
+    await db.insert(itemFixVersions).values([
+      ...releaseRows.slice(0, 999).map(({ id }) => ({
+        backlogId: fixture.backlogId,
+        itemId: fixture.item.id,
+        releaseId: id,
+        addedBy: fixture.actorId,
+      })),
+      {
+        backlogId: fixture.backlogId,
+        itemId: secondId,
+        releaseId: releaseRows[999]!.id,
+        addedBy: fixture.actorId,
+      },
+    ]);
+
+    try {
+      const querySpy = vi.spyOn(Client.prototype, "query");
+      let filtered: Awaited<ReturnType<typeof listItems>>;
+      try {
+        filtered = await listItems(fixture.backlogId, {
+          releaseIds: [releaseRows[0]!.id, releaseRows[999]!.id],
+        });
+        expect(querySpy).toHaveBeenCalledTimes(1);
+      } finally {
+        querySpy.mockRestore();
+      }
+      expect(filtered.map(({ id }) => id)).toEqual([fixture.item.id, secondId]);
+      const withAncestors = await listItemsWithAncestors(
+        fixture.backlogId,
+        filtered.map(({ id }) => id),
+      );
+      expect(withAncestors.map(({ id }) => id)).toEqual([
+        fixture.item.id,
+        excludedId,
+        secondId,
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
   it("creates an item with sprint and fix versions under one correlated audit", async () => {
     const fixture = await createTaskUpdateFixture();
     const [release] = await db

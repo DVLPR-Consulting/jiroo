@@ -1,9 +1,10 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { randomUUID } from "node:crypto";
 import { browseAccessPredicate } from "@/lib/auth/accessible-backlogs";
 import { db } from "@/lib/db";
 import { binaryTextOrder } from "@/lib/db/order";
-import { activities, backlogs, itemLabels, items, labels, statuses } from "@/lib/db/schema/domain";
+import { activities, backlogs, itemFixVersions, itemLabels, items, labels, statuses } from "@/lib/db/schema/domain";
 import { user } from "@/lib/db/schema/auth";
 import { nextItemKey } from "@/lib/items/key";
 import { canRestore } from "@/lib/items/trash";
@@ -49,11 +50,57 @@ export function listTrashedItems(userId: string) {
     .orderBy(desc(items.deletedAt), asc(backlogs.name), asc(items.key));
 }
 
-export function listItems(backlogId: string) {
+export function listItems(backlogId: string, options: { releaseIds?: string[] } = {}) {
+  const releaseIds = [...new Set(options.releaseIds ?? [])];
+  const releaseFilter = releaseIds.length > 0
+    ? exists(
+        db
+          .select({ itemId: itemFixVersions.itemId })
+          .from(itemFixVersions)
+          .where(
+            and(
+              eq(itemFixVersions.backlogId, backlogId),
+              eq(itemFixVersions.itemId, items.id),
+              inArray(itemFixVersions.releaseId, releaseIds),
+            ),
+          ),
+      )
+    : undefined;
+
   return db
     .select()
     .from(items)
-    .where(and(eq(items.backlogId, backlogId), isNull(items.deletedAt)))
+    .where(and(eq(items.backlogId, backlogId), isNull(items.deletedAt), releaseFilter))
+    .orderBy(asc(items.depth), asc(binaryTextOrder(items.rank)), asc(items.key));
+}
+
+export function listItemsWithAncestors(backlogId: string, itemIds: string[]) {
+  const uniqueItemIds = [...new Set(itemIds)];
+  if (uniqueItemIds.length === 0) return Promise.resolve([]);
+
+  const matchedItems = alias(items, "matched_release_items");
+  return db
+    .select()
+    .from(items)
+    .where(
+      and(
+        eq(items.backlogId, backlogId),
+        isNull(items.deletedAt),
+        exists(
+          db
+            .select({ itemId: matchedItems.id })
+            .from(matchedItems)
+            .where(
+              and(
+                eq(matchedItems.backlogId, backlogId),
+                inArray(matchedItems.id, uniqueItemIds),
+                isNull(matchedItems.deletedAt),
+                sql`${items.path} @> ${matchedItems.path}`,
+              ),
+            ),
+        ),
+      ),
+    )
     .orderBy(asc(items.depth), asc(binaryTextOrder(items.rank)), asc(items.key));
 }
 

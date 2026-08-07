@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   itemTreeProps: vi.fn(),
   listItemFixVersionPairs: vi.fn(),
   listItemLabelPairs: vi.fn(),
+  listItemsWithAncestors: vi.fn(),
   listItems: vi.fn(),
   listLabelsForBacklog: vi.fn(),
   listAssignableUsersForBacklog: vi.fn(),
@@ -47,6 +48,7 @@ vi.mock("@/lib/services/backlogs", () => ({
 }));
 vi.mock("@/lib/services/items", () => ({
   listItemLabelPairs: mocks.listItemLabelPairs,
+  listItemsWithAncestors: mocks.listItemsWithAncestors,
   listItems: mocks.listItems,
   listLabelsForBacklog: mocks.listLabelsForBacklog,
   listUsers: mocks.listUsers,
@@ -125,6 +127,7 @@ describe("BacklogViewContent read boundary", () => {
       throw new Error("not-found");
     });
     mocks.listItems.mockResolvedValue([]);
+    mocks.listItemsWithAncestors.mockResolvedValue([]);
     mocks.listItemFixVersionPairs.mockResolvedValue([]);
     mocks.listItemLabelPairs.mockResolvedValue([]);
     mocks.blockedItemIds.mockResolvedValue([]);
@@ -497,7 +500,7 @@ describe("BacklogViewContent read boundary", () => {
     );
   });
 
-  it("batch-projects fix versions, filters by version, and keeps a selected archived option", async () => {
+  it("delegates OR-version filtering to SQL, ANDs other facets, and keeps a selected archived option", async () => {
     mocks.getBacklogByKeyForUser.mockResolvedValue({
       id: "backlog-1",
       key: "DEMO",
@@ -516,7 +519,7 @@ describe("BacklogViewContent read boundary", () => {
       manageMembers: false,
       bulkChangeItems: false,
     });
-    const item = (id: string, key: string, rank: string) => ({
+    const item = (id: string, key: string, rank: string, statusId = "status-1") => ({
       id,
       backlogId: "backlog-1",
       key,
@@ -525,7 +528,7 @@ describe("BacklogViewContent read boundary", () => {
       kind: "story",
       title: key,
       description: null,
-      statusId: "status-1",
+      statusId,
       priority: 2,
       estimatePoints: null,
       assigneeId: null,
@@ -540,12 +543,12 @@ describe("BacklogViewContent read boundary", () => {
       updatedAt: new Date("2026-08-01T00:00:00.000Z"),
     });
     mocks.listItems.mockResolvedValue([
-      item("item-1", "DEMO-1", "a"),
       item("item-2", "DEMO-2", "b"),
+      item("item-3", "DEMO-3", "c", "status-2"),
     ]);
     mocks.listItemFixVersionPairs.mockResolvedValue([
-      { itemId: "item-1", releaseId: "release-active", name: "2026.10" },
       { itemId: "item-2", releaseId: "release-selected", name: "2026.09" },
+      { itemId: "item-3", releaseId: "release-selected", name: "2026.09" },
     ]);
     mocks.listReleaseSummaries.mockResolvedValue([
       { id: "release-active", name: "2026.10", released: false, archived: false },
@@ -560,12 +563,16 @@ describe("BacklogViewContent read boundary", () => {
         searchParamsPromise: Promise.resolve({
           view: "list",
           version: "release-selected",
+          status: "status-1",
           fvcol: "1",
           item: "DEMO-2",
         }),
       }),
     );
 
+    expect(mocks.listItems).toHaveBeenCalledWith("backlog-1", {
+      releaseIds: ["release-selected"],
+    });
     expect(mocks.listItemFixVersionPairs).toHaveBeenCalledOnce();
     expect(mocks.listItemFixVersionPairs).toHaveBeenCalledWith("backlog-1");
     expect(mocks.listReleaseSummaries).toHaveBeenCalledOnce();
@@ -624,6 +631,89 @@ describe("BacklogViewContent read boundary", () => {
         assignItems: false,
         bulkAssignItems: false,
       },
+    }));
+  });
+
+  it("keeps an unmatched ancestor as dimmed tree context for a version-matched child", async () => {
+    mocks.getBacklogByKeyForUser.mockResolvedValue({
+      id: "backlog-1",
+      key: "DEMO",
+      name: "Demo",
+      color: "#2563eb",
+      archivedAt: null,
+    });
+    mocks.getBacklogCapabilities.mockResolvedValue({
+      createItems: false,
+      editItems: false,
+      transitionItems: false,
+      scheduleItems: false,
+      assignItems: false,
+      manageSprints: false,
+      manageWorkflow: false,
+      manageMembers: false,
+      bulkChangeItems: false,
+    });
+    const row = (
+      id: string,
+      key: string,
+      type: "epic" | "tache",
+      parentId: string | null,
+      path: string,
+      depth: number,
+    ) => ({
+      id,
+      backlogId: "backlog-1",
+      key,
+      sequence: Number(key.split("-")[1]),
+      type,
+      kind: "story",
+      title: key,
+      description: null,
+      statusId: "status-1",
+      priority: 2,
+      estimatePoints: null,
+      assigneeId: null,
+      reporterId: null,
+      parentId,
+      path,
+      depth,
+      dueDate: null,
+      rank: depth === 0 ? "a" : "a0",
+      deletedAt: null,
+      createdAt: new Date("2026-08-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    const parent = row("parent-1", "DEMO-1", "epic", null, "root.parent", 0);
+    const child = row("child-1", "DEMO-2", "tache", parent.id, "root.parent.child", 1);
+    mocks.listItems.mockResolvedValue([child]);
+    mocks.listItemsWithAncestors.mockResolvedValue([parent, child]);
+    mocks.listItemFixVersionPairs.mockResolvedValue([
+      { itemId: child.id, releaseId: "release-selected", name: "2026.09" },
+    ]);
+    mocks.listReleaseSummaries.mockResolvedValue([
+      { id: "release-selected", name: "2026.09", released: false, archived: false },
+    ]);
+
+    render(
+      await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({
+          view: "tree",
+          version: "release-selected",
+        }),
+      }),
+    );
+
+    expect(mocks.listItems).toHaveBeenCalledWith("backlog-1", {
+      releaseIds: ["release-selected"],
+    });
+    expect(mocks.listItemsWithAncestors).toHaveBeenCalledWith("backlog-1", [child.id]);
+    expect(mocks.itemTreeProps).toHaveBeenCalledWith(expect.objectContaining({
+      items: [
+        expect.objectContaining({ id: parent.id }),
+        expect.objectContaining({ id: child.id }),
+      ],
+      contextIds: [parent.id],
     }));
   });
 });
