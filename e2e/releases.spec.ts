@@ -7,7 +7,7 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
 import {
@@ -300,6 +300,63 @@ async function clickPost(page: Page, action: () => Promise<void>) {
   expect(response.status()).toBeLessThan(400);
 }
 
+async function selectBulkItems(
+  page: Page,
+  selectedItems: Array<{ key: string }>,
+) {
+  for (const item of selectedItems) {
+    await page.getByRole("checkbox", { name: `Sélectionner ${item.key}` }).check();
+  }
+}
+
+async function chooseBulkFixVersions(page: Page, releaseNames: string[]) {
+  const toolbar = page.getByRole("region", { name: "Actions groupées" });
+  await toolbar.getByRole("button", { name: "Versions", exact: true }).click();
+  for (const releaseName of releaseNames) {
+    await page.getByRole("menuitemcheckbox", { name: releaseName, exact: true }).click();
+  }
+  await page.keyboard.press("Escape");
+}
+
+async function applyBulkFixVersions(
+  page: Page,
+  actionName:
+    | "Ajouter aux versions"
+    | "Remplacer les versions"
+    | "Retirer des versions"
+    | "Effacer toutes les versions",
+  selectedCount: number,
+) {
+  const toolbar = page.getByRole("region", { name: "Actions groupées" });
+  await toolbar.getByRole("button", { name: "Appliquer les versions" }).click();
+  await page.getByRole("menuitem", { name: actionName }).click();
+  const dialog = page.getByRole("dialog", {
+    name: "Confirmer la modification des Fix versions",
+  });
+  await expect(dialog).toContainText(
+    `${selectedCount} ${selectedCount === 1 ? "item sélectionné" : "items sélectionnés"}`,
+  );
+  await clickPost(page, () =>
+    dialog.getByRole("button", {
+      name: `Appliquer à ${selectedCount} ${selectedCount === 1 ? "item" : "items"}`,
+    }).click(),
+  );
+}
+
+async function expectListFixVersions(
+  page: Page,
+  item: { key: string; title: string },
+  expectedNames: string[],
+) {
+  const row = page.getByRole("row", { name: `${item.key} — ${item.title}`, exact: true });
+  const cell = row.getByRole("cell").last();
+  if (expectedNames.length === 0) {
+    await expect(cell).toHaveText("—");
+    return;
+  }
+  for (const name of expectedNames) await expect(cell).toContainText(name);
+}
+
 async function publishFromDialog(
   page: Page,
   releaseName: string,
@@ -378,6 +435,7 @@ audited(1, "crée puis modifie une version", async ({ page }) => {
     await clickPost(page, () => create.getByRole("button", { name: "Créer", exact: true }).click());
     const article = page.getByRole("article", { name: input.initialName });
     await expect(article).toBeVisible();
+    await article.getByText(`Actions pour ${input.initialName}`, { exact: true }).click();
     await article.getByRole("button", { name: `Modifier ${input.initialName}` }).click();
     const edit = page.getByRole("dialog", { name: `Modifier ${input.initialName}` });
     await edit.getByRole("textbox", { name: "Nom" }).fill(input.finalName);
@@ -403,16 +461,44 @@ audited(1, "crée puis modifie une version", async ({ page }) => {
   ]);
 });
 
-audited(2, "affiche un item lié à plusieurs versions sur les détails", async ({ browser, capture, audit }) => {
+audited(2, "persiste deux versions à la création puis depuis le détail", async ({ page, browser, capture, audit }) => {
   const first = await fixtureRelease("R09-S02 Alpha");
   const second = await fixtureRelease("R09-S02 Beta");
-  const item = await fixtureTask("R09-S02 multi-version", { points: 3 });
+  const backlog = await backlogFixture();
+
+  await page.goto("/b/CASS?view=list&fvcol=1");
+  await page.getByRole("button", { name: "Nouvel item" }).click();
+  const create = page.getByRole("dialog", { name: "Nouvel item" });
+  await create.getByRole("textbox", { name: "Titre" }).fill("R09-S02 créé multi-version");
+  await create.getByRole("button", { name: "Versions", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: first.name, exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: second.name, exact: true }).click();
+  await page.keyboard.press("Escape");
+  await clickPost(page, () => create.getByRole("button", { name: "Créer", exact: true }).click());
+  const [created] = await db
+    .select({ id: items.id, key: items.key, title: items.title })
+    .from(items)
+    .where(and(
+      eq(items.backlogId, backlog.id),
+      eq(items.title, "R09-S02 créé multi-version"),
+      isNull(items.deletedAt),
+    ));
+  if (!created) throw new Error("Item créé avec deux versions introuvable.");
+  await page.goto(`/b/CASS?view=list&item=${created.key}`);
+  await page.reload();
+  const createdSelection = page.getByRole("list", { name: "Versions sélectionnées" });
+  await expect(createdSelection).toContainText(first.name);
+  await expect(createdSelection).toContainText(second.name);
+  expect(await assignedVersionIds(created.id)).toEqual([first.id, second.id].sort());
+
+  const item = await fixtureTask("R09-S02 détail multi-version", { points: 3 });
   const editor = await observedPage(browser, capture, "editor-multi-version", AUTH.editor);
   audit.use(editor);
   await editor.goto(`/b/CASS?view=list&item=${item.key}`);
   await editor.getByRole("button", { name: "Versions", exact: true }).click();
   await clickPost(editor, () => editor.getByRole("menuitemcheckbox", { name: first.name }).click());
   await clickPost(editor, () => editor.getByRole("menuitemcheckbox", { name: second.name }).click());
+  await editor.reload();
   const selected = editor.getByRole("list", { name: "Versions sélectionnées" });
   await expect(selected).toContainText(first.name);
   await expect(selected).toContainText(second.name);
@@ -430,29 +516,44 @@ audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser,
   const two = await fixtureTask("R09-S03 bulk deux");
   const editor = await observedPage(browser, capture, "editor", AUTH.editor);
   audit.use(editor);
-    await editor.goto("/b/CASS?view=list");
-    await editor.getByRole("checkbox", { name: `Sélectionner ${one.key}` }).check();
-    await editor.getByRole("checkbox", { name: `Sélectionner ${two.key}` }).check();
-    const toolbar = editor.getByRole("region", { name: "Actions groupées" });
-    await toolbar.getByRole("button", { name: "Versions", exact: true }).click();
-    await editor.getByRole("menuitemcheckbox", { name: first.name }).click();
-    await toolbar.getByRole("button", { name: "Appliquer les versions" }).click();
-    await clickPost(editor, () => editor.getByRole("menuitem", { name: "Ajouter aux versions" }).click());
+    await editor.goto("/b/CASS?view=list&fvcol=1");
+    await selectBulkItems(editor, [one, two]);
+    await chooseBulkFixVersions(editor, [first.name]);
+    await applyBulkFixVersions(editor, "Ajouter aux versions", 2);
+    await editor.reload();
     expect(await assignedVersionIds(one.id)).toEqual([first.id]);
     expect(await assignedVersionIds(two.id)).toEqual([first.id]);
+    await expectListFixVersions(editor, one, [first.name]);
+    await expectListFixVersions(editor, two, [first.name]);
 
-    await toolbar.getByRole("button", { name: "Versions", exact: true }).click();
-    await editor.getByRole("menuitemcheckbox", { name: first.name }).click();
-    await editor.getByRole("menuitemcheckbox", { name: second.name }).click();
-    await toolbar.getByRole("button", { name: "Appliquer les versions" }).click();
-    await clickPost(editor, () => editor.getByRole("menuitem", { name: "Remplacer les versions" }).click());
+    await selectBulkItems(editor, [one, two]);
+    await chooseBulkFixVersions(editor, [second.name]);
+    await applyBulkFixVersions(editor, "Remplacer les versions", 2);
+    await editor.reload();
     expect(await assignedVersionIds(one.id)).toEqual([second.id]);
     expect(await assignedVersionIds(two.id)).toEqual([second.id]);
+    await expectListFixVersions(editor, one, [second.name]);
+    await expectListFixVersions(editor, two, [second.name]);
 
-    await toolbar.getByRole("button", { name: "Appliquer les versions" }).click();
-    await clickPost(editor, () => editor.getByRole("menuitem", { name: "Retirer des versions" }).click());
+    await selectBulkItems(editor, [one, two]);
+    await chooseBulkFixVersions(editor, [second.name]);
+    await applyBulkFixVersions(editor, "Retirer des versions", 2);
+    await editor.reload();
     expect(await assignedVersionIds(one.id)).toEqual([]);
     expect(await assignedVersionIds(two.id)).toEqual([]);
+    await expectListFixVersions(editor, one, []);
+    await expectListFixVersions(editor, two, []);
+
+    await selectBulkItems(editor, [one, two]);
+    await chooseBulkFixVersions(editor, [first.name, second.name]);
+    await applyBulkFixVersions(editor, "Ajouter aux versions", 2);
+    expect(await assignedVersionIds(one.id)).toEqual([first.id, second.id].sort());
+    await applyBulkFixVersions(editor, "Effacer toutes les versions", 2);
+    await editor.reload();
+    expect(await assignedVersionIds(one.id)).toEqual([]);
+    expect(await assignedVersionIds(two.id)).toEqual([]);
+    await expectListFixVersions(editor, one, []);
+    await expectListFixVersions(editor, two, []);
 });
 
 audited(4, "conserve le filtre Version après reload et dans une vue enregistrée", async ({ page }) => {
@@ -495,8 +596,18 @@ audited(5, "calcule la progression depuis les items et leurs points", async ({ p
   const article = page.getByRole("article", { name: release.name });
   await expect(article.getByLabel("Progression de la version : 1 sur 4")).toBeVisible();
   await expect(article).toContainText("1 terminés sur 4");
-  await expect(article).toContainText("5 / 10 points");
-  await expect(article).toContainText("1 non estimé");
+  await expect(article.getByRole("link", { name: "5 points terminés" })).toHaveAttribute(
+    "href",
+    `/b/CASS/releases/${release.id}?scopeStatus=done&scopeEstimate=estimated`,
+  );
+  await expect(article.getByRole("link", { name: "10 points estimés" })).toHaveAttribute(
+    "href",
+    `/b/CASS/releases/${release.id}?scopeEstimate=estimated`,
+  );
+  await expect(article.getByRole("link", { name: "1 non estimé" })).toHaveAttribute(
+    "href",
+    `/b/CASS/releases/${release.id}?scopeEstimate=unestimated`,
+  );
   await expect(article.getByRole("link", { name: "Terminés : 1" })).toHaveAttribute(
     "href",
     new RegExp(`version=${release.id}.*status=`),
@@ -624,15 +735,56 @@ audited(10, "masque une version archivée des candidats tout en gardant l’affe
   await page.getByRole("button", { name: "Versions", exact: true }).click();
   await expect(page.getByRole("menuitemcheckbox", { name: `${release.name} — Archivée` })).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await page.goto("/b/CASS?view=list");
+  await clickPost(page, () =>
+    selected.getByRole("button", { name: `Retirer ${release.name}` }).click(),
+  );
+  await page.reload();
+  expect(await assignedVersionIds(item.id)).toEqual([]);
+  await page.getByRole("button", { name: "Versions", exact: true }).click();
+  await expect(page.getByRole("menuitemcheckbox", { name: release.name, exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  await page.goto("/b/CASS?view=list&fvcol=1");
+  await page.getByRole("button", { name: "Nouvel item" }).click();
+  const archivedCreate = page.getByRole("dialog", { name: "Nouvel item" });
+  await archivedCreate.getByRole("button", { name: "Versions", exact: true }).click();
+  await expect(page.getByRole("menuitemcheckbox", { name: release.name, exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+
+  await selectBulkItems(page, [item]);
+  const toolbar = page.getByRole("region", { name: "Actions groupées" });
+  await toolbar.getByRole("button", { name: "Versions", exact: true }).click();
+  await expect(page.getByRole("menuitemcheckbox", { name: release.name, exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "+ Version" }).click();
   await expect(page.getByLabel(release.name)).toHaveCount(0);
+  await page.keyboard.press("Escape");
 
   await page.goto(`/b/CASS/releases/${release.id}`);
   await page.getByRole("button", { name: `Désarchiver ${release.name}` }).click();
   const unarchive = page.getByRole("dialog", { name: `Désarchiver ${release.name}` });
   await clickPost(page, () => unarchive.getByRole("button", { name: "Confirmer le désarchivage" }).click());
-  await page.goto("/b/CASS?view=list");
+  await page.goto("/b/CASS?view=list&fvcol=1");
+
+  await page.getByRole("button", { name: "Nouvel item" }).click();
+  const activeCreate = page.getByRole("dialog", { name: "Nouvel item" });
+  await activeCreate.getByRole("button", { name: "Versions", exact: true }).click();
+  await expect(page.getByRole("menuitemcheckbox", { name: release.name, exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+
+  await page.goto(`/b/CASS?view=list&item=${item.key}`);
+  await page.getByRole("button", { name: "Versions", exact: true }).click();
+  await expect(page.getByRole("menuitemcheckbox", { name: release.name, exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await page.goto("/b/CASS?view=list&fvcol=1");
+  await selectBulkItems(page, [item]);
+  await page.getByRole("region", { name: "Actions groupées" })
+    .getByRole("button", { name: "Versions", exact: true }).click();
+  await expect(page.getByRole("menuitemcheckbox", { name: release.name, exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "+ Version" }).click();
   await expect(page.getByLabel(release.name)).toBeVisible();
 });

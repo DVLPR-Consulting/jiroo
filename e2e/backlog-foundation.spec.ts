@@ -126,7 +126,9 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
     });
     timings.push(`[timing] bulk priority ${priority.elapsedMs}ms`);
     expect(priority.status).toBeLessThan(400);
-    await expect(page.getByText(/items? modifié/)).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Actions groupées" }).getByText(/items? modifié/),
+    ).toBeVisible();
     for (const key of [firstKey, secondKey]) {
       await expect(page.getByRole("row", { name: new RegExp(`^${key} —`) })).toContainText("Haute");
     }
