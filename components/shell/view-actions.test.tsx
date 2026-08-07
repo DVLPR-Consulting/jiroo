@@ -61,6 +61,7 @@ const filters: Filters = {
   priorities: [],
   assignees: [],
   labels: [],
+  releaseIds: [],
   kind: [],
   underIds: [],
 };
@@ -113,6 +114,7 @@ describe("ViewActions URL navigation", () => {
           statuses={[]}
           users={[]}
           labels={[]}
+          releases={[]}
           hierarchy={[]}
           resultCount={1}
         />
@@ -165,6 +167,7 @@ describe("ViewActions URL navigation", () => {
           statuses={[]}
           users={[]}
           labels={[]}
+          releases={[]}
           hierarchy={[]}
           resultCount={1}
         />

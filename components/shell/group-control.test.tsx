@@ -22,6 +22,7 @@ const emptyState: ViewState = {
     priorities: [],
     assignees: [],
     labels: [],
+    releaseIds: [],
     kind: [],
     underIds: [],
   },

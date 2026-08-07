@@ -33,6 +33,10 @@ import { PrioIcon } from "@/components/icons/prio-icon";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { BulkItemToolbar } from "@/components/items/bulk-item-toolbar";
+import {
+  FixVersionChips,
+  type FixVersionOption,
+} from "@/components/items/fix-version-picker";
 import { InlineEstimate } from "@/components/items/inline-item-field";
 import {
   NewItemButton,
@@ -50,7 +54,12 @@ import { SprintSectionHeader } from "@/components/sprints/sprint-section-header"
 import { Button } from "@/components/ui/button";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { BulkItemCapabilities, ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
+import type {
+  BulkItemCapabilities,
+  ItemCapabilities,
+  PlanningCapabilities,
+  ReleaseCapabilities,
+} from "@/lib/auth/capabilities";
 import {
   PRIORITIES,
   PRIORITY_LABELS,
@@ -94,6 +103,7 @@ export type BacklogItem = {
   assigneeName: string | null;
   rank: string;
   blocked: boolean;
+  fixVersions?: FixVersionOption[];
 };
 
 type BacklogGroup = {
@@ -290,6 +300,9 @@ function BacklogRow({
         />
       </td>
       <td className={CELL_CLASS}>
+        <FixVersionChips versions={item.fixVersions ?? []} />
+      </td>
+      <td className={CELL_CLASS}>
         <span className="truncate">{assigneeName}</span>
       </td>
     </tr>
@@ -313,6 +326,8 @@ function LegacyItemBacklog({
   canScheduleItems = true,
   canBulkChangeItems = true,
   bulkCapabilities,
+  releaseOptions = [],
+  releaseCapabilities,
   manualOrder = false,
   rankItemAction = rankBacklogItemAction,
 }: {
@@ -336,6 +351,8 @@ function LegacyItemBacklog({
   itemCapabilities?: ItemCapabilities;
   planningCapabilities?: PlanningCapabilities;
   bulkCapabilities?: BulkItemCapabilities;
+  releaseOptions?: FixVersionOption[];
+  releaseCapabilities?: ReleaseCapabilities;
   manualOrder?: boolean;
   rankItemAction?: RankItemAction;
 }) {
@@ -400,11 +417,13 @@ function LegacyItemBacklog({
   const allSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selection.selectedIds.has(id));
   const partlySelected = selection.selectedIds.size > 0 && !allSelected;
-  const canSelectItems = bulkCapabilities
-    ? Object.values(bulkCapabilities).some(Boolean)
-    : canBulkChangeItems && (
+  const canSelectItems = releaseCapabilities?.bulkAssignItems === true || (
+    bulkCapabilities
+      ? Object.values(bulkCapabilities).some(Boolean)
+      : canBulkChangeItems && (
         canEditItems || canTransitionItems || canAssignItems || canScheduleItems
-      );
+      )
+  );
 
   function toggleSelection(id: string, extendRange: boolean) {
     setSelection((current) =>
@@ -608,6 +627,7 @@ function LegacyItemBacklog({
               <col className="w-28" />
               <col className="w-24" />
               <col className="w-44" />
+              <col className="w-44" />
             </colgroup>
             <thead className="sticky top-0 z-20">
               <tr>
@@ -637,6 +657,7 @@ function LegacyItemBacklog({
                 <th scope="col" className={HEADER_CLASS}>Statut</th>
                 <th scope="col" className={HEADER_CLASS}>Priorité</th>
                 <th scope="col" className={HEADER_CLASS}>Points</th>
+                <th scope="col" className={HEADER_CLASS}>Fix versions</th>
                 <th scope="col" className={HEADER_CLASS}>Assigné</th>
               </tr>
             </thead>
@@ -646,7 +667,7 @@ function LegacyItemBacklog({
                   <tr>
                     <th
                       scope="rowgroup"
-                      colSpan={canSelectItems ? 8 : 7}
+                      colSpan={canSelectItems ? 9 : 8}
                       className="border-b border-border bg-[var(--surface-2)] px-3 py-2 text-left text-xs font-semibold"
                     >
                       {group.label} · {group.items.length}
@@ -693,6 +714,9 @@ function LegacyItemBacklog({
               canAssignItems={canAssignItems}
               canScheduleItems={canScheduleItems}
               canBulkChangeItems={canBulkChangeItems}
+              capabilities={bulkCapabilities}
+              releaseOptions={releaseOptions}
+              releaseCapabilities={releaseCapabilities}
               onClearSelection={() => setSelection(emptySelection())}
               onMutationSuccess={() => router.refresh()}
             />
@@ -724,6 +748,8 @@ type SharedBacklogProps = {
   itemCapabilities?: ItemCapabilities;
   planningCapabilities?: PlanningCapabilities;
   bulkCapabilities?: BulkItemCapabilities;
+  releaseOptions?: FixVersionOption[];
+  releaseCapabilities?: ReleaseCapabilities;
   manualOrder?: boolean;
   rankItemAction?: RankItemAction;
 };
@@ -753,7 +779,7 @@ type SprintBacklogProps = SharedBacklogProps & {
   sprints: SprintSummary[];
   moveSprintItemAction?: MoveSprintItemAction;
   reorderSprintAction?: typeof defaultReorderSprintAction;
-  createDialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems">;
+  createDialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions">;
 };
 
 function SectionTable({
@@ -802,6 +828,7 @@ function SectionTable({
         <col className="w-28" />
         <col className="w-24" />
         <col className="w-44" />
+        <col className="w-44" />
       </colgroup>
       <thead>
         <tr>
@@ -829,6 +856,7 @@ function SectionTable({
           <th scope="col" className={HEADER_CLASS}>Statut</th>
           <th scope="col" className={HEADER_CLASS}>Priorité</th>
           <th scope="col" className={HEADER_CLASS}>Points</th>
+          <th scope="col" className={HEADER_CLASS}>Fix versions</th>
           <th scope="col" className={HEADER_CLASS}>Assigné</th>
         </tr>
       </thead>
@@ -838,7 +866,7 @@ function SectionTable({
             <tr>
               <th
                 scope="rowgroup"
-                colSpan={canSelectItems ? 8 : 7}
+                colSpan={canSelectItems ? 9 : 8}
                 className="border-b border-border bg-[var(--surface-2)] px-3 py-2 text-left text-xs font-semibold"
               >
                 {group.label} · {group.items.length}
@@ -912,6 +940,8 @@ function SprintItemBacklog({
   itemCapabilities,
   planningCapabilities,
   bulkCapabilities,
+  releaseOptions = [],
+  releaseCapabilities,
   manualOrder = false,
   rankItemAction = rankBacklogItemAction,
   moveSprintItemAction = defaultMoveSprintItemAction,
@@ -937,11 +967,13 @@ function SprintItemBacklog({
   const [mutationPending, setMutationPending] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [rankError, setRankError] = useState<string | null>(null);
-  const canSelectItems = bulkCapabilities
-    ? Object.values(bulkCapabilities).some(Boolean)
-    : canBulkChangeItems && (
+  const canSelectItems = releaseCapabilities?.bulkAssignItems === true || (
+    bulkCapabilities
+      ? Object.values(bulkCapabilities).some(Boolean)
+      : canBulkChangeItems && (
         canEditItems || canTransitionItems || canAssignItems || canScheduleItems
-      );
+      )
+  );
   const sectionSnapshot = useRef<SprintBacklogSection[] | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -1356,6 +1388,8 @@ function SprintItemBacklog({
               canScheduleItems={canScheduleItems}
               canBulkChangeItems={canBulkChangeItems}
               capabilities={bulkCapabilities}
+              releaseOptions={releaseOptions}
+              releaseCapabilities={releaseCapabilities}
               onClearSelection={() => setSelection(emptySelection())}
               onMutationSuccess={() => router.refresh()}
             />

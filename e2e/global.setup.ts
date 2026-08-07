@@ -46,6 +46,7 @@ const ACCOUNTS = [
   { key: "admin", email: "platform-admin@jiroo.local", name: "Administrateur E2E", role: "admin" as const, path: ".playwright/.auth/platform-admin.json" },
   { key: "member", email: "member@jiroo.local", name: "Membre E2E", role: "contributor" as const, path: ".playwright/.auth/member.json" },
   { key: "specialist", email: "specialist@jiroo.local", name: "Spécialiste E2E", role: "contributor" as const, path: ".playwright/.auth/specialist.json" },
+  { key: "editor", email: "editor-releases@jiroo.local", name: "Éditeur Releases E2E", role: "contributor" as const, path: ".playwright/.auth/editor.json" },
   { key: "reader", email: "reader@jiroo.local", name: "Lecteur E2E", role: "viewer" as const, path: ".playwright/.auth/reader.json" },
   { key: "noAccess", email: "no-access@jiroo.local", name: "Sans accès E2E", role: "contributor" as const, path: ".playwright/.auth/no-access.json" },
 ] as const;
@@ -271,6 +272,7 @@ async function seedPermissionFixtures(accountIds: Record<AccountKey, string>, ca
     principal: { type: "user", userId: accountIds.member },
   }, accountIds.admin, "e2e-seed-limited-group-manager");
   const specialistRole = await createProjectRole({ name: "Spécialiste delivery", description: "Sprints et futures releases, sans édition d’item." }, accountIds.admin, "e2e-seed-role");
+  const editorRole = await createProjectRole({ name: "Éditeur releases", description: "Édition d’items CASS et affectation de versions, sans cycle de vie des releases." }, accountIds.admin, "e2e-seed-editor-role");
 
   const [cassConfig] = await db.select({ schemeId: backlogPermissionConfigs.permissionSchemeId }).from(backlogPermissionConfigs).where(eq(backlogPermissionConfigs.backlogId, cassId));
   if (!cassConfig) throw new Error("Configuration CASS introuvable.");
@@ -283,12 +285,20 @@ async function seedPermissionFixtures(accountIds: Record<AccountKey, string>, ca
 
   await assignBacklogRoleActor({ backlogId: cassId, projectRoleId: specialistRole.id, principal: { type: "group", groupId: group.id } }, accountIds.admin, "e2e-seed-group-role");
   await assignBacklogRoleActor({ backlogId: cassId, projectRoleId: specialistRole.id, principal: { type: "user", userId: accountIds.specialist } }, accountIds.admin, "e2e-seed-specialist-role");
+  await assignBacklogRoleActor({ backlogId: cassId, projectRoleId: editorRole.id, principal: { type: "user", userId: accountIds.editor } }, accountIds.admin, "e2e-seed-editor-role");
+
+  await addGlobalPermissionGrant({
+    permission: "bulk_change_items",
+    principal: { type: "user", userId: accountIds.editor },
+  }, accountIds.admin, "e2e-seed-editor-bulk");
 
   const affectedBacklogIds = [cassId, labsId].sort();
   const grants = [
     { permission: "browse_backlog" as const, principal: { type: "project_role" as const, projectRoleId: specialistRole.id } },
     { permission: "manage_sprints" as const, principal: { type: "project_role" as const, projectRoleId: specialistRole.id } },
     { permission: "manage_releases" as const, principal: { type: "project_role" as const, projectRoleId: specialistRole.id } },
+    { permission: "browse_backlog" as const, principal: { type: "project_role" as const, projectRoleId: editorRole.id } },
+    { permission: "edit_items" as const, principal: { type: "project_role" as const, projectRoleId: editorRole.id } },
     { permission: "manage_shared_views" as const, principal: { type: "user" as const, userId: accountIds.member } },
     { permission: "delete_items" as const, principal: { type: "group" as const, groupId: group.id } },
   ];

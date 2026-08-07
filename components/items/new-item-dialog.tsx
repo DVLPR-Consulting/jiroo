@@ -39,6 +39,10 @@ import { ITEM_TEMPLATES, getTemplate } from "@/lib/items/templates";
 import { allowedParentType } from "@/lib/tree/hierarchy";
 import { toast } from "@/lib/toast";
 import { ITEM_TITLE_MAX } from "@/lib/validation/item";
+import {
+  FixVersionPicker,
+  type FixVersionOption,
+} from "@/components/items/fix-version-picker";
 
 type Item = { id: string; key: string; type: ItemType; title: string };
 type Status = { id: string; name: string };
@@ -55,6 +59,7 @@ export type NewItemButtonProps = {
   sprintId?: string | null;
   contextLabel?: string;
   canScheduleItems?: boolean;
+  releaseOptions?: FixVersionOption[];
 };
 
 // Shared field styling — matches Input's token-based look so native selects fit in.
@@ -73,6 +78,7 @@ export function NewItemButton({
   sprintId,
   contextLabel,
   canScheduleItems = true,
+  releaseOptions = [],
 }: NewItemButtonProps) {
   const router = useRouter();
   const contextualTask = contextLabel !== undefined;
@@ -87,6 +93,7 @@ export function NewItemButton({
   const [parentId, setParentId] = useState<string>("");
   const [statusId, setStatusId] = useState<string>(initialStatusId ?? "");
   const [priority, setPriority] = useState<Priority>(0);
+  const [fixVersionIds, setFixVersionIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -141,6 +148,7 @@ export function NewItemButton({
     setParentId("");
     setStatusId(initialStatusId ?? "");
     setPriority(0);
+    setFixVersionIds([]);
     setError(null);
     setTitleError(null);
   }
@@ -187,6 +195,7 @@ export function NewItemButton({
         description: description || null,
         statusId: statusId || undefined,
         priority,
+        fixVersionIds,
         ...(contextualTask ? { sprintId: sprintId ?? null } : {}),
       });
       if (!result.ok) {
@@ -382,6 +391,18 @@ export function NewItemButton({
               ))}
             </select>
           </div>
+
+          {releaseOptions.length > 0 ? (
+            <div className="space-y-2">
+              <Label>Fix versions</Label>
+              <FixVersionPicker
+                value={fixVersionIds}
+                options={releaseOptions}
+                disabled={pending}
+                onChange={setFixVersionIds}
+              />
+            </div>
+          ) : null}
 
           {error && <p className="t-sm text-destructive">{error}</p>}
 

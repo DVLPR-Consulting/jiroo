@@ -17,7 +17,10 @@ export type ReadVisibilityFixture = Awaited<ReturnType<typeof createReadVisibili
 
 export async function createReadVisibilityFixture(label: string) {
   const fixtureId = randomUUID();
-  const letters = randomUUID().replace(/[^a-f]/gi, "").toUpperCase();
+  const letters = randomUUID()
+    .replaceAll("-", "")
+    .replace(/\d/gu, (digit) => String.fromCharCode("G".charCodeAt(0) + Number(digit)))
+    .toUpperCase();
   const actorA = `read-a-${fixtureId}`;
   const actorB = `read-b-${fixtureId}`;
   const admin = `read-admin-${fixtureId}`;

@@ -25,6 +25,7 @@ function row(
     updatedAt: new Date("2026-08-01T00:00:00.000Z"),
     rank: "m",
     labelIds: [],
+    fixVersionIds: [],
     ancestorIds: [],
     componentId: null,
     statusOrder: 0,

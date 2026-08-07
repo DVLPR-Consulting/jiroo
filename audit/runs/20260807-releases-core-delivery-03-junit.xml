@@ -1,0 +1,92 @@
+<testsuites id="" name="" tests="40" failures="0" skipped="0" errors="0" time="124.837637">
+<testsuite name="backlog-foundation.spec.ts" timestamp="2026-08-07T19:54:41.297Z" hostname="chromium" tests="6" failures="0" skipped="0" time="13.806" errors="0">
+<testcase name="sélectionne une plage et applique les quatre actions groupées" classname="backlog-foundation.spec.ts" time="5.58">
+</testcase>
+<testcase name="le lecteur ne reçoit aucun contrôle de planification" classname="backlog-foundation.spec.ts" time="0.848">
+</testcase>
+<testcase name="distingue 5, zéro et non estimé puis restaure la valeur" classname="backlog-foundation.spec.ts" time="2.853">
+</testcase>
+<testcase name="désactive le classement avec tri ou groupement et conserve le mode Backlog" classname="backlog-foundation.spec.ts" time="1.647">
+</testcase>
+<testcase name="isole la sélection de la Liste et la réinitialise au changement de vue" classname="backlog-foundation.spec.ts" time="1.311">
+</testcase>
+<testcase name="restaure le classement et conserve la sélection après deux échecs réseau injectés" classname="backlog-foundation.spec.ts" time="1.567">
+</testcase>
+</testsuite>
+<testsuite name="backlog-ranking.spec.ts" timestamp="2026-08-07T19:54:41.297Z" hostname="chromium" tests="1" failures="0" skipped="0" time="3.728" errors="0">
+<testcase name="classe à la souris, restaure au clavier et conserve chaque ordre" classname="backlog-ranking.spec.ts" time="3.728">
+</testcase>
+</testsuite>
+<testsuite name="permission-schemes.spec.ts" timestamp="2026-08-07T19:54:41.297Z" hostname="chromium" tests="10" failures="0" skipped="0" time="23.322" errors="0">
+<testcase name="1. crée un groupe, un rôle personnalisé et un clone de schéma" classname="permission-schemes.spec.ts" time="4.161">
+</testcase>
+<testcase name="2. isole le grant de rôle et l’occupation de groupe à un seul backlog" classname="permission-schemes.spec.ts" time="1.428">
+</testcase>
+<testcase name="3. explique les grants direct, groupe et rôle dans l’Assistant de permissions" classname="permission-schemes.spec.ts" time="1.446">
+</testcase>
+<testcase name="4. rejette une Server Action forgée par le lecteur" classname="permission-schemes.spec.ts" time="1.927">
+</testcase>
+<testcase name="5. donne au spécialiste les contrôles de sprint sans édition d’item ni workflow" classname="permission-schemes.spec.ts" time="1.001">
+</testcase>
+<testcase name="6. relie manage_releases à l’interface Releases du spécialiste" classname="permission-schemes.spec.ts" time="2.587">
+</testcase>
+<testcase name="7. retire browse de la navigation, recherche, récents, notifications et URL" classname="permission-schemes.spec.ts" time="4.382">
+</testcase>
+<testcase name="8. détecte puis récupère un conflit de version sur schéma partagé" classname="permission-schemes.spec.ts" time="2.607">
+</testcase>
+<testcase name="9. conserve un historique de sécurité append-only" classname="permission-schemes.spec.ts" time="1.48">
+</testcase>
+<testcase name="10. persiste après reload et dans un second contexte utilisateur" classname="permission-schemes.spec.ts" time="2.303">
+</testcase>
+</testsuite>
+<testsuite name="releases.spec.ts" timestamp="2026-08-07T19:54:41.297Z" hostname="chromium" tests="16" failures="0" skipped="0" time="51.511" errors="0">
+<testcase name="01 — crée puis modifie une version" classname="releases.spec.ts" time="3.416">
+</testcase>
+<testcase name="02 — persiste deux versions à la création puis depuis le détail" classname="releases.spec.ts" time="7.288">
+</testcase>
+<testcase name="03 — ajoute, remplace et retire des versions en masse" classname="releases.spec.ts" time="7.021">
+</testcase>
+<testcase name="04 — conserve le filtre Version après reload et dans une vue enregistrée" classname="releases.spec.ts" time="3.95">
+</testcase>
+<testcase name="05 — calcule la progression depuis les items et leurs points" classname="releases.spec.ts" time="0.845">
+</testcase>
+<testcase name="06 — permet au spécialiste de publier en conservant les incomplets" classname="releases.spec.ts" time="1.325">
+</testcase>
+<testcase name="07 — refuse un publish move forgé par le spécialiste" classname="releases.spec.ts" time="1.556">
+</testcase>
+<testcase name="08 — conserve deux snapshots après dépublication et republication" classname="releases.spec.ts" time="2.109">
+</testcase>
+<testcase name="09 — déplace les incomplets sans retirer leurs versions sans rapport" classname="releases.spec.ts" time="1.308">
+</testcase>
+<testcase name="10 — masque une version archivée des candidats tout en gardant l’affectation courante" classname="releases.spec.ts" time="7.135">
+</testcase>
+<testcase name="11 — autorise l’éditeur à affecter sans exposer le cycle de vie" classname="releases.spec.ts" time="2.348">
+</testcase>
+<testcase name="12 — refuse la requête forgée du lecteur sans changer DB ni historique" classname="releases.spec.ts" time="2.121">
+</testcase>
+<testcase name="13 — détecte une édition stale entre deux contextes" classname="releases.spec.ts" time="2.448">
+</testcase>
+<testcase name="14 — garde le dialogue ouvert et rollback après publish intercepté" classname="releases.spec.ts" time="0.949">
+</testcase>
+<testcase name="15 — rend la release visible au second utilisateur et isole CASS de LABS" classname="releases.spec.ts" time="2.717">
+</testcase>
+<testcase name="16 — refuse un publish quand le périmètre change entre deux contextes" classname="releases.spec.ts" time="4.975">
+</testcase>
+</testsuite>
+<testsuite name="sprint-lifecycle.spec.ts" timestamp="2026-08-07T19:54:41.297Z" hostname="chromium" tests="7" failures="0" skipped="0" time="25.865" errors="0">
+<testcase name="planifie, exécute et clôture un sprint sans exposer le backlog sur le Board" classname="sprint-lifecycle.spec.ts" time="7.003">
+</testcase>
+<testcase name="conserve le sprint planifié et explique un échec réseau au démarrage" classname="sprint-lifecycle.spec.ts" time="3.082">
+</testcase>
+<testcase name="recalcule et explique un dépassement de capacité avant démarrage" classname="sprint-lifecycle.spec.ts" time="1.315">
+</testcase>
+<testcase name="restaure sélection et section après deux échecs réseau de planification" classname="sprint-lifecycle.spec.ts" time="2.689">
+</testcase>
+<testcase name="clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ouverte" classname="sprint-lifecycle.spec.ts" time="3.984">
+</testcase>
+<testcase name="laisse le lecteur consulter la planification et le Board sans aucun contrôle" classname="sprint-lifecycle.spec.ts" time="3.771">
+</testcase>
+<testcase name="planifie une plage de tâches en masse et conserve la section après rechargement" classname="sprint-lifecycle.spec.ts" time="4.021">
+</testcase>
+</testsuite>
+</testsuites>

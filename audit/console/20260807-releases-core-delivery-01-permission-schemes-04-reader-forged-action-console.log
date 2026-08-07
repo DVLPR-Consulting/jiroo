@@ -1,0 +1,7 @@
+[scenario] capture action administrateur
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[result] scénario validé
+[scenario] rejeu lecteur
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected

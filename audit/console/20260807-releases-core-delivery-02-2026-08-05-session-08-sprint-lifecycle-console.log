@@ -1,0 +1,18 @@
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[timing] create sprint 1 367ms
+[timing] create Audit sprint — tâche terminée 406ms
+[timing] create Audit sprint — tâche reportée 426ms
+[timing] create sprint 2 300ms
+[timing] start sprint 470ms
+[timing] create from board 339ms
+[timing] board drag 568ms
+[timing] complete sprint 373ms
+[performance] {"responseStartMs":124,"domContentLoadedMs":314,"loadMs":326}
+[result] cycle planification → sprint actif → board → clôture persisté

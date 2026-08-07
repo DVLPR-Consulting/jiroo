@@ -26,6 +26,7 @@ const TASK_NEW_SPRINT = "Audit clôture — nouveau sprint";
 const TASK_PARENT_DONE = "Audit clôture — parent terminé";
 const SUBTASK_OPEN = "Audit clôture — sous-tâche ouverte";
 const TASK_OVER_CAPACITY = "Audit planification — dépassement capacité";
+const TASK_ROLLBACK_ANCHOR = "Audit planification — ancre sprint";
 const TEST_TITLES = [
   TASK_DONE,
   TASK_CARRIED,
@@ -35,6 +36,7 @@ const TEST_TITLES = [
   TASK_PARENT_DONE,
   SUBTASK_OPEN,
   TASK_OVER_CAPACITY,
+  TASK_ROLLBACK_ANCHOR,
 ];
 const TEST_SPRINT_NAMES = [
   "Sprint 1",
@@ -616,9 +618,32 @@ test("restaure sélection et section après deux échecs réseau de planificatio
   await businessPost(page, () =>
     page.getByRole("button", { name: "Créer un sprint" }).click(),
   );
+  const fixture = await sprintFixtureContext();
+  const [sprint] = await db
+    .select({ id: sprints.id })
+    .from(sprints)
+    .where(and(eq(sprints.backlogId, backlog.id), eq(sprints.name, "Sprint 1")))
+    .limit(1);
+  if (!sprint) throw new Error("Sprint rollback introuvable.");
+  await createItem(
+    {
+      backlogId: backlog.id,
+      type: "tache",
+      parentId: fixture.epic.id,
+      title: TASK_ROLLBACK_ANCHOR,
+      statusId: fixture.todo.id,
+      sprintId: sprint.id,
+    },
+    fixture.actor.id,
+  );
   await page.reload();
   await expect(page.getByRole("heading", { name: "Sprint 1" })).toBeVisible();
-  const checkboxes = page.getByRole("checkbox", { name: /^Sélectionner CASS-/ });
+  const sprintSection = page.locator("[data-sprint-section]").filter({
+    has: page.getByRole("heading", { name: "Sprint 1" }),
+  });
+  const backlogSection = page.locator('[data-sprint-section="backlog"]');
+  await expect(sprintSection.getByText(TASK_ROLLBACK_ANCHOR, { exact: true })).toBeVisible();
+  const checkboxes = backlogSection.getByRole("checkbox", { name: /^Sélectionner CASS-/ });
   expect(await checkboxes.count()).toBeGreaterThan(2);
   const firstKey = (await checkboxes.nth(0).getAttribute("aria-label"))?.replace(
     "Sélectionner ",
@@ -628,14 +653,11 @@ test("restaure sélection et section après deux échecs réseau de planificatio
     "Sélectionner ",
     "",
   );
-  const dragKey = (await checkboxes.nth(2).getAttribute("aria-label"))?.replace(
-    "Sélectionner ",
-    "",
-  );
+  const dragKey = firstKey;
   if (!firstKey || !secondKey || !dragKey) throw new Error("Clés rollback introuvables.");
 
-  await page.getByRole("checkbox", { name: `Sélectionner ${firstKey}` }).click();
-  await page
+  await backlogSection.getByRole("checkbox", { name: `Sélectionner ${firstKey}` }).click();
+  await backlogSection
     .getByRole("checkbox", { name: `Sélectionner ${secondKey}` })
     .click({ modifiers: ["Shift"] });
   let bulkRejected = false;
@@ -666,13 +688,14 @@ test("restaure sélection et section après deux échecs réseau de planificatio
   await page.unroute("**/*");
   await page.getByRole("button", { name: "Effacer la sélection" }).click();
 
-  const sprintSection = page.locator("[data-sprint-section]").filter({
-    has: page.getByRole("heading", { name: "Sprint 1" }),
-  });
-  const backlogSection = page.locator('[data-sprint-section="backlog"]');
   const handle = page.getByRole("button", { name: `Déplacer ${dragKey}` });
+  const sprintHeading = sprintSection.getByRole("heading", { name: "Sprint 1" });
+  await page.getByRole("heading", { name: "Planification" }).scrollIntoViewIfNeeded();
+  await expect(handle).toBeEnabled();
+  await expect(handle).toBeInViewport();
+  await expect(sprintHeading).toBeInViewport();
   const origin = await handle.boundingBox();
-  const destination = await sprintSection.boundingBox();
+  const destination = await sprintHeading.boundingBox();
   if (!origin || !destination) throw new Error("Géométrie rollback introuvable.");
   let dragRejected = false;
   await page.route("**/*", async (route) => {
@@ -694,10 +717,12 @@ test("restaure sélection et section après deux échecs réseau de planificatio
   });
   await page.mouse.move(
     destination.x + destination.width / 2,
-    destination.y + Math.min(destination.height - 8, 45),
+    destination.y + destination.height / 2,
     { steps: 16 },
   );
+  await expect(sprintSection).toHaveAttribute("data-drop-target", "true");
   await page.mouse.up();
+  await expect.poll(() => dragRejected).toBe(true);
   await expect(page.getByText("Planification impossible.", { exact: true })).toBeVisible();
   await expect(backlogSection.getByText(dragKey, { exact: true })).toBeVisible();
   await expect(sprintSection.getByText(dragKey, { exact: true })).toHaveCount(0);
@@ -1011,6 +1036,7 @@ test("planifie une plage de tâches en masse et conserve la section après recha
     "Statut",
     "Priorité",
     "Points",
+    "Fix versions",
     "Assigné",
   ]);
   await page.getByRole("button", { name: "Replier Sprint 1" }).click();

@@ -1325,3 +1325,47 @@ La première collecte de remédiation contient les deux 401 TOTP historiques de 
 | BUG-JIR-021 | nom accessible strict `Créer` malgré l'icône de type | Vitest + création contextuelle Playwright |
 | BUG-JIR-022 | collision pointeur priorisant ligne exacte ou section vide | Vitest + Playwright souris 5/5 + rollback |
 | BUG-JIR-023 | collation SQL binaire sur tous les rangs items/sprints | intégration PostgreSQL RED/GREEN + 7 scénarios Chromium |
+
+## BUG-JIR-027 — Releases/Versions totalement absentes malgré la permission dédiée
+
+- **Gravité initiale :** bloquante
+- **Priorité initiale :** P0
+- **Statut :** fermé le 7 août 2026 — noyau Releases livré et accepté
+- **Fonctionnalité :** releases / versions / planification produit
+
+### Correctif vérifié
+
+- modèle Version backlog-scoped et relation many-to-many `Fix versions` ;
+- routes liste et détail Releases, création et édition ;
+- affectation multivaluée à la création, au détail et en bulk ;
+- filtre Version persistant dans l’URL et les vues enregistrées sur Liste,
+  Backlog, Board et Arbre ;
+- progression explicable par statut, points et drilldowns d’items ;
+- publication avec choix explicite pour les incomplets, dépublication,
+  archivage et restauration ;
+- snapshots de publication append-only, historique corrélé et refus serveur ;
+- `manage_releases` consommé par le cycle de vie, `edit_items` par les
+  affectations, sans révélation d’IDs étrangers ou supprimés.
+
+### Niveau de preuve
+
+La matrice Chromium persistante autoritative
+[`20260807-releases-core-delivery-03`](runs/20260807-releases-core-delivery-03-junit.xml)
+passe **40/40**, dont 16 scénarios Releases, sur le SHA source
+`8eef265f971ca8244e67299926223046a3529cda`. La matrice PostgreSQL passe
+**19/19 fichiers et 184/184 tests** ; le manifeste de provenance est
+[conservé ici](runs/20260807-releases-core-delivery-03-manifest.json).
+
+Les scénarios prouvent notamment deux versions par item, ajout/remplacement/
+retrait bulk, filtres et reload, calculs de progression, publication et move
+des incomplets, snapshots après dépublication/republication, version archivée,
+éditeur sans cycle de vie, lecteur forgé sans mutation ni historique, conflit
+stale, rollback réseau, second utilisateur et isolation CASS/LABS.
+
+### Dette restante — PR Release 2
+
+Le bug d’absence est fermé, mais la profondeur Jira complète ne l’est pas :
+fusion de versions, suppression avec transfert/retrait, ordre manuel, notes de
+release et travail connexe Git/PR/déploiement restent explicitement hors du
+noyau livré. Ces éléments sont suivis comme portée PR2, pas comme réouverture
+de BUG-JIR-027.

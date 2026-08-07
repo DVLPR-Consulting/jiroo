@@ -78,6 +78,13 @@
       "when": 1786003133051,
       "tag": "0010_jira_permission_schemes",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786119174652,
+      "tag": "0011_jira_releases_core",
+      "breakpoints": true
     }
   ]
 }

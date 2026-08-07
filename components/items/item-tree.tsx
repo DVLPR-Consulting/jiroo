@@ -147,7 +147,7 @@ type ItemTreeProps = {
   filtersActive?: boolean;
   hasItems?: boolean;
   clearFiltersHref?: string;
-  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems">;
+  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions">;
   canCreateItems?: boolean;
   canScheduleItems?: boolean;
   itemCapabilities?: ItemCapabilities;

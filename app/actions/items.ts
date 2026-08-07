@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
@@ -45,6 +46,7 @@ type CreateItemActionInput = {
   labelIds?: string[];
   kind?: ItemKind;
   sprintId?: string | null;
+  fixVersionIds?: string[];
 };
 
 type UpdateItemActionInput = {
@@ -60,6 +62,7 @@ type UpdateItemActionInput = {
   dueDate?: string | null;
   labelIds?: string[];
   kind?: ItemKind;
+  fixVersionIds?: string[];
 };
 
 async function authenticatedActorId(): Promise<string> {
@@ -193,7 +196,6 @@ function mapCreateError(e: unknown): string {
 const BULK_DOMAIN_ERRORS = [
   "Backlog introuvable.",
   "Un ou plusieurs items sont introuvables.",
-  "Tous les items doivent appartenir au backlog.",
   "Statut invalide pour ce backlog.",
   "Assigné introuvable.",
   "Seules les tâches peuvent être estimées.",
@@ -201,10 +203,15 @@ const BULK_DOMAIN_ERRORS = [
   "Le sprint appartient à un autre backlog.",
   "Un sprint terminé ne peut plus recevoir d’items.",
   "Seules les tâches peuvent être planifiées dans un sprint.",
+  "Une ou plusieurs releases sont invalides pour ce backlog.",
+  "Une release archivée ne peut pas être ajoutée.",
 ] as const;
 
 function mapBulkError(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
+  if (message === "Tous les items doivent appartenir au backlog.") {
+    return "Un ou plusieurs items sont introuvables.";
+  }
   return BULK_DOMAIN_ERRORS.find((candidate) => candidate === message)
     ?? "Modification groupée impossible.";
 }
@@ -239,7 +246,7 @@ export async function createItemAction(input: CreateItemActionInput) {
       await requireAssignableUser({ assigneeId: input.assigneeId, backlogId: backlog.backlogId });
     }
     const { backlogKey, ...data } = input;
-    const item = await createItem(data, actorId);
+    const item = await createItem(data, actorId, randomUUID());
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, item };
   } catch (e) {
@@ -256,7 +263,7 @@ export async function updateItemAction(input: UpdateItemActionInput) {
   try {
     await authorizeItemUpdate(actorId, input);
     const { backlogKey, ...data } = input;
-    const item = await updateItem(data, actorId);
+    const item = await updateItem(data, actorId, randomUUID());
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, item };
   } catch (e) {
@@ -289,37 +296,34 @@ export async function bulkUpdateItemsAction(input: {
       permission: "bulk_change_items",
       scope: { type: "global" },
     });
-    const permission = bulkPatchPermission(input.patch);
-    const authorizedItems: AuthorizedResource[] = [];
-    for (const itemId of input.itemIds) {
-      const item = await requireItemPermission({ actorId, itemId, permission });
-      assertStoredBacklog(item, input.backlogId);
-      authorizedItems.push(item);
-    }
-    const authorizedBacklogs = new Map(
-      authorizedItems.map((item) => [item.backlogId, item]),
-    );
+    const authorizedBacklog = await requireBacklogPermissionById({
+      actorId,
+      backlogId: input.backlogId,
+      permission: bulkPatchPermission(input.patch),
+    });
+    assertStoredBacklog(authorizedBacklog, input.backlogId);
     if (input.patch.field === "statusId") {
       const status = await requireStatusPermission({
         actorId,
         statusId: input.patch.value,
         permission: "transition_items",
       });
-      for (const item of authorizedBacklogs.values()) assertSameBacklog(item, status, "status");
+      assertSameBacklog(authorizedBacklog, status, "status");
     } else if (input.patch.field === "sprintId" && input.patch.value) {
       const sprint = await requireSprintPermission({
         actorId,
         sprintId: input.patch.value,
         permission: "schedule_items",
       });
-      for (const item of authorizedBacklogs.values()) assertSameBacklog(item, sprint, "sprint");
+      assertSameBacklog(authorizedBacklog, sprint, "sprint");
     } else if (input.patch.field === "assigneeId") {
-      for (const backlogId of authorizedBacklogs.keys()) {
-        await requireAssignableUser({ assigneeId: input.patch.value, backlogId });
-      }
+      await requireAssignableUser({
+        assigneeId: input.patch.value,
+        backlogId: authorizedBacklog.backlogId,
+      });
     }
     const { backlogKey, ...serviceInput } = input;
-    const result = await bulkUpdateItems(serviceInput, actorId);
+    const result = await bulkUpdateItems(serviceInput, actorId, randomUUID());
     revalidatePath(`/b/${backlogKey}`);
     return { ok: true as const, ...result };
   } catch (error) {

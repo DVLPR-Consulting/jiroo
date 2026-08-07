@@ -943,3 +943,154 @@ rapport de sprint, vélocité et burndown demeurent des fonctions produit absent
    l’administration aux breakpoints 390/768/1024/1440 px.
 3. Construire le **rapport de sprint**, la vélocité et le burndown à partir des
    événements persistants, avec totaux explicables item par item.
+
+---
+
+## Fin de session — incrément 10 : découverte Releases / Versions
+
+### Verdict
+
+**Fonctionnalité manquante — P0.** Playwright confirme que Jiroo ne possède
+aucun consommateur métier de `manage_releases`. La permission est visible dans
+l’Assistant d’accès, mais aucune Release/Version ne peut être créée, consultée,
+affectée à un item, filtrée, publiée ou archivée.
+
+Le score global reste **82/100** : les incréments précédents n’accordaient déjà
+aucun crédit à Releases. La confiance sur ce constat est élevée, car les
+surfaces principales et les URL directes ont été testées dans Chromium.
+
+### Ce qui a été testé
+
+- navigation principale et administration : aucun menu Releases/Versions ;
+- Backlog : aucune colonne, aucun filtre et aucune action bulk Release/Version ;
+- création d’item : aucun champ de planification de version ;
+- détail d’item : aucun champ `Fix versions` ;
+- page Accès : `Gérer les releases` existe bien dans l’Assistant ;
+- `/b/CASS/releases` et `/b/CASS/versions` : réponses HTTP 404 ;
+- serveur `main` redémarré et compte d’audit réinitialisé avant le parcours
+  nominal ; ce parcours ne produit aucune erreur console ou réseau inattendue.
+
+Preuves : [Backlog sans Release](screenshots/BUG-JIR-027-releases-absentes-backlog.png),
+[console nominale](console/2026-08-07-session-10-releases-nominal-console.log),
+[réseau nominal](network/2026-08-07-session-10-releases-nominal-network.log),
+[console des routes directes](console/2026-08-07-session-10-releases-direct-routes-console.log)
+et [réseau des routes directes](network/2026-08-07-session-10-releases-direct-routes-network.log).
+
+### Ce qui reste à tester
+
+La fonctionnalité étant absente, aucun cycle de création, affectation,
+publication, archivage, permission ou concurrence ne peut encore être exécuté.
+Ces scénarios constitueront la matrice d’acceptation de l’implémentation.
+
+### Trois priorités absolues pour la prochaine session
+
+1. Valider le design du modèle Jira : Version de backlog et champ multivalué
+   `Fix versions` sur les items.
+2. Livrer le cycle non publiée → publiée → archivée, l’affectation unitaire/bulk,
+   les filtres et la progression sous `manage_releases`.
+3. Prouver dans Playwright la publication avec items incomplets, la persistance,
+   les refus serveur et un second contexte utilisateur.
+
+---
+
+## Fin de session — incrément 10 livré : noyau Releases / Versions
+
+### Verdict et score
+
+**87/100 — confiance élevée sur le noyau Releases et sa régression, plus faible
+sur le reporting et la profondeur Release PR2.** `BUG-JIR-027` est fermé : la
+permission `manage_releases` possède désormais un consommateur métier complet,
+et les `Fix versions` multivaluées participent réellement à la planification.
+
+| Dimension | Score | Preuve principale |
+|---|---:|---|
+| Couverture fonctionnelle observée | 91/100 | Cycle, affectations, filtres, progression et 16 scénarios Releases prouvés |
+| Fiabilité et feedback | 95/100 | Transactions, snapshots append-only, stale conflict, rollback et persistance |
+| Efficacité UX | 86/100 | Navigation dédiée, sélecteur partagé, bulk, filtres URL et drilldowns |
+| Accessibilité | 88/100 | Contrôles nommés, permissions visibles et régression clavier conservée ; lecteur d’écran réel restant |
+| Responsive | 64/100 | Inchangé : livraison auditée en Chromium desktop |
+| Permissions | 98/100 | `manage_releases`, `edit_items`, refus forgés et isolation CASS/LABS prouvés |
+| Performance locale | 86/100 | Requêtes bornées, filtre SQL direct et preuve de 1 000 liens sans fan-out |
+
+L’avancement de l’audit atteint **environ 90 %** : création, détail, workflow,
+Backlog, sprints, permissions et Releases sont couverts en profondeur. Restent
+principalement le rapport de sprint/vélocité/burndown, la Release PR2,
+l’intégration dépôt/PR, le responsive multi-breakpoints et les lecteurs d’écran.
+
+### Fonctionnalités terminées et prouvées
+
+- Version backlog-scoped avec nom, description, responsable, dates et états
+  non publiée, publiée et archivée ;
+- création, modification, publication, dépublication, archivage et restauration ;
+- `Fix versions` many-to-many depuis création, détail et barre bulk, avec
+  ajout, remplacement et retrait ;
+- filtre Version en SQL, combinable avec les autres facettes, persistant dans
+  l’URL et les vues enregistrées sur Liste, Backlog, Board et Arbre ;
+- progression par statuts, points estimés/non estimés et drilldowns vers les
+  items exacts ;
+- traitement explicite des incomplets à la publication, sans retirer leurs
+  versions sans rapport ;
+- snapshots de publication append-only et historique corrélé ;
+- cycle de vie sous `manage_releases`, affectation sous `edit_items`, éditeur
+  sans contrôles de cycle et lecteur sans mutation ;
+- erreurs foreign/absent/deleted indistinguables, IDs malformés sans erreur SQL,
+  conflit optimiste, rollback réseau, second utilisateur et isolation backlog.
+
+### Fonctionnalités incomplètes ou manquantes
+
+- fusion de versions et suppression avec transfert ou retrait explicite ;
+- ordre manuel des versions ;
+- notes de release exportables et travail connexe ;
+- signaux Git/PR/checks/déploiement dans la readiness ;
+- responsive 390/768/1024/1440, zoom 200 % et validation NVDA/VoiceOver ;
+- rapport de sprint, vélocité, burndown et prévision de release.
+
+### Revue, vérification et preuve immuable
+
+Les six vagues indépendantes de revue spécification puis sécurité se terminent
+toutes par **PASS, 0 Critical, 0 Important**. Les findings importants ont été
+corrigés par TDD : provenance immuable, intégrité des événements après
+suppression, audit de cycle/move, oracle bulk, rechargements, IDs malformés,
+ancêtres hiérarchiques et détail non filtré. La revue finale du delta E2E
+`92a00b8..88b8171` passe également avec **0/0/0**.
+
+Vérification finale autoritative sur
+`8eef265f971ca8244e67299926223046a3529cda` :
+
+- Vitest hors DB : **135 fichiers, 1 182 tests**, 29,14 s Vitest ;
+- PostgreSQL gardé `jiroo_e2e` : **19 fichiers, 184 tests**, 32,52 s Vitest ;
+- TypeScript, ESLint, merge-base exact et `git diff --check` : verts ;
+- build Next.js 16.2.7 : vert, compilation 4,7 s et TypeScript 8,6 s ;
+- Chromium persistant : [JUnit **40/40**](runs/20260807-releases-core-delivery-03-junit.xml),
+  0 échec/erreur/skip, 124,838 s JUnit, avec
+  [manifeste](runs/20260807-releases-core-delivery-03-manifest.json) exact ;
+- preuve : **93 fichiers run-scoped** — 36 consoles, 36 réseaux,
+  18 captures, JUnit, manifeste et [résumé de scan](runs/20260807-releases-core-delivery-03-scan.txt) ;
+- scans : 0 statut HTTP 4xx/5xx, 0 secret, 0 URL/variable DB, 0 header
+  auth/cookie, 0 token et 0 identité PostgreSQL brute. Les **neuf erreurs
+  console et neuf requêtes échouées** sont confinées aux six scénarios
+  délibérément injectés : les trois logs legacy backlog-foundation-failure,
+  sprint-lifecycle-failure et sprint-planning-failure, plus Releases S07, S12
+  et S14 ; ils sont accompagnés de huit marqueurs `[expected]`.
+
+Correction historique : le run immuable delivery-02 reste **39/39** et 90
+fichiers, mais son scan compte lui aussi **9 + 9 dans ces six scénarios**. La
+formulation antérieure 6 + 6 / trois scénarios avait omis S07, S12 et S14 sans
+modifier les artefacts gelés. Delivery-03 est désormais la preuve autoritative.
+
+Le run persistant `20260807-releases-core-delivery-01` sur le SHA
+`92a00b8489c747a6ad2fd693964658b11e722dff` est conservé comme diagnostic :
+**36/39**. Il a révélé trois attentes legacy devenues fausses ou
+instables après Releases (permission sans interface, colonne `Fix versions`,
+drag rollback dépendant du scroll). Il n’est pas une preuve d’acceptation.
+
+Le détail finding par finding est dans le
+[registre Releases core](reviews/2026-08-07-releases-core-review.md).
+
+### Trois priorités absolues pour la prochaine session
+
+1. Livrer la **PR Release 2** : fusion, suppression/transfert, ordre et notes.
+2. Construire le **rapport de sprint, la vélocité et le burndown** à partir des
+   snapshots et événements existants, avec drilldowns explicables.
+3. Ajouter la **readiness Git/PR/déploiement**, puis rejouer Releases aux quatre
+   breakpoints et avec VoiceOver/NVDA.

@@ -85,20 +85,21 @@ async function authorizeResource(input: {
 
 export async function requireBacklogPermissionById(
   input: BacklogPermissionInput & { backlogId: string },
-): Promise<AuthorizedResource> {
+): Promise<AuthorizedResource & { backlogKey: string }> {
   const [backlog] = await db
-    .select({ id: backlogs.id })
+    .select({ id: backlogs.id, key: backlogs.key })
     .from(backlogs)
     .where(eq(backlogs.id, input.backlogId))
     .limit(1);
   if (!backlog) throw new ResourceNotFoundError("backlog", input.backlogId);
 
-  return authorizeResource({
+  const authorized = await authorizeResource({
     ...input,
     resourceType: "backlog",
     resourceId: backlog.id,
     backlogId: backlog.id,
   });
+  return { ...authorized, backlogKey: backlog.key };
 }
 
 export async function requireBacklogPermissionByKey(

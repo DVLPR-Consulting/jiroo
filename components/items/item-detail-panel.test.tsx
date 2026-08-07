@@ -146,6 +146,25 @@ const baseProps = {
   refs: [],
 };
 
+const currentArchivedVersion = {
+  id: "55555555-5555-4555-8555-555555555555",
+  name: "Legacy",
+  released: true,
+  archived: true,
+};
+const activeVersion = {
+  id: "66666666-6666-4666-8666-666666666666",
+  name: "2026.10",
+  released: false,
+  archived: false,
+};
+const publishedVersion = {
+  id: "77777777-7777-4777-8777-777777777777",
+  name: "2026.09",
+  released: true,
+  archived: false,
+};
+
 function renderPanel(
   parent?: { key: string; title: string },
   detailOverride = detail,
@@ -444,6 +463,130 @@ describe("ItemDetailPanel header", () => {
     expect(
       within(reporterSelect).getByRole("option", { name: reporterCandidate.name }),
     ).toBeEnabled();
+  });
+
+  it("gates Fix version editing only with the release assign capability", () => {
+    const readonly = render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          fixVersions={[currentArchivedVersion]}
+          releaseOptions={[activeVersion]}
+          releaseCapabilities={{ manage: true, assignItems: false, bulkAssignItems: true }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.getByText("Legacy — Archivée")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Versions" })).toBeDisabled();
+    readonly.unmount();
+
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          canEditItems={false}
+          fixVersions={[currentArchivedVersion]}
+          releaseOptions={[activeVersion]}
+          releaseCapabilities={{ manage: false, assignItems: true, bulkAssignItems: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Versions" })).toBeEnabled();
+  });
+
+  it("expands overflow to remove a current archived Fix version beyond the first two", async () => {
+    const user = userEvent.setup();
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: detail });
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          fixVersions={[activeVersion, publishedVersion, currentArchivedVersion]}
+          releaseOptions={[activeVersion, publishedVersion]}
+          releaseCapabilities={{ manage: false, assignItems: true, bulkAssignItems: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.queryByText("Legacy — Archivée")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", {
+      name: "Afficher 1 version supplémentaire",
+    }));
+    expect(screen.getByText("Legacy — Archivée")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Retirer Legacy" }));
+
+    await waitFor(() => expect(mocks.updateItemAction).toHaveBeenCalledWith({
+      id: detail.id,
+      backlogKey: "CASS",
+      fixVersionIds: [activeVersion.id, publishedVersion.id],
+    }));
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith(
+      "Fix versions mises à jour.",
+    ));
+  });
+
+  it("optimistically updates Fix versions, rolls back a safe failure, and keeps the menu open", async () => {
+    const user = userEvent.setup();
+    let resolve!: (result: { ok: false; error: string }) => void;
+    mocks.updateItemAction.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          fixVersions={[currentArchivedVersion]}
+          releaseOptions={[activeVersion]}
+          releaseCapabilities={{ manage: false, assignItems: true, bulkAssignItems: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Versions" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: activeVersion.name }));
+    expect(screen.getByRole("button", { name: `Retirer ${activeVersion.name}` })).toBeVisible();
+    expect(mocks.updateItemAction).toHaveBeenCalledWith({
+      id: detail.id,
+      backlogKey: "CASS",
+      fixVersionIds: [currentArchivedVersion.id, activeVersion.id],
+    });
+    resolve({ ok: false, error: "Version interdite." });
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: `Retirer ${activeVersion.name}` }))
+        .not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Version interdite.");
+    expect(screen.getByRole("menuitemcheckbox", { name: activeVersion.name })).toBeVisible();
+  });
+
+  it("rolls back Fix versions and keeps the menu open when the action rejects", async () => {
+    const user = userEvent.setup();
+    mocks.updateItemAction.mockRejectedValueOnce(new Error("internal release details"));
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          fixVersions={[]}
+          releaseOptions={[activeVersion]}
+          releaseCapabilities={{ manage: false, assignItems: true, bulkAssignItems: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Versions" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: activeVersion.name }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: `Retirer ${activeVersion.name}` }))
+        .not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Mise à jour impossible.");
+    expect(screen.getByRole("menuitemcheckbox", { name: activeVersion.name })).toBeVisible();
   });
 
   it("grants delete, comments, and links independently from ordinary editing", async () => {

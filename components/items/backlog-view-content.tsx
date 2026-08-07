@@ -13,11 +13,14 @@ import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
 import {
   listItemLabelPairs,
   listItems,
+  listItemsWithAncestors,
   listLabelsForBacklog,
   listUsers,
   listUsersByIds,
 } from "@/lib/services/items";
 import { blockedItemIds } from "@/lib/services/links";
+import { listItemFixVersionPairs } from "@/lib/services/item-fix-versions";
+import { listReleaseSummaries } from "@/lib/services/releases";
 import { moveItemAction, reparentItemAction } from "@/app/actions/items";
 import {
   parseViewState,
@@ -60,10 +63,12 @@ const VIEW_STATE_PARAM_KEYS = [
   "prio",
   "assignee",
   "label",
+  "version",
   "kind",
   "under",
   "group",
   "sort",
+  "fvcol",
 ] as const;
 
 export async function BacklogViewContent({
@@ -116,9 +121,20 @@ export async function BacklogViewContent({
       displayMode: view as DisplayMode,
     });
 
-  const [items, labelPairs, blockedIds, statusRows, statusCountRows, sprintSnapshot] = await Promise.all([
-    listItems(backlog.id),
+  const [
+    releaseFilteredItems,
+    labelPairs,
+    fixVersionPairs,
+    releaseSummaries,
+    blockedIds,
+    statusRows,
+    statusCountRows,
+    sprintSnapshot,
+  ] = await Promise.all([
+    listItems(backlog.id, { releaseIds: viewState.filters.releaseIds }),
     listItemLabelPairs(backlog.id),
+    listItemFixVersionPairs(backlog.id),
+    listReleaseSummaries(backlog.id, { includeArchived: true }),
     blockedItemIds(backlog.id),
     db
       .select()
@@ -135,6 +151,16 @@ export async function BacklogViewContent({
       .groupBy(itemRowsTable.statusId),
     listSprintsForBacklog(backlog.id),
   ]);
+  const releaseMatchedIds = new Set(releaseFilteredItems.map((item) => item.id));
+  const releaseFilterActive = viewState.filters.releaseIds.length > 0;
+  const [items, detailItems] = await Promise.all([
+    releaseFilterActive
+      ? listItemsWithAncestors(backlog.id, [...releaseMatchedIds])
+      : Promise.resolve(releaseFilteredItems),
+    itemKey && releaseFilterActive
+      ? listItems(backlog.id)
+      : Promise.resolve(releaseFilteredItems),
+  ]);
 
   // Set of item ids that are blocked by an unfinished item — used to drive the badge.
   const blockedSet = new Set(blockedIds);
@@ -146,6 +172,33 @@ export async function BacklogViewContent({
     arr.push({ id: p.labelId, name: p.name, color: p.color });
     labelsByItem.set(p.itemId, arr);
   }
+
+  const releaseOptions = releaseSummaries.map(({ id, name, released, archived }) => ({
+    id,
+    name,
+    released,
+    archived,
+  }));
+  const releaseById = new Map(releaseOptions.map((release) => [release.id, release]));
+  const fixVersionIdsByItem = new Map<string, string[]>();
+  const fixVersionsByItem = new Map<string, typeof releaseOptions>();
+  for (const pair of fixVersionPairs) {
+    const ids = fixVersionIdsByItem.get(pair.itemId) ?? [];
+    ids.push(pair.releaseId);
+    fixVersionIdsByItem.set(pair.itemId, ids);
+
+    const release = releaseById.get(pair.releaseId);
+    if (release) {
+      const versions = fixVersionsByItem.get(pair.itemId) ?? [];
+      versions.push(release);
+      fixVersionsByItem.set(pair.itemId, versions);
+    }
+  }
+  const selectedReleaseIds = new Set(viewState.filters.releaseIds);
+  const assignableReleaseOptions = releaseOptions.filter((release) => !release.archived);
+  const releaseFilterOptions = releaseOptions.filter(
+    (release) => !release.archived || selectedReleaseIds.has(release.id),
+  );
 
   const statusOrderById = new Map(statusRows.map((status) => [status.id, status.order]));
   const filterRows: FilterItem[] = enrichHierarchy(items.map((i) => ({
@@ -165,16 +218,24 @@ export async function BacklogViewContent({
     updatedAt: i.updatedAt,
     rank: i.rank,
     labelIds: (labelsByItem.get(i.id) ?? []).map((l) => l.id),
+    fixVersionIds: fixVersionIdsByItem.get(i.id) ?? [],
     kind: i.kind,
     statusOrder: statusOrderById.get(i.statusId) ?? 0,
   })));
   const filtersOn = isFiltersActive(viewState.filters);
+  const nonReleaseFilters = { ...viewState.filters, releaseIds: [] };
   const matchedIds = new Set(
     filterRows
-      .filter((r) => matchItem(r, viewState.filters))
+      .filter((r) =>
+        (!releaseFilterActive || releaseMatchedIds.has(r.id))
+        && matchItem(r, nonReleaseFilters),
+      )
       .map((r) => r.id),
   );
   const isMatch = (id: string) => !filtersOn || matchedIds.has(id);
+  const detailItem = itemKey
+    ? detailItems.find((item) => item.key === itemKey)
+    : undefined;
 
   // List view: sort then group the filtered rows.
   const listRows = filterRows.filter((r) => isMatch(r.id));
@@ -228,6 +289,7 @@ export async function BacklogViewContent({
       title: item.title,
     })),
     statuses: statusRows.map((status) => ({ id: status.id, name: status.name })),
+    releaseOptions: assignableReleaseOptions,
   };
 
   const referencedUserIds = items.flatMap((item) =>
@@ -301,6 +363,7 @@ export async function BacklogViewContent({
           rank: item.rank,
           blocked: blockedSet.has(item.id),
           done: statusCategoryById.get(item.statusId) === "done",
+          fixVersions: fixVersionsByItem.get(item.id) ?? [],
         },
       ]),
   );
@@ -365,6 +428,7 @@ export async function BacklogViewContent({
       blocked: blockedSet.has(i.id),
       kind: i.kind,
       dueDate: i.dueDate,
+      fixVersions: fixVersionsByItem.get(i.id) ?? [],
     }));
   const resultCount =
     view === "backlog"
@@ -435,6 +499,7 @@ export async function BacklogViewContent({
             labels: labelsByItem.get(i.id) ?? [],
             assigneeId: i.assigneeId,
             assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
+            fixVersions: fixVersionsByItem.get(i.id) ?? [],
           }))
       : [];
 
@@ -453,6 +518,7 @@ export async function BacklogViewContent({
     <div className="flex h-full flex-col">
       <ViewBar
         view={view}
+        backlogKey={backlog.key}
         groupControlSlot={
           <GroupControl
             view={view as DisplayMode}
@@ -503,6 +569,7 @@ export async function BacklogViewContent({
         statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}
         users={referencedUsers}
         labels={backlogLabelRows.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
+        releases={releaseFilterOptions}
         hierarchy={items.map((item) => ({
           id: item.id,
           key: item.key,
@@ -535,6 +602,8 @@ export async function BacklogViewContent({
           itemCapabilities={productCapabilities.items}
           planningCapabilities={productCapabilities.planning}
           bulkCapabilities={productCapabilities.bulk}
+          releaseOptions={assignableReleaseOptions}
+          releaseCapabilities={productCapabilities.releases}
           manualOrder={viewState.sort === null && viewState.group === null}
         />
       )}
@@ -549,6 +618,7 @@ export async function BacklogViewContent({
               dueDate: r.dueDate?.toISOString() ?? null,
               assigneeName: r.assigneeId ? (userName.get(r.assigneeId) ?? null) : null,
               labels: labelsByItem.get(r.id) ?? [],
+              fixVersions: fixVersionsByItem.get(r.id) ?? [],
               blocked: blockedSet.has(r.id),
             })),
           }))}
@@ -570,6 +640,9 @@ export async function BacklogViewContent({
           canBulkChangeItems={capabilities.bulkChangeItems}
           itemCapabilities={productCapabilities.items}
           bulkCapabilities={productCapabilities.bulk}
+          releaseOptions={assignableReleaseOptions}
+          releaseCapabilities={productCapabilities.releases}
+          showFixVersions={viewState.filters.showFixVersions === true}
         />
       )}
       {view === "board" && (
@@ -631,14 +704,14 @@ export async function BacklogViewContent({
             assigneeCandidates={assigneeCandidates}
             reporterCandidates={directoryUsers}
             statuses={statusList}
-            items={items}
+            items={detailItems}
             sprints={sprintSnapshot.sprints
               .filter((sprint) => sprint.state !== "completed")
               .map((sprint) => ({ id: sprint.id, name: sprint.name }))}
             sprintId={
               sprintSnapshot.memberships.find(
                 (membership) =>
-                  membership.itemId === items.find((item) => item.key === itemKey)?.id &&
+                  membership.itemId === detailItem?.id &&
                   membership.leftAt === null,
               )?.sprintId ?? null
             }
@@ -647,6 +720,11 @@ export async function BacklogViewContent({
             canAssignItems={capabilities.assignItems}
             itemCapabilities={productCapabilities.items}
             planningCapabilities={productCapabilities.planning}
+            fixVersions={fixVersionsByItem.get(
+              detailItem?.id ?? "",
+            ) ?? []}
+            releaseOptions={assignableReleaseOptions}
+            releaseCapabilities={productCapabilities.releases}
           />
         </Suspense>
       )}

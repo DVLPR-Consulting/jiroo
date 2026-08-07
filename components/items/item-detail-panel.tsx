@@ -1,12 +1,17 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Trash2, X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { LabelPill } from "@/components/items/label-pill";
+import {
+  FixVersionPicker,
+  type FixVersionOption,
+} from "@/components/items/fix-version-picker";
+import { useOptimisticFieldUpdate } from "@/components/items/detail/use-optimistic-field-update";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import {
   DropdownMenu,
@@ -57,10 +62,15 @@ import type {
 import { LinksSection } from "@/components/items/detail/links-section";
 import { DevRefsSection } from "@/components/items/detail/dev-refs-section";
 import { toast } from "@/lib/toast";
-import type { ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
+import type {
+  ItemCapabilities,
+  PlanningCapabilities,
+  ReleaseCapabilities,
+} from "@/lib/auth/capabilities";
 
 type ItemRow = typeof itemsTable.$inferSelect;
 type ActivityRow = typeof activitiesTable.$inferSelect;
+const EMPTY_FIX_VERSIONS: FixVersionOption[] = [];
 type LabelRow = typeof labelsTable.$inferSelect;
 type UserLite = { id: string; name: string };
 type StatusLite = { id: string; name: string; color: string; category: string };
@@ -102,6 +112,9 @@ export function ItemDetailPanel({
   canAssignItems = true,
   itemCapabilities,
   planningCapabilities,
+  releaseCapabilities,
+  fixVersions = EMPTY_FIX_VERSIONS,
+  releaseOptions = EMPTY_FIX_VERSIONS,
 }: {
   detail: ItemRow;
   activities: ActivityRow[];
@@ -125,6 +138,9 @@ export function ItemDetailPanel({
   canAssignItems?: boolean;
   itemCapabilities?: ItemCapabilities;
   planningCapabilities?: PlanningCapabilities;
+  releaseCapabilities?: ReleaseCapabilities;
+  fixVersions?: FixVersionOption[];
+  releaseOptions?: FixVersionOption[];
 }) {
   const canEdit = itemCapabilities?.edit ?? canEditItems;
   const canTransition = itemCapabilities?.transition ?? (canEditItems && canTransitionItems);
@@ -163,6 +179,23 @@ export function ItemDetailPanel({
     (candidate) => candidate.type === parentType[detail.type],
   );
   const selectedSprint = sprints.find((sprint) => sprint.id === selectedSprintId);
+  const fixVersionIds = useMemo(
+    () => fixVersions.map((version) => version.id),
+    [fixVersions],
+  );
+  const fixVersionField = useOptimisticFieldUpdate({
+    value: fixVersionIds,
+    itemId: detail.id,
+    backlogKey,
+    toPatch: (next) => ({ fixVersionIds: next }),
+    onSuccess: () => toast.success("Fix versions mises à jour."),
+  });
+  const fixVersionOptions = useMemo(
+    () => [...new Map(
+      [...fixVersions, ...releaseOptions].map((version) => [version.id, version]),
+    ).values()],
+    [fixVersions, releaseOptions],
+  );
 
   const close = () => viewUrl.push((params) => params.delete("item"));
 
@@ -555,6 +588,20 @@ export function ItemDetailPanel({
                   users={assigneeCandidates}
                 />
               ) : assignee?.name ?? "Non assigné"}
+            </Field>
+
+            <Field label="Fix versions">
+              <FixVersionPicker
+                value={fixVersionField.value}
+                options={fixVersionOptions}
+                disabled={!releaseCapabilities?.assignItems || fixVersionField.pending}
+                onChange={fixVersionField.update}
+              />
+              {fixVersionField.error ? (
+                <p role="alert" className="mt-1 text-xs text-destructive">
+                  {fixVersionField.error}
+                </p>
+              ) : null}
             </Field>
 
             <Field label="Rapporteur">

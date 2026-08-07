@@ -25,6 +25,12 @@ export type WorkflowCapabilities = {
   manage: boolean;
 };
 
+export type ReleaseCapabilities = {
+  manage: boolean;
+  assignItems: boolean;
+  bulkAssignItems: boolean;
+};
+
 export type BulkItemCapabilities = {
   edit: boolean;
   transition: boolean;
@@ -36,6 +42,7 @@ export type ProductCapabilities = {
   items: ItemCapabilities;
   planning: PlanningCapabilities;
   workflow: WorkflowCapabilities;
+  releases: ReleaseCapabilities;
   bulk: BulkItemCapabilities;
 };
 
@@ -65,6 +72,11 @@ export function projectBacklogCapabilities(
       manageSprints: permissions.manageSprints,
     },
     workflow: { manage: permissions.manageWorkflow },
+    releases: {
+      manage: permissions.manageReleases === true,
+      assignItems: permissions.editItems === true,
+      bulkAssignItems: canBulkChange && permissions.editItems === true,
+    },
     bulk: {
       edit: canBulkChange && permissions.editItems,
       transition: canBulkChange && permissions.transitionItems,

@@ -51,6 +51,7 @@ import {
 } from "@/lib/items/board-dnd";
 import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
 import type { ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
+import type { FixVersionOption } from "@/components/items/fix-version-picker";
 
 export type BoardCard = {
   id: string;
@@ -73,6 +74,8 @@ export type BoardCard = {
   kind?: ItemKind;
   /** Optional due date; rendered in card footer as a short French date. */
   dueDate?: Date | string | null;
+  /** Used by release filtering upstream; intentionally not rendered on compact cards. */
+  fixVersions?: FixVersionOption[];
 };
 
 export type BoardGroup = "assignee" | "priority" | "component" | "parent" | null;
@@ -87,7 +90,7 @@ type Status = {
 type Columns = Record<string, BoardCard[]>;
 export type BoardCreateDialogProps = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses" | "sprintId" | "contextLabel" | "canScheduleItems"
+  "backlogId" | "items" | "statuses" | "sprintId" | "contextLabel" | "canScheduleItems" | "releaseOptions"
 >;
 
 const sprintDateFormatter = new Intl.DateTimeFormat("fr-FR", {

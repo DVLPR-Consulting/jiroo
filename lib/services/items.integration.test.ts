@@ -2,13 +2,16 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { Client } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
   activities,
   backlogs,
+  itemFixVersions,
   items,
+  releases,
   sprintItems,
   sprints,
   statuses,
@@ -16,6 +19,7 @@ import {
 import {
   createItem,
   listItems,
+  listItemsWithAncestors,
   rankBacklogItem,
   restoreItem,
   updateItem,
@@ -24,6 +28,11 @@ import {
 vi.mock("server-only", () => ({}));
 
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
+
+async function cleanupReleaseBacklogs(backlogIds: string[]) {
+  await db.delete(releases).where(inArray(releases.backlogId, backlogIds));
+  await db.delete(backlogs).where(inArray(backlogs.id, backlogIds));
+}
 
 function randomBacklogKey(): string {
   return `R${randomUUID().replace(/[^a-f]/gi, "").slice(0, 5).toUpperCase()}`;
@@ -660,13 +669,15 @@ describeDb("rankBacklogItem transaction", () => {
 
 describeDb("updateItem reporter transaction", () => {
   it("updates an existing reporter and writes the reporter audit", async () => {
+    const [existingReporter] = await db.select({ id: user.id }).from(user).limit(1);
+    if (!existingReporter) throw new Error("Le seed doit contenir un utilisateur.");
     const reporterId = `reporter-${randomUUID()}`;
     await db.insert(user).values({
       id: reporterId,
       name: "Nouveau rapporteur",
       email: `${reporterId}@example.test`,
     });
-    const fixture = await createUpdateFixture();
+    const fixture = await createUpdateFixture(existingReporter.id);
 
     try {
       const updated = await updateItem(
@@ -738,6 +749,293 @@ describeDb("updateItem reporter transaction", () => {
       expect(audit).toEqual([]);
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
+
+describeDb("item fix version integration", () => {
+  it("treats a malformed release filter like a non-matching foreign release", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await expect(listItems(fixture.backlogId, {
+        releaseIds: ["not-a-uuid"],
+      })).resolves.toEqual([]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("filters 1,000 Fix-version links in one query with OR semantics", async () => {
+    const fixture = await createUpdateFixture();
+    const secondId = randomUUID();
+    const excludedId = randomUUID();
+    await db.insert(items).values([
+      {
+        id: secondId,
+        key: `${randomBacklogKey()}-2`,
+        type: "tache",
+        backlogId: fixture.backlogId,
+        title: "Deuxième correspondance",
+        statusId: fixture.item.statusId,
+        reporterId: fixture.actorId,
+        rank: "a1",
+        parentId: excludedId,
+        path: `root.${excludedId.replaceAll("-", "")}.${secondId.replaceAll("-", "")}`,
+        depth: 1,
+      },
+      {
+        id: excludedId,
+        key: `${randomBacklogKey()}-3`,
+        type: "composant",
+        backlogId: fixture.backlogId,
+        title: "Sans correspondance",
+        statusId: fixture.item.statusId,
+        reporterId: fixture.actorId,
+        rank: "a2",
+        path: `root.${excludedId.replaceAll("-", "")}`,
+        depth: 0,
+      },
+    ]);
+    const releaseRows = await db
+      .insert(releases)
+      .values(Array.from({ length: 1_000 }, (_, index) => ({
+        backlogId: fixture.backlogId,
+        name: `Filtre volume ${index.toString().padStart(4, "0")}`,
+        createdBy: fixture.actorId,
+      })))
+      .returning({ id: releases.id });
+    await db.insert(itemFixVersions).values([
+      ...releaseRows.slice(0, 999).map(({ id }) => ({
+        backlogId: fixture.backlogId,
+        itemId: fixture.item.id,
+        releaseId: id,
+        addedBy: fixture.actorId,
+      })),
+      {
+        backlogId: fixture.backlogId,
+        itemId: secondId,
+        releaseId: releaseRows[999]!.id,
+        addedBy: fixture.actorId,
+      },
+    ]);
+
+    try {
+      const querySpy = vi.spyOn(Client.prototype, "query");
+      let filtered: Awaited<ReturnType<typeof listItems>>;
+      try {
+        filtered = await listItems(fixture.backlogId, {
+          releaseIds: [releaseRows[0]!.id, releaseRows[999]!.id],
+        });
+        expect(querySpy).toHaveBeenCalledTimes(1);
+      } finally {
+        querySpy.mockRestore();
+      }
+      expect(filtered.map(({ id }) => id)).toEqual([fixture.item.id, secondId]);
+      const withAncestors = await listItemsWithAncestors(
+        fixture.backlogId,
+        filtered.map(({ id }) => id),
+      );
+      expect(withAncestors.map(({ id }) => id)).toEqual([
+        fixture.item.id,
+        excludedId,
+        secondId,
+      ]);
+    } finally {
+      await cleanupReleaseBacklogs([fixture.backlogId]);
+    }
+  });
+
+  it("creates an item with sprint and fix versions under one correlated audit", async () => {
+    const fixture = await createTaskUpdateFixture();
+    const [release] = await db
+      .insert(releases)
+      .values({
+        backlogId: fixture.backlogId,
+        name: "Create target",
+        releaseDate: "2026-08-07",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    const [sprint] = await db
+      .insert(sprints)
+      .values({
+        backlogId: fixture.backlogId,
+        name: "Create sprint target",
+        rank: "create-sprint-target",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    try {
+      const created = await createItem(
+        {
+          backlogId: fixture.backlogId,
+          title: "Créée avec version",
+          type: "tache",
+          parentId: fixture.epicId,
+          sprintId: sprint!.id,
+          fixVersionIds: [release!.id],
+        },
+        fixture.actorId,
+        "item-create-fix-versions",
+      );
+
+      expect(
+        await db
+          .select({ itemId: itemFixVersions.itemId, releaseId: itemFixVersions.releaseId })
+          .from(itemFixVersions)
+          .where(eq(itemFixVersions.itemId, created.id)),
+      ).toEqual([{ itemId: created.id, releaseId: release!.id }]);
+      expect(
+        await db
+          .select({
+            field: activities.field,
+            correlationId: activities.requestCorrelationId,
+          })
+          .from(activities)
+          .where(eq(activities.itemId, created.id))
+          .orderBy(asc(activities.field)),
+      ).toEqual([
+        { field: "fix_versions", correlationId: "item-create-fix-versions" },
+        { field: "sprint", correlationId: "item-create-fix-versions" },
+        { field: null, correlationId: "item-create-fix-versions" },
+      ]);
+    } finally {
+      await cleanupReleaseBacklogs([fixture.backlogId]);
+    }
+  });
+
+  it("rolls back item creation when a fix version belongs to another backlog", async () => {
+    const fixture = await createTaskUpdateFixture();
+    const [foreignBacklog] = await db
+      .insert(backlogs)
+      .values({ key: randomBacklogKey(), name: "Version create étrangère", color: "#64748b" })
+      .returning();
+    const [foreignRelease] = await db
+      .insert(releases)
+      .values({
+        backlogId: foreignBacklog!.id,
+        name: "Foreign create target",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    try {
+      await expect(
+        createItem(
+          {
+            backlogId: fixture.backlogId,
+            title: "Création à annuler",
+            type: "tache",
+            parentId: fixture.epicId,
+            fixVersionIds: [foreignRelease!.id],
+          },
+          fixture.actorId,
+          "item-create-rollback",
+        ),
+      ).rejects.toThrow("Une ou plusieurs releases sont invalides pour ce backlog.");
+      expect(
+        await db
+          .select({ id: items.id })
+          .from(items)
+          .where(
+            and(
+              eq(items.backlogId, fixture.backlogId),
+              eq(items.title, "Création à annuler"),
+            ),
+          ),
+      ).toEqual([]);
+    } finally {
+      await cleanupReleaseBacklogs([fixture.backlogId, foreignBacklog!.id]);
+    }
+  });
+
+  it("updates scalar fields and fix versions in one transaction", async () => {
+    const fixture = await createUpdateFixture();
+    const [release] = await db
+      .insert(releases)
+      .values({
+        backlogId: fixture.backlogId,
+        name: "Update target",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    try {
+      const updated = await updateItem(
+        {
+          id: fixture.item.id,
+          title: "Rapport versionné",
+          fixVersionIds: [release!.id],
+        },
+        fixture.actorId,
+      );
+
+      expect(updated?.title).toBe("Rapport versionné");
+      expect(
+        await db
+          .select({ releaseId: itemFixVersions.releaseId })
+          .from(itemFixVersions)
+          .where(eq(itemFixVersions.itemId, fixture.item.id)),
+      ).toEqual([{ releaseId: release!.id }]);
+      const audit = await db
+        .select({
+          field: activities.field,
+          correlationId: activities.requestCorrelationId,
+        })
+        .from(activities)
+        .where(eq(activities.itemId, fixture.item.id))
+        .orderBy(asc(activities.field));
+      expect(audit).toHaveLength(2);
+      expect(audit[0]).toEqual({
+        field: "fix_versions",
+        correlationId: expect.any(String),
+      });
+      expect(audit[1]).toEqual({
+        field: "title",
+        correlationId: audit[0]?.correlationId,
+      });
+    } finally {
+      await cleanupReleaseBacklogs([fixture.backlogId]);
+    }
+  });
+
+  it("rolls back scalar updates when a replacement fix version is invalid", async () => {
+    const fixture = await createUpdateFixture();
+    const [foreignBacklog] = await db
+      .insert(backlogs)
+      .values({ key: randomBacklogKey(), name: "Version update étrangère", color: "#64748b" })
+      .returning();
+    const [foreignRelease] = await db
+      .insert(releases)
+      .values({
+        backlogId: foreignBacklog!.id,
+        name: "Foreign update target",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    try {
+      await expect(
+        updateItem(
+          {
+            id: fixture.item.id,
+            title: "Titre à annuler",
+            fixVersionIds: [foreignRelease!.id],
+          },
+          fixture.actorId,
+          "item-update-rollback",
+        ),
+      ).rejects.toThrow("Une ou plusieurs releases sont invalides pour ce backlog.");
+      const [stored] = await db
+        .select({ title: items.title })
+        .from(items)
+        .where(eq(items.id, fixture.item.id));
+      expect(stored?.title).toBe(fixture.item.title);
+      expect(
+        await db
+          .select({ id: activities.id })
+          .from(activities)
+          .where(eq(activities.itemId, fixture.item.id)),
+      ).toEqual([]);
+    } finally {
+      await cleanupReleaseBacklogs([fixture.backlogId, foreignBacklog!.id]);
     }
   });
 });

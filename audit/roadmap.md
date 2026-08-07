@@ -414,3 +414,77 @@ la date du run.
 1. Releases/versions et consommation de `manage_releases`.
 2. Timeline de sécurité visible et audit responsive/accessibilité.
 3. Rapport sprint/vélocité/burndown fondé sur l’événementiel.
+
+---
+
+## Mise à jour — audit Releases du 7 août 2026
+
+`BUG-JIR-027` confirme dans Playwright que Releases/Versions est entièrement
+absent. Le prochain incrément P0 doit donc partir du modèle métier, sans tenter
+de raccorder une interface à un champ texte provisoire.
+
+### PR Release 1 — noyau Jira sûr
+
+- Version appartenant à un backlog : nom, description, responsable, date de
+  début optionnelle, date cible optionnelle, état non publiée/publiée/archivée ;
+- relation many-to-many `Fix versions` permettant plusieurs versions par item ;
+- affectation depuis création, détail et bulk Backlog ;
+- filtre Version sur Backlog/Board et progression par catégories de statut ;
+- publication avec date effective et décision explicite pour les items non
+  terminés ; unrelease, archive et unarchive ;
+- chaque mutation de cycle protégée par `manage_releases`, chaque affectation
+  d’item par `edit_items`, avec historique corrélé.
+
+### PR Release 2 — profondeur Jira
+
+- fusion de versions et transfert atomique des références ;
+- suppression avec transfert ou retrait explicite des `Fix versions` ;
+- ordre manuel ;
+- notes de release générées depuis l’état courant, export Markdown/HTML ;
+- travail connexe et préparation des futures alertes dépôt/PR/déploiement.
+
+### Matrice Playwright d’acceptation
+
+Créer deux versions, affecter un item à plusieurs versions, planifier un lot par
+bulk, filtrer Backlog/Board, modifier les dates, publier avec un item incomplet,
+déplacer ou conserver cet item, archiver/unarchive, vérifier historique et
+permissions, puis recharger et répéter dans un second contexte utilisateur.
+
+---
+
+## Mise à jour — livraison Releases core du 7 août 2026
+
+### PR Release 1 — terminée
+
+Le noyau Jira sûr défini ci-dessus est livré et accepté. La relation
+many-to-many `Fix versions`, le cycle non publiée/publiée/archivée, les
+affectations création/détail/bulk, les filtres, la progression, le traitement
+des incomplets, les snapshots et les permissions sont prouvés par 16 scénarios
+Releases au sein de la régression Chromium **40/40**. `BUG-JIR-027` est fermé.
+
+### PR Release 2 — portée explicite restante
+
+1. Fusionner une version source dans une destination avec transfert atomique
+   des `Fix versions`, déduplication et événement corrélé.
+2. Supprimer une version avec choix obligatoire entre transfert et retrait,
+   aperçu d’impact et rollback transactionnel.
+3. Ajouter l’ordre manuel et sa persistance sans perturber les filtres.
+4. Produire des notes de release éditables et exportables Markdown/HTML à
+   partir d’un snapshot sélectionné, sans réécrire l’historique.
+5. Ajouter le travail connexe et les signaux Git/PR/checks/déploiement à la
+   readiness, sans assimiler `Done` à « livré ».
+
+### Critères d’acceptation PR2
+
+- opérations cross-backlog et IDs absents/étrangers indistinguables ;
+- transfert/fusion tout-ou-rien à 1, 100, 500 et 1 000 associations ;
+- snapshots historiques inchangés après fusion, suppression ou édition ;
+- notes reproductibles depuis un snapshot et non depuis l’état courant mutable ;
+- refus `manage_releases` côté serveur, conflit stale et rollback réseau ;
+- reload, second utilisateur, responsive 390/768/1024/1440 et lecteur d’écran.
+
+### Ordre immédiat actualisé
+
+1. Rapport de sprint, vélocité et burndown explicables.
+2. Release PR2 : fusion, suppression/transfert, ordre et notes.
+3. Intégration dépôt/PR/déploiement et readiness.

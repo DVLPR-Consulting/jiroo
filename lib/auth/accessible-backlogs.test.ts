@@ -25,6 +25,7 @@ describe("getBacklogCapabilities", () => {
         "delete_items",
         "add_comments",
         "link_items",
+        "manage_releases",
         "bulk_change_items",
       ].includes(permission),
     }));
@@ -47,7 +48,13 @@ describe("getBacklogCapabilities", () => {
       manageSprints: false,
       manageWorkflow: false,
       manageMembers: false,
+      manageReleases: true,
       bulkChangeItems: true,
+    });
+    expect(mocks.checkPermission).toHaveBeenCalledWith({
+      actorId: "actor-1",
+      permission: "manage_releases",
+      scope: { type: "backlog", backlogId: "backlog-1" },
     });
     expect(mocks.checkPermission).toHaveBeenCalledWith({
       actorId: "actor-1",

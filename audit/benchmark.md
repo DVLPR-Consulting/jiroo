@@ -430,3 +430,85 @@ Prochain seuil de comparaison : implémenter Releases, vérifier
 `manage_releases` de bout en bout, puis exposer la timeline de sécurité. Aucune
 parité globale Jira n’est revendiquée avant ces deux livraisons et un audit de
 volumétrie.
+
+---
+
+# Benchmark — Releases / Versions après découverte du 7 août 2026
+
+## Verdict
+
+Jira fait très nettement mieux : sa Release est une **Version de projet** et
+les items y sont associés par le champ multivalué `Fix versions`. Jiroo ne
+possède aujourd’hui ni modèle, ni route, ni champ, ni filtre ; `manage_releases`
+est uniquement une permission sans consommateur.
+
+| Capacité | Jira Cloud | Jiroo observé | Verdict |
+|---|---|---|---|
+| Modèle | version par projet, plusieurs `Fix versions` par item | absent | manquant P0 |
+| Métadonnées | nom, description, responsable, dates début/release | absent | manquant P0 |
+| Cycle | non publiée, publiée, archivée ; unrelease/unarchive | absent | manquant P0 |
+| Planification | création, détail, backlog, filtres et bulk | absent | manquant P0 |
+| Publication | date effective et traitement des items incomplets | absent | manquant P0 |
+| Progression | catégories À faire/En cours/Terminé et retard | absent | manquant P0 |
+| Administration | permission Manage versions/releases | permission présente, aucune action | fondation seule |
+| Avancé | merge, suppression/transfert, ordre, notes et related work | absent | Should/Later |
+
+## Seuil de parité recommandé
+
+Le premier incrément ne doit pas simuler une Release par un simple champ texte.
+Il doit livrer une relation many-to-many item/version, le cycle complet, les
+items incomplets à la publication, les filtres et l’autorisation serveur. Merge,
+suppression avec transfert, ordre manuel, notes et travail connexe peuvent être
+livrés dans un second incrément sans fragiliser le noyau.
+
+Sources officielles : [Manage versions](https://support.atlassian.com/jira-cloud-administration/docs/manage-versions/),
+[Create a version](https://support.atlassian.com/jira-software-cloud/docs/create-a-version-in-a-classic-project/),
+[Release a version](https://support.atlassian.com/jira-software-cloud/docs/release-a-version-in-your-classic-project/),
+[Release progress](https://support.atlassian.com/jira-software-cloud/docs/use-the-release-page-to-check-the-progress-of-a-version/)
+et [Release notes](https://support.atlassian.com/jira-cloud-administration/docs/create-release-notes/).
+
+---
+
+# Benchmark — Releases / Versions après livraison du noyau
+
+## Verdict
+
+Jiroo rejoint désormais le **noyau opérationnel Jira** sur les Versions de
+projet : relation multivaluée `Fix versions`, métadonnées, cycle de vie,
+affectations, filtres, progression et traitement des incomplets. La comparaison
+reste volontairement limitée : Jira fait encore mieux sur fusion, suppression
+avec transfert, ordre, notes, travail connexe et intégrations de livraison.
+
+| Capacité | Jira Cloud | Jiroo livré | Verdict |
+|---|---|---|---|
+| Modèle | version projet, plusieurs `Fix versions` | version backlog-scoped, relation many-to-many | noyau comparable |
+| Métadonnées | nom, description, responsable, dates | mêmes métadonnées essentielles | comparable |
+| Cycle | publier, dépublier, archiver/restaurer | mêmes transitions avec contrôle optimiste | comparable |
+| Planification | création, détail, backlog, bulk et filtres | création, détail, bulk et quatre vues filtrées | comparable sur le noyau |
+| Publication | date et décision sur les incomplets | conserver ou déplacer explicitement | comparable, choix plus explicite |
+| Progression | statuts, retard et items | statuts, points et drilldowns exacts | comparable, retard avancé restant |
+| Permissions | Manage versions/releases | `manage_releases` + `edit_items` séparés | gouvernance claire |
+| Historique | audit/version history selon surface | événements corrélés et snapshots append-only | fondation forte, timeline UI restante |
+| Avancé | merge, suppression/transfert, ordre, notes, related work | absent | PR2 obligatoire |
+
+## Différenciation crédible
+
+La force vérifiée de Jiroo est l’explicabilité : chaque chiffre de progression
+peut ouvrir ses items, les snapshots publiés ne sont pas réécrits et une
+affectation archivée reste lisible sans redevenir candidate. La publication
+sépare explicitement conservation et déplacement des incomplets. Cette clarté
+peut dépasser Jira si PR2 conserve les mêmes invariants transactionnels et
+ajoute une readiness fondée sur PR/checks/déploiement plutôt qu’un simple état
+`Done`.
+
+## Écart restant avant parité profonde
+
+1. fusion et suppression avec aperçu, transfert/retrait et rollback atomique ;
+2. ordre manuel persistant ;
+3. notes basées sur un snapshot, éditables et exportables ;
+4. related work et intégrations Git/PR/déploiement ;
+5. responsive, lecteurs d’écran et volumétrie ;
+6. prévision de release reliée à vélocité et burndown.
+
+Aucune parité globale Jira n’est revendiquée : ce verdict couvre uniquement la
+PR Release 1 acceptée par 16 scénarios métier et la régression Chromium 40/40.

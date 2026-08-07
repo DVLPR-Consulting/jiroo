@@ -341,8 +341,8 @@ audited(
 );
 
 audited(
-  "6. expose manage_releases dans l’Assistant sans inventer d’interface Releases",
-  "06-release-permission-no-phantom-ui",
+  "6. relie manage_releases à l’interface Releases du spécialiste",
+  "06-release-permission-interface",
   async ({ page, browser, captures }) => {
     const adminCapture = observe(page, "permission future release");
     captures.push(adminCapture);
@@ -353,11 +353,14 @@ audited(
 
     const specialistContext = await browser.newContext({ storageState: AUTH.specialist });
     const specialist = await specialistContext.newPage();
-    const specialistCapture = observe(specialist, "absence interface fantôme");
+    const specialistCapture = observe(specialist, "interface Releases spécialiste");
     captures.push(specialistCapture);
     await specialist.goto("/b/CASS");
-    await expect(specialist.getByRole("link", { name: /release/i })).toHaveCount(0);
-    await expect(specialist.getByRole("button", { name: /release/i })).toHaveCount(0);
+    await specialist.getByRole("link", { name: "Releases" }).click();
+    await expect(specialist.getByRole("heading", {
+      name: "Releases — Cour de cassation",
+    })).toBeVisible();
+    await expect(specialist.getByRole("button", { name: "Créer une version" })).toBeVisible();
     await specialistContext.close();
   },
 );

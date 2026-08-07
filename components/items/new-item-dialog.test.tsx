@@ -21,12 +21,28 @@ const statuses = [
   { id: "doing-id", name: "En cours" },
 ];
 
+const releaseOptions = [
+  {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "2026.10",
+    released: false,
+    archived: false,
+  },
+  {
+    id: "22222222-2222-4222-8222-222222222222",
+    name: "2026.09",
+    released: true,
+    archived: false,
+  },
+];
+
 function dialogProps() {
   return {
     backlogId: "backlog-id",
     backlogKey: "DEMO",
     items: [],
     statuses,
+    releaseOptions,
   };
 }
 
@@ -80,11 +96,55 @@ describe("NewItemButton", () => {
         description: null,
         statusId: "doing-id",
         priority: 0,
+        fixVersionIds: [],
       }),
     );
     expect(onCreated).toHaveBeenCalledOnce();
     expect(onCreated).toHaveBeenCalledWith(createdItem);
     expect(mocks.refresh).toHaveBeenCalledOnce();
+  });
+
+  it("submits selected Fix versions in the create transaction", async () => {
+    const user = userEvent.setup();
+    mocks.createItemAction.mockResolvedValueOnce({
+      ok: true,
+      item: { id: "item-id", key: "DEMO-7" },
+    });
+    render(<NewItemButton {...dialogProps()} />);
+
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    await user.click(screen.getByRole("button", { name: "Versions" }));
+    await user.click(
+      screen.getByRole("menuitemcheckbox", { name: "2026.09 — Publiée" }),
+    );
+    await user.keyboard("{Escape}");
+    await user.type(screen.getByRole("textbox", { name: "Titre" }), "Versionnée");
+    await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+    await waitFor(() =>
+      expect(mocks.createItemAction).toHaveBeenCalledWith(
+        expect.objectContaining({ fixVersionIds: [releaseOptions[1]!.id] }),
+      ),
+    );
+  });
+
+  it("disables Fix version changes while creation is pending", async () => {
+    const user = userEvent.setup();
+    let resolve!: (result: { ok: false; error: string }) => void;
+    mocks.createItemAction.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    render(<NewItemButton {...dialogProps()} />);
+
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    await user.type(screen.getByRole("textbox", { name: "Titre" }), "Versionnée");
+    await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Versions" })).toBeDisabled());
+    resolve({ ok: false, error: "Création impossible." });
+    expect(await screen.findByText("Création impossible.")).toBeVisible();
   });
 
   it("creates a task in the supplied sprint context", async () => {

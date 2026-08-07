@@ -44,6 +44,7 @@ const viewState = {
     priorities: [],
     assignees: [],
     labels: [],
+    releaseIds: [],
     kind: [],
     underIds: [],
   },

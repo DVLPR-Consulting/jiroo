@@ -1,12 +1,14 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { randomUUID } from "node:crypto";
 import { browseAccessPredicate } from "@/lib/auth/accessible-backlogs";
 import { db } from "@/lib/db";
 import { binaryTextOrder } from "@/lib/db/order";
-import { activities, backlogs, itemLabels, items, labels, statuses } from "@/lib/db/schema/domain";
+import { activities, backlogs, itemFixVersions, itemLabels, items, labels, statuses } from "@/lib/db/schema/domain";
 import { user } from "@/lib/db/schema/auth";
 import { nextItemKey } from "@/lib/items/key";
 import { canRestore } from "@/lib/items/trash";
+import { replaceItemFixVersionsInTx } from "@/lib/services/item-fix-versions";
 import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
 import { ROOT_LABEL, buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
@@ -48,11 +50,60 @@ export function listTrashedItems(userId: string) {
     .orderBy(desc(items.deletedAt), asc(backlogs.name), asc(items.key));
 }
 
-export function listItems(backlogId: string) {
+export function listItems(backlogId: string, options: { releaseIds?: string[] } = {}) {
+  const requestedReleaseIds = [...new Set(options.releaseIds ?? [])];
+  const releaseIds = requestedReleaseIds.filter((id) => idInputSchema.safeParse({ id }).success);
+  const releaseFilter = requestedReleaseIds.length === 0
+    ? undefined
+    : releaseIds.length === 0
+      ? sql<boolean>`false`
+      : exists(
+        db
+          .select({ itemId: itemFixVersions.itemId })
+          .from(itemFixVersions)
+          .where(
+            and(
+              eq(itemFixVersions.backlogId, backlogId),
+              eq(itemFixVersions.itemId, items.id),
+              inArray(itemFixVersions.releaseId, releaseIds),
+            ),
+          ),
+      );
+
   return db
     .select()
     .from(items)
-    .where(and(eq(items.backlogId, backlogId), isNull(items.deletedAt)))
+    .where(and(eq(items.backlogId, backlogId), isNull(items.deletedAt), releaseFilter))
+    .orderBy(asc(items.depth), asc(binaryTextOrder(items.rank)), asc(items.key));
+}
+
+export function listItemsWithAncestors(backlogId: string, itemIds: string[]) {
+  const uniqueItemIds = [...new Set(itemIds)];
+  if (uniqueItemIds.length === 0) return Promise.resolve([]);
+
+  const matchedItems = alias(items, "matched_release_items");
+  return db
+    .select()
+    .from(items)
+    .where(
+      and(
+        eq(items.backlogId, backlogId),
+        isNull(items.deletedAt),
+        exists(
+          db
+            .select({ itemId: matchedItems.id })
+            .from(matchedItems)
+            .where(
+              and(
+                eq(matchedItems.backlogId, backlogId),
+                inArray(matchedItems.id, uniqueItemIds),
+                isNull(matchedItems.deletedAt),
+                sql`${items.path} @> ${matchedItems.path}`,
+              ),
+            ),
+        ),
+      ),
+    )
     .orderBy(asc(items.depth), asc(binaryTextOrder(items.rank)), asc(items.key));
 }
 
@@ -364,7 +415,11 @@ export async function rankAtDrop(
 }
 
 // ---- createItem: validate → tx(mutate + activity) ----
-export async function createItem(input: unknown, actorId: string) {
+export async function createItem(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string = randomUUID(),
+) {
   const data = createItemSchema.parse(input);
   return withRetry(() =>
     db.transaction(async (tx) => {
@@ -476,13 +531,24 @@ export async function createItem(input: unknown, actorId: string) {
         await tx.insert(itemLabels).values(data.labelIds.map((labelId) => ({ itemId: id, labelId })));
       }
 
-      await tx.insert(activities).values(activityRow(id, actorId, "create", null, null, key));
+      await tx.insert(activities).values({
+        ...activityRow(id, actorId, "create", null, null, key),
+        requestCorrelationId,
+      });
+
+      await replaceItemFixVersionsInTx(
+        tx,
+        { backlogId: data.backlogId, itemId: id, releaseIds: data.fixVersionIds },
+        actorId,
+        requestCorrelationId,
+      );
 
       if (data.sprintId) {
         await assignItemsToSprintInTx(
           tx,
           { backlogId: data.backlogId, itemIds: [id], sprintId: data.sprintId },
           actorId,
+          requestCorrelationId,
         );
       }
 
@@ -492,14 +558,20 @@ export async function createItem(input: unknown, actorId: string) {
 }
 
 // ---- updateItem: field-diff → tx(update + per-field activity) ----
-export async function updateItem(input: unknown, actorId: string) {
+export async function updateItem(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string = randomUUID(),
+) {
   const data = updateItemSchema.parse(input);
   return db.transaction(async (tx) => {
+    const needsBacklogLock =
+      data.statusId !== undefined || data.fixVersionIds !== undefined;
     const lockedBacklogId =
-      data.statusId === undefined
+      !needsBacklogLock
         ? null
         : await lockBacklogForItemStatusMutation(tx, data.id);
-    if (data.statusId !== undefined && !lockedBacklogId) return null;
+    if (needsBacklogLock && !lockedBacklogId) return null;
     const [cur] = await tx
       .select()
       .from(items)
@@ -623,6 +695,18 @@ export async function updateItem(input: unknown, actorId: string) {
         acts.push(activityRow(cur.id, actorId, "update", "labels", oldCsv, newCsv));
       }
     }
+    if (data.fixVersionIds !== undefined) {
+      await replaceItemFixVersionsInTx(
+        tx,
+        {
+          backlogId: cur.backlogId,
+          itemId: cur.id,
+          releaseIds: data.fixVersionIds,
+        },
+        actorId,
+        requestCorrelationId,
+      );
+    }
 
     if (acts.length === 0) return cur;
 
@@ -631,7 +715,9 @@ export async function updateItem(input: unknown, actorId: string) {
       .set({ ...patch, updatedAt: new Date() })
       .where(eq(items.id, cur.id))
       .returning();
-    await tx.insert(activities).values(acts);
+    await tx
+      .insert(activities)
+      .values(acts.map((act) => ({ ...act, requestCorrelationId })));
     return updated!;
   });
 }

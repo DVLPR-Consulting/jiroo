@@ -26,6 +26,14 @@ export const sprintOutcomeEnum = pgEnum("sprint_outcome", [
   "carried_to_backlog",
   "carried_to_sprint",
 ]);
+export const releaseIncompleteDispositionEnum = pgEnum("release_incomplete_disposition", [
+  "keep",
+  "move",
+]);
+export const releaseItemDispositionEnum = pgEnum("release_item_disposition", [
+  "retained",
+  "moved",
+]);
 export const permissionScopeEnum = pgEnum("permission_scope", ["global", "backlog"]);
 export const permissionPrincipalEnum = pgEnum("permission_principal", [
   "user",

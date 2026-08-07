@@ -68,12 +68,18 @@ const emptyState: ViewState = {
     priorities: [],
     assignees: [],
     labels: [],
+    releaseIds: [],
     kind: [],
     underIds: [],
   },
   group: null,
   sort: null,
 };
+
+const releaseOptions = [
+  { id: "release-active", name: "2026.10", released: false, archived: false },
+  { id: "release-archived", name: "2026.09", released: true, archived: true },
+];
 
 const relatedItemLinks: LinkWithOther[] = [
   {
@@ -115,6 +121,9 @@ function renderBar(state: ViewState = emptyState) {
     view: "board",
     item: "DEMO-1",
     ...(state.filters.types.length > 0 ? { type: state.filters.types.join(",") } : {}),
+    ...(state.filters.releaseIds.length > 0
+      ? { version: state.filters.releaseIds.join(",") }
+      : {}),
   };
   return render(
     <ViewUrlStateProvider initialEntries={paramEntries(currentParams)}>
@@ -123,6 +132,7 @@ function renderBar(state: ViewState = emptyState) {
         statuses={[{ id: "ready", name: "Prêt" }]}
         users={[{ id: "marie", name: "Marie Lemaire" }]}
         labels={[{ id: "urgent", name: "Urgent", color: "#c00" }]}
+        releases={releaseOptions}
         hierarchy={[
           { id: "component-1", key: "DEMO-1", title: "Plateforme", type: "composant" },
           { id: "epic-1", key: "DEMO-2", title: "Refonte", type: "epic" },
@@ -148,14 +158,14 @@ describe("FilterBar", () => {
   it("renders each inactive facet as a plus-prefixed chip", () => {
     const { container } = renderBar();
 
-    for (const label of ["Type", "Statut", "Priorité", "Label", "Assigné", "Nature", "Sous"]) {
+    for (const label of ["Type", "Statut", "Priorité", "Label", "Version", "Assigné", "Nature", "Sous"]) {
       expect(screen.getByRole("button", { name: `+ ${label}` })).toHaveAttribute("data-active", "false");
     }
     expect(
       [...container.querySelectorAll<HTMLButtonElement>("button[data-active]")].map((button) =>
         button.textContent?.trim(),
       ),
-    ).toEqual(["+ Type", "+ Statut", "+ Priorité", "+ Label", "+ Assigné", "+ Nature", "+ Sous"]);
+    ).toEqual(["+ Type", "+ Statut", "+ Priorité", "+ Label", "+ Version", "+ Assigné", "+ Nature", "+ Sous"]);
     expect(screen.queryByRole("combobox", { name: "Grouper par" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Trier par" })).not.toBeInTheDocument();
   });
@@ -199,6 +209,74 @@ describe("FilterBar", () => {
     expect(screen.queryByLabelText("DEMO-3 — Invisible")).not.toBeInTheDocument();
   });
 
+  it("writes selected Fix versions to the version URL parameter", async () => {
+    const user = userEvent.setup();
+    renderBar();
+
+    await user.click(screen.getByRole("button", { name: "+ Version" }));
+    await user.click(screen.getByLabelText("2026.10"));
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith(
+        "/b/DEMO?view=board&item=DEMO-1&version=release-active",
+        { scroll: false },
+      ),
+    );
+  });
+
+  it("keeps a selected archived version visible and clearable", async () => {
+    const user = userEvent.setup();
+    renderBar({
+      ...emptyState,
+      filters: { ...emptyState.filters, releaseIds: ["release-archived"] },
+    });
+
+    expect(screen.getByRole("button", { name: /Version.*2026\.09.*1/i })).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "Effacer le filtre Version" }));
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith("/b/DEMO?view=board&item=DEMO-1", {
+        scroll: false,
+      }),
+    );
+  });
+
+  it("uses a Back or Forward version URL as authority and preserves unrelated params", async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewUrlStateProvider initialEntries={paramEntries({ view: "board", version: "release-active" })}>
+        <FilterBar
+          state={emptyState}
+          statuses={[]}
+          users={[]}
+          labels={[]}
+          releases={releaseOptions}
+          hierarchy={[]}
+          resultCount={1}
+        />
+      </ViewUrlStateProvider>,
+    );
+    window.history.replaceState(
+      null,
+      "",
+      "/b/DEMO?view=board&version=release-archived&tag=history",
+    );
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+
+    await user.click(screen.getByRole("button", { name: "+ Version" }));
+    await user.click(screen.getByLabelText("2026.10"));
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith(
+        "/b/DEMO?view=board&version=release-active&tag=history",
+        { scroll: false },
+      ),
+    );
+  });
+
   it("keeps a cleared Type facet cleared when the query debounce finishes", async () => {
     vi.useFakeTimers();
     renderBar({
@@ -227,6 +305,7 @@ describe("FilterBar", () => {
           statuses={[{ id: "ready", name: "Prêt" }]}
           users={[{ id: "marie", name: "Marie Lemaire" }]}
           labels={[{ id: "urgent", name: "Urgent", color: "#c00" }]}
+          releases={releaseOptions}
           hierarchy={[]}
           resultCount={4}
         />
@@ -259,6 +338,7 @@ describe("FilterBar", () => {
           statuses={[]}
           users={[]}
           labels={[]}
+          releases={releaseOptions}
           hierarchy={[]}
           resultCount={1}
         />
@@ -351,6 +431,7 @@ describe("FilterBar", () => {
           statuses={[]}
           users={[]}
           labels={[]}
+          releases={releaseOptions}
           hierarchy={[]}
           resultCount={1}
         />
@@ -376,6 +457,7 @@ describe("FilterBar", () => {
             statuses={[]}
             users={[]}
             labels={[]}
+            releases={releaseOptions}
             hierarchy={[]}
             resultCount={1}
           />
@@ -393,6 +475,7 @@ describe("FilterBar", () => {
             statuses={[]}
             users={[]}
             labels={[]}
+            releases={releaseOptions}
             hierarchy={[]}
             resultCount={1}
           />
@@ -416,6 +499,7 @@ describe("FilterBar", () => {
           statuses={[]}
           users={[]}
           labels={[]}
+          releases={releaseOptions}
           hierarchy={[]}
           resultCount={1}
         />
@@ -435,6 +519,7 @@ describe("FilterBar", () => {
           statuses={[]}
           users={[]}
           labels={[]}
+          releases={releaseOptions}
           hierarchy={[]}
           resultCount={1}
         />
@@ -508,6 +593,7 @@ describe("FilterBar", () => {
           statuses={[]}
           users={[]}
           labels={[]}
+          releases={releaseOptions}
           hierarchy={[]}
           resultCount={1}
         />
@@ -583,6 +669,7 @@ describe("FilterBar", () => {
           statuses={[]}
           users={[]}
           labels={[]}
+          releases={releaseOptions}
           hierarchy={[]}
           resultCount={1}
         />
@@ -821,6 +908,7 @@ describe("FilterBar", () => {
           statuses={[]}
           users={[]}
           labels={[]}
+          releases={releaseOptions}
           hierarchy={[]}
           resultCount={1}
         />
@@ -865,6 +953,7 @@ describe("FilterBar", () => {
           statuses={[{ id: "ready", name: "Prêt" }]}
           users={[]}
           labels={[]}
+          releases={releaseOptions}
           hierarchy={[]}
           resultCount={1}
         />

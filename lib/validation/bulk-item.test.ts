@@ -22,6 +22,9 @@ describe("bulkUpdateItemsSchema", () => {
       { field: "estimatePoints", value: null },
       { field: "sprintId", value: SPRINT_ID },
       { field: "sprintId", value: null },
+      { field: "fixVersionIds", mode: "add", value: [SPRINT_ID] },
+      { field: "fixVersionIds", mode: "replace", value: [SPRINT_ID] },
+      { field: "fixVersionIds", mode: "remove", value: [SPRINT_ID] },
     ]) {
       expect(bulkUpdateItemsSchema.safeParse(input(patch)).success).toBe(true);
     }
@@ -52,10 +55,20 @@ describe("bulkUpdateItemsSchema", () => {
       input({ field: "estimatePoints", value: 1.001 }),
       input({ field: "estimatePoints", value: 1000 }),
       input({ field: "sprintId", value: "bad" }),
+      input({ field: "fixVersionIds", mode: "add", value: ["bad"] }),
+      input({ field: "fixVersionIds", mode: "add", value: Array(101).fill(SPRINT_ID) }),
       input({ field: "unsupported", value: "x" }),
       input({ field: "priority" }),
     ]) {
       expect(bulkUpdateItemsSchema.safeParse(candidate).success).toBe(false);
     }
+  });
+
+  it("rejects duplicate fix version ids", () => {
+    expect(
+      bulkUpdateItemsSchema.safeParse(
+        input({ field: "fixVersionIds", mode: "replace", value: [SPRINT_ID, SPRINT_ID] }),
+      ).success,
+    ).toBe(false);
   });
 });

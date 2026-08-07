@@ -450,3 +450,70 @@ de dupliquer les sélecteurs complexes de l’écran d’administration.
    différences par rapport au schéma par défaut.
 3. Rejouer toute l’administration au clavier et aux quatre breakpoints avant
    d’ajouter Releases ; réutiliser l’Assistant dans les écrans métier refusés.
+
+---
+
+## Mise à jour UX — découverte Releases du 7 août 2026
+
+La fonctionnalité n’est pas seulement difficile à découvrir : elle est absente.
+Le parcours demande donc un nombre de clics et un temps **infinis** pour créer
+une version ou y affecter un item. Aucun état vide ne guide vers une première
+Release, aucun lien de navigation n’existe et la permission dédiée n’explique
+pas où exercer le droit accordé.
+
+Le Backlog est l’emplacement naturel de planification, mais sa table s’arrête à
+Points et Assigné. La barre bulk propose Statut, Priorité, Assigné, Sprint et
+Estimation, sans Version. Le détail expose Sprint et Échéance, mais pas
+`Fix versions`; la création ne permet pas non plus de planifier une version.
+
+### Dette UX à traiter dans le design
+
+1. Ajouter « Releases » dans la navigation du backlog avec un état vide utile.
+2. Réutiliser un même sélecteur multivalué de Versions dans création, détail et
+   bulk, sans fabriquer trois interactions différentes.
+3. Montrer la progression et les items incomplets avant l’action Publier ; ne
+   jamais assimiler silencieusement statut `Done` et livraison effective.
+4. Rendre les versions filtrables depuis Backlog/Board et conserver le filtre
+   dans l’URL et les vues enregistrées.
+
+---
+
+## Mise à jour UX — Releases core livré le 7 août 2026
+
+Les quatre dettes de découverte ci-dessus sont fermées sur desktop. `Releases`
+est un onglet du backlog ; l’état vide conduit à `Créer une version` ; le même
+vocabulaire `Fix versions` apparaît dans création, détail, bulk et tableaux ;
+la progression expose ses catégories et ouvre les items sources ; le filtre
+Version reste dans l’URL et les vues enregistrées.
+
+### Parcours prouvés
+
+- création puis modification d’une version depuis la page dédiée ;
+- affectation de deux versions à la création et depuis le détail ;
+- ajout, remplacement et retrait en masse ;
+- filtre conservé après reload et réutilisé sur les quatre vues ;
+- publication avec incomplets conservés ou déplacés, puis dépublication ;
+- version archivée absente des candidats mais affectation courante lisible ;
+- éditeur capable d’affecter sans voir le cycle de vie ; spécialiste
+  `manage_releases` capable de créer/publier ; lecteur sans mutation.
+
+### Qualités observées
+
+- les dialogues restent ouverts après erreur et restaurent l’état ;
+- le conflit stale est explicite entre deux contextes ;
+- les drilldowns utilisent le contexte complet de l’item même sous filtre ;
+- le tableau legacy affiche désormais `Fix versions` sans casser la sélection,
+  le drag, les sections sprint ou le reload ;
+- aucun parcours nominal ne produit d’erreur console, réseau ou HTTP.
+
+### Dette UX restante
+
+1. Fusion/suppression : montrer l’impact et imposer un choix transfert/retrait.
+2. Notes : distinguer snapshot publié, brouillon édité et export final.
+3. Readiness : rendre visibles PR, checks et déploiement sans surcharger la page.
+4. Responsive/accessibilité : rejouer 390/768/1024/1440, zoom 200 %,
+   VoiceOver/NVDA et listes volumineuses.
+
+Le noyau est cohérent mais ne revendique pas encore une expérience Jira
+complète : l’ordre, la fusion, les notes et le travail connexe appartiennent à
+la PR2, tandis que les rapports de sprint restent un chantier séparé.

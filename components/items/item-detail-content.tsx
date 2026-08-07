@@ -14,7 +14,12 @@ import {
 } from "@/lib/services/items";
 import { listLinksForItem } from "@/lib/services/links";
 import { listRefsForItem } from "@/lib/services/refs";
-import type { ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
+import type {
+  ItemCapabilities,
+  PlanningCapabilities,
+  ReleaseCapabilities,
+} from "@/lib/auth/capabilities";
+import type { FixVersionOption } from "@/components/items/fix-version-picker";
 
 type Backlog = NonNullable<Awaited<ReturnType<typeof getBacklogByKeyForUser>>>;
 type Items = Awaited<ReturnType<typeof listItems>>;
@@ -45,6 +50,9 @@ export async function ItemDetailContent({
   canAssignItems = true,
   itemCapabilities,
   planningCapabilities,
+  fixVersions = [],
+  releaseOptions = [],
+  releaseCapabilities,
 }: {
   itemKey: string;
   backlog: Backlog;
@@ -62,6 +70,9 @@ export async function ItemDetailContent({
   canAssignItems?: boolean;
   itemCapabilities?: ItemCapabilities;
   planningCapabilities?: PlanningCapabilities;
+  fixVersions?: FixVersionOption[];
+  releaseOptions?: FixVersionOption[];
+  releaseCapabilities?: ReleaseCapabilities;
 }) {
   const detail = await getItemByKeyForBacklog(itemKey, backlog.id);
   if (!detail) return null;
@@ -122,6 +133,9 @@ export async function ItemDetailContent({
         canAssignItems={canAssignItems}
         itemCapabilities={itemCapabilities}
         planningCapabilities={planningCapabilities}
+        fixVersions={fixVersions}
+        releaseOptions={releaseOptions}
+        releaseCapabilities={releaseCapabilities}
       />
     </>
   );

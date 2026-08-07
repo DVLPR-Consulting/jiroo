@@ -11,8 +11,10 @@ export type Filters = {
   priorities: number[];
   assignees: string[]; // user ids; the literal "none" = unassigned
   labels: string[]; // label ids
+  releaseIds: string[]; // Fix version release ids
   kind: ItemKind[]; // bug | feature — orthogonal to the hierarchy type
   underIds: string[]; // item ids whose descendants should be included
+  showFixVersions?: boolean; // optional list-column preference, persisted with saved views
 };
 
 export type ViewState = {
@@ -72,8 +74,10 @@ export function parseViewState(sp: URLSearchParams): ViewState {
       priorities,
       assignees: csv(sp, "assignee"),
       labels: csv(sp, "label"),
+      releaseIds: csv(sp, "version"),
       kind,
       underIds: csv(sp, "under"),
+      ...(sp.get("fvcol") === "1" ? { showFixVersions: true } : {}),
     },
     group,
     sort,
@@ -92,8 +96,10 @@ export function writeViewState(sp: URLSearchParams, state: ViewState): void {
   setOrDelete("prio", filters.priorities.join(","));
   setOrDelete("assignee", filters.assignees.join(","));
   setOrDelete("label", filters.labels.join(","));
+  setOrDelete("version", filters.releaseIds.join(","));
   setOrDelete("kind", filters.kind.join(","));
   setOrDelete("under", filters.underIds.join(","));
+  setOrDelete("fvcol", filters.showFixVersions ? "1" : "");
   setOrDelete("group", group ?? "");
   setOrDelete("sort", sort ? `${sort.field}:${sort.dir}` : "");
 }
@@ -116,6 +122,7 @@ export type FilterItem = {
   updatedAt: Date;
   rank: string;
   labelIds: string[];
+  fixVersionIds: string[];
   ancestorIds: string[];
   componentId: string | null;
   statusOrder: number;
@@ -156,6 +163,7 @@ export function isFiltersActive(f: Filters): boolean {
     f.priorities.length > 0 ||
     f.assignees.length > 0 ||
     f.labels.length > 0 ||
+    f.releaseIds.length > 0 ||
     f.kind.length > 0 ||
     f.underIds.length > 0
   );
@@ -178,6 +186,10 @@ export function matchItem(it: FilterItem, f: Filters): boolean {
   // OR within the label facet: item passes if it carries ANY of the selected labels.
   if (f.labels.length) {
     if (!it.labelIds.some((id) => f.labels.includes(id))) return false;
+  }
+  // OR within the Version facet; all facets remain ANDed by their early returns.
+  if (f.releaseIds.length) {
+    if (!it.fixVersionIds.some((id) => f.releaseIds.includes(id))) return false;
   }
   // OR within the kind facet: item passes if its kind is one of the selected kinds.
   if (f.kind.length && !f.kind.includes(it.kind)) return false;

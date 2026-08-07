@@ -142,6 +142,65 @@ describe("ItemList", () => {
     mocks.updateItemAction.mockReset();
   });
 
+  it("renders Fix versions after Assigné with two compact chips and a remainder", () => {
+    const versions = [
+      { id: "release-1", name: "2026.10", released: false, archived: false },
+      { id: "release-2", name: "2026.09", released: true, archived: false },
+      { id: "release-3", name: "Legacy", released: true, archived: true },
+    ];
+    renderList({
+      ...listProps(),
+      showFixVersions: true,
+      groups: [{
+        key: "",
+        label: "",
+        items: [item("item-1", "DEMO-1", "Authentication", { fixVersions: versions })],
+      }],
+    });
+
+    const headers = screen.getAllByRole("columnheader").map((header) => header.textContent?.trim());
+    expect(headers.indexOf("Fix versions")).toBe(headers.indexOf("Assigné") + 1);
+    const row = screen.getByRole("row", { name: /DEMO-1 — Authentication/ });
+    expect(within(row).getByText("2026.10")).toBeVisible();
+    expect(within(row).getByText("2026.09")).toBeVisible();
+    expect(within(row).getByText("+1")).toBeVisible();
+    expect(within(row).queryByText("Legacy")).not.toBeInTheDocument();
+  });
+
+  it("keeps the Fix versions column URL-configurable", async () => {
+    const user = userEvent.setup();
+    renderList({ ...listProps(), showFixVersions: false });
+
+    expect(screen.queryByRole("columnheader", { name: "Fix versions" }))
+      .not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Configurer les colonnes" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Fix versions" }));
+
+    expect(mocks.replace).toHaveBeenCalledWith(
+      expect.stringContaining("fvcol=1"),
+      { scroll: false },
+    );
+  });
+
+  it("enables selection for release-only bulk assignment", async () => {
+    const user = userEvent.setup();
+    renderList({
+      ...listProps(),
+      canBulkChangeItems: false,
+      releaseOptions: [
+        { id: "release-1", name: "2026.10", released: false, archived: false },
+      ],
+      releaseCapabilities: {
+        manage: false,
+        assignItems: false,
+        bulkAssignItems: true,
+      },
+    });
+
+    await user.click(screen.getByRole("checkbox", { name: "Sélectionner DEMO-1" }));
+    expect(screen.getByRole("button", { name: "Versions" })).toBeVisible();
+  });
+
   it("offers item creation when the list has no rows", async () => {
     const user = userEvent.setup();
     renderList({

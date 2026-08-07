@@ -43,6 +43,7 @@ const emptyState: ViewState = {
     priorities: [],
     assignees: [],
     labels: [],
+    releaseIds: [],
     kind: [],
     underIds: [],
   },
@@ -108,6 +109,7 @@ function NotificationSubject({
           statuses={[]}
           users={[]}
           labels={[]}
+          releases={[]}
           hierarchy={[]}
           resultCount={1}
         />

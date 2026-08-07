@@ -1,0 +1,53 @@
+Run-scoped artifact scan — 20260807-releases-core-delivery-03
+================================================================
+
+Scope
+-----
+The scan was run immediately after Playwright completed and before this summary
+file existed. Inputs were the 74 run-scoped text artifacts under audit/console,
+audit/network, and audit/runs: 36 console logs, 36 network logs, JUnit, and
+manifest. The proof set contained 92 files before this summary (plus 18 PNGs),
+and contains 93 files after it was added.
+
+Provenance and verdict
+----------------------
+- Manifest source: 8eef265f971ca8244e67299926223046a3529cda
+- Database name: jiroo_e2e
+- JUnit: 40 tests, 0 failures, 0 errors, 0 skipped, 124.837637 s
+- Manifest identity, run ID, and exact source SHA: exact
+
+Results
+-------
+- HTTP 4xx/5xx response lines: 0 files
+- Generic credential/header/DB URL or environment-assignment patterns: 0 files
+- Raw PostgreSQL system identifier: 0 files
+- Console ERR_FAILED lines: 9
+- Network request-failure ERR_FAILED lines: 9
+- Explicit [expected] markers: 8
+
+The 9 + 9 deliberate failures are confined to six named injected scenarios:
+2026-08-05-session-06-backlog-foundation-failure,
+2026-08-05-session-08-sprint-lifecycle-failure,
+2026-08-05-session-08-sprint-planning-failure, releases-s07, releases-s12,
+and releases-s14. No other console or request failure was found.
+
+Reproducible command summary
+----------------------------
+1. Set RUN to the run ID above.
+2. Build TEXT_FILES with:
+   find audit/console audit/network audit/runs -type f -name "*$RUN*" -print | sort
+3. Assert the JUnit root contains tests="40", failures="0", errors="0",
+   and skipped="0" with rg.
+4. Scan network logs with rg for response status classes 4xx and 5xx.
+5. Count exact ERR_FAILED console resource errors, exact network request
+   failures, and line-anchored [expected] markers with rg; assert 9, 9, and 8.
+6. Scan TEXT_FILES with rg for authentication/cookie headers, bearer values,
+   PostgreSQL connection URLs, DB environment assignments, and assigned
+   password/secret/session/access/refresh token values; assert zero files.
+7. Query the local derived database system identifier into a shell variable,
+   never print it, run rg -F with that variable across TEXT_FILES, and assert
+   zero files.
+8. Parse the manifest as JSON and assert its run ID, jiroo_e2e database name,
+   and source SHA shown above.
+
+The shell command used set -e and asserted every expected count; it exited 0.

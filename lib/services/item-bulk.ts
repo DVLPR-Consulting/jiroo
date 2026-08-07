@@ -1,7 +1,9 @@
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
+import { bulkChangeItemFixVersionsInTx } from "@/lib/services/item-fix-versions";
 import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
 import {
   bulkUpdateItemsSchema,
@@ -59,10 +61,16 @@ function activityForPatch(
       };
     case "sprintId":
       throw new Error("Le patch sprint doit utiliser la transaction d’appartenance.");
+    case "fixVersionIds":
+      throw new Error("Le patch de versions doit utiliser la transaction de versions.");
   }
 }
 
-export async function bulkUpdateItems(input: unknown, actorId: string) {
+export async function bulkUpdateItems(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string = randomUUID(),
+) {
   const data = bulkUpdateItemsSchema.parse(input);
 
   return db.transaction(async (tx) => {
@@ -76,16 +84,16 @@ export async function bulkUpdateItems(input: unknown, actorId: string) {
     const selected = await tx
       .select()
       .from(items)
-      .where(and(inArray(items.id, data.itemIds), isNull(items.deletedAt)))
+      .where(and(
+        eq(items.backlogId, data.backlogId),
+        inArray(items.id, data.itemIds),
+        isNull(items.deletedAt),
+      ))
       .orderBy(asc(items.id))
       .for("update");
     if (selected.length !== data.itemIds.length) {
       throw new Error("Un ou plusieurs items sont introuvables.");
     }
-    if (selected.some((row) => row.backlogId !== data.backlogId)) {
-      throw new Error("Tous les items doivent appartenir au backlog.");
-    }
-
     if (data.patch.field === "sprintId") {
       return assignItemsToSprintInTx(
         tx,
@@ -95,6 +103,20 @@ export async function bulkUpdateItems(input: unknown, actorId: string) {
           sprintId: data.patch.value,
         },
         actorId,
+      );
+    }
+
+    if (data.patch.field === "fixVersionIds") {
+      return bulkChangeItemFixVersionsInTx(
+        tx,
+        {
+          backlogId: data.backlogId,
+          itemIds: data.itemIds,
+          mode: data.patch.mode,
+          releaseIds: data.patch.value,
+        },
+        actorId,
+        requestCorrelationId,
       );
     }
 
