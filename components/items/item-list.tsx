@@ -23,6 +23,10 @@ import {
 } from "@/components/items/inline-item-field";
 import { LabelPill } from "@/components/items/label-pill";
 import {
+  FixVersionChips,
+  type FixVersionOption,
+} from "@/components/items/fix-version-picker";
+import {
   NewItemButton,
   type NewItemButtonProps,
 } from "@/components/items/new-item-dialog";
@@ -30,7 +34,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
 import type { SortDir, SortField } from "@/lib/items/filter";
-import type { BulkItemCapabilities, ItemCapabilities } from "@/lib/auth/capabilities";
+import type {
+  BulkItemCapabilities,
+  ItemCapabilities,
+  ReleaseCapabilities,
+} from "@/lib/auth/capabilities";
 import {
   emptySelection,
   reconcileSelection,
@@ -66,6 +74,7 @@ export type ListItem = {
   statusOrder: number;
   ancestorIds: string[];
   componentId: string | null;
+  fixVersions?: FixVersionOption[];
 };
 
 type Group = { key: string; label: string; items: ListItem[] };
@@ -280,6 +289,9 @@ function ItemRow({
           readOnly={!canEditItems || !canAssignItems}
         />
       </td>
+      <td className={CELL_CLASS}>
+        <FixVersionChips versions={item.fixVersions ?? []} />
+      </td>
     </tr>
   );
 }
@@ -304,6 +316,8 @@ export function ItemList({
   canBulkChangeItems: legacyCanBulkChangeItems = true,
   itemCapabilities,
   bulkCapabilities,
+  releaseOptions = [],
+  releaseCapabilities,
 }: {
   groups: Group[];
   grouped: boolean;
@@ -316,7 +330,7 @@ export function ItemList({
   filtersActive?: boolean;
   hasItems?: boolean;
   clearFiltersHref?: string;
-  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems">;
+  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions">;
   canCreateItems?: boolean;
   canEditItems?: boolean;
   canTransitionItems?: boolean;
@@ -324,6 +338,8 @@ export function ItemList({
   canBulkChangeItems?: boolean;
   itemCapabilities?: ItemCapabilities;
   bulkCapabilities?: BulkItemCapabilities;
+  releaseOptions?: FixVersionOption[];
+  releaseCapabilities?: ReleaseCapabilities;
 }) {
   const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
   const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
@@ -360,9 +376,11 @@ export function ItemList({
   const allSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selection.selectedIds.has(id));
   const partlySelected = selection.selectedIds.size > 0 && !allSelected;
-  const canSelectItems = bulkCapabilities
-    ? Object.values(bulkCapabilities).some(Boolean)
-    : canBulkChangeItems && (canEditItems || canTransitionItems || canAssignItems);
+  const canSelectItems = releaseCapabilities?.bulkAssignItems === true || (
+    bulkCapabilities
+      ? Object.values(bulkCapabilities).some(Boolean)
+      : canBulkChangeItems && (canEditItems || canTransitionItems || canAssignItems)
+  );
 
   function toggleSelection(id: string, extendRange: boolean) {
     setSelection((current) =>
@@ -448,6 +466,7 @@ export function ItemList({
           <col className="w-48" />
           <col className="w-32" />
           <col className="w-44" />
+          <col className="w-44" />
         </colgroup>
         <thead className="sticky top-0 z-20">
           <tr>
@@ -487,6 +506,7 @@ export function ItemList({
               Échéance
             </SortableHeader>
             <th scope="col" className={HEADER_CLASS}>Assigné</th>
+            <th scope="col" className={HEADER_CLASS}>Fix versions</th>
           </tr>
         </thead>
         {groups.map((group) => {
@@ -497,7 +517,7 @@ export function ItemList({
                 <tr>
                   <th
                     scope="rowgroup"
-                    colSpan={canSelectItems ? 9 : 8}
+                    colSpan={canSelectItems ? 10 : 9}
                     className="sticky top-8 z-10 border-b border-border bg-[var(--surface-2)] px-3 py-1.5 text-left"
                   >
                     <button
@@ -556,6 +576,8 @@ export function ItemList({
           canScheduleItems={false}
           canBulkChangeItems={canBulkChangeItems}
           capabilities={bulkCapabilities}
+          releaseOptions={releaseOptions}
+          releaseCapabilities={releaseCapabilities}
           onClearSelection={() => setSelection(emptySelection())}
           onMutationSuccess={() => router.refresh()}
         />

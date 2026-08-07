@@ -31,6 +31,20 @@ const sprints = [
   { id: "55555555-5555-4555-8555-555555555555", name: "Sprint actif", state: "active" as const },
   { id: "66666666-6666-4666-8666-666666666666", name: "Sprint futur", state: "planned" as const },
 ];
+const releaseOptions = [
+  {
+    id: "77777777-7777-4777-8777-777777777777",
+    name: "2026.10",
+    released: false,
+    archived: false,
+  },
+  {
+    id: "88888888-8888-4888-8888-888888888888",
+    name: "2026.09",
+    released: true,
+    archived: false,
+  },
+];
 
 function props() {
   return {
@@ -295,5 +309,102 @@ describe("BulkItemToolbar", () => {
     );
     expect(screen.getByText("2 items sélectionnés")).toBeVisible();
     expect(input.onClearSelection).not.toHaveBeenCalled();
+  });
+
+  it("gates Fix version commands only with the bulk release capability", () => {
+    const { rerender } = render(
+      <BulkItemToolbar
+        {...props()}
+        releaseOptions={releaseOptions}
+        releaseCapabilities={{ manage: true, assignItems: true, bulkAssignItems: false }}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Versions" })).not.toBeInTheDocument();
+
+    rerender(
+      <BulkItemToolbar
+        {...props()}
+        capabilities={{ edit: false, transition: false, assign: false, schedule: false }}
+        releaseOptions={releaseOptions}
+        releaseCapabilities={{ manage: false, assignItems: false, bulkAssignItems: true }}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Versions" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Appliquer les versions" })).toBeVisible();
+  });
+
+  it("adds, replaces, and removes the selected Fix versions", async () => {
+    const user = userEvent.setup();
+    mocks.bulkUpdateItemsAction.mockResolvedValue({
+      ok: true,
+      changedCount: 2,
+      unchangedCount: 0,
+    });
+    render(
+      <BulkItemToolbar
+        {...props()}
+        releaseOptions={releaseOptions}
+        releaseCapabilities={{ manage: false, assignItems: false, bulkAssignItems: true }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Versions" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: releaseOptions[0]!.name }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: `${releaseOptions[1]!.name} — Publiée` }));
+    await user.keyboard("{Escape}");
+
+    for (const [label, mode] of [
+      ["Ajouter aux versions", "add"],
+      ["Remplacer les versions", "replace"],
+      ["Retirer des versions", "remove"],
+    ] as const) {
+      await user.click(screen.getByRole("button", { name: "Appliquer les versions" }));
+      await user.click(screen.getByRole("menuitem", { name: label }));
+      await waitFor(() =>
+        expect(mocks.bulkUpdateItemsAction).toHaveBeenLastCalledWith({
+          backlogKey: "DEMO",
+          backlogId,
+          itemIds: [firstId, secondId],
+          patch: {
+            field: "fixVersionIds",
+            mode,
+            value: releaseOptions.map((release) => release.id),
+          },
+        }),
+      );
+    }
+  });
+
+  it("disables empty add, replace and remove while exposing an explicit clear-all command", async () => {
+    const user = userEvent.setup();
+    mocks.bulkUpdateItemsAction.mockResolvedValue({
+      ok: true,
+      changedCount: 2,
+      unchangedCount: 0,
+    });
+    render(
+      <BulkItemToolbar
+        {...props()}
+        releaseOptions={releaseOptions}
+        releaseCapabilities={{ manage: false, assignItems: false, bulkAssignItems: true }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Appliquer les versions" }));
+    expect(screen.getByRole("menuitem", { name: "Ajouter aux versions" })).toHaveAttribute("data-disabled");
+    expect(screen.getByRole("menuitem", { name: "Remplacer les versions" })).toHaveAttribute("data-disabled");
+    expect(screen.getByRole("menuitem", { name: "Retirer des versions" })).toHaveAttribute("data-disabled");
+    await user.click(screen.getByRole("menuitem", { name: "Effacer toutes les versions" }));
+
+    await waitFor(() =>
+      expect(mocks.bulkUpdateItemsAction).toHaveBeenCalledWith({
+        backlogKey: "DEMO",
+        backlogId,
+        itemIds: [firstId, secondId],
+        patch: { field: "fixVersionIds", mode: "replace", value: [] },
+      }),
+    );
   });
 });

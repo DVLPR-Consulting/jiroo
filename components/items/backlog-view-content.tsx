@@ -183,6 +183,7 @@ export async function BacklogViewContent({
     }
   }
   const selectedReleaseIds = new Set(viewState.filters.releaseIds);
+  const assignableReleaseOptions = releaseOptions.filter((release) => !release.archived);
   const releaseFilterOptions = releaseOptions.filter(
     (release) => !release.archived || selectedReleaseIds.has(release.id),
   );
@@ -269,6 +270,7 @@ export async function BacklogViewContent({
       title: item.title,
     })),
     statuses: statusRows.map((status) => ({ id: status.id, name: status.name })),
+    releaseOptions: assignableReleaseOptions,
   };
 
   const referencedUserIds = items.flatMap((item) =>
@@ -581,6 +583,8 @@ export async function BacklogViewContent({
           itemCapabilities={productCapabilities.items}
           planningCapabilities={productCapabilities.planning}
           bulkCapabilities={productCapabilities.bulk}
+          releaseOptions={assignableReleaseOptions}
+          releaseCapabilities={productCapabilities.releases}
           manualOrder={viewState.sort === null && viewState.group === null}
         />
       )}
@@ -617,6 +621,8 @@ export async function BacklogViewContent({
           canBulkChangeItems={capabilities.bulkChangeItems}
           itemCapabilities={productCapabilities.items}
           bulkCapabilities={productCapabilities.bulk}
+          releaseOptions={assignableReleaseOptions}
+          releaseCapabilities={productCapabilities.releases}
         />
       )}
       {view === "board" && (
@@ -694,6 +700,11 @@ export async function BacklogViewContent({
             canAssignItems={capabilities.assignItems}
             itemCapabilities={productCapabilities.items}
             planningCapabilities={productCapabilities.planning}
+            fixVersions={fixVersionsByItem.get(
+              items.find((item) => item.key === itemKey)?.id ?? "",
+            ) ?? []}
+            releaseOptions={assignableReleaseOptions}
+            releaseCapabilities={productCapabilities.releases}
           />
         </Suspense>
       )}

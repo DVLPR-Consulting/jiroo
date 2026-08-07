@@ -132,6 +132,32 @@ describe("ItemBoard", () => {
     expect(screen.getByText("Authentication")).toBeVisible();
   });
 
+  it("keeps cards compact when release data is present for upstream filtering", () => {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[{
+          ...editableCard,
+          fixVersions: [{
+            id: "release-2026-10",
+            name: "VERSION-NE-DOIT-PAS-APPARAITRE",
+            released: false,
+            archived: false,
+          }],
+        }]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+      />,
+    );
+
+    expect(screen.getByText("Authentication")).toBeVisible();
+    expect(screen.queryByText("VERSION-NE-DOIT-PAS-APPARAITRE")).not.toBeInTheDocument();
+  });
+
   it("creates new board work directly in the active sprint", async () => {
     const user = userEvent.setup();
     renderBoard(

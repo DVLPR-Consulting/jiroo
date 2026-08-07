@@ -258,6 +258,39 @@ describe("ItemBacklog", () => {
     mocks.moveSprintItemAction.mockReset();
   });
 
+  it("renders Fix versions after Points with two compact chips and a remainder", () => {
+    const input = sprintProps();
+    if (!("sections" in input)) throw new Error("Sprint props expected");
+    const versions = [
+      { id: "release-1", name: "2026.10", released: false, archived: false },
+      { id: "release-2", name: "2026.09", released: true, archived: false },
+      { id: "release-3", name: "Legacy", released: true, archived: true },
+    ];
+    const firstSection = input.sections[0]!;
+    const versionedItem = { ...firstSection.items[0]!, fixVersions: versions };
+    render(
+      <ItemBacklog
+        {...input}
+        sections={[
+          {
+            ...firstSection,
+            items: [versionedItem],
+            groups: [{ key: "", label: "", items: [versionedItem] }],
+          },
+        ]}
+      />,
+    );
+
+    const headers = screen.getAllByRole("columnheader").map((header) => header.textContent?.trim());
+    expect(headers.indexOf("Fix versions")).toBe(headers.indexOf("Points") + 1);
+    expect(headers.indexOf("Assigné")).toBe(headers.indexOf("Fix versions") + 1);
+    const row = screen.getByRole("row", { name: /DEMO-1 — Authentification/ });
+    expect(within(row).getByText("2026.10")).toBeVisible();
+    expect(within(row).getByText("2026.09")).toBeVisible();
+    expect(within(row).getByText("+1")).toBeVisible();
+    expect(within(row).queryByText("Legacy")).not.toBeInTheDocument();
+  });
+
   it("renders active, planned, and unscheduled sections in Jira planning order", () => {
     render(<ItemBacklog {...sprintProps()} />);
 

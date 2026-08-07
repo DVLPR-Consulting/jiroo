@@ -549,6 +549,7 @@ describe("BacklogViewContent read boundary", () => {
     ]);
     mocks.listReleaseSummaries.mockResolvedValue([
       { id: "release-active", name: "2026.10", released: false, archived: false },
+      { id: "release-published", name: "2026.09.1", released: true, archived: false },
       { id: "release-selected", name: "2026.09", released: true, archived: true },
       { id: "release-hidden", name: "2026.08", released: true, archived: true },
     ]);
@@ -559,6 +560,7 @@ describe("BacklogViewContent read boundary", () => {
         searchParamsPromise: Promise.resolve({
           view: "list",
           version: "release-selected",
+          item: "DEMO-2",
         }),
       }),
     );
@@ -573,6 +575,7 @@ describe("BacklogViewContent read boundary", () => {
       expect.objectContaining({
         releases: [
           { id: "release-active", name: "2026.10", released: false, archived: false },
+          { id: "release-published", name: "2026.09.1", released: true, archived: false },
           { id: "release-selected", name: "2026.09", released: true, archived: true },
         ],
         state: expect.objectContaining({
@@ -582,6 +585,9 @@ describe("BacklogViewContent read boundary", () => {
     );
     const listProps = mocks.itemListProps.mock.calls[0]?.[0] as {
       groups: Array<{ items: Array<Record<string, unknown>> }>;
+      createDialogProps: Record<string, unknown>;
+      releaseOptions: unknown[];
+      releaseCapabilities: unknown;
     };
     expect(listProps.groups.flatMap((group) => group.items)).toEqual([
       expect.objectContaining({
@@ -592,5 +598,29 @@ describe("BacklogViewContent read boundary", () => {
         ],
       }),
     ]);
+    const assignableReleases = [
+      { id: "release-active", name: "2026.10", released: false, archived: false },
+      { id: "release-published", name: "2026.09.1", released: true, archived: false },
+    ];
+    expect(listProps.createDialogProps).toEqual(expect.objectContaining({
+      releaseOptions: assignableReleases,
+    }));
+    expect(listProps.releaseOptions).toEqual(assignableReleases);
+    expect(listProps.releaseCapabilities).toEqual({
+      manage: false,
+      assignItems: false,
+      bulkAssignItems: false,
+    });
+    expect(mocks.itemDetailProps).toHaveBeenCalledWith(expect.objectContaining({
+      fixVersions: [
+        { id: "release-selected", name: "2026.09", released: true, archived: true },
+      ],
+      releaseOptions: assignableReleases,
+      releaseCapabilities: {
+        manage: false,
+        assignItems: false,
+        bulkAssignItems: false,
+      },
+    }));
   });
 });

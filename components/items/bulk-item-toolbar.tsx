@@ -12,12 +12,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
+  FixVersionPicker,
+  type FixVersionOption,
+} from "@/components/items/fix-version-picker";
+import {
   PRIORITIES,
   PRIORITY_LABELS,
   type ItemType,
 } from "@/lib/design/constants";
 import type { BulkItemPatch } from "@/lib/validation/bulk-item";
-import type { BulkItemCapabilities } from "@/lib/auth/capabilities";
+import type {
+  BulkItemCapabilities,
+  ReleaseCapabilities,
+} from "@/lib/auth/capabilities";
 
 export type BulkStatusOption = {
   id: string;
@@ -49,6 +56,8 @@ export type BulkItemToolbarProps = {
   canScheduleItems?: boolean;
   canBulkChangeItems?: boolean;
   capabilities?: BulkItemCapabilities;
+  releaseOptions?: FixVersionOption[];
+  releaseCapabilities?: ReleaseCapabilities;
   onClearSelection: () => void;
   onMutationSuccess: (result: MutationResult) => void;
 };
@@ -72,6 +81,8 @@ export function BulkItemToolbar({
   canScheduleItems = true,
   canBulkChangeItems = true,
   capabilities,
+  releaseOptions = [],
+  releaseCapabilities,
   onClearSelection,
   onMutationSuccess,
 }: BulkItemToolbarProps) {
@@ -79,10 +90,12 @@ export function BulkItemToolbar({
   const canTransition = capabilities?.transition ?? (canBulkChangeItems && canTransitionItems);
   const canAssign = capabilities?.assign ?? (canBulkChangeItems && canAssignItems);
   const canSchedule = capabilities?.schedule ?? (canBulkChangeItems && canScheduleItems);
+  const canBulkAssignVersions = releaseCapabilities?.bulkAssignItems ?? false;
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [estimateInput, setEstimateInput] = useState("");
+  const [selectedFixVersionIds, setSelectedFixVersionIds] = useState<string[]>([]);
   const ids = selectedItems.map((item) => item.id).sort();
   const tasksOnly = selectedItems.every((item) => item.type === "tache");
   const estimate = estimateInput === "" ? null : Number(estimateInput);
@@ -293,6 +306,71 @@ export function BulkItemToolbar({
           Effacer
         </Button>
       </div> : null}
+
+      {canBulkAssignVersions ? (
+        <div className="flex items-center gap-1">
+          <FixVersionPicker
+            value={selectedFixVersionIds}
+            options={releaseOptions}
+            disabled={pending}
+            onChange={setSelectedFixVersionIds}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                aria-label="Appliquer les versions"
+              >
+                Appliquer <ChevronDown aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem
+                disabled={selectedFixVersionIds.length === 0}
+                onSelect={() => applyPatch({
+                  field: "fixVersionIds",
+                  mode: "add",
+                  value: selectedFixVersionIds,
+                })}
+              >
+                Ajouter aux versions
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={selectedFixVersionIds.length === 0}
+                onSelect={() => applyPatch({
+                  field: "fixVersionIds",
+                  mode: "replace",
+                  value: selectedFixVersionIds,
+                })}
+              >
+                Remplacer les versions
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={selectedFixVersionIds.length === 0}
+                onSelect={() => applyPatch({
+                  field: "fixVersionIds",
+                  mode: "remove",
+                  value: selectedFixVersionIds,
+                })}
+              >
+                Retirer des versions
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => applyPatch({
+                  field: "fixVersionIds",
+                  mode: "replace",
+                  value: [],
+                })}
+              >
+                Effacer toutes les versions
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : null}
 
       <Button
         type="button"
