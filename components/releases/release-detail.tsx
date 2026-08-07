@@ -190,9 +190,11 @@ export function ReleaseDetail({
           statusIds={statusIds}
           detailHref={path}
         />
-        {incompleteCount > 0 && !release.released ? (
+        {incompleteCount > 0 ? (
           <p role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-            {incompleteCount} éléments non terminés seront concernés au moment de la publication.
+            {release.released
+              ? `Le périmètre actuel contient ${incompleteCount} ${incompleteCount === 1 ? "élément non terminé" : "éléments non terminés"}. L’instantané publié reste inchangé.`
+              : `${incompleteCount} ${incompleteCount === 1 ? "élément non terminé" : "éléments non terminés"} seront concernés au moment de la publication.`}
           </p>
         ) : null}
         <p className="text-sm text-muted-foreground">

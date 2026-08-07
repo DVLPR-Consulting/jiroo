@@ -27,7 +27,8 @@ describe("ReleaseProgress", () => {
     );
 
     expect(screen.getByText("3 terminés sur 6")).toBeVisible();
-    expect(screen.getByText("8 / 13 points")).toBeVisible();
+    expect(screen.getByText("8 points terminés")).toBeVisible();
+    expect(screen.getByText("13 points estimés")).toBeVisible();
     expect(screen.getByText("1 non estimé")).toBeVisible();
     expect(screen.getByRole("link", { name: "À faire : 2" })).toHaveAttribute(
       "href",
@@ -45,7 +46,11 @@ describe("ReleaseProgress", () => {
       "href",
       "/b/CASS/releases/22222222-2222-4222-8222-222222222222",
     );
-    expect(screen.getByRole("link", { name: "8 / 13 points" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "8 points terminés" })).toHaveAttribute(
+      "href",
+      "/b/CASS/releases/22222222-2222-4222-8222-222222222222?scopeStatus=done&scopeEstimate=estimated",
+    );
+    expect(screen.getByRole("link", { name: "13 points estimés" })).toHaveAttribute(
       "href",
       "/b/CASS/releases/22222222-2222-4222-8222-222222222222?scopeEstimate=estimated",
     );

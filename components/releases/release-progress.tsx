@@ -57,9 +57,18 @@ export function ReleaseProgress({
           </Link>
         ) : <span>{progress.done} terminés sur {progress.total}</span>}
         {detailHref ? (
-          <Link className="underline-offset-2 hover:underline" href={`${detailHref}?scopeEstimate=estimated`}>
-            {progress.donePoints} / {progress.totalPoints} points
-          </Link>
+          <>
+            <Link
+              className="underline-offset-2 hover:underline"
+              href={`${detailHref}?scopeStatus=done&scopeEstimate=estimated`}
+            >
+              {progress.donePoints} points terminés
+            </Link>
+            <span aria-hidden>/</span>
+            <Link className="underline-offset-2 hover:underline" href={`${detailHref}?scopeEstimate=estimated`}>
+              {progress.totalPoints} points estimés
+            </Link>
+          </>
         ) : <span>{progress.donePoints} / {progress.totalPoints} points</span>}
         {progress.unestimated > 0 ? (
           detailHref ? (

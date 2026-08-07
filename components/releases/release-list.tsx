@@ -139,12 +139,14 @@ export function ReleaseList({
               releaseId={release.id}
               progress={release.progress}
               statusIds={statusIds}
+              detailHref={`/b/${backlog.key}/releases/${release.id}`}
             />
-            {release.progress.todo + release.progress.inProgress > 0 ? (
-              <p className="text-sm font-medium">
-                {release.progress.todo + release.progress.inProgress} éléments non terminés
-              </p>
-            ) : null}
+            <p className="text-sm font-medium">
+              {release.progress.todo + release.progress.inProgress}{" "}
+              {release.progress.todo + release.progress.inProgress === 1
+                ? "élément non terminé"
+                : "éléments non terminés"}
+            </p>
           </article>
         </li>
       ))}

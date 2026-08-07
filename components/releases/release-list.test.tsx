@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/app/actions/releases", () => ({
@@ -143,11 +143,16 @@ describe("ReleaseList", () => {
     expect(archived).toHaveTextContent("30 sept. 2026");
     expect(archived).toHaveTextContent("3 terminés sur 6");
     expect(archived).toHaveTextContent("3 éléments non terminés");
-    expect(archived).toHaveTextContent("8 / 13 points");
+    expect(within(archived).getByRole("link", { name: "3 terminés sur 6" }))
+      .toHaveAttribute("href", "/b/CASS/releases/22222222-2222-4222-8222-222222222222");
+    expect(archived).toHaveTextContent("8 points terminés");
+    expect(archived).toHaveTextContent("13 points estimés");
     expect(archived).toHaveTextContent("1 non estimé");
 
     expect(screen.getByRole("article", { name: "Version publiée" }))
       .toHaveTextContent("Publiée");
+    expect(screen.getByRole("article", { name: "Version publiée" }))
+      .toHaveTextContent("0 éléments non terminés");
     const overdue = screen.getByRole("article", { name: "Version en retard" });
     expect(overdue).toHaveTextContent("Non publiée");
     expect(overdue).toHaveTextContent("En retard");

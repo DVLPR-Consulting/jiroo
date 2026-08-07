@@ -167,4 +167,20 @@ describe("ReleaseDetail", () => {
     expect(screen.getByRole("link", { name: "À faire" }).getAttribute("href"))
       .toContain("scopeStatus=todo");
   });
+
+  it("warns when the mutable current scope gains incompletes after publication", () => {
+    render(
+      <ReleaseDetail
+        {...props}
+        release={{
+          ...props.release,
+          released: true,
+          progress: { ...props.release.progress, total: 2, todo: 1, done: 1 },
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("1 élément non terminé");
+    expect(screen.getByRole("alert")).toHaveTextContent("périmètre actuel");
+  });
 });
