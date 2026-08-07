@@ -28,8 +28,20 @@ describe("createItemSchema", () => {
   it("defaults labelIds to [] and priority to 0; statusId is optional", () => {
     const r = createItemSchema.parse({ ...base, type: "composant", parentId: null });
     expect(r.labelIds).toEqual([]);
+    expect(r.fixVersionIds).toEqual([]);
     expect(r.priority).toBe(0);
     expect(r.statusId).toBeUndefined();
+  });
+  it("keeps unique fix version ids", () => {
+    const fixVersionId = "33333333-3333-4333-8333-333333333333";
+    expect(
+      createItemSchema.safeParse({
+        ...base,
+        type: "composant",
+        parentId: null,
+        fixVersionIds: [fixVersionId, fixVersionId],
+      }).success,
+    ).toBe(false);
   });
   it("retains an optional contextual sprint assignment", () => {
     const sprintId = "33333333-3333-4333-8333-333333333333";
@@ -63,6 +75,13 @@ describe("updateItemSchema", () => {
   it("leaves reporterId untouched when omitted", () => {
     const parsed = updateItemSchema.parse({ id: BID });
     expect(parsed).not.toHaveProperty("reporterId");
+  });
+  it("leaves fix versions untouched when omitted and rejects duplicates when supplied", () => {
+    const fixVersionId = "33333333-3333-4333-8333-333333333333";
+    expect(updateItemSchema.parse({ id: BID })).not.toHaveProperty("fixVersionIds");
+    expect(
+      updateItemSchema.safeParse({ id: BID, fixVersionIds: [fixVersionId, fixVersionId] }).success,
+    ).toBe(false);
   });
   it("accepts null, zero, integer and decimal story points", () => {
     for (const estimatePoints of [null, 0, 1, 5, 13, 2.5, 999.99]) {

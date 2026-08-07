@@ -34,6 +34,12 @@ const dueDate = z
   .preprocess((v) => (v === "" || v == null ? null : v), z.coerce.date().nullable())
   .optional();
 const labelIds = z.array(z.uuid()).default([]);
+const fixVersionIds = z
+  .array(z.uuid())
+  .max(100)
+  .refine((ids) => new Set(ids).size === ids.length, {
+    message: "Les versions contiennent des doublons.",
+  });
 
 export const createItemSchema = z
   .object({
@@ -48,6 +54,7 @@ export const createItemSchema = z
     assigneeId,
     dueDate,
     labelIds,
+    fixVersionIds: fixVersionIds.default([]),
     sprintId: z.uuid("Sprint invalide.").nullable().optional(),
   })
   .refine((d) => (d.type === "composant") === (d.parentId === null), {
@@ -71,6 +78,7 @@ export const updateItemSchema = z.object({
   estimatePoints: estimatePointsSchema.optional(),
   dueDate,
   labelIds: z.array(z.uuid()).optional(),
+  fixVersionIds: fixVersionIds.optional(),
 });
 
 export const idInputSchema = z.object({ id: z.uuid() });

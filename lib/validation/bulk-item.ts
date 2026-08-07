@@ -24,6 +24,11 @@ export const bulkItemPatchSchema = z.discriminatedUnion("field", [
     field: z.literal("sprintId"),
     value: z.uuid("Sprint invalide.").nullable(),
   }),
+  z.object({
+    field: z.literal("fixVersionIds"),
+    mode: z.enum(["add", "replace", "remove"]),
+    value: z.array(z.uuid()).max(100),
+  }),
 ]);
 
 export const bulkUpdateItemsSchema = z.object({

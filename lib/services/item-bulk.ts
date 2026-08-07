@@ -59,6 +59,8 @@ function activityForPatch(
       };
     case "sprintId":
       throw new Error("Le patch sprint doit utiliser la transaction d’appartenance.");
+    case "fixVersionIds":
+      throw new Error("Le patch de versions doit utiliser la transaction de versions.");
   }
 }
 
@@ -96,6 +98,10 @@ export async function bulkUpdateItems(input: unknown, actorId: string) {
         },
         actorId,
       );
+    }
+
+    if (data.patch.field === "fixVersionIds") {
+      throw new Error("Le patch de versions doit utiliser la transaction de versions.");
     }
 
     let destinationStatus:
