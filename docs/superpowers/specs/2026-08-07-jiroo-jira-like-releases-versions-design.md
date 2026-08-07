@@ -178,6 +178,20 @@ si l’item source est supprimé définitivement plus tard.
 Ce snapshot répond à « quel était le périmètre ? » et « qu’était réellement
 terminé ? » sans dépendre de l’état futur de l’item.
 
+### 6.5 `release_events`
+
+Historique métier append-only des releases :
+
+- `id`, `releaseId` nullable avec `ON DELETE SET NULL`, `releaseLabel` copié ;
+- `backlogId` nullable avec `ON DELETE SET NULL` ;
+- `actorId` nullable, `actorLabel` copié ;
+- `action`, `oldValue`, `newValue` ;
+- `requestCorrelationId`, `createdAt`.
+
+Les événements de métadonnées et de cycle vivent ici. Les changements de Fix
+versions continuent d’utiliser l’activité de chaque item avec le même identifiant
+de corrélation dans leur payload métier.
+
 ## 7. Permissions
 
 | Action | Permission requise |
@@ -188,6 +202,7 @@ terminé ? » sans dépendre de l’état futur de l’item.
 | Affecter/retirer Fix versions sur un item existant | `edit_items` |
 | Affectation bulk | `bulk_change_items` global + `edit_items` backlog |
 | Publier en déplaçant les incomplets | `manage_releases` + `edit_items` |
+| Choisir un autre responsable de Release | `manage_releases` + `browse_users` |
 | Lire le snapshot de publication | `browse_backlog` |
 
 `manage_releases` ne donne pas `edit_items`. Un spécialiste Releases peut gérer
@@ -196,6 +211,10 @@ désactivé et refusé côté serveur sans `edit_items`. Il ne peut donc pas
 recatégoriser silencieusement les items. Inversement, un éditeur d’item peut
 utiliser des versions non archivées existantes sans pouvoir les créer ou les
 publier.
+
+Sans `browse_users`, le créateur devient responsable par défaut et aucun
+annuaire n’est sérialisé. Le nom d’un responsable déjà référencé reste visible
+aux lecteurs du backlog, sans email, comme une identité métier courante.
 
 Toutes les Server Actions appliquent la porte commune de dissimulation du
 backlog avant la permission fonctionnelle. Les refus forgés ne modifient ni
@@ -345,6 +364,7 @@ sans `browse_backlog`.
 - tri stable des IDs avant verrouillage pour éviter les deadlocks ;
 - lectures batchées et aucun N+1 ;
 - pagination de la liste d’items d’une release ;
+- pagination séparée des snapshots et événements historiques ;
 - filtres appliqués SQL-side ;
 - test de volumétrie avec au moins 100 versions et 1 000 liens Fix versions ;
 - temps locaux documentés, sans seuil produit artificiel non mesuré.
