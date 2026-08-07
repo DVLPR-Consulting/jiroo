@@ -294,34 +294,31 @@ export async function bulkUpdateItemsAction(input: {
       permission: "bulk_change_items",
       scope: { type: "global" },
     });
-    const permission = bulkPatchPermission(input.patch);
-    const authorizedItems: AuthorizedResource[] = [];
-    for (const itemId of input.itemIds) {
-      const item = await requireItemPermission({ actorId, itemId, permission });
-      assertStoredBacklog(item, input.backlogId);
-      authorizedItems.push(item);
-    }
-    const authorizedBacklogs = new Map(
-      authorizedItems.map((item) => [item.backlogId, item]),
-    );
+    const authorizedBacklog = await requireBacklogPermissionById({
+      actorId,
+      backlogId: input.backlogId,
+      permission: bulkPatchPermission(input.patch),
+    });
+    assertStoredBacklog(authorizedBacklog, input.backlogId);
     if (input.patch.field === "statusId") {
       const status = await requireStatusPermission({
         actorId,
         statusId: input.patch.value,
         permission: "transition_items",
       });
-      for (const item of authorizedBacklogs.values()) assertSameBacklog(item, status, "status");
+      assertSameBacklog(authorizedBacklog, status, "status");
     } else if (input.patch.field === "sprintId" && input.patch.value) {
       const sprint = await requireSprintPermission({
         actorId,
         sprintId: input.patch.value,
         permission: "schedule_items",
       });
-      for (const item of authorizedBacklogs.values()) assertSameBacklog(item, sprint, "sprint");
+      assertSameBacklog(authorizedBacklog, sprint, "sprint");
     } else if (input.patch.field === "assigneeId") {
-      for (const backlogId of authorizedBacklogs.keys()) {
-        await requireAssignableUser({ assigneeId: input.patch.value, backlogId });
-      }
+      await requireAssignableUser({
+        assigneeId: input.patch.value,
+        backlogId: authorizedBacklog.backlogId,
+      });
     }
     const { backlogKey, ...serviceInput } = input;
     const result = await bulkUpdateItems(serviceInput, actorId, randomUUID());

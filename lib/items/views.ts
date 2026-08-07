@@ -144,9 +144,21 @@ export function columnsToViewState(row: {
   const underIds: string[] = Array.isArray(rawFilters.underIds)
     ? (rawFilters.underIds as unknown[]).filter((id): id is string => typeof id === "string")
     : [];
+  const showFixVersions = rawFilters.showFixVersions === true;
 
   const state: ViewState = {
-    filters: { q, types, statusIds, priorities, assignees, labels, releaseIds, kind, underIds },
+    filters: {
+      q,
+      types,
+      statusIds,
+      priorities,
+      assignees,
+      labels,
+      releaseIds,
+      kind,
+      underIds,
+      ...(showFixVersions ? { showFixVersions: true } : {}),
+    },
     group,
     sort,
   };
@@ -195,6 +207,7 @@ export function isViewDirty(
   if (!sameSet(vs.filters.releaseIds, cs.filters.releaseIds)) return true;
   if (!sameSet(vs.filters.kind, cs.filters.kind)) return true;
   if (!sameSet(vs.filters.underIds, cs.filters.underIds)) return true;
+  if (Boolean(vs.filters.showFixVersions) !== Boolean(cs.filters.showFixVersions)) return true;
 
   return false;
 }
@@ -228,6 +241,7 @@ const ACTIVE_BACKLOG_VIEW_PARAM_KEYS = [
   "view",
   "v",
   "item",
+  "fvcol",
 ] as const;
 
 export function clearActiveBacklogViewParams(params: URLSearchParams): void {
@@ -278,6 +292,7 @@ const filtersSchema = z.object({
   releaseIds: z.array(z.string()).default([]),
   kind: z.array(z.enum(ITEM_KINDS)).default([]),
   underIds: z.array(z.string()).default([]),
+  showFixVersions: z.boolean().optional(),
 });
 
 const sortSchema = z

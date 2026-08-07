@@ -10,6 +10,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   FixVersionPicker,
@@ -25,6 +33,7 @@ import type {
   BulkItemCapabilities,
   ReleaseCapabilities,
 } from "@/lib/auth/capabilities";
+import { toast } from "@/lib/toast";
 
 export type BulkStatusOption = {
   id: string;
@@ -42,6 +51,7 @@ export type BulkSprintOption = {
 };
 
 type MutationResult = { changedCount: number; unchangedCount: number };
+type PendingFixVersionPatch = Extract<BulkItemPatch, { field: "fixVersionIds" }>;
 
 export type BulkItemToolbarProps = {
   backlogId: string;
@@ -96,6 +106,8 @@ export function BulkItemToolbar({
   const [error, setError] = useState<string | null>(null);
   const [estimateInput, setEstimateInput] = useState("");
   const [selectedFixVersionIds, setSelectedFixVersionIds] = useState<string[]>([]);
+  const [pendingFixVersionPatch, setPendingFixVersionPatch] =
+    useState<PendingFixVersionPatch | null>(null);
   const ids = selectedItems.map((item) => item.id).sort();
   const tasksOnly = selectedItems.every((item) => item.type === "tache");
   const estimate = estimateInput === "" ? null : Number(estimateInput);
@@ -125,7 +137,9 @@ export function BulkItemToolbar({
           changedCount: result.changedCount,
           unchangedCount: result.unchangedCount,
         };
-        setMessage(resultMessage(counts));
+        const successMessage = resultMessage(counts);
+        setMessage(successMessage);
+        toast.success(successMessage);
         onMutationSuccess(counts);
       } catch {
         setError("Modification groupée impossible.");
@@ -134,8 +148,27 @@ export function BulkItemToolbar({
   }
 
   const triggerClass = "min-w-28 justify-between";
+  const selectedFixVersionNames = pendingFixVersionPatch?.value.map(
+    (releaseId) => releaseOptions.find((release) => release.id === releaseId)?.name ?? releaseId,
+  ) ?? [];
+
+  function fixVersionSummary(): string {
+    if (!pendingFixVersionPatch) return "";
+    const names = selectedFixVersionNames.join(", ");
+    if (pendingFixVersionPatch.mode === "add") {
+      return `${names} seront ajoutées sans retirer les Fix versions existantes.`;
+    }
+    if (pendingFixVersionPatch.mode === "remove") {
+      return `${names} seront retirées. Les autres Fix versions seront conservées.`;
+    }
+    if (pendingFixVersionPatch.value.length === 0) {
+      return "Toutes les Fix versions seront retirées.";
+    }
+    return `Les Fix versions existantes seront remplacées par ${names}.`;
+  }
 
   return (
+    <>
     <div
       role="region"
       aria-label="Actions groupées"
@@ -330,7 +363,7 @@ export function BulkItemToolbar({
             <DropdownMenuContent align="start">
               <DropdownMenuItem
                 disabled={selectedFixVersionIds.length === 0}
-                onSelect={() => applyPatch({
+                onSelect={() => setPendingFixVersionPatch({
                   field: "fixVersionIds",
                   mode: "add",
                   value: selectedFixVersionIds,
@@ -340,7 +373,7 @@ export function BulkItemToolbar({
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={selectedFixVersionIds.length === 0}
-                onSelect={() => applyPatch({
+                onSelect={() => setPendingFixVersionPatch({
                   field: "fixVersionIds",
                   mode: "replace",
                   value: selectedFixVersionIds,
@@ -350,7 +383,7 @@ export function BulkItemToolbar({
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={selectedFixVersionIds.length === 0}
-                onSelect={() => applyPatch({
+                onSelect={() => setPendingFixVersionPatch({
                   field: "fixVersionIds",
                   mode: "remove",
                   value: selectedFixVersionIds,
@@ -359,7 +392,7 @@ export function BulkItemToolbar({
                 Retirer des versions
               </DropdownMenuItem>
               <DropdownMenuItem
-                onSelect={() => applyPatch({
+                onSelect={() => setPendingFixVersionPatch({
                   field: "fixVersionIds",
                   mode: "replace",
                   value: [],
@@ -399,5 +432,45 @@ export function BulkItemToolbar({
         </span>
       ) : null}
     </div>
+    <Dialog
+      open={pendingFixVersionPatch !== null}
+      onOpenChange={(open) => {
+        if (!open && !pending) setPendingFixVersionPatch(null);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirmer la modification des Fix versions</DialogTitle>
+          <DialogDescription>
+            Vérifiez cette opération avant de l’appliquer aux {selectedItems.length}{" "}
+            {selectedItems.length === 1 ? "item sélectionné" : "items sélectionnés"}.
+          </DialogDescription>
+        </DialogHeader>
+        <p>{fixVersionSummary()}</p>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pending}
+            onClick={() => setPendingFixVersionPatch(null)}
+          >
+            Annuler
+          </Button>
+          <Button
+            type="button"
+            disabled={pending || pendingFixVersionPatch === null}
+            onClick={() => {
+              if (!pendingFixVersionPatch) return;
+              const patch = pendingFixVersionPatch;
+              setPendingFixVersionPatch(null);
+              applyPatch(patch);
+            }}
+          >
+            Appliquer à {selectedItems.length} {selectedItems.length === 1 ? "item" : "items"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

@@ -5,11 +5,13 @@ import { BulkItemToolbar } from "@/components/items/bulk-item-toolbar";
 
 const mocks = vi.hoisted(() => ({
   bulkUpdateItemsAction: vi.fn(),
+  toastSuccess: vi.fn(),
 }));
 
 vi.mock("@/app/actions/items", () => ({
   bulkUpdateItemsAction: mocks.bulkUpdateItemsAction,
 }));
+vi.mock("@/lib/toast", () => ({ toast: { success: mocks.toastSuccess } }));
 
 const backlogId = "11111111-1111-4111-8111-111111111111";
 const firstId = "22222222-2222-4222-8222-222222222222";
@@ -65,6 +67,7 @@ function props() {
 describe("BulkItemToolbar", () => {
   beforeEach(() => {
     mocks.bulkUpdateItemsAction.mockReset();
+    mocks.toastSuccess.mockReset();
   });
 
   it("announces the selection and clears it without sending a mutation", async () => {
@@ -286,6 +289,7 @@ describe("BulkItemToolbar", () => {
 
     resolve({ ok: true, changedCount: 1, unchangedCount: 1 });
     expect(await screen.findByText("1 item modifié, 1 inchangé.")).toBeVisible();
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("1 item modifié, 1 inchangé.");
     expect(input.onMutationSuccess).toHaveBeenCalledWith({
       changedCount: 1,
       unchangedCount: 1,
@@ -355,13 +359,31 @@ describe("BulkItemToolbar", () => {
     await user.click(screen.getByRole("menuitemcheckbox", { name: `${releaseOptions[1]!.name} — Publiée` }));
     await user.keyboard("{Escape}");
 
-    for (const [label, mode] of [
-      ["Ajouter aux versions", "add"],
-      ["Remplacer les versions", "replace"],
-      ["Retirer des versions", "remove"],
+    let completedOperations = 0;
+    for (const [label, mode, consequence] of [
+      [
+        "Ajouter aux versions",
+        "add",
+        "2026.10, 2026.09 seront ajoutées sans retirer les Fix versions existantes",
+      ],
+      [
+        "Remplacer les versions",
+        "replace",
+        "Les Fix versions existantes seront remplacées par 2026.10, 2026.09",
+      ],
+      [
+        "Retirer des versions",
+        "remove",
+        "2026.10, 2026.09 seront retirées. Les autres Fix versions seront conservées",
+      ],
     ] as const) {
       await user.click(screen.getByRole("button", { name: "Appliquer les versions" }));
       await user.click(screen.getByRole("menuitem", { name: label }));
+      expect(screen.getByRole("dialog", { name: "Confirmer la modification des Fix versions" }))
+        .toHaveTextContent("2 items sélectionnés");
+      expect(screen.getByRole("dialog")).toHaveTextContent(consequence);
+      expect(mocks.bulkUpdateItemsAction).toHaveBeenCalledTimes(completedOperations);
+      await user.click(screen.getByRole("button", { name: "Appliquer à 2 items" }));
       await waitFor(() =>
         expect(mocks.bulkUpdateItemsAction).toHaveBeenLastCalledWith({
           backlogKey: "DEMO",
@@ -374,6 +396,7 @@ describe("BulkItemToolbar", () => {
           },
         }),
       );
+      completedOperations += 1;
     }
   });
 
@@ -397,6 +420,11 @@ describe("BulkItemToolbar", () => {
     expect(screen.getByRole("menuitem", { name: "Remplacer les versions" })).toHaveAttribute("data-disabled");
     expect(screen.getByRole("menuitem", { name: "Retirer des versions" })).toHaveAttribute("data-disabled");
     await user.click(screen.getByRole("menuitem", { name: "Effacer toutes les versions" }));
+
+    expect(screen.getByRole("dialog", { name: "Confirmer la modification des Fix versions" }))
+      .toHaveTextContent("Toutes les Fix versions seront retirées");
+    expect(mocks.bulkUpdateItemsAction).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Appliquer à 2 items" }));
 
     await waitFor(() =>
       expect(mocks.bulkUpdateItemsAction).toHaveBeenCalledWith({

@@ -2,7 +2,8 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { Client } from "pg";
+import { describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
@@ -191,6 +192,107 @@ describeDb("bulkUpdateItems transaction", () => {
         .from(itemFixVersions)
         .where(inArray(itemFixVersions.itemId, itemIds));
       expect(counts[0]?.assignmentCount).toBe(50_000);
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("removes Fix versions with constant query count at 1, 100, and 500 items", async () => {
+    const fixture = await createBulkFixture();
+    try {
+      const extraItemIds = Array.from({ length: 498 }, () => randomUUID());
+      await db.insert(items).values(
+        extraItemIds.map((id, index) => ({
+          id,
+          key: `REMOVE-${id}`,
+          type: "tache" as const,
+          backlogId: fixture.backlogId,
+          title: `Suppression groupée ${index}`,
+          statusId: fixture.todoId,
+          reporterId: fixture.actorId,
+          rank: `remove-${index.toString().padStart(3, "0")}`,
+          path: `root.${id.replaceAll("-", "")}`,
+          depth: 0,
+        })),
+      );
+      const [targetRelease, unrelatedRelease] = await db
+        .insert(releases)
+        .values([
+          { backlogId: fixture.backlogId, name: "À retirer", createdBy: fixture.actorId },
+          { backlogId: fixture.backlogId, name: "À conserver", createdBy: fixture.actorId },
+        ])
+        .returning();
+      const itemIds = [fixture.taskAId, fixture.taskBId, ...extraItemIds];
+      const targetAssignments = itemIds.map((itemId) => ({
+        backlogId: fixture.backlogId,
+        itemId,
+        releaseId: targetRelease!.id,
+        addedBy: fixture.actorId,
+      }));
+      await db.insert(itemFixVersions).values([
+        ...targetAssignments,
+        {
+          backlogId: fixture.backlogId,
+          itemId: fixture.taskAId,
+          releaseId: unrelatedRelease!.id,
+          addedBy: fixture.actorId,
+        },
+      ]);
+
+      const queryCounts: number[] = [];
+      for (const size of [1, 100, 500]) {
+        const selectedItemIds = itemIds.slice(0, size);
+        const querySpy = vi.spyOn(Client.prototype, "query");
+        try {
+          await expect(
+            bulkUpdateItems(
+              {
+                backlogId: fixture.backlogId,
+                itemIds: selectedItemIds,
+                patch: {
+                  field: "fixVersionIds",
+                  mode: "remove",
+                  value: [targetRelease!.id],
+                },
+              },
+              fixture.actorId,
+              `constant-remove-${size}`,
+            ),
+          ).resolves.toEqual({ changedCount: size, unchangedCount: 0 });
+          queryCounts.push(querySpy.mock.calls.length);
+        } finally {
+          querySpy.mockRestore();
+        }
+
+        const remainingTarget = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(itemFixVersions)
+          .where(
+            and(
+              inArray(itemFixVersions.itemId, selectedItemIds),
+              eq(itemFixVersions.releaseId, targetRelease!.id),
+            ),
+          );
+        expect(remainingTarget[0]?.count).toBe(0);
+        const preserved = await db
+          .select({ releaseId: itemFixVersions.releaseId })
+          .from(itemFixVersions)
+          .where(
+            and(
+              eq(itemFixVersions.itemId, fixture.taskAId),
+              eq(itemFixVersions.releaseId, unrelatedRelease!.id),
+            ),
+          );
+        expect(preserved).toEqual([{ releaseId: unrelatedRelease!.id }]);
+
+        await db
+          .insert(itemFixVersions)
+          .values(targetAssignments.slice(0, size))
+          .onConflictDoNothing();
+      }
+
+      expect(queryCounts[0]).toBeGreaterThan(0);
+      expect(new Set(queryCounts).size).toBe(1);
     } finally {
       await cleanupFixture(fixture);
     }

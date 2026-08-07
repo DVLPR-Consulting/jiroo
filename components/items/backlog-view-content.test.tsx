@@ -560,6 +560,7 @@ describe("BacklogViewContent read boundary", () => {
         searchParamsPromise: Promise.resolve({
           view: "list",
           version: "release-selected",
+          fvcol: "1",
           item: "DEMO-2",
         }),
       }),
@@ -588,6 +589,7 @@ describe("BacklogViewContent read boundary", () => {
       createDialogProps: Record<string, unknown>;
       releaseOptions: unknown[];
       releaseCapabilities: unknown;
+      showFixVersions: boolean;
     };
     expect(listProps.groups.flatMap((group) => group.items)).toEqual([
       expect.objectContaining({
@@ -606,6 +608,7 @@ describe("BacklogViewContent read boundary", () => {
       releaseOptions: assignableReleases,
     }));
     expect(listProps.releaseOptions).toEqual(assignableReleases);
+    expect(listProps.showFixVersions).toBe(true);
     expect(listProps.releaseCapabilities).toEqual({
       manage: false,
       assignItems: false,

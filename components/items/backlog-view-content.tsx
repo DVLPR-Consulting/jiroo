@@ -67,6 +67,7 @@ const VIEW_STATE_PARAM_KEYS = [
   "under",
   "group",
   "sort",
+  "fvcol",
 ] as const;
 
 export async function BacklogViewContent({
@@ -623,6 +624,7 @@ export async function BacklogViewContent({
           bulkCapabilities={productCapabilities.bulk}
           releaseOptions={assignableReleaseOptions}
           releaseCapabilities={productCapabilities.releases}
+          showFixVersions={viewState.filters.showFixVersions === true}
         />
       )}
       {view === "board" && (

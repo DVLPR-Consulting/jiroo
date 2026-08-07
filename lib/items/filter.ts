@@ -14,6 +14,7 @@ export type Filters = {
   releaseIds: string[]; // Fix version release ids
   kind: ItemKind[]; // bug | feature — orthogonal to the hierarchy type
   underIds: string[]; // item ids whose descendants should be included
+  showFixVersions?: boolean; // optional list-column preference, persisted with saved views
 };
 
 export type ViewState = {
@@ -76,6 +77,7 @@ export function parseViewState(sp: URLSearchParams): ViewState {
       releaseIds: csv(sp, "version"),
       kind,
       underIds: csv(sp, "under"),
+      ...(sp.get("fvcol") === "1" ? { showFixVersions: true } : {}),
     },
     group,
     sort,
@@ -97,6 +99,7 @@ export function writeViewState(sp: URLSearchParams, state: ViewState): void {
   setOrDelete("version", filters.releaseIds.join(","));
   setOrDelete("kind", filters.kind.join(","));
   setOrDelete("under", filters.underIds.join(","));
+  setOrDelete("fvcol", filters.showFixVersions ? "1" : "");
   setOrDelete("group", group ?? "");
   setOrDelete("sort", sort ? `${sort.field}:${sort.dir}` : "");
 }

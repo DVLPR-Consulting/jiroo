@@ -266,7 +266,7 @@ describe("item action permission mapping", () => {
       patch: { field: "fixVersionIds" as const, mode: "replace" as const, value: [releaseId] },
       permission: "edit_items",
     },
-  ])("requires global bulk plus $permission for every selected item", async ({ patch, permission }) => {
+  ])("requires global bulk plus one backlog-scoped $permission check", async ({ patch, permission }) => {
     await bulkUpdateItemsAction({
       backlogKey: "FORGED",
       backlogId,
@@ -279,10 +279,30 @@ describe("item action permission mapping", () => {
       permission: "bulk_change_items",
       scope: { type: "global" },
     });
-    expect(mocks.requireItemPermission.mock.calls.map(([input]) => input)).toEqual([
-      { actorId: "writer-1", itemId, permission },
-      { actorId: "writer-1", itemId: secondItemId, permission },
-    ]);
+    expect(mocks.requireBacklogPermissionById).toHaveBeenCalledOnce();
+    expect(mocks.requireBacklogPermissionById).toHaveBeenCalledWith({
+      actorId: "writer-1",
+      backlogId,
+      permission,
+    });
+    expect(mocks.requireItemPermission).not.toHaveBeenCalled();
+  });
+
+  it("keeps bulk authorization constant for the validated 500-item maximum", async () => {
+    const itemIds = Array.from({ length: 500 }, (_, index) =>
+      `00000000-0000-4000-8000-${index.toString().padStart(12, "0")}`,
+    );
+
+    await bulkUpdateItemsAction({
+      backlogKey: "FORGED",
+      backlogId,
+      itemIds,
+      patch: { field: "fixVersionIds", mode: "remove", value: [releaseId] },
+    });
+
+    expect(mocks.requireBacklogPermissionById).toHaveBeenCalledTimes(1);
+    expect(mocks.requireItemPermission).not.toHaveBeenCalled();
+    expect(mocks.bulkUpdateItems).toHaveBeenCalledOnce();
   });
 
   it.each([
@@ -387,8 +407,8 @@ describe("item action permission mapping", () => {
     expect(mocks.updateItem).not.toHaveBeenCalled();
   });
 
-  it("does not let global bulk_change_items substitute for item edit permission", async () => {
-    mocks.requireItemPermission.mockRejectedValueOnce(
+  it("does not let global bulk_change_items substitute for backlog edit permission", async () => {
+    mocks.requireBacklogPermissionById.mockRejectedValueOnce(
       permissionDeniedError("edit_items", { type: "backlog", backlogId }),
     );
 

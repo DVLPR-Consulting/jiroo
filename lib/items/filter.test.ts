@@ -28,6 +28,14 @@ describe("parseViewState", () => {
     expect(parseViewState(new URLSearchParams())).toEqual(empty);
   });
 
+  it("round-trips the optional Fix versions list column", () => {
+    const state = parseViewState(new URLSearchParams("fvcol=1"));
+    expect(state.filters.showFixVersions).toBe(true);
+    const params = new URLSearchParams();
+    writeViewState(params, state);
+    expect(params.get("fvcol")).toBe("1");
+  });
+
   it("parses every dimension", () => {
     const sp = new URLSearchParams(
       "q=qr&type=tache,soustache&status=s1,s2&prio=3,4&assignee=none,u1&group=assignee&sort=priority:desc",

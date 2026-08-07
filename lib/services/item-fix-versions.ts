@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   activities,
@@ -142,7 +142,6 @@ async function mutateItemFixVersionsInTx(
 
   const results = new Map<string, FixVersionMutationResult>();
   const additions: Array<typeof itemFixVersions.$inferInsert> = [];
-  const removals = new Map<string, string[]>();
   const activityRows: Array<typeof activities.$inferInsert> = [];
 
   for (const itemId of itemIds) {
@@ -172,7 +171,6 @@ async function mutateItemFixVersionsInTx(
     for (const releaseId of toAdd) {
       additions.push({ backlogId: input.backlogId, itemId, releaseId, addedBy: actorId });
     }
-    if (toRemove.length > 0) removals.set(itemId, toRemove);
     activityRows.push({
       itemId,
       actorId,
@@ -184,13 +182,26 @@ async function mutateItemFixVersionsInTx(
     });
   }
 
-  for (const [itemId, releaseIds] of removals) {
+  if (input.mode === "remove" && requestedReleaseIds.length > 0) {
     await tx
       .delete(itemFixVersions)
       .where(
         and(
-          eq(itemFixVersions.itemId, itemId),
-          inArray(itemFixVersions.releaseId, releaseIds),
+          eq(itemFixVersions.backlogId, input.backlogId),
+          inArray(itemFixVersions.itemId, itemIds),
+          inArray(itemFixVersions.releaseId, requestedReleaseIds),
+        ),
+      );
+  } else if (input.mode === "replace") {
+    await tx
+      .delete(itemFixVersions)
+      .where(
+        and(
+          eq(itemFixVersions.backlogId, input.backlogId),
+          inArray(itemFixVersions.itemId, itemIds),
+          requestedReleaseIds.length > 0
+            ? notInArray(itemFixVersions.releaseId, requestedReleaseIds)
+            : undefined,
         ),
       );
   }

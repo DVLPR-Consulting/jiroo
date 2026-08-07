@@ -31,6 +31,13 @@ import {
   type NewItemButtonProps,
 } from "@/components/items/new-item-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
 import type { SortDir, SortField } from "@/lib/items/filter";
@@ -151,6 +158,7 @@ function ItemRow({
   canAssignItems,
   bulkSelected,
   onToggleSelection,
+  showFixVersions,
 }: {
   item: ListItem;
   grouped: boolean;
@@ -164,6 +172,7 @@ function ItemRow({
   canAssignItems: boolean;
   bulkSelected: boolean;
   onToggleSelection: (id: string, extendRange: boolean) => void;
+  showFixVersions: boolean;
 }) {
   const viewUrl = useViewUrlState();
   const isSelected = item.key === selectedKey;
@@ -289,9 +298,11 @@ function ItemRow({
           readOnly={!canEditItems || !canAssignItems}
         />
       </td>
-      <td className={CELL_CLASS}>
-        <FixVersionChips versions={item.fixVersions ?? []} />
-      </td>
+      {showFixVersions ? (
+        <td className={CELL_CLASS}>
+          <FixVersionChips versions={item.fixVersions ?? []} />
+        </td>
+      ) : null}
     </tr>
   );
 }
@@ -318,6 +329,7 @@ export function ItemList({
   bulkCapabilities,
   releaseOptions = [],
   releaseCapabilities,
+  showFixVersions = true,
 }: {
   groups: Group[];
   grouped: boolean;
@@ -340,6 +352,7 @@ export function ItemList({
   bulkCapabilities?: BulkItemCapabilities;
   releaseOptions?: FixVersionOption[];
   releaseCapabilities?: ReleaseCapabilities;
+  showFixVersions?: boolean;
 }) {
   const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
   const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
@@ -455,6 +468,28 @@ export function ItemList({
       className="min-h-0 flex-1 overflow-auto"
       onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
     >
+      <div className="sticky left-0 flex justify-end border-b border-border bg-[var(--surface-1)] p-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline" size="sm" aria-label="Configurer les colonnes">
+              Colonnes
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuCheckboxItem
+              checked={showFixVersions}
+              onCheckedChange={(checked) => {
+                viewUrl.replace((params) => {
+                  if (checked) params.set("fvcol", "1");
+                  else params.delete("fvcol");
+                }, { scroll: false });
+              }}
+            >
+              Fix versions
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <table className="w-full table-fixed border-separate border-spacing-0">
         <colgroup>
           {canSelectItems ? <col className="w-10" /> : null}
@@ -466,7 +501,7 @@ export function ItemList({
           <col className="w-48" />
           <col className="w-32" />
           <col className="w-44" />
-          <col className="w-44" />
+          {showFixVersions ? <col className="w-44" /> : null}
         </colgroup>
         <thead className="sticky top-0 z-20">
           <tr>
@@ -506,7 +541,7 @@ export function ItemList({
               Échéance
             </SortableHeader>
             <th scope="col" className={HEADER_CLASS}>Assigné</th>
-            <th scope="col" className={HEADER_CLASS}>Fix versions</th>
+            {showFixVersions ? <th scope="col" className={HEADER_CLASS}>Fix versions</th> : null}
           </tr>
         </thead>
         {groups.map((group) => {
@@ -517,7 +552,7 @@ export function ItemList({
                 <tr>
                   <th
                     scope="rowgroup"
-                    colSpan={canSelectItems ? 10 : 9}
+                    colSpan={8 + (canSelectItems ? 1 : 0) + (showFixVersions ? 1 : 0)}
                     className="sticky top-8 z-10 border-b border-border bg-[var(--surface-2)] px-3 py-1.5 text-left"
                   >
                     <button
@@ -554,6 +589,7 @@ export function ItemList({
                     canAssignItems={canAssignItems}
                     bulkSelected={selection.selectedIds.has(item.id)}
                     onToggleSelection={toggleSelection}
+                    showFixVersions={showFixVersions}
                   />
                 ))}
             </tbody>

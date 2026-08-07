@@ -150,6 +150,7 @@ describe("ItemList", () => {
     ];
     renderList({
       ...listProps(),
+      showFixVersions: true,
       groups: [{
         key: "",
         label: "",
@@ -164,6 +165,21 @@ describe("ItemList", () => {
     expect(within(row).getByText("2026.09")).toBeVisible();
     expect(within(row).getByText("+1")).toBeVisible();
     expect(within(row).queryByText("Legacy")).not.toBeInTheDocument();
+  });
+
+  it("keeps the Fix versions column URL-configurable", async () => {
+    const user = userEvent.setup();
+    renderList({ ...listProps(), showFixVersions: false });
+
+    expect(screen.queryByRole("columnheader", { name: "Fix versions" }))
+      .not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Configurer les colonnes" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Fix versions" }));
+
+    expect(mocks.replace).toHaveBeenCalledWith(
+      expect.stringContaining("fvcol=1"),
+      { scroll: false },
+    );
   });
 
   it("enables selection for release-only bulk assignment", async () => {

@@ -67,6 +67,18 @@ describe("viewStateToColumns", () => {
     expect(cols.filters).toEqual(full.filters);
   });
 
+  it("persists the optional Fix versions column with a saved view", () => {
+    const configured = {
+      ...empty,
+      filters: { ...empty.filters, showFixVersions: true },
+    };
+    const columns = viewStateToColumns(configured, "list");
+    expect(columns.filters.showFixVersions).toBe(true);
+    expect(columnsToViewState(columns).state.filters.showFixVersions).toBe(true);
+    expect(buildViewUrl({ id: "view-1", state: configured, displayMode: "list" }, "/b/DEMO"))
+      .toContain("fvcol=1");
+  });
+
   it("includes displayMode in the output", () => {
     expect(viewStateToColumns(empty, "tree").displayMode).toBe("tree");
   });
