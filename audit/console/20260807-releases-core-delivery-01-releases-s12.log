@@ -1,0 +1,7 @@
+[editor-capture] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[editor-capture] log: [HMR] connected
+[expected] interruption volontaire du prochain POST /b/CASS
+[editor-capture] error: Failed to load resource: net::ERR_FAILED
+[reader-forged] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader-forged] log: [HMR] connected
+[duration] scenario 12: 1636ms

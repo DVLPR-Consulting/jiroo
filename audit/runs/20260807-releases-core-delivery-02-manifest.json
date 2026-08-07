@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "runId": "20260807-releases-core-delivery-02",
+  "timestamps": {
+    "startedAt": "2026-08-07T18:19:12.937Z",
+    "databaseVerifiedAt": "2026-08-07T18:19:12.962Z",
+    "manifestWrittenAt": "2026-08-07T18:19:13.207Z"
+  },
+  "runtime": {
+    "node": "v24.13.0",
+    "pnpm": "10.19.0"
+  },
+  "source": {
+    "gitSha": "88b817134aaed3c3909f0c3585b3e358b3e6a89e"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:16ea5a631f99332b04fb222cc60b0827234a62c4a45baab99dd9014cf684982e"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "corepack pnpm exec playwright test --project chromium",
+    "scenarios": "Task 10 Releases core delivery: full Chromium regression, legacy plus 15 Releases scenarios"
+  },
+  "result": {
+    "junitReport": "audit/runs/20260807-releases-core-delivery-02-junit.xml"
+  }
+}

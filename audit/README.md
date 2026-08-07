@@ -990,3 +990,99 @@ Ces scénarios constitueront la matrice d’acceptation de l’implémentation.
    les filtres et la progression sous `manage_releases`.
 3. Prouver dans Playwright la publication avec items incomplets, la persistance,
    les refus serveur et un second contexte utilisateur.
+
+---
+
+## Fin de session — incrément 10 livré : noyau Releases / Versions
+
+### Verdict et score
+
+**87/100 — confiance élevée sur le noyau Releases et sa régression, plus faible
+sur le reporting et la profondeur Release PR2.** `BUG-JIR-027` est fermé : la
+permission `manage_releases` possède désormais un consommateur métier complet,
+et les `Fix versions` multivaluées participent réellement à la planification.
+
+| Dimension | Score | Preuve principale |
+|---|---:|---|
+| Couverture fonctionnelle observée | 91/100 | Cycle, affectations, filtres, progression et 15 scénarios Releases prouvés |
+| Fiabilité et feedback | 95/100 | Transactions, snapshots append-only, stale conflict, rollback et persistance |
+| Efficacité UX | 86/100 | Navigation dédiée, sélecteur partagé, bulk, filtres URL et drilldowns |
+| Accessibilité | 88/100 | Contrôles nommés, permissions visibles et régression clavier conservée ; lecteur d’écran réel restant |
+| Responsive | 64/100 | Inchangé : livraison auditée en Chromium desktop |
+| Permissions | 98/100 | `manage_releases`, `edit_items`, refus forgés et isolation CASS/LABS prouvés |
+| Performance locale | 86/100 | Requêtes bornées, filtre SQL direct et preuve de 1 000 liens sans fan-out |
+
+L’avancement de l’audit atteint **environ 90 %** : création, détail, workflow,
+Backlog, sprints, permissions et Releases sont couverts en profondeur. Restent
+principalement le rapport de sprint/vélocité/burndown, la Release PR2,
+l’intégration dépôt/PR, le responsive multi-breakpoints et les lecteurs d’écran.
+
+### Fonctionnalités terminées et prouvées
+
+- Version backlog-scoped avec nom, description, responsable, dates et états
+  non publiée, publiée et archivée ;
+- création, modification, publication, dépublication, archivage et restauration ;
+- `Fix versions` many-to-many depuis création, détail et barre bulk, avec
+  ajout, remplacement et retrait ;
+- filtre Version en SQL, combinable avec les autres facettes, persistant dans
+  l’URL et les vues enregistrées sur Liste, Backlog, Board et Arbre ;
+- progression par statuts, points estimés/non estimés et drilldowns vers les
+  items exacts ;
+- traitement explicite des incomplets à la publication, sans retirer leurs
+  versions sans rapport ;
+- snapshots de publication append-only et historique corrélé ;
+- cycle de vie sous `manage_releases`, affectation sous `edit_items`, éditeur
+  sans contrôles de cycle et lecteur sans mutation ;
+- erreurs foreign/absent/deleted indistinguables, IDs malformés sans erreur SQL,
+  conflit optimiste, rollback réseau, second utilisateur et isolation backlog.
+
+### Fonctionnalités incomplètes ou manquantes
+
+- fusion de versions et suppression avec transfert ou retrait explicite ;
+- ordre manuel des versions ;
+- notes de release exportables et travail connexe ;
+- signaux Git/PR/checks/déploiement dans la readiness ;
+- responsive 390/768/1024/1440, zoom 200 % et validation NVDA/VoiceOver ;
+- rapport de sprint, vélocité, burndown et prévision de release.
+
+### Revue, vérification et preuve immuable
+
+Les six vagues indépendantes de revue spécification puis sécurité se terminent
+toutes par **PASS, 0 Critical, 0 Important**. Les findings importants ont été
+corrigés par TDD : provenance immuable, intégrité des événements après
+suppression, audit de cycle/move, oracle bulk, rechargements, IDs malformés,
+ancêtres hiérarchiques et détail non filtré. La revue finale du delta E2E
+`92a00b8..88b8171` passe également avec **0/0/0**.
+
+Vérification finale sur `88b817134aaed3c3909f0c3585b3e358b3e6a89e` :
+
+- Vitest hors DB : **135 fichiers, 1 179 tests**, 23,92 s ;
+- PostgreSQL gardé `jiroo_e2e` : **19 fichiers, 181 tests**, 34,21 s ;
+- TypeScript, ESLint, merge-base exact et `git diff --check` : verts ;
+- build Next.js 16.2.7 : vert, compilation 4,7 s et TypeScript 8,6 s ;
+- Chromium persistant : [JUnit **39/39**](runs/20260807-releases-core-delivery-02-junit.xml),
+  0 échec/erreur/skip, 114,635 s JUnit, avec
+  [manifeste](runs/20260807-releases-core-delivery-02-manifest.json) exact ;
+- preuve : **90 fichiers run-scoped** — 35 consoles, 35 réseaux,
+  18 captures, JUnit et manifeste ;
+- scans : 0 statut HTTP 4xx/5xx, 0 secret, 0 URL/variable DB, 0 header
+  auth/cookie, 0 token et 0 identité PostgreSQL brute. Les six erreurs console
+  et six requêtes échouées sont confinées aux trois scénarios de rollback
+  explicitement injectés et accompagnées de huit marqueurs `[expected]`.
+
+Le run persistant `20260807-releases-core-delivery-01` sur le SHA
+`92a00b8489c747a6ad2fd693964658b11e722dff` est conservé comme diagnostic :
+**36/39**. Il a révélé trois attentes legacy devenues fausses ou
+instables après Releases (permission sans interface, colonne `Fix versions`,
+drag rollback dépendant du scroll). Il n’est pas une preuve d’acceptation.
+
+Le détail finding par finding est dans le
+[registre Releases core](reviews/2026-08-07-releases-core-review.md).
+
+### Trois priorités absolues pour la prochaine session
+
+1. Livrer la **PR Release 2** : fusion, suppression/transfert, ordre et notes.
+2. Construire le **rapport de sprint, la vélocité et le burndown** à partir des
+   snapshots et événements existants, avec drilldowns explicables.
+3. Ajouter la **readiness Git/PR/déploiement**, puis rejouer Releases aux quatre
+   breakpoints et avec VoiceOver/NVDA.

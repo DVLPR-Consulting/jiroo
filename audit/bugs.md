@@ -1328,48 +1328,44 @@ La première collecte de remédiation contient les deux 401 TOTP historiques de 
 
 ## BUG-JIR-027 — Releases/Versions totalement absentes malgré la permission dédiée
 
-- **Gravité :** bloquante
-- **Priorité :** P0
-- **Statut :** ouvert, confirmé le 7 août 2026
+- **Gravité initiale :** bloquante
+- **Priorité initiale :** P0
+- **Statut :** fermé le 7 août 2026 — noyau Releases livré et accepté
 - **Fonctionnalité :** releases / versions / planification produit
 
-### Étapes de reproduction
+### Correctif vérifié
 
-1. Se connecter comme administrateur et ouvrir `/b/CASS?view=backlog`.
-2. Inspecter navigation, filtres, colonnes et barre d’actions groupées.
-3. Ouvrir la création d’item puis le détail d’une tâche.
-4. Ouvrir `/b/CASS/settings/access` et constater que `Gérer les releases`
-   existe dans l’Assistant de permissions.
-5. Naviguer directement vers `/b/CASS/releases` puis `/b/CASS/versions`.
+- modèle Version backlog-scoped et relation many-to-many `Fix versions` ;
+- routes liste et détail Releases, création et édition ;
+- affectation multivaluée à la création, au détail et en bulk ;
+- filtre Version persistant dans l’URL et les vues enregistrées sur Liste,
+  Backlog, Board et Arbre ;
+- progression explicable par statut, points et drilldowns d’items ;
+- publication avec choix explicite pour les incomplets, dépublication,
+  archivage et restauration ;
+- snapshots de publication append-only, historique corrélé et refus serveur ;
+- `manage_releases` consommé par le cycle de vie, `edit_items` par les
+  affectations, sans révélation d’IDs étrangers ou supprimés.
 
-### Résultat obtenu
+### Niveau de preuve
 
-Aucun point d’entrée, champ, filtre, colonne ou action Release/Version n’existe.
-Les deux URL directes répondent 404. Seule la permission future est visible.
+La matrice Chromium persistante
+[`20260807-releases-core-delivery-02`](runs/20260807-releases-core-delivery-02-junit.xml)
+passe **39/39**, dont 15 scénarios Releases, sur le SHA source
+`88b817134aaed3c3909f0c3585b3e358b3e6a89e`. La matrice PostgreSQL passe
+**19/19 fichiers et 181/181 tests** ; le manifeste de provenance est
+[conservé ici](runs/20260807-releases-core-delivery-02-manifest.json).
 
-### Résultat attendu
+Les scénarios prouvent notamment deux versions par item, ajout/remplacement/
+retrait bulk, filtres et reload, calculs de progression, publication et move
+des incomplets, snapshots après dépublication/republication, version archivée,
+éditeur sans cycle de vie, lecteur forgé sans mutation ni historique, conflit
+stale, rollback réseau, second utilisateur et isolation CASS/LABS.
 
-Un backlog doit exposer ses Versions, permettre d’y affecter plusieurs items
-via `Fix versions`, visualiser leur progression et gérer leur cycle de
-publication/archivage selon `manage_releases`.
+### Dette restante — PR Release 2
 
-### Impacts
-
-- **Utilisateur :** impossible de planifier ou expliquer ce qui sera livré.
-- **Métier :** impossible de répondre à « qu’avons-nous réellement livré ? » ;
-  Jiroo ne couvre pas la gestion produit de bout en bout.
-- **Produit :** la permission sans consommateur crée une promesse fonctionnelle
-  incohérente et bloque toute parité crédible avec Jira.
-
-### Hypothèse sur la cause
-
-La fondation d’autorisation a volontairement livré `manage_releases` avant son
-modèle et ses routes. Aucun schéma Version, relation item/version ni écran
-métier n’a encore été implémenté.
-
-### Preuves
-
-- [Capture du Backlog sans colonne, filtre ou action Release](screenshots/BUG-JIR-027-releases-absentes-backlog.png)
-- [Console nominale](console/2026-08-07-session-10-releases-nominal-console.log)
-- [Réseau nominal](network/2026-08-07-session-10-releases-nominal-network.log)
-- [GET directs en 404](network/2026-08-07-session-10-releases-direct-routes-network.log)
+Le bug d’absence est fermé, mais la profondeur Jira complète ne l’est pas :
+fusion de versions, suppression avec transfert/retrait, ordre manuel, notes de
+release et travail connexe Git/PR/déploiement restent explicitement hors du
+noyau livré. Ces éléments sont suivis comme portée PR2, pas comme réouverture
+de BUG-JIR-027.

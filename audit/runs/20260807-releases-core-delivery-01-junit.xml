@@ -1,0 +1,264 @@
+<testsuites id="" name="" tests="39" failures="3" skipped="0" errors="0" time="115.75738399999999">
+<testsuite name="backlog-foundation.spec.ts" timestamp="2026-08-07T17:48:17.262Z" hostname="chromium" tests="6" failures="0" skipped="0" time="11.663" errors="0">
+<testcase name="sélectionne une plage et applique les quatre actions groupées" classname="backlog-foundation.spec.ts" time="4.808">
+</testcase>
+<testcase name="le lecteur ne reçoit aucun contrôle de planification" classname="backlog-foundation.spec.ts" time="0.698">
+</testcase>
+<testcase name="distingue 5, zéro et non estimé puis restaure la valeur" classname="backlog-foundation.spec.ts" time="2.141">
+</testcase>
+<testcase name="désactive le classement avec tri ou groupement et conserve le mode Backlog" classname="backlog-foundation.spec.ts" time="1.562">
+</testcase>
+<testcase name="isole la sélection de la Liste et la réinitialise au changement de vue" classname="backlog-foundation.spec.ts" time="1.103">
+</testcase>
+<testcase name="restaure le classement et conserve la sélection après deux échecs réseau injectés" classname="backlog-foundation.spec.ts" time="1.351">
+</testcase>
+</testsuite>
+<testsuite name="backlog-ranking.spec.ts" timestamp="2026-08-07T17:48:17.262Z" hostname="chromium" tests="1" failures="0" skipped="0" time="3.033" errors="0">
+<testcase name="classe à la souris, restaure au clavier et conserve chaque ordre" classname="backlog-ranking.spec.ts" time="3.033">
+</testcase>
+</testsuite>
+<testsuite name="permission-schemes.spec.ts" timestamp="2026-08-07T17:48:17.262Z" hostname="chromium" tests="10" failures="1" skipped="0" time="22.318" errors="0">
+<testcase name="1. crée un groupe, un rôle personnalisé et un clone de schéma" classname="permission-schemes.spec.ts" time="2.381">
+</testcase>
+<testcase name="2. isole le grant de rôle et l’occupation de groupe à un seul backlog" classname="permission-schemes.spec.ts" time="1.211">
+</testcase>
+<testcase name="3. explique les grants direct, groupe et rôle dans l’Assistant de permissions" classname="permission-schemes.spec.ts" time="1.285">
+</testcase>
+<testcase name="4. rejette une Server Action forgée par le lecteur" classname="permission-schemes.spec.ts" time="1.42">
+</testcase>
+<testcase name="5. donne au spécialiste les contrôles de sprint sans édition d’item ni workflow" classname="permission-schemes.spec.ts" time="0.773">
+</testcase>
+<testcase name="6. expose manage_releases dans l’Assistant sans inventer d’interface Releases" classname="permission-schemes.spec.ts" time="6.559">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/test-failed-2.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(locator).toHaveCount(expected) failed" type="expect.toHaveCount">
+<![CDATA[  [chromium] › permission-schemes.spec.ts:104:7 › 6. expose manage_releases dans l’Assistant sans inventer d’interface Releases 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByRole('link', { name: /release/i })
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for getByRole('link', { name: /release/i })
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      357 |     captures.push(specialistCapture);
+      358 |     await specialist.goto("/b/CASS");
+    > 359 |     await expect(specialist.getByRole("link", { name: /release/i })).toHaveCount(0);
+          |                                                                      ^
+      360 |     await expect(specialist.getByRole("button", { name: /release/i })).toHaveCount(0);
+      361 |     await specialistContext.close();
+      362 |   },
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-releases-versions/e2e/permission-schemes.spec.ts:359:70
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-releases-versions/e2e/permission-schemes.spec.ts:107:7
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260807-releases-core-delivery-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260807-releases-core-delivery-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260807-releases-core-delivery-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260807-releases-core-delivery-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260807-releases-core-delivery-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260807-releases-core-delivery-01/permission-schemes-6-expos-01850-venter-d’interface-Releases-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="7. retire browse de la navigation, recherche, récents, notifications et URL" classname="permission-schemes.spec.ts" time="3.644">
+</testcase>
+<testcase name="8. détecte puis récupère un conflit de version sur schéma partagé" classname="permission-schemes.spec.ts" time="2.145">
+</testcase>
+<testcase name="9. conserve un historique de sécurité append-only" classname="permission-schemes.spec.ts" time="0.943">
+</testcase>
+<testcase name="10. persiste après reload et dans un second contexte utilisateur" classname="permission-schemes.spec.ts" time="1.957">
+</testcase>
+</testsuite>
+<testsuite name="releases.spec.ts" timestamp="2026-08-07T17:48:17.262Z" hostname="chromium" tests="15" failures="0" skipped="0" time="42.132" errors="0">
+<testcase name="01 — crée puis modifie une version" classname="releases.spec.ts" time="2.862">
+</testcase>
+<testcase name="02 — persiste deux versions à la création puis depuis le détail" classname="releases.spec.ts" time="6.205">
+</testcase>
+<testcase name="03 — ajoute, remplace et retire des versions en masse" classname="releases.spec.ts" time="6.393">
+</testcase>
+<testcase name="04 — conserve le filtre Version après reload et dans une vue enregistrée" classname="releases.spec.ts" time="3.669">
+</testcase>
+<testcase name="05 — calcule la progression depuis les items et leurs points" classname="releases.spec.ts" time="0.838">
+</testcase>
+<testcase name="06 — permet au spécialiste de publier en conservant les incomplets" classname="releases.spec.ts" time="1.298">
+</testcase>
+<testcase name="07 — refuse un publish move forgé par le spécialiste" classname="releases.spec.ts" time="1.453">
+</testcase>
+<testcase name="08 — conserve deux snapshots après dépublication et republication" classname="releases.spec.ts" time="1.924">
+</testcase>
+<testcase name="09 — déplace les incomplets sans retirer leurs versions sans rapport" classname="releases.spec.ts" time="1.186">
+</testcase>
+<testcase name="10 — masque une version archivée des candidats tout en gardant l’affectation courante" classname="releases.spec.ts" time="6.6">
+</testcase>
+<testcase name="11 — autorise l’éditeur à affecter sans exposer le cycle de vie" classname="releases.spec.ts" time="2.198">
+</testcase>
+<testcase name="12 — refuse la requête forgée du lecteur sans changer DB ni historique" classname="releases.spec.ts" time="1.972">
+</testcase>
+<testcase name="13 — détecte une édition stale entre deux contextes" classname="releases.spec.ts" time="2.292">
+</testcase>
+<testcase name="14 — garde le dialogue ouvert et rollback après publish intercepté" classname="releases.spec.ts" time="0.954">
+</testcase>
+<testcase name="15 — rend la release visible au second utilisateur et isole CASS de LABS" classname="releases.spec.ts" time="2.288">
+</testcase>
+</testsuite>
+<testsuite name="sprint-lifecycle.spec.ts" timestamp="2026-08-07T17:48:17.262Z" hostname="chromium" tests="7" failures="2" skipped="0" time="28.77" errors="0">
+<testcase name="planifie, exécute et clôture un sprint sans exposer le backlog sur le Board" classname="sprint-lifecycle.spec.ts" time="6.831">
+</testcase>
+<testcase name="conserve le sprint planifié et explique un échec réseau au démarrage" classname="sprint-lifecycle.spec.ts" time="2.874">
+</testcase>
+<testcase name="recalcule et explique un dépassement de capacité avant démarrage" classname="sprint-lifecycle.spec.ts" time="1.194">
+</testcase>
+<testcase name="restaure sélection et section après deux échecs réseau de planification" classname="sprint-lifecycle.spec.ts" time="7.63">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › sprint-lifecycle.spec.ts:610:5 › restaure sélection et section après deux échecs réseau de planification 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('Planification impossible.', { exact: true })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByText('Planification impossible.', { exact: true })
+
+
+      699 |   );
+      700 |   await page.mouse.up();
+    > 701 |   await expect(page.getByText("Planification impossible.", { exact: true })).toBeVisible();
+          |                                                                              ^
+      702 |   await expect(backlogSection.getByText(dragKey, { exact: true })).toBeVisible();
+      703 |   await expect(sprintSection.getByText(dragKey, { exact: true })).toHaveCount(0);
+      704 |   const [draggedItem] = await db
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-releases-versions/e2e/sprint-lifecycle.spec.ts:701:78
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ouverte" classname="sprint-lifecycle.spec.ts" time="3.596">
+</testcase>
+<testcase name="laisse le lecteur consulter la planification et le Board sans aucun contrôle" classname="sprint-lifecycle.spec.ts" time="3.468">
+</testcase>
+<testcase name="planifie une plage de tâches en masse et conserve la section après rechargement" classname="sprint-lifecycle.spec.ts" time="3.177">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(received).resolves.toEqual(expected) // deep equality" type="expect.resolves">
+<![CDATA[  [chromium] › sprint-lifecycle.spec.ts:939:5 › planifie une plage de tâches en masse et conserve la section après rechargement 
+
+    Error: expect(received).resolves.toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -4,7 +4,8 @@
+        "Clé",
+        "Titre",
+        "Statut",
+        "Priorité",
+        "Points",
+    +   "Fix versions",
+        "Assigné",
+      ]
+
+      1004 |     .toBeVisible();
+      1005 |   await expect(sprintSection.getByText("3 tâches", { exact: true })).toBeVisible();
+    > 1006 |   await expect(sprintSection.getByRole("columnheader").allTextContents()).resolves.toEqual([
+           |                                                                                    ^
+      1007 |     "",
+      1008 |     "Ordre",
+      1009 |     "Clé",
+        at /Users/nkrmr/Development/www/jiroo-worktrees/jira-releases-versions/e2e/sprint-lifecycle.spec.ts:1006:84
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/20260807-releases-core-delivery-01/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+</testsuite>
+</testsuites>

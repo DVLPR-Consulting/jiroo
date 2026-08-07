@@ -1,0 +1,5 @@
+[admin-stale] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-first] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-stale] log: [HMR] connected
+[admin-first] log: [HMR] connected
+[duration] scenario 13: 2042ms

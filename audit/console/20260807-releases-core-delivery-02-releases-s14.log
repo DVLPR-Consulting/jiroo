@@ -1,0 +1,6 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[expected] interruption volontaire du prochain POST /b/CASS/releases/0dd1f9d7-2276-4e5b-bb4b-4b8e8ef922e4
+[admin] error: Failed to load resource: net::ERR_FAILED
+[expected] POST publish interrompu volontairement; dialogue et DB conservés
+[duration] scenario 14: 818ms
