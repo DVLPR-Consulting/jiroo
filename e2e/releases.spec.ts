@@ -19,6 +19,7 @@ import {
   releasePublicationItems,
   releasePublications,
   releases,
+  sprints,
   statuses,
   views,
 } from "../lib/db/schema/domain";
@@ -587,50 +588,54 @@ audited(4, "conserve le filtre Version après reload et dans une vue enregistré
   const backlog = await backlogFixture();
   const actorId = await accountId(EMAIL.admin);
   const sprint = await createSprint({ backlogId: backlog.id }, actorId);
-  const matching = await fixtureTask("R09-S04 visible", { sprintId: sprint.id });
-  const hidden = await fixtureTask("R09-S04 masquée", { sprintId: sprint.id });
-  await startSprint({
-    id: sprint.id,
-    backlogId: backlog.id,
-    name: "R09-S04 Sprint filtre",
-    goal: "Prouver le filtre Version partagé",
-    startAt: "2026-08-05T09:00:00.000Z",
-    endAt: "2026-08-19T18:00:00.000Z",
-    capacityPoints: 13,
-  }, actorId);
-  await assignVersions(matching.id, [release.id]);
+  try {
+    const matching = await fixtureTask("R09-S04 visible", { sprintId: sprint.id });
+    const hidden = await fixtureTask("R09-S04 masquée", { sprintId: sprint.id });
+    await startSprint({
+      id: sprint.id,
+      backlogId: backlog.id,
+      name: "R09-S04 Sprint filtre",
+      goal: "Prouver le filtre Version partagé",
+      startAt: "2026-08-05T09:00:00.000Z",
+      endAt: "2026-08-19T18:00:00.000Z",
+      capacityPoints: 13,
+    }, actorId);
+    await assignVersions(matching.id, [release.id]);
 
-  await page.goto("/b/CASS?view=list");
-  await page.getByRole("button", { name: "+ Version" }).click();
-  await page.getByLabel(release.name).click();
-  await expect(page).toHaveURL(new RegExp(`version=${release.id}`));
-  await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
-  await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
-  await page.reload();
-  await expect(page.getByRole("button", { name: new RegExp(`Version.*${release.name}`) })).toBeVisible();
-  await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
-  await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
+    await page.goto("/b/CASS?view=list");
+    await page.getByRole("button", { name: "+ Version" }).click();
+    await page.getByLabel(release.name).click();
+    await expect(page).toHaveURL(new RegExp(`version=${release.id}`));
+    await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
+    await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("button", { name: new RegExp(`Version.*${release.name}`) })).toBeVisible();
+    await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
+    await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Enregistrer la vue" }).click();
-  await page.getByRole("menuitem", { name: "Enregistrer sous…" }).click();
-  const dialog = page.getByRole("dialog", { name: "Enregistrer la vue" });
-  await dialog.getByRole("textbox", { name: "Nom de la vue" }).fill("R09-S04 Vue version");
-  await clickPost(page, () => dialog.getByRole("button", { name: "Enregistrer" }).click());
-  await expect(page.getByRole("button", { name: /R09-S04 Vue version/ })).toBeVisible();
-  await page.reload();
-  await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
-  await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Enregistrer la vue" }).click();
+    await page.getByRole("menuitem", { name: "Enregistrer sous…" }).click();
+    const dialog = page.getByRole("dialog", { name: "Enregistrer la vue" });
+    await dialog.getByRole("textbox", { name: "Nom de la vue" }).fill("R09-S04 Vue version");
+    await clickPost(page, () => dialog.getByRole("button", { name: "Enregistrer" }).click());
+    await expect(page.getByRole("button", { name: /R09-S04 Vue version/ })).toBeVisible();
+    await page.reload();
+    await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
+    await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
 
-  await page.goto(`/b/CASS?view=board&version=${release.id}`);
-  await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
-  await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
-  await page.reload();
-  await expect(page.getByRole("button", { name: new RegExp(`Version.*${release.name}`) })).toBeVisible();
-  await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
-  await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
-  const [stored] = await db.select({ filters: views.filters }).from(views)
-    .where(eq(views.name, "R09-S04 Vue version"));
-  expect(stored?.filters).toMatchObject({ releaseIds: [release.id] });
+    await page.goto(`/b/CASS?view=board&version=${release.id}`);
+    await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
+    await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("button", { name: new RegExp(`Version.*${release.name}`) })).toBeVisible();
+    await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
+    await expect(page.getByText(hidden.key, { exact: true })).toHaveCount(0);
+    const [stored] = await db.select({ filters: views.filters }).from(views)
+      .where(eq(views.name, "R09-S04 Vue version"));
+    expect(stored?.filters).toMatchObject({ releaseIds: [release.id] });
+  } finally {
+    await db.delete(sprints).where(eq(sprints.id, sprint.id));
+  }
 });
 
 audited(5, "calcule la progression depuis les items et leurs points", async ({ page }) => {
