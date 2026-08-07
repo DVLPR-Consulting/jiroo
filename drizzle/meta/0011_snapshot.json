@@ -1,5 +1,5 @@
 {
-  "id": "ba7dec01-6a7b-46f0-ba91-5ab130efa12f",
+  "id": "5c597370-0bff-4119-8837-684f12935c80",
   "prevId": "e40250ec-e5e5-4f37-b8a3-a65a089d2033",
   "version": "7",
   "dialect": "postgresql",
@@ -2593,6 +2593,12 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "destination_release_name": {
+          "name": "destination_release_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -2690,7 +2696,7 @@
             "backlog_id",
             "id"
           ],
-          "onDelete": "restrict",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -2700,7 +2706,7 @@
       "checkConstraints": {
         "release_publication_items_disposition_consistent": {
           "name": "release_publication_items_disposition_consistent",
-          "value": "(\n        (\"release_publication_items\".\"disposition\" = 'retained' and \"release_publication_items\".\"destination_release_id\" is null)\n        or (\"release_publication_items\".\"disposition\" = 'moved' and \"release_publication_items\".\"destination_release_id\" is not null)\n      )"
+          "value": "(\n        (\"release_publication_items\".\"disposition\" = 'retained' and \"release_publication_items\".\"destination_release_id\" is null and \"release_publication_items\".\"destination_release_name\" is null)\n        or (\"release_publication_items\".\"disposition\" = 'moved' and \"release_publication_items\".\"destination_release_name\" is not null)\n      )"
         }
       },
       "isRLSEnabled": false
@@ -2756,6 +2762,12 @@
         "destination_release_id": {
           "name": "destination_release_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "destination_release_name": {
+          "name": "destination_release_name",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -2887,7 +2899,7 @@
             "backlog_id",
             "id"
           ],
-          "onDelete": "restrict",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -2905,7 +2917,7 @@
         },
         "release_publications_incomplete_disposition_consistent": {
           "name": "release_publications_incomplete_disposition_consistent",
-          "value": "(\n        (\"release_publications\".\"incomplete_disposition\" = 'keep' and \"release_publications\".\"destination_release_id\" is null)\n        or (\"release_publications\".\"incomplete_disposition\" = 'move' and \"release_publications\".\"destination_release_id\" is not null)\n      )"
+          "value": "(\n        (\"release_publications\".\"incomplete_disposition\" = 'keep' and \"release_publications\".\"destination_release_id\" is null and \"release_publications\".\"destination_release_name\" is null)\n        or (\"release_publications\".\"incomplete_disposition\" = 'move' and \"release_publications\".\"destination_release_name\" is not null)\n      )"
         }
       },
       "isRLSEnabled": false

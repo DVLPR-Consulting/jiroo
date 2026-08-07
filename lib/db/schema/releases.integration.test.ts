@@ -6,6 +6,7 @@ import { Pool, type PoolClient } from "pg";
 
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 const pool = new Pool({ connectionString: process.env.DIRECT_DATABASE_URL });
+let savepointSequence = 0;
 
 async function transaction<T>(run: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
@@ -16,6 +17,25 @@ async function transaction<T>(run: (client: PoolClient) => Promise<T>): Promise<
     await client.query("rollback");
     client.release();
   }
+}
+
+async function expectStatementRejected(
+  client: PoolClient,
+  statement: string,
+  values: unknown[] = [],
+): Promise<void> {
+  const savepoint = `expected_rejection_${savepointSequence++}`;
+  await client.query(`savepoint ${savepoint}`);
+  let rejected = false;
+  try {
+    await client.query(statement, values);
+  } catch {
+    rejected = true;
+  } finally {
+    await client.query(`rollback to savepoint ${savepoint}`);
+    await client.query(`release savepoint ${savepoint}`);
+  }
+  expect(rejected).toBe(true);
 }
 
 async function actorId(client: PoolClient): Promise<string> {
@@ -81,6 +101,8 @@ describeDb("release persistence constraints", () => {
         "release_events_release_same_backlog_fk",
         "release_publication_items_item_same_backlog_fk",
         "release_publication_items_publication_same_backlog_fk",
+        "release_publication_items_destination_same_backlog_fk",
+        "release_publications_destination_same_backlog_fk",
         "release_publications_release_same_backlog_fk",
       ]],
     );
@@ -99,6 +121,12 @@ describeDb("release persistence constraints", () => {
         ),
       },
       {
+        conname: "release_publication_items_destination_same_backlog_fk",
+        definition: expect.stringMatching(
+          /FOREIGN KEY \(backlog_id, destination_release_id\).*ON DELETE SET NULL \(destination_release_id\)/,
+        ),
+      },
+      {
         conname: "release_publication_items_item_same_backlog_fk",
         definition: expect.stringMatching(
           /FOREIGN KEY \(backlog_id, item_id\).*ON DELETE SET NULL \(item_id\)/,
@@ -107,6 +135,12 @@ describeDb("release persistence constraints", () => {
       {
         conname: "release_publication_items_publication_same_backlog_fk",
         definition: expect.stringMatching(/FOREIGN KEY \(backlog_id, publication_id\).*ON DELETE RESTRICT/),
+      },
+      {
+        conname: "release_publications_destination_same_backlog_fk",
+        definition: expect.stringMatching(
+          /FOREIGN KEY \(backlog_id, destination_release_id\).*ON DELETE SET NULL \(destination_release_id\)/,
+        ),
       },
       {
         conname: "release_publications_release_same_backlog_fk",
@@ -125,9 +159,11 @@ describeDb("release persistence constraints", () => {
          and (table_name, column_name) in (
            ('releases', 'archived_at'),
            ('release_publications', 'release_name'),
+           ('release_publications', 'destination_release_name'),
            ('release_publication_items', 'item_key'),
            ('release_publication_items', 'item_title'),
            ('release_publication_items', 'status_name'),
+           ('release_publication_items', 'destination_release_name'),
            ('release_events', 'release_name')
          )
        order by table_name, column_name`,
@@ -135,9 +171,11 @@ describeDb("release persistence constraints", () => {
 
     expect(result.rows).toEqual([
       { table_name: "release_events", column_name: "release_name" },
+      { table_name: "release_publication_items", column_name: "destination_release_name" },
       { table_name: "release_publication_items", column_name: "item_key" },
       { table_name: "release_publication_items", column_name: "item_title" },
       { table_name: "release_publication_items", column_name: "status_name" },
+      { table_name: "release_publications", column_name: "destination_release_name" },
       { table_name: "release_publications", column_name: "release_name" },
       { table_name: "releases", column_name: "archived_at" },
     ]);
@@ -239,6 +277,106 @@ describeDb("release persistence constraints", () => {
       await expect(
         client.query("delete from release_publications where id = $1", [publicationId]),
       ).rejects.toBeTruthy();
+    });
+  });
+
+  it("retains destination labels after the destination release is deleted", async () => {
+    await transaction(async (client) => {
+      const backlogId = await createBacklog(client, "DEST");
+      const actor = await actorId(client);
+      const sourceReleaseId = await createRelease(client, backlogId, actor, "4.0");
+      const destinationReleaseId = await createRelease(client, backlogId, actor, "4.1");
+      const publication = await client.query<{ id: string }>(
+        `insert into release_publications
+          (backlog_id, release_id, release_revision, release_name, effective_date,
+           incomplete_disposition, destination_release_id, destination_release_name, published_by)
+         values ($1, $2, 1, '4.0', '2026-08-07', 'move', $3, '4.1', $4)
+         returning id`,
+        [backlogId, sourceReleaseId, destinationReleaseId, actor],
+      );
+      const publicationId = publication.rows[0]!.id;
+      await client.query(
+        `insert into release_publication_items
+          (publication_id, backlog_id, item_key, item_title, status_name, disposition,
+           destination_release_id, destination_release_name)
+         values ($1, $2, 'DEST-1', 'Item déplacé', 'À faire', 'moved', $3, '4.1')`,
+        [publicationId, backlogId, destinationReleaseId],
+      );
+
+      await expect(
+        client.query("delete from releases where id = $1", [destinationReleaseId]),
+      ).resolves.toBeTruthy();
+
+      const publicationHistory = await client.query(
+        `select destination_release_id, destination_release_name
+         from release_publications where id = $1`,
+        [publicationId],
+      );
+      expect(publicationHistory.rows).toEqual([
+        { destination_release_id: null, destination_release_name: "4.1" },
+      ]);
+      const itemHistory = await client.query(
+        `select destination_release_id, destination_release_name
+         from release_publication_items where publication_id = $1`,
+        [publicationId],
+      );
+      expect(itemHistory.rows).toEqual([
+        { destination_release_id: null, destination_release_name: "4.1" },
+      ]);
+    });
+  });
+
+  it("rejects direct snapshot mutation and deletion", async () => {
+    await transaction(async (client) => {
+      const backlogId = await createBacklog(client, "IMMUTABLE");
+      const actor = await actorId(client);
+      const releaseId = await createRelease(client, backlogId, actor, "5.0");
+      const publicationId = await createPublication(client, backlogId, releaseId, actor, "5.0");
+      const snapshot = await client.query<{ id: string }>(
+        `insert into release_publication_items
+          (publication_id, backlog_id, item_key, item_title, status_name, disposition)
+         values ($1, $2, 'IMM-1', 'Titre figé', 'Terminé', 'retained')
+         returning id`,
+        [publicationId, backlogId],
+      );
+      const snapshotId = snapshot.rows[0]!.id;
+
+      await expectStatementRejected(
+        client,
+        "update release_publications set release_name = 'Altéré' where id = $1",
+        [publicationId],
+      );
+      await expectStatementRejected(
+        client,
+        "update release_publication_items set item_title = 'Altéré' where id = $1",
+        [snapshotId],
+      );
+      await expectStatementRejected(
+        client,
+        "delete from release_publication_items where id = $1",
+        [snapshotId],
+      );
+
+      const emptyReleaseId = await createRelease(client, backlogId, actor, "5.1");
+      const emptyPublicationId = await createPublication(
+        client,
+        backlogId,
+        emptyReleaseId,
+        actor,
+        "5.1",
+      );
+      await expectStatementRejected(
+        client,
+        "delete from release_publications where id = $1",
+        [emptyPublicationId],
+      );
+
+      await expect(
+        client.query(
+          "update release_publications set superseded_at = published_at where id = $1",
+          [publicationId],
+        ),
+      ).resolves.toBeTruthy();
     });
   });
 });

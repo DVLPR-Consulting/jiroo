@@ -242,6 +242,7 @@ export const releasePublications = pgTable(
     effectiveDate: date("effective_date", { mode: "string" }).notNull(),
     incompleteDisposition: releaseIncompleteDispositionEnum("incomplete_disposition").notNull(),
     destinationReleaseId: uuid("destination_release_id"),
+    destinationReleaseName: text("destination_release_name"),
     publishedBy: text("published_by")
       .notNull()
       .references(() => user.id),
@@ -262,8 +263,8 @@ export const releasePublications = pgTable(
     check(
       "release_publications_incomplete_disposition_consistent",
       sql`(
-        (${t.incompleteDisposition} = 'keep' and ${t.destinationReleaseId} is null)
-        or (${t.incompleteDisposition} = 'move' and ${t.destinationReleaseId} is not null)
+        (${t.incompleteDisposition} = 'keep' and ${t.destinationReleaseId} is null and ${t.destinationReleaseName} is null)
+        or (${t.incompleteDisposition} = 'move' and ${t.destinationReleaseName} is not null)
       )`,
     ),
     foreignKey({
@@ -275,7 +276,7 @@ export const releasePublications = pgTable(
       columns: [t.backlogId, t.destinationReleaseId],
       foreignColumns: [releases.backlogId, releases.id],
       name: "release_publications_destination_same_backlog_fk",
-    }).onDelete("restrict"),
+    }).onDelete("set null"),
   ],
 );
 
@@ -293,6 +294,7 @@ export const releasePublicationItems = pgTable(
     statusName: text("status_name").notNull(),
     disposition: releaseItemDispositionEnum("disposition").notNull(),
     destinationReleaseId: uuid("destination_release_id"),
+    destinationReleaseName: text("destination_release_name"),
   },
   (t) => [
     uniqueIndex("release_publication_items_publication_item_idx")
@@ -302,8 +304,8 @@ export const releasePublicationItems = pgTable(
     check(
       "release_publication_items_disposition_consistent",
       sql`(
-        (${t.disposition} = 'retained' and ${t.destinationReleaseId} is null)
-        or (${t.disposition} = 'moved' and ${t.destinationReleaseId} is not null)
+        (${t.disposition} = 'retained' and ${t.destinationReleaseId} is null and ${t.destinationReleaseName} is null)
+        or (${t.disposition} = 'moved' and ${t.destinationReleaseName} is not null)
       )`,
     ),
     foreignKey({
@@ -320,7 +322,7 @@ export const releasePublicationItems = pgTable(
       columns: [t.backlogId, t.destinationReleaseId],
       foreignColumns: [releases.backlogId, releases.id],
       name: "release_publication_items_destination_same_backlog_fk",
-    }).onDelete("restrict"),
+    }).onDelete("set null"),
   ],
 );
 

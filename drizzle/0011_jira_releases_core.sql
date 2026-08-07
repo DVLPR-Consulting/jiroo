@@ -32,9 +32,10 @@ CREATE TABLE "release_publication_items" (
 	"status_name" text NOT NULL,
 	"disposition" "release_item_disposition" NOT NULL,
 	"destination_release_id" uuid,
+	"destination_release_name" text,
 	CONSTRAINT "release_publication_items_disposition_consistent" CHECK ((
-        ("release_publication_items"."disposition" = 'retained' and "release_publication_items"."destination_release_id" is null)
-        or ("release_publication_items"."disposition" = 'moved' and "release_publication_items"."destination_release_id" is not null)
+        ("release_publication_items"."disposition" = 'retained' and "release_publication_items"."destination_release_id" is null and "release_publication_items"."destination_release_name" is null)
+        or ("release_publication_items"."disposition" = 'moved' and "release_publication_items"."destination_release_name" is not null)
       ))
 );
 --> statement-breakpoint
@@ -47,14 +48,15 @@ CREATE TABLE "release_publications" (
 	"effective_date" date NOT NULL,
 	"incomplete_disposition" "release_incomplete_disposition" NOT NULL,
 	"destination_release_id" uuid,
+	"destination_release_name" text,
 	"published_by" text NOT NULL,
 	"published_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"superseded_at" timestamp with time zone,
 	CONSTRAINT "release_publications_revision_positive" CHECK ("release_publications"."release_revision" > 0),
 	CONSTRAINT "release_publications_superseded_order" CHECK ("release_publications"."superseded_at" is null or "release_publications"."superseded_at" >= "release_publications"."published_at"),
 	CONSTRAINT "release_publications_incomplete_disposition_consistent" CHECK ((
-        ("release_publications"."incomplete_disposition" = 'keep' and "release_publications"."destination_release_id" is null)
-        or ("release_publications"."incomplete_disposition" = 'move' and "release_publications"."destination_release_id" is not null)
+        ("release_publications"."incomplete_disposition" = 'keep' and "release_publications"."destination_release_id" is null and "release_publications"."destination_release_name" is null)
+        or ("release_publications"."incomplete_disposition" = 'move' and "release_publications"."destination_release_name" is not null)
       ))
 );
 --> statement-breakpoint
@@ -88,11 +90,11 @@ ALTER TABLE "release_events" ADD CONSTRAINT "release_events_publication_same_bac
 ALTER TABLE "release_publication_items" ADD CONSTRAINT "release_publication_items_backlog_id_backlogs_id_fk" FOREIGN KEY ("backlog_id") REFERENCES "public"."backlogs"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "release_publication_items" ADD CONSTRAINT "release_publication_items_publication_same_backlog_fk" FOREIGN KEY ("backlog_id","publication_id") REFERENCES "public"."release_publications"("backlog_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "release_publication_items" ADD CONSTRAINT "release_publication_items_item_same_backlog_fk" FOREIGN KEY ("backlog_id","item_id") REFERENCES "public"."items"("backlog_id","id") ON DELETE set null ("item_id") ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "release_publication_items" ADD CONSTRAINT "release_publication_items_destination_same_backlog_fk" FOREIGN KEY ("backlog_id","destination_release_id") REFERENCES "public"."releases"("backlog_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "release_publication_items" ADD CONSTRAINT "release_publication_items_destination_same_backlog_fk" FOREIGN KEY ("backlog_id","destination_release_id") REFERENCES "public"."releases"("backlog_id","id") ON DELETE set null ("destination_release_id") ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "release_publications" ADD CONSTRAINT "release_publications_backlog_id_backlogs_id_fk" FOREIGN KEY ("backlog_id") REFERENCES "public"."backlogs"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "release_publications" ADD CONSTRAINT "release_publications_published_by_user_id_fk" FOREIGN KEY ("published_by") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "release_publications" ADD CONSTRAINT "release_publications_release_same_backlog_fk" FOREIGN KEY ("backlog_id","release_id") REFERENCES "public"."releases"("backlog_id","id") ON DELETE set null ("release_id") ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "release_publications" ADD CONSTRAINT "release_publications_destination_same_backlog_fk" FOREIGN KEY ("backlog_id","destination_release_id") REFERENCES "public"."releases"("backlog_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "release_publications" ADD CONSTRAINT "release_publications_destination_same_backlog_fk" FOREIGN KEY ("backlog_id","destination_release_id") REFERENCES "public"."releases"("backlog_id","id") ON DELETE set null ("destination_release_id") ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "releases" ADD CONSTRAINT "releases_backlog_id_backlogs_id_fk" FOREIGN KEY ("backlog_id") REFERENCES "public"."backlogs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "releases" ADD CONSTRAINT "releases_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "item_fix_versions_release_idx" ON "item_fix_versions" USING btree ("release_id");--> statement-breakpoint
@@ -102,4 +104,56 @@ CREATE UNIQUE INDEX "release_publication_items_publication_item_idx" ON "release
 CREATE INDEX "release_publication_items_item_idx" ON "release_publication_items" USING btree ("item_id");--> statement-breakpoint
 CREATE INDEX "release_publications_backlog_idx" ON "release_publications" USING btree ("backlog_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "release_publications_one_active_per_release_idx" ON "release_publications" USING btree ("release_id") WHERE "release_publications"."superseded_at" is null;--> statement-breakpoint
-CREATE UNIQUE INDEX "releases_backlog_name_idx" ON "releases" USING btree ("backlog_id",lower("name"));
+CREATE UNIQUE INDEX "releases_backlog_name_idx" ON "releases" USING btree ("backlog_id",lower("name"));--> statement-breakpoint
+CREATE FUNCTION "protect_release_publications_snapshot"() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'release publication snapshots are immutable' USING ERRCODE = '55000';
+  END IF;
+
+  IF (to_jsonb(NEW) - ARRAY['release_id', 'destination_release_id', 'superseded_at'])
+       IS DISTINCT FROM
+     (to_jsonb(OLD) - ARRAY['release_id', 'destination_release_id', 'superseded_at'])
+     OR NOT (
+       (NEW.release_id IS NOT DISTINCT FROM OLD.release_id
+        OR (OLD.release_id IS NOT NULL AND NEW.release_id IS NULL))
+       AND (NEW.destination_release_id IS NOT DISTINCT FROM OLD.destination_release_id
+        OR (OLD.destination_release_id IS NOT NULL AND NEW.destination_release_id IS NULL))
+       AND (NEW.superseded_at IS NOT DISTINCT FROM OLD.superseded_at
+        OR (OLD.superseded_at IS NULL AND NEW.superseded_at IS NOT NULL))
+     ) THEN
+    RAISE EXCEPTION 'release publication snapshots are immutable' USING ERRCODE = '55000';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;--> statement-breakpoint
+CREATE TRIGGER "release_publications_immutable"
+BEFORE UPDATE OR DELETE ON "release_publications"
+FOR EACH ROW EXECUTE FUNCTION "protect_release_publications_snapshot"();--> statement-breakpoint
+CREATE FUNCTION "protect_release_publication_items_snapshot"() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'release publication item snapshots are immutable' USING ERRCODE = '55000';
+  END IF;
+
+  IF (to_jsonb(NEW) - ARRAY['item_id', 'destination_release_id'])
+       IS DISTINCT FROM
+     (to_jsonb(OLD) - ARRAY['item_id', 'destination_release_id'])
+     OR NOT (
+       (NEW.item_id IS NOT DISTINCT FROM OLD.item_id
+        OR (OLD.item_id IS NOT NULL AND NEW.item_id IS NULL))
+       AND (NEW.destination_release_id IS NOT DISTINCT FROM OLD.destination_release_id
+        OR (OLD.destination_release_id IS NOT NULL AND NEW.destination_release_id IS NULL))
+     ) THEN
+    RAISE EXCEPTION 'release publication item snapshots are immutable' USING ERRCODE = '55000';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;--> statement-breakpoint
+CREATE TRIGGER "release_publication_items_immutable"
+BEFORE UPDATE OR DELETE ON "release_publication_items"
+FOR EACH ROW EXECUTE FUNCTION "protect_release_publication_items_snapshot"();
