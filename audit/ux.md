@@ -517,3 +517,38 @@ Version reste dans l’URL et les vues enregistrées.
 Le noyau est cohérent mais ne revendique pas encore une expérience Jira
 complète : l’ordre, la fusion, les notes et le travail connexe appartiennent à
 la PR2, tandis que les rapports de sprint restent un chantier séparé.
+
+---
+
+## Mise à jour UX — rapports de sprint et vélocité du 8 août 2026
+
+Le reporting est désormais découvrable depuis l’onglet Rapports du backlog. Le
+rapport sélectionne par défaut le sprint actif, distingue visuellement
+`Données en cours`, `Historique figé` et `Historique détaillé indisponible`, puis
+présente quatre mesures avant les sections d’items et le journal. Les valeurs
+de vélocité ne dépendent pas du survol : graphe nommé et tableau sémantique
+portent les mêmes engagements et points terminés.
+
+### Parcours observés
+
+- état actif mixte : 2 éléments, 5 points et 1 non estimé, sélection par défaut
+  conservée sur desktop et mobile ;
+- historique terminé lisible après disparition de la source, avec valeur figée
+  et destination explicite ;
+- 7/12 sprints accessibles au clavier, puis lien de détail activable ;
+- moyenne 2,5 lisible avec zéro terminé inclus et absence de points expliquée ;
+- boundary sans détail interne, bouton Réessayer et récupération effective ;
+- aucune largeur de page supérieure au viewport à 390 × 844.
+
+Les six captures `sprint-reports-final` ont été inspectées. Sur mobile, la table
+de vélocité conserve sa largeur sémantique dans un conteneur horizontalement
+défilable ; elle ne crée pas de débordement global et les contrôles 7/12 restent
+visibles. Cette solution est acceptable pour l’incrément, mais une vue mobile
+plus compacte pourrait réduire le besoin de défilement.
+
+### Dette UX restante
+
+1. Dessiner un burndown explicable dont chaque rupture ouvre ses événements.
+2. Tester zoom 200 %, VoiceOver/NVDA et moteurs Firefox/WebKit.
+3. Valider pagination, temps de lecture et densité sur des historiques de
+   production nettement supérieurs à 50 items/événements.

@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { expect, test, type Page } from "@playwright/test";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
 import {
@@ -226,6 +226,9 @@ async function createActiveFixture(input: {
 
 async function cleanFixture() {
   const backlog = await cassBacklog();
+  await db.execute(sql.raw(
+    "TRUNCATE TABLE sprint_report_items, sprint_report_snapshots, sprint_events RESTART IDENTITY CASCADE",
+  ));
   const fixtureItems = await db
     .select({ id: items.id })
     .from(items)

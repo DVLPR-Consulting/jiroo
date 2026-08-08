@@ -7,7 +7,7 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
-import { and, asc, count, eq, isNull } from "drizzle-orm";
+import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
 import {
@@ -634,6 +634,9 @@ audited(4, "conserve le filtre Version après reload et dans une vue enregistré
       .where(eq(views.name, "R09-S04 Vue version"));
     expect(stored?.filters).toMatchObject({ releaseIds: [release.id] });
   } finally {
+    await db.execute(sql.raw(
+      "TRUNCATE TABLE sprint_report_items, sprint_report_snapshots, sprint_events RESTART IDENTITY CASCADE",
+    ));
     await db.delete(sprints).where(eq(sprints.id, sprint.id));
   }
 });

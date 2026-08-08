@@ -1,0 +1,16 @@
+<testsuites id="" name="" tests="6" failures="0" skipped="0" errors="0" time="34.639682">
+<testsuite name="sprint-reports.spec.ts" timestamp="2026-08-08T12:17:20.455Z" hostname="chromium" tests="6" failures="0" skipped="0" time="28.503" errors="0">
+<testcase name="01 — affiche les rapports figés et la vélocité explicable" classname="sprint-reports.spec.ts" time="2.83">
+</testcase>
+<testcase name="02 — distingue les états vides, planifiés, actifs non estimés et legacy" classname="sprint-reports.spec.ts" time="5.671">
+</testcase>
+<testcase name="03 — conserve les lectures lecteur, second contexte et dissimule les ressources" classname="sprint-reports.spec.ts" time="5.587">
+</testcase>
+<testcase name="04 — reste lisible et sans débordement à 390 par 844" classname="sprint-reports.spec.ts" time="1.246">
+</testcase>
+<testcase name="05 — masque une panne de lecture et récupère après retry" classname="sprint-reports.spec.ts" time="1.571">
+</testcase>
+<testcase name="06 — relie bulk, Board et clôture UI au rapport" classname="sprint-reports.spec.ts" time="11.598">
+</testcase>
+</testsuite>
+</testsuites>

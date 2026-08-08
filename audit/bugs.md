@@ -1369,3 +1369,33 @@ fusion de versions, suppression avec transfert/retrait, ordre manuel, notes de
 release et travail connexe Git/PR/déploiement restent explicitement hors du
 noyau livré. Ces éléments sont suivis comme portée PR2, pas comme réouverture
 de BUG-JIR-027.
+
+## BUG-JIR-028 — Rapports de sprint et vélocité absents
+
+- **Gravité initiale :** majeure
+- **Priorité initiale :** P0
+- **Statut :** fermé le 8 août 2026
+- **Fonctionnalité :** reporting sprint / vélocité
+
+### Correctif vérifié
+
+- snapshot append-only atomique à la clôture, participants et destinations
+  conservés même après mutation ou purge des items sources ;
+- rapport actif avec engagement, scope, non-estimés, sections et journal ;
+- rapport terminé figé, legacy explicitement indisponible sans reconstruction ;
+- vélocité 7/12 avec moyenne, valeurs exactes et raisons d’exclusion ;
+- route accessible au lecteur, ressources étrangères/malformées dissimulées et
+  erreur temporaire générique récupérable ;
+- UI desktop/mobile et libellés accessibles du graphe alignés sur le tableau.
+
+### Niveau de preuve
+
+Le run [`sprint-reports-final`](runs/sprint-reports-final-junit.xml) passe 6/6
+en 34,640 s. Il prouve R1 8/5, ajout 3, 5 → 8, R2 13/0, R3 exclu, mutations
+single/bulk/Board, deux destinations, immutabilité après six mutations de source,
+lecteur/second contexte, défaut mixte actif, clavier, 390 × 844 et retry.
+
+Aucun nouveau bug ouvert n’est classé dans ce périmètre. Les absences de
+burndown, prévision, test lecteur d’écran réel, cross-browser et volumétrie
+supérieure aux pages bornées sont des risques de portée suivis dans la roadmap,
+pas des comportements livrés défaillants.

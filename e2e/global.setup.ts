@@ -113,6 +113,9 @@ async function resetBrowserDatabase(input: {
     await client.query(`
       TRUNCATE TABLE
         "security_audit_events",
+        "sprint_report_items",
+        "sprint_report_snapshots",
+        "sprint_events",
         "backlogs",
         "permission_grants",
         "group_members",

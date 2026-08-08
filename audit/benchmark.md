@@ -512,3 +512,40 @@ ajoute une readiness fondée sur PR/checks/déploiement plutôt qu’un simple �
 
 Aucune parité globale Jira n’est revendiquée : ce verdict couvre uniquement la
 PR Release 1 acceptée par 16 scénarios métier et la régression Chromium 40/40.
+
+---
+
+# Benchmark — reporting sprint après livraison du 8 août 2026
+
+## Verdict limité aux observations citées
+
+Jiroo ferme l’écart P0 signalé après l’incrément 08 : il possède maintenant un
+rapport de sprint actif/figé et une vélocité explicable. Sur le noyau documenté
+par Jira — terminés, incomplets, changements de périmètre et estimations — Jiroo
+est désormais comparable, avec une différence vérifiée : chaque total reste lié
+aux participants et événements figés même après purge de la source. Jira reste
+devant sur le burndown et le catalogue de rapports ; aucune parité globale n’est
+revendiquée.
+
+| Produit | Observation officielle déjà citée dans cet audit | Position de Jiroo après livraison |
+|---|---|---|
+| Jira | rapport de sprint, vélocité/burndown et catalogue de rapports | noyau rapport/vélocité comparable ; burndown et prévision manquants |
+| Linear | cycles et estimations, avec forte continuité clavier | Jiroo prouve davantage l’historique figé sur ce périmètre ; aucune comparaison de reporting avancé non observé |
+| ClickUp | sprints, points/temps et opérations bulk | Jiroo relie bulk et Board au journal ; profondeur et volumétrie ClickUp non égalées |
+| Azure DevOps | sprint backlogs, effort, forecast et velocity | Jiroo couvre la vélocité explicable ; forecast et capacité à grande échelle absents |
+| GitHub Projects | itérations et champs configurables dans plusieurs vues | Jiroo offre un rapport Scrum natif ; GitHub reste plus flexible sur les champs et layouts |
+| Plane | cycles, estimations, modules, releases et bulk | Jiroo couvre rapport figé et vélocité ; aucune supériorité générale sur le socle produit n’est affirmée |
+
+Les références officielles restent celles des sections précédentes :
+[rapport de sprint Jira](https://support.atlassian.com/jira-software-cloud/docs/view-and-understand-the-sprint-report/),
+[burndown Jira](https://support.atlassian.com/jira-software-cloud/docs/what-is-the-sprint-burndown-report/),
+[cycles Linear](https://linear.app/docs/use-cycles),
+[sprints ClickUp](https://help.clickup.com/hc/en-us/articles/6304342064151-Run-a-sprint),
+[backlogs Azure DevOps](https://learn.microsoft.com/en-us/azure/devops/boards/backlogs/backlogs-overview?view=azure-devops),
+[itérations GitHub Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects/understanding-fields/about-iteration-fields)
+et [cycles Plane](https://developers.plane.so/api-reference/cycle/overview).
+
+Le prochain seuil de comparaison est strict : burndown calculé depuis
+`sprint_events`, prévisibilité sans cible individuelle, puis validation sur
+volumétrie et navigateurs supplémentaires. Avant cela, « comparable » désigne
+uniquement le noyau rapport/vélocité couvert par les preuves locales 6/6.

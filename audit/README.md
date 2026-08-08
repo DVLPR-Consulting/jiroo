@@ -1094,3 +1094,70 @@ Le détail finding par finding est dans le
    snapshots et événements existants, avec drilldowns explicables.
 3. Ajouter la **readiness Git/PR/déploiement**, puis rejouer Releases aux quatre
    breakpoints et avec VoiceOver/NVDA.
+
+---
+
+## Fin de session — incrément 11 livré : rapports de sprint et vélocité
+
+### Verdict
+
+**94/100 — accepté sur le périmètre rapport de sprint et vélocité, sans
+revendiquer le burndown ni la prévision.** `BUG-JIR-028` est fermé : les sprints
+actifs exposent des données en cours, les sprints terminés un instantané figé et
+la vélocité explique chaque inclusion ou exclusion.
+
+L’audit global atteint **environ 95 %**. Les principaux parcours Jira-like sont
+maintenant couverts ; les risques résiduels concernent surtout le burndown, la
+volumétrie réelle, les moteurs autres que Chromium et les lecteurs d’écran.
+
+### Portée prouvée
+
+- engagement, terminé, périmètre courant/final, non-estimés, évolution brute et
+  journal chronologique ;
+- historique R1 exact : engagement 8, terminé 5, ajout 3 et estimation 5 → 8 ;
+- historique immuable après renommage, réestimation, changement de statut,
+  déplacement, suppression logique et purge de la source ;
+- vélocité 7/12, moyenne exacte 2,5, sprint à zéro terminé inclus, sprint sans
+  données de points exclu avec explication et parité graphe/table ;
+- états aucun sprint, planifié seulement, actif vide, tout non estimé, actif
+  mixte, aucune vélocité et historique legacy indisponible ;
+- mutations reliées au rapport depuis édition unitaire, bulk et Board, avec
+  métriques, sections et ordre du journal après rafraîchissement ;
+- clôture UI vers Backlog et vers un sprint planifié ; lecteur, second contexte,
+  sprint étranger réel, IDs malformés, boundary générique et retry ;
+- clavier vers le détail, desktop et 390 × 844 sans débordement de page.
+
+### Preuves autoritatives
+
+Le run persistant [`sprint-reports-final`](runs/sprint-reports-final-junit.xml)
+passe **6/6**, 0 échec/erreur/skip, en **34,640 s**. Son
+[manifeste](runs/sprint-reports-final-manifest.json) lie la base protégée
+`jiroo_e2e`, le serveur isolé `:3100`, la commande et les six scénarios.
+
+Les preuves comprennent **20 fichiers run-scoped** : six consoles, six réseaux,
+six captures, le JUnit et le manifeste. Les captures
+[terminé desktop](screenshots/sprint-reports-final-reports-completed-desktop.png),
+[actif desktop](screenshots/sprint-reports-final-reports-active-desktop.png),
+[vélocité desktop](screenshots/sprint-reports-final-reports-velocity-desktop.png),
+[terminé mobile](screenshots/sprint-reports-final-reports-completed-mobile.png),
+[actif mobile](screenshots/sprint-reports-final-reports-active-mobile.png) et
+[vélocité mobile](screenshots/sprint-reports-final-reports-velocity-mobile.png)
+ont été inspectées.
+
+Les navigations instrumentées répondent 200 en **334 à 1 485 ms** sur le
+serveur local ; items et journal utilisent une page de **50**. Le scan des douze
+journaux console/réseau trouve 0 secret, credential, SQL, nom de table interne
+ou variable de connexion. La panne volontaire S05 est réduite au marqueur
+`[expected-fault]` après validation du boundary et du retry.
+
+Vérification complémentaire : **37/37** tests ciblés composants/routes,
+**90/90** intégrations PostgreSQL, **1 226/1 226** tests hors DB, TypeScript,
+ESLint, `git diff --check` et build Next.js 16.2.7 verts. Le build conserve les
+avertissements Better Auth locaux déjà connus quand les variables de déploiement
+ne sont pas fournies ; la compilation et la génération terminent avec code 0.
+
+### Limites et trois priorités suivantes
+
+1. Burndown et prévisibilité de planification dérivés de `sprint_events`.
+2. Releases PR2 : fusion, suppression/transfert, ordre manuel et notes.
+3. Validation cross-browser/mobile restante et volumétrie de production.

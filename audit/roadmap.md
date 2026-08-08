@@ -488,3 +488,25 @@ Releases au sein de la régression Chromium **40/40**. `BUG-JIR-027` est fermé.
 1. Rapport de sprint, vélocité et burndown explicables.
 2. Release PR2 : fusion, suppression/transfert, ordre et notes.
 3. Intégration dépôt/PR/déploiement et readiness.
+
+---
+
+## Mise à jour — rapports de sprint et vélocité livrés le 8 août 2026
+
+Le P0 reporting est livré sur son noyau explicable : instantané transactionnel
+à la clôture, rapport actif dérivé de l’événementiel, participants figés,
+journal paginé et vélocité bornée à 7 ou 12 sprints. Les mutations unitaires,
+bulk et Board actualisent le rapport ; les clôtures vers Backlog et sprint
+planifié sont prouvées par l’interface. Le lecteur peut consulter sans mutation
+et les ressources étrangères restent dissimulées.
+
+La preuve autoritative est le run `sprint-reports-final` : 6/6 en 34,640 s,
+six captures desktop/mobile, douze journaux propres, page-size 50 et revue finale
+sans finding Critical ou Important. Le burndown et toute prévision restent hors
+portée : aucune courbe ou projection n’est reconstruite depuis un état mutable.
+
+### Next priorities
+
+1. burndown and planning predictability derived from `sprint_events`;
+2. Releases PR2 merge/delete-transfer/manual ordering/release notes;
+3. remaining cross-browser/mobile and production-volume validation.
