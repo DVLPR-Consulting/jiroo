@@ -45,4 +45,12 @@ describe("ShellBreadcrumb", () => {
 
     expect(screen.getByText("Pôle civil / Administration")).toBeInTheDocument();
   });
+
+  it("describes the requested backlog reports section", () => {
+    route.pathname = "/b/PEN/reports";
+    route.search = "view=tree&v=v1";
+    render(<ShellBreadcrumb backlogs={backlogs} views={views} />);
+
+    expect(screen.getByText("Pôle pénal / Rapports")).toBeInTheDocument();
+  });
 });

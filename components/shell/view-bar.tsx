@@ -58,12 +58,20 @@ export function ViewBar({
           );
         })}
         {backlogKey ? (
-          <Link
-            href={`/b/${backlogKey}/releases`}
-            className="rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium text-[var(--subtle-foreground)] transition-colors hover:text-foreground"
-          >
-            Releases
-          </Link>
+          <>
+            <Link
+              href={`/b/${backlogKey}/releases`}
+              className="rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium text-[var(--subtle-foreground)] transition-colors hover:text-foreground"
+            >
+              Releases
+            </Link>
+            <Link
+              href={`/b/${backlogKey}/reports`}
+              className="rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium text-[var(--subtle-foreground)] transition-colors hover:text-foreground"
+            >
+              Rapports
+            </Link>
+          </>
         ) : null}
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-3">

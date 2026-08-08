@@ -47,6 +47,21 @@ export function deriveShellContext({
     };
   }
 
+  const completedFeatureMatch = /^\/b\/([^/]+)\/(releases|reports)(?:\/.*)?$/.exec(pathname);
+  if (completedFeatureMatch) {
+    const requestedKey = decodeURIComponent(completedFeatureMatch[1]!).toUpperCase();
+    const backlog = backlogs.find(
+      (candidate) => candidate.key.toUpperCase() === requestedKey,
+    );
+    const feature = completedFeatureMatch[2];
+    return {
+      ...(backlog ? { activeBacklogKey: requestedKey } : {}),
+      section: feature === "releases" ? "Releases" : "Rapports",
+      allItemsHref: backlog ? `/b/${requestedKey}` : allItemsHref,
+      activeNav: null,
+    };
+  }
+
   const backlogMatch = /^\/b\/([^/]+)\/?$/.exec(pathname);
   if (backlogMatch) {
     const requestedKey = decodeURIComponent(backlogMatch[1]!).toUpperCase();

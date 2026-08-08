@@ -135,4 +135,22 @@ describe("deriveShellContext", () => {
       }),
     ).toMatchObject({ section: "Pôle civil", activeNav: null });
   });
+
+  it.each([
+    ["/b/PEN/releases", "Releases"],
+    ["/b/pen/reports", "Rapports"],
+    ["/b/PEN/reports/detail", "Rapports"],
+  ] as const)("keeps the requested backlog for %s", (pathname, section) => {
+    expect(deriveShellContext({
+      pathname,
+      search: new URLSearchParams("view=tree&v=view-1"),
+      backlogs,
+      views,
+    })).toEqual({
+      activeBacklogKey: "PEN",
+      section,
+      allItemsHref: "/b/PEN",
+      activeNav: null,
+    });
+  });
 });

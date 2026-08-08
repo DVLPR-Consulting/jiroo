@@ -89,13 +89,18 @@ describe("ViewBar", () => {
     );
   });
 
-  it("links natively to the backlog releases route without carrying view state", () => {
+  it("links natively to completed-feature routes without carrying view state", () => {
     render(<ViewBar view="board" backlogKey="CASS" />);
 
     const releasesLink = screen.getByRole("link", { name: "Releases" });
+    const reportsLink = screen.getByRole("link", { name: "Rapports" });
     expect(releasesLink).toHaveAttribute("href", "/b/CASS/releases");
+    expect(reportsLink).toHaveAttribute("href", "/b/CASS/reports");
+    expect(releasesLink.compareDocumentPosition(reportsLink))
+      .toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 
     fireEvent.click(releasesLink);
+    fireEvent.click(reportsLink);
     expect(mocks.push).not.toHaveBeenCalled();
   });
 });
