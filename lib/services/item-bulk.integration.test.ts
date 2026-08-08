@@ -331,6 +331,38 @@ describeDb("bulkUpdateItems transaction", () => {
     }
   });
 
+  it("uses the request correlation for every scalar bulk activity", async () => {
+    const fixture = await createBulkFixture();
+    try {
+      await bulkUpdateItems(
+        {
+          backlogId: fixture.backlogId,
+          itemIds: [fixture.taskAId, fixture.taskBId],
+          patch: { field: "priority", value: 4 },
+        },
+        fixture.actorId,
+        "  bulk-scalar-correlation  ",
+      );
+
+      expect(
+        await db
+          .select({
+            itemId: activities.itemId,
+            correlationId: activities.requestCorrelationId,
+          })
+          .from(activities)
+          .where(inArray(activities.itemId, [fixture.taskAId, fixture.taskBId]))
+          .orderBy(asc(activities.itemId)),
+      ).toEqual(
+        [fixture.taskAId, fixture.taskBId]
+          .sort((left, right) => left.localeCompare(right))
+          .map((itemId) => ({ itemId, correlationId: "bulk-scalar-correlation" })),
+      );
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
   it("counts no-op rows without updating or logging them", async () => {
     const fixture = await createBulkFixture();
     try {

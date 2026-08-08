@@ -473,10 +473,16 @@ export async function moveItemAction(input: MoveItemActionInput) {
         assertSameBacklog(itemAuthorization, status, "status");
       }
     }
-    const { backlogKey, ...data } = input;
-    const item = await moveItem(data, actorId);
+    const data = {
+      id: input.id,
+      statusId: input.statusId,
+      beforeId: input.beforeId,
+      afterId: input.afterId,
+    };
+    const requestCorrelationId = randomUUID();
+    const item = await moveItem(data, actorId, requestCorrelationId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
-    revalidateBacklog(backlogKey);
+    revalidateBacklog(input.backlogKey);
     return { ok: true as const, item };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);

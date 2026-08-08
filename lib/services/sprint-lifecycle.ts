@@ -11,7 +11,10 @@ import {
   statuses,
 } from "@/lib/db/schema/domain";
 import { rankLast } from "@/lib/tree/rank";
-import { appendSprintEventsInTx } from "@/lib/services/sprint-events";
+import {
+  appendSprintEventsInTx,
+  normalizeRequestCorrelationId,
+} from "@/lib/services/sprint-events";
 import {
   completeSprintSchema,
   startSprintSchema,
@@ -70,7 +73,7 @@ export async function startSprint(
   requestCorrelationId: string = randomUUID(),
 ): Promise<StartSprintResult> {
   const data = startSprintSchema.parse(input);
-  const correlationId = requestCorrelationId.trim();
+  const correlationId = normalizeRequestCorrelationId(requestCorrelationId);
   try {
     return await db.transaction(async (tx) => {
       await lockBacklog(tx, data.backlogId);

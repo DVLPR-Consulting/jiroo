@@ -352,6 +352,31 @@ describe("item action permission mapping", () => {
     ]);
   });
 
+  it("forwards one server-generated correlation for a board status move", async () => {
+    const runtimeInput = {
+      backlogKey: "DEMO",
+      id: itemId,
+      statusId,
+      beforeId: null,
+      afterId: null,
+      actorId: "forged-actor",
+      requestCorrelationId: "forged-correlation",
+    };
+    await moveItemAction(runtimeInput);
+
+    expect(mocks.moveItem).toHaveBeenCalledWith(
+      {
+        id: itemId,
+        statusId,
+        beforeId: null,
+        afterId: null,
+      },
+      "writer-1",
+      expect.stringMatching(uuidPattern),
+    );
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
+  });
+
   it.each([
     { name: "soft delete", run: () => softDeleteItemAction({ id: itemId, backlogKey: "FORGED" }), permission: "delete_items" },
     { name: "restore", run: () => restoreItemAction({ id: itemId, backlogKey: "FORGED" }), permission: "restore_items" },

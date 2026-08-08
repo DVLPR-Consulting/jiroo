@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { Client } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { databasePool, db } from "@/lib/db";
@@ -15,7 +15,8 @@ import {
   sprints,
   statuses,
 } from "@/lib/db/schema/domain";
-import { restoreItem, softDeleteItem } from "@/lib/services/items";
+import { bulkUpdateItems } from "@/lib/services/item-bulk";
+import { moveItem, restoreItem, softDeleteItem, updateItem } from "@/lib/services/items";
 import { startSprint } from "@/lib/services/sprint-lifecycle";
 import { assignItemsToSprint } from "@/lib/services/sprints";
 import { withSprintHistoryCleanup } from "@/test-utils/sprint-history-cleanup";
@@ -346,6 +347,415 @@ describeDb("sprint reporting events", () => {
     }
   });
 
+  it("records estimate and done-boundary changes across single, bulk, and drag paths", async () => {
+    const f = await fixture();
+    const correlationId = "the-request-correlation";
+    try {
+      const [done] = await db
+        .insert(statuses)
+        .values({
+          backlogId: f.backlog.id,
+          name: "Terminé",
+          category: "done",
+          order: 1,
+          color: "#16a34a",
+        })
+        .returning();
+      if (!done) throw new Error("Fixture statut terminé impossible.");
+
+      const sprint = await insertSprint(f, "Sprint actif", "active");
+      const item = await insertItem(f, "Mutation suivie", null);
+      await addMembership(f, sprint.id, item.id, null);
+
+      await updateItem(
+        { id: item.id, estimatePoints: 5, statusId: done.id },
+        f.actor.id,
+        correlationId,
+      );
+      await bulkUpdateItems(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [item.id],
+          patch: { field: "statusId", value: f.todo.id },
+        },
+        f.actor.id,
+        correlationId,
+      );
+      await moveItem(
+        { id: item.id, statusId: done.id, beforeId: null, afterId: null },
+        f.actor.id,
+        correlationId,
+      );
+
+      const events = await db
+        .select({
+          eventType: sprintEvents.eventType,
+          correlationId: sprintEvents.requestCorrelationId,
+          previousEstimate: sprintEvents.previousEstimate,
+          nextEstimate: sprintEvents.nextEstimate,
+          previousDone: sprintEvents.previousDone,
+          nextDone: sprintEvents.nextDone,
+        })
+        .from(sprintEvents)
+        .where(eq(sprintEvents.sprintId, sprint.id))
+        .orderBy(asc(sprintEvents.sequence));
+      expect(events.map((event) => event.eventType)).toEqual([
+        "estimate_changed",
+        "item_completed",
+        "item_reopened",
+        "item_completed",
+      ]);
+      expect(events.map((event) => event.correlationId)).toEqual([
+        correlationId,
+        correlationId,
+        correlationId,
+        correlationId,
+      ]);
+      expect(events).toEqual([
+        {
+          eventType: "estimate_changed",
+          correlationId,
+          previousEstimate: null,
+          nextEstimate: 5,
+          previousDone: null,
+          nextDone: null,
+        },
+        {
+          eventType: "item_completed",
+          correlationId,
+          previousEstimate: null,
+          nextEstimate: null,
+          previousDone: false,
+          nextDone: true,
+        },
+        {
+          eventType: "item_reopened",
+          correlationId,
+          previousEstimate: null,
+          nextEstimate: null,
+          previousDone: true,
+          nextDone: false,
+        },
+        {
+          eventType: "item_completed",
+          correlationId,
+          previousEstimate: null,
+          nextEstimate: null,
+          previousDone: false,
+          nextDone: true,
+        },
+      ]);
+    } finally {
+      await cleanup(f);
+    }
+  });
+
+  it("keeps rank-only drag activity without emitting a sprint event", async () => {
+    const f = await fixture();
+    try {
+      const sprint = await insertSprint(f, "Sprint actif", "active");
+      const item = await insertItem(f, "Classement seul", 2);
+      await addMembership(f, sprint.id, item.id, 2);
+
+      await moveItem(
+        { id: item.id, beforeId: null, afterId: null },
+        f.actor.id,
+        "rank-only-drag",
+      );
+
+      expect(
+        await db
+          .select({ id: sprintEvents.id })
+          .from(sprintEvents)
+          .where(eq(sprintEvents.requestCorrelationId, "rank-only-drag")),
+      ).toEqual([]);
+      expect(
+        await db
+          .select({
+            action: activities.action,
+            field: activities.field,
+            correlationId: activities.requestCorrelationId,
+          })
+          .from(activities)
+          .where(eq(activities.requestCorrelationId, "rank-only-drag")),
+      ).toEqual([
+        { action: "move", field: "rank", correlationId: "rank-only-drag" },
+      ]);
+    } finally {
+      await cleanup(f);
+    }
+  });
+
+  it("records every estimate boundary and ignores value and category no-ops", async () => {
+    const f = await fixture();
+    try {
+      const [inProgress, review, done, verified] = await db
+        .insert(statuses)
+        .values([
+          {
+            backlogId: f.backlog.id,
+            name: "En cours",
+            category: "in_progress",
+            order: 1,
+            color: "#ca8a04",
+          },
+          {
+            backlogId: f.backlog.id,
+            name: "En revue",
+            category: "in_progress",
+            order: 2,
+            color: "#7c3aed",
+          },
+          {
+            backlogId: f.backlog.id,
+            name: "Terminé",
+            category: "done",
+            order: 3,
+            color: "#16a34a",
+          },
+          {
+            backlogId: f.backlog.id,
+            name: "Vérifié",
+            category: "done",
+            order: 4,
+            color: "#15803d",
+          },
+        ])
+        .returning();
+      if (!inProgress || !review || !done || !verified) {
+        throw new Error("Fixture de statuts impossible.");
+      }
+      const sprint = await insertSprint(f, "Sprint actif", "active");
+      const item = await insertItem(f, "Frontières", 5);
+      await addMembership(f, sprint.id, item.id, 5);
+
+      await updateItem({ id: item.id, estimatePoints: null }, f.actor.id, "estimate-null");
+      await bulkUpdateItems(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [item.id],
+          patch: { field: "estimatePoints", value: 8 },
+        },
+        f.actor.id,
+        "estimate-up",
+      );
+      await updateItem({ id: item.id, estimatePoints: 3 }, f.actor.id, "estimate-down");
+      await updateItem({ id: item.id, estimatePoints: 3 }, f.actor.id, "estimate-noop");
+      await updateItem({ id: item.id, statusId: inProgress.id }, f.actor.id, "todo-progress");
+      await bulkUpdateItems(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [item.id],
+          patch: { field: "statusId", value: review.id },
+        },
+        f.actor.id,
+        "progress-review",
+      );
+      await updateItem({ id: item.id, statusId: done.id }, f.actor.id, "done-boundary");
+      await bulkUpdateItems(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [item.id],
+          patch: { field: "statusId", value: verified.id },
+        },
+        f.actor.id,
+        "done-verified",
+      );
+
+      expect(
+        await db
+          .select({
+            eventType: sprintEvents.eventType,
+            previousEstimate: sprintEvents.previousEstimate,
+            nextEstimate: sprintEvents.nextEstimate,
+            correlationId: sprintEvents.requestCorrelationId,
+          })
+          .from(sprintEvents)
+          .where(eq(sprintEvents.sprintId, sprint.id))
+          .orderBy(asc(sprintEvents.sequence)),
+      ).toEqual([
+        {
+          eventType: "estimate_changed",
+          previousEstimate: 5,
+          nextEstimate: null,
+          correlationId: "estimate-null",
+        },
+        {
+          eventType: "estimate_changed",
+          previousEstimate: null,
+          nextEstimate: 8,
+          correlationId: "estimate-up",
+        },
+        {
+          eventType: "estimate_changed",
+          previousEstimate: 8,
+          nextEstimate: 3,
+          correlationId: "estimate-down",
+        },
+        {
+          eventType: "item_completed",
+          previousEstimate: null,
+          nextEstimate: null,
+          correlationId: "done-boundary",
+        },
+      ]);
+      expect(
+        await db
+          .select({ correlationId: activities.requestCorrelationId })
+          .from(activities)
+          .where(
+            inArray(activities.requestCorrelationId, [
+              "todo-progress",
+              "progress-review",
+              "done-verified",
+            ]),
+          )
+          .orderBy(asc(activities.requestCorrelationId)),
+      ).toEqual([
+        { correlationId: "done-verified" },
+        { correlationId: "progress-review" },
+        { correlationId: "todo-progress" },
+      ]);
+    } finally {
+      await cleanup(f);
+    }
+  });
+
+  it("records only the mixed bulk rows that cross the done boundary", async () => {
+    const f = await fixture();
+    try {
+      const [inProgress, done] = await db
+        .insert(statuses)
+        .values([
+          {
+            backlogId: f.backlog.id,
+            name: "En cours",
+            category: "in_progress",
+            order: 1,
+            color: "#ca8a04",
+          },
+          {
+            backlogId: f.backlog.id,
+            name: "Terminé",
+            category: "done",
+            order: 2,
+            color: "#16a34a",
+          },
+        ])
+        .returning();
+      if (!inProgress || !done) throw new Error("Fixture de statuts impossible.");
+      const sprint = await insertSprint(f, "Sprint actif", "active");
+      const todoItem = await insertItem(f, "À faire", 1);
+      const progressItem = await insertItem(f, "En cours", 2);
+      const doneItem = await insertItem(f, "Déjà terminé", 3);
+      await db.update(items).set({ statusId: inProgress.id }).where(eq(items.id, progressItem.id));
+      await db
+        .update(items)
+        .set({ statusId: done.id, closedAt: new Date("2026-08-02T09:00:00.000Z") })
+        .where(eq(items.id, doneItem.id));
+      await addMembership(f, sprint.id, todoItem.id, 1);
+      await addMembership(f, sprint.id, progressItem.id, 2);
+      await addMembership(f, sprint.id, doneItem.id, 3);
+
+      await bulkUpdateItems(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [todoItem.id, progressItem.id, doneItem.id],
+          patch: { field: "statusId", value: done.id },
+        },
+        f.actor.id,
+        "bulk-mixed-statuses",
+      );
+
+      expect(
+        await db
+          .select({ itemId: sprintEvents.itemId, eventType: sprintEvents.eventType })
+          .from(sprintEvents)
+          .where(eq(sprintEvents.requestCorrelationId, "bulk-mixed-statuses"))
+          .orderBy(asc(sprintEvents.itemId)),
+      ).toEqual(
+        [todoItem.id, progressItem.id]
+          .sort((left, right) => left.localeCompare(right))
+          .map((itemId) => ({ itemId, eventType: "item_completed" })),
+      );
+    } finally {
+      await cleanup(f);
+    }
+  });
+
+  it("rolls back single and bulk item changes when report event validation fails", async () => {
+    const f = await fixture();
+    try {
+      const [done] = await db
+        .insert(statuses)
+        .values({
+          backlogId: f.backlog.id,
+          name: "Terminé",
+          category: "done",
+          order: 1,
+          color: "#16a34a",
+        })
+        .returning();
+      if (!done) throw new Error("Fixture statut terminé impossible.");
+      const sprint = await insertSprint(f, "Sprint actif", "active");
+      const first = await insertItem(f, "Première", 1);
+      const second = await insertItem(f, "Deuxième", 2);
+      await addMembership(f, sprint.id, first.id, 1);
+      await addMembership(f, sprint.id, second.id, 2);
+
+      await expect(
+        updateItem(
+          { id: first.id, estimatePoints: 5, statusId: done.id },
+          f.actor.id,
+          "x".repeat(129),
+        ),
+      ).rejects.toThrow("correlation");
+      await expect(
+        bulkUpdateItems(
+          {
+            backlogId: f.backlog.id,
+            itemIds: [first.id, second.id],
+            patch: { field: "estimatePoints", value: 8 },
+          },
+          f.actor.id,
+          "x".repeat(129),
+        ),
+      ).rejects.toThrow("correlation");
+
+      expect(
+        await db
+          .select({
+            id: items.id,
+            statusId: items.statusId,
+            estimatePoints: items.estimatePoints,
+            closedAt: items.closedAt,
+          })
+          .from(items)
+          .where(inArray(items.id, [first.id, second.id]))
+          .orderBy(asc(items.id)),
+      ).toEqual(
+        [
+          { id: first.id, statusId: f.todo.id, estimatePoints: 1, closedAt: null },
+          { id: second.id, statusId: f.todo.id, estimatePoints: 2, closedAt: null },
+        ].sort((left, right) => left.id.localeCompare(right.id)),
+      );
+      expect(
+        await db
+          .select({ id: activities.id })
+          .from(activities)
+          .where(inArray(activities.itemId, [first.id, second.id])),
+      ).toEqual([]);
+      expect(
+        await db
+          .select({ id: sprintEvents.id })
+          .from(sprintEvents)
+          .where(eq(sprintEvents.sprintId, sprint.id)),
+      ).toEqual([]);
+    } finally {
+      await cleanup(f);
+    }
+  });
+
   it("bulk-inserts active membership events once under one correlation", async () => {
     const f = await fixture();
     const correlationId = `bulk-${randomUUID()}`;
@@ -395,6 +805,80 @@ describeDb("sprint reporting events", () => {
           { itemId: second.id, nextEstimate: null, correlationId },
         ].sort((left, right) => left.itemId.localeCompare(right.itemId)),
       );
+    } finally {
+      await cleanup(f);
+    }
+  });
+
+  it("uses one active-membership lookup and one event insert for 500 bulk mutations", async () => {
+    const f = await fixture();
+    try {
+      const sprint = await insertSprint(f, "Sprint actif", "active");
+      const itemRows = Array.from({ length: 500 }, (_, index) => {
+        const id = randomUUID();
+        return {
+          id,
+          key: `${f.backlog.key}-${index + 1}`,
+          type: "tache" as const,
+          backlogId: f.backlog.id,
+          title: `Mutation ${index + 1}`,
+          statusId: f.todo.id,
+          estimatePoints: null,
+          reporterId: f.actor.id,
+          rank: `bulk-${String(index).padStart(3, "0")}`,
+          path: `root.${id.replaceAll("-", "")}`,
+          depth: 0,
+        };
+      });
+      await db.insert(items).values(itemRows);
+      await db.insert(sprintItems).values(
+        itemRows.map((item) => ({
+          sprintId: sprint.id,
+          itemId: item.id,
+          joinedBy: f.actor.id,
+          estimateAtJoin: null,
+        })),
+      );
+
+      const querySpy = vi.spyOn(Client.prototype, "query");
+      try {
+        await bulkUpdateItems(
+          {
+            backlogId: f.backlog.id,
+            itemIds: itemRows.map((item) => item.id),
+            patch: { field: "estimatePoints", value: 1 },
+          },
+          f.actor.id,
+          "bulk-report-query-bound",
+        );
+        const queryTexts = querySpy.mock.calls.map(([query]) => {
+          const candidate: unknown = query;
+          return typeof candidate === "string"
+            ? candidate
+            : typeof candidate === "object" && candidate !== null && "text" in candidate
+              ? String(candidate.text)
+              : "";
+        });
+        expect(
+          queryTexts.filter(
+            (text) =>
+              text.includes('from "sprint_items"') &&
+              text.includes('inner join "sprints"'),
+          ),
+        ).toHaveLength(1);
+        expect(
+          queryTexts.filter((text) => text.includes('insert into "sprint_events"')),
+        ).toHaveLength(1);
+      } finally {
+        querySpy.mockRestore();
+      }
+
+      expect(
+        await db
+          .select({ itemId: sprintEvents.itemId })
+          .from(sprintEvents)
+          .where(eq(sprintEvents.requestCorrelationId, "bulk-report-query-bound")),
+      ).toHaveLength(500);
     } finally {
       await cleanup(f);
     }

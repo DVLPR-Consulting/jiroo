@@ -10,7 +10,12 @@ import { nextItemKey } from "@/lib/items/key";
 import { canRestore } from "@/lib/items/trash";
 import { replaceItemFixVersionsInTx } from "@/lib/services/item-fix-versions";
 import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
-import { removeDeletedItemsFromActiveSprintsInTx } from "@/lib/services/sprint-events";
+import {
+  normalizeRequestCorrelationId,
+  recordActiveItemMutationsInTx,
+  removeDeletedItemsFromActiveSprintsInTx,
+  type ActiveItemMutation,
+} from "@/lib/services/sprint-events";
 import { ROOT_LABEL, buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
 import { rankBetween, rankFirst, rankLast } from "@/lib/tree/rank";
@@ -227,12 +232,6 @@ function activityRow(
   return { itemId, actorId, action, field, oldValue, newValue };
 }
 
-async function isDoneStatus(tx: Tx, statusId: string): Promise<boolean> {
-  const [s] = await tx.select({ category: statuses.category }).from(statuses).where(eq(statuses.id, statusId));
-  if (!s) throw new Error("Statut introuvable.");
-  return s.category === "done";
-}
-
 async function resolveDefaultStatusId(tx: Tx, backlogId: string): Promise<string> {
   const [s] = await tx
     .select({ id: statuses.id })
@@ -306,15 +305,31 @@ async function applyStatusChange(
   cur: typeof items.$inferSelect,
   statusId: string,
   actorId: string,
-): Promise<{ patch: Partial<typeof items.$inferInsert>; act: typeof activities.$inferInsert } | null> {
+  occurredAt: Date,
+): Promise<{
+  previousCategory: "todo" | "in_progress" | "done";
+  nextCategory: "todo" | "in_progress" | "done";
+  patch: Partial<typeof items.$inferInsert>;
+  activity: typeof activities.$inferInsert;
+} | null> {
   if (statusId === cur.statusId) return null;
   const s = await resolveStatusInBacklog(tx, statusId, cur.backlogId);
-  const wasDone = await isDoneStatus(tx, cur.statusId);
+  const [previous] = await tx
+    .select({ category: statuses.category })
+    .from(statuses)
+    .where(eq(statuses.id, cur.statusId));
+  if (!previous) throw new Error("Statut introuvable.");
+  const wasDone = previous.category === "done";
   const nowDone = s.category === "done";
   const patch: Partial<typeof items.$inferInsert> = { statusId: s.id };
-  if (nowDone && !wasDone) patch.closedAt = new Date();
+  if (nowDone && !wasDone) patch.closedAt = occurredAt;
   else if (!nowDone && wasDone) patch.closedAt = null;
-  return { patch, act: activityRow(cur.id, actorId, "status_change", "status", cur.statusId, s.id) };
+  return {
+    previousCategory: previous.category,
+    nextCategory: s.category,
+    patch,
+    activity: activityRow(cur.id, actorId, "status_change", "status", cur.statusId, s.id),
+  };
 }
 
 // Server-authoritative drop rank. Client passes neighbor ids (never a rank). Locks the named
@@ -422,7 +437,7 @@ export async function createItem(
   requestCorrelationId: string = randomUUID(),
 ) {
   const data = createItemSchema.parse(input);
-  const correlationId = requestCorrelationId.trim();
+  const correlationId = normalizeRequestCorrelationId(requestCorrelationId);
   return withRetry(() =>
     db.transaction(async (tx) => {
       const [backlog] = await tx
@@ -566,9 +581,12 @@ export async function updateItem(
   requestCorrelationId: string = randomUUID(),
 ) {
   const data = updateItemSchema.parse(input);
+  const correlationId = normalizeRequestCorrelationId(requestCorrelationId);
   return db.transaction(async (tx) => {
     const needsBacklogLock =
-      data.statusId !== undefined || data.fixVersionIds !== undefined;
+      data.statusId !== undefined ||
+      data.estimatePoints !== undefined ||
+      data.fixVersionIds !== undefined;
     const lockedBacklogId =
       !needsBacklogLock
         ? null
@@ -589,6 +607,10 @@ export async function updateItem(
 
     const patch: Partial<typeof items.$inferInsert> = {};
     const acts: (typeof activities.$inferInsert)[] = [];
+    const reportingMutation: ActiveItemMutation = {
+      item: { id: cur.id, key: cur.key, title: cur.title },
+    };
+    const now = new Date();
 
     if (data.title !== undefined && data.title !== cur.title) {
       patch.title = data.title;
@@ -606,6 +628,10 @@ export async function updateItem(
       const nextEstimate = data.estimatePoints ?? null;
       if (nextEstimate !== cur.estimatePoints) {
         patch.estimatePoints = nextEstimate;
+        reportingMutation.estimate = {
+          previous: cur.estimatePoints,
+          next: nextEstimate,
+        };
         acts.push(
           activityRow(
             cur.id,
@@ -654,10 +680,14 @@ export async function updateItem(
       }
     }
     if (data.statusId !== undefined) {
-      const sc = await applyStatusChange(tx, cur, data.statusId, actorId);
+      const sc = await applyStatusChange(tx, cur, data.statusId, actorId, now);
       if (sc) {
         Object.assign(patch, sc.patch);
-        acts.push(sc.act);
+        acts.push(sc.activity);
+        reportingMutation.done = {
+          previous: sc.previousCategory === "done",
+          next: sc.nextCategory === "done",
+        };
       }
     }
     if (data.labelIds !== undefined) {
@@ -706,7 +736,7 @@ export async function updateItem(
           releaseIds: data.fixVersionIds,
         },
         actorId,
-        requestCorrelationId,
+        correlationId,
       );
     }
 
@@ -714,12 +744,19 @@ export async function updateItem(
 
     const [updated] = await tx
       .update(items)
-      .set({ ...patch, updatedAt: new Date() })
+      .set({ ...patch, updatedAt: now })
       .where(eq(items.id, cur.id))
       .returning();
+    await recordActiveItemMutationsInTx(tx, {
+      backlogId: cur.backlogId,
+      actorId,
+      correlationId,
+      occurredAt: now,
+      mutations: [reportingMutation],
+    });
     await tx
       .insert(activities)
-      .values(acts.map((act) => ({ ...act, requestCorrelationId })));
+      .values(acts.map((act) => ({ ...act, requestCorrelationId: correlationId })));
     return updated!;
   });
 }
@@ -727,8 +764,13 @@ export async function updateItem(
 // Board drag: status change and/or reorder within the backlog's single global rank order.
 // NEVER touches path/depth/parentId — the board column is a STATUS, not a parent, so the ltree
 // path is invariant and the path CHECK is never exposed.
-export async function moveItem(input: unknown, actorId: string) {
+export async function moveItem(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string = randomUUID(),
+) {
   const data = moveItemSchema.parse(input);
+  const correlationId = normalizeRequestCorrelationId(requestCorrelationId);
   return withRetry(() =>
     db.transaction(async (tx) => {
       const lockedBacklogId =
@@ -748,12 +790,20 @@ export async function moveItem(input: unknown, actorId: string) {
 
       const patch: Partial<typeof items.$inferInsert> = {};
       const acts: (typeof activities.$inferInsert)[] = [];
+      const reportingMutation: ActiveItemMutation = {
+        item: { id: cur.id, key: cur.key, title: cur.title },
+      };
+      const now = new Date();
 
       if (data.statusId !== undefined) {
-        const sc = await applyStatusChange(tx, cur, data.statusId, actorId);
+        const sc = await applyStatusChange(tx, cur, data.statusId, actorId, now);
         if (sc) {
           Object.assign(patch, sc.patch);
-          acts.push(sc.act);
+          acts.push(sc.activity);
+          reportingMutation.done = {
+            previous: sc.previousCategory === "done",
+            next: sc.nextCategory === "done",
+          };
         }
       }
 
@@ -767,10 +817,19 @@ export async function moveItem(input: unknown, actorId: string) {
 
       const [updated] = await tx
         .update(items)
-        .set({ ...patch, updatedAt: new Date() })
+        .set({ ...patch, updatedAt: now })
         .where(eq(items.id, cur.id))
         .returning();
-      await tx.insert(activities).values(acts);
+      await recordActiveItemMutationsInTx(tx, {
+        backlogId: cur.backlogId,
+        actorId,
+        correlationId,
+        occurredAt: now,
+        mutations: [reportingMutation],
+      });
+      await tx
+        .insert(activities)
+        .values(acts.map((act) => ({ ...act, requestCorrelationId: correlationId })));
       return updated!;
     }),
   );
@@ -866,7 +925,7 @@ export async function softDeleteItem(
   requestCorrelationId: string = randomUUID(),
 ) {
   const { id } = idInputSchema.parse(input);
-  const correlationId = requestCorrelationId.trim();
+  const correlationId = normalizeRequestCorrelationId(requestCorrelationId);
   return db.transaction(async (tx) => {
     const [targetProbe] = await tx
       .select()

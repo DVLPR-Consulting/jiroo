@@ -9,6 +9,12 @@ import {
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+export type ActiveItemMutation = {
+  item: { id: string; key: string; title: string };
+  estimate?: { previous: number | null; next: number | null };
+  done?: { previous: boolean; next: boolean };
+};
+
 type SprintLifecycleEventCommand = {
   type: "sprint_started" | "sprint_completed";
   backlogId: string;
@@ -50,7 +56,7 @@ export type SprintEventCommand =
       type: "item_completed" | "item_reopened";
     });
 
-function correlationId(value: string): string {
+export function normalizeRequestCorrelationId(value: string): string {
   const normalized = value.trim();
   if (normalized.length < 1 || normalized.length > 128) {
     throw new Error("La correlation de requête doit contenir entre 1 et 128 caractères.");
@@ -59,7 +65,7 @@ function correlationId(value: string): string {
 }
 
 function eventRow(command: SprintEventCommand): typeof sprintEvents.$inferInsert {
-  const requestCorrelationId = correlationId(command.correlationId);
+  const requestCorrelationId = normalizeRequestCorrelationId(command.correlationId);
   const base = {
     backlogId: command.backlogId,
     sprintId: command.sprintId,
@@ -136,6 +142,79 @@ export async function appendSprintEventsInTx(
   if (commands.length === 0) return;
   const rows = commands.map(eventRow);
   await tx.insert(sprintEvents).values(rows);
+}
+
+export async function recordActiveItemMutationsInTx(
+  tx: Tx,
+  input: {
+    backlogId: string;
+    actorId: string;
+    correlationId: string;
+    occurredAt: Date;
+    mutations: readonly ActiveItemMutation[];
+  },
+): Promise<number> {
+  const mutations = input.mutations.filter(
+    (mutation) => mutation.estimate !== undefined || mutation.done !== undefined,
+  );
+  if (mutations.length === 0) return 0;
+
+  const itemIds = [...new Set(mutations.map((mutation) => mutation.item.id))];
+  const memberships = await tx
+    .select({
+      id: sprintItems.id,
+      itemId: sprintItems.itemId,
+      sprintId: sprintItems.sprintId,
+    })
+    .from(sprintItems)
+    .innerJoin(sprints, eq(sprintItems.sprintId, sprints.id))
+    .where(
+      and(
+        eq(sprints.backlogId, input.backlogId),
+        eq(sprints.state, "active"),
+        inArray(sprintItems.itemId, itemIds),
+        isNull(sprintItems.leftAt),
+      ),
+    )
+    .orderBy(asc(sprintItems.itemId), asc(sprintItems.id));
+
+  const mutationsByItemId = new Map(
+    mutations.map((mutation) => [mutation.item.id, mutation]),
+  );
+  const commands: SprintEventCommand[] = [];
+  for (const membership of memberships) {
+    const mutation = mutationsByItemId.get(membership.itemId);
+    if (!mutation) continue;
+    const base = {
+      backlogId: input.backlogId,
+      sprintId: membership.sprintId,
+      membershipId: membership.id,
+      item: mutation.item,
+      actorId: input.actorId,
+      correlationId: input.correlationId,
+      occurredAt: input.occurredAt,
+    };
+    if (
+      mutation.estimate &&
+      mutation.estimate.previous !== mutation.estimate.next
+    ) {
+      commands.push({
+        ...base,
+        type: "estimate_changed",
+        previousEstimate: mutation.estimate.previous,
+        nextEstimate: mutation.estimate.next,
+      });
+    }
+    if (mutation.done && mutation.done.previous !== mutation.done.next) {
+      commands.push({
+        ...base,
+        type: mutation.done.next ? "item_completed" : "item_reopened",
+      });
+    }
+  }
+
+  await appendSprintEventsInTx(tx, commands);
+  return commands.length;
 }
 
 export async function removeDeletedItemsFromActiveSprintsInTx(

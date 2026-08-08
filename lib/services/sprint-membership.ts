@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/schema/domain";
 import {
   appendSprintEventsInTx,
+  normalizeRequestCorrelationId,
   type SprintEventCommand,
 } from "@/lib/services/sprint-events";
 
@@ -20,7 +21,7 @@ export async function assignItemsToSprintInTx(
   actorId: string,
   requestCorrelationId: string,
 ): Promise<{ changedCount: number; unchangedCount: number }> {
-  const correlationId = requestCorrelationId.trim();
+  const correlationId = normalizeRequestCorrelationId(requestCorrelationId);
   const [backlog] = await tx
     .select({ id: backlogs.id })
     .from(backlogs)

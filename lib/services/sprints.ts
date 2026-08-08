@@ -12,6 +12,7 @@ import {
 import { rankAtDrop } from "@/lib/services/items";
 import { rankBetween, rankFirst, rankLast } from "@/lib/tree/rank";
 import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
+import { normalizeRequestCorrelationId } from "@/lib/services/sprint-events";
 import {
   assignSprintItemsSchema,
   createSprintSchema,
@@ -241,7 +242,7 @@ export async function moveItemToSprint(
   requestCorrelationId: string = randomUUID(),
 ) {
   const data = moveSprintItemSchema.parse(input);
-  const correlationId = requestCorrelationId.trim();
+  const correlationId = normalizeRequestCorrelationId(requestCorrelationId);
   return db.transaction(async (tx) => {
     await lockBacklog(tx, data.backlogId);
 

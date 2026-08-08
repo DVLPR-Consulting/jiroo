@@ -6,6 +6,11 @@ import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
 import { bulkChangeItemFixVersionsInTx } from "@/lib/services/item-fix-versions";
 import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
 import {
+  normalizeRequestCorrelationId,
+  recordActiveItemMutationsInTx,
+  type ActiveItemMutation,
+} from "@/lib/services/sprint-events";
+import {
   bulkUpdateItemsSchema,
   type BulkItemPatch,
 } from "@/lib/validation/bulk-item";
@@ -72,6 +77,7 @@ export async function bulkUpdateItems(
   requestCorrelationId: string = randomUUID(),
 ) {
   const data = bulkUpdateItemsSchema.parse(input);
+  const correlationId = normalizeRequestCorrelationId(requestCorrelationId);
 
   return db.transaction(async (tx) => {
     const [backlog] = await tx
@@ -103,7 +109,7 @@ export async function bulkUpdateItems(
           sprintId: data.patch.value,
         },
         actorId,
-        requestCorrelationId,
+        correlationId,
       );
     }
 
@@ -117,7 +123,7 @@ export async function bulkUpdateItems(
           releaseIds: data.patch.value,
         },
         actorId,
-        requestCorrelationId,
+        correlationId,
       );
     }
 
@@ -167,9 +173,13 @@ export async function bulkUpdateItems(
 
     const now = new Date();
     let changedCount = 0;
+    const reportingMutations: ActiveItemMutation[] = [];
     for (const row of selected) {
       const patch: ItemPatch = {};
       let changed = false;
+      const reportingMutation: ActiveItemMutation = {
+        item: { id: row.id, key: row.key, title: row.title },
+      };
 
       switch (data.patch.field) {
         case "priority":
@@ -182,7 +192,13 @@ export async function bulkUpdateItems(
           break;
         case "estimatePoints":
           changed = row.estimatePoints !== data.patch.value;
-          if (changed) patch.estimatePoints = data.patch.value;
+          if (changed) {
+            patch.estimatePoints = data.patch.value;
+            reportingMutation.estimate = {
+              previous: row.estimatePoints,
+              next: data.patch.value,
+            };
+          }
           break;
         case "statusId": {
           changed = row.statusId !== data.patch.value;
@@ -192,6 +208,10 @@ export async function bulkUpdateItems(
           const nowDone = destinationStatus?.category === "done";
           if (nowDone && !wasDone) patch.closedAt = now;
           if (!nowDone && wasDone) patch.closedAt = null;
+          reportingMutation.done = {
+            previous: wasDone,
+            next: nowDone,
+          };
           break;
         }
       }
@@ -201,9 +221,23 @@ export async function bulkUpdateItems(
         .update(items)
         .set({ ...patch, updatedAt: now })
         .where(eq(items.id, row.id));
-      await tx.insert(activities).values(activityForPatch(row, actorId, data.patch));
+      await tx.insert(activities).values({
+        ...activityForPatch(row, actorId, data.patch),
+        requestCorrelationId: correlationId,
+      });
+      if (reportingMutation.estimate || reportingMutation.done) {
+        reportingMutations.push(reportingMutation);
+      }
       changedCount += 1;
     }
+
+    await recordActiveItemMutationsInTx(tx, {
+      backlogId: data.backlogId,
+      actorId,
+      correlationId,
+      occurredAt: now,
+      mutations: reportingMutations,
+    });
 
     return {
       changedCount,

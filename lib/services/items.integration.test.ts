@@ -20,6 +20,7 @@ import {
   createItem,
   listItems,
   listItemsWithAncestors,
+  moveItem,
   rankBacklogItem,
   restoreItem,
   updateItem,
@@ -441,6 +442,44 @@ describeDb("updateItem estimate transaction", () => {
         .from(activities)
         .where(eq(activities.itemId, fixture.item.id));
       expect(audit).toEqual([]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("rejects an invalid correlation without an active sprint before changing the item", async () => {
+    const fixture = await createTaskUpdateFixture();
+
+    try {
+      await expect(
+        updateItem(
+          { id: fixture.item.id, estimatePoints: 3 },
+          fixture.actorId,
+          " ",
+        ),
+      ).rejects.toThrow("correlation");
+      await expect(
+        moveItem(
+          { id: fixture.item.id, beforeId: null, afterId: null },
+          fixture.actorId,
+          "x".repeat(129),
+        ),
+      ).rejects.toThrow("correlation");
+
+      const [stored] = await db
+        .select({ estimatePoints: items.estimatePoints, rank: items.rank })
+        .from(items)
+        .where(eq(items.id, fixture.item.id));
+      expect(stored).toEqual({
+        estimatePoints: null,
+        rank: fixture.item.rank,
+      });
+      expect(
+        await db
+          .select({ id: activities.id })
+          .from(activities)
+          .where(eq(activities.itemId, fixture.item.id)),
+      ).toEqual([]);
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
     }
