@@ -9,7 +9,10 @@ import {
   activities,
   backlogs,
   items,
+  sprintEvents,
   sprintItems,
+  sprintReportItems,
+  sprintReportSnapshots,
   sprints,
   statuses,
 } from "@/lib/db/schema/domain";
@@ -18,6 +21,7 @@ import {
   IncompleteSprintSubtasksError,
   startSprint,
 } from "@/lib/services/sprint-lifecycle";
+import { updateItem } from "@/lib/services/items";
 import { assignItemsToSprint, createSprint } from "@/lib/services/sprints";
 import { withSprintHistoryCleanup } from "@/test-utils/sprint-history-cleanup";
 
@@ -30,6 +34,8 @@ async function cleanupBacklogs(...backlogIds: string[]) {
   await client.query("begin");
   try {
     await withSprintHistoryCleanup(client, async () => {
+      await client.query("delete from sprint_report_items where backlog_id = any($1::uuid[])", [backlogIds]);
+      await client.query("delete from sprint_report_snapshots where backlog_id = any($1::uuid[])", [backlogIds]);
       await client.query("delete from sprint_events where backlog_id = any($1::uuid[])", [backlogIds]);
     });
     await client.query("delete from backlogs where id = any($1::uuid[])", [backlogIds]);
@@ -237,6 +243,194 @@ describeDb("sprint lifecycle", () => {
     }
   });
 
+  it("ignores membership churn that finished while the sprint was still planned", async () => {
+    const f = await fixture();
+    try {
+      const sprint = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+      const task = await insertTask(f, "Retirée avant départ", null);
+      await assignItemsToSprint(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [task.id],
+          sprintId: sprint.id,
+        },
+        f.actor.id,
+      );
+      await assignItemsToSprint(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [task.id],
+          sprintId: null,
+        },
+        f.actor.id,
+      );
+      await startSprint(startInput(f.backlog.id, sprint.id, 0), f.actor.id);
+
+      await expect(
+        completeSprint(
+          {
+            id: sprint.id,
+            backlogId: f.backlog.id,
+            destination: { type: "backlog" },
+          },
+          f.actor.id,
+        ),
+      ).resolves.toMatchObject({
+        completedItemCount: 0,
+        carriedItemCount: 0,
+      });
+      const [snapshot] = await db
+        .select({ initialItemCount: sprintReportSnapshots.initialItemCount })
+        .from(sprintReportSnapshots)
+        .where(eq(sprintReportSnapshots.sprintId, sprint.id));
+      expect(snapshot).toEqual({ initialItemCount: 0 });
+      expect(
+        await db
+          .select({ id: sprintReportItems.id })
+          .from(sprintReportItems)
+          .where(eq(sprintReportItems.sprintId, sprint.id)),
+      ).toEqual([]);
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("keeps scope events emitted before a future selected start", async () => {
+    const f = await fixture();
+    try {
+      const sprint = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+      const initialEstimated = await insertTask(f, "Initial avant date", 4);
+      const initialUnestimated = await insertTask(f, "Initial sans date", null);
+      await assignItemsToSprint(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [initialEstimated.id, initialUnestimated.id],
+          sprintId: sprint.id,
+        },
+        f.actor.id,
+      );
+      const selectedStart = new Date(Date.now() + 2_000);
+      const selectedEnd = new Date(selectedStart.getTime() + 86_400_000);
+      await startSprint(
+        {
+          id: sprint.id,
+          backlogId: f.backlog.id,
+          name: "Sprint futur",
+          goal: null,
+          startAt: selectedStart.toISOString(),
+          endAt: selectedEnd.toISOString(),
+          capacityPoints: null,
+        },
+        f.actor.id,
+      );
+      const kept = await insertTask(f, "Ajout avant date", 3);
+      const removed = await insertTask(f, "Retrait avant date", 2);
+      await assignItemsToSprint(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [kept.id, removed.id],
+          sprintId: sprint.id,
+        },
+        f.actor.id,
+        "future-add",
+      );
+      await assignItemsToSprint(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [removed.id, initialEstimated.id, initialUnestimated.id],
+          sprintId: null,
+        },
+        f.actor.id,
+        "future-remove",
+      );
+      const scopeEvents = await db
+        .select({ occurredAt: sprintEvents.occurredAt })
+        .from(sprintEvents)
+        .where(
+          and(
+            eq(sprintEvents.sprintId, sprint.id),
+            inArray(sprintEvents.eventType, ["item_added", "item_removed"]),
+          ),
+        );
+      expect(scopeEvents).toHaveLength(5);
+      expect(scopeEvents.every((event) => event.occurredAt < selectedStart)).toBe(true);
+
+      const waitMs = Math.max(0, selectedStart.getTime() - Date.now() + 25);
+      await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
+      await completeSprint(
+        {
+          id: sprint.id,
+          backlogId: f.backlog.id,
+          destination: { type: "backlog" },
+        },
+        f.actor.id,
+      );
+
+      const [snapshot] = await db
+        .select()
+        .from(sprintReportSnapshots)
+        .where(eq(sprintReportSnapshots.sprintId, sprint.id));
+      expect(snapshot).toMatchObject({
+        initialItemCount: 2,
+        committedPoints: 4,
+        initialUnestimatedCount: 1,
+        finalItemCount: 1,
+        grossPointsAdded: 5,
+        grossPointsRemoved: 6,
+        scopeEventCount: 5,
+      });
+      const rows = await db
+        .select({
+          itemKey: sprintReportItems.itemKey,
+          initialCommitment: sprintReportItems.initialCommitment,
+          addedAfterStart: sprintReportItems.addedAfterStart,
+          removedAfterStart: sprintReportItems.removedAfterStart,
+          estimateAtStart: sprintReportItems.estimateAtStart,
+          finalOutcome: sprintReportItems.finalOutcome,
+        })
+        .from(sprintReportItems)
+        .where(eq(sprintReportItems.sprintId, sprint.id));
+      expect(rows).toEqual(
+        expect.arrayContaining([
+          {
+            itemKey: kept.key,
+            initialCommitment: false,
+            addedAfterStart: true,
+            removedAfterStart: false,
+            estimateAtStart: null,
+            finalOutcome: "carried_to_backlog",
+          },
+          {
+            itemKey: removed.key,
+            initialCommitment: false,
+            addedAfterStart: true,
+            removedAfterStart: true,
+            estimateAtStart: null,
+            finalOutcome: "removed",
+          },
+          {
+            itemKey: initialEstimated.key,
+            initialCommitment: true,
+            addedAfterStart: false,
+            removedAfterStart: true,
+            estimateAtStart: 4,
+            finalOutcome: "removed",
+          },
+          {
+            itemKey: initialUnestimated.key,
+            initialCommitment: true,
+            addedAfterStart: false,
+            removedAfterStart: true,
+            estimateAtStart: null,
+            finalOutcome: "removed",
+          },
+        ]),
+      );
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
   it("allows only one concurrent active sprint per backlog", async () => {
     const f = await fixture();
     try {
@@ -346,6 +540,566 @@ describeDb("sprint lifecycle", () => {
     }
   });
 
+  it("atomically freezes completion metrics, participant rows, and the completion event", async () => {
+    const f = await fixture();
+    const correlationId = `complete-${randomUUID()}`;
+    try {
+      const doneTask = await insertTask(f, "Snapshot terminé", 3, f.done.id);
+      const openTask = await insertTask(f, "Snapshot ouvert", 5, f.todo.id);
+      const active = await startWithTasks(f, [doneTask.id, openTask.id]);
+
+      await completeSprint(
+        {
+          id: active.id,
+          backlogId: f.backlog.id,
+          destination: { type: "backlog" },
+        },
+        f.actor.id,
+        correlationId,
+      );
+
+      const [snapshot] = await db
+        .select()
+        .from(sprintReportSnapshots)
+        .where(eq(sprintReportSnapshots.sprintId, active.id));
+      expect(snapshot).toMatchObject({
+        backlogId: f.backlog.id,
+        sprintId: active.id,
+        sprintName: "Sprint engagé",
+        sprintGoal: "Livrer le flux critique",
+        startedAt: new Date("2026-08-05T09:00:00.000Z"),
+        createdBy: f.actor.id,
+        initialItemCount: 2,
+        committedPoints: 8,
+        initialUnestimatedCount: 0,
+        finalItemCount: 2,
+        completedItemCount: 1,
+        completedPoints: 3,
+        finalUnestimatedCount: 0,
+        grossPointsAdded: 0,
+        grossPointsRemoved: 0,
+        netEstimateDelta: 0,
+        scopeEventCount: 0,
+        finalDestinationSummary: { backlog: 1, sprints: [] },
+        requestCorrelationId: correlationId,
+      });
+      expect(snapshot?.completedAt).toBeInstanceOf(Date);
+      expect(snapshot?.createdAt).toEqual(snapshot?.completedAt);
+
+      expect(
+        await db
+          .select({
+            itemKey: sprintReportItems.itemKey,
+            itemTitle: sprintReportItems.itemTitle,
+            initialCommitment: sprintReportItems.initialCommitment,
+            estimateAtStart: sprintReportItems.estimateAtStart,
+            estimateAtFinalParticipation:
+              sprintReportItems.estimateAtFinalParticipation,
+            estimateAtCompletion: sprintReportItems.estimateAtCompletion,
+            finalOutcome: sprintReportItems.finalOutcome,
+            destinationSprintId: sprintReportItems.destinationSprintId,
+            destinationSprintName: sprintReportItems.destinationSprintName,
+          })
+          .from(sprintReportItems)
+          .where(eq(sprintReportItems.sprintId, active.id))
+          .orderBy(asc(sprintReportItems.itemKey)),
+      ).toEqual(
+        [
+          {
+            itemKey: doneTask.key,
+            itemTitle: doneTask.title,
+            initialCommitment: true,
+            estimateAtStart: 3,
+            estimateAtFinalParticipation: 3,
+            estimateAtCompletion: 3,
+            finalOutcome: "completed",
+            destinationSprintId: null,
+            destinationSprintName: null,
+          },
+          {
+            itemKey: openTask.key,
+            itemTitle: openTask.title,
+            initialCommitment: true,
+            estimateAtStart: 5,
+            estimateAtFinalParticipation: 5,
+            estimateAtCompletion: null,
+            finalOutcome: "carried_to_backlog",
+            destinationSprintId: null,
+            destinationSprintName: null,
+          },
+        ].sort((left, right) => left.itemKey.localeCompare(right.itemKey)),
+      );
+      expect(
+        await db
+          .select({
+            eventType: sprintEvents.eventType,
+            correlationId: sprintEvents.requestCorrelationId,
+          })
+          .from(sprintEvents)
+          .where(eq(sprintEvents.requestCorrelationId, correlationId)),
+      ).toEqual([{ eventType: "sprint_completed", correlationId }]);
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("freezes complex scope churn as one row per stable item key", async () => {
+    const f = await fixture();
+    try {
+      const initialDone = await insertTask(f, "Initial terminé", 3, f.done.id);
+      const initialUnestimated = await insertTask(f, "Initial sans points", null);
+      const active = await startWithTasks(f, [initialDone.id, initialUnestimated.id]);
+      const destination = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+      const addedDone = await insertTask(f, "Ajout terminé", 5);
+      const churned = await insertTask(f, "Ajout retour", 2);
+
+      await assignItemsToSprint(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [addedDone.id],
+          sprintId: active.id,
+        },
+        f.actor.id,
+        "add-completed",
+      );
+      await updateItem(
+        { id: addedDone.id, estimatePoints: 8, statusId: f.done.id },
+        f.actor.id,
+        "finish-added",
+      );
+      await assignItemsToSprint(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [churned.id],
+          sprintId: active.id,
+        },
+        f.actor.id,
+        "add-churned",
+      );
+      await assignItemsToSprint(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [churned.id],
+          sprintId: null,
+        },
+        f.actor.id,
+        "remove-churned",
+      );
+      await assignItemsToSprint(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [churned.id],
+          sprintId: active.id,
+        },
+        f.actor.id,
+        "readd-churned",
+      );
+
+      const intervalsBeforeCompletion = await db
+        .select({
+          itemId: sprintItems.itemId,
+          joinedAt: sprintItems.joinedAt,
+          leftAt: sprintItems.leftAt,
+        })
+        .from(sprintItems)
+        .where(eq(sprintItems.sprintId, active.id))
+        .orderBy(asc(sprintItems.joinedAt), asc(sprintItems.id));
+
+      await completeSprint(
+        {
+          id: active.id,
+          backlogId: f.backlog.id,
+          destination: {
+            type: "existing_sprint",
+            sprintId: destination.id,
+          },
+        },
+        f.actor.id,
+        "complete-complex",
+      );
+
+      const [snapshot] = await db
+        .select()
+        .from(sprintReportSnapshots)
+        .where(eq(sprintReportSnapshots.sprintId, active.id));
+      expect(snapshot).toMatchObject({
+        initialItemCount: 2,
+        committedPoints: 3,
+        initialUnestimatedCount: 1,
+        finalItemCount: 4,
+        completedItemCount: 2,
+        completedPoints: 11,
+        finalUnestimatedCount: 1,
+        grossPointsAdded: 9,
+        grossPointsRemoved: 2,
+        netEstimateDelta: 3,
+        scopeEventCount: 5,
+        finalDestinationSummary: {
+          backlog: 0,
+          sprints: [{ id: destination.id, name: destination.name, count: 2 }],
+        },
+      });
+
+      const reportRows = await db
+        .select({
+          itemKey: sprintReportItems.itemKey,
+          firstJoinedAt: sprintReportItems.firstJoinedAt,
+          finalLeftAt: sprintReportItems.finalLeftAt,
+          initialCommitment: sprintReportItems.initialCommitment,
+          addedAfterStart: sprintReportItems.addedAfterStart,
+          removedAfterStart: sprintReportItems.removedAfterStart,
+          estimateAtStart: sprintReportItems.estimateAtStart,
+          estimateAtFinalParticipation:
+            sprintReportItems.estimateAtFinalParticipation,
+          estimateAtCompletion: sprintReportItems.estimateAtCompletion,
+          finalOutcome: sprintReportItems.finalOutcome,
+          destinationSprintId: sprintReportItems.destinationSprintId,
+        })
+        .from(sprintReportItems)
+        .where(eq(sprintReportItems.sprintId, active.id))
+        .orderBy(asc(sprintReportItems.itemKey));
+      expect(reportRows).toHaveLength(4);
+      expect(new Set(reportRows.map((row) => row.itemKey)).size).toBe(4);
+      expect(reportRows).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            itemKey: initialDone.key,
+            initialCommitment: true,
+            addedAfterStart: false,
+            removedAfterStart: false,
+            estimateAtStart: 3,
+            estimateAtFinalParticipation: 3,
+            estimateAtCompletion: 3,
+            finalOutcome: "completed",
+            destinationSprintId: null,
+          }),
+          expect.objectContaining({
+            itemKey: initialUnestimated.key,
+            initialCommitment: true,
+            estimateAtStart: null,
+            estimateAtFinalParticipation: null,
+            estimateAtCompletion: null,
+            finalOutcome: "carried_to_sprint",
+            destinationSprintId: destination.id,
+          }),
+          expect.objectContaining({
+            itemKey: addedDone.key,
+            initialCommitment: false,
+            addedAfterStart: true,
+            estimateAtStart: null,
+            estimateAtFinalParticipation: 8,
+            estimateAtCompletion: 8,
+            finalOutcome: "completed",
+            destinationSprintId: null,
+          }),
+          expect.objectContaining({
+            itemKey: churned.key,
+            initialCommitment: false,
+            addedAfterStart: true,
+            removedAfterStart: true,
+            estimateAtStart: null,
+            estimateAtFinalParticipation: 2,
+            estimateAtCompletion: null,
+            finalOutcome: "carried_to_sprint",
+            destinationSprintId: destination.id,
+          }),
+        ]),
+      );
+      const churnIntervals = intervalsBeforeCompletion.filter(
+        (interval) => interval.itemId === churned.id,
+      );
+      const churnRow = reportRows.find((row) => row.itemKey === churned.key);
+      expect(churnIntervals).toHaveLength(2);
+      expect(churnRow?.firstJoinedAt).toEqual(churnIntervals[0]?.joinedAt);
+      expect(churnRow?.finalLeftAt).toEqual(snapshot?.completedAt);
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("keeps copied report values stable after the source item changes and is purged", async () => {
+    const f = await fixture();
+    try {
+      const task = await insertTask(f, "Valeurs historiques", 3, f.done.id);
+      const active = await startWithTasks(f, [task.id]);
+      await completeSprint(
+        {
+          id: active.id,
+          backlogId: f.backlog.id,
+          destination: { type: "backlog" },
+        },
+        f.actor.id,
+        "complete-stable",
+      );
+      const [before] = await db
+        .select({
+          sourceItemId: sprintReportItems.sourceItemId,
+          itemKey: sprintReportItems.itemKey,
+          itemTitle: sprintReportItems.itemTitle,
+          itemKind: sprintReportItems.itemKind,
+          estimateAtFinalParticipation:
+            sprintReportItems.estimateAtFinalParticipation,
+          finalStatusCategory: sprintReportItems.finalStatusCategory,
+          finalOutcome: sprintReportItems.finalOutcome,
+        })
+        .from(sprintReportItems)
+        .where(eq(sprintReportItems.sprintId, active.id));
+
+      await db
+        .update(items)
+        .set({
+          title: "Titre remplacé",
+          kind: "bug",
+          estimatePoints: 13,
+          statusId: f.todo.id,
+          deletedAt: new Date(),
+        })
+        .where(eq(items.id, task.id));
+      await db.delete(items).where(eq(items.id, task.id));
+
+      const [after] = await db
+        .select({
+          sourceItemId: sprintReportItems.sourceItemId,
+          itemKey: sprintReportItems.itemKey,
+          itemTitle: sprintReportItems.itemTitle,
+          itemKind: sprintReportItems.itemKind,
+          estimateAtFinalParticipation:
+            sprintReportItems.estimateAtFinalParticipation,
+          finalStatusCategory: sprintReportItems.finalStatusCategory,
+          finalOutcome: sprintReportItems.finalOutcome,
+        })
+        .from(sprintReportItems)
+        .where(eq(sprintReportItems.sprintId, active.id));
+      expect(before).toEqual({
+        sourceItemId: task.id,
+        itemKey: task.key,
+        itemTitle: task.title,
+        itemKind: "feature",
+        estimateAtFinalParticipation: 3,
+        finalStatusCategory: "done",
+        finalOutcome: "completed",
+      });
+      expect(after).toEqual({ ...before, sourceItemId: null });
+      expect(
+        await db
+          .select({ id: sprintReportSnapshots.id })
+          .from(sprintReportSnapshots)
+          .where(eq(sprintReportSnapshots.sprintId, active.id)),
+      ).toHaveLength(1);
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("aborts completion when a closed participant lacks its removal event", async () => {
+    const f = await fixture();
+    try {
+      const task = await insertTask(f, "Historique cassé", 3);
+      const active = await startWithTasks(f, [task.id]);
+      await db
+        .update(sprintItems)
+        .set({ leftAt: new Date(), outcome: "removed" })
+        .where(
+          and(
+            eq(sprintItems.sprintId, active.id),
+            eq(sprintItems.itemId, task.id),
+            isNull(sprintItems.leftAt),
+          ),
+        );
+
+      await expect(
+        completeSprint(
+          {
+            id: active.id,
+            backlogId: f.backlog.id,
+            destination: { type: "backlog" },
+          },
+          f.actor.id,
+          "complete-broken-history",
+        ),
+      ).rejects.toThrow("Le contenu historique du sprint est incohérent.");
+
+      expect(
+        await db
+          .select({ id: sprintReportSnapshots.id })
+          .from(sprintReportSnapshots)
+          .where(eq(sprintReportSnapshots.sprintId, active.id)),
+      ).toEqual([]);
+      const [storedSprint] = await db
+        .select({ state: sprints.state })
+        .from(sprints)
+        .where(eq(sprints.id, active.id));
+      expect(storedSprint?.state).toBe("active");
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("aborts completion when a participant source was purged after removal", async () => {
+    const f = await fixture();
+    try {
+      const task = await insertTask(f, "Source purgée", 3);
+      const active = await startWithTasks(f, [task.id]);
+      await assignItemsToSprint(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [task.id],
+          sprintId: null,
+        },
+        f.actor.id,
+        "remove-before-purge",
+      );
+      await db.delete(items).where(eq(items.id, task.id));
+
+      await expect(
+        completeSprint(
+          {
+            id: active.id,
+            backlogId: f.backlog.id,
+            destination: { type: "backlog" },
+          },
+          f.actor.id,
+          "complete-purged-history",
+        ),
+      ).rejects.toThrow("Le contenu historique du sprint est incohérent.");
+      expect(
+        await db
+          .select({ id: sprintReportSnapshots.id })
+          .from(sprintReportSnapshots)
+          .where(eq(sprintReportSnapshots.sprintId, active.id)),
+      ).toEqual([]);
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("serializes concurrent completion into one snapshot and one success", async () => {
+    const f = await fixture();
+    try {
+      const task = await insertTask(f, "Clôture concurrente", 3, f.done.id);
+      const active = await startWithTasks(f, [task.id]);
+      const input = {
+        id: active.id,
+        backlogId: f.backlog.id,
+        destination: { type: "backlog" as const },
+      };
+
+      const attempts = await Promise.allSettled([
+        completeSprint(input, f.actor.id, "complete-concurrent-a"),
+        completeSprint(input, f.actor.id, "complete-concurrent-b"),
+      ]);
+      expect(attempts.filter((attempt) => attempt.status === "fulfilled")).toHaveLength(1);
+      expect(
+        attempts.filter(
+          (attempt) =>
+            attempt.status === "rejected" &&
+            attempt.reason instanceof Error &&
+            attempt.reason.message === "Seul un sprint actif peut être clôturé.",
+        ),
+      ).toHaveLength(1);
+      expect(
+        await db
+          .select({ id: sprintReportSnapshots.id })
+          .from(sprintReportSnapshots)
+          .where(eq(sprintReportSnapshots.sprintId, active.id)),
+      ).toHaveLength(1);
+      expect(
+        await db
+          .select({ id: sprintEvents.id })
+          .from(sprintEvents)
+          .where(
+            and(
+              eq(sprintEvents.sprintId, active.id),
+              eq(sprintEvents.eventType, "sprint_completed"),
+            ),
+          ),
+      ).toHaveLength(1);
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("rolls back every completion write when the final sprint update fails", async () => {
+    const f = await fixture();
+    const suffix = randomUUID().replaceAll("-", "");
+    const functionName = `fail_sprint_completion_${suffix}`;
+    const triggerName = `fail_sprint_completion_${suffix}`;
+    let triggerInstalled = false;
+    try {
+      const task = await insertTask(f, "Rollback final", 5);
+      const active = await startWithTasks(f, [task.id]);
+      const destination = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+      await databasePool.query(`
+        create function "${functionName}"() returns trigger
+        language plpgsql as $$
+        begin
+          if new.id = '${active.id}'::uuid and new.state = 'completed' then
+            raise exception 'injected final sprint update failure';
+          end if;
+          return new;
+        end;
+        $$
+      `);
+      await databasePool.query(`
+        create trigger "${triggerName}"
+        before update on sprints
+        for each row execute function "${functionName}"()
+      `);
+      triggerInstalled = true;
+
+      await expect(
+        completeSprint(
+          {
+            id: active.id,
+            backlogId: f.backlog.id,
+            destination: {
+              type: "existing_sprint",
+              sprintId: destination.id,
+            },
+          },
+          f.actor.id,
+          "complete-rollback",
+        ),
+      ).rejects.toThrow('update "sprints" set "state"');
+
+      expect(
+        await db
+          .select({ id: sprintReportSnapshots.id })
+          .from(sprintReportSnapshots)
+          .where(eq(sprintReportSnapshots.sprintId, active.id)),
+      ).toEqual([]);
+      expect(
+        await db
+          .select({ id: sprintReportItems.id })
+          .from(sprintReportItems)
+          .where(eq(sprintReportItems.sprintId, active.id)),
+      ).toEqual([]);
+      expect(
+        await db
+          .select({ id: sprintEvents.id })
+          .from(sprintEvents)
+          .where(eq(sprintEvents.requestCorrelationId, "complete-rollback")),
+      ).toEqual([]);
+      expect(
+        await db
+          .select({ sprintId: sprintItems.sprintId, leftAt: sprintItems.leftAt })
+          .from(sprintItems)
+          .where(eq(sprintItems.itemId, task.id)),
+      ).toEqual([{ sprintId: active.id, leftAt: null }]);
+      const [storedSprint] = await db
+        .select({ state: sprints.state })
+        .from(sprints)
+        .where(eq(sprints.id, active.id));
+      expect(storedSprint?.state).toBe("active");
+    } finally {
+      if (triggerInstalled) {
+        await databasePool.query(`drop trigger "${triggerName}" on sprints`);
+      }
+      await databasePool.query(`drop function if exists "${functionName}"()`);
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
   it("carries every incomplete item to one existing planned sprint", async () => {
     const f = await fixture();
     try {
@@ -392,6 +1146,14 @@ describeDb("sprint lifecycle", () => {
         .from(items)
         .where(eq(items.id, openTask.id));
       expect(stored?.statusId).toBe(f.todo.id);
+      const [snapshot] = await db
+        .select({ summary: sprintReportSnapshots.finalDestinationSummary })
+        .from(sprintReportSnapshots)
+        .where(eq(sprintReportSnapshots.sprintId, active.id));
+      expect(snapshot?.summary).toEqual({
+        backlog: 0,
+        sprints: [{ id: future.id, name: future.name, count: 1 }],
+      });
     } finally {
       await cleanupBacklogs(f.backlog.id);
     }
@@ -435,6 +1197,20 @@ describeDb("sprint lifecycle", () => {
       expect(current).toEqual(
         expect.arrayContaining([{ itemId: first.id }, { itemId: second.id }]),
       );
+      const [snapshot] = await db
+        .select({ summary: sprintReportSnapshots.finalDestinationSummary })
+        .from(sprintReportSnapshots)
+        .where(eq(sprintReportSnapshots.sprintId, active.id));
+      expect(snapshot?.summary).toEqual({
+        backlog: 0,
+        sprints: [
+          {
+            id: result.destinationSprintId,
+            name: "Sprint de report",
+            count: 2,
+          },
+        ],
+      });
     } finally {
       await cleanupBacklogs(f.backlog.id);
     }

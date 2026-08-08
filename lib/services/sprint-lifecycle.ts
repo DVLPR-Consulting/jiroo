@@ -6,10 +6,19 @@ import {
   activities,
   backlogs,
   items,
+  sprintEvents,
   sprintItems,
+  sprintReportItems,
+  sprintReportSnapshots,
   sprints,
   statuses,
 } from "@/lib/db/schema/domain";
+import {
+  buildCompletedParticipantRows,
+  calculateSprintScopeMetrics,
+  type CompletedParticipantEvent,
+  type SprintScopeEvent,
+} from "@/lib/reports/sprint-calculations";
 import { rankLast } from "@/lib/tree/rank";
 import {
   appendSprintEventsInTx,
@@ -225,8 +234,10 @@ export async function startSprint(
 export async function completeSprint(
   input: unknown,
   actorId: string,
+  requestCorrelationId: string = randomUUID(),
 ): Promise<CompleteSprintResult> {
   const data = completeSprintSchema.parse(input);
+  const correlationId = normalizeRequestCorrelationId(requestCorrelationId);
   return db.transaction(async (tx) => {
     await lockBacklog(tx, data.backlogId);
     const [sprint] = await tx
@@ -244,26 +255,27 @@ export async function completeSprint(
       throw new Error("Seul un sprint actif peut être clôturé.");
     }
 
-    const memberships = await tx
+    const allMemberships = await tx
       .select()
       .from(sprintItems)
-      .where(
-        and(
-          eq(sprintItems.sprintId, sprint.id),
-          isNull(sprintItems.leftAt),
-        ),
-      )
-      .orderBy(asc(sprintItems.itemId))
+      .where(eq(sprintItems.sprintId, sprint.id))
+      .orderBy(asc(sprintItems.itemId), asc(sprintItems.id))
       .for("update");
-    const memberIds = memberships.map((membership) => membership.itemId);
-    const memberItems =
-      memberIds.length === 0
+    const memberships = allMemberships.filter(
+      (membership) => membership.leftAt === null,
+    );
+    const participantIds = [...new Set(allMemberships.map((membership) => membership.itemId))];
+    const participantItems =
+      participantIds.length === 0
         ? []
         : await tx
             .select({
               id: items.id,
               backlogId: items.backlogId,
+              key: items.key,
+              title: items.title,
               type: items.type,
+              kind: items.kind,
               statusId: items.statusId,
               statusBacklogId: statuses.backlogId,
               statusCategory: statuses.category,
@@ -271,12 +283,12 @@ export async function completeSprint(
             })
             .from(items)
             .innerJoin(statuses, eq(statuses.id, items.statusId))
-            .where(and(inArray(items.id, memberIds), isNull(items.deletedAt)))
+            .where(inArray(items.id, participantIds))
             .orderBy(asc(items.id))
             .for("update");
     if (
-      memberItems.length !== memberships.length ||
-      memberItems.some(
+      participantItems.length !== participantIds.length ||
+      participantItems.some(
         (item) =>
           item.backlogId !== data.backlogId ||
           item.statusBacklogId !== data.backlogId ||
@@ -286,8 +298,9 @@ export async function completeSprint(
       throw new Error("Le contenu du sprint est incohérent.");
     }
 
+    const currentMemberIds = memberships.map((membership) => membership.itemId);
     const incompleteSubtasks =
-      memberIds.length === 0
+      currentMemberIds.length === 0
         ? []
         : await tx
             .select({ key: items.key, statusCategory: statuses.category })
@@ -295,7 +308,7 @@ export async function completeSprint(
             .innerJoin(statuses, eq(statuses.id, items.statusId))
             .where(
               and(
-                inArray(items.parentId, memberIds),
+                inArray(items.parentId, currentMemberIds),
                 eq(items.type, "soustache"),
                 isNull(items.deletedAt),
                 eq(statuses.backlogId, data.backlogId),
@@ -309,6 +322,13 @@ export async function completeSprint(
     if (blockingKeys.length > 0) {
       throw new IncompleteSprintSubtasksError(blockingKeys);
     }
+
+    const events = await tx
+      .select()
+      .from(sprintEvents)
+      .where(eq(sprintEvents.sprintId, sprint.id))
+      .orderBy(asc(sprintEvents.occurredAt), asc(sprintEvents.sequence))
+      .for("update");
 
     let destination: typeof sprints.$inferSelect | null = null;
     if (data.destination.type === "existing_sprint") {
@@ -356,10 +376,222 @@ export async function completeSprint(
       destination = created!;
     }
 
-    const itemById = new Map(memberItems.map((item) => [item.id, item]));
+    if (!sprint.startedAt) {
+      throw new Error("Le contenu historique du sprint est incohérent.");
+    }
+    const itemById = new Map(participantItems.map((item) => [item.id, item]));
+    const membershipById = new Map(
+      allMemberships.map((membership) => [membership.id, membership]),
+    );
     const now = new Date();
+    const participantEvents: CompletedParticipantEvent[] = [];
+    for (const event of events) {
+      if (
+        event.eventType === "sprint_started" ||
+        event.eventType === "sprint_completed"
+      ) {
+        continue;
+      }
+      const sourceMembership = event.sourceMembershipId
+        ? membershipById.get(event.sourceMembershipId)
+        : undefined;
+      const sourceItem = sourceMembership
+        ? itemById.get(sourceMembership.itemId)
+        : undefined;
+      if (
+        !sourceMembership ||
+        !sourceItem ||
+        !event.itemId ||
+        event.itemId !== sourceItem.id ||
+        !event.itemKey ||
+        event.itemKey !== sourceItem.key
+      ) {
+        throw new Error("Le contenu historique du sprint est incohérent.");
+      }
+      if (event.eventType !== "item_added" && event.eventType !== "item_removed") {
+        continue;
+      }
+      if (event.eventType === "item_added") {
+        participantEvents.push({
+          type: "item_added",
+          membershipId: sourceMembership.id,
+          itemKey: sourceItem.key,
+          occurredAt: event.occurredAt,
+          nextEstimate: event.nextEstimate,
+        });
+      } else {
+        participantEvents.push({
+          type: "item_removed",
+          membershipId: sourceMembership.id,
+          itemKey: sourceItem.key,
+          occurredAt: event.occurredAt,
+          previousEstimate: event.previousEstimate,
+        });
+      }
+    }
+    let participantRows;
+    try {
+      participantRows = buildCompletedParticipantRows({
+        startedAt: sprint.startedAt,
+        completedAt: now,
+        participants: allMemberships.map((membership) => {
+          const item = itemById.get(membership.itemId);
+          if (!item) throw new Error("missing participant");
+          return {
+            membershipId: membership.id,
+            itemKey: item.key,
+            joinedAt: membership.joinedAt,
+            leftAt: membership.leftAt,
+            estimateAtJoin: membership.estimateAtJoin,
+            estimateAtStart: membership.estimateAtStart,
+            currentEstimate: item.estimatePoints,
+            completionOutcome:
+              item.statusCategory === "done"
+                ? "completed" as const
+                : destination
+                  ? "carried_to_sprint" as const
+                  : "carried_to_backlog" as const,
+          };
+        }),
+        events: participantEvents,
+      });
+    } catch {
+      throw new Error("Le contenu historique du sprint est incohérent.");
+    }
+    const participantRowByKey = new Map(
+      participantRows.map((row) => [row.itemKey, row]),
+    );
+    if (participantRowByKey.size !== participantRows.length) {
+      throw new Error("Le contenu historique du sprint est incohérent.");
+    }
+    const itemByKey = new Map(participantItems.map((item) => [item.key, item]));
+
+    const scopeEvents: SprintScopeEvent[] = [];
+    for (const event of events) {
+      switch (event.eventType) {
+        case "item_added":
+          scopeEvents.push({ type: "item_added", nextEstimate: event.nextEstimate });
+          break;
+        case "item_removed":
+          scopeEvents.push({
+            type: "item_removed",
+            previousEstimate: event.previousEstimate,
+          });
+          break;
+        case "estimate_changed":
+          scopeEvents.push({
+            type: "estimate_changed",
+            previousEstimate: event.previousEstimate,
+            nextEstimate: event.nextEstimate,
+          });
+          break;
+        case "item_completed":
+        case "item_reopened":
+          scopeEvents.push({ type: event.eventType });
+          break;
+        case "sprint_started":
+        case "sprint_completed":
+          break;
+      }
+    }
+    const metrics = calculateSprintScopeMetrics({
+      initial: participantRows
+        .filter((row) => row.initialCommitment)
+        .map((row) => ({ estimateAtStart: row.estimateAtStart })),
+      current: memberships.map((membership) => {
+        const item = itemById.get(membership.itemId);
+        if (!item) throw new Error("Le contenu historique du sprint est incohérent.");
+        return {
+          estimate: item.estimatePoints,
+          done: item.statusCategory === "done",
+        };
+      }),
+      events: scopeEvents,
+    });
+    const snapshotId = randomUUID();
+    const reportItemValues = participantRows.map((row) => {
+      const item = itemByKey.get(row.itemKey);
+      if (!item) throw new Error("Le contenu historique du sprint est incohérent.");
+      return {
+        snapshotId,
+        backlogId: data.backlogId,
+        sprintId: sprint.id,
+        sourceItemId: item.id,
+        itemKey: item.key,
+        itemTitle: item.title,
+        itemType: item.type,
+        itemKind: item.kind,
+        firstJoinedAt: row.firstJoinedAt,
+        finalLeftAt: row.finalLeftAt,
+        initialCommitment: row.initialCommitment,
+        addedAfterStart: row.addedAfterStart,
+        removedAfterStart: row.removedAfterStart,
+        estimateAtStart: row.estimateAtStart,
+        estimateAtFinalParticipation: row.estimateAtFinalParticipation,
+        estimateAtCompletion: row.estimateAtCompletion,
+        finalStatusCategory: item.statusCategory,
+        finalOutcome: row.finalOutcome,
+        destinationSprintId:
+          row.finalOutcome === "carried_to_sprint" ? destination?.id ?? null : null,
+        destinationSprintName:
+          row.finalOutcome === "carried_to_sprint" ? destination?.name ?? null : null,
+      };
+    });
+    for (let index = 0; index < reportItemValues.length; index += 1_000) {
+      await tx.insert(sprintReportItems).values(
+        reportItemValues.slice(index, index + 1_000),
+      );
+    }
+    const carriedItemCount = memberships.filter((membership) => {
+      const item = itemById.get(membership.itemId);
+      return item?.statusCategory !== "done";
+    }).length;
+    const finalDestinationSummary = destination
+      ? {
+          backlog: 0,
+          sprints: carriedItemCount === 0
+            ? []
+            : [{ id: destination.id, name: destination.name, count: carriedItemCount }],
+        }
+      : { backlog: carriedItemCount, sprints: [] };
+    await tx.insert(sprintReportSnapshots).values({
+      id: snapshotId,
+      backlogId: data.backlogId,
+      sprintId: sprint.id,
+      sprintName: sprint.name,
+      sprintGoal: sprint.goal,
+      plannedStartAt: sprint.plannedStartAt,
+      plannedEndAt: sprint.plannedEndAt,
+      startedAt: sprint.startedAt,
+      completedAt: now,
+      createdAt: now,
+      createdBy: actorId,
+      initialItemCount: metrics.initialItemCount,
+      committedPoints: metrics.committedPoints,
+      initialUnestimatedCount: metrics.initialUnestimatedCount,
+      finalItemCount: metrics.currentItemCount,
+      completedItemCount: metrics.completedItemCount,
+      completedPoints: metrics.completedPoints,
+      finalUnestimatedCount: metrics.currentUnestimatedCount,
+      grossPointsAdded: metrics.grossAddedPoints,
+      grossPointsRemoved: metrics.grossRemovedPoints,
+      netEstimateDelta: metrics.netEstimateDelta,
+      scopeEventCount: metrics.scopeEventCount,
+      finalDestinationSummary,
+      requestCorrelationId: correlationId,
+    });
+    await appendSprintEventsInTx(tx, [
+      {
+        type: "sprint_completed",
+        backlogId: data.backlogId,
+        sprintId: sprint.id,
+        actorId,
+        correlationId,
+        occurredAt: now,
+      },
+    ]);
+
     let completedItemCount = 0;
-    let carriedItemCount = 0;
     for (const membership of memberships) {
       const item = itemById.get(membership.itemId)!;
       if (item.statusCategory === "done") {
@@ -395,8 +627,8 @@ export async function completeSprint(
         field: "sprint",
         oldValue: sprint.name,
         newValue: destination?.name ?? null,
+        requestCorrelationId: correlationId,
       });
-      carriedItemCount += 1;
     }
 
     await tx

@@ -420,6 +420,39 @@ describe("sprint actions", () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
   });
 
+  it("forwards one completion correlation after authorization and strips forged fields", async () => {
+    mocks.completeSprint.mockResolvedValue({
+      sprintId,
+      completedItemCount: 0,
+      carriedItemCount: 0,
+      destinationSprintId: null,
+    });
+    const runtimeInput = {
+      backlogKey: "DEMO",
+      id: sprintId,
+      backlogId,
+      destination: { type: "backlog" as const },
+      actorId: "forged-actor",
+      requestCorrelationId: "forged-correlation",
+    };
+
+    await completeSprintAction(runtimeInput);
+
+    expect(mocks.completeSprint).toHaveBeenCalledWith(
+      {
+        id: sprintId,
+        backlogId,
+        destination: { type: "backlog" },
+      },
+      "writer-1",
+      expect.stringMatching(uuidPattern),
+    );
+    expect(
+      mocks.requireSprintPermission.mock.invocationCallOrder[0]!,
+    ).toBeLessThan(mocks.completeSprint.mock.invocationCallOrder[0]!);
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
+  });
+
   it("blocks a viewer before every planning and lifecycle service call", async () => {
     mocks.requireBacklogPermissionById.mockRejectedValue(
       permissionDeniedError("manage_sprints", { type: "backlog", backlogId }),
@@ -545,6 +578,13 @@ describe("sprint actions", () => {
       ok: false,
       error: "Terminez les sous-tâches avant de clôturer le sprint.",
       itemKeys: ["DEMO-42"],
+    });
+    mocks.completeSprint.mockRejectedValueOnce(
+      new Error("Le contenu historique du sprint est incohérent."),
+    );
+    await expect(completeSprintAction(payload)).resolves.toEqual({
+      ok: false,
+      error: "Le contenu historique du sprint est incohérent.",
     });
     mocks.completeSprint.mockRejectedValueOnce(new Error("internal SQL"));
     await expect(completeSprintAction(payload)).resolves.toEqual({

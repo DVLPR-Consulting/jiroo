@@ -23,13 +23,14 @@ import {
   updateSprint,
 } from "@/lib/services/sprints";
 import { mapZodActionError } from "@/lib/validation/action-error";
-import type {
-  AssignSprintItemsInput,
-  CompleteSprintInput,
-  MoveSprintItemInput,
-  ReorderSprintInput,
-  StartSprintInput,
-  UpdateSprintInput,
+import {
+  completeSprintSchema,
+  type AssignSprintItemsInput,
+  type CompleteSprintInput,
+  type MoveSprintItemInput,
+  type ReorderSprintInput,
+  type StartSprintInput,
+  type UpdateSprintInput,
 } from "@/lib/validation/sprint";
 
 type WithBacklogKey<T> = T & { backlogKey: string };
@@ -86,6 +87,7 @@ const COMPLETE_ERRORS = new Set([
   "Sprint introuvable.",
   "Seul un sprint actif peut être clôturé.",
   "Le contenu du sprint est incohérent.",
+  "Le contenu historique du sprint est incohérent.",
   "Sprint de destination introuvable.",
   "Un sprint portant ce nom existe déjà.",
 ]);
@@ -277,9 +279,14 @@ export async function completeSprintAction(
       permission: "manage_sprints",
     });
     assertStoredBacklog(sprintAuthorization, input.backlogId);
-    const { backlogKey, ...serviceInput } = input;
-    const result = await completeSprint(serviceInput, actorId);
-    revalidateBacklog(backlogKey);
+    const serviceInput = completeSprintSchema.parse(input);
+    const requestCorrelationId = randomUUID();
+    const result = await completeSprint(
+      serviceInput,
+      actorId,
+      requestCorrelationId,
+    );
+    revalidateBacklog(input.backlogKey);
     return { ok: true as const, ...result };
   } catch (error) {
     if (
