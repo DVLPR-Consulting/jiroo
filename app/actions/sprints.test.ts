@@ -65,6 +65,7 @@ const sprintId = "22222222-2222-4222-8222-222222222222";
 const itemId = "33333333-3333-4333-8333-333333333333";
 const otherBacklogId = "44444444-4444-4444-8444-444444444444";
 const absentBacklogId = "55555555-5555-4555-8555-555555555555";
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 describe("sprint actions", () => {
   beforeEach(() => {
@@ -346,13 +347,16 @@ describe("sprint actions", () => {
     expect(mocks.assignItemsToSprint).toHaveBeenCalledWith(
       { backlogId, itemIds: [itemId], sprintId },
       "writer-1",
+      expect.stringMatching(uuidPattern),
     );
     expect(mocks.moveItemToSprint).toHaveBeenCalledWith(
       { backlogId, itemId, sprintId, beforeId: null, afterId: null },
       "writer-1",
+      expect.stringMatching(uuidPattern),
     );
-    expect(mocks.revalidatePath).toHaveBeenCalledTimes(5);
+    expect(mocks.revalidatePath).toHaveBeenCalledTimes(10);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
   });
 
   it("returns compact lifecycle successes", async () => {
@@ -411,7 +415,9 @@ describe("sprint actions", () => {
         capacityPoints: 10,
       },
       "writer-1",
+      expect.stringMatching(uuidPattern),
     );
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
   });
 
   it("blocks a viewer before every planning and lifecycle service call", async () => {

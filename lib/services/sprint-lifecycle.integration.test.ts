@@ -3,7 +3,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
-import { db } from "@/lib/db";
+import { databasePool, db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
   activities,
@@ -19,10 +19,28 @@ import {
   startSprint,
 } from "@/lib/services/sprint-lifecycle";
 import { assignItemsToSprint, createSprint } from "@/lib/services/sprints";
+import { withSprintHistoryCleanup } from "@/test-utils/sprint-history-cleanup";
 
 vi.mock("server-only", () => ({}));
 
 const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
+
+async function cleanupBacklogs(...backlogIds: string[]) {
+  const client = await databasePool.connect();
+  await client.query("begin");
+  try {
+    await withSprintHistoryCleanup(client, async () => {
+      await client.query("delete from sprint_events where backlog_id = any($1::uuid[])", [backlogIds]);
+      await client.query("delete from backlogs where id = any($1::uuid[])", [backlogIds]);
+    });
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
 async function fixture() {
   const [actor] = await db.select({ id: user.id }).from(user).limit(1);
@@ -195,7 +213,7 @@ describeDb("sprint lifecycle", () => {
         ]),
       );
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, f.backlog.id));
+      await cleanupBacklogs(f.backlog.id);
     }
   });
 
@@ -215,7 +233,7 @@ describeDb("sprint lifecycle", () => {
         startSprint(startInput(f.backlog.id, sprint.id, 0), f.actor.id),
       ).rejects.toThrow("Seul un sprint planifié peut être démarré.");
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, f.backlog.id));
+      await cleanupBacklogs(f.backlog.id);
     }
   });
 
@@ -244,7 +262,7 @@ describeDb("sprint lifecycle", () => {
         .where(and(eq(sprints.backlogId, f.backlog.id), eq(sprints.state, "active")));
       expect(active).toHaveLength(1);
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, f.backlog.id));
+      await cleanupBacklogs(f.backlog.id);
     }
   });
 
@@ -324,7 +342,7 @@ describeDb("sprint lifecycle", () => {
         .orderBy(asc(activities.at));
       expect(carryActivity).toEqual({ oldValue: "Sprint engagé", newValue: null });
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, f.backlog.id));
+      await cleanupBacklogs(f.backlog.id);
     }
   });
 
@@ -375,7 +393,7 @@ describeDb("sprint lifecycle", () => {
         .where(eq(items.id, openTask.id));
       expect(stored?.statusId).toBe(f.todo.id);
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, f.backlog.id));
+      await cleanupBacklogs(f.backlog.id);
     }
   });
 
@@ -418,7 +436,7 @@ describeDb("sprint lifecycle", () => {
         expect.arrayContaining([{ itemId: first.id }, { itemId: second.id }]),
       );
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, f.backlog.id));
+      await cleanupBacklogs(f.backlog.id);
     }
   });
 
@@ -456,7 +474,7 @@ describeDb("sprint lifecycle", () => {
         .where(and(eq(sprintItems.sprintId, active.id), isNull(sprintItems.leftAt)));
       expect(current?.leftAt).toBeNull();
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, f.backlog.id));
+      await cleanupBacklogs(f.backlog.id);
     }
   });
 
@@ -504,8 +522,7 @@ describeDb("sprint lifecycle", () => {
         .where(and(eq(sprintItems.itemId, openTask.id), isNull(sprintItems.leftAt)));
       expect(current).toEqual([{ sprintId: active.id }]);
     } finally {
-      await db.delete(backlogs).where(eq(backlogs.id, f.backlog.id));
-      await db.delete(backlogs).where(eq(backlogs.id, foreign.backlog.id));
+      await cleanupBacklogs(f.backlog.id, foreign.backlog.id);
     }
   });
 });

@@ -10,6 +10,7 @@ import { nextItemKey } from "@/lib/items/key";
 import { canRestore } from "@/lib/items/trash";
 import { replaceItemFixVersionsInTx } from "@/lib/services/item-fix-versions";
 import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
+import { removeDeletedItemsFromActiveSprintsInTx } from "@/lib/services/sprint-events";
 import { ROOT_LABEL, buildPath, childDepth } from "@/lib/tree/path";
 import { isValidParenting } from "@/lib/tree/hierarchy";
 import { rankBetween, rankFirst, rankLast } from "@/lib/tree/rank";
@@ -421,6 +422,7 @@ export async function createItem(
   requestCorrelationId: string = randomUUID(),
 ) {
   const data = createItemSchema.parse(input);
+  const correlationId = requestCorrelationId.trim();
   return withRetry(() =>
     db.transaction(async (tx) => {
       const [backlog] = await tx
@@ -533,14 +535,14 @@ export async function createItem(
 
       await tx.insert(activities).values({
         ...activityRow(id, actorId, "create", null, null, key),
-        requestCorrelationId,
+        requestCorrelationId: correlationId,
       });
 
       await replaceItemFixVersionsInTx(
         tx,
         { backlogId: data.backlogId, itemId: id, releaseIds: data.fixVersionIds },
         actorId,
-        requestCorrelationId,
+        correlationId,
       );
 
       if (data.sprintId) {
@@ -548,7 +550,7 @@ export async function createItem(
           tx,
           { backlogId: data.backlogId, itemIds: [id], sprintId: data.sprintId },
           actorId,
-          requestCorrelationId,
+          correlationId,
         );
       }
 
@@ -858,25 +860,47 @@ export async function rankBacklogItem(input: unknown, actorId: string) {
 }
 
 // ---- softDeleteItem: subtree lock → cascade soft-delete + per-node activity ----
-export async function softDeleteItem(input: unknown, actorId: string) {
+export async function softDeleteItem(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string = randomUUID(),
+) {
   const { id } = idInputSchema.parse(input);
+  const correlationId = requestCorrelationId.trim();
   return db.transaction(async (tx) => {
-    const [target] = await tx
+    const [targetProbe] = await tx
       .select()
       .from(items)
-      .where(and(eq(items.id, id), isNull(items.deletedAt)))
+      .where(and(eq(items.id, id), isNull(items.deletedAt)));
+    if (!targetProbe) return null;
+
+    const [backlog] = await tx
+      .select({ id: backlogs.id })
+      .from(backlogs)
+      .where(eq(backlogs.id, targetProbe.backlogId))
       .for("update");
-    if (!target) return null;
+    if (!backlog) throw new Error("Backlog introuvable.");
 
     const subtree = and(
-      eq(items.backlogId, target.backlogId),
-      sql`${items.path} <@ ${target.path}::ltree`,
+      eq(items.backlogId, targetProbe.backlogId),
+      sql`${items.path} <@ ${targetProbe.path}::ltree`,
       isNull(items.deletedAt),
     );
-    // lock the whole live subtree so concurrent creates under it block
-    await tx.select({ id: items.id }).from(items).where(subtree).for("update");
+    const subtreeRows = await tx
+      .select({ id: items.id })
+      .from(items)
+      .where(subtree)
+      .orderBy(asc(items.id));
+    if (!subtreeRows.some((row) => row.id === targetProbe.id)) return null;
 
     const now = new Date();
+    await removeDeletedItemsFromActiveSprintsInTx(tx, {
+      backlogId: targetProbe.backlogId,
+      itemIds: subtreeRows.map((row) => row.id),
+      actorId,
+      requestCorrelationId: correlationId,
+      occurredAt: now,
+    });
     const affected = await tx
       .update(items)
       .set({ deletedAt: now })
@@ -887,10 +911,13 @@ export async function softDeleteItem(input: unknown, actorId: string) {
       await tx
         .insert(activities)
         .values(
-          affected.map((r) => activityRow(r.id, actorId, "delete", "deleted_at", null, now.toISOString())),
+          affected.map((r) => ({
+            ...activityRow(r.id, actorId, "delete", "deleted_at", null, now.toISOString()),
+            requestCorrelationId: correlationId,
+          })),
         );
     }
-    return target;
+    return targetProbe;
   });
 }
 

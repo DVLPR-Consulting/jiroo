@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { binaryTextOrder } from "@/lib/db/order";
 import {
@@ -10,6 +11,7 @@ import {
   statuses,
 } from "@/lib/db/schema/domain";
 import { rankLast } from "@/lib/tree/rank";
+import { appendSprintEventsInTx } from "@/lib/services/sprint-events";
 import {
   completeSprintSchema,
   startSprintSchema,
@@ -65,8 +67,10 @@ function isUniqueActiveSprintViolation(error: unknown): boolean {
 export async function startSprint(
   input: unknown,
   actorId: string,
+  requestCorrelationId: string = randomUUID(),
 ): Promise<StartSprintResult> {
   const data = startSprintSchema.parse(input);
+  const correlationId = requestCorrelationId.trim();
   try {
     return await db.transaction(async (tx) => {
       await lockBacklog(tx, data.backlogId);
@@ -143,12 +147,30 @@ export async function startSprint(
       const estimateByItem = new Map(
         committedItems.map((item) => [item.id, item.estimatePoints]),
       );
-      for (const membership of memberships) {
+      if (memberships.length > 0) {
+        const estimateCases = sql.join(
+          memberships.map(
+            (membership) =>
+              sql`when ${sprintItems.itemId} = ${membership.itemId} then ${estimateByItem.get(membership.itemId) ?? null}::numeric(5, 2)`,
+          ),
+          sql.raw(" "),
+        );
         await tx
           .update(sprintItems)
-          .set({ estimateAtStart: estimateByItem.get(membership.itemId) ?? null })
-          .where(eq(sprintItems.id, membership.id));
+          .set({ estimateAtStart: sql`case ${estimateCases} else null::numeric(5, 2) end` })
+          .where(inArray(sprintItems.id, memberships.map((membership) => membership.id)));
       }
+      const startedAt = new Date(data.startAt);
+      await appendSprintEventsInTx(tx, [
+        {
+          type: "sprint_started",
+          backlogId: data.backlogId,
+          sprintId: sprint.id,
+          actorId,
+          correlationId,
+          occurredAt: startedAt,
+        },
+      ]);
       if (committedItems.length > 0) {
         await tx.insert(activities).values(
           committedItems.map((item) => ({
@@ -158,11 +180,11 @@ export async function startSprint(
             field: "sprint_commitment",
             oldValue: null,
             newValue: data.name,
+            requestCorrelationId: correlationId,
           })),
         );
       }
 
-      const startedAt = new Date(data.startAt);
       await tx
         .update(sprints)
         .set({

@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { binaryTextOrder } from "@/lib/db/order";
 import {
@@ -223,15 +224,46 @@ export async function reorderSprint(input: unknown, actorId: string) {
   });
 }
 
-export async function assignItemsToSprint(input: unknown, actorId: string) {
+export async function assignItemsToSprint(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string = randomUUID(),
+) {
   const data = assignSprintItemsSchema.parse(input);
-  return db.transaction((tx) => assignItemsToSprintInTx(tx, data, actorId));
+  return db.transaction((tx) =>
+    assignItemsToSprintInTx(tx, data, actorId, requestCorrelationId),
+  );
 }
 
-export async function moveItemToSprint(input: unknown, actorId: string) {
+export async function moveItemToSprint(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string = randomUUID(),
+) {
   const data = moveSprintItemSchema.parse(input);
+  const correlationId = requestCorrelationId.trim();
   return db.transaction(async (tx) => {
     await lockBacklog(tx, data.backlogId);
+
+    const [currentProbe] = await tx
+      .select({ id: items.id, backlogId: items.backlogId, type: items.type })
+      .from(items)
+      .where(and(eq(items.id, data.itemId), isNull(items.deletedAt)));
+    if (!currentProbe) throw new Error("Item introuvable.");
+    if (currentProbe.backlogId !== data.backlogId || currentProbe.type !== "tache") {
+      throw new Error("Seules les tâches du backlog peuvent être déplacées.");
+    }
+
+    await assignItemsToSprintInTx(
+      tx,
+      {
+        backlogId: data.backlogId,
+        itemIds: [data.itemId],
+        sprintId: data.sprintId,
+      },
+      actorId,
+      correlationId,
+    );
 
     const neighborIds = [data.beforeId, data.afterId].filter(
       (id): id is string => id !== null,
@@ -283,15 +315,6 @@ export async function moveItemToSprint(input: unknown, actorId: string) {
       }
     }
 
-    await assignItemsToSprintInTx(
-      tx,
-      {
-        backlogId: data.backlogId,
-        itemIds: [data.itemId],
-        sprintId: data.sprintId,
-      },
-      actorId,
-    );
     const rank = await rankAtDrop(
       tx,
       data.backlogId,
@@ -313,6 +336,7 @@ export async function moveItemToSprint(input: unknown, actorId: string) {
       field: "rank",
       oldValue: current.rank,
       newValue: rank,
+      requestCorrelationId: correlationId,
     });
     return updated!;
   });

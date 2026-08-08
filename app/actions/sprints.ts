@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
@@ -53,6 +54,7 @@ function assertStoredBacklog(resource: AuthorizedResource, backlogId: string): v
 
 function revalidateBacklog(backlogKey: string) {
   revalidatePath(`/b/${backlogKey}`);
+  revalidatePath(`/b/${backlogKey}/reports`);
 }
 
 const PLANNING_ERRORS = new Set([
@@ -189,8 +191,13 @@ export async function assignSprintItemsAction(
       });
       for (const item of items) assertSameBacklog(item, sprint);
     }
+    const requestCorrelationId = randomUUID();
     const { backlogKey, ...serviceInput } = input;
-    const result = await assignItemsToSprint(serviceInput, actorId);
+    const result = await assignItemsToSprint(
+      serviceInput,
+      actorId,
+      requestCorrelationId,
+    );
     revalidateBacklog(backlogKey);
     return { ok: true as const, ...result };
   } catch (error) {
@@ -220,8 +227,13 @@ export async function moveSprintItemAction(
       });
       assertSameBacklog(itemAuthorization, sprint);
     }
+    const requestCorrelationId = randomUUID();
     const { backlogKey, ...serviceInput } = input;
-    const item = await moveItemToSprint(serviceInput, actorId);
+    const item = await moveItemToSprint(
+      serviceInput,
+      actorId,
+      requestCorrelationId,
+    );
     revalidateBacklog(backlogKey);
     return { ok: true as const, item };
   } catch (error) {
@@ -241,8 +253,9 @@ export async function startSprintAction(input: WithBacklogKey<StartSprintInput>)
       permission: "manage_sprints",
     });
     assertStoredBacklog(sprintAuthorization, input.backlogId);
+    const requestCorrelationId = randomUUID();
     const { backlogKey, ...serviceInput } = input;
-    const result = await startSprint(serviceInput, actorId);
+    const result = await startSprint(serviceInput, actorId, requestCorrelationId);
     revalidateBacklog(backlogKey);
     return { ok: true as const, ...result };
   } catch (error) {

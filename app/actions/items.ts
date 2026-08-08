@@ -71,6 +71,11 @@ async function authenticatedActorId(): Promise<string> {
   return session.user.id;
 }
 
+function revalidateBacklog(backlogKey: string) {
+  revalidatePath(`/b/${backlogKey}`);
+  revalidatePath(`/b/${backlogKey}/reports`);
+}
+
 function hasOwnField<T extends object>(input: T, field: PropertyKey): boolean {
   return Object.prototype.hasOwnProperty.call(input, field);
 }
@@ -246,8 +251,9 @@ export async function createItemAction(input: CreateItemActionInput) {
       await requireAssignableUser({ assigneeId: input.assigneeId, backlogId: backlog.backlogId });
     }
     const { backlogKey, ...data } = input;
-    const item = await createItem(data, actorId, randomUUID());
-    revalidatePath(`/b/${backlogKey}`);
+    const requestCorrelationId = randomUUID();
+    const item = await createItem(data, actorId, requestCorrelationId);
+    revalidateBacklog(backlogKey);
     return { ok: true as const, item };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
@@ -263,8 +269,9 @@ export async function updateItemAction(input: UpdateItemActionInput) {
   try {
     await authorizeItemUpdate(actorId, input);
     const { backlogKey, ...data } = input;
-    const item = await updateItem(data, actorId, randomUUID());
-    revalidatePath(`/b/${backlogKey}`);
+    const requestCorrelationId = randomUUID();
+    const item = await updateItem(data, actorId, requestCorrelationId);
+    revalidateBacklog(backlogKey);
     return { ok: true as const, item };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
@@ -323,8 +330,9 @@ export async function bulkUpdateItemsAction(input: {
       });
     }
     const { backlogKey, ...serviceInput } = input;
-    const result = await bulkUpdateItems(serviceInput, actorId, randomUUID());
-    revalidatePath(`/b/${backlogKey}`);
+    const requestCorrelationId = randomUUID();
+    const result = await bulkUpdateItems(serviceInput, actorId, requestCorrelationId);
+    revalidateBacklog(backlogKey);
     return { ok: true as const, ...result };
   } catch (error) {
     const authorizationError = mapActionAuthorizationError(error);
@@ -339,9 +347,10 @@ export async function softDeleteItemAction(input: { id: string; backlogKey: stri
   const actorId = await authenticatedActorId();
   try {
     await requireItemPermission({ actorId, itemId: input.id, permission: "delete_items" });
-    const item = await softDeleteItem({ id: input.id }, actorId);
+    const requestCorrelationId = randomUUID();
+    const item = await softDeleteItem({ id: input.id }, actorId, requestCorrelationId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
-    revalidatePath(`/b/${input.backlogKey}`);
+    revalidateBacklog(input.backlogKey);
     revalidatePath("/trash");
     return { ok: true as const };
   } catch (error) {
@@ -357,7 +366,7 @@ export async function restoreItemAction(input: { id: string; backlogKey: string 
     await requireItemPermission({ actorId, itemId: input.id, permission: "restore_items" });
     const item = await restoreItem({ id: input.id }, actorId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
-    revalidatePath(`/b/${input.backlogKey}`);
+    revalidateBacklog(input.backlogKey);
     revalidatePath("/trash");
     return { ok: true as const };
   } catch (e) {
@@ -413,7 +422,7 @@ export async function rankBacklogItemAction(input: RankBacklogItemActionInput) {
     const { backlogKey, ...data } = input;
     const item = await rankBacklogItem(data, actorId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
-    revalidatePath(`/b/${backlogKey}`);
+    revalidateBacklog(backlogKey);
     return { ok: true as const, item };
   } catch (error) {
     const authorizationError = mapActionAuthorizationError(error);
@@ -467,7 +476,7 @@ export async function moveItemAction(input: MoveItemActionInput) {
     const { backlogKey, ...data } = input;
     const item = await moveItem(data, actorId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
-    revalidatePath(`/b/${backlogKey}`);
+    revalidateBacklog(backlogKey);
     return { ok: true as const, item };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
@@ -492,7 +501,7 @@ export async function reparentItemAction(input: ReparentItemActionInput) {
     const { backlogKey, ...data } = input;
     const item = await reparentItem(data, actorId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
-    revalidatePath(`/b/${backlogKey}`);
+    revalidateBacklog(backlogKey);
     return { ok: true as const, item };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);

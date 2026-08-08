@@ -916,8 +916,23 @@ describe("bulkUpdateItemsAction", () => {
       "writer-1",
       expect.stringMatching(uuidPattern),
     );
-    expect(mocks.revalidatePath).toHaveBeenCalledTimes(1);
+    expect(mocks.revalidatePath).toHaveBeenCalledTimes(2);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
+  });
+
+  it("forwards one correlation to soft deletion after authorization", async () => {
+    await expect(
+      softDeleteItemAction({ id: itemId, backlogKey: "DEMO" }),
+    ).resolves.toEqual({ ok: true });
+
+    expect(mocks.requireItemPermission).toHaveBeenCalledBefore(mocks.softDeleteItem);
+    expect(mocks.softDeleteItem).toHaveBeenCalledWith(
+      { id: itemId },
+      "writer-1",
+      expect.stringMatching(uuidPattern),
+    );
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
   });
 
   it("rejects viewers before calling the bulk service", async () => {

@@ -103,6 +103,7 @@ export async function bulkUpdateItems(
           sprintId: data.patch.value,
         },
         actorId,
+        requestCorrelationId,
       );
     }
 

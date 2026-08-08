@@ -7,6 +7,10 @@ import {
   sprintItems,
   sprints,
 } from "@/lib/db/schema/domain";
+import {
+  appendSprintEventsInTx,
+  type SprintEventCommand,
+} from "@/lib/services/sprint-events";
 
 export type SprintTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -14,8 +18,9 @@ export async function assignItemsToSprintInTx(
   tx: SprintTx,
   input: { backlogId: string; itemIds: string[]; sprintId: string | null },
   actorId: string,
-  requestCorrelationId?: string,
+  requestCorrelationId: string,
 ): Promise<{ changedCount: number; unchangedCount: number }> {
+  const correlationId = requestCorrelationId.trim();
   const [backlog] = await tx
     .select({ id: backlogs.id })
     .from(backlogs)
@@ -84,6 +89,8 @@ export async function assignItemsToSprintInTx(
     .for("update");
   const currentByItem = new Map(currentRows.map((row) => [row.itemId, row]));
   const now = new Date();
+  const eventCommands: SprintEventCommand[] = [];
+  const activityRows: (typeof activities.$inferInsert)[] = [];
   let changedCount = 0;
 
   for (const item of selected) {
@@ -99,26 +106,68 @@ export async function assignItemsToSprintInTx(
         .update(sprintItems)
         .set({ leftAt: now, outcome: "removed" })
         .where(eq(sprintItems.id, current.id));
+      if (currentSprint?.state === "active") {
+        eventCommands.push({
+          type: "item_removed",
+          backlogId: input.backlogId,
+          sprintId: currentSprint.id,
+          membershipId: current.id,
+          item: { id: item.id, key: item.key, title: item.title },
+          previousEstimate: item.estimatePoints,
+          reason: destination ? "moved" : "manual",
+          relatedSprint: destination
+            ? { id: destination.id, name: destination.name }
+            : null,
+          actorId,
+          correlationId,
+          occurredAt: now,
+        });
+      }
     }
     if (destination) {
-      await tx.insert(sprintItems).values({
-        sprintId: destination.id,
-        itemId: item.id,
-        joinedAt: now,
-        joinedBy: actorId,
-        estimateAtJoin: item.estimatePoints,
-      });
+      const [membership] = await tx
+        .insert(sprintItems)
+        .values({
+          sprintId: destination.id,
+          itemId: item.id,
+          joinedAt: now,
+          joinedBy: actorId,
+          estimateAtJoin: item.estimatePoints,
+        })
+        .returning({ id: sprintItems.id });
+      if (!membership) throw new Error("Création de l’appartenance sprint impossible.");
+      if (destination.state === "active") {
+        eventCommands.push({
+          type: "item_added",
+          backlogId: input.backlogId,
+          sprintId: destination.id,
+          membershipId: membership.id,
+          item: { id: item.id, key: item.key, title: item.title },
+          nextEstimate: item.estimatePoints,
+          relatedSprint: currentSprint
+            ? { id: currentSprint.id, name: currentSprint.name }
+            : null,
+          actorId,
+          correlationId,
+          occurredAt: now,
+        });
+      }
     }
-    await tx.insert(activities).values({
+    activityRows.push({
       itemId: item.id,
       actorId,
       action: "update",
       field: "sprint",
       oldValue: currentSprint?.name ?? null,
       newValue: destination?.name ?? null,
-      requestCorrelationId,
+      requestCorrelationId: correlationId,
     });
     changedCount += 1;
+  }
+
+  await appendSprintEventsInTx(tx, eventCommands);
+  if (activityRows.length > 0) {
+    await tx.insert(activities).values(activityRows);
   }
 
   return {
