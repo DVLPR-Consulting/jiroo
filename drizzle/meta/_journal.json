@@ -85,6 +85,13 @@
       "when": 1786119174652,
       "tag": "0011_jira_releases_core",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786171701818,
+      "tag": "0012_jira_sprint_reports",
+      "breakpoints": true
     }
   ]
 }

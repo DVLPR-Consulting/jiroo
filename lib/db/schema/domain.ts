@@ -1,6 +1,7 @@
 import { sql, type SQL } from "drizzle-orm";
 import {
   type AnyPgColumn,
+  bigint,
   boolean,
   check,
   date,
@@ -32,7 +33,9 @@ import {
   releaseIncompleteDispositionEnum,
   releaseItemDispositionEnum,
   roleActorTypeEnum,
+  sprintEventTypeEnum,
   sprintOutcomeEnum,
+  sprintRemovalReasonEnum,
   sprintStateEnum,
   statusCategoryEnum,
 } from "./enums";
@@ -40,6 +43,7 @@ import { ltree, tsvector } from "./types";
 
 // Global numeric sequence backing per-backlog item keys (e.g. CASS-42).
 export const itemKeySeq = pgSequence("item_key_seq", { startWith: 1, increment: 1 });
+export const sprintEventSequence = pgSequence("sprint_event_sequence");
 
 export const backlogs = pgTable("backlogs", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -77,6 +81,7 @@ export const sprints = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    uniqueIndex("sprints_backlog_id_idx").on(t.backlogId, t.id),
     uniqueIndex("sprints_backlog_rank_idx").on(t.backlogId, t.rank),
     uniqueIndex("sprints_backlog_name_idx").on(t.backlogId, sql`lower(${t.name})`),
     uniqueIndex("sprints_one_active_per_backlog_idx")
@@ -430,6 +435,7 @@ export const sprintItems = pgTable(
   (t) => [
     index("sprint_items_sprint_idx").on(t.sprintId),
     index("sprint_items_item_idx").on(t.itemId),
+    uniqueIndex("sprint_items_sprint_id_idx").on(t.sprintId, t.id),
     uniqueIndex("sprint_items_one_current_item_idx")
       .on(t.itemId)
       .where(sql`${t.leftAt} is null`),
@@ -455,6 +461,280 @@ export const sprintItems = pgTable(
         or (${t.outcome} is distinct from 'carried_to_sprint' and ${t.destinationSprintId} is null)
       )`,
     ),
+  ],
+);
+
+export const sprintEvents = pgTable(
+  "sprint_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    backlogId: uuid("backlog_id")
+      .notNull()
+      .references(() => backlogs.id, { onDelete: "restrict" }),
+    sprintId: uuid("sprint_id").notNull(),
+    eventType: sprintEventTypeEnum("event_type").notNull(),
+    sourceMembershipId: uuid("source_membership_id"),
+    itemId: uuid("item_id"),
+    itemKey: text("item_key"),
+    itemTitle: text("item_title"),
+    actorId: text("actor_id")
+      .notNull()
+      .references(() => user.id),
+    requestCorrelationId: text("request_correlation_id").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    sequence: bigint("sequence", { mode: "bigint" })
+      .notNull()
+      .default(sql`nextval('sprint_event_sequence')`),
+    previousEstimate: numeric("previous_estimate", {
+      precision: 5,
+      scale: 2,
+      mode: "number",
+    }),
+    nextEstimate: numeric("next_estimate", {
+      precision: 5,
+      scale: 2,
+      mode: "number",
+    }),
+    previousDone: boolean("previous_done"),
+    nextDone: boolean("next_done"),
+    relatedSprintId: uuid("related_sprint_id"),
+    relatedSprintName: text("related_sprint_name"),
+    removalReason: sprintRemovalReasonEnum("removal_reason"),
+  },
+  (t) => [
+    uniqueIndex("sprint_events_sequence_idx").on(t.sequence),
+    index("sprint_events_sprint_occurred_sequence_idx").on(
+      t.sprintId,
+      t.occurredAt,
+      t.sequence,
+    ),
+    index("sprint_events_backlog_sprint_idx").on(t.backlogId, t.sprintId),
+    check(
+      "sprint_events_request_correlation_length",
+      sql`char_length(btrim(${t.requestCorrelationId})) between 1 and 128`,
+    ),
+    check(
+      "sprint_events_related_sprint_name_required",
+      sql`(${t.relatedSprintId} is null) or (${t.relatedSprintName} is not null)`,
+    ),
+    check(
+      "sprint_events_shape",
+      sql`(
+        (${t.eventType} in ('sprint_started', 'sprint_completed')
+          and ${t.itemKey} is null and ${t.itemTitle} is null
+          and ${t.previousEstimate} is null and ${t.nextEstimate} is null
+          and ${t.previousDone} is null and ${t.nextDone} is null
+          and ${t.removalReason} is null)
+        or (${t.eventType} = 'item_added'
+          and ${t.itemKey} is not null and ${t.itemTitle} is not null
+          and ${t.previousEstimate} is null
+          and ${t.previousDone} is null and ${t.nextDone} is null
+          and ${t.removalReason} is null)
+        or (${t.eventType} = 'item_removed'
+          and ${t.itemKey} is not null and ${t.itemTitle} is not null
+          and ${t.nextEstimate} is null
+          and ${t.previousDone} is null and ${t.nextDone} is null
+          and ${t.removalReason} is not null)
+        or (${t.eventType} = 'estimate_changed'
+          and ${t.itemKey} is not null and ${t.itemTitle} is not null
+          and ${t.previousEstimate} is distinct from ${t.nextEstimate}
+          and ${t.previousDone} is null and ${t.nextDone} is null
+          and ${t.removalReason} is null)
+        or (${t.eventType} = 'item_completed'
+          and ${t.itemKey} is not null and ${t.itemTitle} is not null
+          and ${t.previousDone} = false and ${t.nextDone} = true
+          and ${t.previousEstimate} is null and ${t.nextEstimate} is null
+          and ${t.removalReason} is null)
+        or (${t.eventType} = 'item_reopened'
+          and ${t.itemKey} is not null and ${t.itemTitle} is not null
+          and ${t.previousDone} = true and ${t.nextDone} = false
+          and ${t.previousEstimate} is null and ${t.nextEstimate} is null
+          and ${t.removalReason} is null)
+      )`,
+    ),
+    foreignKey({
+      columns: [t.backlogId, t.sprintId],
+      foreignColumns: [sprints.backlogId, sprints.id],
+      name: "sprint_events_sprint_same_backlog_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.sprintId, t.sourceMembershipId],
+      foreignColumns: [sprintItems.sprintId, sprintItems.id],
+      name: "sprint_events_membership_same_sprint_fk",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [t.backlogId, t.itemId],
+      foreignColumns: [items.backlogId, items.id],
+      name: "sprint_events_item_same_backlog_fk",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [t.backlogId, t.relatedSprintId],
+      foreignColumns: [sprints.backlogId, sprints.id],
+      name: "sprint_events_related_sprint_same_backlog_fk",
+    }).onDelete("set null"),
+  ],
+);
+
+export const sprintReportSnapshots = pgTable(
+  "sprint_report_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    backlogId: uuid("backlog_id")
+      .notNull()
+      .references(() => backlogs.id, { onDelete: "restrict" }),
+    sprintId: uuid("sprint_id")
+      .notNull()
+      .references(() => sprints.id, { onDelete: "restrict" }),
+    sprintName: text("sprint_name").notNull(),
+    sprintGoal: text("sprint_goal"),
+    plannedStartAt: timestamp("planned_start_at", { withTimezone: true }),
+    plannedEndAt: timestamp("planned_end_at", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id),
+    initialItemCount: integer("initial_item_count").notNull(),
+    committedPoints: numeric("committed_points", {
+      precision: 12,
+      scale: 2,
+      mode: "number",
+    }).notNull(),
+    initialUnestimatedCount: integer("initial_unestimated_count").notNull(),
+    finalItemCount: integer("final_item_count").notNull(),
+    completedItemCount: integer("completed_item_count").notNull(),
+    completedPoints: numeric("completed_points", {
+      precision: 12,
+      scale: 2,
+      mode: "number",
+    }).notNull(),
+    finalUnestimatedCount: integer("final_unestimated_count").notNull(),
+    grossPointsAdded: numeric("gross_points_added", {
+      precision: 12,
+      scale: 2,
+      mode: "number",
+    }).notNull(),
+    grossPointsRemoved: numeric("gross_points_removed", {
+      precision: 12,
+      scale: 2,
+      mode: "number",
+    }).notNull(),
+    netEstimateDelta: numeric("net_estimate_delta", {
+      precision: 12,
+      scale: 2,
+      mode: "number",
+    }).notNull(),
+    scopeEventCount: integer("scope_event_count").notNull(),
+    finalDestinationSummary: jsonb("final_destination_summary")
+      .$type<{
+        backlog: number;
+        sprints: Array<{ id: string | null; name: string; count: number }>;
+      }>()
+      .notNull(),
+    requestCorrelationId: text("request_correlation_id").notNull(),
+  },
+  (t) => [
+    uniqueIndex("sprint_report_snapshots_sprint_idx").on(t.sprintId),
+    uniqueIndex("sprint_report_snapshots_backlog_sprint_id_idx").on(
+      t.backlogId,
+      t.sprintId,
+      t.id,
+    ),
+    check(
+      "sprint_report_snapshots_request_correlation_length",
+      sql`char_length(btrim(${t.requestCorrelationId})) between 1 and 128`,
+    ),
+    check(
+      "sprint_report_snapshots_counts_nonnegative",
+      sql`${t.initialItemCount} >= 0
+        and ${t.initialUnestimatedCount} >= 0
+        and ${t.finalItemCount} >= 0
+        and ${t.completedItemCount} >= 0
+        and ${t.finalUnestimatedCount} >= 0
+        and ${t.scopeEventCount} >= 0`,
+    ),
+    check(
+      "sprint_report_snapshots_completed_count_within_final",
+      sql`${t.completedItemCount} <= ${t.finalItemCount}`,
+    ),
+    foreignKey({
+      columns: [t.backlogId, t.sprintId],
+      foreignColumns: [sprints.backlogId, sprints.id],
+      name: "sprint_report_snapshots_sprint_same_backlog_fk",
+    }).onDelete("restrict"),
+  ],
+);
+
+export const sprintReportItems = pgTable(
+  "sprint_report_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    snapshotId: uuid("snapshot_id").notNull(),
+    backlogId: uuid("backlog_id")
+      .notNull()
+      .references(() => backlogs.id, { onDelete: "restrict" }),
+    sprintId: uuid("sprint_id").notNull(),
+    sourceItemId: uuid("source_item_id"),
+    itemKey: text("item_key").notNull(),
+    itemTitle: text("item_title").notNull(),
+    itemType: itemTypeEnum("item_type").notNull(),
+    itemKind: itemKindEnum("item_kind").notNull(),
+    firstJoinedAt: timestamp("first_joined_at", { withTimezone: true }).notNull(),
+    finalLeftAt: timestamp("final_left_at", { withTimezone: true }).notNull(),
+    initialCommitment: boolean("initial_commitment").notNull(),
+    addedAfterStart: boolean("added_after_start").notNull(),
+    removedAfterStart: boolean("removed_after_start").notNull(),
+    estimateAtStart: numeric("estimate_at_start", {
+      precision: 5,
+      scale: 2,
+      mode: "number",
+    }),
+    estimateAtFinalParticipation: numeric("estimate_at_final_participation", {
+      precision: 5,
+      scale: 2,
+      mode: "number",
+    }),
+    estimateAtCompletion: numeric("estimate_at_completion", {
+      precision: 5,
+      scale: 2,
+      mode: "number",
+    }),
+    finalStatusCategory: statusCategoryEnum("final_status_category").notNull(),
+    finalOutcome: sprintOutcomeEnum("final_outcome").notNull(),
+    destinationSprintId: uuid("destination_sprint_id"),
+    destinationSprintName: text("destination_sprint_name"),
+  },
+  (t) => [
+    uniqueIndex("sprint_report_items_snapshot_key_idx").on(t.snapshotId, t.itemKey),
+    index("sprint_report_items_backlog_sprint_idx").on(t.backlogId, t.sprintId),
+    check(
+      "sprint_report_items_outcome_destination_consistent",
+      sql`(
+        (${t.finalOutcome} = 'carried_to_sprint' and ${t.destinationSprintName} is not null)
+        or (${t.finalOutcome} is distinct from 'carried_to_sprint'
+          and ${t.destinationSprintId} is null and ${t.destinationSprintName} is null)
+      )`,
+    ),
+    foreignKey({
+      columns: [t.backlogId, t.sprintId, t.snapshotId],
+      foreignColumns: [
+        sprintReportSnapshots.backlogId,
+        sprintReportSnapshots.sprintId,
+        sprintReportSnapshots.id,
+      ],
+      name: "sprint_report_items_snapshot_same_sprint_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.backlogId, t.sourceItemId],
+      foreignColumns: [items.backlogId, items.id],
+      name: "sprint_report_items_source_item_same_backlog_fk",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [t.backlogId, t.destinationSprintId],
+      foreignColumns: [sprints.backlogId, sprints.id],
+      name: "sprint_report_items_destination_sprint_same_backlog_fk",
+    }).onDelete("set null"),
   ],
 );
 

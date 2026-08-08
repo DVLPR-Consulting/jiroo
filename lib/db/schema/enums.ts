@@ -26,6 +26,20 @@ export const sprintOutcomeEnum = pgEnum("sprint_outcome", [
   "carried_to_backlog",
   "carried_to_sprint",
 ]);
+export const sprintEventTypeEnum = pgEnum("sprint_event_type", [
+  "sprint_started",
+  "item_added",
+  "item_removed",
+  "estimate_changed",
+  "item_completed",
+  "item_reopened",
+  "sprint_completed",
+]);
+export const sprintRemovalReasonEnum = pgEnum("sprint_removal_reason", [
+  "manual",
+  "moved",
+  "deleted",
+]);
 export const releaseIncompleteDispositionEnum = pgEnum("release_incomplete_disposition", [
   "keep",
   "move",
