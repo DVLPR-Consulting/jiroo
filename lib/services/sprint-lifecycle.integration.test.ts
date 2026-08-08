@@ -31,8 +31,8 @@ async function cleanupBacklogs(...backlogIds: string[]) {
   try {
     await withSprintHistoryCleanup(client, async () => {
       await client.query("delete from sprint_events where backlog_id = any($1::uuid[])", [backlogIds]);
-      await client.query("delete from backlogs where id = any($1::uuid[])", [backlogIds]);
     });
+    await client.query("delete from backlogs where id = any($1::uuid[])", [backlogIds]);
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");

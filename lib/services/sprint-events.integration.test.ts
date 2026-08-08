@@ -55,8 +55,8 @@ async function cleanup(f: Fixture) {
   try {
     await withSprintHistoryCleanup(client, async () => {
       await client.query("delete from sprint_events where backlog_id = $1", [f.backlog.id]);
-      await client.query("delete from backlogs where id = $1", [f.backlog.id]);
     });
+    await client.query("delete from backlogs where id = $1", [f.backlog.id]);
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
@@ -137,6 +137,56 @@ async function addMembership(
 }
 
 describeDb("sprint reporting events", () => {
+  it("removes cascaded fixture rows after privileged history cleanup", async () => {
+    const f = await fixture();
+    const sprint = await insertSprint(f, "Sprint de nettoyage", "active");
+    const item = await insertItem(f, "Contrat de nettoyage cascade", 3);
+    await assignItemsToSprint(
+      { backlogId: f.backlog.id, itemIds: [item.id], sprintId: sprint.id },
+      f.actor.id,
+      `cleanup-${randomUUID()}`,
+    );
+    const [membership] = await db
+      .select({ id: sprintItems.id })
+      .from(sprintItems)
+      .where(eq(sprintItems.itemId, item.id));
+    const [activity] = await db
+      .select({ id: activities.id })
+      .from(activities)
+      .where(eq(activities.itemId, item.id));
+    if (!membership || !activity) throw new Error("Fixture de nettoyage incomplète.");
+
+    await cleanup(f);
+
+    const [storedStatuses, storedSprints, storedItems, storedMemberships, storedActivities] =
+      await Promise.all([
+        db.select({ id: statuses.id }).from(statuses).where(eq(statuses.id, f.todo.id)),
+        db.select({ id: sprints.id }).from(sprints).where(eq(sprints.id, sprint.id)),
+        db.select({ id: items.id }).from(items).where(eq(items.id, item.id)),
+        db
+          .select({ id: sprintItems.id })
+          .from(sprintItems)
+          .where(eq(sprintItems.id, membership.id)),
+        db
+          .select({ id: activities.id })
+          .from(activities)
+          .where(eq(activities.id, activity.id)),
+      ]);
+    expect({
+      statuses: storedStatuses,
+      sprints: storedSprints,
+      items: storedItems,
+      memberships: storedMemberships,
+      activities: storedActivities,
+    }).toEqual({
+      statuses: [],
+      sprints: [],
+      items: [],
+      memberships: [],
+      activities: [],
+    });
+  });
+
   it.each([
     {
       label: "planned → active",
