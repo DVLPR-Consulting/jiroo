@@ -425,6 +425,7 @@ export const sprintItems = pgTable(
       scale: 2,
       mode: "number",
     }),
+    doneAtStart: boolean("done_at_start"),
     leftAt: timestamp("left_at", { withTimezone: true }),
     outcome: sprintOutcomeEnum("outcome"),
     destinationSprintId: uuid("destination_sprint_id").references(
@@ -528,7 +529,7 @@ export const sprintEvents = pgTable(
         or (${t.eventType} = 'item_added'
           and ${t.itemKey} is not null and ${t.itemTitle} is not null
           and ${t.previousEstimate} is null
-          and ${t.previousDone} is null and ${t.nextDone} is null
+          and ${t.previousDone} is null and ${t.nextDone} is not null
           and ${t.removalReason} is null)
         or (${t.eventType} = 'item_removed'
           and ${t.itemKey} is not null and ${t.itemTitle} is not null
@@ -685,6 +686,7 @@ export const sprintReportItems = pgTable(
     initialCommitment: boolean("initial_commitment").notNull(),
     addedAfterStart: boolean("added_after_start").notNull(),
     removedAfterStart: boolean("removed_after_start").notNull(),
+    doneAtStart: boolean("done_at_start"),
     estimateAtStart: numeric("estimate_at_start", {
       precision: 5,
       scale: 2,
@@ -715,6 +717,10 @@ export const sprintReportItems = pgTable(
         or (${t.finalOutcome} is distinct from 'carried_to_sprint'
           and ${t.destinationSprintId} is null and ${t.destinationSprintName} is null)
       )`,
+    ),
+    check(
+      "sprint_report_items_done_at_start_consistent",
+      sql`${t.doneAtStart} is null or ${t.initialCommitment}`,
     ),
     foreignKey({
       columns: [t.backlogId, t.sprintId, t.snapshotId],

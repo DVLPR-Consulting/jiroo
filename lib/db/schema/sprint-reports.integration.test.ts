@@ -1,6 +1,8 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { Pool, type PoolClient } from "pg";
 import { withSprintHistoryCleanup } from "@/test-utils/sprint-history-cleanup";
@@ -233,6 +235,38 @@ async function insertSnapshotItem(
   return result.rows[0]!.id;
 }
 
+async function restorePreBurndownSchema(client: PoolClient): Promise<void> {
+  const result = await client.query<{ definition: string }>(
+    `select pg_get_constraintdef(oid) as definition
+     from pg_constraint
+     where conrelid = 'sprint_events'::regclass and conname = 'sprint_events_shape'`,
+  );
+  const definition = result.rows[0]?.definition;
+  if (!definition) throw new Error("La contrainte sprint_events_shape doit exister.");
+
+  await client.query('alter table sprint_events drop constraint "sprint_events_shape"');
+  await client.query(
+    `alter table sprint_events add constraint "sprint_events_shape" ${definition
+      .replace("next_done IS NOT NULL", "next_done IS NULL")
+      .replace(" NOT VALID", "")}`,
+  );
+  await client.query(
+    'alter table sprint_report_items drop constraint "sprint_report_items_done_at_start_consistent"',
+  );
+  await client.query("alter table sprint_items drop column done_at_start");
+  await client.query("alter table sprint_report_items drop column done_at_start");
+}
+
+async function applySprintBurndownMigration(client: PoolClient): Promise<void> {
+  const migration = await readFile(
+    resolve(process.cwd(), "drizzle/0013_jira_sprint_burndown.sql"),
+    "utf8",
+  );
+  for (const statement of migration.split("--> statement-breakpoint")) {
+    if (statement.trim()) await client.query(statement);
+  }
+}
+
 afterAll(async () => {
   await pool.end();
 });
@@ -249,6 +283,193 @@ describeDb("sprint reporting schema", () => {
          values ($1, $2, 'estimate_changed', $3, 'schema-red', now(), 3, 5)`,
         [fixture.backlogId, fixture.sprintId, fixture.actorId],
       );
+    });
+  });
+
+  it("requires done state on every new active-sprint addition", async () => {
+    await transaction(async (client) => {
+      const fixture = await createFixture(client);
+      await client.query(
+        "update sprints set state = 'active', started_at = now() where id = $1",
+        [fixture.sprintId],
+      );
+      const statement = `insert into sprint_events
+        (backlog_id, sprint_id, event_type, source_membership_id, item_id,
+         item_key, item_title, actor_id, request_correlation_id, occurred_at,
+         next_estimate, next_done)
+       values ($1, $2, 'item_added', $3, $4, 'CASS-1', 'Task', $5, $6, now(), 5, $7)`;
+
+      await expectStatementRejected(
+        client,
+        `insert into sprint_events
+          (backlog_id, sprint_id, event_type, source_membership_id, item_id,
+           item_key, item_title, actor_id, request_correlation_id, occurred_at,
+           next_estimate)
+         values ($1, $2, 'item_added', $3, $4, 'CASS-1', 'Task', $5, $6, now(), 5)`,
+        [
+          fixture.backlogId,
+          fixture.sprintId,
+          fixture.membershipId,
+          fixture.itemId,
+          fixture.actorId,
+          "burndown-red-null",
+        ],
+      );
+      await expect(
+        client.query(statement, [
+          fixture.backlogId,
+          fixture.sprintId,
+          fixture.membershipId,
+          fixture.itemId,
+          fixture.actorId,
+          "burndown-red-false",
+          false,
+        ]),
+      ).resolves.toBeDefined();
+      await expect(
+        client.query(statement, [
+          fixture.backlogId,
+          fixture.sprintId,
+          fixture.membershipId,
+          fixture.itemId,
+          fixture.actorId,
+          "burndown-red-true",
+          true,
+        ]),
+      ).resolves.toBeDefined();
+    });
+  });
+
+  it("keeps done state nullable for planned memberships", async () => {
+    await transaction(async (client) => {
+      const fixture = await createFixture(client);
+      await expect(
+        client.query<{ doneAtStart: boolean | null }>(
+          "select done_at_start as \"doneAtStart\" from sprint_items where id = $1",
+          [fixture.membershipId],
+        ),
+      ).resolves.toMatchObject({ rows: [{ doneAtStart: null }] });
+    });
+  });
+
+  it("stores both boolean done states for active memberships", async () => {
+    await transaction(async (client) => {
+      const fixture = await createFixture(client);
+      await client.query(
+        "update sprints set state = 'active', started_at = now() where id = $1",
+        [fixture.sprintId],
+      );
+      const secondItemId = await createItem(client, fixture.backlogId, fixture.actorId, "SECOND");
+      const secondMembershipId = await createMembership(
+        client,
+        fixture.sprintId,
+        secondItemId,
+        fixture.actorId,
+      );
+      await client.query("update sprint_items set done_at_start = false where id = $1", [
+        fixture.membershipId,
+      ]);
+      await client.query("update sprint_items set done_at_start = true where id = $1", [
+        secondMembershipId,
+      ]);
+
+      await expect(
+        client.query<{ doneAtStart: boolean }>(
+          `select done_at_start as "doneAtStart" from sprint_items
+           where id in ($1, $2) order by done_at_start`,
+          [fixture.membershipId, secondMembershipId],
+        ),
+      ).resolves.toMatchObject({ rows: [{ doneAtStart: false }, { doneAtStart: true }] });
+    });
+  });
+
+  it("preserves null done facts when migrating a legacy sprint history", async () => {
+    await transaction(async (client) => {
+      await restorePreBurndownSchema(client);
+      const fixture = await createFixture(client);
+      const snapshotId = randomUUID();
+      const reportItemId = await insertSnapshotItem(client, fixture, snapshotId, "LEGACY-DONE");
+      await insertSnapshot(client, fixture, snapshotId, "legacy-null");
+      await client.query("set constraints all immediate");
+      const legacyEvent = await client.query<{ id: string }>(
+        `insert into sprint_events
+          (backlog_id, sprint_id, event_type, source_membership_id, item_id,
+           item_key, item_title, actor_id, request_correlation_id, occurred_at,
+           next_estimate)
+         values ($1, $2, 'item_added', $3, $4, 'CASS-1', 'Task', $5, 'legacy-null', now(), 5)
+         returning id`,
+        [
+          fixture.backlogId,
+          fixture.sprintId,
+          fixture.membershipId,
+          fixture.itemId,
+          fixture.actorId,
+        ],
+      );
+
+      await applySprintBurndownMigration(client);
+
+      await expect(
+        client.query<{ doneAtStart: boolean | null }>(
+          "select done_at_start as \"doneAtStart\" from sprint_report_items where id = $1",
+          [reportItemId],
+        ),
+      ).resolves.toMatchObject({ rows: [{ doneAtStart: null }] });
+      await expect(
+        client.query<{ doneAtStart: boolean | null }>(
+          "select done_at_start as \"doneAtStart\" from sprint_items where id = $1",
+          [fixture.membershipId],
+        ),
+      ).resolves.toMatchObject({ rows: [{ doneAtStart: null }] });
+      await expect(
+        client.query<{ nextDone: boolean | null }>(
+          "select next_done as \"nextDone\" from sprint_events where id = $1",
+          [legacyEvent.rows[0]!.id],
+        ),
+      ).resolves.toMatchObject({ rows: [{ nextDone: null }] });
+    });
+  });
+
+  it("allows report done state only for an initial commitment", async () => {
+    await transaction(async (client) => {
+      const fixture = await createFixture(client);
+      const snapshotId = randomUUID();
+      const initialStatement = `insert into sprint_report_items
+        (snapshot_id, backlog_id, sprint_id, source_item_id, item_key, item_title,
+         item_type, item_kind, first_joined_at, final_left_at, initial_commitment,
+         added_after_start, removed_after_start, done_at_start, final_status_category,
+         final_outcome)
+       values ($1, $2, $3, $4, $5, 'Initial item', 'tache', 'feature',
+         now(), now(), true, false, false, $6, 'todo', 'carried_to_backlog')`;
+      await client.query(initialStatement, [
+        snapshotId,
+        fixture.backlogId,
+        fixture.sprintId,
+        fixture.itemId,
+        "INITIAL-FALSE",
+        false,
+      ]);
+      await client.query(initialStatement, [
+        snapshotId,
+        fixture.backlogId,
+        fixture.sprintId,
+        fixture.itemId,
+        "INITIAL-TRUE",
+        true,
+      ]);
+      await expectStatementRejected(
+        client,
+        `insert into sprint_report_items
+          (snapshot_id, backlog_id, sprint_id, source_item_id, item_key, item_title,
+           item_type, item_kind, first_joined_at, final_left_at, initial_commitment,
+           added_after_start, removed_after_start, done_at_start, final_status_category,
+           final_outcome)
+         values ($1, $2, $3, $4, 'ADDED-DONE', 'Added item', 'tache', 'feature',
+           now(), now(), false, true, false, false, 'todo', 'carried_to_backlog')`,
+        [snapshotId, fixture.backlogId, fixture.sprintId, fixture.itemId],
+      );
+      await insertSnapshot(client, fixture, snapshotId, "initial-done-states");
+      await client.query("set constraints all immediate");
     });
   });
 
