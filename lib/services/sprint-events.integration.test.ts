@@ -872,6 +872,76 @@ describeDb("sprint reporting events", () => {
     }
   });
 
+  it("delegates bulk sprint assignment before any generic locked item query", async () => {
+    const f = await fixture();
+    const correlationId = `bulk-sprint-lock-order-${randomUUID()}`;
+    try {
+      const sprint = await insertSprint(f, "Sprint actif", "active");
+      const first = await insertItem(f, "Première bulk", 2);
+      const second = await insertItem(f, "Deuxième bulk", null);
+      const querySpy = vi.spyOn(Client.prototype, "query");
+      try {
+        await expect(
+          bulkUpdateItems(
+            {
+              backlogId: f.backlog.id,
+              itemIds: [first.id, second.id],
+              patch: { field: "sprintId", value: sprint.id },
+            },
+            f.actor.id,
+            correlationId,
+          ),
+        ).resolves.toEqual({ changedCount: 2, unchangedCount: 0 });
+
+        const queryTexts = querySpy.mock.calls.map(([query]) => {
+          const candidate: unknown = query;
+          return typeof candidate === "string"
+            ? candidate
+            : typeof candidate === "object" && candidate !== null && "text" in candidate
+              ? String(candidate.text)
+              : "";
+        });
+        expect(
+          queryTexts.filter(
+            (text) =>
+              text.includes('from "items"') &&
+              text.includes('where ("items"."backlog_id"') &&
+              text.includes("for update"),
+          ),
+        ).toHaveLength(0);
+      } finally {
+        querySpy.mockRestore();
+      }
+
+      expect(
+        await db
+          .select({ itemId: sprintItems.itemId, doneAtStart: sprintItems.doneAtStart })
+          .from(sprintItems)
+          .where(eq(sprintItems.sprintId, sprint.id))
+          .orderBy(asc(sprintItems.itemId)),
+      ).toEqual(
+        [
+          { itemId: first.id, doneAtStart: false },
+          { itemId: second.id, doneAtStart: false },
+        ].sort((left, right) => left.itemId.localeCompare(right.itemId)),
+      );
+      expect(
+        await db
+          .select({ itemId: sprintEvents.itemId, nextDone: sprintEvents.nextDone })
+          .from(sprintEvents)
+          .where(eq(sprintEvents.requestCorrelationId, correlationId))
+          .orderBy(asc(sprintEvents.itemId)),
+      ).toEqual(
+        [
+          { itemId: first.id, nextDone: false },
+          { itemId: second.id, nextDone: false },
+        ].sort((left, right) => left.itemId!.localeCompare(right.itemId!)),
+      );
+    } finally {
+      await cleanup(f);
+    }
+  });
+
   it("uses one active-membership lookup and one event insert for 500 bulk mutations", async () => {
     const f = await fixture();
     try {

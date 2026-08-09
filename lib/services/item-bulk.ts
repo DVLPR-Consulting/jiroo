@@ -87,19 +87,6 @@ export async function bulkUpdateItems(
       .for("update");
     if (!backlog) throw new Error("Backlog introuvable.");
 
-    const selected = await tx
-      .select()
-      .from(items)
-      .where(and(
-        eq(items.backlogId, data.backlogId),
-        inArray(items.id, data.itemIds),
-        isNull(items.deletedAt),
-      ))
-      .orderBy(asc(items.id))
-      .for("update");
-    if (selected.length !== data.itemIds.length) {
-      throw new Error("Un ou plusieurs items sont introuvables.");
-    }
     if (data.patch.field === "sprintId") {
       return assignItemsToSprintInTx(
         tx,
@@ -113,6 +100,19 @@ export async function bulkUpdateItems(
       );
     }
 
+    const selected = await tx
+      .select()
+      .from(items)
+      .where(and(
+        eq(items.backlogId, data.backlogId),
+        inArray(items.id, data.itemIds),
+        isNull(items.deletedAt),
+      ))
+      .orderBy(asc(items.id))
+      .for("update");
+    if (selected.length !== data.itemIds.length) {
+      throw new Error("Un ou plusieurs items sont introuvables.");
+    }
     if (data.patch.field === "fixVersionIds") {
       return bulkChangeItemFixVersionsInTx(
         tx,
