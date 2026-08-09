@@ -161,16 +161,17 @@ async function startWithTasks(
 }
 
 describeDb("sprint lifecycle", () => {
-  it("starts over capacity and snapshots estimated and unestimated commitments", async () => {
+  it("starts over capacity and snapshots estimated, done, and unestimated commitments", async () => {
     const f = await fixture();
     try {
       const sprint = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
       const estimated = await insertTask(f, "Estimée", 8);
+      const completed = await insertTask(f, "Terminée", 3, f.done.id);
       const unestimated = await insertTask(f, "Sans estimation", null);
       await assignItemsToSprint(
         {
           backlogId: f.backlog.id,
-          itemIds: [estimated.id, unestimated.id],
+          itemIds: [estimated.id, completed.id, unestimated.id],
           sprintId: sprint.id,
         },
         f.actor.id,
@@ -180,8 +181,8 @@ describeDb("sprint lifecycle", () => {
         startSprint(startInput(f.backlog.id, sprint.id), f.actor.id),
       ).resolves.toEqual({
         sprintId: sprint.id,
-        committedItemCount: 2,
-        committedPoints: 8,
+        committedItemCount: 3,
+        committedPoints: 11,
         unestimatedCount: 1,
       });
 
@@ -198,14 +199,19 @@ describeDb("sprint lifecycle", () => {
         plannedEndAt: new Date("2026-08-19T09:00:00.000Z"),
       });
       const snapshots = await db
-        .select({ itemId: sprintItems.itemId, estimateAtStart: sprintItems.estimateAtStart })
+        .select({
+          itemId: sprintItems.itemId,
+          estimateAtStart: sprintItems.estimateAtStart,
+          doneAtStart: sprintItems.doneAtStart,
+        })
         .from(sprintItems)
         .where(and(eq(sprintItems.sprintId, sprint.id), isNull(sprintItems.leftAt)))
         .orderBy(asc(sprintItems.itemId));
       expect(snapshots).toEqual(
         expect.arrayContaining([
-          { itemId: estimated.id, estimateAtStart: 8 },
-          { itemId: unestimated.id, estimateAtStart: null },
+          { itemId: estimated.id, estimateAtStart: 8, doneAtStart: false },
+          { itemId: completed.id, estimateAtStart: 3, doneAtStart: true },
+          { itemId: unestimated.id, estimateAtStart: null, doneAtStart: false },
         ]),
       );
       const commitments = await db
@@ -215,6 +221,7 @@ describeDb("sprint lifecycle", () => {
       expect(commitments).toEqual(
         expect.arrayContaining([
           { itemId: estimated.id, newValue: "Sprint engagé" },
+          { itemId: completed.id, newValue: "Sprint engagé" },
           { itemId: unestimated.id, newValue: "Sprint engagé" },
         ]),
       );
@@ -386,6 +393,7 @@ describeDb("sprint lifecycle", () => {
           addedAfterStart: sprintReportItems.addedAfterStart,
           removedAfterStart: sprintReportItems.removedAfterStart,
           estimateAtStart: sprintReportItems.estimateAtStart,
+          doneAtStart: sprintReportItems.doneAtStart,
           finalOutcome: sprintReportItems.finalOutcome,
         })
         .from(sprintReportItems)
@@ -398,6 +406,7 @@ describeDb("sprint lifecycle", () => {
             addedAfterStart: true,
             removedAfterStart: false,
             estimateAtStart: null,
+            doneAtStart: null,
             finalOutcome: "carried_to_backlog",
           },
           {
@@ -406,6 +415,7 @@ describeDb("sprint lifecycle", () => {
             addedAfterStart: true,
             removedAfterStart: true,
             estimateAtStart: null,
+            doneAtStart: null,
             finalOutcome: "removed",
           },
           {
@@ -414,6 +424,7 @@ describeDb("sprint lifecycle", () => {
             addedAfterStart: false,
             removedAfterStart: true,
             estimateAtStart: 4,
+            doneAtStart: false,
             finalOutcome: "removed",
           },
           {
@@ -422,6 +433,7 @@ describeDb("sprint lifecycle", () => {
             addedAfterStart: false,
             removedAfterStart: true,
             estimateAtStart: null,
+            doneAtStart: false,
             finalOutcome: "removed",
           },
         ]),
@@ -592,6 +604,7 @@ describeDb("sprint lifecycle", () => {
             itemKey: sprintReportItems.itemKey,
             itemTitle: sprintReportItems.itemTitle,
             initialCommitment: sprintReportItems.initialCommitment,
+            doneAtStart: sprintReportItems.doneAtStart,
             estimateAtStart: sprintReportItems.estimateAtStart,
             estimateAtFinalParticipation:
               sprintReportItems.estimateAtFinalParticipation,
@@ -610,6 +623,7 @@ describeDb("sprint lifecycle", () => {
             itemTitle: doneTask.title,
             initialCommitment: true,
             estimateAtStart: 3,
+            doneAtStart: true,
             estimateAtFinalParticipation: 3,
             estimateAtCompletion: 3,
             finalOutcome: "completed",
@@ -621,6 +635,7 @@ describeDb("sprint lifecycle", () => {
             itemTitle: openTask.title,
             initialCommitment: true,
             estimateAtStart: 5,
+            doneAtStart: false,
             estimateAtFinalParticipation: 5,
             estimateAtCompletion: null,
             finalOutcome: "carried_to_backlog",
@@ -749,6 +764,7 @@ describeDb("sprint lifecycle", () => {
           addedAfterStart: sprintReportItems.addedAfterStart,
           removedAfterStart: sprintReportItems.removedAfterStart,
           estimateAtStart: sprintReportItems.estimateAtStart,
+          doneAtStart: sprintReportItems.doneAtStart,
           estimateAtFinalParticipation:
             sprintReportItems.estimateAtFinalParticipation,
           estimateAtCompletion: sprintReportItems.estimateAtCompletion,
@@ -768,6 +784,7 @@ describeDb("sprint lifecycle", () => {
             addedAfterStart: false,
             removedAfterStart: false,
             estimateAtStart: 3,
+            doneAtStart: true,
             estimateAtFinalParticipation: 3,
             estimateAtCompletion: 3,
             finalOutcome: "completed",
@@ -777,6 +794,7 @@ describeDb("sprint lifecycle", () => {
             itemKey: initialUnestimated.key,
             initialCommitment: true,
             estimateAtStart: null,
+            doneAtStart: false,
             estimateAtFinalParticipation: null,
             estimateAtCompletion: null,
             finalOutcome: "carried_to_sprint",
@@ -787,6 +805,7 @@ describeDb("sprint lifecycle", () => {
             initialCommitment: false,
             addedAfterStart: true,
             estimateAtStart: null,
+            doneAtStart: null,
             estimateAtFinalParticipation: 8,
             estimateAtCompletion: 8,
             finalOutcome: "completed",
@@ -798,6 +817,7 @@ describeDb("sprint lifecycle", () => {
             addedAfterStart: true,
             removedAfterStart: true,
             estimateAtStart: null,
+            doneAtStart: null,
             estimateAtFinalParticipation: 2,
             estimateAtCompletion: null,
             finalOutcome: "carried_to_sprint",

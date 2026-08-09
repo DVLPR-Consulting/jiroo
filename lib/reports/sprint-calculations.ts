@@ -97,6 +97,7 @@ export type CompletedParticipantInput = {
   leftAt: Date | null;
   estimateAtJoin: number | null;
   estimateAtStart: number | null;
+  doneAtStart: boolean | null;
   currentEstimate: number | null;
   completionOutcome: Exclude<CompletedParticipantOutcome, "removed">;
 };
@@ -124,6 +125,7 @@ export type CompletedParticipantRow = {
   initialCommitment: boolean;
   addedAfterStart: boolean;
   removedAfterStart: boolean;
+  doneAtStart: boolean | null;
   estimateAtStart: number | null;
   estimateAtFinalParticipation: number | null;
   estimateAtCompletion: number | null;
@@ -196,6 +198,7 @@ export function buildCompletedParticipantRows(input: {
       addedAfterStart: itemEvents.some((event) => event.type === "item_added"),
       removedAfterStart: itemEvents.some((event) => event.type === "item_removed"),
       estimateAtStart: initialInterval?.estimateAtStart ?? null,
+      doneAtStart: initialInterval?.doneAtStart ?? null,
       estimateAtFinalParticipation,
       estimateAtCompletion:
         finalOutcome === "completed" ? estimateAtFinalParticipation : null,

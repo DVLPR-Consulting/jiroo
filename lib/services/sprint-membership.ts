@@ -6,6 +6,7 @@ import {
   items,
   sprintItems,
   sprints,
+  statuses,
 } from "@/lib/db/schema/domain";
 import {
   appendSprintEventsInTx,
@@ -64,9 +65,28 @@ export async function assignItemsToSprintInTx(
     throw new Error("Un sprint terminé ne peut plus recevoir d’items.");
   }
 
-  const selected = await tx
+  const currentRows = await tx
     .select()
+    .from(sprintItems)
+    .where(
+      and(inArray(sprintItems.itemId, input.itemIds), isNull(sprintItems.leftAt)),
+    )
+    .orderBy(asc(sprintItems.itemId))
+    .for("update");
+
+  const selected = await tx
+    .select({
+      id: items.id,
+      backlogId: items.backlogId,
+      key: items.key,
+      title: items.title,
+      type: items.type,
+      estimatePoints: items.estimatePoints,
+      statusBacklogId: statuses.backlogId,
+      statusCategory: statuses.category,
+    })
     .from(items)
+    .innerJoin(statuses, eq(items.statusId, statuses.id))
     .where(and(inArray(items.id, input.itemIds), isNull(items.deletedAt)))
     .orderBy(asc(items.id))
     .for("update");
@@ -76,18 +96,13 @@ export async function assignItemsToSprintInTx(
   if (selected.some((row) => row.backlogId !== input.backlogId)) {
     throw new Error("Tous les items doivent appartenir au backlog.");
   }
+  if (selected.some((row) => row.statusBacklogId !== input.backlogId)) {
+    throw new Error("Le statut d’un item appartient à un autre backlog.");
+  }
   if (selected.some((row) => row.type !== "tache")) {
     throw new Error("Seules les tâches peuvent être planifiées dans un sprint.");
   }
 
-  const currentRows = await tx
-    .select()
-    .from(sprintItems)
-    .where(
-      and(inArray(sprintItems.itemId, input.itemIds), isNull(sprintItems.leftAt)),
-    )
-    .orderBy(asc(sprintItems.itemId))
-    .for("update");
   const currentByItem = new Map(currentRows.map((row) => [row.itemId, row]));
   const now = new Date();
   const eventCommands: SprintEventCommand[] = [];
@@ -134,6 +149,9 @@ export async function assignItemsToSprintInTx(
           joinedAt: now,
           joinedBy: actorId,
           estimateAtJoin: item.estimatePoints,
+          doneAtStart: destination.state === "active"
+            ? item.statusCategory === "done"
+            : null,
         })
         .returning({ id: sprintItems.id });
       if (!membership) throw new Error("Création de l’appartenance sprint impossible.");
@@ -145,6 +163,7 @@ export async function assignItemsToSprintInTx(
           membershipId: membership.id,
           item: { id: item.id, key: item.key, title: item.title },
           nextEstimate: item.estimatePoints,
+          nextDone: item.statusCategory === "done",
           relatedSprint: currentSprint
             ? { id: currentSprint.id, name: currentSprint.name }
             : null,

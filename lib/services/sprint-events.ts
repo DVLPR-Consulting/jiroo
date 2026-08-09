@@ -39,6 +39,7 @@ export type SprintEventCommand =
   | (SprintItemEventBase & {
       type: "item_added";
       nextEstimate: number | null;
+      nextDone: boolean;
       relatedSprint: { id: string; name: string } | null;
     })
   | (SprintItemEventBase & {
@@ -87,6 +88,7 @@ function eventRow(command: SprintEventCommand): typeof sprintEvents.$inferInsert
         itemKey: command.item.key,
         itemTitle: command.item.title,
         nextEstimate: command.nextEstimate,
+        nextDone: command.nextDone,
         relatedSprintId: command.relatedSprint?.id ?? null,
         relatedSprintName: command.relatedSprint?.name ?? null,
       };

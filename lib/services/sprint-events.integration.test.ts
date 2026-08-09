@@ -34,18 +34,27 @@ async function fixture() {
     .values({ key: `EV${suffix}`, name: "Événements sprint", color: "#475569" })
     .returning();
   if (!backlog) throw new Error("Fixture backlog impossible.");
-  const [todo] = await db
+  const [todo, done] = await db
     .insert(statuses)
-    .values({
-      backlogId: backlog.id,
-      name: "À faire",
-      category: "todo",
-      order: 0,
-      color: "#9aa0a6",
-    })
+    .values([
+      {
+        backlogId: backlog.id,
+        name: "À faire",
+        category: "todo",
+        order: 0,
+        color: "#9aa0a6",
+      },
+      {
+        backlogId: backlog.id,
+        name: "Terminé",
+        category: "done",
+        order: 1,
+        color: "#22c55e",
+      },
+    ])
     .returning();
-  if (!todo) throw new Error("Fixture statut impossible.");
-  return { actor, backlog, todo };
+  if (!todo || !done) throw new Error("Fixture statut impossible.");
+  return { actor, backlog, todo, done };
 }
 
 type Fixture = Awaited<ReturnType<typeof fixture>>;
@@ -91,7 +100,11 @@ async function insertItem(
   f: Fixture,
   title: string,
   estimatePoints: number | null,
-  options: { type?: "composant" | "tache" | "soustache"; parent?: typeof items.$inferSelect } = {},
+  options: {
+    type?: "composant" | "tache" | "soustache";
+    parent?: typeof items.$inferSelect;
+    statusId?: string;
+  } = {},
 ) {
   const id = randomUUID();
   const parent = options.parent;
@@ -104,7 +117,7 @@ async function insertItem(
       backlogId: f.backlog.id,
       title,
       parentId: parent?.id ?? null,
-      statusId: f.todo.id,
+      statusId: options.statusId ?? f.todo.id,
       estimatePoints,
       reporterId: f.actor.id,
       rank: `item-${randomUUID()}`,
@@ -285,8 +298,10 @@ describeDb("sprint reporting events", () => {
     try {
       const sprint = await insertSprint(f, "Sprint à démarrer");
       const estimated = await insertItem(f, "Estimée", 5);
+      const completed = await insertItem(f, "Déjà terminée", 3, { statusId: f.done.id });
       const unestimated = await insertItem(f, "Sans estimation", null);
       await addMembership(f, sprint.id, estimated.id, 5);
+      await addMembership(f, sprint.id, completed.id, 3);
       await addMembership(f, sprint.id, unestimated.id, null);
 
       await startSprint(
@@ -305,14 +320,19 @@ describeDb("sprint reporting events", () => {
 
       expect(
         await db
-          .select({ itemId: sprintItems.itemId, estimateAtStart: sprintItems.estimateAtStart })
+          .select({
+            itemId: sprintItems.itemId,
+            estimateAtStart: sprintItems.estimateAtStart,
+            doneAtStart: sprintItems.doneAtStart,
+          })
           .from(sprintItems)
           .where(eq(sprintItems.sprintId, sprint.id))
           .orderBy(asc(sprintItems.itemId)),
       ).toEqual(
         [
-          { itemId: estimated.id, estimateAtStart: 5 },
-          { itemId: unestimated.id, estimateAtStart: null },
+          { itemId: estimated.id, estimateAtStart: 5, doneAtStart: false },
+          { itemId: completed.id, estimateAtStart: 3, doneAtStart: true },
+          { itemId: unestimated.id, estimateAtStart: null, doneAtStart: false },
         ].sort((left, right) => left.itemId.localeCompare(right.itemId)),
       );
       expect(
@@ -341,7 +361,49 @@ describeDb("sprint reporting events", () => {
               eq(activities.requestCorrelationId, correlationId),
             ),
           ),
-      ).toEqual([{ correlationId }, { correlationId }]);
+      ).toEqual([{ correlationId }, { correlationId }, { correlationId }]);
+    } finally {
+      await cleanup(f);
+    }
+  });
+
+  it("captures todo and done state in active-sprint additions", async () => {
+    const f = await fixture();
+    try {
+      const active = await insertSprint(f, "Sprint actif", "active");
+      const todoItem = await insertItem(f, "Ajout à faire", 3);
+      const doneItem = await insertItem(f, "Ajout terminé", 5, { statusId: f.done.id });
+
+      await assignItemsToSprint(
+        { backlogId: f.backlog.id, itemIds: [todoItem.id, doneItem.id], sprintId: active.id },
+        f.actor.id,
+        "done-at-entry",
+      );
+
+      expect(
+        await db
+          .select({ itemId: sprintItems.itemId, doneAtStart: sprintItems.doneAtStart })
+          .from(sprintItems)
+          .where(eq(sprintItems.sprintId, active.id))
+          .orderBy(asc(sprintItems.itemId)),
+      ).toEqual(
+        [
+          { itemId: todoItem.id, doneAtStart: false },
+          { itemId: doneItem.id, doneAtStart: true },
+        ].sort((left, right) => left.itemId.localeCompare(right.itemId)),
+      );
+      expect(
+        await db
+          .select({ itemId: sprintEvents.itemId, nextDone: sprintEvents.nextDone })
+          .from(sprintEvents)
+          .where(eq(sprintEvents.requestCorrelationId, "done-at-entry"))
+          .orderBy(asc(sprintEvents.itemId)),
+      ).toEqual(
+        [
+          { itemId: todoItem.id, nextDone: false },
+          { itemId: doneItem.id, nextDone: true },
+        ].sort((left, right) => left.itemId!.localeCompare(right.itemId!)),
+      );
     } finally {
       await cleanup(f);
     }
@@ -972,25 +1034,57 @@ describeDb("sprint reporting events", () => {
     }
   });
 
-  it("rolls back membership changes when event validation fails", async () => {
+  it("rolls back membership facts and events when a late activity write fails", async () => {
     const f = await fixture();
+    const suffix = randomUUID().replaceAll("-", "");
+    const functionName = `fail_membership_activity_${suffix}`;
+    const triggerName = `fail_membership_activity_${suffix}`;
+    const correlationId = "membership-late-rollback";
+    let triggerInstalled = false;
     try {
       const active = await insertSprint(f, "Sprint actif", "active");
       const item = await insertItem(f, "À conserver", 3);
+      await databasePool.query(`
+        create function "${functionName}"() returns trigger
+        language plpgsql as $$
+        begin
+          if new.request_correlation_id = '${correlationId}' then
+            raise exception 'injected late membership activity failure';
+          end if;
+          return new;
+        end;
+        $$
+      `);
+      await databasePool.query(`
+        create trigger "${triggerName}"
+        before insert on activities
+        for each row execute function "${functionName}"()
+      `);
+      triggerInstalled = true;
       await expect(
         assignItemsToSprint(
           { backlogId: f.backlog.id, itemIds: [item.id], sprintId: active.id },
           f.actor.id,
-          "x".repeat(129),
+          correlationId,
         ),
-      ).rejects.toThrow("correlation");
+      ).rejects.toThrow('insert into "activities"');
       expect(
         await db
-          .select({ id: sprintItems.id })
+          .select({ id: sprintItems.id, doneAtStart: sprintItems.doneAtStart })
           .from(sprintItems)
           .where(and(eq(sprintItems.itemId, item.id), isNull(sprintItems.leftAt))),
       ).toEqual([]);
+      expect(
+        await db
+          .select({ id: sprintEvents.id })
+          .from(sprintEvents)
+          .where(eq(sprintEvents.requestCorrelationId, correlationId)),
+      ).toEqual([]);
     } finally {
+      if (triggerInstalled) {
+        await databasePool.query(`drop trigger "${triggerName}" on activities`);
+      }
+      await databasePool.query(`drop function if exists "${functionName}"()`);
       await cleanup(f);
     }
   });

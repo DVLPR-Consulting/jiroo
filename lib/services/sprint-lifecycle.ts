@@ -134,8 +134,11 @@ export async function startSprint(
                 backlogId: items.backlogId,
                 type: items.type,
                 estimatePoints: items.estimatePoints,
+                statusBacklogId: statuses.backlogId,
+                statusCategory: statuses.category,
               })
               .from(items)
+              .innerJoin(statuses, eq(items.statusId, statuses.id))
               .where(
                 and(
                   inArray(
@@ -150,7 +153,10 @@ export async function startSprint(
       if (
         committedItems.length !== memberships.length ||
         committedItems.some(
-          (item) => item.backlogId !== data.backlogId || item.type !== "tache",
+          (item) =>
+            item.backlogId !== data.backlogId ||
+            item.statusBacklogId !== data.backlogId ||
+            item.type !== "tache",
         )
       ) {
         throw new Error("Le contenu du sprint est incohérent.");
@@ -158,6 +164,9 @@ export async function startSprint(
 
       const estimateByItem = new Map(
         committedItems.map((item) => [item.id, item.estimatePoints]),
+      );
+      const doneByItem = new Map(
+        committedItems.map((item) => [item.id, item.statusCategory === "done"]),
       );
       if (memberships.length > 0) {
         const estimateCases = sql.join(
@@ -167,9 +176,19 @@ export async function startSprint(
           ),
           sql.raw(" "),
         );
+        const doneCases = sql.join(
+          memberships.map(
+            (membership) =>
+              sql`when ${sprintItems.itemId} = ${membership.itemId} then ${doneByItem.get(membership.itemId) ?? false}::boolean`,
+          ),
+          sql.raw(" "),
+        );
         await tx
           .update(sprintItems)
-          .set({ estimateAtStart: sql`case ${estimateCases} else null::numeric(5, 2) end` })
+          .set({
+            estimateAtStart: sql`case ${estimateCases} else null::numeric(5, 2) end`,
+            doneAtStart: sql`case ${doneCases} else null::boolean end`,
+          })
           .where(inArray(sprintItems.id, memberships.map((membership) => membership.id)));
       }
       const startedAt = new Date(data.startAt);
@@ -444,6 +463,7 @@ export async function completeSprint(
             leftAt: membership.leftAt,
             estimateAtJoin: membership.estimateAtJoin,
             estimateAtStart: membership.estimateAtStart,
+            doneAtStart: membership.doneAtStart,
             currentEstimate: item.estimatePoints,
             completionOutcome:
               item.statusCategory === "done"
@@ -526,6 +546,7 @@ export async function completeSprint(
         initialCommitment: row.initialCommitment,
         addedAfterStart: row.addedAfterStart,
         removedAfterStart: row.removedAfterStart,
+        doneAtStart: row.doneAtStart,
         estimateAtStart: row.estimateAtStart,
         estimateAtFinalParticipation: row.estimateAtFinalParticipation,
         estimateAtCompletion: row.estimateAtCompletion,
