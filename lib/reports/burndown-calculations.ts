@@ -144,7 +144,7 @@ function stateTotals(states: Iterable<ItemState>) {
 
   for (const item of states) {
     if (!item.present) continue;
-    if (item.estimate === null) unestimated += 1;
+    if (!item.done && item.estimate === null) unestimated += 1;
     if (item.done) completed += pointValue(item.estimate);
     else remaining += pointValue(item.estimate);
   }
@@ -255,7 +255,22 @@ function createDisplayPoints(
       left.sequence < right.sequence ? -1 : left.sequence > right.sequence ? 1 : 0),
   );
 
-  return projectBurndownPoints(sampled, 600);
+  const mandatoryTimes = uniqueTimes([
+    startedAt,
+    observedAt,
+    ...(targetEndAt === null || targetEndAt.getTime() < startedAt.getTime()
+      ? []
+      : [targetEndAt]),
+  ]);
+  const mandatoryIndexes = mandatoryTimes.map((at) => {
+    const index = sampled.findLastIndex(
+      (point) => point.occurredAt.getTime() === at.getTime(),
+    );
+    assertConsistent(index >= 0);
+    return index;
+  });
+
+  return projectBurndownPoints(sampled, 600, mandatoryIndexes);
 }
 
 /**
@@ -265,36 +280,44 @@ function createDisplayPoints(
 export function projectBurndownPoints(
   points: readonly BurndownPoint[],
   maximum = 600,
+  mandatoryIndexes: readonly number[] = [],
 ): BurndownPoint[] {
   if (!Number.isInteger(maximum) || maximum < 1) {
     throw new RangeError("maximum must be a positive integer");
   }
   if (points.length <= maximum) return [...points];
-  if (maximum === 1) return [points[0]!];
+  if (maximum < 2) throw new InconsistentBurndownError();
 
-  const interior = points.slice(1, -1);
-  const slots = maximum - 2;
-  const bucketCount = Math.ceil(slots / 2);
-  const selected = new Set<number>([0, points.length - 1]);
+  const mandatory = new Set<number>([0, points.length - 1, ...mandatoryIndexes]);
+  for (const index of mandatory) {
+    assertConsistent(Number.isInteger(index) && index >= 0 && index < points.length);
+  }
+  assertConsistent(mandatory.size <= maximum);
+
+  const candidates = Array.from({ length: points.length }, (_, index) => index)
+    .filter((index) => !mandatory.has(index));
+  const slots = maximum - mandatory.size;
+  const bucketCount = Math.floor(slots / 2);
+  const selected = new Set(mandatory);
 
   for (let bucket = 0; bucket < bucketCount; bucket += 1) {
-    const from = Math.floor((bucket * interior.length) / bucketCount);
-    const to = Math.floor(((bucket + 1) * interior.length) / bucketCount);
+    const from = Math.floor((bucket * candidates.length) / bucketCount);
+    const to = Math.floor(((bucket + 1) * candidates.length) / bucketCount);
     if (from >= to) continue;
-    let minIndex = from + 1;
-    let maxIndex = from + 1;
-    for (let index = from + 1; index < to + 1; index += 1) {
-      const pointIndex = index;
+    let minIndex = candidates[from]!;
+    let maxIndex = candidates[from]!;
+    for (let index = from; index < to; index += 1) {
+      const pointIndex = candidates[index]!;
       if (points[pointIndex]!.remainingPoints < points[minIndex]!.remainingPoints) minIndex = pointIndex;
       if (points[pointIndex]!.remainingPoints > points[maxIndex]!.remainingPoints) maxIndex = pointIndex;
     }
-    selected.add(minIndex);
-    selected.add(maxIndex);
+    for (const index of minIndex === maxIndex ? [minIndex] : [minIndex, maxIndex]) {
+      if (selected.size < maximum) selected.add(index);
+    }
   }
 
   return [...selected]
     .sort((left, right) => left - right)
-    .slice(0, maximum)
     .map((index) => points[index]!);
 }
 
@@ -449,10 +472,20 @@ export function calculatePlanningComparison(
   commitmentPoints: number,
   velocity: { averageCompletedPoints: number | null; population: number },
 ): PlanningComparison {
+  assertConsistent(
+    Number.isFinite(commitmentPoints) &&
+      commitmentPoints >= 0 &&
+      Number.isFinite(velocity.population) &&
+      Number.isInteger(velocity.population) &&
+      velocity.population >= 0 &&
+      (velocity.averageCompletedPoints === null ||
+        (Number.isFinite(velocity.averageCompletedPoints) &&
+          velocity.averageCompletedPoints >= 0)),
+  );
   if (velocity.population === 0 || velocity.averageCompletedPoints === null) {
     return {
       state: "unavailable",
-      commitmentPoints,
+      commitmentPoints: round(commitmentPoints),
       averageCompletedPoints: null,
       population: 0,
       difference: null,

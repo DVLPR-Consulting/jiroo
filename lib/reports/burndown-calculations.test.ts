@@ -133,6 +133,20 @@ describe("calculateBurndown", () => {
     expect(result.exactPoints.at(-1)).toMatchObject({ remainingPoints: 8, deltaPoints: 0, cause: "item_added", itemKey: "CASS-2" });
   });
 
+  it("does not count completed null-estimate work as unestimated", () => {
+    const baseline = calculateBurndown(input({
+      initial: [{ itemId: "item-1", itemKey: "CASS-1", itemTitle: "API", estimate: null, done: true }],
+    }));
+    const addition = calculateBurndown(input({
+      events: [add("CASS-2", BigInt(1), "2026-08-11T09:00:00.000Z", null, true)],
+    }));
+
+    expect(baseline.exactPoints[0]).toMatchObject({ remainingPoints: 0, unestimatedCount: 0 });
+    expect(baseline.summary.unestimatedCount).toBe(0);
+    expect(addition.exactPoints.at(-1)).toMatchObject({ remainingPoints: 8, unestimatedCount: 0 });
+    expect(addition.summary.unestimatedCount).toBe(0);
+  });
+
   it("does not alter remaining work when an estimate changes while done", () => {
     const result = calculateBurndown(input({
       initial: [{ itemId: "item-1", itemKey: "CASS-1", itemTitle: "API", estimate: 8, done: true }],
@@ -285,6 +299,48 @@ describe("projectBurndownPoints", () => {
     expect(points).toHaveLength(1_000);
   });
 
+  it("preserves first and last points for odd and tiny valid caps", () => {
+    const points: BurndownPoint[] = Array.from({ length: 7 }, (_, index) => ({
+      occurredAt: new Date(1_700_000_000_000 + index),
+      sequence: BigInt(index),
+      remainingPoints: index,
+      unestimatedCount: 0,
+      deltaPoints: 0,
+      itemId: null,
+      itemKey: `CASS-${index}`,
+      itemTitle: "Point",
+      cause: "item_added",
+    }));
+    for (const maximum of [2, 3, 5]) {
+      const projection = projectBurndownPoints(points, maximum);
+      expect(projection.length).toBeLessThanOrEqual(maximum);
+      expect(projection[0]).toBe(points[0]);
+      expect(projection.at(-1)).toBe(points.at(-1));
+    }
+    expect(() => projectBurndownPoints(points, 1)).toThrow(InconsistentBurndownError);
+    expect(() => projectBurndownPoints(points, 2, [3])).toThrow(InconsistentBurndownError);
+  });
+
+  it("keeps both extrema when mandatory samples leave an odd extrema budget", () => {
+    const points: BurndownPoint[] = Array.from({ length: 8 }, (_, index) => ({
+      occurredAt: new Date(1_700_000_000_000 + index),
+      sequence: BigInt(index),
+      remainingPoints: [0, 0, -5, 1, 0, 10, 100, 0][index]!,
+      unestimatedCount: 0,
+      deltaPoints: 0,
+      itemId: null,
+      itemKey: `CASS-${index}`,
+      itemTitle: "Point",
+      cause: "item_added",
+    }));
+    const projection = projectBurndownPoints(points, 6, [4]);
+    expect(projection.length).toBeLessThanOrEqual(6);
+    expect(projection).toContain(points[0]);
+    expect(projection).toContain(points[4]);
+    expect(projection).toContain(points[6]);
+    expect(projection).toContain(points[7]);
+  });
+
   it("rejects an invalid projection cap", () => {
     const point: BurndownPoint = {
       occurredAt: startedAt,
@@ -302,11 +358,49 @@ describe("projectBurndownPoints", () => {
   });
 });
 
+describe("calculateBurndown display boundaries", () => {
+  it("keeps observation and target samples in a dense projected series", () => {
+    const events = Array.from({ length: 700 }, (_, index) => estimate(
+      "CASS-1",
+      BigInt(index + 1),
+      new Date(startedAt.getTime() + (index + 1) * 1_000).toISOString(),
+      index % 2 === 0 ? 8 : 9,
+      index % 2 === 0 ? 9 : 8,
+    ));
+    const result = calculateBurndown(input({ events }));
+    const times = result.displayPoints.map((point) => point.occurredAt.getTime());
+
+    expect(result.displayPoints.length).toBeLessThanOrEqual(600);
+    expect(times).toContain(observedAt.getTime());
+    expect(times).toContain(targetEndAt.getTime());
+    expect(result.displayPoints[0]!.occurredAt).toEqual(startedAt);
+    expect(result.displayPoints.at(-1)!.occurredAt).toEqual(targetEndAt);
+  });
+});
+
 describe("calculatePlanningComparison", () => {
   it("keeps planning velocity separate and reports no population as unavailable", () => {
     expect(calculatePlanningComparison(8.456, { averageCompletedPoints: 6.666, population: 3 }))
       .toEqual({ state: "ready", commitmentPoints: 8.46, averageCompletedPoints: 6.67, population: 3, difference: 1.79 });
     expect(calculatePlanningComparison(8.456, { averageCompletedPoints: null, population: 0 }))
-      .toEqual({ state: "unavailable", commitmentPoints: 8.456, averageCompletedPoints: null, population: 0, difference: null });
+      .toEqual({ state: "unavailable", commitmentPoints: 8.46, averageCompletedPoints: null, population: 0, difference: null });
+  });
+
+  it("rejects invalid planning numerics", () => {
+    const invalids: Array<[number, { averageCompletedPoints: number | null; population: number }]> = [
+      [-1, { averageCompletedPoints: null, population: 0 }],
+      [Number.NaN, { averageCompletedPoints: null, population: 0 }],
+      [Number.POSITIVE_INFINITY, { averageCompletedPoints: null, population: 0 }],
+      [8, { averageCompletedPoints: -1, population: 1 }],
+      [8, { averageCompletedPoints: Number.NaN, population: 1 }],
+      [8, { averageCompletedPoints: Number.POSITIVE_INFINITY, population: 1 }],
+      [8, { averageCompletedPoints: null, population: -1 }],
+      [8, { averageCompletedPoints: null, population: Number.NaN }],
+      [8, { averageCompletedPoints: null, population: Number.POSITIVE_INFINITY }],
+      [8, { averageCompletedPoints: null, population: 1.5 }],
+    ];
+    for (const [commitment, velocity] of invalids) {
+      expect(() => calculatePlanningComparison(commitment, velocity)).toThrow(InconsistentBurndownError);
+    }
   });
 });
