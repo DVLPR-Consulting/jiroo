@@ -413,6 +413,8 @@ expect(calculateBurndown(input).exactPoints.map((point) => point.remainingPoints
 
 Add RED tests for already-done add, estimate while done, null transitions, completion/reopen, remove/re-add, equal timestamps, invalid prior estimates, duplicate add, invalid dates, negative state, UTC day sampling, projection cap, guideline values, every label, and planning comparison with zero population.
 
+Also add lifecycle-event tests: `sprint_started` at the exact actual start and `sprint_completed` at the exact immutable completion each emit a zero-delta exact point with their own cause; mismatched boundaries or duplicate lifecycle events throw `InconsistentBurndownError`.
+
 - [ ] **Step 2: Run the pure suite RED**
 
 ```bash
@@ -431,6 +433,7 @@ type BurndownItemIdentity = {
 };
 
 export type BurndownEvent =
+  | { type: "sprint_started" | "sprint_completed"; occurredAt: Date; sequence: bigint }
   | (BurndownItemIdentity & { type: "item_added"; occurredAt: Date; sequence: bigint; nextEstimate: number | null; nextDone: boolean })
   | (BurndownItemIdentity & { type: "item_removed"; occurredAt: Date; sequence: bigint; previousEstimate: number | null })
   | (BurndownItemIdentity & { type: "estimate_changed"; occurredAt: Date; sequence: bigint; previousEstimate: number | null; nextEstimate: number | null })
@@ -455,7 +458,7 @@ export class InconsistentBurndownError extends Error {
 
 - [ ] **Step 4: Implement strict replay**
 
-Sort a copy by timestamp then sequence. Maintain `Map<string, { present; estimate; done }>`. Validate presence, done boundary and previous estimate before each mutation. Emit:
+Sort a copy by timestamp then sequence. Maintain `Map<string, { present; estimate; done }>`. Validate presence, done boundary and previous estimate before each mutation. Validate at most one lifecycle event of each type: `sprint_started.occurredAt` must equal `startedAt`; `sprint_completed` requires a completed report and must equal `completedAt`. Lifecycle events never mutate item state but still emit their own zero-delta exact point. Emit:
 
 ```ts
 export type BurndownPoint = {
@@ -577,7 +580,7 @@ Preserve the existing implementation contract exactly: clamp `pageInput` to at l
 
 Create `lib/services/sprint-burndown.ts` with `import "server-only"`.
 
-For active reports, load canonical sprint, memberships and all ordered events; identify initial memberships as those without an `item_added` membership event and require `doneAtStart`. For completed reports, load only immutable snapshot/report items plus ledger, build the baseline from `initialCommitment=true` and require `doneAtStart`. Never join mutable item values into completed calculations.
+For active reports, load canonical sprint, memberships and all ordered events; identify initial memberships as those without an `item_added` membership event and require `doneAtStart`. For completed reports, load only immutable snapshot/report items plus ledger, build the baseline from `initialCommitment=true` and require `doneAtStart`. Pass both lifecycle and item events to the calculator so the exact series contains one point per journal event. Never join mutable item values into completed calculations.
 
 If `item_added.nextDone` or an initial `doneAtStart` is null, return `legacy_unavailable` with reason `legacy_history`.
 
