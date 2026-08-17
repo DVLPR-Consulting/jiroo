@@ -94,6 +94,14 @@ function remove(
   });
 }
 
+function lifecycle(
+  type: "sprint_started" | "sprint_completed",
+  sequence: bigint,
+  occurredAt: Date,
+): BurndownEvent {
+  return event({ type, sequence, occurredAt });
+}
+
 function input(overrides: Partial<BurndownInput> = {}): BurndownInput {
   return {
     startedAt,
@@ -107,6 +115,64 @@ function input(overrides: Partial<BurndownInput> = {}): BurndownInput {
 }
 
 describe("calculateBurndown", () => {
+  it("emits exact zero-delta points for the true sprint lifecycle boundaries", () => {
+    const completedAt = new Date("2026-08-15T09:00:00.000Z");
+    const result = calculateBurndown(input({
+      completedAt,
+      events: [
+        lifecycle("sprint_completed", BigInt(3), completedAt),
+        complete("CASS-1", BigInt(2), "2026-08-12T09:00:00.000Z"),
+        lifecycle("sprint_started", BigInt(1), startedAt),
+      ],
+    }));
+
+    expect(result.exactPoints.map((point) => ({
+      cause: point.cause,
+      sequence: point.sequence,
+      remainingPoints: point.remainingPoints,
+      deltaPoints: point.deltaPoints,
+      itemKey: point.itemKey,
+    }))).toEqual([
+      { cause: "start", sequence: null, remainingPoints: 8, deltaPoints: 0, itemKey: null },
+      { cause: "sprint_started", sequence: BigInt(1), remainingPoints: 8, deltaPoints: 0, itemKey: null },
+      { cause: "item_completed", sequence: BigInt(2), remainingPoints: 0, deltaPoints: -8, itemKey: "CASS-1" },
+      { cause: "sprint_completed", sequence: BigInt(3), remainingPoints: 0, deltaPoints: 0, itemKey: null },
+    ]);
+  });
+
+  it("rejects duplicate or contradictory sprint lifecycle boundaries", () => {
+    const completedAt = new Date("2026-08-15T09:00:00.000Z");
+    const invalids: BurndownInput[] = [
+      input({ events: [
+        lifecycle("sprint_started", BigInt(1), startedAt),
+        lifecycle("sprint_started", BigInt(2), startedAt),
+      ] }),
+      input({ events: [
+        lifecycle("sprint_started", BigInt(1), new Date(startedAt.getTime() + 1)),
+      ] }),
+      input({ events: [lifecycle("sprint_completed", BigInt(1), observedAt)] }),
+      input({
+        completedAt,
+        events: [lifecycle(
+          "sprint_completed",
+          BigInt(1),
+          new Date(completedAt.getTime() - 1),
+        )],
+      }),
+      input({
+        completedAt,
+        events: [
+          lifecycle("sprint_completed", BigInt(1), completedAt),
+          lifecycle("sprint_completed", BigInt(2), completedAt),
+        ],
+      }),
+    ];
+
+    for (const invalid of invalids) {
+      expect(() => calculateBurndown(invalid)).toThrow(InconsistentBurndownError);
+    }
+  });
+
   it("replays immutable facts into one exact point per event", () => {
     const result = calculateBurndown(input({
       initial: [

@@ -445,10 +445,10 @@ describeDb("sprint report reads", () => {
         (event) => event.occurredAt.getTime() === sameTime.getTime(),
       );
       expect(sameTimeEvents.map((event) => event.eventType)).toEqual([
-        "item_completed",
         "item_reopened",
+        "item_completed",
       ]);
-      expect(sameTimeEvents[0]!.sequence < sameTimeEvents[1]!.sequence).toBe(true);
+      expect(sameTimeEvents[0]!.sequence > sameTimeEvents[1]!.sequence).toBe(true);
     } finally {
       await cleanupBacklogs(f.backlog.id);
     }

@@ -5,6 +5,11 @@ type BurndownItemIdentity = {
 };
 
 export type BurndownEvent =
+  | {
+      type: "sprint_started" | "sprint_completed";
+      occurredAt: Date;
+      sequence: bigint;
+    }
   | (BurndownItemIdentity & {
       type: "item_added";
       occurredAt: Date;
@@ -346,6 +351,8 @@ export function calculateBurndown(input: BurndownInput): BurndownCalculation {
   )];
 
   const orderingKeys = new Set<string>();
+  let startedBoundaryCount = 0;
+  let completedBoundaryCount = 0;
   for (const current of input.events) {
     assertConsistent(
       isValidDate(current.occurredAt) &&
@@ -356,6 +363,20 @@ export function calculateBurndown(input: BurndownInput): BurndownCalculation {
     const orderingKey = `${current.occurredAt.getTime()}:${current.sequence}`;
     assertConsistent(!orderingKeys.has(orderingKey));
     orderingKeys.add(orderingKey);
+    if (current.type === "sprint_started") {
+      startedBoundaryCount += 1;
+      assertConsistent(
+        startedBoundaryCount === 1 &&
+          current.occurredAt.getTime() === input.startedAt.getTime(),
+      );
+    } else if (current.type === "sprint_completed") {
+      completedBoundaryCount += 1;
+      assertConsistent(
+        completedBoundaryCount === 1 &&
+          input.completedAt !== null &&
+          current.occurredAt.getTime() === input.completedAt.getTime(),
+      );
+    }
   }
   const events = [...input.events].sort(
     (left, right) => left.occurredAt.getTime() - right.occurredAt.getTime() ||
@@ -364,8 +385,11 @@ export function calculateBurndown(input: BurndownInput): BurndownCalculation {
   let previousRemaining = initialTotals.remaining;
 
   for (const current of events) {
-    const state = states.get(current.itemKey);
+    const state = "itemKey" in current ? states.get(current.itemKey) : undefined;
     switch (current.type) {
+      case "sprint_started":
+      case "sprint_completed":
+        break;
       case "item_added":
         assertValidEstimate(current.nextEstimate);
         assertConsistent(state === undefined || !state.present);
@@ -411,7 +435,7 @@ export function calculateBurndown(input: BurndownInput): BurndownCalculation {
       current.sequence,
       totals,
       previousRemaining,
-      current,
+      "itemKey" in current ? current : null,
       current.type,
     ));
     previousRemaining = totals.remaining;

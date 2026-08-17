@@ -249,7 +249,7 @@ export async function listReportableSprints(backlogId: string): Promise<{
   };
 }
 
-async function readEventPage(
+async function readSprintEventPageWithExecutor(
   tx: Tx,
   backlogId: string,
   sprintId: string,
@@ -290,7 +290,7 @@ async function readEventPage(
         ),
       )
       .where(where)
-      .orderBy(asc(sprintEvents.occurredAt), asc(sprintEvents.sequence))
+      .orderBy(desc(sprintEvents.occurredAt), desc(sprintEvents.sequence))
       .limit(pageSize)
       .offset((page - 1) * pageSize);
   const totalRows = await tx
@@ -321,6 +321,43 @@ async function readEventPage(
       removalReason: row.removalReason,
     })),
   };
+}
+
+export function readSprintEventPage(
+  backlogId: string,
+  sprintId: string,
+  pageInput: number,
+  pageSizeInput: number,
+): Promise<Page<SprintReportEvent>>;
+export function readSprintEventPage(
+  backlogId: string,
+  sprintId: string,
+  pageInput: number,
+  pageSizeInput: number,
+  tx: Tx,
+): Promise<Page<SprintReportEvent>>;
+export async function readSprintEventPage(
+  backlogId: string,
+  sprintId: string,
+  pageInput: number,
+  pageSizeInput: number,
+  tx?: Tx,
+): Promise<Page<SprintReportEvent>> {
+  const page = Math.max(1, Math.trunc(pageInput) || 1);
+  const pageSize = Math.min(100, Math.max(1, Math.trunc(pageSizeInput) || 1));
+  if (tx) {
+    return readSprintEventPageWithExecutor(tx, backlogId, sprintId, page, pageSize);
+  }
+  return db.transaction(
+    (eventTx) => readSprintEventPageWithExecutor(
+      eventTx,
+      backlogId,
+      sprintId,
+      page,
+      pageSize,
+    ),
+    { isolationLevel: "repeatable read", accessMode: "read only" },
+  );
 }
 
 type ActiveMetricsRow = {
@@ -658,12 +695,12 @@ async function readActiveReport(
     command.itemPage,
     command.pageSize,
   );
-  const events = await readEventPage(
-    tx,
+  const events = await readSprintEventPage(
     backlogId,
     sprint.id,
     command.eventPage,
     command.pageSize,
+    tx,
   );
   const metrics = metricsResult.rows[0];
   const scope = scopeResult.rows[0];
@@ -779,12 +816,12 @@ async function readCompletedReport(
       .from(sprintReportItems)
       .where(itemWhere)
       .groupBy(sprintReportItems.finalOutcome);
-  const events = await readEventPage(
-    tx,
+  const events = await readSprintEventPage(
     backlogId,
     sprint.id,
     command.eventPage,
     command.pageSize,
+    tx,
   );
   const sections: SprintReportSections = {
     completed: 0,
