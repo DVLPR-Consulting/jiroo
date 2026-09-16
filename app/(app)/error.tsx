@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 
 export default function Error({
   error,
-  unstable_retry,
+  retry,
 }: {
   error: Error & { digest?: string };
-  unstable_retry: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
     console.error(error);
@@ -23,7 +23,7 @@ export default function Error({
         title="Une erreur est survenue"
         description="Nous n’avons pas pu charger cette page."
         action={
-          <Button type="button" onClick={() => unstable_retry()}>
+          <Button type="button" onClick={() => retry()}>
             Réessayer
           </Button>
         }

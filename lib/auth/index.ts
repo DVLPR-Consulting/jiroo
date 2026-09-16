@@ -6,6 +6,8 @@ import * as schema from "@/lib/db/schema";
 
 export const auth = betterAuth({
   appName: "Jiroo",
+  // Accounts are provisioned by administrators through the server-side API.
+  disabledPaths: ["/sign-up/email"],
   database: drizzleAdapter(db, { provider: "pg", schema }),
   emailAndPassword: { enabled: true, autoSignIn: false },
   user: {
