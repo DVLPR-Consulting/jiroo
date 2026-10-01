@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "runId": "sprint-burndown-final-2",
+  "timestamps": {
+    "startedAt": "2026-10-01T10:39:28.270Z",
+    "databaseVerifiedAt": "2026-10-01T10:39:28.284Z",
+    "manifestWrittenAt": "2026-10-01T10:39:28.396Z"
+  },
+  "runtime": {
+    "node": "v24.18.1",
+    "pnpm": "10.19.0"
+  },
+  "source": {
+    "gitSha": "09ebc1dfdcbd705e846f23b6da39a575e770830a"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:79f190fb9b23b915fc950a0af5c316baa9bb1d0bdc5dd0bcbed156ae7e81be6d"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "pnpm exec playwright test e2e/sprint-reports.spec.ts --project=chromium (local wrapper: next dev on :3100, isolated jiroo_e2e)",
+    "scenarios": "12 scenarios: frozen reports, velocity, active states, permissions/concealment, responsive, fault recovery, UI mutations; burndown active replay, UI/bulk/Board with shared-timestamp sequence order, frozen completion, planned velocity warning, reader/second context/foreign/malformed concealment, burndown fault retry"
+  },
+  "result": {
+    "junitReport": "audit/runs/sprint-burndown-final-2-junit.xml"
+  }
+}

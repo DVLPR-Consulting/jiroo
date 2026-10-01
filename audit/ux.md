@@ -552,3 +552,44 @@ plus compacte pourrait réduire le besoin de défilement.
 2. Tester zoom 200 %, VoiceOver/NVDA et moteurs Firefox/WebKit.
 3. Valider pagination, temps de lecture et densité sur des historiques de
    production nettement supérieurs à 50 items/événements.
+
+## Fonctionnalité auditée : burndown de sprint et avertissement de planification
+
+L’onglet `Burndown` sélectionne par défaut le sprint actif et présente, dans
+l’ordre : identité et état (`Données en cours` / `Historique figé`), quatre
+mesures (restant initial, restant actuel ou à la clôture, terminés,
+non-estimés), libellé de trajectoire factuel avec sa phrase de prudence, ligne
+de comparaison à la vélocité récente, graphe, tableau exact et journal. Le
+graphe n’a pas d’information exclusive : ligne continue (réel), ligne
+pointillée grise (idéal), point plein (événement) et cercle évidé (changement
+de périmètre) sont légendés en texte, et chaque ligne ou marqueur porte un nom
+accessible repris par le tableau.
+
+### Parcours observés (`sprint-burndown-final-2`)
+
+- navigation par l’onglet, `aria-current="page"` et sélecteur GET conservé ;
+- résumé et tableau exacts après mutations service, bulk UI, drag Board et
+  édition unitaire de l’estimation ; le passage `Sur la trajectoire idéale` →
+  `Au-dessus de la trajectoire idéale` reste lisible et non alarmiste ;
+- sprint terminé figé, éléments du tableau sans lien vers l’état mutable ;
+- en-tête Backlog d’un sprint planifié : `Engagement 21 pts · moyenne récente
+  6,25 pts · écart +14,75 pts` puis avertissement non bloquant en couleur et en
+  texte ; Démarrer reste disponible ;
+- 390 × 844 : 0 px de débordement document sur les trois vues ; le graphe
+  (largeur minimale 640 px) défile dans sa propre région focusable.
+
+Les seize captures ont été inspectées. Limite de preuve : le shell défile dans
+`<main>`, donc les captures pleine page s’arrêtent au pli ; quatre captures
+d’élément du graphe complètent la preuve visuelle.
+
+### Dette UX restante
+
+1. Conserver le sprint choisi en changeant d’onglet (BUG-JIR-029).
+2. Clarifier l’« Engagement » d’un sprint actif dans le Backlog (périmètre
+   courant) face à l’engagement figé du burndown ; décision produit en attente.
+3. Des événements très rapprochés s’empilent verticalement sur le graphe ; le
+   tableau reste la source exacte, une infobulle ou un zoom temporel pourrait
+   aider.
+4. Observé hors périmètre sur la capture mobile du Backlog : en-têtes de
+   colonnes `Statut` et `Titre` superposés à 390 px ; non investigué.
+5. Zoom 200 %, VoiceOver/NVDA, Firefox/WebKit et 768/1024/1440 non rejoués.

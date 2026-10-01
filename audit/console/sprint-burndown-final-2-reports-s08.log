@@ -1,0 +1,13 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS?view=backlog 200 367ms
+[ordering] bulk item_added shared timestamp; sequence order CASS-204 < CASS-203
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[observation] backlog active header "Engagement 25 pts · moyenne récente 1,67 pts · écart +23,33 pts" vs burndown commitment at start 10 pts
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=08102ffc-e68d-468c-a0f9-94895c1be2a6 200 212ms
+[duration] scenario 8: 2993ms

@@ -1161,3 +1161,122 @@ ne sont pas fournies ; la compilation et la génération terminent avec code 0.
 1. Burndown et prévisibilité de planification dérivés de `sprint_events`.
 2. Releases PR2 : fusion, suppression/transfert, ordre manuel et notes.
 3. Validation cross-browser/mobile restante et volumétrie de production.
+
+## Fin de session — incrément 12 livré : burndown et prévisibilité de planification
+
+### Verdict
+
+**Accepté sur le périmètre burndown de sprint Jira-like et comparaison
+factuelle à la vélocité récente.** Le burndown est rejoué depuis le baseline
+figé au démarrage et le ledger `sprint_events` ordonné par
+`occurredAt ASC, sequence ASC` ; la ligne idéale part du restant initial et
+atteint zéro à la date cible sans se recaler sur le périmètre. **Aucune
+prévision de date de release ni aucune prévision statistique (intervalle de
+confiance, Monte-Carlo, probabilité de livraison) n’est livrée** : le libellé de
+trajectoire et la comparaison de vélocité sont des constats, pas des promesses.
+
+### Portée prouvée par le run persistant
+
+Le fixture burndown dérive chaque valeur attendue de constantes (aucune valeur
+rendue n’est recopiée dans l’oracle) :
+
+- travail initial à faire (5), terminé avant démarrage (3, exclu du restant) et
+  non estimé (compteur 1) : restant initial 7 ;
+- ajouts actifs incomplet (+3) et déjà terminé (0), réestimations incomplète
+  5 → 8 (+3) et terminée 4 → 6 (0) ;
+- terminer, rouvrir, terminer (−8, +8, −8), retrait puis réajout d’un même item
+  (−2, +2) ;
+- édition unitaire UI (non estimé → 2, compteur 1 → 0), bulk UI de deux items
+  partageant **le même horodatage** et ordonnés par séquence (vérifié en base),
+  achèvement par drag Board ;
+- résumé, tableau exact ligne par ligne (cause, variation, restant,
+  non-estimés), liste accessible du graphe (ligne réelle, ligne idéale,
+  1 marqueur par point exact) et libellés `Sur la trajectoire idéale` puis
+  `Au-dessus de la trajectoire idéale` calculés depuis la fenêtre du fixture ;
+- clôture UI : point `Clôture du sprint` figé (restant 7, terminés 20),
+  snapshot 10/20, libellé `Travail restant à la clôture`, puis valeurs et
+  tableau inchangés après trois mutations des items sources, sans lien vers
+  l’état mutable ; sprint legacy `Historique burndown indisponible` ;
+- sprint planifié 21 pts contre moyenne récente 6,25 sur 4 sprints :
+  avertissement non bloquant, bouton Démarrer actif, burndown du sprint
+  planifié dissimulé ;
+- lecteur et second contexte admin (lecture + reload), UUID malformé et sprint
+  LABS réel démarré (visible dans LABS, dissimulé sous CASS) ;
+- panne injectée sur le ledger (`sprint_events` renommée), boundary générique
+  sans détail interne, retry et tableau exact restauré.
+
+### Preuves autoritatives
+
+Le run [`sprint-burndown-final-2`](runs/sprint-burndown-final-2-junit.xml)
+passe **12/12**, 0 échec/erreur/skip, en **41,638 s** (Chromium, `next dev`
+isolé sur `:3100`, base `jiroo_e2e`). Son
+[manifeste](runs/sprint-burndown-final-2-manifest.json) lie le SHA source
+`09ebc1d`, Node v24.18.1, pnpm 10.19.0, la commande et les douze scénarios.
+Le manifeste étant écrit avant les artefacts, l’
+[inventaire et scan](runs/sprint-burndown-final-2-scan.txt) référence une fois
+chacun des **42 artefacts** (12 consoles, 12 réseaux, JUnit, manifeste,
+16 captures) avec leur sha256. Un premier run persistant
+`sprint-burndown-final` (12/12, 39,943 s, 38 artefacts) est conservé tel quel
+comme preuve supplantée : il lui manquait les quatre captures de graphe.
+
+Mesures :
+
+| Mesure | Valeur |
+|---|---:|
+| Durées scénarios burndown S07–S12 | 1 268 / 2 993 / 2 737 / 1 291 / 3 490 / 1 203 ms |
+| Navigations instrumentées (19, toutes 200) | 93–1 985 ms ; burndown 93–276 ms |
+| Lecture burndown actif (S07) | 8 ms, 10 événements, 11 points exacts, 27 points affichés |
+| Lecture burndown terminé (S09) | 7 ms, 15 événements, 16 points exacts, 31 points affichés |
+| 1 000 participants vs 5 (intégration DB) | 8 requêtes dans les deux cas |
+| 10 000 événements (intégration DB) | 10 001 événements relus en 37,71 ms ; affichage ≤ 600 points ; 101 pages de 100 alignées |
+| Débordement document à 390 × 844 | 0 px (actif, terminé, avertissement planifié) ; le graphe porte le défilement |
+
+Captures inspectées :
+[actif desktop](screenshots/sprint-burndown-final-2-burndown-active-desktop.png),
+[graphe actif](screenshots/sprint-burndown-final-2-burndown-active-chart-desktop.png),
+[actif mobile](screenshots/sprint-burndown-final-2-burndown-active-mobile.png),
+[graphe actif mobile](screenshots/sprint-burndown-final-2-burndown-active-chart-mobile.png),
+[terminé desktop](screenshots/sprint-burndown-final-2-burndown-completed-desktop.png),
+[graphe terminé](screenshots/sprint-burndown-final-2-burndown-completed-chart-desktop.png),
+[terminé mobile](screenshots/sprint-burndown-final-2-burndown-completed-mobile.png),
+[graphe terminé mobile](screenshots/sprint-burndown-final-2-burndown-completed-chart-mobile.png),
+[planifié desktop](screenshots/sprint-burndown-final-2-burndown-planned-warning-desktop.png)
+et [planifié mobile](screenshots/sprint-burndown-final-2-burndown-planned-warning-mobile.png).
+
+Scan : 0 réponse HTTP 4xx/5xx, 0 requête échouée, 0 erreur console/page hors des
+deux marqueurs `[expected-fault]` (S05, S12) ; 0 occurrence de variable de
+connexion, `Authorization`, `Cookie`, URL PostgreSQL, mot de passe de fixture,
+secret d’authentification local ou identifiant système brut dans les 42
+artefacts.
+
+Le scénario 06 (rapports de sprint) échouait sur `main` et sur la branche : son
+oracle `expectJournalOrder` lisait le journal dans l’ordre croissant alors que
+le journal est rendu du plus récent au plus ancien depuis `b724c3e`. Défaut de
+test, corrigé seul (`09ebc1d`), sans changement produit.
+
+Vérification complémentaire : 83/83 tests ciblés (7 fichiers), 73/73
+intégrations PostgreSQL (5 fichiers), 1 295 tests hors DB verts (251 tests DB
+ignorés sans `JIROO_RUN_DB_TESTS`), TypeScript, ESLint, `git diff --check` et
+build Next.js 16.2.7 (code 0 ; seul avertissement : absence de cache de build ;
+aucun avertissement Better Auth car les variables locales de test étaient
+fournies). Une mutation volontaire ignorant `doneAtStart` fait échouer S07
+(restant initial 10 au lieu de 7) : l’oracle détecte la régression visée.
+
+### Risques résiduels et décisions ouvertes
+
+- les onglets Rapport de sprint / Burndown perdent le sprint sélectionné
+  (retour au sprint par défaut) ;
+- l’« Engagement » de l’en-tête Backlog d’un sprint **actif** utilise le
+  périmètre estimé courant (25 pts mesurés en S08), alors que le burndown
+  utilise l’engagement figé au démarrage (10 pts), comme Jira (engagement =
+  périmètre au démarrage) : décision produit en attente ;
+- la moyenne récente d’un sprint terminé inclut ce sprint lui-même parmi les
+  sept plus récents (6,25 en S09) ; à confirmer produit ;
+- Chromium seul, `next dev` local, pas de lecteur d’écran réel ni zoom 200 %.
+
+### Trois priorités suivantes
+
+1. Releases PR2 : fusion, suppression/transfert, ordre manuel et notes de
+   release.
+2. Firefox/WebKit, 768/1024/1440, zoom 200 % et VoiceOver/NVDA.
+3. Durcissement volumétrie de production et concurrence plus élevée.
