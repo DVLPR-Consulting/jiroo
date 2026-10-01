@@ -30,7 +30,8 @@ import {
 const burndownOptions = z.object({
   eventPage: z.number().int().default(1),
   pageSize: z.number().int().default(50),
-  now: z.date().default(() => new Date()),
+  // Without an explicit time, active reports are observed after their reads.
+  now: z.date().optional(),
 });
 
 export type BurndownSprintIdentity = {
@@ -341,7 +342,10 @@ async function readActiveSource(
     snapshotCompletedPoints: null,
     burndownEvents: mapped.events,
     events,
-    observedAt: new Date(Math.max(command.now.getTime(), identity.startedAt.getTime())),
+    observedAt: new Date(Math.max(
+      (command.now ?? new Date()).getTime(),
+      identity.startedAt.getTime(),
+    )),
   };
 }
 

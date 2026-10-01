@@ -468,6 +468,43 @@ describeDb("sprint burndown read model", () => {
     }
   });
 
+  it("observes active sprints after the snapshot when no explicit time is given", async () => {
+    const f = await fixture();
+    try {
+      const task = await insertTask(f, "Course de lecture", 5);
+      const active = await startWithTasks(f, [task.id]);
+      const calledAt = new Date("2026-08-12T09:00:00.000Z");
+      const committedAt = new Date("2026-08-12T09:00:01.000Z");
+      const readAt = new Date("2026-08-12T09:00:02.000Z");
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(calledAt);
+      const originalTransaction = db.transaction.bind(db);
+      const transactionSpy = vi.spyOn(db, "transaction").mockImplementationOnce(
+        async (callback, config) => {
+          // A mutation commits while the reader is still waiting for a connection.
+          await appendCompletionEvent(f, active.id, task, committedAt);
+          vi.setSystemTime(readAt);
+          return originalTransaction(callback, config);
+        },
+      );
+      try {
+        const report = await getBurndownReport(f.backlog.id, active.id, {
+          eventPage: 1,
+          pageSize: 50,
+        });
+        expect(report).toMatchObject({
+          kind: "active",
+          summary: { remainingPoints: 0, completedPoints: 5 },
+        });
+      } finally {
+        transactionSpy.mockRestore();
+      }
+    } finally {
+      vi.useRealTimers();
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
   it("returns identity-only legacy results for missing done facts", async () => {
     const f = await fixture();
     let eventConstraintNeedsValidation = false;
