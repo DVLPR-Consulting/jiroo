@@ -1,0 +1,21 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS?view=backlog 200 377ms
+[admin] log: [Fast Refresh] rebuilding
+[admin] log: [Fast Refresh] done in 205ms
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=a4fa326f-99f9-4bb7-b47b-02e280f164c7 200 204ms
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[measure] completed burndown read 6ms events=15 exact=16 display=31
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[overflow] completed burndown 390x844 document=0px main=0px chart=332px
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=56690176-0497-4bbf-9e25-197a5a9fd359 200 134ms
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=sprint&sprint=9f622f5d-66c3-4a35-b4c1-0b2e18847971 200 132ms
+[duration] scenario 9: 3412ms

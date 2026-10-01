@@ -1444,3 +1444,16 @@ calcul n’est faux.
   comme le périmètre au démarrage du sprint ; alignement en attente de décision.
 - **Moyenne récente d’un sprint terminé :** la population des sept derniers
   sprints inclut le sprint consulté lui-même (moyenne 6,25 en S09).
+
+## Journal de résolution — 1er octobre 2026 (revue burndown)
+
+| Défaut | Correctif | Preuve |
+|---|---|---|
+| BUG-JIR-029 — les onglets de rapport perdaient le sprint sélectionné | `08dd118` : liens `?report=<r>&sprint=<id>` quand un sprint est sélectionné | test composant + S09 de `sprint-burndown-final-3` (sprint terminé ancien conservé dans les deux sens) |
+| Lien mort dans le tableau exact pour un item supprimé logiquement (trouvé en revue) | `2703868` : l’identifiant d’item vient de l’événement de journal aligné | tests ciblés/intégration + run `sprint-burndown-final-3` |
+
+**BUG-JIR-029 : statut fermé le 1er octobre 2026.** L’écart d’« Engagement »
+d’un sprint actif dans le Backlog reste une décision produit ouverte, et
+l’inclusion du sprint consulté dans la « moyenne récente » d’un sprint terminé
+est acceptée comme contexte courant du backlog ; ni l’un ni l’autre n’est classé
+comme bug.

@@ -1280,3 +1280,81 @@ fournies). Une mutation volontaire ignorant `doneAtStart` fait échouer S07
    release.
 2. Firefox/WebKit, 768/1024/1440, zoom 200 % et VoiceOver/NVDA.
 3. Durcissement volumétrie de production et concurrence plus élevée.
+
+## Addendum — acceptation burndown rejouée depuis la source committée (1er octobre 2026)
+
+### Provenance
+
+Les runs `sprint-burndown-final` et `sprint-burndown-final-2` sont **supplantés**
+(conservés intacts) : leur manifeste pointe `09ebc1d` alors que la spec exécutée
+n’était pas encore committée. Le run autoritatif est désormais
+[`sprint-burndown-final-3`](runs/sprint-burndown-final-3-junit.xml) : son
+[manifeste](runs/sprint-burndown-final-3-manifest.json) pointe `ac99598`
+(`test(reports): harden burndown acceptance checks`), qui contient exactement la
+spec exécutée ; le sha256 de `e2e/sprint-reports.spec.ts` au moment du run est
+égal à celui du blob committé et figure dans
+l’[inventaire et scan](runs/sprint-burndown-final-3-scan.txt). L’arbre était
+propre hormis une modification locale non indexée de `package.json` (script
+`dev` vers un lanceur personnel), sans lien avec le run : le wrapper lance
+`next dev` directement. Le port 3100 étant occupé par un autre projet local, le
+serveur isolé a tourné sur `:3101` (`BETTER_AUTH_URL` aligné).
+
+Correctifs produit couverts par ce run, issus de la revue :
+
+- `2703868` : les lignes exactes d’un item supprimé logiquement ne pointent plus
+  vers un lien mort ; l’identité vient de l’événement de journal aligné ;
+- `08dd118` : les onglets Rapport de sprint / Burndown conservent le sprint
+  sélectionné, prouvé en S09 depuis un sprint terminé plus ancien
+  (`Sprint Rapport 1`) dans les deux sens ; **BUG-JIR-029 est fermé**.
+
+### Résultat et mesures
+
+**12/12**, 0 échec/erreur/skip, **42,941 s** ; 0 réponse HTTP 4xx/5xx, 0 requête
+échouée, 0 erreur console/page hors des deux marqueurs `[expected-fault]` (S05,
+S12), désormais réglés en fin de scénario sur une fenêtre bornée. Scan : 0
+occurrence de variable de connexion, `Authorization`, `Cookie`, URL PostgreSQL,
+valeur résolue du mot de passe de fixture, secret local ou identifiant système
+dans les 42 artefacts. Les scénarios partagent un fixture et s’exécutent en
+mode série ; S08–S12 échouent explicitement si le fixture de S07 manque.
+
+| Mesure | Valeur |
+|---|---:|
+| Durées S07–S12 | 1 317 / 2 947 / 3 412 / 1 271 / 3 464 / 1 194 ms |
+| Navigations instrumentées (20, toutes 200) | 90–2 083 ms ; burndown 90–263 ms |
+| Lecture burndown actif / terminé | 8 ms (10 événements, 11 exacts, 27 affichés) / 6 ms (15, 16, 31) |
+| 10 000 événements (intégration DB, rejouée) | 10 001 événements en 35,85 ms |
+
+**Débordement à 390 × 844, formulation restreinte à ce qui est mesuré :** le
+document, `<main>` (le conteneur `overflow-auto` du shell, que la largeur du
+document ne voit pas) et le défileur du graphe. Document 0 px et `<main>` 0 px
+sur les vues burndown actif, burndown terminé et Backlog avec avertissement
+planifié ; le défileur du graphe porte 332 px de défilement horizontal propre.
+La table du Backlog, visuellement tronquée à 390 px, défile dans son propre
+conteneur et ne déborde pas de `<main>` ; la superposition des en-têtes
+`Statut`/`Titre` reste une observation UX préexistante non investiguée.
+
+Vérification : 83/83 tests ciblés, 74/74 intégrations PostgreSQL, 1 295 tests
+hors DB (252 tests DB ignorés sans `JIROO_RUN_DB_TESTS`), TypeScript, ESLint,
+`git diff --check` et build Next.js 16.2.7 (code 0, aucun avertissement) verts.
+
+### Risques résiduels
+
+- le manifeste de run est écrit avant les artefacts et ne référence que le
+  JUnit ; l’inventaire complet est le fichier de scan (`*-scan.txt`) ;
+- **décision produit ouverte :** l’« Engagement » de l’en-tête Backlog d’un
+  sprint actif affiche le périmètre estimé courant (25 pts mesurés en S08) et
+  non l’engagement figé au démarrage (10 pts) utilisé par le burndown. Jira
+  définit l’engagement comme l’estimation au démarrage du sprint ; la revue
+  Codex recommande « Engagement » = engagement au démarrage et le total vivant
+  sous « Périmètre actuel » ;
+- la « moyenne récente » d’un sprint terminé inclut ce sprint parmi les sept
+  plus récents (6,25 en S09) : accepté comme contexte courant du backlog, une
+  clarification de libellé reste possible ;
+- Chromium seul, `next dev` local, pas de lecteur d’écran réel ni zoom 200 %.
+  Aucune prévision de date de release ni prévision statistique n’est livrée.
+
+### Trois priorités suivantes
+
+1. Releases PR2 : fusion, suppression/transfert, ordre manuel et notes.
+2. Firefox/WebKit, 768/1024/1440, zoom 200 % et VoiceOver/NVDA.
+3. Durcissement volumétrie de production et concurrence plus élevée.

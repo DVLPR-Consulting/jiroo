@@ -581,3 +581,9 @@ Différences factuelles :
 | Jira | burndown points comparable sur le périmètre prouvé ; catalogue de rapports et unités alternatives non égalés |
 | Azure DevOps | vélocité et comparaison factuelle présentes ; forecast absent par choix |
 | Linear, ClickUp, Plane, GitHub Projects | aucune comparaison nouvelle revendiquée au-delà des preuves déjà citées |
+
+Addendum du 1er octobre 2026 : la preuve de référence devient
+`sprint-burndown-final-3` (12/12, source committée `ac99598`). Le périmètre
+revendiqué est inchangé ; le maintien du sprint entre onglets rejoint le
+comportement attendu d’un outil de reporting, et l’« Engagement » d’un sprint
+actif n’est pas encore aligné sur la définition Jira (estimation au démarrage).

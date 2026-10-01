@@ -593,3 +593,16 @@ d’élément du graphe complètent la preuve visuelle.
 4. Observé hors périmètre sur la capture mobile du Backlog : en-têtes de
    colonnes `Statut` et `Titre` superposés à 390 px ; non investigué.
 5. Zoom 200 %, VoiceOver/NVDA, Firefox/WebKit et 768/1024/1440 non rejoués.
+
+### Addendum — revue burndown (1er octobre 2026)
+
+- Le changement d’onglet conserve maintenant le sprint choisi (BUG-JIR-029
+  fermé par `08dd118`, prouvé en S09 de `sprint-burndown-final-3`).
+- Débordement à 390 × 844 mesuré sur le document **et** sur `<main>`, le
+  conteneur défilant du shell : 0 px sur les vues burndown actif, terminé et
+  Backlog avec avertissement planifié ; le graphe porte seul son défilement
+  (332 px). La table du Backlog, tronquée visuellement, défile dans son propre
+  conteneur ; la superposition `Statut`/`Titre` reste à investiguer.
+- Libellés à arbitrer : « Engagement » d’un sprint actif (recommandation :
+  engagement au démarrage, total vivant en « Périmètre actuel ») et « moyenne
+  récente » d’un sprint terminé qui inclut ce sprint.

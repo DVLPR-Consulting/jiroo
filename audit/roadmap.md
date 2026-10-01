@@ -545,3 +545,23 @@ prévision statistique n’est livrée.
 1. Releases PR2 merge/delete-transfer/manual ordering/release notes;
 2. Firefox/WebKit, 768/1024/1440, 200% zoom and VoiceOver/NVDA;
 3. production-volume and higher-concurrency hardening.
+
+---
+
+## Addendum — acceptation burndown depuis la source committée (1er octobre 2026)
+
+Le run autoritatif devient `sprint-burndown-final-3` (12/12, 42,941 s, manifeste
+sur `ac99598` qui contient la spec exécutée ; `-final` et `-final-2` sont
+supplantés et conservés). Les onglets conservent désormais le sprint
+sélectionné (`08dd118`, BUG-JIR-029 fermé) et les lignes d’items supprimés ne
+pointent plus vers un lien mort (`2703868`). Restent ouverts : le libellé
+« Engagement » d’un sprint actif dans le Backlog (engagement au démarrage
+recommandé, total vivant en « Périmètre actuel »), la clarification possible de
+la « moyenne récente » d’un sprint terminé, et un manifeste de run qui ne liste
+que le JUnit (inventaire porté par le fichier de scan).
+
+### Next priorities
+
+1. Releases PR2 merge/delete-transfer/manual ordering/release notes;
+2. Firefox/WebKit, 768/1024/1440, 200% zoom and VoiceOver/NVDA;
+3. production-volume and higher-concurrency hardening.
