@@ -65,11 +65,14 @@ export function SprintEventJournal({
   sprintId,
   itemPage,
   events,
+  report = "sprint",
 }: {
   backlogKey: string;
   sprintId: string;
   itemPage: number;
   events: SerializableEventPage;
+  /** Report tab the journal pagination keeps the reader on. */
+  report?: "sprint" | "burndown";
 }) {
   const dateTime = new Intl.DateTimeFormat("fr-FR", {
     dateStyle: "medium",
@@ -100,7 +103,7 @@ export function SprintEventJournal({
         pageSize={events.pageSize}
         total={events.total}
         href={(eventPage) => `${path}?${new URLSearchParams({
-          report: "sprint",
+          report,
           sprint: sprintId,
           itemPage: String(itemPage),
           eventPage: String(eventPage),
