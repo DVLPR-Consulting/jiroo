@@ -46,6 +46,7 @@ type SerializableDetailedBurndown = {
   guideline: SerializableBurndownGuideline;
   displayPoints: SerializableBurndownPoint[];
   baseline: SerializableBurndownPoint;
+  observedAt: string;
   eventPoints: SerializablePage<SerializableBurndownPoint>;
   events: SerializablePage<SerializableBurndownEvent>;
 };
@@ -99,6 +100,7 @@ function serializeDetailed(report: DetailedBurndownReport): SerializableDetailed
       : { state: "unavailable", reason: report.guideline.reason },
     displayPoints: report.displayPoints.map(serializePoint),
     baseline: serializePoint(report.baseline),
+    observedAt: report.observedAt.toISOString(),
     eventPoints: { ...report.eventPoints, rows: report.eventPoints.rows.map(serializePoint) },
     events: {
       ...report.events,

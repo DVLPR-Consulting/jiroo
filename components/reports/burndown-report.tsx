@@ -38,13 +38,26 @@ const spokenDate = (iso: string) => `${longDateTime.format(new Date(iso))} UTC`;
 const remainingWords = (value: number) =>
   `${number.format(value)} ${Math.abs(value) >= 2 ? "points restants" : "point restant"}`;
 
-const INSUFFICIENT_REASON_COPY: Record<BurndownInsufficientReason, string> = {
-  missing_target: "Date cible absente.",
-  invalid_dates: "Dates du sprint incohérentes.",
-  no_estimated_initial_work: "Aucun travail initial estimé.",
-  just_started: "Le sprint vient de démarrer.",
-  legacy_history: "Historique burndown indisponible.",
-};
+function insufficientReasonCopy(
+  reason: BurndownInsufficientReason,
+  baseline: SerializableBurndownPoint,
+): string {
+  switch (reason) {
+    case "missing_target":
+      return "Date cible absente.";
+    case "invalid_dates":
+      return "Dates du sprint incohérentes.";
+    case "no_estimated_initial_work":
+      // The baseline tells an empty start apart from unestimated initial work.
+      return baseline.unestimatedCount === 0
+        ? "Sprint vide au démarrage."
+        : "Tout le travail initial est non estimé.";
+    case "just_started":
+      return "Le sprint vient de démarrer.";
+    case "legacy_history":
+      return "Historique burndown indisponible.";
+  }
+}
 
 const CAUSE_LABELS: Record<SerializableBurndownPoint["cause"], string> = {
   start: "Démarrage du sprint",
@@ -86,7 +99,7 @@ function SprintIdentity({
         <div>
           <dt className="text-muted-foreground">Démarré</dt>
           <dd>
-            <time aria-label="Démarrage du sprint" dateTime={sprint.startedAt}>
+            <time dateTime={sprint.startedAt}>
               {dateTime.format(new Date(sprint.startedAt))}
             </time>
           </dd>
@@ -95,7 +108,7 @@ function SprintIdentity({
           <dt className="text-muted-foreground">Date cible</dt>
           <dd>
             {sprint.plannedEndAt ? (
-              <time aria-label="Date cible du sprint" dateTime={sprint.plannedEndAt}>
+              <time dateTime={sprint.plannedEndAt}>
                 {dateTime.format(new Date(sprint.plannedEndAt))}
               </time>
             ) : (
@@ -107,7 +120,7 @@ function SprintIdentity({
           <div>
             <dt className="text-muted-foreground">Clôturé</dt>
             <dd>
-              <time aria-label="Clôture du sprint" dateTime={sprint.completedAt}>
+              <time dateTime={sprint.completedAt}>
                 {dateTime.format(new Date(sprint.completedAt))}
               </time>
             </dd>
@@ -138,8 +151,15 @@ function BurndownChart({ report }: { report: DetailedReport }) {
   const x = (iso: string) => CHART.left + ((Date.parse(iso) - t0) / (t1 - t0)) * plotWidth;
   const y = (value: number) => CHART.top + (1 - value / yMax) * plotHeight;
 
+  // Later display samples only widen the time axis: the actual line and its
+  // markers never run past the instant the projection observes.
+  const observedAt = Date.parse(report.observedAt);
+  const observed = report.displayPoints.filter(
+    (point, index) => index === 0 || Date.parse(point.occurredAt) <= observedAt,
+  );
+
   // Step line: remaining work holds its value until the next point.
-  const actualPath = report.displayPoints
+  const actualPath = observed
     .map((point, index) => index === 0
       ? `M ${x(point.occurredAt)} ${y(point.remainingPoints)}`
       : `H ${x(point.occurredAt)} V ${y(point.remainingPoints)}`)
@@ -148,15 +168,15 @@ function BurndownChart({ report }: { report: DetailedReport }) {
     ?.map((point, index) => `${index === 0 ? "M" : "L"} ${x(point.occurredAt)} ${y(point.remainingPoints)}`)
     .join(" ");
 
-  const first = report.displayPoints[0]!;
-  const last = report.displayPoints.at(-1)!;
+  const first = observed[0]!;
+  const last = observed.at(-1)!;
   const actualLineLabel = `Travail restant réel, ligne continue : de ${remainingWords(first.remainingPoints)} le ${spokenDate(first.occurredAt)} à ${remainingWords(last.remainingPoints)} le ${spokenDate(last.occurredAt)}`;
   const guidelineLabel = guideline
     ? `Trajectoire idéale, ligne pointillée : de ${remainingWords(guideline[0]!.remainingPoints)} le ${spokenDate(guideline[0]!.occurredAt)} à ${remainingWords(guideline.at(-1)!.remainingPoints)} le ${spokenDate(guideline.at(-1)!.occurredAt)}`
     : null;
 
   // Synthetic display samples (no sequence, not the baseline) only shape the line.
-  const markers = report.displayPoints
+  const markers = observed
     .filter((point, index) => index === 0 || point.sequence !== null)
     .map((point, index) => ({
       key: `${index}-${point.occurredAt}-${point.sequence ?? "start"}`,
@@ -167,15 +187,23 @@ function BurndownChart({ report }: { report: DetailedReport }) {
     }));
   const hasScopeChange = markers.some((marker) => marker.scopeChange);
   const hasPlainMarker = markers.some((marker) => !marker.scopeChange);
+  // The projection may drop exact points; the table always lists them all.
+  const drawnEventPoints = report.displayPoints.filter((point) => point.sequence !== null).length;
+  const simplified = drawnEventPoints < report.eventPoints.total;
 
   return (
     <figure aria-labelledby="burndown-chart-title" className="space-y-3 rounded-xl border p-4">
       <figcaption id="burndown-chart-title" className="font-medium">
         Travail restant et trajectoire idéale
       </figcaption>
-      <div data-testid="burndown-chart-scroll" className="max-w-full overflow-x-auto">
+      <div
+        data-testid="burndown-chart-scroll"
+        role="region"
+        aria-labelledby="burndown-chart-title"
+        tabIndex={0}
+        className="max-w-full overflow-x-auto focus-visible:outline-2"
+      >
         <svg
-          aria-labelledby="burndown-chart-title"
           focusable="false"
           viewBox={`0 0 ${CHART.width} ${CHART.height}`}
           className="block h-auto w-full min-w-[640px] text-foreground"
@@ -262,9 +290,15 @@ function BurndownChart({ report }: { report: DetailedReport }) {
           </li>
         ) : null}
       </ul>
+      {simplified ? (
+        <p className="text-sm text-muted-foreground">
+          Courbe simplifiée : toutes les valeurs exactes figurent dans le tableau.
+        </p>
+      ) : null}
       {report.guideline.state === "unavailable" ? (
         <p className="text-sm text-muted-foreground">
-          Trajectoire idéale indisponible : {INSUFFICIENT_REASON_COPY[report.guideline.reason]}
+          Trajectoire idéale indisponible :{" "}
+          {insufficientReasonCopy(report.guideline.reason, report.baseline)}
         </p>
       ) : null}
     </figure>
@@ -305,18 +339,24 @@ function ExactValues({ backlogKey, report }: { backlogKey: string; report: Detai
           </thead>
           <tbody className="divide-y">
             {eventPoints.rows.map((point) => {
-              const identity = point.itemKey ? `${point.itemKey} — ${point.itemTitle ?? ""}` : null;
+              // Every exact event point carries its journal sequence.
+              if (point.sequence === null) return null;
+              const identity = point.itemKey === null
+                ? null
+                : point.itemTitle
+                  ? `${point.itemKey} — ${point.itemTitle}`
+                  : point.itemKey;
               return (
-                <tr key={point.sequence ?? point.occurredAt}>
+                <tr key={point.sequence}>
                   <td className="p-3 whitespace-nowrap">
                     <time dateTime={point.occurredAt}>{dateTime.format(new Date(point.occurredAt))}</time>
                   </td>
                   <td className="p-3">
-                    {identity === null ? (
+                    {point.itemKey === null ? (
                       "—"
                     ) : point.itemId ? (
                       <Link
-                        href={`/b/${backlogKey}?item=${encodeURIComponent(point.itemKey!)}`}
+                        href={`/b/${backlogKey}?item=${encodeURIComponent(point.itemKey)}`}
                         className="font-medium hover:underline"
                       >
                         {identity}
@@ -406,7 +446,7 @@ export function BurndownReportView({
         <p className="font-medium">{trajectory.label}</p>
         {trajectory.insufficientReason ? (
           <p className="text-sm text-muted-foreground">
-            {INSUFFICIENT_REASON_COPY[trajectory.insufficientReason]}
+            {insufficientReasonCopy(trajectory.insufficientReason, report.baseline)}
           </p>
         ) : report.kind === "active" ? (
           <p className="text-sm text-muted-foreground">
@@ -428,7 +468,6 @@ export function BurndownReportView({
       <SprintEventJournal
         backlogKey={backlogKey}
         sprintId={report.sprint.id}
-        itemPage={1}
         events={report.events}
         report="burndown"
       />

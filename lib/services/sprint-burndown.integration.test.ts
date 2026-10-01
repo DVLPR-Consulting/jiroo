@@ -266,6 +266,7 @@ function immutableProjection(report: Awaited<ReturnType<typeof getBurndownReport
     guideline: report.guideline,
     displayPoints: report.displayPoints,
     eventPoints: report.eventPoints,
+    observedAt: report.observedAt,
   };
 }
 
@@ -354,6 +355,7 @@ describeDb("sprint burndown read model", () => {
         eventPoints: { page: 1, pageSize: 50, total: 2 },
       });
       if (!report || report.kind !== "active") throw new Error("Rapport actif attendu.");
+      expect(report.observedAt).toEqual(completionAt);
       expect(report.events.rows.map((event) => event.eventType)).toEqual([
         "item_completed",
         "sprint_started",
@@ -409,6 +411,7 @@ describeDb("sprint burndown read model", () => {
         throw new Error("Rapports actif et terminé attendus.");
       }
       expect(completed.summary).toEqual(activeReport.summary);
+      expect(completed.observedAt).toEqual(completed.sprint.completedAt);
       expect(completed.eventPoints.rows[0]).toMatchObject({
         cause: "sprint_completed",
         remainingPoints: activeReport.eventPoints.rows[0]?.remainingPoints,

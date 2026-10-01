@@ -9,6 +9,13 @@ type Detailed = Extract<SerializableBurndownReport, { kind: "active" }>;
 type Point = Detailed["baseline"];
 type JournalEvent = Detailed["events"]["rows"][number];
 
+function dateFor(term: string) {
+  const time = screen.getByText(term, { selector: "dt" }).nextElementSibling?.querySelector("time");
+  if (!time) throw new Error(`No date for ${term}`);
+  expect(time).not.toHaveAttribute("aria-label");
+  return time;
+}
+
 const SPRINT_ID = "11111111-1111-4111-8111-111111111111";
 
 const baseline: Point = {
@@ -136,8 +143,12 @@ const active: Detailed = {
     baseline,
     ...eventPointRows,
     point({ occurredAt: "2026-08-09T09:00:00.000Z", sequence: null, cause: "start" }),
+    // Daily projection samples after the observation instant.
+    point({ occurredAt: "2026-08-10T00:00:00.000Z", sequence: null, cause: "start" }),
+    point({ occurredAt: "2026-08-17T09:00:00.000Z", sequence: null, cause: "start" }),
   ],
   baseline,
+  observedAt: "2026-08-09T09:00:00.000Z",
   eventPoints: { page: 1, pageSize: 5, total: 7, rows: eventPointRows },
   events: { page: 1, pageSize: 5, total: 7, rows: journalRows },
 };
@@ -149,14 +160,10 @@ describe("BurndownReportView", () => {
     expect(screen.getByRole("heading", { name: "Sprint R4" })).toBeVisible();
     expect(screen.getByText("Stabiliser la recherche")).toBeVisible();
     expect(screen.getByText("Données en cours")).toBeVisible();
-    expect(screen.getByLabelText("Démarrage du sprint")).toHaveAttribute(
-      "datetime",
-      "2026-08-03T09:00:00.000Z",
-    );
-    expect(screen.getByLabelText("Date cible du sprint")).toHaveAttribute(
-      "datetime",
-      "2026-08-17T09:00:00.000Z",
-    );
+    expect(dateFor("Démarré")).toHaveTextContent("3 août 2026, 09:00");
+    expect(dateFor("Démarré")).toHaveAttribute("datetime", "2026-08-03T09:00:00.000Z");
+    expect(dateFor("Date cible")).toHaveTextContent("17 août 2026, 09:00");
+    expect(dateFor("Date cible")).toHaveAttribute("datetime", "2026-08-17T09:00:00.000Z");
 
     const metrics = screen.getByRole("region", { name: "Mesures du burndown" });
     expect(within(metrics).getByText("Restant initial")).toBeVisible();
@@ -182,6 +189,13 @@ describe("BurndownReportView", () => {
     const svg = screen.getByTestId("burndown-chart-scroll").querySelector("svg")!;
     expect(svg).not.toHaveAttribute("role");
     expect(svg).toHaveAttribute("focusable", "false");
+    expect(svg).not.toHaveAttribute("aria-labelledby");
+    const chartRegion = screen.getByRole("region", { name: "Travail restant et trajectoire idéale" });
+    expect(chartRegion).toBe(screen.getByTestId("burndown-chart-scroll"));
+    expect(chartRegion).toHaveAttribute("tabindex", "0");
+    expect(screen.getByText(
+      "Courbe simplifiée : toutes les valeurs exactes figurent dans le tableau.",
+    )).toBeVisible();
     expect(screen.getByRole("list", {
       name: "Points et lignes du burndown",
     })).toBeVisible();
@@ -224,6 +238,7 @@ describe("BurndownReportView", () => {
       .getByRole("link", { name: "Suivant" }).getAttribute("href")!;
     expect(journal).toHaveTextContent("Ada a ajouté CASS-4");
     expect(new URL(journalNext, "http://localhost").searchParams.get("report")).toBe("burndown");
+    expect(new URL(journalNext, "http://localhost").searchParams.has("itemPage")).toBe(false);
   });
 
   it("links an exact row only when the item remains accessible", () => {
@@ -273,10 +288,8 @@ describe("BurndownReportView", () => {
     expect(screen.getByText("Historique figé")).toBeVisible();
     expect(screen.getByText("Restant à la clôture")).toBeVisible();
     expect(screen.queryByText("Restant actuel")).toBeNull();
-    expect(screen.getByLabelText("Clôture du sprint")).toHaveAttribute(
-      "datetime",
-      "2026-08-16T17:00:00.000Z",
-    );
+    expect(dateFor("Clôturé")).toHaveTextContent("16 août 2026, 17:00");
+    expect(dateFor("Clôturé")).toHaveAttribute("datetime", "2026-08-16T17:00:00.000Z");
     cleanup();
 
     render(
@@ -294,7 +307,7 @@ describe("BurndownReportView", () => {
   it.each([
     ["missing_target", "Date cible absente."],
     ["invalid_dates", "Dates du sprint incohérentes."],
-    ["no_estimated_initial_work", "Aucun travail initial estimé."],
+    ["no_estimated_initial_work", "Tout le travail initial est non estimé."],
     ["just_started", "Le sprint vient de démarrer."],
   ] as const)("explains insufficient data for %s", (reason, copy) => {
     render(
@@ -312,6 +325,76 @@ describe("BurndownReportView", () => {
     expect(screen.getAllByText(copy, { exact: false })[0]).toBeVisible();
     expect(screen.queryByRole("listitem", { name: /^Trajectoire idéale/ })).toBeNull();
     expect(screen.getByRole("listitem", { name: /^Travail restant réel/ })).toBeVisible();
+  });
+
+  it("draws the actual line only up to the observation instant", () => {
+    render(<BurndownReportView backlogKey="CASS" report={active} />);
+
+    const actual = screen.getByRole("listitem", { name: /^Travail restant réel/ });
+    expect(actual.getAttribute("aria-label")).toMatch(
+      /à 13 points restants le 9 août 2026 à 09:00 UTC$/,
+    );
+    const d = actual.querySelector("path")!.getAttribute("d")!;
+    // Baseline + five events + observation sample: six horizontal steps.
+    const steps = [...d.matchAll(/H ([\d.]+)/g)].map((match) => Number(match[1]));
+    expect(steps).toHaveLength(6);
+    const plotRight = 960 - 24;
+    expect(Math.max(...steps)).toBeLessThan(plotRight / 2);
+    for (const marker of screen.getAllByRole("listitem", { name: /points? restants?$/ })) {
+      expect(marker.getAttribute("aria-label")).not.toMatch(/1[0-7] août 2026/);
+    }
+  });
+
+  it("omits the simplification note when every exact point is drawn", () => {
+    render(
+      <BurndownReportView
+        backlogKey="CASS"
+        report={{
+          ...active,
+          eventPoints: { ...active.eventPoints, total: eventPointRows.length },
+          events: { ...active.events, total: eventPointRows.length },
+        }}
+      />,
+    );
+    expect(screen.queryByText(/Courbe simplifiée/)).toBeNull();
+  });
+
+  it("does not leave a dangling separator when the item title is missing", () => {
+    const [firstRow, ...rest] = eventPointRows;
+    render(
+      <BurndownReportView
+        backlogKey="CASS"
+        report={{
+          ...active,
+          eventPoints: {
+            ...active.eventPoints,
+            rows: [{ ...firstRow!, itemTitle: null }, ...rest],
+          },
+        }}
+      />,
+    );
+    const table = screen.getByRole("table", { name: "Valeurs exactes du burndown" });
+    const link = within(within(table).getAllByRole("row")[1]!).getByRole("link");
+    expect(link).toHaveTextContent(/^CASS-4$/);
+  });
+
+  it("distinguishes an empty sprint from fully unestimated initial work", () => {
+    render(
+      <BurndownReportView
+        backlogKey="CASS"
+        report={{
+          ...active,
+          baseline: { ...baseline, remainingPoints: 0, unestimatedCount: 0 },
+          trajectory: {
+            label: "Données insuffisantes",
+            insufficientReason: "no_estimated_initial_work",
+          },
+          guideline: { state: "unavailable", reason: "no_estimated_initial_work" },
+        }}
+      />,
+    );
+    expect(screen.getAllByText("Sprint vide au démarrage.", { exact: false })[0]).toBeVisible();
+    expect(screen.queryByText(/Tout le travail initial est non estimé/)).toBeNull();
   });
 
   it("states when no comparable velocity exists", () => {
@@ -353,14 +436,10 @@ describe("BurndownReportView", () => {
     expect(screen.getByRole("heading", { name: "Sprint R4" })).toBeVisible();
     expect(screen.getByText("Stabiliser la recherche")).toBeVisible();
     expect(screen.getByText("Historique burndown indisponible")).toBeVisible();
-    expect(screen.getByLabelText("Démarrage du sprint")).toHaveAttribute(
-      "datetime",
-      "2026-08-03T09:00:00.000Z",
-    );
-    expect(screen.getByLabelText("Clôture du sprint")).toHaveAttribute(
-      "datetime",
-      "2026-08-16T17:00:00.000Z",
-    );
+    expect(dateFor("Démarré")).toHaveTextContent("3 août 2026, 09:00");
+    expect(dateFor("Démarré")).toHaveAttribute("datetime", "2026-08-03T09:00:00.000Z");
+    expect(dateFor("Clôturé")).toHaveTextContent("16 août 2026, 17:00");
+    expect(dateFor("Clôturé")).toHaveAttribute("datetime", "2026-08-16T17:00:00.000Z");
     expect(container.textContent).not.toMatch(/0 pt.*historique indisponible/i);
     expect(container.textContent).not.toMatch(/\bpts?\b/);
     expect(screen.queryByRole("figure")).toBeNull();

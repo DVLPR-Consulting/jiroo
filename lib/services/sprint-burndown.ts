@@ -52,6 +52,8 @@ export type DetailedBurndownReport = {
   guideline: BurndownCalculation["guideline"];
   displayPoints: BurndownCalculation["displayPoints"];
   baseline: BurndownPoint;
+  /** Instant the projection describes: completion when frozen, read time when live. */
+  observedAt: Date;
   eventPoints: Page<BurndownPoint>;
   events: Page<SprintReportEvent>;
 };
@@ -498,6 +500,8 @@ export async function getBurndownReport(
     guideline: calculation.guideline,
     displayPoints: calculation.displayPoints,
     baseline,
+    // Mirrors calculateBurndown: a completed sprint is observed at completion.
+    observedAt: source.sprint.completedAt ?? source.observedAt,
     eventPoints: {
       page: source.events.page,
       pageSize: source.events.pageSize,

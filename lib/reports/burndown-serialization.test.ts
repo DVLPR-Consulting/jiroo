@@ -63,6 +63,7 @@ const active: BurndownReport = {
   },
   displayPoints: [baseline, added],
   baseline,
+  observedAt: new Date("2026-08-05T08:00:00.000Z"),
   eventPoints: { page: 1, pageSize: 50, total: 1, rows: [added] },
   events: {
     page: 1,
@@ -101,6 +102,7 @@ describe("serializeBurndownReport", () => {
         completedAt: null,
       },
       baseline: { occurredAt: "2026-08-03T09:00:00.000Z", sequence: null },
+      observedAt: "2026-08-05T08:00:00.000Z",
       guideline: {
         state: "available",
         points: [
