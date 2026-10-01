@@ -380,6 +380,10 @@ describeDb("sprint burndown read model", () => {
       await expect(
         getBurndownReport(f.backlog.id, randomUUID(), options),
       ).resolves.toBeNull();
+      const planned = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+      await expect(
+        getBurndownReport(f.backlog.id, planned.id, options),
+      ).resolves.toBeNull();
     } finally {
       await cleanupBacklogs(f.backlog.id, foreign.backlog.id);
     }

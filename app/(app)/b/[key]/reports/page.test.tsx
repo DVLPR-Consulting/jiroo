@@ -511,6 +511,18 @@ describe("reports route", () => {
       expect(mocks.burndownReportProps).not.toHaveBeenCalled();
     });
 
+    it("conceals the burndown when the backlog cannot be browsed", async () => {
+      mocks.getBacklogCapabilities.mockResolvedValueOnce(null);
+
+      await expect(ReportsPage({
+        params: Promise.resolve({ key: "CASS" }),
+        searchParams: Promise.resolve({ report: "burndown", sprint: completedId }),
+      })).rejects.toThrow("not-found");
+
+      expect(mocks.getBurndownReport).not.toHaveBeenCalled();
+    });
+
+    // Guards against extra gating: browsing the backlog must be enough to read the report.
     it("lets a browse_backlog-only caller read the burndown", async () => {
       mocks.getBacklogCapabilities.mockResolvedValueOnce(browseOnly);
 
