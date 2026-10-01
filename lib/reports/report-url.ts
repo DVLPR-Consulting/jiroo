@@ -1,5 +1,5 @@
 export type ReportUrlState = {
-  report: "sprint" | "velocity";
+  report: "sprint" | "velocity" | "burndown";
   sprintId: string | null;
   limit: 7 | 12;
   itemPage: number;
@@ -18,7 +18,9 @@ function positiveInteger(value: string | undefined) {
 }
 
 export function parseReportUrlState(query: Query): ReportUrlState {
-  const report = first(query.report) === "velocity" ? "velocity" : "sprint";
+  const rawReport = first(query.report);
+  const report =
+    rawReport === "velocity" || rawReport === "burndown" ? rawReport : "sprint";
   const rawLimit = first(query.limit);
   return {
     report,

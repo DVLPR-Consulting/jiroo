@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { BurndownReportView } from "@/components/reports/burndown-report";
 import { ReportNavigation } from "@/components/reports/report-navigation";
 import {
   SprintReportView,
@@ -8,8 +9,10 @@ import {
 import { VelocityReportView } from "@/components/reports/velocity-report";
 import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
 import { requireAppPageSession } from "@/lib/auth/session";
+import { serializeBurndownReport } from "@/lib/reports/burndown-serialization";
 import { parseReportUrlState } from "@/lib/reports/report-url";
 import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
+import { getBurndownReport } from "@/lib/services/sprint-burndown";
 import {
   getSprintReport,
   getVelocityReport,
@@ -131,6 +134,20 @@ export default async function ReportsPage({
         report={serializeVelocityReport(velocity)}
       />
     );
+  } else if (state.report === "burndown") {
+    if (selectedSprintId) {
+      const burndown = await getBurndownReport(backlog.id, selectedSprintId, {
+        eventPage: state.eventPage,
+        pageSize: 50,
+      });
+      if (!burndown) notFound();
+      content = (
+        <BurndownReportView
+          backlogKey={backlog.key}
+          report={serializeBurndownReport(burndown)}
+        />
+      );
+    }
   } else if (selectedSprintId) {
     const sprintReport = await getSprintReport(backlog.id, selectedSprintId, {
       itemPage: state.itemPage,

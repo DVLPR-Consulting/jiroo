@@ -71,4 +71,69 @@ describe("ReportNavigation", () => {
     expect(screen.getByText("2 sprints sont planifiés, mais aucun n’a encore démarré.")).toBeVisible();
     expect(screen.queryByText("Aucun sprint actif ou terminé.")).not.toBeInTheDocument();
   });
+
+  it("renders a URL-native Burndown tab that keeps the GET sprint selector", () => {
+    render(
+      <ReportNavigation
+        backlogKey="CASS"
+        report="burndown"
+        selectedSprintId={sprints[1]!.id}
+        sprints={sprints}
+        plannedCount={0}
+      />,
+    );
+
+    const burndown = screen.getByRole("link", { name: "Burndown" });
+    expect(burndown).toHaveAttribute("href", "/b/CASS/reports?report=burndown");
+    expect(burndown).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Rapport de sprint" }))
+      .not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Vélocité" })).not.toHaveAttribute("aria-current");
+    const form = screen.getByRole("form", { name: "Choisir un sprint" });
+    expect(form).toHaveAttribute("method", "get");
+    expect(form).toHaveAttribute("action", "/b/CASS/reports");
+    expect(screen.getByRole("combobox", { name: "Sprint" })).toHaveValue(sprints[1]!.id);
+    expect(screen.getByDisplayValue("burndown")).toHaveAttribute("name", "report");
+  });
+
+  it("does not mark Burndown current on other reports and hides the selector for velocity", () => {
+    render(
+      <ReportNavigation
+        backlogKey="CASS"
+        report="velocity"
+        selectedSprintId={sprints[0]!.id}
+        sprints={sprints}
+        plannedCount={0}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Burndown" })).not.toHaveAttribute("aria-current");
+    expect(screen.queryByRole("form", { name: "Choisir un sprint" })).not.toBeInTheDocument();
+  });
+
+  it("shows the empty sprint states on the burndown report", () => {
+    const { rerender } = render(
+      <ReportNavigation
+        backlogKey="CASS"
+        report="burndown"
+        selectedSprintId={null}
+        sprints={[]}
+        plannedCount={0}
+      />,
+    );
+
+    expect(screen.getByText("Aucun sprint actif ou terminé.")).toBeVisible();
+
+    rerender(
+      <ReportNavigation
+        backlogKey="CASS"
+        report="burndown"
+        selectedSprintId={null}
+        sprints={[]}
+        plannedCount={1}
+      />,
+    );
+
+    expect(screen.getByText("1 sprint est planifié, mais aucun n’a encore démarré.")).toBeVisible();
+  });
 });

@@ -16,7 +16,7 @@ export function ReportNavigation({
   plannedCount,
 }: {
   backlogKey: string;
-  report: "sprint" | "velocity";
+  report: "sprint" | "velocity" | "burndown";
   selectedSprintId: string | null;
   sprints: NavigationSprint[];
   plannedCount: number;
@@ -39,15 +39,22 @@ export function ReportNavigation({
         >
           Vélocité
         </Link>
+        <Link
+          href={`${path}?report=burndown`}
+          aria-current={report === "burndown" ? "page" : undefined}
+          className="border-b-2 border-transparent px-3 py-2 text-sm aria-current:border-primary aria-current:font-medium"
+        >
+          Burndown
+        </Link>
       </nav>
-      {report === "sprint" && sprints.length > 0 ? (
+      {report !== "velocity" && sprints.length > 0 ? (
         <form
           aria-label="Choisir un sprint"
           action={path}
           method="get"
           className="flex flex-wrap items-end gap-2"
         >
-          <input type="hidden" name="report" value="sprint" />
+          <input type="hidden" name="report" value={report} />
           <div className="grid gap-1">
             <label htmlFor="report-sprint" className="text-sm font-medium">Sprint</label>
             <select
@@ -66,7 +73,7 @@ export function ReportNavigation({
           <Button type="submit">Afficher</Button>
         </form>
       ) : null}
-      {report === "sprint" && sprints.length === 0 ? (
+      {report !== "velocity" && sprints.length === 0 ? (
         <p className="rounded-xl border p-4 text-sm text-muted-foreground">
           {plannedCount > 0
             ? `${plannedCount} ${plannedCount === 1 ? "sprint est planifié" : "sprints sont planifiés"}, mais aucun n’a encore démarré.`

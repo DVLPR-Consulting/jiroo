@@ -2,6 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  burndownReportProps: vi.fn(),
+  getBurndownReport: vi.fn(),
   getBacklogByKeyForUser: vi.fn(),
   getBacklogCapabilities: vi.fn(),
   getSprintReport: vi.fn(),
@@ -29,6 +31,15 @@ vi.mock("@/lib/services/sprint-reports", () => ({
   getSprintReport: mocks.getSprintReport,
   getVelocityReport: mocks.getVelocityReport,
   listReportableSprints: mocks.listReportableSprints,
+}));
+vi.mock("@/lib/services/sprint-burndown", () => ({
+  getBurndownReport: mocks.getBurndownReport,
+}));
+vi.mock("@/components/reports/burndown-report", () => ({
+  BurndownReportView: (props: unknown) => {
+    mocks.burndownReportProps(props);
+    return <div>Rapport burndown</div>;
+  },
 }));
 vi.mock("@/components/reports/report-navigation", () => ({
   ReportNavigation: (props: unknown) => {
@@ -152,6 +163,75 @@ const report = {
   },
 };
 
+const burndownPoint = {
+  occurredAt: new Date("2026-08-02T09:00:00.000Z"),
+  sequence: BigInt("9007199254740993"),
+  remainingPoints: 8,
+  unestimatedCount: 0,
+  deltaPoints: 3,
+  itemId: "44444444-4444-4444-8444-444444444444",
+  itemKey: "CASS-1",
+  itemTitle: "Paiement",
+  cause: "estimate_changed" as const,
+};
+const burndownBaseline = {
+  ...burndownPoint,
+  occurredAt: new Date("2026-08-01T09:00:00.000Z"),
+  sequence: null,
+  remainingPoints: 5,
+  deltaPoints: 0,
+  itemId: null,
+  itemKey: null,
+  itemTitle: null,
+  cause: "start" as const,
+};
+const burndown = {
+  kind: "active" as const,
+  sprint: {
+    id: activeId,
+    name: "Sprint actif",
+    goal: null,
+    plannedStartAt: new Date("2026-08-01T08:00:00.000Z"),
+    plannedEndAt: new Date("2026-08-15T09:00:00.000Z"),
+    startedAt: new Date("2026-08-01T09:00:00.000Z"),
+    completedAt: null,
+  },
+  summary: {
+    initialRemainingPoints: 5,
+    remainingPoints: 8,
+    completedPoints: 0,
+    unestimatedCount: 0,
+  },
+  trajectory: {
+    label: "Au-dessus de la trajectoire idéale" as const,
+    insufficientReason: null,
+  },
+  planningComparison: {
+    state: "ready" as const,
+    commitmentPoints: 5,
+    averageCompletedPoints: 4,
+    population: 3,
+    difference: 1,
+  },
+  guideline: {
+    state: "available" as const,
+    points: [
+      { occurredAt: new Date("2026-08-01T09:00:00.000Z"), remainingPoints: 5 },
+      { occurredAt: new Date("2026-08-15T09:00:00.000Z"), remainingPoints: 0 },
+    ],
+  },
+  displayPoints: [burndownBaseline, burndownPoint],
+  baseline: burndownBaseline,
+  observedAt: new Date("2026-08-03T09:00:00.000Z"),
+  eventPoints: { page: 2, pageSize: 50, total: 51, rows: [burndownPoint] },
+  events: {
+    ...report.events,
+    page: 2,
+    total: 51,
+    rows: [{ ...report.events.rows[0]!, sequence: BigInt("9007199254740993") }],
+  },
+};
+
 describe("reports route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -166,6 +246,7 @@ describe("reports route", () => {
       plannedCount: 0,
     });
     mocks.getSprintReport.mockResolvedValue(report);
+    mocks.getBurndownReport.mockResolvedValue(burndown);
     mocks.getVelocityReport.mockResolvedValue({
       state: "empty",
       label: "Pas encore de vélocité",
@@ -326,5 +407,153 @@ describe("reports route", () => {
       report: expect.objectContaining({ limit: Number(limit) }),
     }));
     expect(mocks.getSprintReport).not.toHaveBeenCalled();
+  });
+
+  describe("burndown", () => {
+    const browseOnly = {
+      createItems: false,
+      editItems: false,
+      transitionItems: false,
+      scheduleItems: false,
+      assignItems: false,
+      deleteItems: false,
+      restoreItems: false,
+      addComments: false,
+      editOwnComments: false,
+      deleteOwnComments: false,
+      deleteAllComments: false,
+      linkItems: false,
+      manageSprints: false,
+      manageWorkflow: false,
+      manageMembers: false,
+      bulkChangeItems: false,
+    };
+
+    it("selects the active sprint by default and serializes dates and sequences", async () => {
+      render(await ReportsPage({
+        params: Promise.resolve({ key: "CASS" }),
+        searchParams: Promise.resolve({ report: "burndown", eventPage: "2" }),
+      }));
+
+      expect(screen.getByText("Rapport burndown")).toBeVisible();
+      expect(mocks.getBurndownReport).toHaveBeenCalledWith(backlog.id, activeId, {
+        eventPage: 2,
+        pageSize: 50,
+      });
+      expect(mocks.getSprintReport).not.toHaveBeenCalled();
+      expect(mocks.getVelocityReport).not.toHaveBeenCalled();
+      expect(mocks.navigationProps).toHaveBeenCalledWith(expect.objectContaining({
+        report: "burndown",
+        selectedSprintId: activeId,
+      }));
+      const props = mocks.burndownReportProps.mock.calls[0]?.[0];
+      expect(props).toMatchObject({
+        backlogKey: "CASS",
+        report: {
+          kind: "active",
+          statusLabel: "Données en cours",
+          sprint: {
+            startedAt: "2026-08-01T09:00:00.000Z",
+            plannedEndAt: "2026-08-15T09:00:00.000Z",
+            completedAt: null,
+          },
+          baseline: { occurredAt: "2026-08-01T09:00:00.000Z", sequence: null },
+          observedAt: "2026-08-03T09:00:00.000Z",
+          eventPoints: {
+            page: 2,
+            rows: [{ occurredAt: "2026-08-02T09:00:00.000Z", sequence: "9007199254740993" }],
+          },
+          events: {
+            rows: [{ occurredAt: "2026-08-02T09:00:00.000Z", sequence: "9007199254740993" }],
+          },
+        },
+      });
+      expect(JSON.parse(JSON.stringify(props))).toEqual(props);
+    });
+
+    it("falls back to the newest completed sprint when no sprint is active", async () => {
+      mocks.listReportableSprints.mockResolvedValueOnce({
+        sprints: [completedSprint],
+        plannedCount: 0,
+      });
+
+      render(await ReportsPage({
+        params: Promise.resolve({ key: "CASS" }),
+        searchParams: Promise.resolve({ report: "burndown" }),
+      }));
+
+      expect(mocks.getBurndownReport).toHaveBeenCalledWith(backlog.id, completedId, {
+        eventPage: 1,
+        pageSize: 50,
+      });
+      expect(mocks.getSprintReport).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["no sprint", 0],
+      ["planned-only sprints", 2],
+    ])("renders the selector state without reading a report for %s", async (_label, plannedCount) => {
+      mocks.listReportableSprints.mockResolvedValueOnce({ sprints: [], plannedCount });
+
+      render(await ReportsPage({
+        params: Promise.resolve({ key: "CASS" }),
+        searchParams: Promise.resolve({ report: "burndown" }),
+      }));
+
+      expect(mocks.navigationProps).toHaveBeenCalledWith(expect.objectContaining({
+        report: "burndown",
+        selectedSprintId: null,
+        sprints: [],
+        plannedCount,
+      }));
+      expect(mocks.getBurndownReport).not.toHaveBeenCalled();
+      expect(mocks.getSprintReport).not.toHaveBeenCalled();
+      expect(mocks.burndownReportProps).not.toHaveBeenCalled();
+    });
+
+    it("lets a browse_backlog-only caller read the burndown", async () => {
+      mocks.getBacklogCapabilities.mockResolvedValueOnce(browseOnly);
+
+      render(await ReportsPage({
+        params: Promise.resolve({ key: "CASS" }),
+        searchParams: Promise.resolve({ report: "burndown", sprint: completedId }),
+      }));
+
+      expect(mocks.getBurndownReport).toHaveBeenCalledWith(backlog.id, completedId, {
+        eventPage: 1,
+        pageSize: 50,
+      });
+      expect(screen.getByText("Rapport burndown")).toBeVisible();
+    });
+
+    it("conceals a malformed sprint before session and report reads", async () => {
+      await expect(ReportsPage({
+        params: Promise.resolve({ key: "CASS" }),
+        searchParams: Promise.resolve({ report: "burndown", sprint: "not-a-uuid" }),
+      })).rejects.toThrow("not-found");
+
+      expect(mocks.requireSession).not.toHaveBeenCalled();
+      expect(mocks.getBurndownReport).not.toHaveBeenCalled();
+    });
+
+    it.each(["foreign", "planned"])(
+      "conceals an explicitly selected %s sprint without falling through to the sprint report",
+      async () => {
+        const explicitId = "66666666-6666-4666-8666-666666666666";
+        mocks.getBurndownReport.mockResolvedValueOnce(null);
+
+        await expect(ReportsPage({
+          params: Promise.resolve({ key: "CASS" }),
+          searchParams: Promise.resolve({ report: "burndown", sprint: explicitId }),
+        })).rejects.toThrow("not-found");
+
+        expect(mocks.getBurndownReport).toHaveBeenCalledWith(backlog.id, explicitId, {
+          eventPage: 1,
+          pageSize: 50,
+        });
+        expect(mocks.getSprintReport).not.toHaveBeenCalled();
+        expect(mocks.burndownReportProps).not.toHaveBeenCalled();
+      },
+    );
   });
 });

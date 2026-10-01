@@ -29,7 +29,7 @@ describe("parseReportUrlState", () => {
 
   it("normalizes non-resource values but preserves the first raw sprint identifier", () => {
     expect(parseReportUrlState({
-      report: "burndown",
+      report: "unknown",
       sprint: ["not-a-uuid", "ignored"],
       limit: "99",
       itemPage: "-1",
@@ -40,6 +40,21 @@ describe("parseReportUrlState", () => {
       limit: 7,
       itemPage: 1,
       eventPage: 1,
+    });
+  });
+
+  it("accepts the burndown report with its sprint and event page", () => {
+    const sprintId = "11111111-1111-4111-8111-111111111111";
+    expect(parseReportUrlState({
+      report: "burndown",
+      sprint: sprintId,
+      eventPage: "3",
+    })).toEqual({
+      report: "burndown",
+      sprintId,
+      limit: 7,
+      itemPage: 1,
+      eventPage: 3,
     });
   });
 });
