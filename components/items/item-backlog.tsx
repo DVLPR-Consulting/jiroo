@@ -78,7 +78,10 @@ import type {
   SprintPlanningSection,
   SprintSummary,
 } from "@/lib/items/sprint-planning";
-import { calculateSprintMetrics } from "@/lib/items/sprint-planning";
+import {
+  calculateSprintMetrics,
+  type RecentVelocityContext,
+} from "@/lib/items/sprint-planning";
 
 type StatusOption = {
   id: string;
@@ -777,6 +780,7 @@ type MoveSprintItemAction = (input: {
 type SprintBacklogProps = SharedBacklogProps & {
   sections: SprintBacklogSection[];
   sprints: SprintSummary[];
+  recentVelocity?: RecentVelocityContext | null;
   moveSprintItemAction?: MoveSprintItemAction;
   reorderSprintAction?: typeof defaultReorderSprintAction;
   createDialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions">;
@@ -947,6 +951,7 @@ function SprintItemBacklog({
   moveSprintItemAction = defaultMoveSprintItemAction,
   reorderSprintAction = defaultReorderSprintAction,
   createDialogProps,
+  recentVelocity = null,
 }: SprintBacklogProps) {
   const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
   const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
@@ -1071,6 +1076,7 @@ function SprintItemBacklog({
       metrics: calculateSprintMetrics(
         planningItems,
         section.sprint?.capacityPoints ?? null,
+        section.kind === "backlog" ? null : recentVelocity,
       ),
     };
   }

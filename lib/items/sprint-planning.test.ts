@@ -60,6 +60,53 @@ describe("sprint planning", () => {
       unestimatedCount: 1,
       capacityPoints: 10,
       overCapacityPoints: 3,
+      velocityComparison: null,
+    });
+  });
+
+  it("compares the estimated commitment with recent velocity without touching capacity", () => {
+    const rows = [
+      item("one", { estimatePoints: 8 }),
+      item("two", { estimatePoints: 5, done: true }),
+      item("three"),
+    ];
+
+    expect(calculateSprintMetrics(rows, 20, {
+      population: 3,
+      averageCompletedPoints: 10,
+    })).toMatchObject({
+      capacityPoints: 20,
+      overCapacityPoints: 0,
+      velocityComparison: {
+        state: "ready",
+        commitmentPoints: 13,
+        averageCompletedPoints: 10,
+        population: 3,
+        difference: 3,
+      },
+    });
+    expect(calculateSprintMetrics(rows, 10, {
+      population: 3,
+      averageCompletedPoints: 20,
+    })).toMatchObject({
+      capacityPoints: 10,
+      overCapacityPoints: 3,
+      velocityComparison: { state: "ready", difference: -7 },
+    });
+  });
+
+  it("reports an unavailable comparison when no recent sprint is comparable", () => {
+    expect(
+      calculateSprintMetrics([item("one", { estimatePoints: 2 })], null, {
+        population: 0,
+        averageCompletedPoints: null,
+      }).velocityComparison,
+    ).toEqual({
+      state: "unavailable",
+      commitmentPoints: 2,
+      averageCompletedPoints: null,
+      population: 0,
+      difference: null,
     });
   });
 
@@ -123,6 +170,29 @@ describe("sprint planning", () => {
       estimatedPoints: 5,
       capacityPoints: 8,
     });
+  });
+
+  it("applies one recent velocity context to sprint sections but never to the Backlog", () => {
+    const sections = buildSprintSections({
+      sprints: [sprint("active", "active", "a0", 8), sprint("future", "planned", "a1")],
+      items: [
+        item("active-item", { estimatePoints: 5 }),
+        item("future-item", { estimatePoints: 13 }),
+        item("unscheduled", { estimatePoints: 3 }),
+      ],
+      memberships: [
+        { itemId: "active-item", sprintId: "active", leftAt: null },
+        { itemId: "future-item", sprintId: "future", leftAt: null },
+      ],
+      recentVelocity: { population: 2, averageCompletedPoints: 10 },
+    });
+
+    expect(sections.map((section) => section.metrics.velocityComparison)).toEqual([
+      expect.objectContaining({ state: "ready", commitmentPoints: 5, difference: -5 }),
+      expect.objectContaining({ state: "ready", commitmentPoints: 13, difference: 3 }),
+      null,
+    ]);
+    expect(sections[0]?.metrics.overCapacityPoints).toBe(0);
   });
 
   it("rejects two current sprint memberships for the same item", () => {
