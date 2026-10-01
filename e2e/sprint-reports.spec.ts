@@ -257,11 +257,16 @@ async function auditedGoto(page: Page, capture: Capture, actor: string, url: str
   return response;
 }
 
+/**
+ * Asserts that `fragments` happened in this chronological order. The journal
+ * renders newest first (`occurredAt DESC, sequence DESC`), so its rows are
+ * reversed before matching.
+ */
 async function expectJournalOrder(
   journal: Locator,
   fragments: string[],
 ) {
-  const rows = await journal.getByRole("listitem").allTextContents();
+  const rows = (await journal.getByRole("listitem").allTextContents()).reverse();
   let previousIndex = -1;
   for (const fragment of fragments) {
     const index = rows.findIndex((row, candidateIndex) =>
