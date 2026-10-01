@@ -428,6 +428,46 @@ describeDb("sprint burndown read model", () => {
     }
   });
 
+  it("ignores memberships closed during planning when identifying initial work", async () => {
+    const f = await fixture();
+    try {
+      const kept = await insertTask(f, "Conservée", 5);
+      const removed = await insertTask(f, "Retirée avant démarrage", 3);
+      const readded = await insertTask(f, "Retirée puis réajoutée", 2);
+      const sprint = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+      await assignItemsToSprint(
+        { backlogId: f.backlog.id, itemIds: [kept.id, removed.id, readded.id], sprintId: sprint.id },
+        f.actor.id,
+      );
+      await assignItemsToSprint(
+        { backlogId: f.backlog.id, itemIds: [removed.id, readded.id], sprintId: null },
+        f.actor.id,
+      );
+      await assignItemsToSprint(
+        { backlogId: f.backlog.id, itemIds: [readded.id], sprintId: sprint.id },
+        f.actor.id,
+      );
+      await startSprint({
+        id: sprint.id,
+        backlogId: f.backlog.id,
+        name: sprint.name,
+        goal: "Objectif immuable",
+        startAt: startedAt.toISOString(),
+        endAt: targetEndAt.toISOString(),
+        capacityPoints: 13,
+      }, f.actor.id);
+
+      const report = await getBurndownReport(f.backlog.id, sprint.id, options);
+      expect(report).toMatchObject({
+        kind: "active",
+        summary: { initialRemainingPoints: 7, remainingPoints: 7 },
+        planningComparison: { commitmentPoints: 7 },
+      });
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
   it("returns identity-only legacy results for missing done facts", async () => {
     const f = await fixture();
     let eventConstraintNeedsValidation = false;

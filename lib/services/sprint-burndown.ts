@@ -286,7 +286,21 @@ async function readActiveSource(
     }).from(sprintItems).leftJoin(
       items,
       and(eq(items.id, sprintItems.itemId), eq(items.backlogId, backlogId)),
-    ).where(eq(sprintItems.sprintId, sprint.id))
+    ).where(and(
+      eq(sprintItems.sprintId, sprint.id),
+      // Memberships closed during planning never took part in the sprint.
+      sql`(
+        ${sprintItems.leftAt} is null
+        or ${sprintItems.estimateAtStart} is not null
+        or ${sprintItems.doneAtStart} is not null
+        or exists (
+          select 1 from sprint_events membership_event
+          where membership_event.backlog_id = ${backlogId}
+            and membership_event.sprint_id = ${sprint.id}
+            and membership_event.source_membership_id = ${sprintItems.id}
+        )
+      )`,
+    ))
       .orderBy(asc(sprintItems.joinedAt), asc(sprintItems.id));
   const ledger = await readLedger(tx, backlogId, sprint.id);
   const events = await readSprintEventPage(
