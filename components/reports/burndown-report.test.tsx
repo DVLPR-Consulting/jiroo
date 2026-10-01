@@ -307,7 +307,7 @@ describe("BurndownReportView", () => {
   it.each([
     ["missing_target", "Date cible absente."],
     ["invalid_dates", "Dates du sprint incohérentes."],
-    ["no_estimated_initial_work", "Tout le travail initial est non estimé."],
+    ["no_estimated_initial_work", "Le travail restant au démarrage n’est pas estimé."],
     ["just_started", "Le sprint vient de démarrer."],
   ] as const)("explains insufficient data for %s", (reason, copy) => {
     render(
@@ -393,8 +393,12 @@ describe("BurndownReportView", () => {
         }}
       />,
     );
-    expect(screen.getAllByText("Sprint vide au démarrage.", { exact: false })[0]).toBeVisible();
-    expect(screen.queryByText(/Tout le travail initial est non estimé/)).toBeNull();
+    // Done-at-start or zero-point work also yields this reason: never claim the sprint was empty.
+    const notices = screen.getAllByText("Aucun point restant au démarrage.", { exact: false });
+    expect(notices).toHaveLength(2);
+    for (const notice of notices) expect(notice).toBeVisible();
+    expect(screen.queryByText(/vide/i)).toBeNull();
+    expect(screen.queryByText(/n’est pas estimé/)).toBeNull();
   });
 
   it("states when no comparable velocity exists", () => {

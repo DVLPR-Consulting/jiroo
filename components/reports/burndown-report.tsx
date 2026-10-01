@@ -50,8 +50,8 @@ function insufficientReasonCopy(
     case "no_estimated_initial_work":
       // The baseline tells an empty start apart from unestimated initial work.
       return baseline.unestimatedCount === 0
-        ? "Sprint vide au démarrage."
-        : "Tout le travail initial est non estimé.";
+        ? "Aucun point restant au démarrage."
+        : "Le travail restant au démarrage n’est pas estimé.";
     case "just_started":
       return "Le sprint vient de démarrer.";
     case "legacy_history":
@@ -188,8 +188,8 @@ function BurndownChart({ report }: { report: DetailedReport }) {
   const hasScopeChange = markers.some((marker) => marker.scopeChange);
   const hasPlainMarker = markers.some((marker) => !marker.scopeChange);
   // The projection may drop exact points; the table always lists them all.
-  const drawnEventPoints = report.displayPoints.filter((point) => point.sequence !== null).length;
-  const simplified = drawnEventPoints < report.eventPoints.total;
+  const displayedEventPoints = report.displayPoints.filter((point) => point.sequence !== null).length;
+  const simplified = displayedEventPoints < report.eventPoints.total;
 
   return (
     <figure aria-labelledby="burndown-chart-title" className="space-y-3 rounded-xl border p-4">
