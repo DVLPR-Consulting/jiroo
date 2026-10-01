@@ -37,13 +37,61 @@ type Capture = {
   expectedHttp: string[];
   faults: string[];
   contexts: Set<BrowserContext>;
+  /** Window of one deliberate read fault, settled when the scenario ends. */
+  expectedFault?: { start: number; end?: number; marker: string };
 };
 
 type ReportFixtures = Awaited<ReturnType<typeof seedReportFixtures>>;
 let fixtures: ReportFixtures;
 
-const FORBIDDEN_AUDIT_EVIDENCE =
-  /postgres(?:ql)?:|authorization|bearer|cookie:|select\s|sprint_report_snapshots|database_url|direct_database_url|jiroo-e2e-secret/i;
+// Same resolution as e2e/global.setup.ts; the value never reaches an artifact.
+const FIXTURE_PASSWORD = process.env.JIROO_PLAYWRIGHT_PASSWORD ?? "Audit-Local-2026!";
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+const FORBIDDEN_AUDIT_EVIDENCE = new RegExp(
+  [
+    "postgres(?:ql)?:",
+    "authorization",
+    "bearer",
+    "cookie:",
+    "select\\s",
+    "sprint_report_snapshots",
+    "database_url",
+    "direct_database_url",
+    "jiroo-e2e-secret",
+    escapeRegExp(FIXTURE_PASSWORD),
+  ].join("|"),
+  "i",
+);
+const CREDENTIAL_EVIDENCE = new RegExp(
+  ["postgres(?:ql)?:", "authorization", "bearer", "jiroo-e2e-secret", escapeRegExp(FIXTURE_PASSWORD)].join("|"),
+  "i",
+);
+const BOUNDARY_FAULT = "handled by the <ErrorBoundaryHandler> error boundary";
+
+/**
+ * Removes the deliberate boundary lines of the fault window once the scenario
+ * is over, so late console reports are covered, and replaces them with one
+ * `[expected-fault]` marker. Anything else in the window stays a fault.
+ */
+function settleExpectedFault(capture: Capture) {
+  const window = capture.expectedFault;
+  if (!window) return;
+  const end = window.end ?? capture.faults.length;
+  const inWindow = capture.faults.slice(window.start, end);
+  const expected = inWindow.filter((fault) => fault.includes(BOUNDARY_FAULT));
+  expect(expected.length, "La panne injectée doit produire une preuve navigateur.").toBeGreaterThan(0);
+  // Discarded lines may name internal tables (dev error forwarding) but must
+  // never carry credentials.
+  for (const fault of expected) expect(fault).not.toMatch(CREDENTIAL_EVIDENCE);
+  capture.faults = [
+    ...capture.faults.slice(0, window.start),
+    ...inWindow.filter((fault) => !expected.includes(fault)),
+    ...capture.faults.slice(end),
+  ];
+  capture.console = capture.console.filter((line) => !expected.includes(line));
+  capture.console.push(window.marker);
+  capture.expectedFault = undefined;
+}
 
 function observe(page: Page, capture: Capture, actor: string) {
   page.on("console", (message) => {
@@ -102,6 +150,7 @@ function audited(
     let failure: unknown;
     try {
       await body({ page, browser, capture, observedPage });
+      settleExpectedFault(capture);
       expect(capture.expectedHttp, "Réponses HTTP attendues non observées").toEqual([]);
       expect(capture.faults, "Erreurs navigateur inattendues").toEqual([]);
     } catch (error) {
@@ -478,20 +527,34 @@ async function expectChartMatches(
   }
 }
 
-async function expectMobileWithoutOverflow(page: Page, chartScrolls: boolean) {
+/**
+ * Measures horizontal overflow at 390 × 844 on the document and on <main>,
+ * which is the shell's `overflow-auto` scroller (document width cannot see
+ * overflow inside it). Both must fit; on burndown views the chart scroller
+ * owns the horizontal scrolling.
+ */
+async function measureMobileOverflow(page: Page, view: "burndown" | "backlog") {
   await page.setViewportSize(MOBILE_VIEWPORT);
   await page.reload();
   // Measure only once streamed Suspense segments have been swapped in.
   await expect(page.locator('div[hidden][id^="S:"]')).toHaveCount(0);
-  const overflow = await page.evaluate(() =>
-    document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(1);
-  if (chartScrolls) {
+  const measured = await page.evaluate(() => {
+    const main = document.querySelector("main");
+    return {
+      document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      main: main ? main.scrollWidth - main.clientWidth : Number.NaN,
+    };
+  });
+  expect(measured.document).toBeLessThanOrEqual(1);
+  expect(Number.isNaN(measured.main), "<main> introuvable").toBe(false);
+  expect(measured.main, "Débordement horizontal dans <main>").toBeLessThanOrEqual(1);
+  let chart: number | null = null;
+  if (view === "burndown") {
     const chartScroll = page.getByTestId("burndown-chart-scroll").filter({ visible: true });
-    const owned = await chartScroll.evaluate((element) => element.scrollWidth - element.clientWidth);
-    expect(owned, "Le graphique porte le défilement horizontal").toBeGreaterThan(0);
+    chart = await chartScroll.evaluate((element) => element.scrollWidth - element.clientWidth);
+    expect(chart, "Le graphique porte le défilement horizontal").toBeGreaterThan(0);
   }
-  return overflow;
+  return { ...measured, chart };
 }
 
 /** The app shell scrolls inside <main>, so full-page captures stop at the fold. */
@@ -519,6 +582,11 @@ type BurndownFixtures = {
   plannedSprintId?: string;
 };
 let burndown: BurndownFixtures;
+
+/** S08–S12 build on the S07 sprint; fail explicitly when it is absent. */
+function requireBurndownFixture() {
+  expect(burndown, "Le fixture burndown de S07 est absent (S07 filtré ou en échec).").toBeDefined();
+}
 
 async function seedReportFixtures() {
   const context = await fixtureContext();
@@ -625,6 +693,10 @@ async function seedReportFixtures() {
     added,
   };
 }
+
+// Scenarios share one evolving fixture: a failure must stop the rest instead
+// of reseeding in a new worker.
+test.describe.configure({ mode: "serial" });
 
 test.beforeAll(async () => {
   fixtures = await seedReportFixtures();
@@ -836,7 +908,10 @@ audited(5, "masque une panne de lecture et récupère après retry", async ({
   page,
   capture,
 }) => {
-  const faultStart = capture.faults.length;
+  capture.expectedFault = {
+    start: capture.faults.length,
+    marker: "[expected-fault] report read failed; generic ErrorBoundaryHandler rendered and recovered",
+  };
   let reportTableRenamed = false;
   try {
     await db.execute(sql.raw(
@@ -858,23 +933,11 @@ audited(5, "masque une panne de lecture et récupère après retry", async ({
     }
   }
 
-  const expectedFaults = capture.faults.splice(faultStart);
-  expect(expectedFaults.length, "La panne injectée doit produire une preuve navigateur.")
-    .toBeGreaterThan(0);
-  for (const fault of expectedFaults) {
-    expect(fault).toContain("handled by the <ErrorBoundaryHandler> error boundary");
-    expect(fault).not.toMatch(/postgres(?:ql)?:|authorization|bearer|jiroo-e2e-secret/i);
-  }
-  capture.console = capture.console.filter((line) => !expectedFaults.includes(line));
-  capture.console.push(
-    "[expected-fault] report read failed; generic ErrorBoundaryHandler rendered and recovered",
-  );
-
   await page.getByRole("button", { name: "Réessayer" }).click();
   await expect(page.getByRole("main").getByText("Historique figé", { exact: true }))
     .toBeVisible();
-  expect([...capture.console, ...capture.network].join("\n"))
-    .not.toMatch(FORBIDDEN_AUDIT_EVIDENCE);
+  // Faults reported after the recovered render are no longer expected.
+  capture.expectedFault.end = capture.faults.length;
 });
 
 audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture }) => {
@@ -1167,8 +1230,10 @@ audited(7, "rejoue le burndown actif depuis le baseline figé et le ledger", asy
     page.screenshot({ path, fullPage: true, caret: "initial" }));
   await writeAuditScreenshot("audit/screenshots/burndown-active-chart-desktop.png", (path) =>
     burndownFigure(page).screenshot({ path, caret: "initial" }));
-  const overflow = await expectMobileWithoutOverflow(page, true);
-  capture.console.push(`[overflow] active burndown 390x844 ${overflow}px`);
+  const overflow = await measureMobileOverflow(page, "burndown");
+  capture.console.push(
+    `[overflow] active burndown 390x844 document=${overflow.document}px main=${overflow.main}px chart=${overflow.chart === null ? "n/a" : `${overflow.chart}px`}`,
+  );
   await writeAuditScreenshot("audit/screenshots/burndown-active-mobile.png", (path) =>
     page.screenshot({ path, fullPage: true, caret: "initial" }));
   await writeAuditScreenshot("audit/screenshots/burndown-active-chart-mobile.png", (path) =>
@@ -1177,6 +1242,7 @@ audited(7, "rejoue le burndown actif depuis le baseline figé et le ledger", asy
 });
 
 audited(8, "relie édition unitaire, bulk et Board au burndown, ordre par séquence", async ({ page, capture }) => {
+  requireBurndownFixture();
   const context = fixtures.context;
   const bulkFirst = await task(context, "Burndown — bulk un", { points: BURNDOWN.bulkFirst });
   const bulkSecond = await task(context, "Burndown — bulk deux", { points: BURNDOWN.bulkSecond });
@@ -1276,6 +1342,7 @@ audited(8, "relie édition unitaire, bulk et Board au burndown, ordre par séque
 });
 
 audited(9, "fige le point final à la clôture et ignore les mutations ultérieures", async ({ page, capture }) => {
+  requireBurndownFixture();
   const context = fixtures.context;
   await auditedGoto(page, capture, "admin", "/b/CASS?view=backlog");
   await page.getByRole("button", { name: `Clôturer ${BURNDOWN.sprintName}` }).click();
@@ -1349,8 +1416,10 @@ audited(9, "fige le point final à la clôture et ignore les mutations ultérieu
     page.screenshot({ path, fullPage: true, caret: "initial" }));
   await writeAuditScreenshot("audit/screenshots/burndown-completed-chart-desktop.png", (path) =>
     burndownFigure(page).screenshot({ path, caret: "initial" }));
-  const overflow = await expectMobileWithoutOverflow(page, true);
-  capture.console.push(`[overflow] completed burndown 390x844 ${overflow}px`);
+  const overflow = await measureMobileOverflow(page, "burndown");
+  capture.console.push(
+    `[overflow] completed burndown 390x844 document=${overflow.document}px main=${overflow.main}px chart=${overflow.chart === null ? "n/a" : `${overflow.chart}px`}`,
+  );
   await writeAuditScreenshot("audit/screenshots/burndown-completed-mobile.png", (path) =>
     page.screenshot({ path, fullPage: true, caret: "initial" }));
   await writeAuditScreenshot("audit/screenshots/burndown-completed-chart-mobile.png", (path) =>
@@ -1361,9 +1430,22 @@ audited(9, "fige le point final à la clôture et ignore les mutations ultérieu
   await expect(page.getByText("Historique burndown indisponible", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Mesures du burndown" })).toHaveCount(0);
   await expect(page.getByRole("table", { name: "Valeurs exactes du burndown" })).toHaveCount(0);
+
+  // Switching report tabs keeps an older completed sprint selected (BUG-JIR-029).
+  await auditedGoto(page, capture, "admin", `/b/CASS/reports?report=sprint&sprint=${fixtures.first.id}`);
+  const tabs = page.getByRole("navigation", { name: "Types de rapport" });
+  await tabs.getByRole("link", { name: "Burndown", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`report=burndown&sprint=${fixtures.first.id}`, "u"));
+  await expect(page.getByLabel("Sprint", { exact: true })).toHaveValue(fixtures.first.id);
+  await expect(page.getByRole("heading", { level: 1, name: "Sprint Rapport 1" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: BURNDOWN.sprintName })).toHaveCount(0);
+  await tabs.getByRole("link", { name: "Rapport de sprint", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`report=sprint&sprint=${fixtures.first.id}`, "u"));
+  await expect(page.getByLabel("Sprint", { exact: true })).toHaveValue(fixtures.first.id);
 });
 
 audited(10, "compare un sprint planifié à la vélocité récente sans bloquer", async ({ page, capture }) => {
+  requireBurndownFixture();
   const context = fixtures.context;
   const planned = await namedSprint(context, BURNDOWN.plannedName);
   for (const [index, points] of BURNDOWN.plannedEstimates.entries()) {
@@ -1394,8 +1476,10 @@ audited(10, "compare un sprint planifié à la vélocité récente sans bloquer"
   await header.scrollIntoViewIfNeeded();
   await writeAuditScreenshot("audit/screenshots/burndown-planned-warning-desktop.png", (path) =>
     page.screenshot({ path, fullPage: true, caret: "initial" }));
-  const overflow = await expectMobileWithoutOverflow(page, false);
-  capture.console.push(`[overflow] planned warning 390x844 ${overflow}px`);
+  const overflow = await measureMobileOverflow(page, "backlog");
+  capture.console.push(
+    `[overflow] planned warning 390x844 document=${overflow.document}px main=${overflow.main}px chart=${overflow.chart === null ? "n/a" : `${overflow.chart}px`}`,
+  );
   await expect(sprintHeader(page, BURNDOWN.plannedName)
     .getByText("Engagement supérieur à la moyenne récente : avertissement non bloquant.")).toBeVisible();
   await sprintHeader(page, BURNDOWN.plannedName).scrollIntoViewIfNeeded();
@@ -1415,6 +1499,7 @@ audited(11, "conserve le burndown pour lecteur et second contexte, dissimule ét
   capture,
   observedPage,
 }) => {
+  requireBurndownFixture();
   const rows = expectedBurndownRows(burndown.baseline, burndown.steps);
   const finalCompleted = BURNDOWN.doneAtStart + BURNDOWN.todoReestimated + BURNDOWN.addedDoneReestimated
     + BURNDOWN.addedIncomplete;
@@ -1458,7 +1543,11 @@ audited(11, "conserve le burndown pour lecteur et second contexte, dissimule ét
 });
 
 audited(12, "masque une panne de lecture du burndown et récupère après retry", async ({ page, capture }) => {
-  const faultStart = capture.faults.length;
+  requireBurndownFixture();
+  capture.expectedFault = {
+    start: capture.faults.length,
+    marker: "[expected-fault] burndown ledger read failed; generic ErrorBoundaryHandler rendered and recovered",
+  };
   let ledgerRenamed = false;
   try {
     await db.execute(sql.raw('ALTER TABLE "sprint_events" RENAME TO "sprint_events_fault"'));
@@ -1475,21 +1564,8 @@ audited(12, "masque une panne de lecture du burndown et récupère après retry"
     }
   }
 
-  const expectedFaults = capture.faults.splice(faultStart);
-  expect(expectedFaults.length, "La panne injectée doit produire une preuve navigateur.")
-    .toBeGreaterThan(0);
-  for (const fault of expectedFaults) {
-    expect(fault).toContain("handled by the <ErrorBoundaryHandler> error boundary");
-    expect(fault).not.toMatch(/postgres(?:ql)?:|authorization|bearer|jiroo-e2e-secret/i);
-  }
-  capture.console = capture.console.filter((line) => !expectedFaults.includes(line));
-  capture.console.push(
-    "[expected-fault] burndown ledger read failed; generic ErrorBoundaryHandler rendered and recovered",
-  );
-
   await page.getByRole("button", { name: "Réessayer" }).click();
   await expect(page.getByRole("main").getByText("Historique figé", { exact: true })).toBeVisible();
   await expectBurndownTable(page, expectedBurndownRows(burndown.baseline, burndown.steps));
-  expect([...capture.console, ...capture.network].join("\n"))
-    .not.toMatch(FORBIDDEN_AUDIT_EVIDENCE);
+  capture.expectedFault.end = capture.faults.length;
 });
