@@ -57,6 +57,8 @@ describe("ReportNavigation", () => {
     );
 
     expect(screen.getByText("Aucun sprint actif ou terminé.")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Burndown" }))
+      .toHaveAttribute("href", "/b/CASS/reports?report=burndown");
 
     rerender(
       <ReportNavigation
@@ -84,7 +86,15 @@ describe("ReportNavigation", () => {
     );
 
     const burndown = screen.getByRole("link", { name: "Burndown" });
-    expect(burndown).toHaveAttribute("href", "/b/CASS/reports?report=burndown");
+    // Switching presentation keeps the subject: the selected (older) sprint stays selected.
+    expect(burndown).toHaveAttribute(
+      "href",
+      `/b/CASS/reports?report=burndown&sprint=${sprints[1]!.id}`,
+    );
+    expect(screen.getByRole("link", { name: "Rapport de sprint" })).toHaveAttribute(
+      "href",
+      `/b/CASS/reports?report=sprint&sprint=${sprints[1]!.id}`,
+    );
     expect(burndown).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Rapport de sprint" }))
       .not.toHaveAttribute("aria-current");
