@@ -483,7 +483,8 @@ export async function getBurndownReport(
   const eventPointRows = source.events.rows.map((event) => {
     const point = pointsBySequence.get(event.sequence);
     assertConsistent(point !== undefined);
-    return point;
+    // The ledger keeps the id of soft-deleted items; link only what the journal still exposes.
+    return { ...point, itemId: event.itemId };
   });
   const velocity = await getRecentVelocityContext(backlogId);
   const baseline = calculation.exactPoints[0];

@@ -21,7 +21,7 @@ import {
   getRecentVelocityContext,
 } from "@/lib/services/sprint-burndown";
 import { appendSprintEventsInTx } from "@/lib/services/sprint-events";
-import { updateItem } from "@/lib/services/items";
+import { softDeleteItem, updateItem } from "@/lib/services/items";
 import { completeSprint, startSprint } from "@/lib/services/sprint-lifecycle";
 import { readSprintEventPage } from "@/lib/services/sprint-reports";
 import { assignItemsToSprint, createSprint } from "@/lib/services/sprints";
@@ -526,6 +526,39 @@ describeDb("sprint burndown read model", () => {
       }
     } finally {
       vi.useRealTimers();
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("keeps exact points of soft-deleted items unlinked, like their journal events", async () => {
+    const f = await fixture();
+    try {
+      const deleted = await insertTask(f, "Supprimée en cours de sprint", 5);
+      const kept = await insertTask(f, "Toujours accessible", 3);
+      const active = await startWithTasks(f, [deleted.id, kept.id]);
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        vi.setSystemTime(new Date("2026-08-05T09:00:00.000Z"));
+        await updateItem({ id: deleted.id, estimatePoints: 8 }, f.actor.id, "estimate-deleted");
+        await updateItem({ id: kept.id, estimatePoints: 2 }, f.actor.id, "estimate-kept");
+        vi.setSystemTime(new Date("2026-08-06T09:00:00.000Z"));
+        await softDeleteItem({ id: deleted.id }, f.actor.id, "soft-delete");
+      } finally {
+        vi.useRealTimers();
+      }
+
+      const report = await getBurndownReport(f.backlog.id, active.id, options);
+      if (!report || report.kind !== "active") throw new Error("Rapport actif attendu.");
+      expect(report.summary.remainingPoints).toBe(2);
+      const deletedPoints = report.eventPoints.rows.filter((point) => point.itemKey === deleted.key);
+      expect(deletedPoints.map((point) => point.cause)).toEqual(["item_removed", "estimate_changed"]);
+      expect(deletedPoints.map((point) => point.itemId)).toEqual([null, null]);
+      expect(report.eventPoints.rows.find((point) => point.itemKey === kept.key))
+        .toMatchObject({ itemId: kept.id });
+      expect(report.eventPoints.rows.map((point) => point.itemId)).toEqual(
+        report.events.rows.map((event) => event.itemId),
+      );
+    } finally {
       await cleanupBacklogs(f.backlog.id);
     }
   });
