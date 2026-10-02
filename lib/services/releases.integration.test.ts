@@ -2846,6 +2846,36 @@ describeDb("release manual order", () => {
     expect(ranks.every((row) => row.rank !== null)).toBe(true);
   });
 
+  it("appends a new version after legacy versions without changing their order or revision", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Order legacy create");
+    await db.insert(releases).values(
+      (
+        [
+          ["Tard", "2026-06-01"],
+          ["Tôt", "2026-01-01"],
+        ] as const
+      ).map(([name, releaseDate]) => ({
+        backlogId: backlog.id,
+        name,
+        releaseDate,
+        driverId: actor.id,
+        createdBy: actor.id,
+      })),
+    );
+    await createRelease(
+      { backlogId: backlog.id, name: "Nouvelle", driverId: actor.id, targetDate: "2025-01-01" },
+      actor.id,
+      "legacy-create",
+    );
+    const summaries = await listReleaseSummaries(backlog.id);
+    expect(summaries.map((release) => [release.name, release.revision])).toEqual([
+      ["Tôt", 1],
+      ["Tard", 1],
+      ["Nouvelle", 1],
+    ]);
+  });
+
   it("keeps an archived version's rank and skips it for adjacency", async () => {
     const { actor, backlog, listed, reorder } = await orderFixture("Order archived", ["A", "X", "B", "C"]);
     const summaries = await listReleaseSummaries(backlog.id);
