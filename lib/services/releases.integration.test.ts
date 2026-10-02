@@ -1564,6 +1564,9 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
       { action: "release_unreleased", correlation: "unrelease-sequence" },
       { action: "release_published", correlation: "publish-sequence-2" },
     ]);
+    await expect(getReleaseDetail(backlog.id, release.id)).resolves.toMatchObject({
+      publicationCount: 2,
+    });
   });
 
   it("archives and unarchives without changing active published state", async () => {

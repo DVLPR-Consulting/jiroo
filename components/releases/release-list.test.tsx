@@ -1,16 +1,25 @@
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const listMocks = vi.hoisted(() => ({
+  refresh: vi.fn(),
+  reorderReleaseAction: vi.fn(),
+}));
 
 vi.mock("@/app/actions/releases", () => ({
   archiveReleaseAction: vi.fn(),
   createReleaseAction: vi.fn(),
+  deleteReleaseAction: vi.fn(),
+  mergeReleaseAction: vi.fn(),
   publishReleaseAction: vi.fn(),
+  reorderReleaseAction: listMocks.reorderReleaseAction,
   unarchiveReleaseAction: vi.fn(),
   unreleaseReleaseAction: vi.fn(),
   updateReleaseAction: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
+  useRouter: () => ({ refresh: listMocks.refresh, push: vi.fn() }),
 }));
 import { ReleaseList } from "@/components/releases/release-list";
 
@@ -78,6 +87,7 @@ describe("ReleaseList", () => {
             overdue: true,
             revision: 4,
             publicationScopeRevision: "0123456789abcdef0123456789abcdef",
+            publicationCount: 0,
             progress: {
               total: 6,
               todo: 2,
@@ -101,6 +111,7 @@ describe("ReleaseList", () => {
             overdue: false,
             revision: 2,
             publicationScopeRevision: "0123456789abcdef0123456789abcdef",
+            publicationCount: 0,
             progress: {
               total: 0,
               todo: 0,
@@ -124,6 +135,7 @@ describe("ReleaseList", () => {
             overdue: true,
             revision: 1,
             publicationScopeRevision: "0123456789abcdef0123456789abcdef",
+            publicationCount: 0,
             progress: {
               total: 0,
               todo: 0,
@@ -185,6 +197,7 @@ describe("ReleaseList", () => {
           overdue: false,
           revision: 1,
           publicationScopeRevision: "0123456789abcdef0123456789abcdef",
+          publicationCount: 0,
           progress: { total: 0, todo: 0, inProgress: 0, done: 0, totalPoints: 0, donePoints: 0, unestimated: 0 },
         }]}
       />,
@@ -197,5 +210,124 @@ describe("ReleaseList", () => {
     expect(screen.getByRole("button", { name: "Modifier Version active" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Publier Version active" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Archiver Version active" })).toBeVisible();
+  });
+});
+
+function summary(id: string, name: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id,
+    name,
+    description: null,
+    driver: null,
+    startDate: null,
+    targetDate: null,
+    effectiveReleaseDate: null,
+    released: false,
+    archived: false,
+    overdue: false,
+    revision: 3,
+    publicationScopeRevision: "0123456789abcdef0123456789abcdef",
+    publicationCount: 0,
+    progress: { total: 0, todo: 0, inProgress: 0, done: 0, totalPoints: 0, donePoints: 0, unestimated: 0 },
+    ...overrides,
+  };
+}
+
+const ids = {
+  a: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  b: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  c: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+};
+const ordered = [summary(ids.a, "Alpha"), summary(ids.b, "Bêta"), summary(ids.c, "Gamma")];
+const manager = { ...baseProps.capabilities, manage: true };
+
+function articleNames() {
+  return screen.getAllByRole("article").map((article) => article.getAttribute("aria-label"));
+}
+
+describe("ReleaseList manual order", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("offers drag handles and Monter/Descendre only to managers in the default view", () => {
+    const { rerender } = render(<ReleaseList {...baseProps} releases={ordered} capabilities={manager} />);
+    expect(screen.getByRole("button", { name: "Réordonner Alpha" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Monter Alpha" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Descendre Gamma" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Monter Bêta" })).toBeEnabled();
+
+    rerender(<ReleaseList {...baseProps} releases={ordered} capabilities={manager} showArchived />);
+    expect(screen.queryByRole("button", { name: "Réordonner Alpha" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Monter Bêta" })).not.toBeInTheDocument();
+    expect(screen.getByText(/masquez les versions archivées pour modifier l’ordre/i)).toBeVisible();
+
+    rerender(<ReleaseList {...baseProps} releases={ordered} />);
+    expect(screen.queryByRole("button", { name: "Réordonner Alpha" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Monter Bêta" })).not.toBeInTheDocument();
+  });
+
+  it("moves a version up with its new neighbours and refreshes", async () => {
+    listMocks.reorderReleaseAction.mockResolvedValueOnce({ ok: true, result: {} });
+    const user = userEvent.setup();
+    render(<ReleaseList {...baseProps} releases={ordered} capabilities={manager} />);
+    await user.click(screen.getByRole("button", { name: "Monter Gamma" }));
+
+    expect(articleNames()).toEqual(["Alpha", "Gamma", "Bêta"]);
+    await waitFor(() =>
+      expect(listMocks.reorderReleaseAction).toHaveBeenCalledWith({
+        backlogId: baseProps.backlog.id,
+        backlogKey: "CASS",
+        releaseId: ids.c,
+        expectedRevision: 3,
+        beforeId: ids.a,
+        afterId: ids.b,
+      }),
+    );
+    await waitFor(() => expect(listMocks.refresh).toHaveBeenCalled());
+  });
+
+  it("moves a version down to the last position", async () => {
+    listMocks.reorderReleaseAction.mockResolvedValueOnce({ ok: true, result: {} });
+    const user = userEvent.setup();
+    render(<ReleaseList {...baseProps} releases={ordered} capabilities={manager} />);
+    await user.click(screen.getByRole("button", { name: "Descendre Bêta" }));
+    await waitFor(() =>
+      expect(listMocks.reorderReleaseAction).toHaveBeenCalledWith(
+        expect.objectContaining({ releaseId: ids.b, beforeId: ids.c, afterId: null }),
+      ),
+    );
+  });
+
+  it("rolls back the optimistic order and announces the failure", async () => {
+    listMocks.reorderReleaseAction.mockResolvedValueOnce({
+      ok: false,
+      error: "Voisin invalide pour ce backlog.",
+    });
+    const user = userEvent.setup();
+    render(<ReleaseList {...baseProps} releases={ordered} capabilities={manager} />);
+    await user.click(screen.getByRole("button", { name: "Monter Bêta" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Voisin invalide pour ce backlog.");
+    expect(articleNames()).toEqual(["Alpha", "Bêta", "Gamma"]);
+    expect(listMocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it("rolls back on a network failure", async () => {
+    listMocks.reorderReleaseAction.mockRejectedValueOnce(new Error("Failed to fetch"));
+    const user = userEvent.setup();
+    render(<ReleaseList {...baseProps} releases={ordered} capabilities={manager} />);
+    await user.click(screen.getByRole("button", { name: "Descendre Alpha" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Réordonnancement impossible.");
+    expect(articleNames()).toEqual(["Alpha", "Bêta", "Gamma"]);
+  });
+
+  it("offers Fusionner… and Supprimer… only to managers", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<ReleaseList {...baseProps} releases={ordered} capabilities={manager} />);
+    await user.click(screen.getByText("Actions pour Alpha"));
+    expect(screen.getByRole("button", { name: "Fusionner Alpha" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Supprimer Alpha" })).toBeVisible();
+
+    rerender(<ReleaseList {...baseProps} releases={ordered} />);
+    expect(screen.queryByRole("button", { name: "Fusionner Alpha" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Supprimer Alpha" })).not.toBeInTheDocument();
   });
 });

@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { EditReleaseDialog } from "@/components/releases/release-form-dialog";
 import { ReleaseLifecycleDialogs } from "@/components/releases/release-lifecycle-dialogs";
+import {
+  ReleaseMergeDeleteDialog,
+  type MergeDeleteTarget,
+} from "@/components/releases/release-merge-delete-dialog";
 import { ReleaseProgress } from "@/components/releases/release-progress";
 import type { ReleaseCapabilities } from "@/lib/auth/capabilities";
 import type {
@@ -28,6 +32,8 @@ const EVENT_LABELS: Record<string, string> = {
   release_unreleased: "a annulé la publication",
   release_archived: "a archivé la version",
   release_unarchived: "a désarchivé la version",
+  release_reordered: "a déplacé la version dans l’ordre des versions",
+  release_items_received: "a reçu les éléments d’une version fusionnée ou supprimée",
 };
 
 function pointLabel(points: number | null) {
@@ -78,6 +84,7 @@ export function ReleaseDetail({
   capabilities,
   statusIds,
   destinations,
+  mergeTargets = [],
   scope,
   events,
   snapshot,
@@ -91,6 +98,8 @@ export function ReleaseDetail({
   capabilities: ReleaseCapabilities;
   statusIds: StatusIdsByCategory;
   destinations: Person[];
+  /** Non-archived versions other than this one, for merge and delete-transfer. */
+  mergeTargets?: MergeDeleteTarget[];
   scope: Page<ReleaseScopeItem>;
   events: Page<SafeReleaseEvent>;
   snapshot: (Page<PublicationSnapshotItem> & { publicationId: string }) | null;
@@ -171,6 +180,20 @@ export function ReleaseDetail({
                 release={release}
                 destinations={destinations}
                 canAssignItems={capabilities.assignItems}
+              />
+              <ReleaseMergeDeleteDialog
+                mode="merge"
+                backlog={backlog}
+                release={release}
+                targets={mergeTargets}
+                afterSuccessHref={`/b/${backlog.key}/releases`}
+              />
+              <ReleaseMergeDeleteDialog
+                mode="delete"
+                backlog={backlog}
+                release={release}
+                targets={mergeTargets}
+                afterSuccessHref={`/b/${backlog.key}/releases`}
               />
             </div>
           ) : null}

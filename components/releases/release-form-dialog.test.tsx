@@ -42,6 +42,7 @@ const release = {
   overdue: false,
   revision: 3,
   publicationScopeRevision: "0123456789abcdef0123456789abcdef",
+  publicationCount: 0,
   progress: {
     total: 0,
     todo: 0,

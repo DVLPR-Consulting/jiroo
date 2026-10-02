@@ -73,6 +73,7 @@ const release = {
   overdue: false,
   revision: 4,
   publicationScopeRevision: "0123456789abcdef0123456789abcdef",
+  publicationCount: 0,
   progress: {
     total: 1,
     todo: 0,
@@ -314,6 +315,10 @@ describe("release detail route", () => {
       ],
       destinations: [
         { id: "55555555-5555-4555-8555-555555555555", name: "Version suivante" },
+      ],
+      mergeTargets: [
+        { id: "55555555-5555-4555-8555-555555555555", name: "Version suivante", revision: release.revision, released: false },
+        { id: "66666666-6666-4666-8666-666666666666", name: "Déjà publiée", revision: release.revision, released: true },
       ],
     }));
     const serialized = JSON.stringify(props);

@@ -63,6 +63,8 @@ export type ReleaseSummary = {
   overdue: boolean;
   revision: number;
   publicationScopeRevision: string;
+  /** Publications ever recorded for this version (active or closed). */
+  publicationCount: number;
   progress: ReleaseProgress;
 };
 
@@ -1288,6 +1290,20 @@ function releaseSummaryQuery(
       ),
     )
     .as("active_release_publication");
+  const publicationCounts = db
+    .select({
+      releaseId: releasePublications.releaseId,
+      publicationCount: sql<number>`count(*)::int`.as("publication_count"),
+    })
+    .from(releasePublications)
+    .where(
+      and(
+        eq(releasePublications.backlogId, backlogId),
+        isNotNull(releasePublications.releaseId),
+      ),
+    )
+    .groupBy(releasePublications.releaseId)
+    .as("release_publication_counts");
 
   return db
     .select({
@@ -1304,6 +1320,7 @@ function releaseSummaryQuery(
       overdue: sql<boolean>`coalesce(${publication.releaseId} is null and ${releases.archivedAt} is null and ${releases.releaseDate} < current_date, false)`,
       revision: releases.revision,
       publicationScopeRevision: sql<string>`coalesce(${progress.publicationScopeRevision}, ${EMPTY_PUBLICATION_SCOPE_REVISION})`,
+      publicationCount: sql<number>`coalesce(${publicationCounts.publicationCount}, 0)::int`,
       total: sql<number>`coalesce(${progress.total}, 0)::int`,
       todo: sql<number>`coalesce(${progress.todo}, 0)::int`,
       inProgress: sql<number>`coalesce(${progress.inProgress}, 0)::int`,
@@ -1318,6 +1335,7 @@ function releaseSummaryQuery(
     .leftJoin(user, eq(user.id, releases.driverId))
     .leftJoin(progress, eq(progress.releaseId, releases.id))
     .leftJoin(publication, eq(publication.releaseId, releases.id))
+    .leftJoin(publicationCounts, eq(publicationCounts.releaseId, releases.id))
     .where(
       and(
         eq(releases.backlogId, backlogId),
@@ -1344,6 +1362,7 @@ function toReleaseSummary(row: SummaryRow): ReleaseSummary {
     overdue: row.overdue,
     revision: row.revision,
     publicationScopeRevision: row.publicationScopeRevision,
+    publicationCount: row.publicationCount,
     progress: {
       total: row.total,
       todo: row.todo,
