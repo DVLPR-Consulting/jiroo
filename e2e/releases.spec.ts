@@ -1374,6 +1374,8 @@ audited(24, "réordonne par glisser-déposer puis Monter, partout et pour un sec
   const y = await fixtureRelease("R2-S24 Y");
   const z = await fixtureRelease("R2-S24 Z");
   const item = await fixtureTask("R2-S24 item");
+  const assigned = await fixtureTask("R2-S24 item affecté");
+  await assignVersions(assigned.id, [x.id]);
   const names = [x.name, y.name, z.name];
 
   await page.goto("/b/CASS/releases");
@@ -1409,6 +1411,17 @@ audited(24, "réordonne par glisser-déposer puis Monter, partout et pour un sec
   }).toEqual([z.name, y.name, x.name]);
   await page.keyboard.press("Escape");
   await page.goto(`/b/CASS?view=list&item=${item.key}`);
+  await page.getByRole("button", { name: "Versions", exact: true }).click();
+  await expect(page.getByRole("menuitemcheckbox", { name: z.name })).toBeVisible();
+  await expect.poll(async () => {
+    const labels = await page.getByRole("menuitemcheckbox").evaluateAll((nodes) =>
+      nodes.map((node) => node.textContent?.trim() ?? ""),
+    );
+    return labels.map((label) => names.find((name) => label.includes(name))).filter(Boolean);
+  }).toEqual([z.name, y.name, x.name]);
+  // An item already on the last version (X) still lists options in manual order.
+  await page.keyboard.press("Escape");
+  await page.goto(`/b/CASS?view=list&item=${assigned.key}`);
   await page.getByRole("button", { name: "Versions", exact: true }).click();
   await expect(page.getByRole("menuitemcheckbox", { name: z.name })).toBeVisible();
   await expect.poll(async () => {

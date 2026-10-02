@@ -564,6 +564,36 @@ describe("ItemDetailPanel header", () => {
     expect(screen.getByRole("menuitemcheckbox", { name: activeVersion.name })).toBeVisible();
   });
 
+  it("lists Fix version options in the manual version order even when one is already assigned", async () => {
+    const user = userEvent.setup();
+    const thirdVersion = {
+      id: "88888888-8888-4888-8888-888888888888",
+      name: "2026.11",
+      released: false,
+      archived: false,
+    };
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          fixVersions={[{ ...thirdVersion, name: "stale name" }, currentArchivedVersion]}
+          releaseOptions={[activeVersion, publishedVersion, thirdVersion]}
+          releaseCapabilities={{ manage: false, assignItems: true, bulkAssignItems: false }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Versions" }));
+    expect(screen.getAllByRole("menuitemcheckbox").map((option) => option.textContent?.trim()))
+      .toEqual([
+        expect.stringContaining(activeVersion.name),
+        expect.stringContaining(publishedVersion.name),
+        expect.stringContaining(thirdVersion.name),
+      ]);
+    expect(screen.queryByRole("menuitemcheckbox", { name: /Legacy/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Legacy — Archivée")).toBeVisible();
+  });
+
   it("rolls back Fix versions and keeps the menu open when the action rejects", async () => {
     const user = userEvent.setup();
     mocks.updateItemAction.mockRejectedValueOnce(new Error("internal release details"));
