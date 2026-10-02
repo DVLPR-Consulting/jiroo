@@ -234,7 +234,7 @@ test("distingue 5, zéro et non estimé puis restaure la valeur", async ({ page 
   const capture = observe(page);
   await page.goto("/b/CASS?view=backlog");
   const estimateButtons = page.getByRole("button", { name: /^Estimation :/ });
-  expect(await estimateButtons.count()).toBeGreaterThan(0);
+  await expect(estimateButtons.first()).toBeVisible();
   const firstButton = estimateButtons.first();
   const row = firstButton.locator("xpath=ancestor::tr");
   const rowLabel = await row.getAttribute("aria-label");
