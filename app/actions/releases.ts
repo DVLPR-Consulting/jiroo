@@ -10,7 +10,10 @@ import { getSession } from "@/lib/auth/session";
 import {
   archiveRelease,
   createRelease,
+  deleteRelease,
+  mergeRelease,
   publishRelease,
+  reorderRelease,
   unarchiveRelease,
   unreleaseRelease,
   updateRelease,
@@ -18,7 +21,10 @@ import {
 import { mapZodActionError } from "@/lib/validation/action-error";
 import {
   createReleaseWithOptionalDriverSchema,
+  deleteReleaseSchema,
+  mergeReleaseSchema,
   publishReleaseSchema,
+  reorderReleaseSchema,
   revisionedReleaseIdentitySchema,
   updateReleaseSchema,
 } from "@/lib/validation/release";
@@ -43,6 +49,10 @@ const RELEASE_DOMAIN_ERRORS = new Set([
   "La release de destination est archivée.",
   "La release de destination doit être non publiée.",
   "Le scope de la release est incohérent.",
+  "La version contient des éléments.",
+  "La release de destination a changé. Rechargez-la avant de réessayer.",
+  "Une version archivée ne peut pas être réordonnée.",
+  "Voisin invalide pour ce backlog.",
 ]);
 
 async function authenticatedActorId(): Promise<string> {
@@ -90,10 +100,31 @@ function stalePublicationScopeResult(error: unknown) {
   };
 }
 
-function revalidateReleasePaths(backlogKey: string, releaseId?: string) {
+function staleReleaseScopeResult(error: unknown) {
+  if (
+    !(error instanceof Error) ||
+    !("code" in error) ||
+    error.code !== "RELEASE_SCOPE_STALE" ||
+    !("currentScopeRevision" in error) ||
+    typeof error.currentScopeRevision !== "string" ||
+    !("currentLinkedCount" in error) ||
+    typeof error.currentLinkedCount !== "number"
+  ) {
+    return null;
+  }
+  return {
+    ok: false as const,
+    reason: "stale_scope" as const,
+    error: error.message,
+    currentScopeRevision: error.currentScopeRevision,
+    currentLinkedCount: error.currentLinkedCount,
+  };
+}
+
+function revalidateReleasePaths(backlogKey: string, ...releaseIds: string[]) {
   revalidatePath(`/b/${backlogKey}`);
   revalidatePath(`/b/${backlogKey}/releases`);
-  if (releaseId) revalidatePath(`/b/${backlogKey}/releases/${releaseId}`);
+  for (const releaseId of releaseIds) revalidatePath(`/b/${backlogKey}/releases/${releaseId}`);
 }
 
 function parseReleaseActionCommand<T>(input: unknown, commandSchema: ZodType<T>) {
@@ -213,5 +244,56 @@ export async function unarchiveReleaseAction(input: unknown) {
     return { ok: true as const, result };
   } catch (error) {
     return safeReleaseError(error, "Désarchivage impossible.");
+  }
+}
+
+// Merge, delete and reorder are version administration: like Jira (project
+// admin "Manage versions"), they require manage_releases only, even when the
+// Fix version links of items are transferred or removed.
+
+export async function mergeReleaseAction(input: unknown) {
+  try {
+    const command = parseReleaseActionCommand(input, mergeReleaseSchema);
+    const actorId = await authenticatedActorId();
+    const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
+    const result = await mergeRelease(command, actorId, randomUUID());
+    revalidateReleasePaths(backlog.backlogKey, command.sourceReleaseId, command.targetReleaseId);
+    return { ok: true as const, result };
+  } catch (error) {
+    const staleScope = staleReleaseScopeResult(error);
+    if (staleScope) return staleScope;
+    return safeReleaseError(error, "Fusion impossible.");
+  }
+}
+
+export async function deleteReleaseAction(input: unknown) {
+  try {
+    const command = parseReleaseActionCommand(input, deleteReleaseSchema);
+    const actorId = await authenticatedActorId();
+    const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
+    const result = await deleteRelease(command, actorId, randomUUID());
+    revalidateReleasePaths(
+      backlog.backlogKey,
+      command.releaseId,
+      ...(result.targetRelease ? [result.targetRelease.id] : []),
+    );
+    return { ok: true as const, result };
+  } catch (error) {
+    const staleScope = staleReleaseScopeResult(error);
+    if (staleScope) return staleScope;
+    return safeReleaseError(error, "Suppression impossible.");
+  }
+}
+
+export async function reorderReleaseAction(input: unknown) {
+  try {
+    const command = parseReleaseActionCommand(input, reorderReleaseSchema);
+    const actorId = await authenticatedActorId();
+    const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
+    const result = await reorderRelease(command, actorId, randomUUID());
+    revalidateReleasePaths(backlog.backlogKey);
+    return { ok: true as const, result };
+  } catch (error) {
+    return safeReleaseError(error, "Réordonnancement impossible.");
   }
 }
