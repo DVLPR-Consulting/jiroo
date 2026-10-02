@@ -613,6 +613,7 @@ describe("release depth server actions", () => {
           code: "RELEASE_SCOPE_STALE" as const,
           currentScopeRevision: "fedcba9876543210fedcba9876543210",
           currentLinkedCount: 3,
+          currentTrashedCount: 1,
         },
       ),
     );
@@ -622,6 +623,7 @@ describe("release depth server actions", () => {
       error: "Les éléments liés à cette version ont changé. Vérifiez l’impact avant de réessayer.",
       currentScopeRevision: "fedcba9876543210fedcba9876543210",
       currentLinkedCount: 3,
+      currentTrashedCount: 1,
     });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });

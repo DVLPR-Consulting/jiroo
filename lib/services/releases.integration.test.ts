@@ -1993,7 +1993,7 @@ async function releaseRow(releaseId: string) {
 async function scopeRevisionOf(backlogId: string, releaseId: string) {
   const detail = await getReleaseDetail(backlogId, releaseId);
   if (!detail) throw new Error("Release fixture introuvable.");
-  return detail.publicationScopeRevision;
+  return detail.removalScope.revision;
 }
 
 async function depthFixture(name: string) {
@@ -2526,7 +2526,7 @@ describeDb("release merge and delete", () => {
     ).resolves.toEqual([]);
   });
 
-  it("transfers links of trashed items while the fingerprint and none check ignore them", async () => {
+  it("counts links of trashed items in the impact, refusing none and transferring or removing them", async () => {
     const { actor, backlog, release, item, link } = await depthFixture("Merge trashed");
     const source = await release("Source");
     const target = await release("Cible");
@@ -2535,21 +2535,45 @@ describeDb("release merge and delete", () => {
     const trashed = await item("Supprimé");
     const trashedOnly = await item("Supprimé seul");
     await link(live.id, source.id);
-    const liveScope = await scopeRevisionOf(backlog.id, source.id);
     await link(trashed.id, source.id);
     await link(trashedOnly.id, onlyTrashed.id);
+    const scopeBeforeTrash = await scopeRevisionOf(backlog.id, source.id);
     await db
       .update(items)
       .set({ deletedAt: new Date() })
       .where(inArray(items.id, [trashed.id, trashedOnly.id]));
-    expect(await scopeRevisionOf(backlog.id, source.id)).toBe(liveScope);
+
+    // PR1 progress stays on live items; the removal impact covers every link.
+    const detail = await getReleaseDetail(backlog.id, source.id);
+    expect(detail?.progress.total).toBe(1);
+    expect(detail?.removalScope).toMatchObject({ linkedCount: 2, trashedCount: 1 });
+    expect(detail?.removalScope.revision).not.toBe(scopeBeforeTrash);
+    const trashedOnlyDetail = await getReleaseDetail(backlog.id, onlyTrashed.id);
+    expect(trashedOnlyDetail?.progress.total).toBe(0);
+    expect(trashedOnlyDetail?.removalScope).toMatchObject({ linkedCount: 1, trashedCount: 1 });
+
+    // Trashing an item after the preview makes the impact stale.
+    await expect(
+      mergeRelease(
+        {
+          backlogId: backlog.id,
+          sourceReleaseId: source.id,
+          expectedSourceRevision: source.revision,
+          expectedScopeRevision: scopeBeforeTrash,
+          targetReleaseId: target.id,
+          expectedTargetRevision: target.revision,
+        },
+        actor.id,
+        "merge-trashed-stale",
+      ),
+    ).rejects.toMatchObject({ code: "RELEASE_SCOPE_STALE", currentLinkedCount: 2, currentTrashedCount: 1 });
 
     const merged = await mergeRelease(
       {
         backlogId: backlog.id,
         sourceReleaseId: source.id,
         expectedSourceRevision: source.revision,
-        expectedScopeRevision: liveScope,
+        expectedScopeRevision: detail!.removalScope.revision,
         targetReleaseId: target.id,
         expectedTargetRevision: target.revision,
       },
@@ -2559,20 +2583,27 @@ describeDb("release merge and delete", () => {
     expect(merged).toMatchObject({ linkedCount: 2, transferredCount: 2 });
     expect(await fixVersionsOf(trashed.id)).toEqual([target.id]);
 
-    const emptyScope = await scopeRevisionOf(backlog.id, onlyTrashed.id);
-    await expect(
+    const trashedOnlyScope = trashedOnlyDetail!.removalScope.revision;
+    const deleteTrashedOnly = (fixVersions: { disposition: "none" } | { disposition: "remove" }, id: string) =>
       deleteRelease(
         {
           backlogId: backlog.id,
           releaseId: onlyTrashed.id,
           expectedRevision: onlyTrashed.revision,
-          expectedScopeRevision: emptyScope,
-          fixVersions: { disposition: "none" },
+          expectedScopeRevision: trashedOnlyScope,
+          fixVersions,
         },
         actor.id,
-        "delete-trashed-none",
-      ),
-    ).resolves.toMatchObject({ linkedCount: 1, removedCount: 1 });
+        id,
+      );
+    await expect(deleteTrashedOnly({ disposition: "none" }, "delete-trashed-none")).rejects.toThrow(
+      "La version contient des éléments.",
+    );
+    expect(await fixVersionsOf(trashedOnly.id)).toEqual([onlyTrashed.id]);
+    await expect(deleteTrashedOnly({ disposition: "remove" }, "delete-trashed-remove")).resolves.toMatchObject({
+      linkedCount: 1,
+      removedCount: 1,
+    });
     expect(await fixVersionsOf(trashedOnly.id)).toEqual([]);
     const activityRows = await db
       .select({ itemId: activities.itemId, requestCorrelationId: activities.requestCorrelationId })
@@ -2586,7 +2617,7 @@ describeDb("release merge and delete", () => {
     expect(activityRows).toEqual(
       expect.arrayContaining([
         { itemId: trashed.id, requestCorrelationId: "merge-trashed" },
-        { itemId: trashedOnly.id, requestCorrelationId: "delete-trashed-none" },
+        { itemId: trashedOnly.id, requestCorrelationId: "delete-trashed-remove" },
       ]),
     );
     expect(activityRows).toHaveLength(2);

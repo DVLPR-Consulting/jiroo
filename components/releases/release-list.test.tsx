@@ -88,6 +88,7 @@ describe("ReleaseList", () => {
             revision: 4,
             publicationScopeRevision: "0123456789abcdef0123456789abcdef",
             publicationCount: 0,
+            removalScope: { revision: "0123456789abcdef0123456789abcdef", linkedCount: 0, trashedCount: 0 },
             progress: {
               total: 6,
               todo: 2,
@@ -112,6 +113,7 @@ describe("ReleaseList", () => {
             revision: 2,
             publicationScopeRevision: "0123456789abcdef0123456789abcdef",
             publicationCount: 0,
+            removalScope: { revision: "0123456789abcdef0123456789abcdef", linkedCount: 0, trashedCount: 0 },
             progress: {
               total: 0,
               todo: 0,
@@ -136,6 +138,7 @@ describe("ReleaseList", () => {
             revision: 1,
             publicationScopeRevision: "0123456789abcdef0123456789abcdef",
             publicationCount: 0,
+            removalScope: { revision: "0123456789abcdef0123456789abcdef", linkedCount: 0, trashedCount: 0 },
             progress: {
               total: 0,
               todo: 0,
@@ -198,6 +201,7 @@ describe("ReleaseList", () => {
           revision: 1,
           publicationScopeRevision: "0123456789abcdef0123456789abcdef",
           publicationCount: 0,
+          removalScope: { revision: "0123456789abcdef0123456789abcdef", linkedCount: 0, trashedCount: 0 },
           progress: { total: 0, todo: 0, inProgress: 0, done: 0, totalPoints: 0, donePoints: 0, unestimated: 0 },
         }]}
       />,
@@ -228,6 +232,7 @@ function summary(id: string, name: string, overrides: Record<string, unknown> = 
     revision: 3,
     publicationScopeRevision: "0123456789abcdef0123456789abcdef",
     publicationCount: 0,
+    removalScope: { revision: "0123456789abcdef0123456789abcdef", linkedCount: 0, trashedCount: 0 },
     progress: { total: 0, todo: 0, inProgress: 0, done: 0, totalPoints: 0, donePoints: 0, unestimated: 0 },
     ...overrides,
   };

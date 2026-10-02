@@ -1285,7 +1285,7 @@ audited(21, "masque fusion, suppression et ordre à l’éditeur et au lecteur e
     ...captured,
     body: captured.body
       .replaceAll(decoy.id, protectedRelease.id)
-      .replace(/"expectedScopeRevision":"[0-9a-f]{32}"/, `"expectedScopeRevision":"${detail!.publicationScopeRevision}"`)
+      .replace(/"expectedScopeRevision":"[0-9a-f]{32}"/, `"expectedScopeRevision":"${detail!.removalScope.revision}"`)
       .replace(/"disposition":"none"/, '"disposition":"remove"'),
   };
   const [eventsBefore] = await db.select({ value: count() }).from(releaseEvents)
@@ -1535,7 +1535,7 @@ audited(27, "ignore une version supprimée dans l’URL et la vue enregistrée, 
     backlogId: backlog.id,
     releaseId: deleted.id,
     expectedRevision: detail!.revision,
-    expectedScopeRevision: detail!.publicationScopeRevision,
+    expectedScopeRevision: detail!.removalScope.revision,
     fixVersions: { disposition: "remove" },
   }, actorId, "e2e-s27-delete");
 

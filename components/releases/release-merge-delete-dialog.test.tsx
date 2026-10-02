@@ -27,7 +27,7 @@ const release = {
   revision: 4,
   publicationScopeRevision: "0123456789abcdef0123456789abcdef",
   publicationCount: 2,
-  progress: { total: 3 },
+  removalScope: { revision: "0123456789abcdef0123456789abcdef", linkedCount: 3, trashedCount: 0 },
 };
 const targets = [
   { id: "33333333-3333-4333-8333-333333333333", name: "Version 2", revision: 7, released: false },
@@ -86,7 +86,7 @@ describe("ReleaseMergeDeleteDialog — delete", () => {
         backlogKey: "CASS",
         releaseId: release.id,
         expectedRevision: 4,
-        expectedScopeRevision: release.publicationScopeRevision,
+        expectedScopeRevision: release.removalScope.revision,
         fixVersions: {
           disposition: "transfer",
           targetReleaseId: targets[0]!.id,
@@ -114,13 +114,35 @@ describe("ReleaseMergeDeleteDialog — delete", () => {
 
   it("deletes an empty version after a simple confirmation", async () => {
     mocks.deleteReleaseAction.mockResolvedValueOnce({ ok: true, result: {} });
-    const user = await openDialog("delete", { progress: { total: 0 }, publicationCount: 0 });
+    const user = await openDialog("delete", {
+      removalScope: { revision: "d41d8cd98f00b204e9800998ecf8427e", linkedCount: 0, trashedCount: 0 },
+      publicationCount: 0,
+    });
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     expect(screen.getByText("Aucun élément lié")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Supprimer" }));
     await waitFor(() =>
       expect(mocks.deleteReleaseAction).toHaveBeenCalledWith(
         expect.objectContaining({ fixVersions: { disposition: "none" } }),
+      ),
+    );
+  });
+
+  it("requires a transfer or removal choice for a version linked only to trashed items", async () => {
+    mocks.deleteReleaseAction.mockResolvedValueOnce({ ok: true, result: {} });
+    const user = await openDialog("delete", {
+      removalScope: { revision: "fedcba9876543210fedcba9876543210", linkedCount: 1, trashedCount: 1 },
+    });
+    expect(screen.getByText("1 élément lié, dont 1 dans la corbeille")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Supprimer" })).toBeDisabled();
+    await user.click(screen.getByRole("radio", { name: /retirer la version des éléments/i }));
+    await user.click(screen.getByRole("button", { name: "Supprimer" }));
+    await waitFor(() =>
+      expect(mocks.deleteReleaseAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          expectedScopeRevision: "fedcba9876543210fedcba9876543210",
+          fixVersions: { disposition: "remove" },
+        }),
       ),
     );
   });
@@ -132,6 +154,7 @@ describe("ReleaseMergeDeleteDialog — delete", () => {
       error: "Les éléments liés à cette version ont changé. Vérifiez l’impact avant de réessayer.",
       currentScopeRevision: "fedcba9876543210fedcba9876543210",
       currentLinkedCount: 5,
+      currentTrashedCount: 2,
     });
     mocks.deleteReleaseAction.mockResolvedValueOnce({ ok: true, result: {} });
     const user = await openDialog("delete");
@@ -141,7 +164,7 @@ describe("ReleaseMergeDeleteDialog — delete", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/ont changé/);
     expect(screen.getByRole("button", { name: "Supprimer" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Examiner l’impact actualisé" }));
-    expect(screen.getByText("5 éléments liés")).toBeVisible();
+    expect(screen.getByText("5 éléments liés, dont 2 dans la corbeille")).toBeVisible();
     expect(screen.getByRole("radio", { name: /retirer la version des éléments/i })).not.toBeChecked();
     await user.click(screen.getByRole("radio", { name: /retirer la version des éléments/i }));
     await user.click(screen.getByRole("button", { name: "Supprimer" }));
@@ -183,7 +206,7 @@ describe("ReleaseMergeDeleteDialog — merge", () => {
         backlogKey: "CASS",
         sourceReleaseId: release.id,
         expectedSourceRevision: 4,
-        expectedScopeRevision: release.publicationScopeRevision,
+        expectedScopeRevision: release.removalScope.revision,
         targetReleaseId: targets[1]!.id,
         expectedTargetRevision: 2,
       }),

@@ -23,9 +23,9 @@ export type MergeDeleteRelease = {
   id: string;
   name: string;
   revision: number;
-  publicationScopeRevision: string;
   publicationCount: number;
-  progress: { total: number };
+  /** Every affected link, including links of trashed items. */
+  removalScope: { revision: string; linkedCount: number; trashedCount: number };
 };
 
 /** Candidate targets: non-archived versions of the backlog, other than the source. */
@@ -55,13 +55,16 @@ export function ReleaseMergeDeleteDialog({
   const prefix = useId();
   const merge = mode === "merge";
   const [open, setOpen] = useState(false);
-  const [preview, setPreview] = useState({
-    scopeRevision: release.publicationScopeRevision,
-    linkedCount: release.progress.total,
+  const initialPreview = () => ({
+    scopeRevision: release.removalScope.revision,
+    linkedCount: release.removalScope.linkedCount,
+    trashedCount: release.removalScope.trashedCount,
   });
+  const [preview, setPreview] = useState(initialPreview);
   const [stalePreview, setStalePreview] = useState<null | {
     scopeRevision: string;
     linkedCount: number;
+    trashedCount: number;
   }>(null);
   const [disposition, setDisposition] = useState<Disposition>("");
   const [targetId, setTargetId] = useState("");
@@ -78,7 +81,7 @@ export function ReleaseMergeDeleteDialog({
   const fallback = merge ? "Fusion impossible." : "Suppression impossible.";
 
   function reset() {
-    setPreview({ scopeRevision: release.publicationScopeRevision, linkedCount: release.progress.total });
+    setPreview(initialPreview());
     setStalePreview(null);
     setDisposition("");
     setTargetId("");
@@ -123,6 +126,7 @@ export function ReleaseMergeDeleteDialog({
             setStalePreview({
               scopeRevision: result.currentScopeRevision,
               linkedCount: result.currentLinkedCount,
+              trashedCount: result.currentTrashedCount,
             });
           }
           return;
@@ -174,7 +178,11 @@ export function ReleaseMergeDeleteDialog({
           </div>
           <ul className="space-y-1 text-sm">
             <li className="font-medium">
-              {hasLinks ? plural(preview.linkedCount, "élément lié", "éléments liés") : "Aucun élément lié"}
+              {hasLinks
+                ? `${plural(preview.linkedCount, "élément lié", "éléments liés")}${
+                    preview.trashedCount > 0 ? `, dont ${preview.trashedCount} dans la corbeille` : ""
+                  }`
+                : "Aucun élément lié"}
             </li>
             {release.publicationCount > 0 ? (
               <li className="text-muted-foreground">

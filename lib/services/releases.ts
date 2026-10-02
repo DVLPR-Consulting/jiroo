@@ -65,6 +65,11 @@ export type ReleaseSummary = {
   publicationScopeRevision: string;
   /** Publications ever recorded for this version (active or closed). */
   publicationCount: number;
+  /**
+   * Impact of a merge or delete: every Fix version link, including links of
+   * trashed items (progress above counts live items only).
+   */
+  removalScope: { revision: string; linkedCount: number; trashedCount: number };
   progress: ReleaseProgress;
 };
 
@@ -160,6 +165,13 @@ function publicationScopeRevision(rows: PublicationScopeRevisionRow[]) {
     .digest("hex");
 }
 
+/** Fingerprint of every link affected by a merge or delete (live and trashed). */
+function removalScopeRevision(rows: Array<{ id: string; deletedAt: Date | null }>) {
+  return createHash("md5")
+    .update(rows.map((row) => `${row.id}:${row.deletedAt === null ? "false" : "true"}`).join("\n"))
+    .digest("hex");
+}
+
 export class PublicationScopeChangedError extends Error {
   readonly code = "RELEASE_PUBLICATION_SCOPE_STALE" as const;
 
@@ -178,16 +190,14 @@ export class ReleaseScopeChangedError extends Error {
   constructor(
     readonly currentScopeRevision: string,
     readonly currentLinkedCount: number,
+    readonly currentTrashedCount: number,
   ) {
     super("Les éléments liés à cette version ont changé. Vérifiez l’impact avant de réessayer.");
     this.name = "ReleaseScopeChangedError";
   }
 }
 
-/**
- * Result counts cover every link of the removed version, including links of
- * trashed items; the impact preview (scope fingerprint) counts live items only.
- */
+/** Result counts cover every link of the removed version, including trashed items. */
 export type RemoveReleaseResult = {
   deletedReleaseId: string;
   linkedCount: number;
@@ -937,7 +947,7 @@ async function removeReleaseInTx(
   }
 
   // Every link moves, including links of trashed items, so a restored item keeps
-  // a coherent Fix version; the fingerprint covers live items like the summary.
+  // a coherent Fix version; the impact fingerprint and the empty check cover them.
   const linkedRows = await tx
     .select({
       id: items.id,
@@ -961,12 +971,15 @@ async function removeReleaseInTx(
     )
     .orderBy(asc(items.id))
     .for("update", { of: items });
-  const liveRows = linkedRows.filter((row) => row.deletedAt === null);
-  const currentScopeRevision = publicationScopeRevision(liveRows);
+  const currentScopeRevision = removalScopeRevision(linkedRows);
   if (currentScopeRevision !== command.expectedScopeRevision) {
-    throw new ReleaseScopeChangedError(currentScopeRevision, liveRows.length);
+    throw new ReleaseScopeChangedError(
+      currentScopeRevision,
+      linkedRows.length,
+      linkedRows.filter((row) => row.deletedAt !== null).length,
+    );
   }
-  if (command.disposition === "none" && liveRows.length > 0) {
+  if (command.disposition === "none" && linkedRows.length > 0) {
     throw new Error("La version contient des éléments.");
   }
   const actor = await readUser(tx, actorId, "Acteur");
@@ -1290,6 +1303,25 @@ function releaseSummaryQuery(
       ),
     )
     .as("active_release_publication");
+  const removal = db
+    .select({
+      releaseId: itemFixVersions.releaseId,
+      linkedCount: sql<number>`count(*)::int`.as("removal_linked_count"),
+      trashedCount: sql<number>`count(*) filter (where ${items.deletedAt} is not null)::int`.as(
+        "removal_trashed_count",
+      ),
+      revision: sql<string>`md5(coalesce(string_agg(${items.id}::text || ':' || (${items.deletedAt} is not null)::text, E'\n' order by ${items.id}), ''))`.as(
+        "removal_scope_revision",
+      ),
+    })
+    .from(itemFixVersions)
+    .innerJoin(
+      items,
+      and(eq(items.id, itemFixVersions.itemId), eq(items.backlogId, itemFixVersions.backlogId)),
+    )
+    .where(eq(itemFixVersions.backlogId, backlogId))
+    .groupBy(itemFixVersions.releaseId)
+    .as("release_removal_scope");
   const publicationCounts = db
     .select({
       releaseId: releasePublications.releaseId,
@@ -1321,6 +1353,9 @@ function releaseSummaryQuery(
       revision: releases.revision,
       publicationScopeRevision: sql<string>`coalesce(${progress.publicationScopeRevision}, ${EMPTY_PUBLICATION_SCOPE_REVISION})`,
       publicationCount: sql<number>`coalesce(${publicationCounts.publicationCount}, 0)::int`,
+      removalScopeRevision: sql<string>`coalesce(${removal.revision}, ${EMPTY_PUBLICATION_SCOPE_REVISION})`,
+      removalLinkedCount: sql<number>`coalesce(${removal.linkedCount}, 0)::int`,
+      removalTrashedCount: sql<number>`coalesce(${removal.trashedCount}, 0)::int`,
       total: sql<number>`coalesce(${progress.total}, 0)::int`,
       todo: sql<number>`coalesce(${progress.todo}, 0)::int`,
       inProgress: sql<number>`coalesce(${progress.inProgress}, 0)::int`,
@@ -1336,6 +1371,7 @@ function releaseSummaryQuery(
     .leftJoin(progress, eq(progress.releaseId, releases.id))
     .leftJoin(publication, eq(publication.releaseId, releases.id))
     .leftJoin(publicationCounts, eq(publicationCounts.releaseId, releases.id))
+    .leftJoin(removal, eq(removal.releaseId, releases.id))
     .where(
       and(
         eq(releases.backlogId, backlogId),
@@ -1363,6 +1399,11 @@ function toReleaseSummary(row: SummaryRow): ReleaseSummary {
     revision: row.revision,
     publicationScopeRevision: row.publicationScopeRevision,
     publicationCount: row.publicationCount,
+    removalScope: {
+      revision: row.removalScopeRevision,
+      linkedCount: row.removalLinkedCount,
+      trashedCount: row.removalTrashedCount,
+    },
     progress: {
       total: row.total,
       todo: row.todo,

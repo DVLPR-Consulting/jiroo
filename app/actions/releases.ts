@@ -108,7 +108,9 @@ function staleReleaseScopeResult(error: unknown) {
     !("currentScopeRevision" in error) ||
     typeof error.currentScopeRevision !== "string" ||
     !("currentLinkedCount" in error) ||
-    typeof error.currentLinkedCount !== "number"
+    typeof error.currentLinkedCount !== "number" ||
+    !("currentTrashedCount" in error) ||
+    typeof error.currentTrashedCount !== "number"
   ) {
     return null;
   }
@@ -118,6 +120,7 @@ function staleReleaseScopeResult(error: unknown) {
     error: error.message,
     currentScopeRevision: error.currentScopeRevision,
     currentLinkedCount: error.currentLinkedCount,
+    currentTrashedCount: error.currentTrashedCount,
   };
 }
 

@@ -43,6 +43,7 @@ const release = {
   revision: 3,
   publicationScopeRevision: "0123456789abcdef0123456789abcdef",
   publicationCount: 0,
+  removalScope: { revision: "0123456789abcdef0123456789abcdef", linkedCount: 0, trashedCount: 0 },
   progress: {
     total: 0,
     todo: 0,
