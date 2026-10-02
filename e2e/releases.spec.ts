@@ -1193,6 +1193,7 @@ audited(19, "supprime avec transfert puis avec retrait en journalisant chaque it
       .orderBy(asc(activities.at));
     const last = rows.at(-1);
     expect(last?.newValue).toContain(expectedName);
+    expect(last?.newValue).not.toContain(item === first ? transferred.name : removed.name);
     expect(last?.correlation).toBeTruthy();
   }
   await page.goto(`/b/CASS?view=list&item=${second.key}`);
@@ -1257,6 +1258,27 @@ audited(21, "masque fusion, suppression et ordre à l’éditeur et au lecteur e
   const captured = intercepted();
   await page.unroute("**/*");
   expect(await releaseExists(decoy.id)).toBe(true);
+
+  // Capture a merge and a reorder request too: each Server Action is its own
+  // authorization surface.
+  const decoyTarget = await fixtureRelease("R2-S21 Leurre cible");
+  await page.goto(`/b/CASS/releases/${decoy.id}`);
+  const interceptedMerge = await interceptNextPost(page, `/b/CASS/releases/${decoy.id}`, capture);
+  await page.getByRole("button", { name: `Fusionner ${decoy.name}` }).click();
+  const mergeDialog = page.getByRole("dialog", { name: `Fusionner ${decoy.name}` });
+  await mergeDialog.getByLabel("Version de destination").selectOption({ label: decoyTarget.name });
+  await mergeDialog.getByRole("button", { name: "Fusionner", exact: true }).click();
+  await expect(mergeDialog.getByRole("alert")).toHaveText("Fusion impossible.");
+  const forgedMerge = interceptedMerge();
+  await page.unroute("**/*");
+  await page.goto("/b/CASS/releases");
+  const interceptedReorder = await interceptNextPost(page, "/b/CASS/releases", capture);
+  await page.getByRole("button", { name: `Monter ${decoyTarget.name}` }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText("Réordonnancement impossible.");
+  const forgedReorder = interceptedReorder();
+  await page.unroute("**/*");
+  const decoyRevisions = await db.select({ id: releases.id, revision: releases.revision, rank: releases.rank })
+    .from(releases).where(sql`${releases.id} in (${decoy.id}, ${decoyTarget.id})`).orderBy(asc(releases.id));
   const detail = await getReleaseDetail(protectedRelease.backlogId, protectedRelease.id);
   // Retarget the captured Server Action body at the protected, non-empty version.
   const forged = {
@@ -1280,10 +1302,22 @@ audited(21, "masque fusion, suppression et ordre à l’éditeur et au lecteur e
     await other.goto(`/b/CASS/releases/${protectedRelease.id}`);
     await expect(other.getByRole("button", { name: `Supprimer ${protectedRelease.name}` })).toHaveCount(0);
     await expect(other.getByRole("button", { name: `Fusionner ${protectedRelease.name}` })).toHaveCount(0);
+    expect(forged.body).toContain(protectedRelease.id);
+    expect(forged.body).toContain('"disposition":"remove"');
     const response = await replayForgedRequest(other, { ...forged, url: forged.url.replace(decoy.id, protectedRelease.id) });
     expect(response.status).toBeLessThan(500);
     expect(response.text).toContain("Gérer les releases");
+    for (const replay of [forgedMerge, forgedReorder]) {
+      const refused = await replayForgedRequest(other, replay);
+      expect(refused.status).toBeLessThan(500);
+      expect(refused.text).toContain("Gérer les releases");
+    }
   }
+  expect(await releaseExists(decoy.id)).toBe(true);
+  await expect(
+    db.select({ id: releases.id, revision: releases.revision, rank: releases.rank })
+      .from(releases).where(sql`${releases.id} in (${decoy.id}, ${decoyTarget.id})`).orderBy(asc(releases.id)),
+  ).resolves.toEqual(decoyRevisions);
   expect(await releaseExists(protectedRelease.id)).toBe(true);
   expect(await assignedVersionIds(item.id)).toEqual([protectedRelease.id]);
   const [eventsAfter] = await db.select({ value: count() }).from(releaseEvents)
@@ -1366,19 +1400,23 @@ audited(24, "réordonne par glisser-déposer puis Monter, partout et pour un sec
 
   await page.goto("/b/CASS?view=list");
   await page.getByRole("button", { name: "+ Version" }).click();
-  const filterLabels = await page.getByRole("checkbox").evaluateAll((nodes) =>
-    nodes.map((node) => node.closest("label")?.textContent?.trim() ?? node.getAttribute("aria-label") ?? ""),
-  );
-  expect(filterLabels.filter((label) => names.some((name) => label.includes(name))).map((label) => names.find((name) => label.includes(name))))
-    .toEqual([z.name, y.name, x.name]);
+  await expect(page.getByLabel(z.name, { exact: true })).toBeVisible();
+  await expect.poll(async () => {
+    const labels = await page.getByRole("checkbox").evaluateAll((nodes) =>
+      nodes.map((node) => node.closest("label")?.textContent?.trim() ?? node.getAttribute("aria-label") ?? ""),
+    );
+    return labels.map((label) => names.find((name) => label.includes(name))).filter(Boolean);
+  }).toEqual([z.name, y.name, x.name]);
   await page.keyboard.press("Escape");
   await page.goto(`/b/CASS?view=list&item=${item.key}`);
   await page.getByRole("button", { name: "Versions", exact: true }).click();
-  const pickerNames = await page.getByRole("menuitemcheckbox").evaluateAll((nodes) =>
-    nodes.map((node) => node.textContent?.trim() ?? ""),
-  );
-  expect(pickerNames.map((label) => names.find((name) => label.includes(name))).filter(Boolean))
-    .toEqual([z.name, y.name, x.name]);
+  await expect(page.getByRole("menuitemcheckbox", { name: z.name })).toBeVisible();
+  await expect.poll(async () => {
+    const labels = await page.getByRole("menuitemcheckbox").evaluateAll((nodes) =>
+      nodes.map((node) => node.textContent?.trim() ?? ""),
+    );
+    return labels.map((label) => names.find((name) => label.includes(name))).filter(Boolean);
+  }).toEqual([z.name, y.name, x.name]);
 
   const reader = await observedPage(browser, capture, "reader-order", AUTH.reader);
   audit.use(reader);
@@ -1430,7 +1468,6 @@ audited(26, "édite les notes puis copie et télécharge Markdown et HTML sans H
   await page.goto(`/b/CASS/releases/${release.id}/notes`);
   const textarea = page.getByRole("textbox", { name: "Notes de release (Markdown)" });
   await expect(textarea).toHaveValue(new RegExp(`- ${item.key} — R2-S26 livré`));
-  await textarea.press("End");
   await textarea.press("ControlOrMeta+End");
   await textarea.pressSequentially("\n- Ajout manuel\n\n<img src=x onerror=alert(1)>");
   const preview = page.getByRole("region", { name: "Aperçu" });
