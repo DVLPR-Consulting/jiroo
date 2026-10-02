@@ -23,6 +23,14 @@ const metrics = {
   unestimatedCount: 1,
   capacityPoints: 10,
   overCapacityPoints: 3,
+  velocityComparison: null,
+};
+const aboveVelocity = {
+  state: "ready" as const,
+  commitmentPoints: 13,
+  averageCompletedPoints: 10,
+  population: 3,
+  difference: 3,
 };
 
 describe("SprintSectionHeader", () => {
@@ -132,5 +140,106 @@ describe("SprintSectionHeader", () => {
 
     expect(screen.getByRole("button", { name: "Monter Sprint paiement" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Descendre Sprint paiement" })).toBeVisible();
+  });
+
+  it("compares a planned commitment with recent velocity without blocking planning", () => {
+    render(
+      <SprintSectionHeader
+        kind="planned"
+        sprint={sprint}
+        metrics={{ ...metrics, velocityComparison: aboveVelocity }}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage
+        canMoveUp
+        canMoveDown
+        onMoveUp={vi.fn()}
+        onMoveDown={vi.fn()}
+        actions={<button type="button">Démarrer</button>}
+      />,
+    );
+
+    expect(
+      screen.getByText("Engagement 13 pts · moyenne récente 10 pts · écart +3 pts"),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Engagement supérieur à la moyenne récente : avertissement non bloquant.",
+      ),
+    ).toBeVisible();
+    expect(screen.getByText("13 / 10 pt")).toBeVisible();
+    expect(screen.getByText("Dépassement de 3 pt")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Démarrer" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Monter Sprint paiement" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Descendre Sprint paiement" })).toBeEnabled();
+  });
+
+  it("states a commitment at or below recent velocity without a warning", () => {
+    render(
+      <SprintSectionHeader
+        kind="active"
+        sprint={{ ...sprint, state: "active" }}
+        metrics={{
+          ...metrics,
+          velocityComparison: { ...aboveVelocity, commitmentPoints: 8, difference: -2 },
+        }}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage
+      />,
+    );
+
+    const comparison = screen.getByText(
+      "Engagement 8 pts · moyenne récente 10 pts · écart -2 pts",
+    );
+    expect(comparison).toBeVisible();
+    expect(comparison.className).not.toMatch(/amber/);
+    expect(screen.queryByText(/avertissement non bloquant/)).not.toBeInTheDocument();
+  });
+
+  it("says when no recent velocity is comparable", () => {
+    render(
+      <SprintSectionHeader
+        kind="planned"
+        sprint={sprint}
+        metrics={{
+          ...metrics,
+          velocityComparison: {
+            state: "unavailable",
+            commitmentPoints: 13,
+            averageCompletedPoints: null,
+            population: 0,
+            difference: null,
+          },
+        }}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage
+      />,
+    );
+
+    expect(screen.getByText("Pas encore de vélocité comparable")).toBeVisible();
+    expect(screen.queryByText(/moyenne récente/)).not.toBeInTheDocument();
+  });
+
+  it("never renders velocity copy on the unscheduled Backlog", () => {
+    render(
+      <SprintSectionHeader
+        kind="backlog"
+        sprint={null}
+        metrics={{
+          ...metrics,
+          capacityPoints: null,
+          overCapacityPoints: 0,
+          velocityComparison: aboveVelocity,
+        }}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage
+      />,
+    );
+
+    expect(screen.queryByText(/moyenne récente/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/vélocité/)).not.toBeInTheDocument();
   });
 });

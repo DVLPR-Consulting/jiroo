@@ -76,6 +76,7 @@ const activeMetrics = {
   unestimatedCount: 1,
   capacityPoints: 13,
   overCapacityPoints: 0,
+  velocityComparison: null,
 };
 
 function renderBoard(board: React.ReactElement) {

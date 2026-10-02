@@ -1399,3 +1399,61 @@ Aucun nouveau bug ouvert n’est classé dans ce périmètre. Les absences de
 burndown, prévision, test lecteur d’écran réel, cross-browser et volumétrie
 supérieure aux pages bornées sont des risques de portée suivis dans la roadmap,
 pas des comportements livrés défaillants.
+
+## Incrément 12 — burndown et prévisibilité de planification (1er octobre 2026)
+
+Le burndown de sprint et la comparaison à la vélocité récente sont livrés et
+prouvés par [`sprint-burndown-final-2`](runs/sprint-burndown-final-2-junit.xml)
+(12/12, 41,638 s, 0 erreur inattendue). L’absence de burndown signalée comme
+risque de portée sous BUG-JIR-028 est levée sur ce périmètre. Aucune prévision
+de date de release ni prévision statistique n’est livrée ; ce n’est pas un
+défaut mais une limite de portée.
+
+### Défaut de test corrigé — oracle d’ordre du journal (scénario 06)
+
+- **Symptôme :** `06 — relie bulk, Board et clôture UI au rapport` échouait sur
+  `main` et sur la branche avec `Événement absent ou désordonné : a modifié
+  CASS-<n>`.
+- **Cause :** depuis `b724c3e`, conformément au contrat du plan burndown, le
+  journal est rendu `occurredAt DESC, sequence DESC` (le plus récent d’abord),
+  alors que `expectJournalOrder` cherchait les fragments dans l’ordre croissant
+  des lignes. Aucun défaut produit : pagination (50) et égalités d’horodatage
+  ne sont pas en cause.
+- **Correction :** l’assistant inverse les lignes avant de vérifier l’ordre
+  chronologique (`09ebc1d`) ; S06 passe dans les deux runs persistants.
+
+### BUG-JIR-029 — Les onglets de rapport perdent le sprint sélectionné
+
+- **Gravité :** mineure
+- **Priorité :** P2
+- **Statut :** ouvert
+- **Fonctionnalité :** navigation des rapports
+
+Les liens `Rapport de sprint` et `Burndown` pointent vers `?report=sprint` et
+`?report=burndown` sans le paramètre `sprint`. Après avoir choisi un sprint
+terminé, changer d’onglet revient au sprint par défaut (actif ou dernier
+terminé) ; l’utilisateur doit resélectionner le sprint. Constaté à la lecture de
+`components/reports/report-navigation.tsx` et lors de l’écriture de S07 ; aucun
+calcul n’est faux.
+
+### Décisions produit ouvertes (non classées comme bugs)
+
+- **Engagement de l’en-tête Backlog d’un sprint actif :** il utilise le
+  périmètre estimé courant (mesuré à 25 pts en S08) alors que le burndown
+  compare l’engagement figé au démarrage (10 pts). Jira définit l’engagement
+  comme le périmètre au démarrage du sprint ; alignement en attente de décision.
+- **Moyenne récente d’un sprint terminé :** la population des sept derniers
+  sprints inclut le sprint consulté lui-même (moyenne 6,25 en S09).
+
+## Journal de résolution — 1er octobre 2026 (revue burndown)
+
+| Défaut | Correctif | Preuve |
+|---|---|---|
+| BUG-JIR-029 — les onglets de rapport perdaient le sprint sélectionné | `08dd118` : liens `?report=<r>&sprint=<id>` quand un sprint est sélectionné | test composant + S09 de `sprint-burndown-final-3` (sprint terminé ancien conservé dans les deux sens) |
+| Lien mort dans le tableau exact pour un item supprimé logiquement (trouvé en revue) | `2703868` : l’identifiant d’item vient de l’événement de journal aligné | tests ciblés/intégration + run `sprint-burndown-final-3` |
+
+**BUG-JIR-029 : statut fermé le 1er octobre 2026.** L’écart d’« Engagement »
+d’un sprint actif dans le Backlog reste une décision produit ouverte, et
+l’inclusion du sprint consulté dans la « moyenne récente » d’un sprint terminé
+est acceptée comme contexte courant du backlog ; ni l’un ni l’autre n’est classé
+comme bug.

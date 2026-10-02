@@ -510,3 +510,58 @@ portée : aucune courbe ou projection n’est reconstruite depuis un état mutab
 1. burndown and planning predictability derived from `sprint_events`;
 2. Releases PR2 merge/delete-transfer/manual ordering/release notes;
 3. remaining cross-browser/mobile and production-volume validation.
+
+---
+
+## Mise à jour — burndown et prévisibilité de planification livrés le 1er octobre 2026
+
+Le burndown de sprint est livré sur un modèle Jira-like : baseline figé au
+démarrage (`doneAtStart`, estimation au démarrage), rejeu du ledger
+`sprint_events` par horodatage puis séquence globale, ligne idéale linéaire du
+restant initial à zéro à la date cible, marqueurs de changement de périmètre et
+tableau exact paginé. Les sprints terminés sont lus depuis le snapshot et le
+ledger, jamais depuis l’état mutable ; les historiques sans fait `done` restent
+`legacy_unavailable`. Le Backlog compare l’engagement d’un sprint planifié à la
+moyenne des sept derniers sprints éligibles et affiche un avertissement non
+bloquant, sans toucher à la capacité manuelle.
+
+La preuve autoritative est le run `sprint-burndown-final-2` : 12/12 en
+41,638 s, 42 artefacts inventoriés et scannés, 0 erreur inattendue, 0 px de
+débordement à 390 × 844, 1 000 participants à requêtes constantes (8) et
+10 000 événements relus en 37,71 ms. Aucune prévision de date de release ni
+prévision statistique n’est livrée.
+
+### Risques résiduels et décisions ouvertes
+
+- conserver le sprint sélectionné en passant de Rapport de sprint à Burndown ;
+- décider si l’« Engagement » de l’en-tête Backlog d’un sprint actif doit
+  afficher l’engagement figé au démarrage (modèle Jira) plutôt que le périmètre
+  estimé courant ;
+- confirmer si la moyenne récente affichée pour un sprint terminé doit exclure
+  ce sprint.
+
+### Next priorities
+
+1. Releases PR2 merge/delete-transfer/manual ordering/release notes;
+2. Firefox/WebKit, 768/1024/1440, 200% zoom and VoiceOver/NVDA;
+3. production-volume and higher-concurrency hardening.
+
+---
+
+## Addendum — acceptation burndown depuis la source committée (1er octobre 2026)
+
+Le run autoritatif devient `sprint-burndown-final-3` (12/12, 42,941 s, manifeste
+sur `ac99598` qui contient la spec exécutée ; `-final` et `-final-2` sont
+supplantés et conservés). Les onglets conservent désormais le sprint
+sélectionné (`08dd118`, BUG-JIR-029 fermé) et les lignes d’items supprimés ne
+pointent plus vers un lien mort (`2703868`). Restent ouverts : le libellé
+« Engagement » d’un sprint actif dans le Backlog (engagement au démarrage
+recommandé, total vivant en « Périmètre actuel »), la clarification possible de
+la « moyenne récente » d’un sprint terminé, et un manifeste de run qui ne liste
+que le JUnit (inventaire porté par le fichier de scan).
+
+### Next priorities
+
+1. Releases PR2 merge/delete-transfer/manual ordering/release notes;
+2. Firefox/WebKit, 768/1024/1440, 200% zoom and VoiceOver/NVDA;
+3. production-volume and higher-concurrency hardening.

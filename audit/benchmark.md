@@ -549,3 +549,41 @@ Le prochain seuil de comparaison est strict : burndown calculé depuis
 `sprint_events`, prévisibilité sans cible individuelle, puis validation sur
 volumétrie et navigateurs supplémentaires. Avant cela, « comparable » désigne
 uniquement le noyau rapport/vélocité couvert par les preuves locales 6/6.
+
+## Mise à jour — burndown de sprint et prévisibilité (1er octobre 2026)
+
+Jiroo revendique désormais un **burndown de sprint Jira-like** limité aux
+comportements prouvés par `sprint-burndown-final-2` (12/12) : travail restant
+réel en escalier rejoué depuis le baseline figé et les événements, ligne idéale
+grise du restant initial à zéro à la date cible, changements de périmètre
+(ajout, retrait, réestimation) marqués, achèvements et réouvertures, tableau
+exact des événements, et historique terminé immuable. Ces éléments
+correspondent au rapport décrit par Atlassian
+([burndown Jira](https://support.atlassian.com/jira-software-cloud/docs/what-is-the-sprint-burndown-report/)).
+
+Différences factuelles :
+
+- **amélioration de clarté propre à Jiroo** (pas une fonctionnalité
+  Atlassian) : un libellé factuel `Sur la trajectoire idéale`, `Au-dessus de la
+  trajectoire idéale`, `Données insuffisantes` (avec la raison exacte),
+  `Objectif atteint` ou `Travail restant à la clôture` ;
+- comparaison de l’engagement à la moyenne des sept derniers sprints éligibles,
+  séparée de la trajectoire et non bloquante ;
+- **aucune prévision** : ni date de release, ni intervalle de confiance, ni
+  probabilité de livraison. Azure DevOps et les outils de forecast restent
+  devant sur ce point ;
+- Jira reste devant sur le catalogue de rapports (burnup, CFD, control chart,
+  statistiques de temps) et sur les unités alternatives (temps, nombre
+  d’issues) ; Jiroo ne mesure que les points d’estimation.
+
+| Produit | Position de Jiroo après livraison |
+|---|---|
+| Jira | burndown points comparable sur le périmètre prouvé ; catalogue de rapports et unités alternatives non égalés |
+| Azure DevOps | vélocité et comparaison factuelle présentes ; forecast absent par choix |
+| Linear, ClickUp, Plane, GitHub Projects | aucune comparaison nouvelle revendiquée au-delà des preuves déjà citées |
+
+Addendum du 1er octobre 2026 : la preuve de référence devient
+`sprint-burndown-final-3` (12/12, source committée `ac99598`). Le périmètre
+revendiqué est inchangé ; le maintien du sprint entre onglets rejoint le
+comportement attendu d’un outil de reporting, et l’« Engagement » d’un sprint
+actif n’est pas encore aligné sur la définition Jira (estimation au démarrage).

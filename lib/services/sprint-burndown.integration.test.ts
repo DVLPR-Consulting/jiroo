@@ -21,7 +21,7 @@ import {
   getRecentVelocityContext,
 } from "@/lib/services/sprint-burndown";
 import { appendSprintEventsInTx } from "@/lib/services/sprint-events";
-import { updateItem } from "@/lib/services/items";
+import { softDeleteItem, updateItem } from "@/lib/services/items";
 import { completeSprint, startSprint } from "@/lib/services/sprint-lifecycle";
 import { readSprintEventPage } from "@/lib/services/sprint-reports";
 import { assignItemsToSprint, createSprint } from "@/lib/services/sprints";
@@ -192,6 +192,16 @@ async function appendCompletionEvent(
   });
 }
 
+async function assignAt(f: Fixture, itemIds: string[], sprintId: string, at: Date) {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(at);
+  try {
+    await assignItemsToSprint({ backlogId: f.backlog.id, itemIds, sprintId }, f.actor.id);
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
 async function corruptHistory(callback: (client: PoolClient) => Promise<void>) {
   const client = await databasePool.connect();
   await client.query("begin");
@@ -256,6 +266,7 @@ function immutableProjection(report: Awaited<ReturnType<typeof getBurndownReport
     guideline: report.guideline,
     displayPoints: report.displayPoints,
     eventPoints: report.eventPoints,
+    observedAt: report.observedAt,
   };
 }
 
@@ -344,6 +355,7 @@ describeDb("sprint burndown read model", () => {
         eventPoints: { page: 1, pageSize: 50, total: 2 },
       });
       if (!report || report.kind !== "active") throw new Error("Rapport actif attendu.");
+      expect(report.observedAt).toEqual(completionAt);
       expect(report.events.rows.map((event) => event.eventType)).toEqual([
         "item_completed",
         "sprint_started",
@@ -367,6 +379,10 @@ describeDb("sprint burndown read model", () => {
       ).resolves.toBeNull();
       await expect(
         getBurndownReport(f.backlog.id, randomUUID(), options),
+      ).resolves.toBeNull();
+      const planned = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+      await expect(
+        getBurndownReport(f.backlog.id, planned.id, options),
       ).resolves.toBeNull();
     } finally {
       await cleanupBacklogs(f.backlog.id, foreign.backlog.id);
@@ -399,6 +415,7 @@ describeDb("sprint burndown read model", () => {
         throw new Error("Rapports actif et terminé attendus.");
       }
       expect(completed.summary).toEqual(activeReport.summary);
+      expect(completed.observedAt).toEqual(completed.sprint.completedAt);
       expect(completed.eventPoints.rows[0]).toMatchObject({
         cause: "sprint_completed",
         remainingPoints: activeReport.eventPoints.rows[0]?.remainingPoints,
@@ -406,31 +423,148 @@ describeDb("sprint burndown read model", () => {
       });
       const before = immutableProjection(completed);
 
+      const expectFrozen = async (step: string) => {
+        const after = await getBurndownReport(f.backlog.id, active.id, options);
+        expect(immutableProjection(after), step).toEqual(before);
+      };
+
       const destination = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
       await assignItemsToSprint(
         { backlogId: f.backlog.id, itemIds: [task.id], sprintId: destination.id },
         f.actor.id,
       );
+      await expectFrozen("move");
       await db.update(sprints).set({ name: "Nom mutable remplacé", goal: "But mutable" })
         .where(eq(sprints.id, active.id));
-      await db.update(items).set({
-        title: "Titre mutable remplacé",
-        estimatePoints: 1,
-        statusId: f.todo.id,
-        deletedAt: new Date(),
-      }).where(eq(items.id, task.id));
+      await expectFrozen("sprint rename");
+      await db.update(items).set({ title: "Titre mutable remplacé" })
+        .where(eq(items.id, task.id));
+      await expectFrozen("item rename");
+      await db.update(items).set({ estimatePoints: 1 }).where(eq(items.id, task.id));
+      await expectFrozen("re-estimate");
+      await db.update(items).set({ statusId: f.todo.id }).where(eq(items.id, task.id));
+      await expectFrozen("status change");
+      await db.update(items).set({ deletedAt: new Date() }).where(eq(items.id, task.id));
+      await expectFrozen("soft delete");
       await db.delete(items).where(eq(items.id, task.id));
-
-      const after = await getBurndownReport(f.backlog.id, active.id, options);
-      expect(immutableProjection(after)).toEqual(before);
+      await expectFrozen("purge");
     } finally {
       await cleanupBacklogs(f.backlog.id);
     }
   });
 
-  it("returns identity-only legacy results for missing done facts", async () => {
+  it("ignores memberships closed during planning when identifying initial work", async () => {
     const f = await fixture();
-    let eventConstraintNeedsValidation = false;
+    try {
+      const kept = await insertTask(f, "Conservée", 5);
+      const removed = await insertTask(f, "Retirée avant démarrage", 3);
+      const readded = await insertTask(f, "Retirée puis réajoutée", 2);
+      const sprint = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+      await assignItemsToSprint(
+        { backlogId: f.backlog.id, itemIds: [kept.id, removed.id, readded.id], sprintId: sprint.id },
+        f.actor.id,
+      );
+      await assignItemsToSprint(
+        { backlogId: f.backlog.id, itemIds: [removed.id, readded.id], sprintId: null },
+        f.actor.id,
+      );
+      await assignItemsToSprint(
+        { backlogId: f.backlog.id, itemIds: [readded.id], sprintId: sprint.id },
+        f.actor.id,
+      );
+      await startSprint({
+        id: sprint.id,
+        backlogId: f.backlog.id,
+        name: sprint.name,
+        goal: "Objectif immuable",
+        startAt: startedAt.toISOString(),
+        endAt: targetEndAt.toISOString(),
+        capacityPoints: 13,
+      }, f.actor.id);
+
+      const report = await getBurndownReport(f.backlog.id, sprint.id, options);
+      expect(report).toMatchObject({
+        kind: "active",
+        summary: { initialRemainingPoints: 7, remainingPoints: 7 },
+        planningComparison: { commitmentPoints: 7 },
+      });
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("observes active sprints after the snapshot when no explicit time is given", async () => {
+    const f = await fixture();
+    try {
+      const task = await insertTask(f, "Course de lecture", 5);
+      const active = await startWithTasks(f, [task.id]);
+      const calledAt = new Date("2026-08-12T09:00:00.000Z");
+      const committedAt = new Date("2026-08-12T09:00:01.000Z");
+      const readAt = new Date("2026-08-12T09:00:02.000Z");
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(calledAt);
+      const originalTransaction = db.transaction.bind(db);
+      const transactionSpy = vi.spyOn(db, "transaction").mockImplementationOnce(
+        async (callback, config) => {
+          // A mutation commits while the reader is still waiting for a connection.
+          await appendCompletionEvent(f, active.id, task, committedAt);
+          vi.setSystemTime(readAt);
+          return originalTransaction(callback, config);
+        },
+      );
+      try {
+        const report = await getBurndownReport(f.backlog.id, active.id, {
+          eventPage: 1,
+          pageSize: 50,
+        });
+        expect(report).toMatchObject({
+          kind: "active",
+          summary: { remainingPoints: 0, completedPoints: 5 },
+        });
+      } finally {
+        transactionSpy.mockRestore();
+      }
+    } finally {
+      vi.useRealTimers();
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("keeps exact points of soft-deleted items unlinked, like their journal events", async () => {
+    const f = await fixture();
+    try {
+      const deleted = await insertTask(f, "Supprimée en cours de sprint", 5);
+      const kept = await insertTask(f, "Toujours accessible", 3);
+      const active = await startWithTasks(f, [deleted.id, kept.id]);
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        vi.setSystemTime(new Date("2026-08-05T09:00:00.000Z"));
+        await updateItem({ id: deleted.id, estimatePoints: 8 }, f.actor.id, "estimate-deleted");
+        await updateItem({ id: kept.id, estimatePoints: 2 }, f.actor.id, "estimate-kept");
+        vi.setSystemTime(new Date("2026-08-06T09:00:00.000Z"));
+        await softDeleteItem({ id: deleted.id }, f.actor.id, "soft-delete");
+      } finally {
+        vi.useRealTimers();
+      }
+
+      const report = await getBurndownReport(f.backlog.id, active.id, options);
+      if (!report || report.kind !== "active") throw new Error("Rapport actif attendu.");
+      expect(report.summary.remainingPoints).toBe(2);
+      const deletedPoints = report.eventPoints.rows.filter((point) => point.itemKey === deleted.key);
+      expect(deletedPoints.map((point) => point.cause)).toEqual(["item_removed", "estimate_changed"]);
+      expect(deletedPoints.map((point) => point.itemId)).toEqual([null, null]);
+      expect(report.eventPoints.rows.find((point) => point.itemKey === kept.key))
+        .toMatchObject({ itemId: kept.id });
+      expect(report.eventPoints.rows.map((point) => point.itemId)).toEqual(
+        report.events.rows.map((event) => event.itemId),
+      );
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("returns identity-only legacy results for a missing initial done fact", async () => {
+    const f = await fixture();
     try {
       const task = await insertTask(f, "Legacy initial", 3);
       const active = await startWithTasks(f, [task.id]);
@@ -449,12 +583,22 @@ describeDb("sprint burndown read model", () => {
         }),
       });
       expect(initialLegacy).not.toHaveProperty("summary");
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
 
+  it("returns identity-only legacy results for a missing added done fact", async () => {
+    const f = await fixture();
+    let eventConstraintNeedsValidation = false;
+    try {
+      const task = await insertTask(f, "Initial valide", 3);
+      const active = await startWithTasks(f, [task.id]);
       const added = await insertTask(f, "Legacy ajout", 2);
-      await assignItemsToSprint(
-        { backlogId: f.backlog.id, itemIds: [added.id], sprintId: active.id },
-        f.actor.id,
-      );
+      await assignAt(f, [added.id], active.id, new Date("2026-08-05T09:00:00.000Z"));
+      await expect(getBurndownReport(f.backlog.id, active.id, options))
+        .resolves.toMatchObject({ kind: "active" });
+
       await makeAddedEventLegacy(active.id);
       eventConstraintNeedsValidation = true;
       const addedLegacy = await getBurndownReport(f.backlog.id, active.id, options);
@@ -466,6 +610,71 @@ describeDb("sprint burndown read model", () => {
       expect(addedLegacy).not.toHaveProperty("events");
     } finally {
       await cleanupBacklogs(f.backlog.id);
+      if (eventConstraintNeedsValidation) await validateSprintEventShape();
+    }
+  });
+
+  it("returns identity-only legacy results for completed sprints missing done facts", async () => {
+    const initialFixture = await fixture();
+    const addedFixture = await fixture();
+    let eventConstraintNeedsValidation = false;
+    const complete = async (f: Fixture, sprintId: string) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(completionAt);
+      try {
+        await completeSprint(
+          { id: sprintId, backlogId: f.backlog.id, destination: { type: "backlog" } },
+          f.actor.id,
+          "burndown-legacy-completed",
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    };
+    try {
+      const initialTask = await insertTask(initialFixture, "Legacy initial figé", 3);
+      const initialSprint = await startWithTasks(initialFixture, [initialTask.id]);
+      await complete(initialFixture, initialSprint.id);
+      await expect(getBurndownReport(initialFixture.backlog.id, initialSprint.id, options))
+        .resolves.toMatchObject({ kind: "completed" });
+      await corruptHistory(async (client) => {
+        await client.query(
+          "update sprint_report_items set done_at_start = null where sprint_id = $1",
+          [initialSprint.id],
+        );
+      });
+      const initialLegacy = await getBurndownReport(
+        initialFixture.backlog.id,
+        initialSprint.id,
+        options,
+      );
+      expect(initialLegacy).toEqual({
+        kind: "legacy_unavailable",
+        reason: "legacy_history",
+        sprint: expect.objectContaining({ id: initialSprint.id, completedAt: completionAt }),
+      });
+
+      const kept = await insertTask(addedFixture, "Initial figé valide", 3);
+      const addedSprint = await startWithTasks(addedFixture, [kept.id]);
+      const added = await insertTask(addedFixture, "Ajout figé legacy", 2);
+      await assignAt(addedFixture, [added.id], addedSprint.id, new Date("2026-08-05T09:00:00.000Z"));
+      await complete(addedFixture, addedSprint.id);
+      await expect(getBurndownReport(addedFixture.backlog.id, addedSprint.id, options))
+        .resolves.toMatchObject({ kind: "completed" });
+      await makeAddedEventLegacy(addedSprint.id);
+      eventConstraintNeedsValidation = true;
+      const addedLegacy = await getBurndownReport(
+        addedFixture.backlog.id,
+        addedSprint.id,
+        options,
+      );
+      expect(addedLegacy).toEqual({
+        kind: "legacy_unavailable",
+        reason: "legacy_history",
+        sprint: expect.objectContaining({ id: addedSprint.id }),
+      });
+    } finally {
+      await cleanupBacklogs(initialFixture.backlog.id, addedFixture.backlog.id);
       if (eventConstraintNeedsValidation) await validateSprintEventShape();
     }
   });
@@ -564,6 +773,8 @@ describeDb("sprint burndown read model", () => {
       const [membership] = await db.select({ id: sprintItems.id }).from(sprintItems)
         .where(and(eq(sprintItems.sprintId, active.id), eq(sprintItems.itemId, task.id)));
       if (!membership) throw new Error("Appartenance attendue.");
+      // The estimate after event i cycles through 1..7 and never repeats consecutively.
+      const estimateAfter = (index: number) => ((index + 1) % 7) + 1;
       const eventRows = Array.from({ length: 10_000 }, (_, index) => ({
         backlogId: f.backlog.id,
         sprintId: active.id,
@@ -575,8 +786,8 @@ describeDb("sprint burndown read model", () => {
         actorId: f.actor.id,
         requestCorrelationId: `volume-event-${index}`,
         occurredAt: new Date(startedAt.getTime() + index + 1),
-        previousEstimate: index % 2 === 0 ? 1 : 2,
-        nextEstimate: index % 2 === 0 ? 2 : 1,
+        previousEstimate: estimateAfter(index - 1),
+        nextEstimate: estimateAfter(index),
       }));
       for (let index = 0; index < eventRows.length; index += 500) {
         await db.insert(sprintEvents).values(eventRows.slice(index, index + 500));
@@ -589,13 +800,45 @@ describeDb("sprint burndown read model", () => {
       expect(report.events.total).toBe(10_001);
       expect(report.eventPoints.total).toBe(10_001);
       expect(report.baseline).toMatchObject({ cause: "start", sequence: null });
-      expect(report.summary.remainingPoints).toBe(1);
+      expect(report.summary.remainingPoints).toBe(estimateAfter(9_999));
       expect(report.displayPoints.length).toBeLessThanOrEqual(600);
       console.info("burndown-10k-events", { durationMs, eventCount: report.events.total });
+
+      const pageSize = 100;
+      const descendingPoints: NonNullable<typeof report.eventPoints.rows> = [];
+      for (let page = 1; page <= Math.ceil(10_001 / pageSize); page += 1) {
+        const paged = await getBurndownReport(f.backlog.id, active.id, {
+          ...options,
+          eventPage: page,
+          pageSize,
+        });
+        if (!paged || paged.kind !== "active") throw new Error("Rapport actif attendu.");
+        expect(paged.eventPoints).toMatchObject({ page, pageSize, total: 10_001 });
+        expect(paged.eventPoints.rows.map((point) => point.sequence)).toEqual(
+          paged.events.rows.map((event) => event.sequence),
+        );
+        expect(paged.eventPoints.rows).toHaveLength(page === 101 ? 1 : pageSize);
+        descendingPoints.push(...paged.eventPoints.rows);
+      }
+      const points = descendingPoints.toReversed();
+      expect(points).toHaveLength(10_001);
+      expect(points[0]).toMatchObject({ cause: "sprint_started", remainingPoints: 1, deltaPoints: 0 });
+      for (let index = 1; index < points.length; index += 1) {
+        expect(points[index]!.sequence! > points[index - 1]!.sequence!).toBe(true);
+      }
+      expect(points.slice(1).map((point) => ({
+        cause: point.cause,
+        remainingPoints: point.remainingPoints,
+        deltaPoints: point.deltaPoints,
+      }))).toEqual(eventRows.map((_, index) => ({
+        cause: "estimate_changed",
+        remainingPoints: estimateAfter(index),
+        deltaPoints: estimateAfter(index) - estimateAfter(index - 1),
+      })));
     } finally {
       await cleanupBacklogs(f.backlog.id);
     }
-  }, 60_000);
+  }, 180_000);
 
   it("uses committed global sequences for deterministic concurrent equal-timestamp events", async () => {
       const f = await fixture();

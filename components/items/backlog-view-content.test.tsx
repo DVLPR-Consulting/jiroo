@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   listUsersByIds: vi.fn(),
   blockedItemIds: vi.fn(),
   getViewByIdForUser: vi.fn(),
+  getRecentVelocityContext: vi.fn(),
   notFound: vi.fn(),
   requireAppPageSession: vi.fn(),
   select: vi.fn(),
@@ -65,6 +66,9 @@ vi.mock("@/lib/services/releases", () => ({
 }));
 vi.mock("@/lib/services/sprints", () => ({
   listSprintsForBacklog: mocks.listSprintsForBacklog,
+}));
+vi.mock("@/lib/services/sprint-burndown", () => ({
+  getRecentVelocityContext: mocks.getRecentVelocityContext,
 }));
 vi.mock("@/lib/services/views", () => ({
   getViewByIdForUser: mocks.getViewByIdForUser,
@@ -144,6 +148,10 @@ describe("BacklogViewContent read boundary", () => {
     mocks.listSprintsForBacklog.mockResolvedValue({ sprints: [], memberships: [] });
     mocks.listReleaseSummaries.mockResolvedValue([]);
     mocks.getViewByIdForUser.mockResolvedValue(null);
+    mocks.getRecentVelocityContext.mockResolvedValue({
+      population: 0,
+      averageCompletedPoints: null,
+    });
     mocks.select.mockImplementation(() => {
       const query = {
         from: vi.fn(),
@@ -754,5 +762,105 @@ describe("BacklogViewContent read boundary", () => {
       ],
       contextIds: [parent.id],
     }));
+  });
+
+  it("loads recent velocity once and hands it to every sprint section", async () => {
+    mocks.getBacklogByKeyForUser.mockResolvedValue({
+      id: "backlog-1",
+      key: "DEMO",
+      name: "Demo",
+      color: "#2563eb",
+      archivedAt: null,
+    });
+    mocks.getBacklogCapabilities.mockResolvedValue({
+      createItems: true,
+      editItems: true,
+      transitionItems: true,
+      scheduleItems: true,
+      assignItems: true,
+      manageSprints: true,
+      manageWorkflow: false,
+      manageMembers: false,
+      bulkChangeItems: true,
+    });
+    const sprintBase = {
+      goal: null,
+      capacityPoints: null,
+      plannedStartAt: null,
+      plannedEndAt: null,
+      startedAt: null,
+      completedAt: null,
+    };
+    const recentVelocity = { population: 3, averageCompletedPoints: 10 };
+    let resolveVelocity: (value: typeof recentVelocity) => void = () => undefined;
+    let sprintsRequestedBeforeVelocityResolved = false;
+    mocks.getRecentVelocityContext.mockReturnValue(
+      new Promise((resolve) => {
+        resolveVelocity = resolve;
+      }),
+    );
+    mocks.listSprintsForBacklog.mockImplementation(async () => {
+      sprintsRequestedBeforeVelocityResolved = true;
+      return {
+        sprints: [
+          { ...sprintBase, id: "sprint-a", name: "Sprint A", state: "planned", rank: "a0" },
+          { ...sprintBase, id: "sprint-b", name: "Sprint B", state: "planned", rank: "a1" },
+        ],
+        memberships: [],
+      };
+    });
+
+    const pending = BacklogViewContent({
+      paramsPromise: Promise.resolve({ key: "DEMO" }),
+      searchParamsPromise: Promise.resolve({ view: "backlog" }),
+    });
+    await vi.waitFor(() => expect(mocks.getRecentVelocityContext).toHaveBeenCalled());
+    expect(sprintsRequestedBeforeVelocityResolved).toBe(true);
+    resolveVelocity(recentVelocity);
+    render(await pending);
+
+    expect(mocks.getRecentVelocityContext).toHaveBeenCalledOnce();
+    expect(mocks.getRecentVelocityContext).toHaveBeenCalledWith("backlog-1");
+    const props = mocks.itemBacklogProps.mock.calls.at(-1)?.[0] as {
+      recentVelocity: unknown;
+      sections: Array<{ kind: string; metrics: { velocityComparison: unknown } }>;
+    };
+    expect(props.recentVelocity).toEqual(recentVelocity);
+    expect(props.sections.map((section) => [section.kind, section.metrics.velocityComparison]))
+      .toEqual([
+        ["planned", expect.objectContaining({ state: "ready", averageCompletedPoints: 10 })],
+        ["planned", expect.objectContaining({ state: "ready", averageCompletedPoints: 10 })],
+        ["backlog", null],
+      ]);
+  });
+
+  it("does not read recent velocity outside the Backlog view", async () => {
+    mocks.getBacklogByKeyForUser.mockResolvedValue({
+      id: "backlog-1",
+      key: "DEMO",
+      name: "Demo",
+      color: "#2563eb",
+      archivedAt: null,
+    });
+    mocks.getBacklogCapabilities.mockResolvedValue({
+      createItems: false,
+      editItems: false,
+      transitionItems: false,
+      scheduleItems: false,
+      assignItems: false,
+      manageSprints: false,
+      manageWorkflow: false,
+      manageMembers: false,
+      bulkChangeItems: false,
+    });
+
+    render(
+      await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "list" }),
+      }),
+    );
+
+    expect(mocks.getRecentVelocityContext).not.toHaveBeenCalled();
   });
 });

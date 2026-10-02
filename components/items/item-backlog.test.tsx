@@ -164,6 +164,7 @@ function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
           unestimatedCount: 0,
           capacityPoints: 8,
           overCapacityPoints: 0,
+          velocityComparison: null,
         },
         items: [items[0]!],
         groups: [{ key: "", label: "", items: [items[0]!] }],
@@ -180,6 +181,7 @@ function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
           unestimatedCount: 0,
           capacityPoints: 8,
           overCapacityPoints: 0,
+          velocityComparison: null,
         },
         items: [items[1]!],
         groups: [{ key: "", label: "", items: [items[1]!] }],
@@ -196,6 +198,7 @@ function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
           unestimatedCount: 1,
           capacityPoints: null,
           overCapacityPoints: 0,
+          velocityComparison: null,
         },
         items: [items[2]!],
         groups: [{ key: "", label: "", items: [items[2]!] }],
@@ -364,6 +367,61 @@ describe("ItemBacklog", () => {
     );
     expect(mocks.rankBacklogItemAction).not.toHaveBeenCalled();
     expect(mocks.refresh).toHaveBeenCalledOnce();
+    geometry.mockRestore();
+  });
+
+  it("keeps the recent velocity context while optimistically moving a task", async () => {
+    const user = userEvent.setup();
+    const geometry = mockBacklogGeometry();
+    let resolveMove: (value: { ok: true; item: unknown }) => void = () => undefined;
+    mocks.moveSprintItemAction.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveMove = resolve;
+      }),
+    );
+    const base = sprintProps() as Extract<
+      React.ComponentProps<typeof ItemBacklog>,
+      { sections: unknown }
+    >;
+    const recentVelocity = { population: 2, averageCompletedPoints: 4 };
+    const { container } = render(
+      <ItemBacklog {...base} recentVelocity={recentVelocity} />,
+    );
+    const futureSection = container.querySelector(
+      '[data-sprint-section="sprint-future"]',
+    ) as HTMLElement;
+    const activeSection = container.querySelector(
+      '[data-sprint-section="sprint-active"]',
+    ) as HTMLElement;
+    const backlogSection = container.querySelector(
+      '[data-sprint-section="backlog"]',
+    ) as HTMLElement;
+
+    const handle = screen.getByRole("button", { name: "Déplacer DEMO-1" });
+    handle.focus();
+    await user.keyboard("[Space][ArrowDown][Space]");
+
+    await waitFor(() => expect(mocks.moveSprintItemAction).toHaveBeenCalledOnce());
+    expect(
+      within(futureSection).getByText(
+        "Engagement 8 pts · moyenne récente 4 pts · écart +4 pts",
+      ),
+    ).toBeVisible();
+    expect(
+      within(futureSection).getByText(
+        "Engagement supérieur à la moyenne récente : avertissement non bloquant.",
+      ),
+    ).toBeVisible();
+    expect(
+      within(activeSection).getByText(
+        "Engagement 0 pts · moyenne récente 4 pts · écart -4 pts",
+      ),
+    ).toBeVisible();
+    expect(within(backlogSection).queryByText(/moyenne récente|vélocité/))
+      .not.toBeInTheDocument();
+
+    resolveMove({ ok: true, item: { ...items[0], rank: "aV" } });
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
     geometry.mockRestore();
   });
 

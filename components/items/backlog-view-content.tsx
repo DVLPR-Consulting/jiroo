@@ -55,6 +55,7 @@ import {
 } from "@/lib/items/view-url-params";
 import { buildSprintSections } from "@/lib/items/sprint-planning";
 import { listSprintsForBacklog } from "@/lib/services/sprints";
+import { getRecentVelocityContext } from "@/lib/services/sprint-burndown";
 
 const VIEW_STATE_PARAM_KEYS = [
   "q",
@@ -130,6 +131,7 @@ export async function BacklogViewContent({
     statusRows,
     statusCountRows,
     sprintSnapshot,
+    recentVelocity,
   ] = await Promise.all([
     listItems(backlog.id, { releaseIds: viewState.filters.releaseIds }),
     listItemLabelPairs(backlog.id),
@@ -150,6 +152,10 @@ export async function BacklogViewContent({
       .where(eq(itemRowsTable.backlogId, backlog.id))
       .groupBy(itemRowsTable.statusId),
     listSprintsForBacklog(backlog.id),
+    // Only the Backlog view renders planning comparisons; one backlog-level read.
+    view === "backlog"
+      ? getRecentVelocityContext(backlog.id)
+      : Promise.resolve(null),
   ]);
   const releaseMatchedIds = new Set(releaseFilteredItems.map((item) => item.id));
   const releaseFilterActive = viewState.filters.releaseIds.length > 0;
@@ -371,6 +377,7 @@ export async function BacklogViewContent({
     sprints: sprintSnapshot.sprints,
     memberships: sprintSnapshot.memberships,
     items: [...planningItemById.values()],
+    recentVelocity,
   });
   const activeSection = baseSprintSections.find((section) => section.kind === "active") ?? null;
   const activeSprint = activeSection?.sprint ?? null;
@@ -582,6 +589,7 @@ export async function BacklogViewContent({
         <ItemBacklog
           sections={planningSections}
           sprints={sprintSnapshot.sprints}
+          recentVelocity={recentVelocity}
           createDialogProps={createDialogProps}
           grouped={viewState.group !== null}
           statuses={statusList}

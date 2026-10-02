@@ -30,7 +30,8 @@ import {
 const burndownOptions = z.object({
   eventPage: z.number().int().default(1),
   pageSize: z.number().int().default(50),
-  now: z.date().default(() => new Date()),
+  // Without an explicit time, active reports are observed after their reads.
+  now: z.date().optional(),
 });
 
 export type BurndownSprintIdentity = {
@@ -51,6 +52,8 @@ export type DetailedBurndownReport = {
   guideline: BurndownCalculation["guideline"];
   displayPoints: BurndownCalculation["displayPoints"];
   baseline: BurndownPoint;
+  /** Instant the projection describes: completion when frozen, read time when live. */
+  observedAt: Date;
   eventPoints: Page<BurndownPoint>;
   events: Page<SprintReportEvent>;
 };
@@ -286,7 +289,21 @@ async function readActiveSource(
     }).from(sprintItems).leftJoin(
       items,
       and(eq(items.id, sprintItems.itemId), eq(items.backlogId, backlogId)),
-    ).where(eq(sprintItems.sprintId, sprint.id))
+    ).where(and(
+      eq(sprintItems.sprintId, sprint.id),
+      // Memberships closed during planning never took part in the sprint.
+      sql`(
+        ${sprintItems.leftAt} is null
+        or ${sprintItems.estimateAtStart} is not null
+        or ${sprintItems.doneAtStart} is not null
+        or exists (
+          select 1 from sprint_events membership_event
+          where membership_event.backlog_id = ${backlogId}
+            and membership_event.sprint_id = ${sprint.id}
+            and membership_event.source_membership_id = ${sprintItems.id}
+        )
+      )`,
+    ))
       .orderBy(asc(sprintItems.joinedAt), asc(sprintItems.id));
   const ledger = await readLedger(tx, backlogId, sprint.id);
   const events = await readSprintEventPage(
@@ -327,7 +344,10 @@ async function readActiveSource(
     snapshotCompletedPoints: null,
     burndownEvents: mapped.events,
     events,
-    observedAt: new Date(Math.max(command.now.getTime(), identity.startedAt.getTime())),
+    observedAt: new Date(Math.max(
+      (command.now ?? new Date()).getTime(),
+      identity.startedAt.getTime(),
+    )),
   };
 }
 
@@ -463,7 +483,8 @@ export async function getBurndownReport(
   const eventPointRows = source.events.rows.map((event) => {
     const point = pointsBySequence.get(event.sequence);
     assertConsistent(point !== undefined);
-    return point;
+    // The ledger keeps the id of soft-deleted items; link only what the journal still exposes.
+    return { ...point, itemId: event.itemId };
   });
   const velocity = await getRecentVelocityContext(backlogId);
   const baseline = calculation.exactPoints[0];
@@ -480,6 +501,8 @@ export async function getBurndownReport(
     guideline: calculation.guideline,
     displayPoints: calculation.displayPoints,
     baseline,
+    // Mirrors calculateBurndown: a completed sprint is observed at completion.
+    observedAt: source.sprint.completedAt ?? source.observedAt,
     eventPoints: {
       page: source.events.page,
       pageSize: source.events.pageSize,

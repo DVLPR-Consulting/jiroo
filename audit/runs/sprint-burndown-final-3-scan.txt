@@ -1,0 +1,94 @@
+Run-scoped artifact scan and inventory — sprint-burndown-final-3
+=================================================================
+
+Scope
+-----
+The scan ran immediately after Playwright completed and before this summary
+file existed. Inputs: the 26 run-scoped text artifacts (12 console logs,
+12 network logs, JUnit, manifest) and the 16 run-scoped PNG screenshots. The
+run manifest is written by the global setup before any artifact exists, so it
+only references the JUnit report (residual gap, see audit/README.md); this
+inventory is the authoritative list and references each artifact of the run
+exactly once (42 files, sha256), plus the spec that ran.
+
+Provenance and verdict
+----------------------
+- Manifest source SHA: ac995980a51a0f55eddaef5ea86d5ce8f0f986f8
+  ("test(reports): harden burndown acceptance checks"), which contains the
+  exact spec that ran: e2e/sprint-reports.spec.ts sha256 in the working tree at
+  run time equals the blob at that commit (fc802b89...efcf4, listed below).
+- Working tree at run time: clean except an unstaged local package.json edit
+  (the "dev" script points to a personal launcher). It is unrelated to the run:
+  the wrapper starts ./node_modules/.bin/next dev directly and never calls the
+  "dev" script.
+- Server: next dev on http://localhost:3101 (port 3100 was held by an
+  unrelated local project); BETTER_AUTH_URL set to the same origin.
+- Database: jiroo_e2e (isolated local container, fingerprint only).
+- Runtime: Node v24.18.1, pnpm 10.19.0, Chromium (Playwright 1.62).
+- JUnit: 12 tests, 0 failures, 0 errors, 0 skipped, 42.940564 s.
+
+Results
+-------
+- HTTP 4xx/5xx response lines in network logs: 0
+- Failed request lines: 0
+- Console error / pageerror / [defect] lines: 0
+- Explicit [expected-fault] markers: 2 (S05 sprint report read fault, S12
+  burndown ledger read fault), settled at scenario end over a bounded window
+- DATABASE_URL, DIRECT_DATABASE_URL, Authorization, Cookie, Bearer,
+  PostgreSQL URLs, the resolved fixture password value (checked, never written
+  here), local auth secret value, local DB credentials and raw PostgreSQL
+  system identifier: 0 files (text and PNG)
+
+Reproducible command summary
+----------------------------
+1. RUN=sprint-burndown-final-3
+2. TEXT_FILES: find audit/console audit/network audit/runs -type f -name "$RUN-*" | sort
+3. Assert the JUnit root has tests="12" failures="0" errors="0" skipped="0".
+4. grep -l -i -E 'database_url|direct_database_url|authorization|cookie|bearer|postgres(ql)?://|password' over TEXT_FILES must print nothing; grep -F the resolved fixture password must print nothing.
+5. grep -E '\] (4|5)[0-9][0-9] ' over the network logs must print nothing.
+
+Inventory (sha256)
+------------------
+fc802b8919a5da6db464cb1265204ba842e9e5b9d5bb7f86a4f04ac13a7efcf4  e2e/sprint-reports.spec.ts
+ad7becd83e295736d10fcf0ab750a4a59bec7cdd69cd40a8a396d2d115d209e9  audit/console/sprint-burndown-final-3-reports-s01.log
+236af9ec7ccb2269286cccb76779ab190d679c7b87d8e8008ecddbdc4488d12b  audit/console/sprint-burndown-final-3-reports-s02.log
+3604f2399eb87498eb2d7c0c3207ae63423fed5f29271161bbe6f3d1ecb1241f  audit/console/sprint-burndown-final-3-reports-s03.log
+a82d4ab5b1c57a81d0760f35bca22c3ab1b960d4ea64b8fdbcca42eadebd0a32  audit/console/sprint-burndown-final-3-reports-s04.log
+df37e6f4f0b580a3296e8670c3d986bc669048870cbc305898d5a8ae6328f6d4  audit/console/sprint-burndown-final-3-reports-s05.log
+b285ddfc23b21a8b0ec4b9ae55a5ffd3728d5149a60cec2b05f1b5d755c3e53e  audit/console/sprint-burndown-final-3-reports-s06.log
+24786b7693ebbddcbdf8403b81b85b75c651ddc64c365539c19d984430e7431a  audit/console/sprint-burndown-final-3-reports-s07.log
+88baf8aad749db0f311d644971d585092df0e6416a60e08c249661e6675874eb  audit/console/sprint-burndown-final-3-reports-s08.log
+67b112487c3c4365b638b188d2f995b7910f6211101960aa6e93c67ef1a72149  audit/console/sprint-burndown-final-3-reports-s09.log
+8aab0d782a7104dbe13072a4b52edf02f215bda9648ba222515ca84b8533022a  audit/console/sprint-burndown-final-3-reports-s10.log
+edc143af3c843508db1dd8e85e6aabba7bbb6ff5de215bf8a93c380d5b7296c3  audit/console/sprint-burndown-final-3-reports-s11.log
+ea414eca6e23b154d11c02cd38589fe22f8629d57cba9eedc05e6081277dda2c  audit/console/sprint-burndown-final-3-reports-s12.log
+3e8cb48c39a57ced30064459513e06184b54bf074b20f0cf657bd0a873313af8  audit/network/sprint-burndown-final-3-reports-s01.log
+6f90d3334940b55bf7d2608ade70a659f2636d0773d1d065661f5383b8bc166d  audit/network/sprint-burndown-final-3-reports-s02.log
+90da6c5aef6937b52e903f98c649f0443f4f417408086087b8925f2bb4ff7a32  audit/network/sprint-burndown-final-3-reports-s03.log
+be6c10a0f6bf1c5b2002dfd517998bc6bd6feb5ab9aa6058f6527e67c72cb5da  audit/network/sprint-burndown-final-3-reports-s04.log
+6249103b8174b65f8406e7da6c63b4b70e2f4643305c2a320e5843450c0b1cb3  audit/network/sprint-burndown-final-3-reports-s05.log
+e45be255c6ba6ededcaa100ebe44a24ae0f117df1a6907d3e31621b8b47aeb80  audit/network/sprint-burndown-final-3-reports-s06.log
+f82ab2adbb8c5bdbebdcdbbec6d20eb22ddb692795b06129806d17a241fe71b6  audit/network/sprint-burndown-final-3-reports-s07.log
+0a9ffaf349351f749d3be2555156d63329e81bda19b1c3107a42838e07538c17  audit/network/sprint-burndown-final-3-reports-s08.log
+f3206d7fd1900d09e9ccda3a1707a8bb0078c4b51353aa10695ff7d335df94bd  audit/network/sprint-burndown-final-3-reports-s09.log
+c3a75b337d783bf8f8762b5b5bd56daa6072bdc373f31de572b77c9dc4546b93  audit/network/sprint-burndown-final-3-reports-s10.log
+913ab1a9c8b56c46a34541637e72307ea1d5052c7323feb3f1edb2b9c213df57  audit/network/sprint-burndown-final-3-reports-s11.log
+0cafb4f40947513b66c60eccc0a7ad7b2837604fb051713d42e466f01454aafd  audit/network/sprint-burndown-final-3-reports-s12.log
+0b345c28e84a1dc75b81c53555d0e48e1020bb4d2b6458649e0af83e103bb91c  audit/runs/sprint-burndown-final-3-junit.xml
+a6355ee46169e4684c4344cfa7d367e50b93c0c2f271037ca91a4d8d7e9ad048  audit/runs/sprint-burndown-final-3-manifest.json
+b26bfd62c376fb7ba33cc2537bab1f422f2d9de92642687788161f5cc5dd3fd3  audit/screenshots/sprint-burndown-final-3-burndown-active-chart-desktop.png
+aefaec7d4d1ea6642a9b8ed6a18e522f9f42af3804caf03465317eb972742d2a  audit/screenshots/sprint-burndown-final-3-burndown-active-chart-mobile.png
+a9243eeee5958529c141f90f5dcab0fa1216733fee3ce53ceeb561c265bd0bd7  audit/screenshots/sprint-burndown-final-3-burndown-active-desktop.png
+2096d6d9b54dab48d43126b22ab52ef1181d13efe308b9bfe9b3103feff5e44d  audit/screenshots/sprint-burndown-final-3-burndown-active-mobile.png
+d8dbb1a2c6fbbde594214288e5d8f464a8bd8047ab88c7bc79f8673a5447707b  audit/screenshots/sprint-burndown-final-3-burndown-completed-chart-desktop.png
+70490bda4f736147b69adfc2b4de387d95ae4e7aa9423bad0c39869881d98653  audit/screenshots/sprint-burndown-final-3-burndown-completed-chart-mobile.png
+37d90a8cd8dba1cc10b18aca7517b07d8e832bd00b612e4003a13672858bb638  audit/screenshots/sprint-burndown-final-3-burndown-completed-desktop.png
+91edffeee61ae4fbea766063298a6e94fa3b43868fbb451e68e342fabe8d7717  audit/screenshots/sprint-burndown-final-3-burndown-completed-mobile.png
+7132da9aae082cb87766f9f4c1bca2b266183d1763f811676556d1042a70e6b3  audit/screenshots/sprint-burndown-final-3-burndown-planned-warning-desktop.png
+7d72ec6c664fab74269137ef6a2c963e873a3649e2280f1ba6b2acc3abf1e523  audit/screenshots/sprint-burndown-final-3-burndown-planned-warning-mobile.png
+de04117d05fd96159dafd3495e6367bf574dc1f7b4b0c3238bf1dbfb59f82bb4  audit/screenshots/sprint-burndown-final-3-reports-active-desktop.png
+dbd83cb39cc81d7fa779bdd819ac4517862cba0f0e9a4ba1a0dd0ecf21d1d50a  audit/screenshots/sprint-burndown-final-3-reports-active-mobile.png
+01dade0c04b720812b902e991866f91f9bd5899a41bfabd2093e3709179e2ba0  audit/screenshots/sprint-burndown-final-3-reports-completed-desktop.png
+6864ad8463155a6ba2fddc1b7c2b52487256aa4d9fd67cf2e493649933aba75e  audit/screenshots/sprint-burndown-final-3-reports-completed-mobile.png
+bb9ceee3243fe712ccf38d02e8b9ed96c64fb615dd71aca45bc05cfd9d07e0b9  audit/screenshots/sprint-burndown-final-3-reports-velocity-desktop.png
+5e057a0a21d3619fba744b65f161d3a17dc9761dcab246cf5c8ed9b034a3ff40  audit/screenshots/sprint-burndown-final-3-reports-velocity-mobile.png

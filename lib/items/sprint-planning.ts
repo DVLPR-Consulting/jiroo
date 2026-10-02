@@ -1,4 +1,8 @@
 import type { ItemType } from "@/lib/design/constants";
+import {
+  calculatePlanningComparison,
+  type PlanningComparison,
+} from "@/lib/reports/burndown-calculations";
 
 export type SprintPlanningItem = {
   id: string;
@@ -35,6 +39,12 @@ export type SprintMetrics = {
   unestimatedCount: number;
   capacityPoints: number | null;
   overCapacityPoints: number;
+  velocityComparison: PlanningComparison | null;
+};
+
+export type RecentVelocityContext = {
+  population: number;
+  averageCompletedPoints: number | null;
 };
 
 export type SprintPlanningSection<T> = {
@@ -52,6 +62,7 @@ function roundPoints(value: number): number {
 export function calculateSprintMetrics(
   rows: SprintPlanningItem[],
   capacityPoints: number | null,
+  recentVelocity: RecentVelocityContext | null = null,
 ): SprintMetrics {
   const estimatedPoints = roundPoints(
     rows.reduce((total, row) => total + (row.estimatePoints ?? 0), 0),
@@ -76,6 +87,10 @@ export function calculateSprintMetrics(
     unestimatedCount: rows.filter((row) => row.estimatePoints === null).length,
     capacityPoints,
     overCapacityPoints,
+    velocityComparison:
+      recentVelocity === null
+        ? null
+        : calculatePlanningComparison(estimatedPoints, recentVelocity),
   };
 }
 
@@ -91,10 +106,12 @@ export function buildSprintSections<T extends SprintPlanningItem>({
   sprints,
   items,
   memberships,
+  recentVelocity = null,
 }: {
   sprints: SprintSummary[];
   items: T[];
   memberships: SprintPlanningMembership[];
+  recentVelocity?: RecentVelocityContext | null;
 }): SprintPlanningSection<T>[] {
   const activeSprints = sprints.filter(
     (sprint): sprint is SprintSummary & { state: "active" } =>
@@ -146,7 +163,7 @@ export function buildSprintSections<T extends SprintPlanningItem>({
       id: sprint.id,
       kind: sprint.state,
       sprint,
-      metrics: calculateSprintMetrics(rows, sprint.capacityPoints),
+      metrics: calculateSprintMetrics(rows, sprint.capacityPoints, recentVelocity),
       items: rows,
     };
   });

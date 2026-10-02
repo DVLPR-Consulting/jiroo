@@ -1,0 +1,28 @@
+<testsuites id="" name="" tests="12" failures="0" skipped="0" errors="0" time="42.94056400000001">
+<testsuite name="sprint-reports.spec.ts" timestamp="2026-10-01T11:01:03.778Z" hostname="chromium" tests="12" failures="0" skipped="0" time="37.976" errors="0">
+<testcase name="01 — affiche les rapports figés et la vélocité explicable" classname="sprint-reports.spec.ts" time="3.268">
+</testcase>
+<testcase name="02 — distingue les états vides, planifiés, actifs non estimés et legacy" classname="sprint-reports.spec.ts" time="5.348">
+</testcase>
+<testcase name="03 — conserve les lectures lecteur, second contexte et dissimule les ressources" classname="sprint-reports.spec.ts" time="4.251">
+</testcase>
+<testcase name="04 — reste lisible et sans débordement à 390 par 844" classname="sprint-reports.spec.ts" time="0.775">
+</testcase>
+<testcase name="05 — masque une panne de lecture et récupère après retry" classname="sprint-reports.spec.ts" time="1.263">
+</testcase>
+<testcase name="06 — relie bulk, Board et clôture UI au rapport" classname="sprint-reports.spec.ts" time="8.874">
+</testcase>
+<testcase name="07 — rejoue le burndown actif depuis le baseline figé et le ledger" classname="sprint-reports.spec.ts" time="1.399">
+</testcase>
+<testcase name="08 — relie édition unitaire, bulk et Board au burndown, ordre par séquence" classname="sprint-reports.spec.ts" time="3.029">
+</testcase>
+<testcase name="09 — fige le point final à la clôture et ignore les mutations ultérieures" classname="sprint-reports.spec.ts" time="3.498">
+</testcase>
+<testcase name="10 — compare un sprint planifié à la vélocité récente sans bloquer" classname="sprint-reports.spec.ts" time="1.352">
+</testcase>
+<testcase name="11 — conserve le burndown pour lecteur et second contexte, dissimule étranger et malformé" classname="sprint-reports.spec.ts" time="3.616">
+</testcase>
+<testcase name="12 — masque une panne de lecture du burndown et récupère après retry" classname="sprint-reports.spec.ts" time="1.303">
+</testcase>
+</testsuite>
+</testsuites>

@@ -8,6 +8,10 @@ import type { PlanningCapabilities } from "@/lib/auth/capabilities";
 
 const points = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
 const dates = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
+const signedPoints = new Intl.NumberFormat("fr-FR", {
+  maximumFractionDigits: 2,
+  signDisplay: "exceptZero",
+});
 
 const stateLabel = {
   planned: "Planifié",
@@ -135,6 +139,42 @@ export function SprintSectionHeader({
           {actions}
         </div>
       )}
+
+      {kind !== "backlog" && metrics.velocityComparison && (
+        <VelocityComparison
+          comparison={metrics.velocityComparison}
+          warnAboveAverage={kind === "planned"}
+        />
+      )}
     </header>
+  );
+}
+
+function VelocityComparison({
+  comparison,
+  warnAboveAverage,
+}: {
+  comparison: NonNullable<SprintMetrics["velocityComparison"]>;
+  warnAboveAverage: boolean;
+}) {
+  if (comparison.state !== "ready") {
+    return (
+      <p className="basis-full text-xs text-muted-foreground">
+        Pas encore de vélocité comparable
+      </p>
+    );
+  }
+  const aboveAverage = comparison.difference > 0;
+  return (
+    <div className="flex basis-full flex-wrap gap-x-3 text-xs text-muted-foreground">
+      <p>
+        {`Engagement ${points.format(comparison.commitmentPoints)} pts · moyenne récente ${points.format(comparison.averageCompletedPoints)} pts · écart ${signedPoints.format(comparison.difference)} pts`}
+      </p>
+      {warnAboveAverage && aboveAverage && (
+        <p className="font-medium text-amber-700 dark:text-amber-300">
+          Engagement supérieur à la moyenne récente : avertissement non bloquant.
+        </p>
+      )}
+    </div>
   );
 }
