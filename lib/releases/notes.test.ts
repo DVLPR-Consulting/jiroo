@@ -111,6 +111,18 @@ describe("escapeMarkdownText", () => {
     expect(escapeMarkdownText("> citation")).toBe("\\> citation");
   });
 
+  it("neutralizes block constructs on every line", () => {
+    expect(escapeMarkdownText("Titre\n---\n===\n-\n1) liste\n2.\n    code\n\tcode")).toBe(
+      "Titre\n\\---\n\\===\n\\-\n1\\) liste\n2\\.\ncode\ncode",
+    );
+  });
+
+  it("treats lone carriage returns and Unicode separators as line breaks", () => {
+    expect(escapeMarkdownText("x\r# h")).toBe("x\n\\# h");
+    expect(escapeMarkdownText("x\u2028# h", { singleLine: true })).toBe("x \\# h");
+    expect(escapeMarkdownText("x\r# h", { singleLine: true })).toBe("x \\# h");
+  });
+
   it("flattens line breaks in single-line fields", () => {
     expect(escapeMarkdownText("ligne 1\r\nligne 2", { singleLine: true })).toBe("ligne 1 ligne 2");
   });

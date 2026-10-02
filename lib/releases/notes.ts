@@ -38,16 +38,22 @@ const dateFormat = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "UTC",
 });
 
-/** Escapes Markdown so user text renders literally (titles, names, description). */
+/**
+ * Escapes Markdown so user text renders literally (titles, names, description):
+ * inline markup, HTML, and every block construct a line can start (headings,
+ * lists, quotes, setext underlines, thematic breaks, indented code).
+ */
 export function escapeMarkdownText(text: string, options: { singleLine?: boolean } = {}) {
-  const source = options.singleLine ? text.replace(/\s*\r?\n\s*/g, " ") : text;
+  const normalized = text.replace(/\r\n?|[\u2028\u2029]/g, "\n");
+  const source = options.singleLine ? normalized.replace(/\s*\n\s*/g, " ") : normalized;
   return source
-    .split(/\r?\n/)
+    .split("\n")
     .map((line) =>
       line
+        .trimStart()
         .replace(/[\\`*_[\]#<>|~]/g, "\\$&")
-        .replace(/^(\s*\d+)\.(\s)/, "$1\\.$2")
-        .replace(/^(\s*)([-+])(\s)/, "$1\\$2$3"),
+        .replace(/^(\d+)([.)])(?=\s|$)/, "$1\\$2")
+        .replace(/^[-+=]/, "\\$&"),
     )
     .join("\n");
 }
@@ -99,7 +105,7 @@ export function buildReleaseNotesMarkdown(
     blocks.push("Aucun élément terminé dans cette version.");
   }
   if (model.truncated) {
-    blocks.push("_Liste tronquée : seuls les premiers éléments de la version sont repris._");
+    blocks.push("_Liste tronquée : la version contient trop d’éléments pour être reprise en entier._");
   }
   return `${blocks.join("\n\n")}\n`;
 }
