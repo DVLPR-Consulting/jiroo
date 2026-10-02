@@ -17,6 +17,7 @@ import {
 } from "@/lib/db/schema/domain";
 import { InconsistentBurndownError } from "@/lib/reports/burndown-calculations";
 import {
+  getActiveSprintStartCommitment,
   getBurndownReport,
   getRecentVelocityContext,
 } from "@/lib/services/sprint-burndown";
@@ -192,7 +193,7 @@ async function appendCompletionEvent(
   });
 }
 
-async function assignAt(f: Fixture, itemIds: string[], sprintId: string, at: Date) {
+async function assignAt(f: Fixture, itemIds: string[], sprintId: string | null, at: Date) {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(at);
   try {
@@ -738,6 +739,98 @@ describeDb("sprint burndown read model", () => {
       });
     } finally {
       await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("loads the active sprint commitment frozen at start in one query, matching the burndown", async () => {
+    const f = await fixture();
+    const querySpy = vi.spyOn(Client.prototype, "query");
+    try {
+      await expect(getActiveSprintStartCommitment(f.backlog.id)).resolves.toBeNull();
+
+      const kept = await insertTask(f, "Engagée", 5);
+      const doneAtStart = await insertTask(f, "Déjà terminée", 2, f.done.id);
+      const removedInPlanning = await insertTask(f, "Retirée avant démarrage", 3);
+      const sprint = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+      await assignItemsToSprint(
+        {
+          backlogId: f.backlog.id,
+          itemIds: [kept.id, doneAtStart.id, removedInPlanning.id],
+          sprintId: sprint.id,
+        },
+        f.actor.id,
+      );
+      await assignItemsToSprint(
+        { backlogId: f.backlog.id, itemIds: [removedInPlanning.id], sprintId: null },
+        f.actor.id,
+      );
+      await startSprint({
+        id: sprint.id,
+        backlogId: f.backlog.id,
+        name: sprint.name,
+        goal: "Objectif immuable",
+        startAt: startedAt.toISOString(),
+        endAt: targetEndAt.toISOString(),
+        capacityPoints: 13,
+      }, f.actor.id);
+      const added = await insertTask(f, "Ajoutée en cours", 8);
+      await assignAt(f, [added.id], sprint.id, new Date("2026-08-05T09:00:00.000Z"));
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        vi.setSystemTime(new Date("2026-08-06T09:00:00.000Z"));
+        await updateItem({ id: kept.id, estimatePoints: 13 }, f.actor.id, "estimate-after-start");
+      } finally {
+        vi.useRealTimers();
+      }
+      // An item that left the sprint after start still belongs to the commitment.
+      await assignAt(f, [doneAtStart.id], null, new Date("2026-08-07T09:00:00.000Z"));
+
+      querySpy.mockClear();
+      const commitment = await getActiveSprintStartCommitment(f.backlog.id);
+      expect(querySpy).toHaveBeenCalledTimes(1);
+      expect(commitment).toEqual({ sprintId: sprint.id, commitmentPoints: 7 });
+      const report = await getBurndownReport(f.backlog.id, sprint.id, options);
+      expect(report).toMatchObject({
+        kind: "active",
+        planningComparison: { commitmentPoints: commitment?.commitmentPoints },
+      });
+    } finally {
+      querySpy.mockRestore();
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("returns no frozen commitment when the active sprint misses start facts", async () => {
+    const initialFixture = await fixture();
+    const addedFixture = await fixture();
+    let eventConstraintNeedsValidation = false;
+    try {
+      const task = await insertTask(initialFixture, "Legacy initial", 3);
+      const initialSprint = await startWithTasks(initialFixture, [task.id]);
+      await db.update(sprintItems).set({ doneAtStart: null })
+        .where(and(eq(sprintItems.sprintId, initialSprint.id), eq(sprintItems.itemId, task.id)));
+      await expect(getActiveSprintStartCommitment(initialFixture.backlog.id)).resolves.toEqual({
+        sprintId: initialSprint.id,
+        commitmentPoints: null,
+      });
+
+      const initial = await insertTask(addedFixture, "Initial valide", 3);
+      const addedSprint = await startWithTasks(addedFixture, [initial.id]);
+      const added = await insertTask(addedFixture, "Legacy ajout", 2);
+      await assignAt(addedFixture, [added.id], addedSprint.id, new Date("2026-08-05T09:00:00.000Z"));
+      await expect(getActiveSprintStartCommitment(addedFixture.backlog.id)).resolves.toEqual({
+        sprintId: addedSprint.id,
+        commitmentPoints: 3,
+      });
+      await makeAddedEventLegacy(addedSprint.id);
+      eventConstraintNeedsValidation = true;
+      await expect(getActiveSprintStartCommitment(addedFixture.backlog.id)).resolves.toEqual({
+        sprintId: addedSprint.id,
+        commitmentPoints: null,
+      });
+    } finally {
+      await cleanupBacklogs(initialFixture.backlog.id, addedFixture.backlog.id);
+      if (eventConstraintNeedsValidation) await validateSprintEventShape();
     }
   });
 

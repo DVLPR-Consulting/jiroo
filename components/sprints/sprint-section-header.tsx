@@ -140,28 +140,47 @@ export function SprintSectionHeader({
         </div>
       )}
 
-      {kind !== "backlog" && metrics.velocityComparison && (
-        <VelocityComparison
-          comparison={metrics.velocityComparison}
-          warnAboveAverage={kind === "planned"}
-        />
-      )}
+      {kind !== "backlog" &&
+        (metrics.velocityComparison ||
+          metrics.commitmentBasis === "sprint_start_unavailable") && (
+          <VelocityComparison
+            comparison={metrics.velocityComparison}
+            // Jira-like: an active sprint is committed at start; its live total is
+            // shown apart so scope added after start never rewrites the commitment.
+            currentScopePoints={kind === "active" ? metrics.estimatedPoints : null}
+            warnAboveAverage={kind === "planned"}
+          />
+        )}
     </header>
   );
 }
 
 function VelocityComparison({
   comparison,
+  currentScopePoints,
   warnAboveAverage,
 }: {
-  comparison: NonNullable<SprintMetrics["velocityComparison"]>;
+  comparison: SprintMetrics["velocityComparison"];
+  currentScopePoints: number | null;
   warnAboveAverage: boolean;
 }) {
+  const currentScope = currentScopePoints !== null && (
+    <p>{`Périmètre actuel ${points.format(currentScopePoints)} pts`}</p>
+  );
+  if (comparison === null) {
+    return (
+      <div className="flex basis-full flex-wrap gap-x-3 text-xs text-muted-foreground">
+        <p>Engagement au démarrage indisponible</p>
+        {currentScope}
+      </div>
+    );
+  }
   if (comparison.state !== "ready") {
     return (
-      <p className="basis-full text-xs text-muted-foreground">
-        Pas encore de vélocité comparable
-      </p>
+      <div className="flex basis-full flex-wrap gap-x-3 text-xs text-muted-foreground">
+        <p>Pas encore de vélocité comparable</p>
+        {currentScope}
+      </div>
     );
   }
   const aboveAverage = comparison.difference > 0;
@@ -170,6 +189,7 @@ function VelocityComparison({
       <p>
         {`Engagement ${points.format(comparison.commitmentPoints)} pts · moyenne récente ${points.format(comparison.averageCompletedPoints)} pts · écart ${signedPoints.format(comparison.difference)} pts`}
       </p>
+      {currentScope}
       {warnAboveAverage && aboveAverage && (
         <p className="font-medium text-amber-700 dark:text-amber-300">
           Engagement supérieur à la moyenne récente : avertissement non bloquant.

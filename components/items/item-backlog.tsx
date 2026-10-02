@@ -80,6 +80,8 @@ import type {
 } from "@/lib/items/sprint-planning";
 import {
   calculateSprintMetrics,
+  sprintStartCommitmentFor,
+  type ActiveSprintStartCommitment,
   type RecentVelocityContext,
 } from "@/lib/items/sprint-planning";
 
@@ -781,6 +783,7 @@ type SprintBacklogProps = SharedBacklogProps & {
   sections: SprintBacklogSection[];
   sprints: SprintSummary[];
   recentVelocity?: RecentVelocityContext | null;
+  activeSprintCommitment?: ActiveSprintStartCommitment | null;
   moveSprintItemAction?: MoveSprintItemAction;
   reorderSprintAction?: typeof defaultReorderSprintAction;
   createDialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions">;
@@ -952,6 +955,7 @@ function SprintItemBacklog({
   reorderSprintAction = defaultReorderSprintAction,
   createDialogProps,
   recentVelocity = null,
+  activeSprintCommitment = null,
 }: SprintBacklogProps) {
   const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
   const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
@@ -1077,6 +1081,8 @@ function SprintItemBacklog({
         planningItems,
         section.sprint?.capacityPoints ?? null,
         section.kind === "backlog" ? null : recentVelocity,
+        // Scope moved after start never rewrites the active sprint's commitment.
+        sprintStartCommitmentFor(section.sprint, activeSprintCommitment),
       ),
     };
   }

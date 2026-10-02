@@ -55,7 +55,10 @@ import {
 } from "@/lib/items/view-url-params";
 import { buildSprintSections } from "@/lib/items/sprint-planning";
 import { listSprintsForBacklog } from "@/lib/services/sprints";
-import { getRecentVelocityContext } from "@/lib/services/sprint-burndown";
+import {
+  getActiveSprintStartCommitment,
+  getRecentVelocityContext,
+} from "@/lib/services/sprint-burndown";
 
 const VIEW_STATE_PARAM_KEYS = [
   "q",
@@ -132,6 +135,7 @@ export async function BacklogViewContent({
     statusCountRows,
     sprintSnapshot,
     recentVelocity,
+    activeSprintCommitment,
   ] = await Promise.all([
     listItems(backlog.id, { releaseIds: viewState.filters.releaseIds }),
     listItemLabelPairs(backlog.id),
@@ -155,6 +159,11 @@ export async function BacklogViewContent({
     // Only the Backlog view renders planning comparisons; one backlog-level read.
     view === "backlog"
       ? getRecentVelocityContext(backlog.id)
+      : Promise.resolve(null),
+    // The active sprint is compared at its commitment frozen at start (Jira's
+    // velocity "Commitment"); one aggregate read, Backlog view only.
+    view === "backlog"
+      ? getActiveSprintStartCommitment(backlog.id)
       : Promise.resolve(null),
   ]);
   const releaseMatchedIds = new Set(releaseFilteredItems.map((item) => item.id));
@@ -378,6 +387,7 @@ export async function BacklogViewContent({
     memberships: sprintSnapshot.memberships,
     items: [...planningItemById.values()],
     recentVelocity,
+    activeSprintCommitment,
   });
   const activeSection = baseSprintSections.find((section) => section.kind === "active") ?? null;
   const activeSprint = activeSection?.sprint ?? null;
@@ -590,6 +600,7 @@ export async function BacklogViewContent({
           sections={planningSections}
           sprints={sprintSnapshot.sprints}
           recentVelocity={recentVelocity}
+          activeSprintCommitment={activeSprintCommitment}
           createDialogProps={createDialogProps}
           grouped={viewState.group !== null}
           statuses={statusList}
