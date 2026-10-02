@@ -104,8 +104,91 @@ export const changeItemFixVersionsSchema = z.object({
   releaseIds: fixVersionIds,
 });
 
+const fixVersionDisposition = z.discriminatedUnion("disposition", [
+  z.object({ disposition: z.literal("none") }).strict(),
+  z.object({ disposition: z.literal("remove") }).strict(),
+  z.object({
+    disposition: z.literal("transfer"),
+    targetReleaseId: uuid,
+    expectedTargetRevision: revision,
+  }).strict(),
+]);
+
+export const deleteReleaseSchema = z
+  .object({
+    backlogId: uuid,
+    releaseId: uuid,
+    expectedRevision: revision,
+    expectedScopeRevision: publicationScopeRevision,
+    fixVersions: fixVersionDisposition,
+  })
+  .strict()
+  .refine(
+    (data) =>
+      data.fixVersions.disposition !== "transfer" ||
+      data.fixVersions.targetReleaseId !== data.releaseId,
+    {
+      message: "La destination doit différer de la version supprimée.",
+      path: ["fixVersions", "targetReleaseId"],
+    },
+  );
+
+export const mergeReleaseSchema = z
+  .object({
+    backlogId: uuid,
+    sourceReleaseId: uuid,
+    expectedSourceRevision: revision,
+    expectedScopeRevision: publicationScopeRevision,
+    targetReleaseId: uuid,
+    expectedTargetRevision: revision,
+  })
+  .strict()
+  .refine((data) => data.sourceReleaseId !== data.targetReleaseId, {
+    message: "La destination doit différer de la version fusionnée.",
+    path: ["targetReleaseId"],
+  });
+
+export const reorderReleaseSchema = z
+  .object({
+    backlogId: uuid,
+    releaseId: uuid,
+    expectedRevision: revision,
+    beforeId: uuid.nullable().default(null),
+    afterId: uuid.nullable().default(null),
+  })
+  .strict()
+  .superRefine((data, context) => {
+    if (data.beforeId !== null && data.beforeId === data.afterId) {
+      context.addIssue({
+        code: "custom",
+        path: ["afterId"],
+        message: "Voisins de version invalides.",
+      });
+    }
+    for (const field of ["beforeId", "afterId"] as const) {
+      if (data[field] === data.releaseId) {
+        context.addIssue({
+          code: "custom",
+          path: [field],
+          message: "Une version ne peut pas être sa propre voisine.",
+        });
+      }
+    }
+  });
+
+export const releaseNotesOptionsSchema = z
+  .object({
+    includeIncomplete: z.boolean().default(false),
+    includeDescription: z.boolean().default(true),
+  })
+  .strict();
+
 export type CreateReleaseInput = z.infer<typeof createReleaseSchema>;
 export type UpdateReleaseInput = z.infer<typeof updateReleaseSchema>;
 export type PublishReleaseInput = z.infer<typeof publishReleaseSchema>;
 export type ReleaseIdentityInput = z.infer<typeof releaseIdentitySchema>;
 export type ChangeItemFixVersionsInput = z.infer<typeof changeItemFixVersionsSchema>;
+export type DeleteReleaseInput = z.infer<typeof deleteReleaseSchema>;
+export type MergeReleaseInput = z.infer<typeof mergeReleaseSchema>;
+export type ReorderReleaseInput = z.infer<typeof reorderReleaseSchema>;
+export type ReleaseNotesOptions = z.infer<typeof releaseNotesOptionsSchema>;

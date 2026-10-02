@@ -572,6 +572,111 @@ describeDb("release persistence constraints", () => {
     });
   });
 
+  it("keeps manual release ranks unique per backlog while legacy NULL ranks coexist", async () => {
+    await transaction(async (client) => {
+      const actor = await actorId(client);
+      const backlogId = await createBacklog(client, "RANK");
+      const otherBacklogId = await createBacklog(client, "RANKB");
+      const first = await createRelease(client, backlogId, actor, "7.0");
+      const second = await createRelease(client, backlogId, actor, "7.1");
+      const third = await createRelease(client, backlogId, actor, "7.2");
+      const foreign = await createRelease(client, otherBacklogId, actor, "7.0");
+
+      const nullRanks = await client.query(
+        "select count(*)::int as count from releases where backlog_id = $1 and rank is null",
+        [backlogId],
+      );
+      expect(nullRanks.rows).toEqual([{ count: 3 }]);
+
+      await client.query("update releases set rank = 'a0' where id = $1", [first]);
+      await expectStatementRejected(client, "update releases set rank = 'a0' where id = $1", [
+        second,
+      ]);
+      await client.query("update releases set rank = 'a1' where id = $1", [second]);
+      await client.query("update releases set rank = 'a0' where id = $1", [foreign]);
+      const ranks = await client.query(
+        "select id, rank from releases where id = any($1::uuid[]) order by rank collate \"C\", id",
+        [[first, second, third, foreign]],
+      );
+      expect(ranks.rows.map((row) => row.rank)).toEqual(["a0", "a0", "a1", null]);
+    });
+  });
+
+  it("nullifies history and cascades only current links when a release is deleted", async () => {
+    await transaction(async (client) => {
+      const backlogId = await createBacklog(client, "DELREL");
+      const actor = await actorId(client);
+      const status = await client.query<{ id: string }>(
+        `insert into statuses (backlog_id, name, category, "order", color)
+         values ($1, 'À faire', 'todo', 0, '#123456') returning id`,
+        [backlogId],
+      );
+      const itemId = randomUUID();
+      await client.query(
+        `insert into items
+          (id, key, type, backlog_id, title, status_id, reporter_id, rank, path)
+         values ($1, $2, 'tache', $3, 'Lien courant', $4, $5, $6, $7)`,
+        [
+          itemId,
+          `DEL-${randomUUID().replaceAll("-", "").slice(0, 6)}`,
+          backlogId,
+          status.rows[0]!.id,
+          actor,
+          `rank-${randomUUID()}`,
+          `root.${itemId.replaceAll("-", "")}`,
+        ],
+      );
+      const deletedReleaseId = await createRelease(client, backlogId, actor, "8.0");
+      const keptReleaseId = await createRelease(client, backlogId, actor, "8.1");
+      await client.query(
+        `insert into item_fix_versions (backlog_id, item_id, release_id, added_by)
+         values ($1, $3, $2, $5), ($1, $3, $4, $5)`,
+        [backlogId, deletedReleaseId, itemId, keptReleaseId, actor],
+      );
+      const publicationId = await createPublication(
+        client,
+        backlogId,
+        deletedReleaseId,
+        actor,
+        "8.0",
+      );
+      // The deletion event is written before the DELETE, in the same transaction.
+      await client.query(
+        `insert into release_events
+          (backlog_id, release_id, release_name, actor_id, actor_label, action)
+         values ($1, $2, '8.0', $3, 'Actor', 'release_deleted')`,
+        [backlogId, deletedReleaseId, actor],
+      );
+
+      await client.query("delete from releases where id = $1", [deletedReleaseId]);
+      await client.query("set constraints all immediate");
+
+      const links = await client.query(
+        "select release_id from item_fix_versions where item_id = $1",
+        [itemId],
+      );
+      expect(links.rows).toEqual([{ release_id: keptReleaseId }]);
+      const publication = await client.query(
+        "select release_id, release_name from release_publications where id = $1",
+        [publicationId],
+      );
+      expect(publication.rows).toEqual([{ release_id: null, release_name: "8.0" }]);
+      const events = await client.query(
+        "select release_id, release_name from release_events where backlog_id = $1 and action = 'release_deleted'",
+        [backlogId],
+      );
+      expect(events.rows).toEqual([{ release_id: null, release_name: "8.0" }]);
+
+      await expectStatementRejected(
+        client,
+        `insert into release_events
+          (backlog_id, release_id, release_name, actor_id, actor_label, action)
+         values ($1, $2, '8.0', $3, 'Actor', 'release_deleted')`,
+        [backlogId, deletedReleaseId, actor],
+      );
+    });
+  });
+
   it("rejects direct snapshot mutation and deletion", async () => {
     await transaction(async (client) => {
       const backlogId = await createBacklog(client, "IMMUTABLE");

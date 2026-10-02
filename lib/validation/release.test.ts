@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   changeItemFixVersionsSchema,
   createReleaseSchema,
+  deleteReleaseSchema,
+  mergeReleaseSchema,
   publishReleaseSchema,
+  releaseNotesOptionsSchema,
+  reorderReleaseSchema,
   updateReleaseSchema,
 } from "@/lib/validation/release";
 
@@ -148,5 +152,157 @@ describe("release validation", () => {
         expectedRevision: 1,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("release depth commands", () => {
+  const backlogId = crypto.randomUUID();
+  const releaseId = crypto.randomUUID();
+  const targetId = crypto.randomUUID();
+  const scopeRev = "0123456789abcdef0123456789abcdef";
+
+  it("requires an explicit disposition when deleting a version", () => {
+    expect(() =>
+      deleteReleaseSchema.parse({
+        backlogId,
+        releaseId,
+        expectedRevision: 3,
+        expectedScopeRevision: scopeRev,
+        fixVersions: undefined,
+      }),
+    ).toThrow();
+    expect(
+      deleteReleaseSchema.safeParse({
+        backlogId,
+        releaseId,
+        expectedRevision: 3,
+        expectedScopeRevision: scopeRev,
+        fixVersions: { disposition: "keep" },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts the none, remove and transfer dispositions", () => {
+    for (const fixVersions of [
+      { disposition: "none" },
+      { disposition: "remove" },
+      { disposition: "transfer", targetReleaseId: targetId, expectedTargetRevision: 1 },
+    ]) {
+      expect(
+        deleteReleaseSchema.safeParse({
+          backlogId,
+          releaseId,
+          expectedRevision: 3,
+          expectedScopeRevision: scopeRev,
+          fixVersions,
+        }).success,
+      ).toBe(true);
+    }
+  });
+
+  it("refuses extra fields on literal dispositions and a transfer without target", () => {
+    expect(
+      deleteReleaseSchema.safeParse({
+        backlogId,
+        releaseId,
+        expectedRevision: 3,
+        expectedScopeRevision: scopeRev,
+        fixVersions: { disposition: "none", targetReleaseId: targetId },
+      }).success,
+    ).toBe(false);
+    expect(
+      deleteReleaseSchema.safeParse({
+        backlogId,
+        releaseId,
+        expectedRevision: 3,
+        expectedScopeRevision: scopeRev,
+        fixVersions: { disposition: "transfer", targetReleaseId: targetId },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("refuses a transfer target equal to the deleted version", () => {
+    expect(() =>
+      deleteReleaseSchema.parse({
+        backlogId,
+        releaseId,
+        expectedRevision: 3,
+        expectedScopeRevision: scopeRev,
+        fixVersions: { disposition: "transfer", targetReleaseId: releaseId, expectedTargetRevision: 1 },
+      }),
+    ).toThrow();
+  });
+
+  it("requires a canonical scope revision on delete and merge", () => {
+    expect(
+      deleteReleaseSchema.safeParse({
+        backlogId,
+        releaseId,
+        expectedRevision: 3,
+        expectedScopeRevision: "stale",
+        fixVersions: { disposition: "remove" },
+      }).success,
+    ).toBe(false);
+    expect(
+      mergeReleaseSchema.safeParse({
+        backlogId,
+        sourceReleaseId: releaseId,
+        expectedSourceRevision: 1,
+        targetReleaseId: targetId,
+        expectedTargetRevision: 1,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires a distinct merge target and its revision", () => {
+    const base = {
+      backlogId,
+      sourceReleaseId: releaseId,
+      expectedSourceRevision: 2,
+      expectedScopeRevision: scopeRev,
+    };
+    expect(
+      mergeReleaseSchema.safeParse({ ...base, targetReleaseId: targetId, expectedTargetRevision: 1 })
+        .success,
+    ).toBe(true);
+    expect(mergeReleaseSchema.safeParse({ ...base, targetReleaseId: targetId }).success).toBe(false);
+    expect(
+      mergeReleaseSchema.safeParse({ ...base, targetReleaseId: releaseId, expectedTargetRevision: 2 })
+        .success,
+    ).toBe(false);
+  });
+
+  it("refuses a version as its own neighbour or identical neighbours", () => {
+    expect(() =>
+      reorderReleaseSchema.parse({
+        backlogId,
+        releaseId,
+        expectedRevision: 1,
+        beforeId: releaseId,
+        afterId: null,
+      }),
+    ).toThrow();
+    expect(
+      reorderReleaseSchema.safeParse({
+        backlogId,
+        releaseId,
+        expectedRevision: 1,
+        beforeId: targetId,
+        afterId: targetId,
+      }).success,
+    ).toBe(false);
+    expect(
+      reorderReleaseSchema.parse({ backlogId, releaseId, expectedRevision: 1, afterId: targetId }),
+    ).toMatchObject({ beforeId: null, afterId: targetId });
+  });
+
+  it("defaults release notes options to completed items with the description", () => {
+    expect(releaseNotesOptionsSchema.parse({})).toEqual({
+      includeIncomplete: false,
+      includeDescription: true,
+    });
+    expect(
+      releaseNotesOptionsSchema.parse({ includeIncomplete: true, includeDescription: false }),
+    ).toEqual({ includeIncomplete: true, includeDescription: false });
   });
 });
