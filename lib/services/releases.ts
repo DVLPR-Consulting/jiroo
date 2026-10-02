@@ -178,6 +178,10 @@ export class ReleaseScopeChangedError extends Error {
   }
 }
 
+/**
+ * Result counts cover every link of the removed version, including links of
+ * trashed items; the impact preview (scope fingerprint) counts live items only.
+ */
 export type RemoveReleaseResult = {
   deletedReleaseId: string;
   linkedCount: number;

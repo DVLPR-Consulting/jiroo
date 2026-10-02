@@ -2522,12 +2522,78 @@ describeDb("release merge and delete", () => {
     ).resolves.toEqual([]);
   });
 
-  it("transfers 1, 100, 500 and 1,000 links all-or-nothing with a fixed query count", async () => {
+  it("transfers links of trashed items while the fingerprint and none check ignore them", async () => {
+    const { actor, backlog, release, item, link } = await depthFixture("Merge trashed");
+    const source = await release("Source");
+    const target = await release("Cible");
+    const onlyTrashed = await release("Corbeille seulement");
+    const live = await item("Vivant");
+    const trashed = await item("Supprimé");
+    const trashedOnly = await item("Supprimé seul");
+    await link(live.id, source.id);
+    const liveScope = await scopeRevisionOf(backlog.id, source.id);
+    await link(trashed.id, source.id);
+    await link(trashedOnly.id, onlyTrashed.id);
+    await db
+      .update(items)
+      .set({ deletedAt: new Date() })
+      .where(inArray(items.id, [trashed.id, trashedOnly.id]));
+    expect(await scopeRevisionOf(backlog.id, source.id)).toBe(liveScope);
+
+    const merged = await mergeRelease(
+      {
+        backlogId: backlog.id,
+        sourceReleaseId: source.id,
+        expectedSourceRevision: source.revision,
+        expectedScopeRevision: liveScope,
+        targetReleaseId: target.id,
+        expectedTargetRevision: target.revision,
+      },
+      actor.id,
+      "merge-trashed",
+    );
+    expect(merged).toMatchObject({ linkedCount: 2, transferredCount: 2 });
+    expect(await fixVersionsOf(trashed.id)).toEqual([target.id]);
+
+    const emptyScope = await scopeRevisionOf(backlog.id, onlyTrashed.id);
+    await expect(
+      deleteRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: onlyTrashed.id,
+          expectedRevision: onlyTrashed.revision,
+          expectedScopeRevision: emptyScope,
+          fixVersions: { disposition: "none" },
+        },
+        actor.id,
+        "delete-trashed-none",
+      ),
+    ).resolves.toMatchObject({ linkedCount: 1, removedCount: 1 });
+    expect(await fixVersionsOf(trashedOnly.id)).toEqual([]);
+    const activityRows = await db
+      .select({ itemId: activities.itemId, requestCorrelationId: activities.requestCorrelationId })
+      .from(activities)
+      .where(
+        and(
+          inArray(activities.itemId, [trashed.id, trashedOnly.id]),
+          eq(activities.field, "fix_versions"),
+        ),
+      );
+    expect(activityRows).toEqual(
+      expect.arrayContaining([
+        { itemId: trashed.id, requestCorrelationId: "merge-trashed" },
+        { itemId: trashedOnly.id, requestCorrelationId: "delete-trashed-none" },
+      ]),
+    );
+    expect(activityRows).toHaveLength(2);
+  });
+
+  it("transfers 1 to 1,001 links all-or-nothing with a query count fixed per batch", async () => {
     const { actor, backlog, todo, release } = await depthFixture("Merge volume");
     const target = await release("Cible");
     const queryCounts: number[] = [];
     let ordinal = 10_000;
-    for (const size of [1, 100, 500, 1_000]) {
+    for (const size of [1, 100, 500, 1_000, 1_001]) {
       const source = await release(`Source ${size}`);
       const rows = Array.from({ length: size }, () => {
         const id = randomUUID();
@@ -2590,7 +2656,9 @@ describeDb("release merge and delete", () => {
       expect(moved?.count).toBe(size);
     }
     expect(queryCounts[0]).toBeGreaterThan(0);
-    expect(new Set(queryCounts).size).toBe(1);
+    expect(new Set(queryCounts.slice(0, 4)).size).toBe(1);
+    // Past one batch, only the link and activity inserts gain a statement each.
+    expect(queryCounts[4]).toBe(queryCounts[0]! + 2);
   });
 
   it("serializes two concurrent merges of the same source without a partial state", async () => {
