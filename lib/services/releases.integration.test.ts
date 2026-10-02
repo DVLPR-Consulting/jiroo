@@ -27,6 +27,7 @@ import {
   listReleaseScopeItems,
   listReleaseSummaries,
   mergeRelease,
+  reorderRelease,
   resolveReleasePublicationId,
   publishRelease as publishReleaseService,
   unarchiveRelease,
@@ -2693,5 +2694,227 @@ describeDb("release merge and delete", () => {
     expect(links).toHaveLength(1);
     expect([targetA.id, targetB.id]).toContain(links[0]);
     expect(await releaseRow(source.id)).toBeNull();
+  });
+});
+
+describeDb("release manual order", () => {
+  async function orderFixture(name: string, names: string[]) {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture(name);
+    const created: Array<{ id: string; revision: number; name: string }> = [];
+    for (const releaseName of names) {
+      const release = await createRelease(
+        { backlogId: backlog.id, name: releaseName, driverId: actor.id },
+        actor.id,
+        `order-create-${releaseName}`,
+      );
+      created.push({ ...release, name: releaseName });
+    }
+    const listed = async (includeArchived = false) =>
+      (await listReleaseSummaries(backlog.id, { includeArchived })).map((release) => release.name);
+    const reorder = async (
+      releaseName: string,
+      beforeName: string | null,
+      afterName: string | null,
+      correlationId = `reorder-${releaseName}`,
+    ) => {
+      const byName = new Map(
+        (await listReleaseSummaries(backlog.id, { includeArchived: true })).map((release) => [
+          release.name,
+          release,
+        ]),
+      );
+      const release = byName.get(releaseName)!;
+      return reorderRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: release.id,
+          expectedRevision: release.revision,
+          beforeId: beforeName ? byName.get(beforeName)!.id : null,
+          afterId: afterName ? byName.get(afterName)!.id : null,
+        },
+        actor.id,
+        correlationId,
+      );
+    };
+    return { actor, backlog, created, listed, reorder };
+  }
+
+  it("appends new versions at the end regardless of their dates", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Order append");
+    for (const [name, targetDate] of [
+      ["Tardive", "2026-12-01"],
+      ["Précoce", "2026-01-01"],
+      ["Sans date", null],
+    ] as const) {
+      await createRelease(
+        { backlogId: backlog.id, name, driverId: actor.id, targetDate },
+        actor.id,
+        `append-${name}`,
+      );
+    }
+    expect((await listReleaseSummaries(backlog.id)).map((release) => release.name)).toEqual([
+      "Tardive",
+      "Précoce",
+      "Sans date",
+    ]);
+  });
+
+  it("moves a version to the first, middle and last positions", async () => {
+    const { listed, reorder } = await orderFixture("Order moves", ["A", "B", "C", "D"]);
+    const moved = await reorder("D", null, "A");
+    expect(moved.revision).toBe(2);
+    expect(await listed()).toEqual(["D", "A", "B", "C"]);
+    await reorder("C", "D", "A");
+    expect(await listed()).toEqual(["D", "C", "A", "B"]);
+    await reorder("D", "B", null);
+    expect(await listed()).toEqual(["C", "A", "B", "D"]);
+  });
+
+  it("records neighbours in a correlated event and treats an unchanged position as a no-op", async () => {
+    const { backlog, listed, reorder } = await orderFixture("Order event", ["A", "B", "C"]);
+    await reorder("C", null, "A", "reorder-event");
+    const events = await db
+      .select({ action: releaseEvents.action, oldValue: releaseEvents.oldValue, newValue: releaseEvents.newValue })
+      .from(releaseEvents)
+      .where(and(eq(releaseEvents.backlogId, backlog.id), eq(releaseEvents.requestCorrelationId, "reorder-event")));
+    expect(events).toEqual([
+      {
+        action: "release_reordered",
+        oldValue: expect.objectContaining({ before: { id: expect.any(String), name: "B" }, after: null }),
+        newValue: expect.objectContaining({ before: null, after: { id: expect.any(String), name: "A" } }),
+      },
+    ]);
+
+    const unchanged = await reorder("A", "C", "B", "reorder-noop");
+    expect(unchanged.revision).toBe(1);
+    expect(await listed()).toEqual(["C", "A", "B"]);
+    await expect(
+      db
+        .select({ id: releaseEvents.id })
+        .from(releaseEvents)
+        .where(eq(releaseEvents.requestCorrelationId, "reorder-noop")),
+    ).resolves.toEqual([]);
+  });
+
+  it("materializes legacy ranks in the previous display order on the first reorder", async () => {
+    const actor = await actorFixture();
+    const backlog = await backlogFixture("Order legacy");
+    // PR1 rows have no rank and are displayed by target date, then name.
+    const legacy = await db
+      .insert(releases)
+      .values(
+        (
+          [
+            ["Z-tôt", "2026-01-01"],
+            ["B-tard", "2026-06-01"],
+            ["A-tard", "2026-06-01"],
+            ["Sans date", null],
+          ] as const
+        ).map(([name, releaseDate]) => ({
+          backlogId: backlog.id,
+          name,
+          releaseDate,
+          driverId: actor.id,
+          createdBy: actor.id,
+        })),
+      )
+      .returning({ id: releases.id, name: releases.name, rank: releases.rank });
+    expect(legacy.every((row) => row.rank === null)).toBe(true);
+    const listed = async () =>
+      (await listReleaseSummaries(backlog.id)).map((release) => release.name);
+    expect(await listed()).toEqual(["Z-tôt", "A-tard", "B-tard", "Sans date"]);
+
+    const byName = new Map(legacy.map((row) => [row.name, row]));
+    await reorderRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: byName.get("Sans date")!.id,
+        expectedRevision: 1,
+        beforeId: byName.get("Z-tôt")!.id,
+        afterId: byName.get("A-tard")!.id,
+      },
+      actor.id,
+      "legacy-reorder",
+    );
+    expect(await listed()).toEqual(["Z-tôt", "Sans date", "A-tard", "B-tard"]);
+    const ranks = await db
+      .select({ rank: releases.rank })
+      .from(releases)
+      .where(eq(releases.backlogId, backlog.id));
+    expect(ranks.every((row) => row.rank !== null)).toBe(true);
+  });
+
+  it("keeps an archived version's rank and skips it for adjacency", async () => {
+    const { actor, backlog, listed, reorder } = await orderFixture("Order archived", ["A", "X", "B", "C"]);
+    const summaries = await listReleaseSummaries(backlog.id);
+    const archived = summaries.find((release) => release.name === "X")!;
+    await archiveRelease(
+      { backlogId: backlog.id, releaseId: archived.id, expectedRevision: archived.revision },
+      actor.id,
+      "archive-x",
+    );
+    const [before] = await db.select({ rank: releases.rank }).from(releases).where(eq(releases.id, archived.id));
+    await reorder("C", "A", "B");
+    expect(await listed()).toEqual(["A", "C", "B"]);
+    expect(await listed(true)).toEqual(["A", "C", "X", "B"]);
+    const [after] = await db.select({ rank: releases.rank }).from(releases).where(eq(releases.id, archived.id));
+    expect(after).toEqual(before);
+    await expect(reorder("X", null, "A")).rejects.toThrow(
+      "Une version archivée ne peut pas être réordonnée.",
+    );
+  });
+
+  it("refuses stale neighbours, a stale revision and a cross-backlog neighbour", async () => {
+    const { actor, backlog, listed, reorder } = await orderFixture("Order stale", ["A", "B", "C"]);
+    await expect(reorder("C", "A", null)).rejects.toThrow("Voisin invalide pour ce backlog.");
+    const [first] = await listReleaseSummaries(backlog.id);
+    await expect(
+      reorderRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: first!.id,
+          expectedRevision: first!.revision + 1,
+          beforeId: null,
+          afterId: null,
+        },
+        actor.id,
+        "reorder-stale",
+      ),
+    ).rejects.toThrow("Cette release a changé. Rechargez-la avant de réessayer.");
+    const foreignBacklog = await backlogFixture("Order foreign");
+    const foreign = await createRelease(
+      { backlogId: foreignBacklog.id, name: "Étrangère", driverId: actor.id },
+      actor.id,
+      "order-foreign",
+    );
+    await expect(
+      reorderRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: first!.id,
+          expectedRevision: first!.revision,
+          beforeId: null,
+          afterId: foreign.id,
+        },
+        actor.id,
+        "reorder-foreign",
+      ),
+    ).rejects.toThrow("Voisin invalide pour ce backlog.");
+    await expect(
+      reorderRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: foreign.id,
+          expectedRevision: foreign.revision,
+          beforeId: null,
+          afterId: first!.id,
+        },
+        actor.id,
+        "reorder-foreign-source",
+      ),
+    ).rejects.toThrow("Release introuvable.");
+    expect(await listed()).toEqual(["A", "B", "C"]);
   });
 });

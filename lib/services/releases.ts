@@ -11,8 +11,10 @@ import {
   sql,
 } from "drizzle-orm";
 import { createHash } from "node:crypto";
+import { generateKeyBetween } from "fractional-indexing";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { binaryTextOrder } from "@/lib/db/order";
 import { user } from "@/lib/db/schema/auth";
 import {
   activities,
@@ -30,9 +32,11 @@ import {
   deleteReleaseSchema,
   mergeReleaseSchema,
   publishReleaseSchema,
+  reorderReleaseSchema,
   revisionedReleaseIdentitySchema,
   updateReleaseSchema,
 } from "@/lib/validation/release";
+import { materializeReleaseRanks, resolveReleaseRank } from "@/lib/releases/order";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -295,6 +299,53 @@ async function appendReleaseEvent(
   });
 }
 
+/** Display order of versions, shared by every read and the rank materialization. */
+function releaseDisplayOrder() {
+  return [
+    sql`${binaryTextOrder(releases.rank)} asc nulls last`,
+    asc(releases.releaseDate),
+    asc(releases.name),
+    asc(releases.id),
+  ];
+}
+
+/**
+ * Locks every version of the backlog (sorted by ID) and returns them in display
+ * order with all ranks materialized. Legacy rows without a rank are ranked in
+ * their current display order, in this transaction (lazy materialization).
+ */
+async function lockOrderedBacklogReleases(tx: Tx, backlogId: string) {
+  await tx
+    .select({ id: releases.id })
+    .from(releases)
+    .where(eq(releases.backlogId, backlogId))
+    .orderBy(asc(releases.id))
+    .for("update");
+  const rows = await tx
+    .select({
+      id: releases.id,
+      name: releases.name,
+      rank: releases.rank,
+      revision: releases.revision,
+      archivedAt: releases.archivedAt,
+    })
+    .from(releases)
+    .where(eq(releases.backlogId, backlogId))
+    .orderBy(...releaseDisplayOrder());
+  const ranks = materializeReleaseRanks(rows);
+  const missing = rows.filter((row) => row.rank === null);
+  if (missing.length > 0) {
+    const values = sql.join(
+      missing.map((row) => sql`(${row.id}::uuid, ${ranks.get(row.id)!})`),
+      sql`, `,
+    );
+    await tx.execute(
+      sql`update ${releases} set rank = v.rank from (values ${values}) as v(id, rank) where ${releases.id} = v.id`,
+    );
+  }
+  return rows.map((row) => ({ ...row, rank: ranks.get(row.id)! }));
+}
+
 export async function createRelease(
   input: unknown,
   actorId: string,
@@ -310,10 +361,17 @@ export async function createRelease(
     const actor = await readUser(tx, actorId, "Acteur");
     const driver = actor.id === data.driverId ? actor : await readUser(tx, data.driverId, "Pilote");
     await assertUniqueReleaseName(tx, data.backlogId, data.name);
+    // New versions are appended at the end of the manual order, as in Jira.
+    const ordered = await lockOrderedBacklogReleases(tx, data.backlogId);
+    const lastRank = ordered.reduce<string | null>(
+      (highest, row) => (highest === null || row.rank > highest ? row.rank : highest),
+      null,
+    );
     const [created] = await tx
       .insert(releases)
       .values({
         backlogId: data.backlogId,
+        rank: generateKeyBetween(lastRank, null),
         name: data.name,
         description: data.description ?? null,
         driverId: driver.id,
@@ -1110,6 +1168,66 @@ export async function mergeRelease(
   );
 }
 
+export async function reorderRelease(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string,
+): Promise<{ id: string; revision: number; rank: string }> {
+  const data = reorderReleaseSchema.parse(input);
+  return db.transaction(async (tx) => {
+    await lockBacklog(tx, data.backlogId);
+    const ordered = await lockOrderedBacklogReleases(tx, data.backlogId);
+    const current = ordered.find((row) => row.id === data.releaseId);
+    if (!current) throw new Error("Release introuvable.");
+    assertExpectedRevision(current, data.expectedRevision);
+    const rank = resolveReleaseRank({
+      ordered: ordered.map((row) => ({
+        id: row.id,
+        rank: row.rank,
+        archived: row.archivedAt !== null,
+      })),
+      releaseId: current.id,
+      beforeId: data.beforeId,
+      afterId: data.afterId,
+    });
+    if (rank === current.rank) {
+      return { id: current.id, revision: current.revision, rank };
+    }
+
+    const visible = ordered.filter((row) => row.archivedAt === null);
+    const index = visible.findIndex((row) => row.id === current.id);
+    const label = (row: { id: string; name: string } | undefined | null) =>
+      row ? { id: row.id, name: row.name } : null;
+    const byId = new Map(ordered.map((row) => [row.id, row]));
+    const actor = await readUser(tx, actorId, "Acteur");
+    const [updated] = await tx
+      .update(releases)
+      .set({ rank, revision: current.revision + 1, updatedAt: new Date() })
+      .where(eq(releases.id, current.id))
+      .returning({ id: releases.id, revision: releases.revision });
+    if (!updated) throw new Error("Réordonnancement impossible.");
+    await appendReleaseEvent(tx, {
+      backlogId: data.backlogId,
+      releaseId: current.id,
+      releaseName: current.name,
+      actor,
+      action: "release_reordered",
+      oldValue: {
+        revision: current.revision,
+        before: label(visible[index - 1]),
+        after: label(visible[index + 1]),
+      },
+      newValue: {
+        revision: updated.revision,
+        before: label(data.beforeId ? byId.get(data.beforeId) : null),
+        after: label(data.afterId ? byId.get(data.afterId) : null),
+      },
+      requestCorrelationId,
+    });
+    return { id: updated.id, revision: updated.revision, rank };
+  });
+}
+
 function releaseSummaryQuery(
   backlogId: string,
   options: { includeArchived: boolean; releaseId?: string },
@@ -1207,7 +1325,7 @@ function releaseSummaryQuery(
         options.includeArchived ? undefined : isNull(releases.archivedAt),
       ),
     )
-    .orderBy(asc(releases.releaseDate), asc(releases.name), asc(releases.id));
+    .orderBy(...releaseDisplayOrder());
 }
 
 type SummaryRow = Awaited<ReturnType<typeof releaseSummaryQuery>>[number];
