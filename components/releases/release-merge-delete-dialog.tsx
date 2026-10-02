@@ -43,6 +43,7 @@ export function ReleaseMergeDeleteDialog({
   release,
   targets,
   afterSuccessHref,
+  onRemoved,
 }: {
   mode: "merge" | "delete";
   backlog: { id: string; key: string };
@@ -50,6 +51,8 @@ export function ReleaseMergeDeleteDialog({
   targets: MergeDeleteTarget[];
   /** Where to navigate after success (e.g. from the deleted version's own page). */
   afterSuccessHref?: string;
+  /** Called once the version is gone, before the page refreshes (focus handling). */
+  onRemoved?: (releaseId: string) => void;
 }) {
   const router = useRouter();
   const prefix = useId();
@@ -132,6 +135,7 @@ export function ReleaseMergeDeleteDialog({
           return;
         }
         setOpen(false);
+        onRemoved?.(release.id);
         toast.success(merge ? `${release.name} fusionnée dans ${target!.name}.` : "Version supprimée.");
         if (afterSuccessHref) router.push(afterSuccessHref);
         else router.refresh();

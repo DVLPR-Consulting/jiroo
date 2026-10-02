@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listMocks = vi.hoisted(() => ({
+  deleteReleaseAction: vi.fn(),
   refresh: vi.fn(),
   reorderReleaseAction: vi.fn(),
 }));
@@ -10,7 +11,7 @@ const listMocks = vi.hoisted(() => ({
 vi.mock("@/app/actions/releases", () => ({
   archiveReleaseAction: vi.fn(),
   createReleaseAction: vi.fn(),
-  deleteReleaseAction: vi.fn(),
+  deleteReleaseAction: listMocks.deleteReleaseAction,
   mergeReleaseAction: vi.fn(),
   publishReleaseAction: vi.fn(),
   reorderReleaseAction: listMocks.reorderReleaseAction,
@@ -366,5 +367,48 @@ describe("ReleaseList manual order", () => {
     rerender(<ReleaseList {...baseProps} releases={ordered} />);
     expect(screen.queryByRole("button", { name: "Fusionner Alpha" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Supprimer Alpha" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ReleaseList focus after removal", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  async function deleteFromList(name: string, releases: ReturnType<typeof summary>[]) {
+    listMocks.deleteReleaseAction.mockResolvedValueOnce({ ok: true, result: {} });
+    const user = userEvent.setup();
+    const view = render(<ReleaseList {...baseProps} releases={releases} capabilities={manager} />);
+    await user.click(screen.getByText(`Actions pour ${name}`));
+    await user.click(screen.getByRole("button", { name: `Supprimer ${name}` }));
+    await user.click(screen.getByRole("button", { name: "Supprimer", exact: true } as never));
+    await waitFor(() => expect(listMocks.refresh).toHaveBeenCalled());
+    view.rerender(
+      <ReleaseList
+        {...baseProps}
+        releases={releases.filter((release) => release.name !== name)}
+        capabilities={manager}
+      />,
+    );
+  }
+
+  it("moves focus to the next version after a deletion", async () => {
+    await deleteFromList("Bêta", ordered);
+    await waitFor(() => expect(screen.getByRole("link", { name: "Gamma" })).toHaveFocus());
+  });
+
+  it("falls back to the previous version when the last one is deleted", async () => {
+    await deleteFromList("Gamma", ordered);
+    await waitFor(() => expect(screen.getByRole("link", { name: "Bêta" })).toHaveFocus());
+  });
+
+  it("falls back to the list heading when no version remains", async () => {
+    listMocks.deleteReleaseAction.mockResolvedValueOnce({ ok: true, result: {} });
+    const user = userEvent.setup();
+    const view = render(<ReleaseList {...baseProps} releases={[ordered[0]!]} capabilities={manager} />);
+    await user.click(screen.getByText("Actions pour Alpha"));
+    await user.click(screen.getByRole("button", { name: "Supprimer Alpha" }));
+    await user.click(screen.getByRole("button", { name: "Supprimer", exact: true } as never));
+    await waitFor(() => expect(listMocks.refresh).toHaveBeenCalled());
+    view.rerender(<ReleaseList {...baseProps} releases={[]} capabilities={manager} />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Aucune version" })).toHaveFocus());
   });
 });

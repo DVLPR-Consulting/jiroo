@@ -56,6 +56,28 @@ export function ReleaseList({
   statusIds: StatusIdsByCategory;
   showArchived: boolean;
 }) {
+  // After a delete/merge from the list, the removed card (and the dialog's
+  // trigger) disappears: move focus to the next card, else the previous one,
+  // else the list heading, once the refreshed list arrives.
+  const container = useRef<HTMLDivElement>(null);
+  const pendingFocus = useRef<{ id: string; index: number } | null>(null);
+  useEffect(() => {
+    const pending = pendingFocus.current;
+    if (!pending || releases.some((release) => release.id === pending.id)) return;
+    pendingFocus.current = null;
+    const target = releases[pending.index] ?? releases[pending.index - 1];
+    const element = target
+      ? container.current?.querySelector<HTMLElement>(`[data-release-link="${target.id}"]`)
+      : container.current?.querySelector<HTMLElement>("h2");
+    if (element && !target) element.tabIndex = -1;
+    element?.focus();
+  }, [releases]);
+  const onRemoved = (releaseId: string) => {
+    pendingFocus.current = {
+      id: releaseId,
+      index: releases.findIndex((release) => release.id === releaseId),
+    };
+  };
   const archivedToggle = (
     <Link
       className="text-sm underline-offset-2 hover:underline"
@@ -66,7 +88,7 @@ export function ReleaseList({
   );
   if (releases.length === 0) {
     return (
-      <div className="space-y-4">
+      <div ref={container} className="space-y-4">
         <div className="flex justify-end">{archivedToggle}</div>
         <EmptyState
           className="mx-auto py-20"
@@ -89,7 +111,9 @@ export function ReleaseList({
   }
 
   return (
+    <div ref={container}>
     <OrderedReleaseList
+      onRemoved={onRemoved}
       backlog={backlog}
       releases={releases}
       actor={actor}
@@ -100,6 +124,7 @@ export function ReleaseList({
       showArchived={showArchived}
       archivedToggle={archivedToggle}
     />
+    </div>
   );
 }
 
@@ -111,7 +136,10 @@ const dateFormat = new Intl.DateTimeFormat("fr-FR", {
 });
 const formatDate = (value: string) => dateFormat.format(new Date(`${value}T00:00:00Z`));
 
-type ListProps = Parameters<typeof ReleaseList>[0] & { archivedToggle: React.ReactNode };
+type ListProps = Parameters<typeof ReleaseList>[0] & {
+  archivedToggle: React.ReactNode;
+  onRemoved: (releaseId: string) => void;
+};
 
 /**
  * Manual order (Jira's single version sequence): drag handle, keyboard sensor and
@@ -128,6 +156,7 @@ function OrderedReleaseList({
   statusIds,
   showArchived,
   archivedToggle,
+  onRemoved,
 }: ListProps) {
   const router = useRouter();
   const [ordering, setOrdering] = useState({ source: releases, rendered: releases });
@@ -260,6 +289,7 @@ function OrderedReleaseList({
                 capabilities={capabilities}
                 statusIds={statusIds}
                 targets={targets.filter((target) => target.id !== release.id)}
+                onRemoved={onRemoved}
                 reorder={
                   canReorder
                     ? {
@@ -290,6 +320,7 @@ function SortableReleaseCard({
   capabilities,
   statusIds,
   targets,
+  onRemoved,
   reorder,
 }: {
   backlog: ListProps["backlog"];
@@ -301,6 +332,7 @@ function SortableReleaseCard({
   capabilities: ReleaseCapabilities;
   statusIds: StatusIdsByCategory;
   targets: Array<{ id: string; name: string; revision: number; released: boolean }>;
+  onRemoved: (releaseId: string) => void;
   reorder: null | {
     disabled: boolean;
     isFirst: boolean;
@@ -332,7 +364,11 @@ function SortableReleaseCard({
               </button>
             ) : null}
             <div className="space-y-1">
-              <Link className="font-semibold hover:underline" href={`/b/${backlog.key}/releases/${release.id}`}>
+              <Link
+                className="font-semibold hover:underline"
+                href={`/b/${backlog.key}/releases/${release.id}`}
+                data-release-link={release.id}
+              >
                 {release.name}
               </Link>
               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -392,8 +428,8 @@ function SortableReleaseCard({
                       .map(({ id, name }) => ({ id, name }))}
                     canAssignItems={capabilities.assignItems}
                   />
-                  <ReleaseMergeDeleteDialog mode="merge" backlog={backlog} release={release} targets={targets} />
-                  <ReleaseMergeDeleteDialog mode="delete" backlog={backlog} release={release} targets={targets} />
+                  <ReleaseMergeDeleteDialog mode="merge" backlog={backlog} release={release} targets={targets} onRemoved={onRemoved} />
+                  <ReleaseMergeDeleteDialog mode="delete" backlog={backlog} release={release} targets={targets} onRemoved={onRemoved} />
                 </div>
               </details>
             ) : null}

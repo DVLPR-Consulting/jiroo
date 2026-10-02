@@ -1176,6 +1176,8 @@ audited(19, "supprime avec transfert puis avec retrait en journalisant chaque it
   await transferDialog.getByLabel("Version de destination").selectOption({ label: target.name });
   await clickPost(page, () => transferDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
   await expect(page.getByRole("article", { name: transferred.name })).toHaveCount(0);
+  // Focus lands on the next version card instead of the document.
+  await expect(page.getByRole("link", { name: removed.name, exact: true })).toBeFocused();
 
   await page.goto(`/b/CASS/releases/${removed.id}`);
   await page.getByRole("button", { name: `Supprimer ${removed.name}` }).click();
