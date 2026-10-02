@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "runId": "20261002-releases-depth-delivery-02",
+  "timestamps": {
+    "startedAt": "2026-10-02T19:52:38.510Z",
+    "databaseVerifiedAt": "2026-10-02T19:52:38.522Z",
+    "manifestWrittenAt": "2026-10-02T19:52:38.635Z"
+  },
+  "runtime": {
+    "node": "v24.18.1",
+    "pnpm": "10.19.0"
+  },
+  "source": {
+    "gitSha": "e3a650a0f46e4b9d941a11fcaf1a66764149c203"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:5a2699b690c210cdba3509271834afde47b72a5ae9a277621984e7f881f63a99"
+  },
+  "server": {
+    "baseURL": "http://localhost:3010",
+    "port": 3010
+  },
+  "invocation": {
+    "command": "pnpm exec playwright test --project=chromium (local wrapper: next dev on :3010, isolated jiroo_e2e)",
+    "scenarios": "full Chromium suite: backlog foundation, ranking, permission schemes, releases 1-27 (PR2: merge, delete/transfer, manual order, release notes, deleted-version filters), sprint lifecycle, sprint reports/burndown"
+  },
+  "result": {
+    "junitReport": "audit/runs/20261002-releases-depth-delivery-02-junit.xml"
+  }
+}

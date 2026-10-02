@@ -1358,3 +1358,59 @@ hors DB (252 tests DB ignorés sans `JIROO_RUN_DB_TESTS`), TypeScript, ESLint,
 1. Releases PR2 : fusion, suppression/transfert, ordre manuel et notes.
 2. Firefox/WebKit, 768/1024/1440, zoom 200 % et VoiceOver/NVDA.
 3. Durcissement volumétrie de production et concurrence plus élevée.
+
+---
+
+## Releases PR2 — fusion, suppression/transfert, ordre manuel et notes (2 octobre 2026)
+
+Ticket Linear **JIR-39**, branche `feat/jir-39-releases-depth`, plan « Releases
+PR2 — plan d’implémentation (2026-10-02) » validé par le propriétaire le
+2 octobre 2026 (« si c’est ce que fait Jira »), avec trois arbitrages qui
+priment sur le brouillon :
+
+- **D8 (a)** : fusion, suppression et réordonnancement exigent `manage_releases`
+  seul, comme l’administration des versions dans Jira ; les notes exigent
+  `browse_backlog` ;
+- **D14 (a)** : les notes de release sont toujours générées depuis les éléments
+  **courants** de la version (comportement Jira), jamais depuis un snapshot ;
+- **D15** : regroupement Fonctionnalités / Corrections par nature d’item ; la
+  migration `0015_jira_releases_depth` n’ajoute que `releases.rank` (nullable) et
+  l’index unique `(backlog_id, rank)`.
+
+### Livré
+
+- fusion d’une version source dans une cible non archivée (publiée ou non) avec
+  transfert dédoublonné des Fix versions, une activité `fix_versions` corrélée
+  par item, événement `release_merged` écrit avant la suppression et
+  `release_items_received` sur la cible ;
+- suppression avec choix obligatoire transfert/retrait pour une version liée,
+  simple confirmation pour une version vide ; aperçu d’impact (éléments liés,
+  publications conservées) protégé par révisions source/cible et empreinte de
+  périmètre ;
+- ordre manuel unique par backlog (`fractional-indexing`), glisser-déposer,
+  clavier et Monter/Descendre dans la vue par défaut, matérialisation paresseuse
+  des rangs historiques, ordre identique dans la liste, le filtre Version et les
+  sélecteurs ; une nouvelle version est ajoutée en fin d’ordre ;
+- notes de release générées à chaque vue (terminés seulement, option non
+  terminés, description optionnelle, sous-tâches exclues), éditables localement,
+  copiables et téléchargeables en Markdown et HTML sans HTML brut ;
+- un filtre Version pointant une version supprimée est ignoré à la lecture
+  (vue enregistrée non réécrite).
+
+### Preuve autoritative
+
+Run `20261002-releases-depth-delivery-02` (persisté sous `audit/`, source
+`e3a650a`) : **63/63** Chromium en 145,8 s, dont Releases 27/27 (16 PR1 +
+11 PR2). 0 réponse HTTP 4xx/5xx, 0 erreur page, 0 défaut ; les 7 requêtes
+échouées sont des pannes injectées étiquetées `[expected]` (Releases S07, S12,
+S14 hérités ; S21 ×3 pour la capture des requêtes forgées ; S23). Scan des
+154 artefacts : aucune URL PostgreSQL, aucun secret local, aucun identifiant
+système, aucun en-tête `Cookie`/`Authorization`. Le run `-01` a échoué avant
+tout test (variables d’audit persistant absentes) ; son JUnit vide a été retiré.
+
+Vérification : 1 411 tests hors DB (279 ignorés sans `JIROO_RUN_DB_TESTS`),
+279/279 intégrations PostgreSQL en série (dont le garde E2E rejoué avec
+l’environnement E2E), TypeScript, ESLint (1 avertissement préexistant dans
+`lib/auth/client.ts`) et build Next.js 16.3.3 verts.
+
+Revue détaillée : `audit/reviews/2026-10-02-releases-depth-review.md`.

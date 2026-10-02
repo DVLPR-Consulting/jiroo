@@ -1,0 +1,306 @@
+[request] [admin] GET http://localhost:3010/b/CASS?view=list
+[response] [admin] GET 200 http://localhost:3010/b/CASS?view=list
+[request] [admin] GET http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[request] [admin] GET http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0ii-aqe._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_items_002nylq._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_sprints_1890goa._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_10q09n3._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0s-ehm4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/09q4_%40dnd-kit_core_dist_core_esm_0t_2dcq.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1_33_micromark_dev_lib_0cqgvao._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1g_1_micromark-core-commonmark_dev_lib_1iz2svp._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1q--q4a._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[response] [admin] GET 200 http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_0ii-aqe._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/components_sprints_1890goa._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_0s-ehm4._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/components_10q09n3._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/1_33_micromark_dev_lib_0cqgvao._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/09q4_%40dnd-kit_core_dist_core_esm_0t_2dcq.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/1g_1_micromark-core-commonmark_dev_lib_1iz2svp._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/components_items_002nylq._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1q--q4a._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[request] [admin] GET http://localhost:3010/b/CASS?view=list&version=e6017332-5070-429d-aefa-567df3727201&_rsc=EehZWoWcP0TGNYMH
+[response] [admin] GET 200 http://localhost:3010/b/CASS?view=list&version=e6017332-5070-429d-aefa-567df3727201&_rsc=EehZWoWcP0TGNYMH
+[request] [admin] GET http://localhost:3010/b/CASS?view=list&version=e6017332-5070-429d-aefa-567df3727201
+[response] [admin] GET 200 http://localhost:3010/b/CASS?view=list&version=e6017332-5070-429d-aefa-567df3727201
+[request] [admin] GET http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[response] [admin] GET 200 http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[request] [admin] GET http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[response] [admin] GET 200 http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0ii-aqe._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_items_002nylq._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_sprints_1890goa._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_10q09n3._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0s-ehm4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/09q4_%40dnd-kit_core_dist_core_esm_0t_2dcq.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1_33_micromark_dev_lib_0cqgvao._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1g_1_micromark-core-commonmark_dev_lib_1iz2svp._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1q--q4a._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_0ii-aqe._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/components_sprints_1890goa._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_0s-ehm4._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/components_10q09n3._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/components_items_002nylq._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/1_33_micromark_dev_lib_0cqgvao._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/1g_1_micromark-core-commonmark_dev_lib_1iz2svp._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/09q4_%40dnd-kit_core_dist_core_esm_0t_2dcq.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1q--q4a._.js
+[request] [admin] POST http://localhost:3010/b/CASS?view=list&version=e6017332-5070-429d-aefa-567df3727201
+[response] [admin] POST 200 http://localhost:3010/b/CASS?view=list&version=e6017332-5070-429d-aefa-567df3727201
+[request] [admin] GET http://localhost:3010/b/CASS?view=list&version=e6017332-5070-429d-aefa-567df3727201&v=f70a7c21-8851-4e45-b65d-bc6e099731dd&_rsc=EehZWoWcP0TGNYMH
+[response] [admin] GET 200 http://localhost:3010/b/CASS?view=list&version=e6017332-5070-429d-aefa-567df3727201&v=f70a7c21-8851-4e45-b65d-bc6e099731dd&_rsc=EehZWoWcP0TGNYMH
+[request] [admin] GET http://localhost:3010/b/CASS?view=list&version=e6017332-5070-429d-aefa-567df3727201&v=f70a7c21-8851-4e45-b65d-bc6e099731dd
+[response] [admin] GET 200 http://localhost:3010/b/CASS?view=list&version=e6017332-5070-429d-aefa-567df3727201&v=f70a7c21-8851-4e45-b65d-bc6e099731dd
+[request] [admin] GET http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[response] [admin] GET 200 http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[request] [admin] GET http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[response] [admin] GET 200 http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0ii-aqe._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_items_002nylq._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_sprints_1890goa._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_10q09n3._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0s-ehm4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/09q4_%40dnd-kit_core_dist_core_esm_0t_2dcq.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1_33_micromark_dev_lib_0cqgvao._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1g_1_micromark-core-commonmark_dev_lib_1iz2svp._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1q--q4a._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_0ii-aqe._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/components_sprints_1890goa._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/components_10q09n3._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/components_items_002nylq._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/_0s-ehm4._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/1_33_micromark_dev_lib_0cqgvao._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/1g_1_micromark-core-commonmark_dev_lib_1iz2svp._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/09q4_%40dnd-kit_core_dist_core_esm_0t_2dcq.js
+[response] [admin] GET 200 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1q--q4a._.js
+[request] [admin] GET http://localhost:3010/b/CASS?view=board&version=e6017332-5070-429d-aefa-567df3727201
+[response] [admin] GET 200 http://localhost:3010/b/CASS?view=board&version=e6017332-5070-429d-aefa-567df3727201
+[request] [admin] GET http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[response] [admin] GET 200 http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[request] [admin] GET http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[response] [admin] GET 200 http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0ii-aqe._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_items_002nylq._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_sprints_1890goa._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_10q09n3._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0s-ehm4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/09q4_%40dnd-kit_core_dist_core_esm_0t_2dcq.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1_33_micromark_dev_lib_0cqgvao._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1g_1_micromark-core-commonmark_dev_lib_1iz2svp._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1q--q4a._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/_0ii-aqe._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/components_items_002nylq._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/components_sprints_1890goa._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/components_10q09n3._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/_0s-ehm4._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/1_33_micromark_dev_lib_0cqgvao._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/1g_1_micromark-core-commonmark_dev_lib_1iz2svp._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1q--q4a._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/09q4_%40dnd-kit_core_dist_core_esm_0t_2dcq.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[request] [admin] GET http://localhost:3010/b/CASS?view=board&version=e6017332-5070-429d-aefa-567df3727201
+[response] [admin] GET 200 http://localhost:3010/b/CASS?view=board&version=e6017332-5070-429d-aefa-567df3727201
+[request] [admin] GET http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[response] [admin] GET 200 http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[request] [admin] GET http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[response] [admin] GET 200 http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0ii-aqe._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_items_002nylq._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_sprints_1890goa._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/components_10q09n3._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/_0s-ehm4._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/09q4_%40dnd-kit_core_dist_core_esm_0t_2dcq.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1_33_micromark_dev_lib_0cqgvao._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/1g_1_micromark-core-commonmark_dev_lib_1iz2svp._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1q--q4a._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/_0ii-aqe._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[request] [admin] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/components_items_002nylq._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/components_sprints_1890goa._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/components_10q09n3._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/_0s-ehm4._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/1_33_micromark_dev_lib_0cqgvao._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/1g_1_micromark-core-commonmark_dev_lib_1iz2svp._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1q--q4a._.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/09q4_%40dnd-kit_core_dist_core_esm_0t_2dcq.js
+[response] [admin] GET 304 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js

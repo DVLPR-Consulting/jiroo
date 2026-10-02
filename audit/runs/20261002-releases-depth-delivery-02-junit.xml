@@ -1,0 +1,140 @@
+<testsuites id="" name="" tests="63" failures="0" skipped="0" errors="0" time="145.755309">
+<testsuite name="backlog-foundation.spec.ts" timestamp="2026-10-02T19:52:40.358Z" hostname="chromium" tests="6" failures="0" skipped="0" time="7.764" errors="0">
+<testcase name="sélectionne une plage et applique les quatre actions groupées" classname="backlog-foundation.spec.ts" time="2.827">
+</testcase>
+<testcase name="le lecteur ne reçoit aucun contrôle de planification" classname="backlog-foundation.spec.ts" time="0.516">
+</testcase>
+<testcase name="distingue 5, zéro et non estimé puis restaure la valeur" classname="backlog-foundation.spec.ts" time="1.478">
+</testcase>
+<testcase name="désactive le classement avec tri ou groupement et conserve le mode Backlog" classname="backlog-foundation.spec.ts" time="1.203">
+</testcase>
+<testcase name="isole la sélection de la Liste et la réinitialise au changement de vue" classname="backlog-foundation.spec.ts" time="0.725">
+</testcase>
+<testcase name="restaure le classement et conserve la sélection après deux échecs réseau injectés" classname="backlog-foundation.spec.ts" time="1.015">
+</testcase>
+</testsuite>
+<testsuite name="backlog-ranking.spec.ts" timestamp="2026-10-02T19:52:40.358Z" hostname="chromium" tests="1" failures="0" skipped="0" time="2.216" errors="0">
+<testcase name="classe à la souris, restaure au clavier et conserve chaque ordre" classname="backlog-ranking.spec.ts" time="2.216">
+</testcase>
+</testsuite>
+<testsuite name="permission-schemes.spec.ts" timestamp="2026-10-02T19:52:40.358Z" hostname="chromium" tests="10" failures="0" skipped="0" time="13.104" errors="0">
+<testcase name="1. crée un groupe, un rôle personnalisé et un clone de schéma" classname="permission-schemes.spec.ts" time="2.001">
+</testcase>
+<testcase name="2. isole le grant de rôle et l’occupation de groupe à un seul backlog" classname="permission-schemes.spec.ts" time="0.86">
+</testcase>
+<testcase name="3. explique les grants direct, groupe et rôle dans l’Assistant de permissions" classname="permission-schemes.spec.ts" time="1.127">
+</testcase>
+<testcase name="4. rejette une Server Action forgée par le lecteur" classname="permission-schemes.spec.ts" time="0.891">
+</testcase>
+<testcase name="5. donne au spécialiste les contrôles de sprint sans édition d’item ni workflow" classname="permission-schemes.spec.ts" time="0.565">
+</testcase>
+<testcase name="6. relie manage_releases à l’interface Releases du spécialiste" classname="permission-schemes.spec.ts" time="2.009">
+</testcase>
+<testcase name="7. retire browse de la navigation, recherche, récents, notifications et URL" classname="permission-schemes.spec.ts" time="2.045">
+</testcase>
+<testcase name="8. détecte puis récupère un conflit de version sur schéma partagé" classname="permission-schemes.spec.ts" time="1.372">
+</testcase>
+<testcase name="9. conserve un historique de sécurité append-only" classname="permission-schemes.spec.ts" time="0.593">
+</testcase>
+<testcase name="10. persiste après reload et dans un second contexte utilisateur" classname="permission-schemes.spec.ts" time="1.641">
+</testcase>
+</testsuite>
+<testsuite name="releases.spec.ts" timestamp="2026-10-02T19:52:40.358Z" hostname="chromium" tests="27" failures="0" skipped="0" time="63.21" errors="0">
+<testcase name="01 — crée puis modifie une version" classname="releases.spec.ts" time="1.737">
+</testcase>
+<testcase name="02 — persiste deux versions à la création puis depuis le détail" classname="releases.spec.ts" time="8.594">
+</testcase>
+<testcase name="03 — ajoute, remplace et retire des versions en masse" classname="releases.spec.ts" time="4.693">
+</testcase>
+<testcase name="04 — conserve le filtre Version après reload et dans une vue enregistrée" classname="releases.spec.ts" time="2.828">
+</testcase>
+<testcase name="05 — calcule la progression depuis les items et leurs points" classname="releases.spec.ts" time="0.634">
+</testcase>
+<testcase name="06 — permet au spécialiste de publier en conservant les incomplets" classname="releases.spec.ts" time="0.966">
+</testcase>
+<testcase name="07 — refuse un publish move forgé par le spécialiste" classname="releases.spec.ts" time="1.081">
+</testcase>
+<testcase name="08 — conserve deux snapshots après dépublication et republication" classname="releases.spec.ts" time="1.41">
+</testcase>
+<testcase name="09 — déplace les incomplets sans retirer leurs versions sans rapport" classname="releases.spec.ts" time="0.926">
+</testcase>
+<testcase name="10 — masque une version archivée des candidats tout en gardant l’affectation courante" classname="releases.spec.ts" time="5.392">
+</testcase>
+<testcase name="11 — autorise l’éditeur à affecter sans exposer le cycle de vie" classname="releases.spec.ts" time="1.422">
+</testcase>
+<testcase name="12 — refuse la requête forgée du lecteur sans changer DB ni historique" classname="releases.spec.ts" time="1.222">
+</testcase>
+<testcase name="13 — détecte une édition stale entre deux contextes" classname="releases.spec.ts" time="1.58">
+</testcase>
+<testcase name="14 — garde le dialogue ouvert et rollback après publish intercepté" classname="releases.spec.ts" time="0.752">
+</testcase>
+<testcase name="15 — rend la release visible au second utilisateur et isole CASS de LABS" classname="releases.spec.ts" time="1.654">
+</testcase>
+<testcase name="16 — refuse un publish quand le périmètre change entre deux contextes" classname="releases.spec.ts" time="3.368">
+</testcase>
+<testcase name="17 — fusionne une version en dédoublonnant les liens et la retire partout" classname="releases.spec.ts" time="2.091">
+</testcase>
+<testcase name="18 — fusionne une version publiée sans réécrire les snapshots ni leurs libellés" classname="releases.spec.ts" time="1.388">
+</testcase>
+<testcase name="19 — supprime avec transfert puis avec retrait en journalisant chaque item" classname="releases.spec.ts" time="2.473">
+</testcase>
+<testcase name="20 — laisse le spécialiste fusionner et supprimer sans edit_items, comme Jira" classname="releases.spec.ts" time="2.39">
+</testcase>
+<testcase name="21 — masque fusion, suppression et ordre à l’éditeur et au lecteur et refuse leurs requêtes forgées" classname="releases.spec.ts" time="3.359">
+</testcase>
+<testcase name="22 — refuse une suppression dont l’aperçu d’impact est devenu stale" classname="releases.spec.ts" time="0.792">
+</testcase>
+<testcase name="23 — garde le dialogue et la sélection après une suppression interceptée" classname="releases.spec.ts" time="0.751">
+</testcase>
+<testcase name="24 — réordonne par glisser-déposer puis Monter, partout et pour un second utilisateur" classname="releases.spec.ts" time="3.77">
+</testcase>
+<testcase name="25 — génère les notes depuis l’état courant, publiée ou non" classname="releases.spec.ts" time="2.781">
+</testcase>
+<testcase name="26 — édite les notes puis copie et télécharge Markdown et HTML sans HTML brut" classname="releases.spec.ts" time="0.671">
+</testcase>
+<testcase name="27 — ignore une version supprimée dans l’URL et la vue enregistrée, et reste responsive" classname="releases.spec.ts" time="4.485">
+</testcase>
+</testsuite>
+<testsuite name="sprint-lifecycle.spec.ts" timestamp="2026-10-02T19:52:40.358Z" hostname="chromium" tests="7" failures="0" skipped="0" time="18.79" errors="0">
+<testcase name="planifie, exécute et clôture un sprint sans exposer le backlog sur le Board" classname="sprint-lifecycle.spec.ts" time="4.952">
+</testcase>
+<testcase name="conserve le sprint planifié et explique un échec réseau au démarrage" classname="sprint-lifecycle.spec.ts" time="2.278">
+</testcase>
+<testcase name="recalcule et explique un dépassement de capacité avant démarrage" classname="sprint-lifecycle.spec.ts" time="0.916">
+</testcase>
+<testcase name="restaure sélection et section après deux échecs réseau de planification" classname="sprint-lifecycle.spec.ts" time="2.066">
+</testcase>
+<testcase name="clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ouverte" classname="sprint-lifecycle.spec.ts" time="2.693">
+</testcase>
+<testcase name="laisse le lecteur consulter la planification et le Board sans aucun contrôle" classname="sprint-lifecycle.spec.ts" time="2.672">
+</testcase>
+<testcase name="planifie une plage de tâches en masse et conserve la section après rechargement" classname="sprint-lifecycle.spec.ts" time="3.213">
+</testcase>
+</testsuite>
+<testsuite name="sprint-reports.spec.ts" timestamp="2026-10-02T19:52:40.358Z" hostname="chromium" tests="12" failures="0" skipped="0" time="36.358" errors="0">
+<testcase name="01 — affiche les rapports figés et la vélocité explicable" classname="sprint-reports.spec.ts" time="1.691">
+</testcase>
+<testcase name="02 — distingue les états vides, planifiés, actifs non estimés et legacy" classname="sprint-reports.spec.ts" time="4.324">
+</testcase>
+<testcase name="03 — conserve les lectures lecteur, second contexte et dissimule les ressources" classname="sprint-reports.spec.ts" time="4.123">
+</testcase>
+<testcase name="04 — reste lisible et sans débordement à 390 par 844" classname="sprint-reports.spec.ts" time="0.98">
+</testcase>
+<testcase name="05 — masque une panne de lecture et récupère après retry" classname="sprint-reports.spec.ts" time="1.238">
+</testcase>
+<testcase name="06 — relie bulk, Board et clôture UI au rapport" classname="sprint-reports.spec.ts" time="9.043">
+</testcase>
+<testcase name="07 — rejoue le burndown actif depuis le baseline figé et le ledger" classname="sprint-reports.spec.ts" time="1.513">
+</testcase>
+<testcase name="08 — relie édition unitaire, bulk et Board au burndown, ordre par séquence" classname="sprint-reports.spec.ts" time="3.447">
+</testcase>
+<testcase name="09 — fige le point final à la clôture et ignore les mutations ultérieures" classname="sprint-reports.spec.ts" time="3.626">
+</testcase>
+<testcase name="10 — compare un sprint planifié à la vélocité récente sans bloquer" classname="sprint-reports.spec.ts" time="1.63">
+</testcase>
+<testcase name="11 — conserve le burndown pour lecteur et second contexte, dissimule étranger et malformé" classname="sprint-reports.spec.ts" time="3.446">
+</testcase>
+<testcase name="12 — masque une panne de lecture du burndown et récupère après retry" classname="sprint-reports.spec.ts" time="1.297">
+</testcase>
+</testsuite>
+</testsuites>

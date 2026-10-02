@@ -1,0 +1,21 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[expected] interruption volontaire du prochain POST /b/CASS/releases/bbfe68ff-c211-43e6-b11f-48759c19557b
+[admin] error: Failed to load resource: net::ERR_FAILED
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[expected] interruption volontaire du prochain POST /b/CASS/releases/bbfe68ff-c211-43e6-b11f-48759c19557b
+[admin] error: Failed to load resource: net::ERR_FAILED
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[expected] interruption volontaire du prochain POST /b/CASS/releases
+[admin] error: Failed to load resource: net::ERR_FAILED
+[editor-forged] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[editor-forged] log: [HMR] connected
+[editor-forged] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[editor-forged] log: [HMR] connected
+[reader-forged] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader-forged] log: [HMR] connected
+[reader-forged] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader-forged] log: [HMR] connected
+[duration] scenario 21: 3165ms
