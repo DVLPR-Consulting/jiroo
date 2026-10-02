@@ -294,8 +294,10 @@ Manual capacity and recent velocity remain separate rows with separate labels.
 > `Périmètre actuel N pts`. If the start facts are missing (legacy history,
 > where the burndown is `legacy_unavailable`), the header shows
 > `Engagement au démarrage indisponible` plus `Périmètre actuel` and no
-> comparison. Planned sprints are unchanged (current scope; amber warning
-> planned-only); capacity and controls are unchanged.
+> comparison. When no recent sprint is comparable, an active sprint shows
+> `Pas encore de vélocité comparable` plus `Périmètre actuel`. Planned sprints
+> are unchanged (current scope; amber warning planned-only); capacity and
+> controls are unchanged.
 
 ## Read services
 

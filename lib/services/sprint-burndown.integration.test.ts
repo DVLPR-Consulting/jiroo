@@ -813,6 +813,9 @@ describeDb("sprint burndown read model", () => {
         sprintId: initialSprint.id,
         commitmentPoints: null,
       });
+      // Same data, same verdict: the burndown also refuses to invent a curve.
+      await expect(getBurndownReport(initialFixture.backlog.id, initialSprint.id, options))
+        .resolves.toMatchObject({ kind: "legacy_unavailable" });
 
       const initial = await insertTask(addedFixture, "Initial valide", 3);
       const addedSprint = await startWithTasks(addedFixture, [initial.id]);
@@ -828,6 +831,8 @@ describeDb("sprint burndown read model", () => {
         sprintId: addedSprint.id,
         commitmentPoints: null,
       });
+      await expect(getBurndownReport(addedFixture.backlog.id, addedSprint.id, options))
+        .resolves.toMatchObject({ kind: "legacy_unavailable" });
     } finally {
       await cleanupBacklogs(initialFixture.backlog.id, addedFixture.backlog.id);
       if (eventConstraintNeedsValidation) await validateSprintEventShape();
