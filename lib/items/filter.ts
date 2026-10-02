@@ -155,6 +155,16 @@ export function enrichHierarchy(items: HierarchyItem[]): FilterItem[] {
   });
 }
 
+/**
+ * Drops Version filter IDs that no longer exist (deleted or merged versions), so
+ * a stale URL or saved view never yields a misleading empty list. Saved views
+ * are not rewritten; only the effective filter is sanitized.
+ */
+export function withKnownReleaseIds(filters: Filters, knownIds: ReadonlySet<string>): Filters {
+  const releaseIds = filters.releaseIds.filter((id) => knownIds.has(id));
+  return releaseIds.length === filters.releaseIds.length ? filters : { ...filters, releaseIds };
+}
+
 export function isFiltersActive(f: Filters): boolean {
   return (
     f.q.trim() !== "" ||
