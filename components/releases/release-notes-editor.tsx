@@ -49,11 +49,14 @@ export function ReleaseNotesEditor({
   const prefix = useId();
   const previewRef = useRef<HTMLDivElement>(null);
   const [markdown, setMarkdown] = useState(initialMarkdown);
-  const [generated, setGenerated] = useState(initialMarkdown);
+  // A generation is identified by its options and its text, so an accepted
+  // regeneration resets local edits even when the generated text is unchanged.
+  const generation = `${options.includeIncomplete}|${options.includeDescription}|${initialMarkdown}`;
+  const [generated, setGenerated] = useState(generation);
   const [status, setStatus] = useState("");
   const [regenerating, startRegeneration] = useTransition();
-  if (generated !== initialMarkdown) {
-    setGenerated(initialMarkdown);
+  if (generated !== generation) {
+    setGenerated(generation);
     setMarkdown(initialMarkdown);
   }
 

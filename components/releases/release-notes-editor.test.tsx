@@ -166,6 +166,25 @@ describe("ReleaseNotesEditor", () => {
     expect(textarea).toHaveValue("# Régénérées\n");
   });
 
+  it("resets accepted edits when new options regenerate identical notes", async () => {
+    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
+    const user = setupUser();
+    const { rerender } = renderEditor();
+    const textarea = screen.getByRole("textbox", { name: "Notes de release (Markdown)" });
+    await user.clear(textarea);
+    await user.type(textarea, "# Version locale");
+    await user.click(screen.getByRole("checkbox", { name: "Inclure les éléments non terminés" }));
+    rerender(
+      <ReleaseNotesEditor
+        initialMarkdown={initialMarkdown}
+        fileBaseName="notes-de-release-2026-10"
+        title="Notes de release — 2026.10"
+        options={{ includeIncomplete: true, includeDescription: true }}
+      />,
+    );
+    expect(textarea).toHaveValue(initialMarkdown);
+  });
+
   it("round-trips options through the URL", async () => {
     const user = setupUser();
     renderEditor();
