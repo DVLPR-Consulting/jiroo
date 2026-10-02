@@ -223,3 +223,13 @@ describe("ReleaseDetail merge and delete", () => {
     expect(history).toHaveTextContent("Lin a reçu les éléments d’une version fusionnée ou supprimée");
   });
 });
+
+describe("ReleaseDetail release notes", () => {
+  it("links every backlog reader to the release notes", () => {
+    render(<ReleaseDetail {...props} />);
+    expect(screen.getByRole("link", { name: "Notes de release" })).toHaveAttribute(
+      "href",
+      `/b/CASS/releases/${props.release.id}/notes`,
+    );
+  });
+});

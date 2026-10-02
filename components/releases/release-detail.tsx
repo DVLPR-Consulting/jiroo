@@ -165,6 +165,12 @@ export function ReleaseDetail({
               ) : null}
             </div>
             {release.description ? <p className="text-sm text-muted-foreground">{release.description}</p> : null}
+            <Link
+              href={`${path}/notes`}
+              className="inline-block text-sm font-medium underline-offset-2 hover:underline"
+            >
+              Notes de release
+            </Link>
           </div>
           {capabilities.manage ? (
             <div className="flex flex-wrap gap-2">
