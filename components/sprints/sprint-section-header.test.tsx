@@ -24,6 +24,7 @@ const metrics = {
   capacityPoints: 10,
   overCapacityPoints: 3,
   velocityComparison: null,
+  commitmentBasis: null,
 };
 const aboveVelocity = {
   state: "ready" as const,
@@ -174,13 +175,45 @@ describe("SprintSectionHeader", () => {
     expect(screen.getByRole("button", { name: "Descendre Sprint paiement" })).toBeEnabled();
   });
 
-  it("states a commitment at or below recent velocity without a warning", () => {
+  it("compares the active sprint's start commitment and shows the current scope separately", () => {
     render(
       <SprintSectionHeader
         kind="active"
         sprint={{ ...sprint, state: "active" }}
         metrics={{
           ...metrics,
+          estimatedPoints: 25,
+          capacityPoints: 30,
+          overCapacityPoints: 0,
+          commitmentBasis: "sprint_start",
+          velocityComparison: {
+            ...aboveVelocity,
+            commitmentPoints: 10,
+            averageCompletedPoints: 6.25,
+            difference: 3.75,
+          },
+        }}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage
+      />,
+    );
+
+    expect(
+      screen.getByText("Engagement 10 pts · moyenne récente 6,25 pts · écart +3,75 pts"),
+    ).toBeVisible();
+    expect(screen.getByText("Périmètre actuel 25 pts")).toBeVisible();
+    expect(screen.queryByText(/avertissement non bloquant/)).not.toBeInTheDocument();
+  });
+
+  it("states an active commitment at or below recent velocity without a warning", () => {
+    render(
+      <SprintSectionHeader
+        kind="active"
+        sprint={{ ...sprint, state: "active" }}
+        metrics={{
+          ...metrics,
+          commitmentBasis: "sprint_start",
           velocityComparison: { ...aboveVelocity, commitmentPoints: 8, difference: -2 },
         }}
         expanded
@@ -194,7 +227,50 @@ describe("SprintSectionHeader", () => {
     );
     expect(comparison).toBeVisible();
     expect(comparison.className).not.toMatch(/amber/);
+    expect(screen.getByText("Périmètre actuel 13 pts")).toBeVisible();
     expect(screen.queryByText(/avertissement non bloquant/)).not.toBeInTheDocument();
+  });
+
+  it("shows only the current scope when an active sprint has no start commitment", () => {
+    render(
+      <SprintSectionHeader
+        kind="active"
+        sprint={{ ...sprint, state: "active" }}
+        metrics={{
+          ...metrics,
+          estimatedPoints: 25,
+          commitmentBasis: "sprint_start_unavailable",
+          velocityComparison: null,
+        }}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage
+      />,
+    );
+
+    expect(screen.getByText("Engagement au démarrage indisponible")).toBeVisible();
+    expect(screen.getByText("Périmètre actuel 25 pts")).toBeVisible();
+    expect(screen.queryByText(/moyenne récente/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/écart/)).not.toBeInTheDocument();
+  });
+
+  it("does not label a planned sprint's scope as the current scope", () => {
+    render(
+      <SprintSectionHeader
+        kind="planned"
+        sprint={sprint}
+        metrics={{
+          ...metrics,
+          commitmentBasis: "current_scope",
+          velocityComparison: aboveVelocity,
+        }}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage
+      />,
+    );
+
+    expect(screen.queryByText(/Périmètre actuel/)).not.toBeInTheDocument();
   });
 
   it("says when no recent velocity is comparable", () => {

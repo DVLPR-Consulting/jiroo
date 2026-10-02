@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildSprintSections,
   calculateSprintMetrics,
+  sprintStartCommitmentFor,
   type SprintPlanningItem,
   type SprintSummary,
 } from "@/lib/items/sprint-planning";
@@ -61,6 +62,7 @@ describe("sprint planning", () => {
       capacityPoints: 10,
       overCapacityPoints: 3,
       velocityComparison: null,
+      commitmentBasis: null,
     });
   });
 
@@ -93,6 +95,77 @@ describe("sprint planning", () => {
       overCapacityPoints: 3,
       velocityComparison: { state: "ready", difference: -7 },
     });
+  });
+
+  it("compares the commitment frozen at sprint start while the live scope keeps moving", () => {
+    const rows = [
+      item("initial", { estimatePoints: 10 }),
+      item("added-after-start", { estimatePoints: 15 }),
+    ];
+
+    expect(
+      calculateSprintMetrics(
+        rows,
+        20,
+        { population: 4, averageCompletedPoints: 6.25 },
+        { points: 10 },
+      ),
+    ).toMatchObject({
+      estimatedPoints: 25,
+      capacityPoints: 20,
+      overCapacityPoints: 5,
+      commitmentBasis: "sprint_start",
+      velocityComparison: {
+        state: "ready",
+        commitmentPoints: 10,
+        averageCompletedPoints: 6.25,
+        difference: 3.75,
+      },
+    });
+  });
+
+  it("never invents a commitment when the start facts are missing", () => {
+    expect(
+      calculateSprintMetrics(
+        [item("one", { estimatePoints: 25 })],
+        null,
+        { population: 4, averageCompletedPoints: 6.25 },
+        { points: null },
+      ),
+    ).toMatchObject({
+      estimatedPoints: 25,
+      commitmentBasis: "sprint_start_unavailable",
+      velocityComparison: null,
+    });
+  });
+
+  it("keeps the current scope as the planned commitment and no basis without velocity context", () => {
+    const rows = [item("one", { estimatePoints: 13 })];
+    expect(
+      calculateSprintMetrics(rows, null, { population: 1, averageCompletedPoints: 10 }),
+    ).toMatchObject({
+      commitmentBasis: "current_scope",
+      velocityComparison: { commitmentPoints: 13 },
+    });
+    expect(calculateSprintMetrics(rows, null, null, { points: 10 })).toMatchObject({
+      commitmentBasis: null,
+      velocityComparison: null,
+    });
+  });
+
+  it("resolves the frozen commitment only for the matching active sprint", () => {
+    const frozen = { sprintId: "active", commitmentPoints: 10 };
+    expect(sprintStartCommitmentFor(sprint("active", "active", "a0"), frozen)).toEqual({
+      points: 10,
+    });
+    expect(sprintStartCommitmentFor(sprint("active", "active", "a0"), null)).toEqual({
+      points: null,
+    });
+    expect(
+      sprintStartCommitmentFor(sprint("other", "active", "a0"), frozen),
+    ).toEqual({ points: null });
+    expect(sprintStartCommitmentFor(sprint("future", "planned", "a1"), frozen)).toBeNull();
+    expect(sprintStartCommitmentFor(null, frozen)).toBeNull();
   });
 
   it("reports an unavailable comparison when no recent sprint is comparable", () => {
@@ -172,7 +245,7 @@ describe("sprint planning", () => {
     });
   });
 
-  it("applies one recent velocity context to sprint sections but never to the Backlog", () => {
+  it("compares the active sprint at its start commitment, planned sprints at scope, never the Backlog", () => {
     const sections = buildSprintSections({
       sprints: [sprint("active", "active", "a0", 8), sprint("future", "planned", "a1")],
       items: [
@@ -185,14 +258,36 @@ describe("sprint planning", () => {
         { itemId: "future-item", sprintId: "future", leftAt: null },
       ],
       recentVelocity: { population: 2, averageCompletedPoints: 10 },
+      activeSprintCommitment: { sprintId: "active", commitmentPoints: 4 },
     });
 
     expect(sections.map((section) => section.metrics.velocityComparison)).toEqual([
-      expect.objectContaining({ state: "ready", commitmentPoints: 5, difference: -5 }),
+      expect.objectContaining({ state: "ready", commitmentPoints: 4, difference: -6 }),
       expect.objectContaining({ state: "ready", commitmentPoints: 13, difference: 3 }),
       null,
     ]);
-    expect(sections[0]?.metrics.overCapacityPoints).toBe(0);
+    expect(sections.map((section) => section.metrics.commitmentBasis)).toEqual([
+      "sprint_start",
+      "current_scope",
+      null,
+    ]);
+    expect(sections[0]?.metrics).toMatchObject({ estimatedPoints: 5, overCapacityPoints: 0 });
+  });
+
+  it("falls back to no comparison for an active sprint without a frozen commitment", () => {
+    const sections = buildSprintSections({
+      sprints: [sprint("active", "active", "a0")],
+      items: [item("active-item", { estimatePoints: 5 })],
+      memberships: [{ itemId: "active-item", sprintId: "active", leftAt: null }],
+      recentVelocity: { population: 2, averageCompletedPoints: 10 },
+      activeSprintCommitment: { sprintId: "active", commitmentPoints: null },
+    });
+
+    expect(sections[0]?.metrics).toMatchObject({
+      estimatedPoints: 5,
+      commitmentBasis: "sprint_start_unavailable",
+      velocityComparison: null,
+    });
   });
 
   it("rejects two current sprint memberships for the same item", () => {

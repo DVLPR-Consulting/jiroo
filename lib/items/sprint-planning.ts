@@ -40,12 +40,35 @@ export type SprintMetrics = {
   capacityPoints: number | null;
   overCapacityPoints: number;
   velocityComparison: PlanningComparison | null;
+  /**
+   * What the velocity comparison measures as the commitment (null without a
+   * planning comparison context). Like Jira's velocity chart, an active sprint
+   * is committed at its start scope; a planned sprint at its current scope.
+   */
+  commitmentBasis: CommitmentBasis | null;
 };
+
+export type CommitmentBasis =
+  | "current_scope"
+  | "sprint_start"
+  | "sprint_start_unavailable";
 
 export type RecentVelocityContext = {
   population: number;
   averageCompletedPoints: number | null;
 };
+
+/**
+ * Commitment frozen when the active sprint started: the sum of `estimateAtStart`
+ * of its initial memberships. `null` points when legacy start facts are missing.
+ */
+export type ActiveSprintStartCommitment = {
+  sprintId: string;
+  commitmentPoints: number | null;
+};
+
+/** Frozen start commitment of an active sprint; `points: null` = unavailable. */
+export type SprintStartCommitment = { points: number | null };
 
 export type SprintPlanningSection<T> = {
   id: string;
@@ -59,10 +82,26 @@ function roundPoints(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
+function resolveCommitment(
+  estimatedPoints: number,
+  recentVelocity: RecentVelocityContext | null,
+  startCommitment: SprintStartCommitment | null,
+): { basis: CommitmentBasis | null; points: number | null } {
+  if (recentVelocity === null) return { basis: null, points: null };
+  if (startCommitment === null) {
+    return { basis: "current_scope", points: estimatedPoints };
+  }
+  if (startCommitment.points === null) {
+    return { basis: "sprint_start_unavailable", points: null };
+  }
+  return { basis: "sprint_start", points: startCommitment.points };
+}
+
 export function calculateSprintMetrics(
   rows: SprintPlanningItem[],
   capacityPoints: number | null,
   recentVelocity: RecentVelocityContext | null = null,
+  startCommitment: SprintStartCommitment | null = null,
 ): SprintMetrics {
   const estimatedPoints = roundPoints(
     rows.reduce((total, row) => total + (row.estimatePoints ?? 0), 0),
@@ -79,6 +118,8 @@ export function calculateSprintMetrics(
       ? 0
       : roundPoints(Math.max(0, estimatedPoints - capacityPoints));
 
+  const commitment = resolveCommitment(estimatedPoints, recentVelocity, startCommitment);
+
   return {
     itemCount: rows.length,
     estimatedPoints,
@@ -88,9 +129,28 @@ export function calculateSprintMetrics(
     capacityPoints,
     overCapacityPoints,
     velocityComparison:
-      recentVelocity === null
+      recentVelocity === null || commitment.points === null
         ? null
-        : calculatePlanningComparison(estimatedPoints, recentVelocity),
+        : calculatePlanningComparison(commitment.points, recentVelocity),
+    commitmentBasis: commitment.basis,
+  };
+}
+
+/**
+ * The start commitment to compare for a sprint section: only the active sprint
+ * has one. A missing or mismatched record is reported as unavailable rather
+ * than falling back to the live scope.
+ */
+export function sprintStartCommitmentFor(
+  sprint: SprintSummary | null,
+  activeSprintCommitment: ActiveSprintStartCommitment | null,
+): SprintStartCommitment | null {
+  if (sprint?.state !== "active") return null;
+  return {
+    points:
+      activeSprintCommitment?.sprintId === sprint.id
+        ? activeSprintCommitment.commitmentPoints
+        : null,
   };
 }
 
@@ -107,11 +167,13 @@ export function buildSprintSections<T extends SprintPlanningItem>({
   items,
   memberships,
   recentVelocity = null,
+  activeSprintCommitment = null,
 }: {
   sprints: SprintSummary[];
   items: T[];
   memberships: SprintPlanningMembership[];
   recentVelocity?: RecentVelocityContext | null;
+  activeSprintCommitment?: ActiveSprintStartCommitment | null;
 }): SprintPlanningSection<T>[] {
   const activeSprints = sprints.filter(
     (sprint): sprint is SprintSummary & { state: "active" } =>
@@ -163,7 +225,12 @@ export function buildSprintSections<T extends SprintPlanningItem>({
       id: sprint.id,
       kind: sprint.state,
       sprint,
-      metrics: calculateSprintMetrics(rows, sprint.capacityPoints, recentVelocity),
+      metrics: calculateSprintMetrics(
+        rows,
+        sprint.capacityPoints,
+        recentVelocity,
+        sprintStartCommitmentFor(sprint, activeSprintCommitment),
+      ),
       items: rows,
     };
   });

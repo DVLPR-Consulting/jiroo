@@ -1298,24 +1298,32 @@ audited(8, "relie édition unitaire, bulk et Board au burndown, ordre par séque
     deltaUnestimated: -1,
   });
 
-  // Evidence for the pending product decision on active "Engagement" wording.
-  const activeHeader = sprintHeader(page, BURNDOWN.sprintName);
-  const headerComparison = await activeHeader.getByText(/Engagement|Pas encore de vélocité comparable/u)
-    .first().textContent();
-  await expect(activeHeader.getByText("Engagement supérieur à la moyenne récente", { exact: false })).toHaveCount(0);
-  capture.console.push(
-    `[observation] backlog active header "${headerComparison}" vs burndown commitment at start ${burndown.commitmentPoints} pts`,
-  );
-
-  await auditedGoto(page, capture, "admin", `/b/CASS/reports?report=burndown&sprint=${burndown.sprintId}`);
   const rows = expectedBurndownRows(burndown.baseline, burndown.steps);
   const expectedRemaining = rows.at(-1)!.remainingPoints;
+  const expectedCompleted = BURNDOWN.doneAtStart + BURNDOWN.todoReestimated
+    + BURNDOWN.addedDoneReestimated + BURNDOWN.addedIncomplete;
+
+  // JIR-46 (Jira velocity "Commitment"): the active header compares the
+  // commitment frozen at start, and shows the live total as "Périmètre actuel".
+  const activeHeader = sprintHeader(page, BURNDOWN.sprintName);
+  await expectComparison(
+    await activeHeader.getByText(/Engagement \d|Pas encore de vélocité comparable/u).first().textContent(),
+    burndown.commitmentPoints,
+    await expectedRecentVelocity(context.backlog.id),
+  );
+  // Live scope = every sprint row's current estimate (remaining + completed).
+  // Polled: the header re-renders after the single-edit save just above.
+  const currentScope = activeHeader.getByText(/^Périmètre actuel /u);
+  await expect.poll(async () => parseRenderedNumber((await currentScope.textContent())!.replace("Périmètre actuel", "")))
+    .toBe(expectedRemaining + expectedCompleted);
+  await expect(activeHeader.getByText("Engagement supérieur à la moyenne récente", { exact: false })).toHaveCount(0);
+
+  await auditedGoto(page, capture, "admin", `/b/CASS/reports?report=burndown&sprint=${burndown.sprintId}`);
   await expectBurndownSummary(page, {
     kind: "active",
     initialRemainingPoints: burndown.baseline.remainingPoints,
     remainingPoints: expectedRemaining,
-    completedPoints: BURNDOWN.doneAtStart + BURNDOWN.todoReestimated + BURNDOWN.addedDoneReestimated
-      + BURNDOWN.addedIncomplete,
+    completedPoints: expectedCompleted,
     unestimatedCount: 0,
   });
   await expectBurndownTable(page, rows);

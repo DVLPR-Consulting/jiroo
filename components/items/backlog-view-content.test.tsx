@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   blockedItemIds: vi.fn(),
   getViewByIdForUser: vi.fn(),
   getRecentVelocityContext: vi.fn(),
+  getActiveSprintStartCommitment: vi.fn(),
   notFound: vi.fn(),
   requireAppPageSession: vi.fn(),
   select: vi.fn(),
@@ -69,6 +70,7 @@ vi.mock("@/lib/services/sprints", () => ({
 }));
 vi.mock("@/lib/services/sprint-burndown", () => ({
   getRecentVelocityContext: mocks.getRecentVelocityContext,
+  getActiveSprintStartCommitment: mocks.getActiveSprintStartCommitment,
 }));
 vi.mock("@/lib/services/views", () => ({
   getViewByIdForUser: mocks.getViewByIdForUser,
@@ -152,6 +154,7 @@ describe("BacklogViewContent read boundary", () => {
       population: 0,
       averageCompletedPoints: null,
     });
+    mocks.getActiveSprintStartCommitment.mockResolvedValue(null);
     mocks.select.mockImplementation(() => {
       const query = {
         from: vi.fn(),
@@ -764,7 +767,7 @@ describe("BacklogViewContent read boundary", () => {
     }));
   });
 
-  it("loads recent velocity once and hands it to every sprint section", async () => {
+  it("loads recent velocity and the active start commitment once for every sprint section", async () => {
     mocks.getBacklogByKeyForUser.mockResolvedValue({
       id: "backlog-1",
       key: "DEMO",
@@ -799,10 +802,20 @@ describe("BacklogViewContent read boundary", () => {
         resolveVelocity = resolve;
       }),
     );
+    const activeSprintCommitment = { sprintId: "sprint-active", commitmentPoints: 4 };
+    mocks.getActiveSprintStartCommitment.mockResolvedValue(activeSprintCommitment);
     mocks.listSprintsForBacklog.mockImplementation(async () => {
       sprintsRequestedBeforeVelocityResolved = true;
       return {
         sprints: [
+          {
+            ...sprintBase,
+            id: "sprint-active",
+            name: "Sprint actif",
+            state: "active",
+            rank: "a",
+            startedAt: new Date("2026-08-01T09:00:00.000Z"),
+          },
           { ...sprintBase, id: "sprint-a", name: "Sprint A", state: "planned", rank: "a0" },
           { ...sprintBase, id: "sprint-b", name: "Sprint B", state: "planned", rank: "a1" },
         ],
@@ -821,13 +834,21 @@ describe("BacklogViewContent read boundary", () => {
 
     expect(mocks.getRecentVelocityContext).toHaveBeenCalledOnce();
     expect(mocks.getRecentVelocityContext).toHaveBeenCalledWith("backlog-1");
+    expect(mocks.getActiveSprintStartCommitment).toHaveBeenCalledOnce();
+    expect(mocks.getActiveSprintStartCommitment).toHaveBeenCalledWith("backlog-1");
     const props = mocks.itemBacklogProps.mock.calls.at(-1)?.[0] as {
       recentVelocity: unknown;
+      activeSprintCommitment: unknown;
       sections: Array<{ kind: string; metrics: { velocityComparison: unknown } }>;
     };
     expect(props.recentVelocity).toEqual(recentVelocity);
+    expect(props.activeSprintCommitment).toEqual(activeSprintCommitment);
     expect(props.sections.map((section) => [section.kind, section.metrics.velocityComparison]))
       .toEqual([
+        [
+          "active",
+          expect.objectContaining({ state: "ready", commitmentPoints: 4, difference: -6 }),
+        ],
         ["planned", expect.objectContaining({ state: "ready", averageCompletedPoints: 10 })],
         ["planned", expect.objectContaining({ state: "ready", averageCompletedPoints: 10 })],
         ["backlog", null],
@@ -862,5 +883,6 @@ describe("BacklogViewContent read boundary", () => {
     );
 
     expect(mocks.getRecentVelocityContext).not.toHaveBeenCalled();
+    expect(mocks.getActiveSprintStartCommitment).not.toHaveBeenCalled();
   });
 });

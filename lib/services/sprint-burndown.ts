@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
@@ -20,6 +20,7 @@ import {
   type BurndownPoint,
   type PlanningComparison,
 } from "@/lib/reports/burndown-calculations";
+import type { ActiveSprintStartCommitment } from "@/lib/items/sprint-planning";
 import {
   getVelocityReport,
   readSprintEventPage,
@@ -264,6 +265,32 @@ async function readLedger(
   )).orderBy(asc(sprintEvents.occurredAt), asc(sprintEvents.sequence));
 }
 
+/** The membership was added after the sprint started (it has an item_added event). */
+function addedAfterStartSql(backlogId: string, sprintId: string | AnyColumn): SQL {
+  return sql`exists (
+    select 1 from sprint_events added_event
+    where added_event.backlog_id = ${backlogId}
+      and added_event.sprint_id = ${sprintId}
+      and added_event.source_membership_id = ${sprintItems.id}
+      and added_event.event_type = 'item_added'
+  )`;
+}
+
+/** Memberships closed during planning never took part in the sprint. */
+function participatedInSprintSql(backlogId: string, sprintId: string | AnyColumn): SQL {
+  return sql`(
+    ${sprintItems.leftAt} is null
+    or ${sprintItems.estimateAtStart} is not null
+    or ${sprintItems.doneAtStart} is not null
+    or exists (
+      select 1 from sprint_events membership_event
+      where membership_event.backlog_id = ${backlogId}
+        and membership_event.sprint_id = ${sprintId}
+        and membership_event.source_membership_id = ${sprintItems.id}
+    )
+  )`;
+}
+
 async function readActiveSource(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   backlogId: string,
@@ -279,30 +306,13 @@ async function readActiveSource(
       itemType: items.type,
       estimateAtStart: sprintItems.estimateAtStart,
       doneAtStart: sprintItems.doneAtStart,
-      addedAfterStart: sql<boolean>`exists (
-        select 1 from sprint_events added_event
-        where added_event.backlog_id = ${backlogId}
-          and added_event.sprint_id = ${sprint.id}
-          and added_event.source_membership_id = ${sprintItems.id}
-          and added_event.event_type = 'item_added'
-      )`,
+      addedAfterStart: sql<boolean>`${addedAfterStartSql(backlogId, sprint.id)}`,
     }).from(sprintItems).leftJoin(
       items,
       and(eq(items.id, sprintItems.itemId), eq(items.backlogId, backlogId)),
     ).where(and(
       eq(sprintItems.sprintId, sprint.id),
-      // Memberships closed during planning never took part in the sprint.
-      sql`(
-        ${sprintItems.leftAt} is null
-        or ${sprintItems.estimateAtStart} is not null
-        or ${sprintItems.doneAtStart} is not null
-        or exists (
-          select 1 from sprint_events membership_event
-          where membership_event.backlog_id = ${backlogId}
-            and membership_event.sprint_id = ${sprint.id}
-            and membership_event.source_membership_id = ${sprintItems.id}
-        )
-      )`,
+      participatedInSprintSql(backlogId, sprint.id),
     ))
       .orderBy(asc(sprintItems.joinedAt), asc(sprintItems.id));
   const ledger = await readLedger(tx, backlogId, sprint.id);
@@ -441,6 +451,50 @@ async function readSource(
     }
     return readCompletedSource(tx, backlogId, sprint, command);
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
+}
+
+/**
+ * Commitment frozen when the backlog's active sprint started, using the same
+ * initial-membership rule as the active burndown (participated, not added after
+ * start). Null points when the burndown would be legacy (missing start facts).
+ * One aggregate query; null when the backlog has no active sprint.
+ */
+export async function getActiveSprintStartCommitment(
+  backlogId: string,
+): Promise<ActiveSprintStartCommitment | null> {
+  const initial = sql`(
+    ${sprintItems.id} is not null
+    and ${participatedInSprintSql(backlogId, sprints.id)}
+    and not ${addedAfterStartSql(backlogId, sprints.id)}
+  )`;
+  const [row] = await db.select({
+    sprintId: sprints.id,
+    commitmentPoints: sql<number>`coalesce(
+      sum(${sprintItems.estimateAtStart}) filter (where ${initial}),
+      0
+    )::double precision`,
+    missingStartFacts: sql<boolean>`(
+      coalesce(bool_or(${sprintItems.doneAtStart} is null) filter (where ${initial}), false)
+      or exists (
+        select 1 from sprint_events legacy_event
+        where legacy_event.backlog_id = ${backlogId}
+          and legacy_event.sprint_id = ${sprints.id}
+          and legacy_event.event_type = 'item_added'
+          and legacy_event.next_done is null
+      )
+    )`,
+  }).from(sprints).leftJoin(
+    sprintItems,
+    eq(sprintItems.sprintId, sprints.id),
+  ).where(and(
+    eq(sprints.backlogId, backlogId),
+    eq(sprints.state, "active"),
+  )).groupBy(sprints.id).limit(1);
+  if (!row) return null;
+  return {
+    sprintId: row.sprintId,
+    commitmentPoints: row.missingStartFacts ? null : Number(row.commitmentPoints),
+  };
 }
 
 export async function getRecentVelocityContext(backlogId: string): Promise<{

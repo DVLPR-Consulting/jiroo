@@ -165,6 +165,7 @@ function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
           capacityPoints: 8,
           overCapacityPoints: 0,
           velocityComparison: null,
+          commitmentBasis: null,
         },
         items: [items[0]!],
         groups: [{ key: "", label: "", items: [items[0]!] }],
@@ -182,6 +183,7 @@ function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
           capacityPoints: 8,
           overCapacityPoints: 0,
           velocityComparison: null,
+          commitmentBasis: null,
         },
         items: [items[1]!],
         groups: [{ key: "", label: "", items: [items[1]!] }],
@@ -199,6 +201,7 @@ function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
           capacityPoints: null,
           overCapacityPoints: 0,
           velocityComparison: null,
+          commitmentBasis: null,
         },
         items: [items[2]!],
         groups: [{ key: "", label: "", items: [items[2]!] }],
@@ -370,7 +373,7 @@ describe("ItemBacklog", () => {
     geometry.mockRestore();
   });
 
-  it("keeps the recent velocity context while optimistically moving a task", async () => {
+  it("keeps the recent velocity context and the frozen start commitment while optimistically moving a task", async () => {
     const user = userEvent.setup();
     const geometry = mockBacklogGeometry();
     let resolveMove: (value: { ok: true; item: unknown }) => void = () => undefined;
@@ -385,7 +388,11 @@ describe("ItemBacklog", () => {
     >;
     const recentVelocity = { population: 2, averageCompletedPoints: 4 };
     const { container } = render(
-      <ItemBacklog {...base} recentVelocity={recentVelocity} />,
+      <ItemBacklog
+        {...base}
+        recentVelocity={recentVelocity}
+        activeSprintCommitment={{ sprintId: "sprint-active", commitmentPoints: 3 }}
+      />,
     );
     const futureSection = container.querySelector(
       '[data-sprint-section="sprint-future"]',
@@ -412,11 +419,14 @@ describe("ItemBacklog", () => {
         "Engagement supérieur à la moyenne récente : avertissement non bloquant.",
       ),
     ).toBeVisible();
+    // The active sprint keeps its commitment frozen at start; only the live scope moves.
     expect(
       within(activeSection).getByText(
-        "Engagement 0 pts · moyenne récente 4 pts · écart -4 pts",
+        "Engagement 3 pts · moyenne récente 4 pts · écart -1 pts",
       ),
     ).toBeVisible();
+    expect(within(activeSection).getByText("Périmètre actuel 0 pts")).toBeVisible();
+    expect(within(futureSection).queryByText(/Périmètre actuel/)).not.toBeInTheDocument();
     expect(within(backlogSection).queryByText(/moyenne récente|vélocité/))
       .not.toBeInTheDocument();
 

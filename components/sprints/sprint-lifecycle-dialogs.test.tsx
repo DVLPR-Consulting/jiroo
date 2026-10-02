@@ -43,6 +43,7 @@ const metrics = {
   capacityPoints: 10,
   overCapacityPoints: 3,
   velocityComparison: null,
+  commitmentBasis: null,
 };
 
 const base = {
