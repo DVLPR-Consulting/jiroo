@@ -120,7 +120,7 @@ describe("ReleaseNotesEditor", () => {
     expect(html).toContain('<meta charset="utf-8">');
     expect(html).toContain("<title>Notes de release — 2026.10</title>");
     expect(html).toContain("<h2>Fonctionnalités</h2>");
-    expect(revokeObjectURL).toHaveBeenCalled();
+    await waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith("blob:notes"), { timeout: 2_000 });
   });
 
   it("restores the generated text", async () => {
@@ -131,6 +131,39 @@ describe("ReleaseNotesEditor", () => {
     await user.click(screen.getByRole("button", { name: "Réinitialiser" }));
     expect(textarea).toHaveValue(initialMarkdown);
     expect(screen.getByRole("status")).toHaveTextContent("Notes régénérées.");
+  });
+
+  it("neutralizes javascript: links in the preview", async () => {
+    const user = setupUser();
+    renderEditor();
+    const textarea = screen.getByRole("textbox", { name: "Notes de release (Markdown)" });
+    await user.clear(textarea);
+    await user.click(textarea);
+    await user.paste("[piège](javascript:alert(1))");
+    const link = screen.getByText("piège").closest("a");
+    expect(link?.getAttribute("href") ?? "").not.toMatch(/javascript:/i);
+  });
+
+  it("regenerates when the server sends new notes, after confirming the loss of edits", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const user = setupUser();
+    const { rerender } = renderEditor();
+    const textarea = screen.getByRole("textbox", { name: "Notes de release (Markdown)" });
+    await user.type(textarea, " édité");
+    await user.click(screen.getByRole("checkbox", { name: "Inclure les éléments non terminés" }));
+    expect(mocks.replace).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("checkbox", { name: "Inclure les éléments non terminés" }));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(mocks.replace).toHaveBeenCalledWith("/b/CASS/releases/r1/notes?incomplete=1");
+    rerender(
+      <ReleaseNotesEditor
+        initialMarkdown={"# Régénérées\n"}
+        fileBaseName="notes-de-release-2026-10"
+        title="Notes de release — 2026.10"
+        options={{ includeIncomplete: true, includeDescription: true }}
+      />,
+    );
+    expect(textarea).toHaveValue("# Régénérées\n");
   });
 
   it("round-trips options through the URL", async () => {

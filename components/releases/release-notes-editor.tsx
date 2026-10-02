@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -21,8 +21,11 @@ function download(fileName: string, type: string, content: string) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName;
+  document.body.append(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  // Revoking synchronously can cancel the download in Safari and Firefox.
+  setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
 
 /**
@@ -48,17 +51,24 @@ export function ReleaseNotesEditor({
   const [markdown, setMarkdown] = useState(initialMarkdown);
   const [generated, setGenerated] = useState(initialMarkdown);
   const [status, setStatus] = useState("");
+  const [regenerating, startRegeneration] = useTransition();
   if (generated !== initialMarkdown) {
     setGenerated(initialMarkdown);
     setMarkdown(initialMarkdown);
   }
 
   function changeOptions(next: ReleaseNotesOptions) {
+    if (
+      markdown !== initialMarkdown &&
+      !window.confirm("Changer les options régénère les notes et efface vos modifications. Continuer ?")
+    ) {
+      return;
+    }
     const query = new URLSearchParams();
     if (next.includeIncomplete) query.set("incomplete", "1");
     if (!next.includeDescription) query.set("description", "0");
     const search = query.toString();
-    router.replace(search ? `${pathname}?${search}` : pathname);
+    startRegeneration(() => router.replace(search ? `${pathname}?${search}` : pathname));
   }
 
   const previewHtml = () => previewRef.current?.innerHTML ?? "";
@@ -72,9 +82,22 @@ export function ReleaseNotesEditor({
     }
   }
 
+  function save(fileName: string, type: string, content: string) {
+    try {
+      download(fileName, type, content);
+      setStatus(`Fichier ${fileName} téléchargé.`);
+    } catch {
+      setStatus("Téléchargement impossible.");
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <fieldset className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+      <fieldset
+        className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm"
+        disabled={regenerating}
+        aria-busy={regenerating || undefined}
+      >
         <legend className="sr-only">Options des notes</legend>
         <label className="flex items-center gap-2">
           <input
@@ -92,6 +115,9 @@ export function ReleaseNotesEditor({
           />
           Inclure la description de la version
         </label>
+        <span className="text-xs text-muted-foreground">
+          Changer une option régénère les notes.
+        </span>
       </fieldset>
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" onClick={() => void copy(markdown, "Markdown copié.")}>
@@ -103,10 +129,7 @@ export function ReleaseNotesEditor({
         <Button
           type="button"
           variant="outline"
-          onClick={() => {
-            download(`${fileBaseName}.md`, "text/markdown;charset=utf-8", markdown);
-            setStatus("Fichier .md téléchargé.");
-          }}
+          onClick={() => save(`${fileBaseName}.md`, "text/markdown;charset=utf-8", markdown)}
         >
           Télécharger .md
         </Button>
@@ -114,9 +137,8 @@ export function ReleaseNotesEditor({
           type="button"
           variant="outline"
           onClick={() => {
-            const document = `<!doctype html>\n<html lang="fr">\n<head>\n<meta charset="utf-8">\n<title>${escapeHtml(title)}</title>\n</head>\n<body>\n${previewHtml()}\n</body>\n</html>\n`;
-            download(`${fileBaseName}.html`, "text/html;charset=utf-8", document);
-            setStatus("Fichier .html téléchargé.");
+            const html = `<!doctype html>\n<html lang="fr">\n<head>\n<meta charset="utf-8">\n<title>${escapeHtml(title)}</title>\n</head>\n<body>\n${previewHtml()}\n</body>\n</html>\n`;
+            save(`${fileBaseName}.html`, "text/html;charset=utf-8", html);
           }}
         >
           Télécharger .html
