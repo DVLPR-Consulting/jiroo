@@ -48,8 +48,10 @@ hierarchy/RBAC, no user-facing config) — those stay as specified.
 ## Where things live
 
 - Product plans and decisions: Linear, following `docs/project-governance.md`.
-- Historical specs and plans awaiting verified synchronization: `docs/superpowers/`
-  (tracked) and `.claude/output/plans/` (gitignored). Existing approved specs retain
-  their authority; `docs/linear-pending.md` records the migration state.
+- Historical specs and plans: imported in full into Linear on 2026-10-02 (index
+  « Plans et décisions du projet »). Originals stay in `docs/superpowers/` (tracked)
+  and `.claude/output/plans/` (gitignored); versioned specs cited by an ongoing
+  chantier keep their authority. `docs/linear-pending.md` holds the provenance and
+  the degraded-mode procedure.
 - Design handoff (visual source of truth): `.claude/output/design/`.
 - Design tokens: `app/globals.css` (`:root` / `.dark`), mapped to shadcn via `@theme inline`.
