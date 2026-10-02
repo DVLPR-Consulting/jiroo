@@ -3,10 +3,10 @@
 import { Button } from "@/components/ui/button";
 
 export default function ReportsError({
-  unstable_retry,
+  retry,
 }: {
   error: Error & { digest?: string };
-  unstable_retry: () => void;
+  retry: () => void;
 }) {
   return (
     <section className="mx-auto max-w-3xl space-y-3 p-6 lg:p-8">
@@ -14,7 +14,7 @@ export default function ReportsError({
       <p className="text-sm text-muted-foreground">
         Une erreur temporaire empêche l’affichage de ces données.
       </p>
-      <Button type="button" onClick={() => unstable_retry()}>
+      <Button type="button" onClick={() => retry()}>
         Réessayer
       </Button>
     </section>

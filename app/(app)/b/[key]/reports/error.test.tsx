@@ -5,21 +5,21 @@ import ReportsLoading from "@/app/(app)/b/[key]/reports/loading";
 
 describe("ReportsError", () => {
   it("shows safe recovery copy without exposing the error payload", () => {
-    const unstableRetry = vi.fn();
+    const retry = vi.fn();
     const secret = [
       "postgres://jiroo:secret@db.internal/reports",
       "authorization: Bearer private-token",
       "11111111-1111-4111-8111-111111111111",
     ].join(" ");
 
-    render(<ReportsError error={new Error(secret)} unstable_retry={unstableRetry} />);
+    render(<ReportsError error={new Error(secret)} retry={retry} />);
 
     expect(screen.getByRole("heading", { name: "Impossible de charger les rapports" }))
       .toBeVisible();
     expect(screen.queryByText(/postgres|authorization|11111111/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
-    expect(unstableRetry).toHaveBeenCalledOnce();
+    expect(retry).toHaveBeenCalledOnce();
   });
 });
 
