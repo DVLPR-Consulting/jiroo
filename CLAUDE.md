@@ -2,6 +2,16 @@
 
 Lightweight Jira-like ticket manager for a Cour de cassation team. French UI and content; **English** for code, comments, commit messages, PRs and docs.
 
+## Pilotage du projet — obligatoire pour tous les agents
+
+Lire [AGENTS.md](AGENTS.md) et les [règles communes Git / Linear](docs/project-governance.md)
+avant toute intervention. Ce document commun définit les sources de référence,
+la validation des plans, le suivi des tickets et PR, et le passage de relais.
+La gouvernance et les documents de pilotage sont en français, conformément à la
+demande du propriétaire du 2 octobre 2026 ; les conventions du code sont conservées.
+Les identifiants et liens Linear restent à vérifier avant toute écriture distante.
+En cas d'indisponibilité, utiliser le [dossier non synchronisé](docs/linear-pending.md).
+
 ## Product decisions: defer to Jira (REQUIRED)
 
 When a question is about **how a feature should behave** — ranking, board layout,
@@ -37,6 +47,11 @@ hierarchy/RBAC, no user-facing config) — those stay as specified.
 
 ## Where things live
 
-- Specs & implementation plans: `.claude/output/plans/` (gitignored).
+- Product plans and decisions: Linear, following `docs/project-governance.md`.
+- Historical specs and plans: imported in full into Linear on 2026-10-02 (index
+  « Plans et décisions du projet »). Originals stay in `docs/superpowers/` (tracked)
+  and `.claude/output/plans/` (gitignored); versioned specs cited by an ongoing
+  chantier keep their authority. `docs/linear-pending.md` holds the provenance and
+  the degraded-mode procedure.
 - Design handoff (visual source of truth): `.claude/output/design/`.
 - Design tokens: `app/globals.css` (`:root` / `.dark`), mapped to shadcn via `@theme inline`.
