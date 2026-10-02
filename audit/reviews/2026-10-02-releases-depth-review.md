@@ -5,8 +5,8 @@
 **READY_FOR_PR (local).** Releases PR2 (Linear JIR-39) is implemented task by
 task, every commit was reviewed (spec compliance, then code quality), and a
 final whole-branch spec/security review found no Critical or Important issue.
-No push, PR, Codex review or remote mutation is part of this record; the Codex
-review required before opening the PR is still pending.
+No push, PR or remote mutation is part of this record. The Codex review and
+its fixes are recorded in "Codex review fixes" below.
 
 ## Scope and provenance
 
@@ -101,7 +101,7 @@ query count fixed per write batch.
    empty list — met.
 9. typecheck, lint, build, unit, DB integration and full Chromium green — met.
 10. Spec and quality/security reviews without open Critical/Important — met;
-    **Codex review not yet run**.
+    Codex review findings R1–R4 fixed (see below).
 
 ## Open Minors
 
@@ -109,8 +109,8 @@ query count fixed per write batch.
   naturally).
 - Bare URLs in titles render as links in the preview (`javascript:` links are
   neutralized; no raw HTML).
-- Focus returns to the document after a delete from the list; the notes preview
-  adds a second `<h1>`; "Copier le HTML" copies HTML as plain text.
+- The notes preview adds a second `<h1>`; "Copier le HTML" copies HTML as plain
+  text.
 - The inner sub-query of the label read in `removeReleaseInTx` is not scoped by
   backlog (safe: release IDs are global and the outer query is scoped).
 
@@ -119,3 +119,24 @@ query count fixed per write batch.
 Related work, Affects versions, approvals, Git/PR/build/deployment data,
 Release Burndown / Version Report, server-saved notes, navigation of orphaned
 snapshots, Firefox/WebKit and screen readers.
+
+## Codex review fixes (2 October 2026)
+
+Codex reviewed `8970b51..09cb303` read-only and required fixes; each finding was
+fixed in its own commit, test first, and re-reviewed (all approved, no
+Critical/Important):
+
+| Finding | Fix | Evidence |
+|---|---|---|
+| R1 (Important) — the item detail Fix versions picker listed assigned versions first, breaking the manual order | `0806b09`: the backlog's ordered options are the reference; only assigned versions missing from them (archived) are appended | panel test; Playwright S24 with an item already on the last version |
+| R2 (Important, D7/D9) — a version linked only to trashed items was treated as empty (`none` accepted, links silently removed) | `5f63186`: summaries expose a removal scope (all links, trashed count, fingerprint) used by the preview, the stale check and the `none` refusal; PR1 progress stays live-only; the dialog shows the transfer/remove choice and "dont N dans la corbeille" | DB test asserting refusal, stale detection, transfer and removal of trashed links; dialog test |
+| R3 (Minor) — an accepted regeneration kept edits when the generated text was identical | `53796e0`: a generation is identified by its options and its text | editor test "new options, same Markdown" |
+| R4 (Minor) — focus fell to the document after delete/merge from the list | `92c501e`: focus moves to the next card, else the previous one, else the list heading | list tests; Playwright S19 |
+
+Re-verification on `92c501e`: 1 417 non-DB tests (279 skipped without
+`JIROO_RUN_DB_TESTS`), 279/279 PostgreSQL integration tests run serially
+(reset guard with the E2E environment), full Chromium 63/63 in 2.7 min (run
+`20261002-jir39-codex-fixes-full-01`, not persisted), TypeScript, ESLint (one
+pre-existing warning) and `next build` green. The persisted acceptance run
+`20261002-releases-depth-delivery-02` remains the recorded artefact set for
+`e3a650a`.
