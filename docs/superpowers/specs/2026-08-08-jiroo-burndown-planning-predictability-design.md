@@ -285,6 +285,18 @@ average displays a non-blocking warning. It does not change `capacityPoints`,
 prevent sprint start, or imply that the average is a contractual capacity.
 Manual capacity and recent velocity remain separate rows with separate labels.
 
+> **Decision 2026-10-02 (JIR-28 option A, implemented in JIR-46).** For an
+> **active** sprint, the Backlog header's `Engagement` is the commitment frozen
+> at sprint start — the burndown's `commitmentPoints` (sum of `estimateAtStart`
+> of initial memberships, excluding memberships added after start) — and the
+> comparison with recent velocity uses it, as Jira's velocity chart
+> "Commitment" does. The live estimated total stays visible as a separate
+> `Périmètre actuel N pts`. If the start facts are missing (legacy history,
+> where the burndown is `legacy_unavailable`), the header shows
+> `Engagement au démarrage indisponible` plus `Périmètre actuel` and no
+> comparison. Planned sprints are unchanged (current scope; amber warning
+> planned-only); capacity and controls are unchanged.
+
 ## Read services
 
 Add `getBurndownReport(backlogId, sprintId, now?)` alongside the existing sprint
