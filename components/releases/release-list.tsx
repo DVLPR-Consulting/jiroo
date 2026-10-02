@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -130,14 +130,21 @@ function OrderedReleaseList({
   archivedToggle,
 }: ListProps) {
   const router = useRouter();
-  const [rendered, setRendered] = useState(releases);
-  const [source, setSource] = useState(releases);
+  const [ordering, setOrdering] = useState({ source: releases, rendered: releases });
   const [rankError, setRankError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  if (source !== releases) {
-    setSource(releases);
-    setRendered(releases);
-  }
+  const [saving, setSaving] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
+  const latestReleases = useRef(releases);
+  useEffect(() => {
+    latestReleases.current = releases;
+  }, [releases]);
+  // Adopt fresh server data (order, revisions) whenever the page re-renders.
+  if (ordering.source !== releases) setOrdering({ source: releases, rendered: releases });
+  const rendered = ordering.source === releases ? ordering.rendered : releases;
+  const setRendered = (next: ReleaseSummary[]) =>
+    setOrdering((current) => ({ ...current, rendered: next }));
+  // Controls stay disabled until the refreshed revisions arrive (no stale move).
+  const pending = saving || refreshing;
   const canReorder = capabilities.manage && !showArchived;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -150,12 +157,11 @@ function OrderedReleaseList({
   function move(releaseId: string, toIndex: number) {
     const fromIndex = rendered.findIndex((release) => release.id === releaseId);
     if (fromIndex < 0 || toIndex < 0 || toIndex >= rendered.length || toIndex === fromIndex) return;
-    const previous = rendered;
+    const moved = rendered[fromIndex]!;
     const next = arrayMove(rendered, fromIndex, toIndex);
-    const moved = previous[fromIndex]!;
     setRendered(next);
     setRankError(null);
-    setPending(true);
+    setSaving(true);
     reorderReleaseAction({
       backlogId: backlog.id,
       backlogKey: backlog.key,
@@ -166,17 +172,23 @@ function OrderedReleaseList({
     })
       .then((result) => {
         if (!result.ok) {
-          setRendered(previous);
+          // Roll back to the latest server order, never to an older snapshot.
+          setRendered(latestReleases.current);
           setRankError(result.error);
           return;
         }
-        router.refresh();
+        setRendered(
+          next.map((release) =>
+            release.id === moved.id ? { ...release, revision: result.result.revision } : release,
+          ),
+        );
+        startRefresh(() => router.refresh());
       })
       .catch(() => {
-        setRendered(previous);
+        setRendered(latestReleases.current);
         setRankError("Réordonnancement impossible.");
       })
-      .finally(() => setPending(false));
+      .finally(() => setSaving(false));
   }
 
   function onDragEnd({ active, over }: DragEndEvent) {

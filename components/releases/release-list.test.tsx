@@ -285,6 +285,38 @@ describe("ReleaseList manual order", () => {
     await waitFor(() => expect(listMocks.refresh).toHaveBeenCalled());
   });
 
+  it("uses the revision returned by the server for a second move of the same version", async () => {
+    listMocks.reorderReleaseAction
+      .mockResolvedValueOnce({ ok: true, result: { id: ids.c, revision: 4, rank: "a0" } })
+      .mockResolvedValueOnce({ ok: true, result: { id: ids.c, revision: 5, rank: "Zz" } });
+    const user = userEvent.setup();
+    render(<ReleaseList {...baseProps} releases={ordered} capabilities={manager} />);
+    await user.click(screen.getByRole("button", { name: "Monter Gamma" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Monter Gamma" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Monter Gamma" }));
+    await waitFor(() => expect(listMocks.reorderReleaseAction).toHaveBeenCalledTimes(2));
+    expect(listMocks.reorderReleaseAction.mock.calls[1]?.[0]).toMatchObject({
+      releaseId: ids.c,
+      expectedRevision: 4,
+      beforeId: null,
+      afterId: ids.a,
+    });
+    expect(articleNames()).toEqual(["Gamma", "Alpha", "Bêta"]);
+  });
+
+  it("rolls back to the latest server order when a refresh landed during the request", async () => {
+    let resolve: (value: unknown) => void = () => undefined;
+    listMocks.reorderReleaseAction.mockReturnValueOnce(new Promise((done) => (resolve = done)));
+    const user = userEvent.setup();
+    const { rerender } = render(<ReleaseList {...baseProps} releases={ordered} capabilities={manager} />);
+    await user.click(screen.getByRole("button", { name: "Monter Gamma" }));
+    const refreshed = [ordered[1]!, ordered[0]!, ordered[2]!];
+    rerender(<ReleaseList {...baseProps} releases={refreshed} capabilities={manager} />);
+    resolve({ ok: false, error: "Voisin invalide pour ce backlog." });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Voisin invalide");
+    expect(articleNames()).toEqual(["Bêta", "Alpha", "Gamma"]);
+  });
+
   it("moves a version down to the last position", async () => {
     listMocks.reorderReleaseAction.mockResolvedValueOnce({ ok: true, result: {} });
     const user = userEvent.setup();

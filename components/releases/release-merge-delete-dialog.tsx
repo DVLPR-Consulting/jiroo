@@ -141,8 +141,11 @@ export function ReleaseMergeDeleteDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // Keep the dialog open while a request is in flight.
+        if (!next && pending) return;
+        // Start from the latest server preview each time the dialog opens.
+        reset();
         setOpen(next);
-        if (!next) reset();
       }}
     >
       <DialogTrigger asChild>
@@ -208,6 +211,9 @@ export function ReleaseMergeDeleteDialog({
           {needsTarget && (merge || hasLinks) ? (
             <div className="space-y-2">
               <Label htmlFor={`${prefix}-target`}>Version de destination</Label>
+              {targets.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Aucune autre version disponible.</p>
+              ) : null}
               <select
                 id={`${prefix}-target`}
                 className={SELECT}
