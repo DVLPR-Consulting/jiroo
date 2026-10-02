@@ -27,6 +27,8 @@ import {
 } from "@/lib/db/schema/domain";
 import {
   createReleaseSchema,
+  deleteReleaseSchema,
+  mergeReleaseSchema,
   publishReleaseSchema,
   revisionedReleaseIdentitySchema,
   updateReleaseSchema,
@@ -163,6 +165,26 @@ export class PublicationScopeChangedError extends Error {
     this.name = "PublicationScopeChangedError";
   }
 }
+
+export class ReleaseScopeChangedError extends Error {
+  readonly code = "RELEASE_SCOPE_STALE" as const;
+
+  constructor(
+    readonly currentScopeRevision: string,
+    readonly currentLinkedCount: number,
+  ) {
+    super("Les éléments liés à cette version ont changé. Vérifiez l’impact avant de réessayer.");
+    this.name = "ReleaseScopeChangedError";
+  }
+}
+
+export type RemoveReleaseResult = {
+  deletedReleaseId: string;
+  linkedCount: number;
+  transferredCount: number;
+  removedCount: number;
+  targetRelease: { id: string; revision: number } | null;
+};
 
 async function lockBacklog(tx: Tx, backlogId: string) {
   const [backlog] = await tx
@@ -805,6 +827,283 @@ export function unarchiveRelease(
   requestCorrelationId: string,
 ) {
   return setReleaseArchived(input, actorId, requestCorrelationId, false);
+}
+
+type ReleaseRemoval = {
+  operation: "delete" | "merge";
+  backlogId: string;
+  sourceReleaseId: string;
+  expectedSourceRevision: number;
+  expectedScopeRevision: string;
+  disposition: "none" | "remove" | "transfer";
+  target: { releaseId: string; expectedRevision: number } | null;
+};
+
+/**
+ * Deletes a version after transferring its Fix version links to a target or
+ * removing them (Jira `mergeto` / `removeAndSwap`). One transaction: lock
+ * backlog → releases (sorted) → linked items (sorted), verify revisions and the
+ * scope fingerprint, rewrite links with one `fix_versions` activity per item,
+ * write the events, then DELETE the source. The source event is written BEFORE
+ * the DELETE so the FK nullifies it instead of failing at commit.
+ * Publications and snapshots are never touched; their FKs become NULL.
+ */
+async function removeReleaseInTx(
+  tx: Tx,
+  command: ReleaseRemoval,
+  actorId: string,
+  requestCorrelationId: string,
+): Promise<RemoveReleaseResult> {
+  await lockBacklog(tx, command.backlogId);
+  const lockedReleases = await lockReleases(tx, command.backlogId, [
+    command.sourceReleaseId,
+    ...(command.target ? [command.target.releaseId] : []),
+  ]);
+  const releaseById = new Map(lockedReleases.map((release) => [release.id, release]));
+  const source = releaseById.get(command.sourceReleaseId);
+  if (!source) throw new Error("Release introuvable.");
+  assertExpectedRevision(source, command.expectedSourceRevision);
+  const target = command.target ? releaseById.get(command.target.releaseId) : undefined;
+  if (command.target) {
+    if (!target) throw new Error("La release de destination est invalide pour ce backlog.");
+    if (target.archivedAt !== null) throw new Error("La release de destination est archivée.");
+    if (target.revision !== command.target.expectedRevision) {
+      throw new Error("La release de destination a changé. Rechargez-la avant de réessayer.");
+    }
+  }
+
+  // Every link moves, including links of trashed items, so a restored item keeps
+  // a coherent Fix version; the fingerprint covers live items like the summary.
+  const linkedRows = await tx
+    .select({
+      id: items.id,
+      deletedAt: items.deletedAt,
+      statusCategory: statuses.category,
+    })
+    .from(itemFixVersions)
+    .innerJoin(
+      items,
+      and(eq(items.id, itemFixVersions.itemId), eq(items.backlogId, itemFixVersions.backlogId)),
+    )
+    .innerJoin(
+      statuses,
+      and(eq(statuses.id, items.statusId), eq(statuses.backlogId, items.backlogId)),
+    )
+    .where(
+      and(
+        eq(itemFixVersions.backlogId, command.backlogId),
+        eq(itemFixVersions.releaseId, source.id),
+      ),
+    )
+    .orderBy(asc(items.id))
+    .for("update", { of: items });
+  const liveRows = linkedRows.filter((row) => row.deletedAt === null);
+  const currentScopeRevision = publicationScopeRevision(liveRows);
+  if (currentScopeRevision !== command.expectedScopeRevision) {
+    throw new ReleaseScopeChangedError(currentScopeRevision, liveRows.length);
+  }
+  if (command.disposition === "none" && liveRows.length > 0) {
+    throw new Error("La version contient des éléments.");
+  }
+  const actor = await readUser(tx, actorId, "Acteur");
+  const itemIds = linkedRows.map((row) => row.id);
+
+  if (itemIds.length > 0) {
+    const currentFixVersionRows = await tx
+      .select({
+        itemId: itemFixVersions.itemId,
+        releaseId: releases.id,
+        releaseName: releases.name,
+      })
+      .from(itemFixVersions)
+      .innerJoin(
+        releases,
+        and(
+          eq(releases.id, itemFixVersions.releaseId),
+          eq(releases.backlogId, itemFixVersions.backlogId),
+        ),
+      )
+      .where(
+        and(
+          eq(itemFixVersions.backlogId, command.backlogId),
+          inArray(
+            itemFixVersions.itemId,
+            sql`(select ${itemFixVersions.itemId} from ${itemFixVersions} where ${itemFixVersions.releaseId} = ${source.id})`,
+          ),
+        ),
+      )
+      .orderBy(asc(itemFixVersions.itemId), asc(releases.id));
+    const labelsByItem = new Map<string, Array<{ id: string; name: string }>>();
+    for (const row of currentFixVersionRows) {
+      const labels = labelsByItem.get(row.itemId) ?? [];
+      labels.push({ id: row.releaseId, name: row.releaseName });
+      labelsByItem.set(row.itemId, labels);
+    }
+    const activityRows = itemIds.map((itemId) => {
+      const before = labelsByItem.get(itemId) ?? [];
+      const afterById = new Map(
+        before.filter((release) => release.id !== source.id).map((release) => [release.id, release]),
+      );
+      if (target) afterById.set(target.id, { id: target.id, name: target.name });
+      const after = [...afterById.values()].sort((a, b) => a.id.localeCompare(b.id));
+      return {
+        itemId,
+        actorId: actor.id,
+        action: "update" as const,
+        field: "fix_versions",
+        oldValue: JSON.stringify(before),
+        newValue: JSON.stringify(after),
+        requestCorrelationId,
+      };
+    });
+    if (target) {
+      for (let offset = 0; offset < itemIds.length; offset += RELEASE_WRITE_BATCH_SIZE) {
+        await tx
+          .insert(itemFixVersions)
+          .values(
+            itemIds.slice(offset, offset + RELEASE_WRITE_BATCH_SIZE).map((itemId) => ({
+              backlogId: command.backlogId,
+              itemId,
+              releaseId: target.id,
+              addedBy: actor.id,
+            })),
+          )
+          .onConflictDoNothing();
+      }
+    }
+    for (let offset = 0; offset < activityRows.length; offset += RELEASE_WRITE_BATCH_SIZE) {
+      await tx.insert(activities).values(activityRows.slice(offset, offset + RELEASE_WRITE_BATCH_SIZE));
+    }
+  }
+
+  const publicationRows = await tx
+    .select({ id: releasePublications.id })
+    .from(releasePublications)
+    .where(
+      and(
+        eq(releasePublications.backlogId, command.backlogId),
+        eq(releasePublications.releaseId, source.id),
+      ),
+    )
+    .orderBy(asc(releasePublications.sequence));
+  const publicationIds = publicationRows.map((row) => row.id);
+  const transferredCount = target ? itemIds.length : 0;
+  const removedCount = target ? 0 : itemIds.length;
+
+  await appendReleaseEvent(tx, {
+    backlogId: command.backlogId,
+    releaseId: source.id,
+    releaseName: source.name,
+    actor,
+    action: command.operation === "merge" ? "release_merged" : "release_deleted",
+    oldValue: {
+      name: source.name,
+      revision: source.revision,
+      released: source.releasedAt !== null,
+      archived: source.archivedAt !== null,
+    },
+    newValue: {
+      disposition: command.disposition,
+      targetRelease: target ? { id: target.id, name: target.name } : null,
+      linkedCount: itemIds.length,
+      transferredCount,
+      removedCount,
+      publicationIds,
+    },
+    requestCorrelationId,
+  });
+
+  let targetResult: { id: string; revision: number } | null = null;
+  if (target) {
+    const [updatedTarget] = await tx
+      .update(releases)
+      .set({ revision: target.revision + 1, updatedAt: new Date() })
+      .where(eq(releases.id, target.id))
+      .returning({ id: releases.id, revision: releases.revision });
+    if (!updatedTarget) throw new Error("Transfert impossible.");
+    targetResult = updatedTarget;
+    await appendReleaseEvent(tx, {
+      backlogId: command.backlogId,
+      releaseId: target.id,
+      releaseName: target.name,
+      actor,
+      action: "release_items_received",
+      oldValue: { revision: target.revision },
+      newValue: {
+        revision: updatedTarget.revision,
+        operation: command.operation,
+        sourceRelease: { id: source.id, name: source.name },
+        transferredCount,
+        publicationIds,
+      },
+      requestCorrelationId,
+    });
+  }
+
+  // Cascades the source links; history FKs become NULL with their labels kept.
+  await tx.delete(releases).where(eq(releases.id, source.id));
+
+  return {
+    deletedReleaseId: source.id,
+    linkedCount: itemIds.length,
+    transferredCount,
+    removedCount,
+    targetRelease: targetResult,
+  };
+}
+
+export async function deleteRelease(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string,
+): Promise<RemoveReleaseResult> {
+  const data = deleteReleaseSchema.parse(input);
+  return db.transaction((tx) =>
+    removeReleaseInTx(
+      tx,
+      {
+        operation: "delete",
+        backlogId: data.backlogId,
+        sourceReleaseId: data.releaseId,
+        expectedSourceRevision: data.expectedRevision,
+        expectedScopeRevision: data.expectedScopeRevision,
+        disposition: data.fixVersions.disposition,
+        target:
+          data.fixVersions.disposition === "transfer"
+            ? {
+                releaseId: data.fixVersions.targetReleaseId,
+                expectedRevision: data.fixVersions.expectedTargetRevision,
+              }
+            : null,
+      },
+      actorId,
+      requestCorrelationId,
+    ),
+  );
+}
+
+export async function mergeRelease(
+  input: unknown,
+  actorId: string,
+  requestCorrelationId: string,
+): Promise<RemoveReleaseResult> {
+  const data = mergeReleaseSchema.parse(input);
+  return db.transaction((tx) =>
+    removeReleaseInTx(
+      tx,
+      {
+        operation: "merge",
+        backlogId: data.backlogId,
+        sourceReleaseId: data.sourceReleaseId,
+        expectedSourceRevision: data.expectedSourceRevision,
+        expectedScopeRevision: data.expectedScopeRevision,
+        disposition: "transfer",
+        target: { releaseId: data.targetReleaseId, expectedRevision: data.expectedTargetRevision },
+      },
+      actorId,
+      requestCorrelationId,
+    ),
+  );
 }
 
 function releaseSummaryQuery(

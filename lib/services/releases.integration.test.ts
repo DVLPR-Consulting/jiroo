@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
+import { Client } from "pg";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { databasePool, db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -19,11 +20,13 @@ import {
 import {
   archiveRelease,
   createRelease,
+  deleteRelease,
   getReleaseDetail,
   listPublicationSnapshotItems,
   listReleaseEvents,
   listReleaseScopeItems,
   listReleaseSummaries,
+  mergeRelease,
   resolveReleasePublicationId,
   publishRelease as publishReleaseService,
   unarchiveRelease,
@@ -1967,5 +1970,660 @@ describeDb("release publish, unrelease, and archive lifecycle", () => {
           ),
         ),
     ).resolves.toHaveLength(1);
+  });
+});
+
+async function fixVersionsOf(itemId: string) {
+  const rows = await db
+    .select({ releaseId: itemFixVersions.releaseId })
+    .from(itemFixVersions)
+    .where(eq(itemFixVersions.itemId, itemId));
+  return rows.map((row) => row.releaseId).sort();
+}
+
+async function releaseRow(releaseId: string) {
+  const [row] = await db.select().from(releases).where(eq(releases.id, releaseId));
+  return row ?? null;
+}
+
+async function scopeRevisionOf(backlogId: string, releaseId: string) {
+  const detail = await getReleaseDetail(backlogId, releaseId);
+  if (!detail) throw new Error("Release fixture introuvable.");
+  return detail.publicationScopeRevision;
+}
+
+async function depthFixture(name: string) {
+  const actor = await actorFixture();
+  const backlog = await backlogFixture(name);
+  const [todo, done] = await statusFixture(backlog.id, [
+    { name: "À faire", category: "todo" },
+    { name: "Terminé", category: "done" },
+  ]);
+  const release = (releaseName: string) =>
+    createRelease(
+      { backlogId: backlog.id, name: releaseName, driverId: actor.id },
+      actor.id,
+      `create-${releaseName}`,
+    );
+  let ordinal = 0;
+  const item = (title: string, statusId = todo!.id) =>
+    itemFixture({
+      backlogId: backlog.id,
+      backlogKey: backlog.key,
+      reporterId: actor.id,
+      statusId,
+      title,
+      ordinal: ++ordinal,
+    });
+  const link = (itemId: string, releaseId: string) =>
+    db.insert(itemFixVersions).values({ backlogId: backlog.id, itemId, releaseId, addedBy: actor.id });
+  return { actor, backlog, todo: todo!, done: done!, release, item, link };
+}
+
+describeDb("release merge and delete", () => {
+  it("merges a source into a target, deduplicating links and deleting the source", async () => {
+    const { actor, backlog, release, item, link } = await depthFixture("Merge");
+    const source = await release("2026.10");
+    const target = await release("2026.11");
+    const other = await release("Maintenance");
+    const item1 = await item("Seulement source");
+    const item2 = await item("Source et cible");
+    const item3 = await item("Source et autre");
+    await link(item1.id, source.id);
+    await link(item2.id, source.id);
+    await link(item2.id, target.id);
+    await link(item3.id, source.id);
+    await link(item3.id, other.id);
+
+    const result = await mergeRelease(
+      {
+        backlogId: backlog.id,
+        sourceReleaseId: source.id,
+        expectedSourceRevision: source.revision,
+        expectedScopeRevision: await scopeRevisionOf(backlog.id, source.id),
+        targetReleaseId: target.id,
+        expectedTargetRevision: target.revision,
+      },
+      actor.id,
+      "merge-1",
+    );
+
+    expect(result).toEqual({
+      deletedReleaseId: source.id,
+      linkedCount: 3,
+      transferredCount: 3,
+      removedCount: 0,
+      targetRelease: { id: target.id, revision: target.revision + 1 },
+    });
+    expect(await fixVersionsOf(item1.id)).toEqual([target.id]);
+    expect(await fixVersionsOf(item2.id)).toEqual([target.id]);
+    expect(await fixVersionsOf(item3.id)).toEqual([other.id, target.id].sort());
+    expect(await releaseRow(source.id)).toBeNull();
+    expect((await releaseRow(target.id))?.revision).toBe(target.revision + 1);
+
+    const activityRows = await db
+      .select({
+        itemId: activities.itemId,
+        field: activities.field,
+        oldValue: activities.oldValue,
+        newValue: activities.newValue,
+        requestCorrelationId: activities.requestCorrelationId,
+      })
+      .from(activities)
+      .where(
+        and(
+          inArray(activities.itemId, [item1.id, item2.id, item3.id]),
+          eq(activities.field, "fix_versions"),
+        ),
+      );
+    expect(activityRows).toHaveLength(3);
+    expect(activityRows.every((row) => row.requestCorrelationId === "merge-1")).toBe(true);
+    const item3Activity = activityRows.find((row) => row.itemId === item3.id)!;
+    expect(JSON.parse(item3Activity.oldValue!).map((entry: { id: string }) => entry.id).sort()).toEqual(
+      [source.id, other.id].sort(),
+    );
+    expect(JSON.parse(item3Activity.newValue!).map((entry: { name: string }) => entry.name).sort()).toEqual(
+      ["2026.11", "Maintenance"],
+    );
+
+    const events = await db
+      .select({
+        releaseId: releaseEvents.releaseId,
+        releaseName: releaseEvents.releaseName,
+        action: releaseEvents.action,
+        newValue: releaseEvents.newValue,
+        requestCorrelationId: releaseEvents.requestCorrelationId,
+      })
+      .from(releaseEvents)
+      .where(and(eq(releaseEvents.backlogId, backlog.id), eq(releaseEvents.requestCorrelationId, "merge-1")));
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          releaseId: null,
+          releaseName: "2026.10",
+          action: "release_merged",
+          newValue: expect.objectContaining({
+            disposition: "transfer",
+            targetRelease: { id: target.id, name: "2026.11" },
+            linkedCount: 3,
+            publicationIds: [],
+          }),
+        }),
+        expect.objectContaining({
+          releaseId: target.id,
+          releaseName: "2026.11",
+          action: "release_items_received",
+          newValue: expect.objectContaining({
+            operation: "merge",
+            sourceRelease: { id: source.id, name: "2026.10" },
+            transferredCount: 3,
+          }),
+        }),
+      ]),
+    );
+    expect(events).toHaveLength(2);
+  });
+
+  it("deletes with remove, keeping unrelated versions and one correlated activity per item", async () => {
+    const { actor, backlog, release, item, link } = await depthFixture("Delete remove");
+    const source = await release("Abandonnée");
+    const other = await release("Gardée");
+    const item1 = await item("A");
+    const item2 = await item("B");
+    await link(item1.id, source.id);
+    await link(item2.id, source.id);
+    await link(item2.id, other.id);
+
+    const result = await deleteRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: source.id,
+        expectedRevision: source.revision,
+        expectedScopeRevision: await scopeRevisionOf(backlog.id, source.id),
+        fixVersions: { disposition: "remove" },
+      },
+      actor.id,
+      "delete-remove-1",
+    );
+    expect(result).toEqual({
+      deletedReleaseId: source.id,
+      linkedCount: 2,
+      transferredCount: 0,
+      removedCount: 2,
+      targetRelease: null,
+    });
+    expect(await fixVersionsOf(item1.id)).toEqual([]);
+    expect(await fixVersionsOf(item2.id)).toEqual([other.id]);
+    expect((await releaseRow(other.id))?.revision).toBe(other.revision);
+    const activityRows = await db
+      .select({ requestCorrelationId: activities.requestCorrelationId })
+      .from(activities)
+      .where(and(inArray(activities.itemId, [item1.id, item2.id]), eq(activities.field, "fix_versions")));
+    expect(activityRows).toEqual([
+      { requestCorrelationId: "delete-remove-1" },
+      { requestCorrelationId: "delete-remove-1" },
+    ]);
+    const [event] = await db
+      .select({ action: releaseEvents.action, releaseId: releaseEvents.releaseId })
+      .from(releaseEvents)
+      .where(eq(releaseEvents.requestCorrelationId, "delete-remove-1"));
+    expect(event).toEqual({ action: "release_deleted", releaseId: null });
+  });
+
+  it("deletes with transfer and bumps the target revision", async () => {
+    const { actor, backlog, release, item, link } = await depthFixture("Delete transfer");
+    const source = await release("Source");
+    const target = await release("Cible");
+    const item1 = await item("A");
+    await link(item1.id, source.id);
+    const result = await deleteRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: source.id,
+        expectedRevision: source.revision,
+        expectedScopeRevision: await scopeRevisionOf(backlog.id, source.id),
+        fixVersions: {
+          disposition: "transfer",
+          targetReleaseId: target.id,
+          expectedTargetRevision: target.revision,
+        },
+      },
+      actor.id,
+      "delete-transfer-1",
+    );
+    expect(result).toMatchObject({ linkedCount: 1, transferredCount: 1, removedCount: 0 });
+    expect(await fixVersionsOf(item1.id)).toEqual([target.id]);
+    const actions = await db
+      .select({ action: releaseEvents.action })
+      .from(releaseEvents)
+      .where(eq(releaseEvents.requestCorrelationId, "delete-transfer-1"));
+    expect(actions.map((row) => row.action).sort()).toEqual([
+      "release_deleted",
+      "release_items_received",
+    ]);
+  });
+
+  it("deletes an empty version with disposition none and refuses none when items are linked", async () => {
+    const { actor, backlog, release, item, link } = await depthFixture("Delete none");
+    const empty = await release("Vide");
+    const linked = await release("Liée");
+    const item1 = await item("A");
+    await link(item1.id, linked.id);
+
+    await expect(
+      deleteRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: linked.id,
+          expectedRevision: linked.revision,
+          expectedScopeRevision: await scopeRevisionOf(backlog.id, linked.id),
+          fixVersions: { disposition: "none" },
+        },
+        actor.id,
+        "delete-none-refused",
+      ),
+    ).rejects.toThrow("La version contient des éléments.");
+    expect(await releaseRow(linked.id)).not.toBeNull();
+
+    await expect(
+      deleteRelease(
+        {
+          backlogId: backlog.id,
+          releaseId: empty.id,
+          expectedRevision: empty.revision,
+          expectedScopeRevision: await scopeRevisionOf(backlog.id, empty.id),
+          fixVersions: { disposition: "none" },
+        },
+        actor.id,
+        "delete-none-ok",
+      ),
+    ).resolves.toEqual({
+      deletedReleaseId: empty.id,
+      linkedCount: 0,
+      transferredCount: 0,
+      removedCount: 0,
+      targetRelease: null,
+    });
+    expect(await releaseRow(empty.id)).toBeNull();
+  });
+
+  it("refuses archived, cross-backlog and missing targets without changing anything", async () => {
+    const { actor, backlog, release, item, link } = await depthFixture("Merge targets");
+    const source = await release("Source");
+    const archived = await release("Archivée");
+    const foreignBacklog = await backlogFixture("Merge foreign");
+    const foreign = await createRelease(
+      { backlogId: foreignBacklog.id, name: "Étrangère", driverId: actor.id },
+      actor.id,
+      "foreign-create",
+    );
+    const archivedResult = await archiveRelease(
+      { backlogId: backlog.id, releaseId: archived.id, expectedRevision: archived.revision },
+      actor.id,
+      "archive-target",
+    );
+    const item1 = await item("A");
+    await link(item1.id, source.id);
+    const scope = await scopeRevisionOf(backlog.id, source.id);
+    const merge = (targetReleaseId: string, expectedTargetRevision: number) =>
+      mergeRelease(
+        {
+          backlogId: backlog.id,
+          sourceReleaseId: source.id,
+          expectedSourceRevision: source.revision,
+          expectedScopeRevision: scope,
+          targetReleaseId,
+          expectedTargetRevision,
+        },
+        actor.id,
+        "merge-refused",
+      );
+
+    await expect(merge(archived.id, archivedResult.revision)).rejects.toThrow(
+      "La release de destination est archivée.",
+    );
+    await expect(merge(foreign.id, foreign.revision)).rejects.toThrow(
+      "La release de destination est invalide pour ce backlog.",
+    );
+    await expect(merge(randomUUID(), 1)).rejects.toThrow(
+      "La release de destination est invalide pour ce backlog.",
+    );
+    expect(await fixVersionsOf(item1.id)).toEqual([source.id]);
+    expect(await releaseRow(source.id)).not.toBeNull();
+    await expect(
+      db
+        .select({ id: releaseEvents.id })
+        .from(releaseEvents)
+        .where(eq(releaseEvents.requestCorrelationId, "merge-refused")),
+    ).resolves.toEqual([]);
+  });
+
+  it("refuses a missing or cross-backlog source as Release introuvable", async () => {
+    const { actor, backlog, release } = await depthFixture("Missing source");
+    const target = await release("Cible");
+    const foreignBacklog = await backlogFixture("Missing source foreign");
+    const foreign = await createRelease(
+      { backlogId: foreignBacklog.id, name: "Étrangère", driverId: actor.id },
+      actor.id,
+      "foreign-source-create",
+    );
+    for (const sourceReleaseId of [foreign.id, randomUUID()]) {
+      await expect(
+        mergeRelease(
+          {
+            backlogId: backlog.id,
+            sourceReleaseId,
+            expectedSourceRevision: 1,
+            expectedScopeRevision: "d41d8cd98f00b204e9800998ecf8427e",
+            targetReleaseId: target.id,
+            expectedTargetRevision: target.revision,
+          },
+          actor.id,
+          "merge-missing-source",
+        ),
+      ).rejects.toThrow("Release introuvable.");
+    }
+    expect(await releaseRow(foreign.id)).not.toBeNull();
+  });
+
+  it("refuses stale source, target and scope revisions", async () => {
+    const { actor, backlog, release, item, link } = await depthFixture("Merge stale");
+    const source = await release("Source");
+    const target = await release("Cible");
+    const item1 = await item("A");
+    const item2 = await item("B");
+    await link(item1.id, source.id);
+    const scope = await scopeRevisionOf(backlog.id, source.id);
+    const base = {
+      backlogId: backlog.id,
+      sourceReleaseId: source.id,
+      expectedSourceRevision: source.revision,
+      expectedScopeRevision: scope,
+      targetReleaseId: target.id,
+      expectedTargetRevision: target.revision,
+    };
+
+    await expect(
+      mergeRelease({ ...base, expectedSourceRevision: source.revision + 1 }, actor.id, "stale"),
+    ).rejects.toThrow("Cette release a changé. Rechargez-la avant de réessayer.");
+    await expect(
+      mergeRelease({ ...base, expectedTargetRevision: target.revision + 1 }, actor.id, "stale"),
+    ).rejects.toThrow("La release de destination a changé. Rechargez-la avant de réessayer.");
+
+    await link(item2.id, source.id);
+    const currentScopeRevision = await scopeRevisionOf(backlog.id, source.id);
+    await expect(mergeRelease(base, actor.id, "stale")).rejects.toMatchObject({
+      code: "RELEASE_SCOPE_STALE",
+      currentLinkedCount: 2,
+      currentScopeRevision,
+    });
+    expect(await fixVersionsOf(item1.id)).toEqual([source.id]);
+    expect(await fixVersionsOf(item2.id)).toEqual([source.id]);
+    expect(await releaseRow(source.id)).not.toBeNull();
+  });
+
+  it("keeps publications and snapshots intact when a published source is merged", async () => {
+    const { actor, backlog, release, item, link, done } = await depthFixture("Merge published");
+    const source = await release("2026.08");
+    const target = await release("2026.09");
+    const later = await release("2026.10");
+    const item1 = await item("Livré", done.id);
+    const item2 = await item("Reporté");
+    await link(item1.id, source.id);
+    await link(item2.id, later.id);
+    // A publication whose destination is the merged source keeps its label.
+    const destinationProbe = await publishRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: later.id,
+        expectedRevision: later.revision,
+        effectiveDate: "2026-08-21",
+        incompleteDisposition: "move",
+        destinationReleaseId: source.id,
+      },
+      actor.id,
+      "publish-probe",
+    );
+    const sourcePublication = await publishRelease(
+      {
+        backlogId: backlog.id,
+        releaseId: source.id,
+        expectedRevision: source.revision,
+        effectiveDate: "2026-08-20",
+        incompleteDisposition: "keep",
+      },
+      actor.id,
+      "publish-source",
+    );
+
+    const snapshotBefore = await db
+      .select()
+      .from(releasePublicationItems)
+      .where(eq(releasePublicationItems.publicationId, sourcePublication.publicationId))
+      .orderBy(asc(releasePublicationItems.id));
+    const publicationBefore = await db
+      .select()
+      .from(releasePublications)
+      .where(eq(releasePublications.id, sourcePublication.publicationId));
+
+    const sourceNow = (await releaseRow(source.id))!;
+    const targetNow = (await releaseRow(target.id))!;
+    await mergeRelease(
+      {
+        backlogId: backlog.id,
+        sourceReleaseId: source.id,
+        expectedSourceRevision: sourceNow.revision,
+        expectedScopeRevision: await scopeRevisionOf(backlog.id, source.id),
+        targetReleaseId: target.id,
+        expectedTargetRevision: targetNow.revision,
+      },
+      actor.id,
+      "merge-published",
+    );
+
+    const snapshotAfter = await db
+      .select()
+      .from(releasePublicationItems)
+      .where(eq(releasePublicationItems.publicationId, sourcePublication.publicationId))
+      .orderBy(asc(releasePublicationItems.id));
+    expect(snapshotAfter).toEqual(snapshotBefore);
+    const [publicationAfter] = await db
+      .select()
+      .from(releasePublications)
+      .where(eq(releasePublications.id, sourcePublication.publicationId));
+    expect(publicationAfter).toEqual({ ...publicationBefore[0], releaseId: null });
+    expect(publicationAfter?.releaseName).toBe("2026.08");
+    const [probe] = await db
+      .select({
+        destinationReleaseId: releasePublications.destinationReleaseId,
+        destinationReleaseName: releasePublications.destinationReleaseName,
+      })
+      .from(releasePublications)
+      .where(eq(releasePublications.id, destinationProbe.publicationId));
+    expect(probe).toEqual({ destinationReleaseId: null, destinationReleaseName: "2026.08" });
+    await expect(
+      db
+        .select({
+          destinationReleaseId: releasePublicationItems.destinationReleaseId,
+          destinationReleaseName: releasePublicationItems.destinationReleaseName,
+        })
+        .from(releasePublicationItems)
+        .where(eq(releasePublicationItems.publicationId, destinationProbe.publicationId)),
+    ).resolves.toEqual([{ destinationReleaseId: null, destinationReleaseName: "2026.08" }]);
+
+    const [mergedEvent] = await db
+      .select({ newValue: releaseEvents.newValue })
+      .from(releaseEvents)
+      .where(
+        and(
+          eq(releaseEvents.requestCorrelationId, "merge-published"),
+          eq(releaseEvents.action, "release_merged"),
+        ),
+      );
+    expect(mergedEvent?.newValue).toMatchObject({
+      publicationIds: [sourcePublication.publicationId],
+    });
+    const historical = await db
+      .select({ releaseId: releaseEvents.releaseId, releaseName: releaseEvents.releaseName })
+      .from(releaseEvents)
+      .where(eq(releaseEvents.requestCorrelationId, "publish-source"));
+    expect(historical).toEqual([{ releaseId: null, releaseName: "2026.08" }]);
+  });
+
+  it("rolls back links, activities and the source when the event insert fails", async () => {
+    const { actor, backlog, release, item, link } = await depthFixture("Merge rollback");
+    const source = await release("Source");
+    const target = await release("Cible");
+    const item1 = await item("A");
+    await link(item1.id, source.id);
+    const suffix = randomUUID().replaceAll("-", "");
+    const functionName = `fail_release_event_${suffix}`;
+    await databasePool.query(
+      `create function "${functionName}"() returns trigger language plpgsql as $fn$
+       begin
+         if new.backlog_id = '${backlog.id}'::uuid and new.action = 'release_items_received' then
+           raise exception 'forced event failure';
+         end if;
+         return new;
+       end;
+       $fn$`,
+    );
+    await databasePool.query(
+      `create trigger "${functionName}" before insert on release_events
+       for each row execute function "${functionName}"()`,
+    );
+    try {
+      await expect(
+        mergeRelease(
+          {
+            backlogId: backlog.id,
+            sourceReleaseId: source.id,
+            expectedSourceRevision: source.revision,
+            expectedScopeRevision: await scopeRevisionOf(backlog.id, source.id),
+            targetReleaseId: target.id,
+            expectedTargetRevision: target.revision,
+          },
+          actor.id,
+          "merge-rollback",
+        ),
+      ).rejects.toThrow();
+    } finally {
+      await databasePool.query(`drop trigger if exists "${functionName}" on release_events`);
+      await databasePool.query(`drop function if exists "${functionName}"()`);
+    }
+    expect(await fixVersionsOf(item1.id)).toEqual([source.id]);
+    expect(await releaseRow(source.id)).not.toBeNull();
+    expect((await releaseRow(target.id))?.revision).toBe(target.revision);
+    await expect(
+      db
+        .select({ id: activities.id })
+        .from(activities)
+        .where(eq(activities.requestCorrelationId, "merge-rollback")),
+    ).resolves.toEqual([]);
+  });
+
+  it("transfers 1, 100, 500 and 1,000 links all-or-nothing with a fixed query count", async () => {
+    const { actor, backlog, todo, release } = await depthFixture("Merge volume");
+    const target = await release("Cible");
+    const queryCounts: number[] = [];
+    let ordinal = 10_000;
+    for (const size of [1, 100, 500, 1_000]) {
+      const source = await release(`Source ${size}`);
+      const rows = Array.from({ length: size }, () => {
+        const id = randomUUID();
+        ordinal += 1;
+        return {
+          id,
+          key: `${backlog.key}-${ordinal}`,
+          type: "tache" as const,
+          backlogId: backlog.id,
+          title: `Item ${ordinal}`,
+          statusId: todo.id,
+          reporterId: actor.id,
+          rank: `a${ordinal.toString().padStart(7, "0")}`,
+          path: `root.${id.replaceAll("-", "")}`,
+        };
+      });
+      await db.insert(items).values(rows);
+      await db.insert(itemFixVersions).values(
+        rows.map((row) => ({
+          backlogId: backlog.id,
+          itemId: row.id,
+          releaseId: source.id,
+          addedBy: actor.id,
+        })),
+      );
+      const scope = await scopeRevisionOf(backlog.id, source.id);
+      const targetNow = (await releaseRow(target.id))!;
+      const querySpy = vi.spyOn(Client.prototype, "query");
+      try {
+        await expect(
+          mergeRelease(
+            {
+              backlogId: backlog.id,
+              sourceReleaseId: source.id,
+              expectedSourceRevision: source.revision,
+              expectedScopeRevision: scope,
+              targetReleaseId: target.id,
+              expectedTargetRevision: targetNow.revision,
+            },
+            actor.id,
+            `merge-volume-${size}`,
+          ),
+        ).resolves.toMatchObject({ linkedCount: size, transferredCount: size });
+        queryCounts.push(querySpy.mock.calls.length);
+      } finally {
+        querySpy.mockRestore();
+      }
+      const [moved] = await db
+        .select({ count: count() })
+        .from(itemFixVersions)
+        .where(
+          and(
+            eq(itemFixVersions.releaseId, target.id),
+            inArray(
+              itemFixVersions.itemId,
+              rows.map((row) => row.id),
+            ),
+          ),
+        );
+      expect(moved?.count).toBe(size);
+    }
+    expect(queryCounts[0]).toBeGreaterThan(0);
+    expect(new Set(queryCounts).size).toBe(1);
+  });
+
+  it("serializes two concurrent merges of the same source without a partial state", async () => {
+    const { actor, backlog, release, item, link } = await depthFixture("Merge concurrent");
+    const source = await release("Source");
+    const targetA = await release("Cible A");
+    const targetB = await release("Cible B");
+    const item1 = await item("A");
+    await link(item1.id, source.id);
+    const scope = await scopeRevisionOf(backlog.id, source.id);
+    const merge = (targetReleaseId: string, expectedTargetRevision: number, id: string) =>
+      mergeRelease(
+        {
+          backlogId: backlog.id,
+          sourceReleaseId: source.id,
+          expectedSourceRevision: source.revision,
+          expectedScopeRevision: scope,
+          targetReleaseId,
+          expectedTargetRevision,
+        },
+        actor.id,
+        id,
+      );
+    const results = await Promise.allSettled([
+      merge(targetA.id, targetA.revision, "merge-concurrent-a"),
+      merge(targetB.id, targetB.revision, "merge-concurrent-b"),
+    ]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const rejected = results.find((result) => result.status === "rejected");
+    expect(rejected?.status === "rejected" && rejected.reason.message).toBe("Release introuvable.");
+    const links = await fixVersionsOf(item1.id);
+    expect(links).toHaveLength(1);
+    expect([targetA.id, targetB.id]).toContain(links[0]);
+    expect(await releaseRow(source.id)).toBeNull();
   });
 });
