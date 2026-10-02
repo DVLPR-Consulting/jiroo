@@ -1311,8 +1311,10 @@ audited(8, "relie édition unitaire, bulk et Board au burndown, ordre par séque
     burndown.commitmentPoints,
     await expectedRecentVelocity(context.backlog.id),
   );
-  const currentScope = await activeHeader.getByText(/^Périmètre actuel /u).textContent();
-  expect(parseRenderedNumber(currentScope!.replace("Périmètre actuel", "")))
+  // Live scope = every sprint row's current estimate (remaining + completed).
+  // Polled: the header re-renders after the single-edit save just above.
+  const currentScope = activeHeader.getByText(/^Périmètre actuel /u);
+  await expect.poll(async () => parseRenderedNumber((await currentScope.textContent())!.replace("Périmètre actuel", "")))
     .toBe(expectedRemaining + expectedCompleted);
   await expect(activeHeader.getByText("Engagement supérieur à la moyenne récente", { exact: false })).toHaveCount(0);
 
