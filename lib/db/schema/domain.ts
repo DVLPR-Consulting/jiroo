@@ -196,6 +196,9 @@ export const releases = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     archivedBy: text("archived_by").references(() => user.id),
     driverId: text("driver_id").references(() => user.id, { onDelete: "set null" }),
+    // Manual release order (fractional index, one sequence per backlog). Nullable:
+    // rows created before manual ordering are ranked lazily on the first reorder.
+    rank: text("rank"),
     createdBy: text("created_by")
       .notNull()
       .references(() => user.id),
@@ -204,6 +207,8 @@ export const releases = pgTable(
   },
   (t) => [
     uniqueIndex("releases_backlog_id_idx").on(t.backlogId, t.id),
+    // NULL ranks stay distinct in PostgreSQL, so unranked legacy rows coexist.
+    uniqueIndex("releases_backlog_rank_idx").on(t.backlogId, t.rank),
     uniqueIndex("releases_backlog_name_idx").on(t.backlogId, sql`lower(btrim(${t.name}))`),
     check("releases_name_nonempty", sql`btrim(${t.name}) <> ''`),
     check("releases_revision_positive", sql`${t.revision} > 0`),

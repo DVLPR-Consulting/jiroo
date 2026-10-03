@@ -25,7 +25,12 @@ import {
 } from "../lib/db/schema/domain";
 import { changeItemFixVersions } from "../lib/services/item-fix-versions";
 import { createItem, updateItem } from "../lib/services/items";
-import { createRelease } from "../lib/services/releases";
+import {
+  createRelease,
+  deleteRelease,
+  getReleaseDetail,
+  publishRelease,
+} from "../lib/services/releases";
 import { startSprint } from "../lib/services/sprint-lifecycle";
 import { createSprint } from "../lib/services/sprints";
 import {
@@ -259,6 +264,7 @@ async function fixtureTask(
     status?: "todo" | "in_progress" | "done";
     points?: number | null;
     sprintId?: string;
+    kind?: "feature" | "bug";
   } = {},
 ) {
   const backlog = await backlogFixture();
@@ -268,6 +274,7 @@ async function fixtureTask(
     type: "tache",
     parentId: backlog.epicId,
     title,
+    ...(input.kind ? { kind: input.kind } : {}),
     ...(input.sprintId ? { sprintId: input.sprintId } : {}),
   }, actorId, `e2e-item-${title}`);
   await updateItem({
@@ -1029,4 +1036,533 @@ audited(16, "refuse un publish quand le périmètre change entre deux contextes"
     .innerJoin(releasePublications, eq(releasePublications.id, releasePublicationItems.publicationId))
     .where(eq(releasePublications.releaseId, release.id));
   expect(snapshots).toEqual([{ itemId: secondItem.id }]);
+});
+
+// ── PR2 — merge, delete, manual order, release notes (JIR-39) ────────────────
+
+async function publishKeep(releaseId: string, backlogId: string, effectiveDate = "2026-08-20") {
+  const actorId = await accountId(EMAIL.admin);
+  const detail = await getReleaseDetail(backlogId, releaseId);
+  if (!detail) throw new Error("Release fixture introuvable.");
+  return publishRelease({
+    backlogId,
+    releaseId,
+    expectedRevision: detail.revision,
+    expectedScopeRevision: detail.publicationScopeRevision,
+    effectiveDate,
+    incompleteDisposition: "keep",
+  }, actorId, `e2e-publish-${releaseId}`);
+}
+
+async function releaseExists(releaseId: string) {
+  const rows = await db.select({ id: releases.id }).from(releases).where(eq(releases.id, releaseId));
+  return rows.length === 1;
+}
+
+async function openListActions(page: Page, releaseName: string) {
+  const article = page.getByRole("article", { name: releaseName });
+  await article.getByText(`Actions pour ${releaseName}`).click();
+  return article;
+}
+
+async function articleOrder(page: Page, names: string[]) {
+  const labels = await page.getByRole("article").evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("aria-label") ?? ""),
+  );
+  return labels.filter((label) => names.includes(label));
+}
+
+audited(17, "fusionne une version en dédoublonnant les liens et la retire partout", async ({ page }) => {
+  const source = await fixtureRelease("R2-S17 Source");
+  const target = await fixtureRelease("R2-S17 Cible");
+  const onlySource = await fixtureTask("R2-S17 seulement source");
+  const both = await fixtureTask("R2-S17 source et cible");
+  await assignVersions(onlySource.id, [source.id]);
+  await assignVersions(both.id, [source.id, target.id]);
+
+  await page.goto("/b/CASS/releases");
+  const article = await openListActions(page, source.name);
+  await article.getByRole("button", { name: `Fusionner ${source.name}` }).click();
+  const dialog = page.getByRole("dialog", { name: `Fusionner ${source.name}` });
+  await expect(dialog).toContainText("2 éléments liés");
+  await dialog.getByLabel("Version de destination").selectOption({ label: target.name });
+  await clickPost(page, () => dialog.getByRole("button", { name: "Fusionner", exact: true }).click());
+  await expect(page.getByRole("article", { name: source.name })).toHaveCount(0);
+  await expect(page.getByRole("article", { name: target.name })).toBeVisible();
+
+  expect(await releaseExists(source.id)).toBe(false);
+  expect(await assignedVersionIds(onlySource.id)).toEqual([target.id]);
+  expect(await assignedVersionIds(both.id)).toEqual([target.id]);
+
+  await page.goto("/b/CASS?view=list");
+  await page.getByRole("button", { name: "+ Version" }).click();
+  await expect(page.getByLabel(target.name, { exact: true })).toBeVisible();
+  await expect(page.getByLabel(source.name, { exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.goto(`/b/CASS?view=list&item=${onlySource.key}`);
+  await page.getByRole("button", { name: "Versions", exact: true }).click();
+  await expect(page.getByRole("menuitemcheckbox", { name: target.name })).toBeVisible();
+  await expect(page.getByRole("menuitemcheckbox", { name: source.name })).toHaveCount(0);
+});
+
+audited(18, "fusionne une version publiée sans réécrire les snapshots ni leurs libellés", async ({ page }) => {
+  const backlog = await backlogFixture();
+  const actorId = await accountId(EMAIL.admin);
+  const published = await fixtureRelease("R2-S18 Publiée");
+  const probe = await fixtureRelease("R2-S18 Sonde");
+  const target = await fixtureRelease("R2-S18 Cible");
+  const delivered = await fixtureTask("R2-S18 livré", { status: "done" });
+  const postponed = await fixtureTask("R2-S18 reporté");
+  await assignVersions(delivered.id, [published.id]);
+  await assignVersions(postponed.id, [probe.id]);
+  const probeDetail = await getReleaseDetail(backlog.id, probe.id);
+  const probePublication = await publishRelease({
+    backlogId: backlog.id,
+    releaseId: probe.id,
+    expectedRevision: probeDetail!.revision,
+    expectedScopeRevision: probeDetail!.publicationScopeRevision,
+    effectiveDate: "2026-08-19",
+    incompleteDisposition: "move",
+    destinationReleaseId: published.id,
+  }, actorId, "e2e-s18-probe");
+  const publication = await publishKeep(published.id, backlog.id);
+  const snapshotBefore = await db.select().from(releasePublicationItems)
+    .where(eq(releasePublicationItems.publicationId, publication.publicationId))
+    .orderBy(asc(releasePublicationItems.id));
+
+  await page.goto(`/b/CASS/releases/${published.id}`);
+  await page.getByRole("button", { name: `Fusionner ${published.name}` }).click();
+  const dialog = page.getByRole("dialog", { name: `Fusionner ${published.name}` });
+  await expect(dialog).toContainText("1 publication conservée");
+  await dialog.getByLabel("Version de destination").selectOption({ label: target.name });
+  await clickPost(page, () => dialog.getByRole("button", { name: "Fusionner", exact: true }).click());
+  await expect(page).toHaveURL(/\/b\/CASS\/releases$/);
+
+  const snapshotAfter = await db.select().from(releasePublicationItems)
+    .where(eq(releasePublicationItems.publicationId, publication.publicationId))
+    .orderBy(asc(releasePublicationItems.id));
+  expect(snapshotAfter).toEqual(snapshotBefore);
+  const [probeRow] = await db.select({
+    destinationReleaseId: releasePublications.destinationReleaseId,
+    destinationReleaseName: releasePublications.destinationReleaseName,
+  }).from(releasePublications).where(eq(releasePublications.id, probePublication.publicationId));
+  expect(probeRow).toEqual({ destinationReleaseId: null, destinationReleaseName: published.name });
+  const [kept] = await db.select({ releaseId: releasePublications.releaseId, releaseName: releasePublications.releaseName })
+    .from(releasePublications).where(eq(releasePublications.id, publication.publicationId));
+  expect(kept).toEqual({ releaseId: null, releaseName: published.name });
+
+  await page.goto(`/b/CASS/releases/${target.id}`);
+  await expect(page.getByRole("region", { name: "Historique" }))
+    .toContainText("a reçu les éléments d’une version fusionnée ou supprimée");
+  expect(await assignedVersionIds(delivered.id)).toEqual([target.id]);
+});
+
+audited(19, "supprime avec transfert puis avec retrait en journalisant chaque item", async ({ page }) => {
+  const transferred = await fixtureRelease("R2-S19 Transfert");
+  const removed = await fixtureRelease("R2-S19 Retrait");
+  const kept = await fixtureRelease("R2-S19 Gardée");
+  const target = await fixtureRelease("R2-S19 Cible");
+  const first = await fixtureTask("R2-S19 transféré");
+  const second = await fixtureTask("R2-S19 retiré");
+  await assignVersions(first.id, [transferred.id]);
+  await assignVersions(second.id, [removed.id, kept.id]);
+
+  await page.goto("/b/CASS/releases");
+  const article = await openListActions(page, transferred.name);
+  await article.getByRole("button", { name: `Supprimer ${transferred.name}` }).click();
+  const transferDialog = page.getByRole("dialog", { name: `Supprimer ${transferred.name}` });
+  await expect(transferDialog.getByRole("button", { name: "Supprimer", exact: true })).toBeDisabled();
+  await transferDialog.getByLabel("Transférer vers une autre version").check();
+  await transferDialog.getByLabel("Version de destination").selectOption({ label: target.name });
+  await clickPost(page, () => transferDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
+  await expect(page.getByRole("article", { name: transferred.name })).toHaveCount(0);
+  // Focus lands on the next version card instead of the document.
+  await expect(page.getByRole("link", { name: removed.name, exact: true })).toBeFocused();
+
+  await page.goto(`/b/CASS/releases/${removed.id}`);
+  await page.getByRole("button", { name: `Supprimer ${removed.name}` }).click();
+  const removeDialog = page.getByRole("dialog", { name: `Supprimer ${removed.name}` });
+  await removeDialog.getByLabel("Retirer la version des éléments").check();
+  await clickPost(page, () => removeDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
+  await expect(page).toHaveURL(/\/b\/CASS\/releases$/);
+
+  expect(await assignedVersionIds(first.id)).toEqual([target.id]);
+  expect(await assignedVersionIds(second.id)).toEqual([kept.id]);
+  for (const [item, expectedName] of [[first, target.name], [second, kept.name]] as const) {
+    const rows = await db.select({ newValue: activities.newValue, correlation: activities.requestCorrelationId })
+      .from(activities)
+      .where(and(eq(activities.itemId, item.id), eq(activities.field, "fix_versions")))
+      .orderBy(asc(activities.at));
+    const last = rows.at(-1);
+    expect(last?.newValue).toContain(expectedName);
+    expect(last?.newValue).not.toContain(item === first ? transferred.name : removed.name);
+    expect(last?.correlation).toBeTruthy();
+  }
+  await page.goto(`/b/CASS?view=list&item=${second.key}`);
+  await expect(page.getByRole("button", { name: "Versions", exact: true })).toBeVisible();
+  await expect(page.getByText(kept.name).first()).toBeVisible();
+});
+
+audited(20, "laisse le spécialiste fusionner et supprimer sans edit_items, comme Jira", async ({ browser, capture, audit }) => {
+  const source = await fixtureRelease("R2-S20 Source spécialiste");
+  const target = await fixtureRelease("R2-S20 Cible spécialiste");
+  const removed = await fixtureRelease("R2-S20 Retrait spécialiste");
+  const empty = await fixtureRelease("R2-S20 Vide spécialiste");
+  const merged = await fixtureTask("R2-S20 fusionné");
+  const detached = await fixtureTask("R2-S20 détaché");
+  await assignVersions(merged.id, [source.id]);
+  await assignVersions(detached.id, [removed.id]);
+  const specialist = await observedPage(browser, capture, "specialist", AUTH.specialist);
+  audit.use(specialist);
+
+  await specialist.goto(`/b/CASS/releases/${source.id}`);
+  await specialist.getByRole("button", { name: `Fusionner ${source.name}` }).click();
+  const mergeDialog = specialist.getByRole("dialog", { name: `Fusionner ${source.name}` });
+  await mergeDialog.getByLabel("Version de destination").selectOption({ label: target.name });
+  await clickPost(specialist, () => mergeDialog.getByRole("button", { name: "Fusionner", exact: true }).click());
+  await expect(specialist).toHaveURL(/\/b\/CASS\/releases$/);
+  expect(await assignedVersionIds(merged.id)).toEqual([target.id]);
+
+  await specialist.goto(`/b/CASS/releases/${removed.id}`);
+  await specialist.getByRole("button", { name: `Supprimer ${removed.name}` }).click();
+  const removeDialog = specialist.getByRole("dialog", { name: `Supprimer ${removed.name}` });
+  await expect(removeDialog.getByLabel("Retirer la version des éléments")).toBeEnabled();
+  await removeDialog.getByLabel("Retirer la version des éléments").check();
+  await clickPost(specialist, () => removeDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
+  expect(await assignedVersionIds(detached.id)).toEqual([]);
+
+  await specialist.goto(`/b/CASS/releases/${empty.id}`);
+  await specialist.getByRole("button", { name: `Supprimer ${empty.name}` }).click();
+  const emptyDialog = specialist.getByRole("dialog", { name: `Supprimer ${empty.name}` });
+  await expect(emptyDialog).toContainText("Aucun élément lié");
+  await expect(emptyDialog.getByRole("radio")).toHaveCount(0);
+  await clickPost(specialist, () => emptyDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
+  for (const release of [source, removed, empty]) expect(await releaseExists(release.id)).toBe(false);
+  const specialistId = await accountId(EMAIL.specialist);
+  const [event] = await db.select({ actorId: releaseEvents.actorId })
+    .from(releaseEvents)
+    .where(and(eq(releaseEvents.releaseName, source.name), eq(releaseEvents.action, "release_merged")));
+  expect(event).toEqual({ actorId: specialistId });
+});
+
+audited(21, "masque fusion, suppression et ordre à l’éditeur et au lecteur et refuse leurs requêtes forgées", async ({ page, browser, capture, audit }) => {
+  const protectedRelease = await fixtureRelease("R2-S21 Protégée");
+  const decoy = await fixtureRelease("R2-S21 Leurre");
+  const item = await fixtureTask("R2-S21 item protégé");
+  await assignVersions(item.id, [protectedRelease.id]);
+
+  await page.goto(`/b/CASS/releases/${decoy.id}`);
+  const intercepted = await interceptNextPost(page, `/b/CASS/releases/${decoy.id}`, capture);
+  await page.getByRole("button", { name: `Supprimer ${decoy.name}` }).click();
+  const dialog = page.getByRole("dialog", { name: `Supprimer ${decoy.name}` });
+  await dialog.getByRole("button", { name: "Supprimer", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toHaveText("Suppression impossible.");
+  const captured = intercepted();
+  await page.unroute("**/*");
+  expect(await releaseExists(decoy.id)).toBe(true);
+
+  // Capture a merge and a reorder request too: each Server Action is its own
+  // authorization surface.
+  const decoyTarget = await fixtureRelease("R2-S21 Leurre cible");
+  await page.goto(`/b/CASS/releases/${decoy.id}`);
+  const interceptedMerge = await interceptNextPost(page, `/b/CASS/releases/${decoy.id}`, capture);
+  await page.getByRole("button", { name: `Fusionner ${decoy.name}` }).click();
+  const mergeDialog = page.getByRole("dialog", { name: `Fusionner ${decoy.name}` });
+  await mergeDialog.getByLabel("Version de destination").selectOption({ label: decoyTarget.name });
+  await mergeDialog.getByRole("button", { name: "Fusionner", exact: true }).click();
+  await expect(mergeDialog.getByRole("alert")).toHaveText("Fusion impossible.");
+  const forgedMerge = interceptedMerge();
+  await page.unroute("**/*");
+  await page.goto("/b/CASS/releases");
+  const interceptedReorder = await interceptNextPost(page, "/b/CASS/releases", capture);
+  await page.getByRole("button", { name: `Monter ${decoyTarget.name}` }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText("Réordonnancement impossible.");
+  const forgedReorder = interceptedReorder();
+  await page.unroute("**/*");
+  const decoyRevisions = await db.select({ id: releases.id, revision: releases.revision, rank: releases.rank })
+    .from(releases).where(sql`${releases.id} in (${decoy.id}, ${decoyTarget.id})`).orderBy(asc(releases.id));
+  const detail = await getReleaseDetail(protectedRelease.backlogId, protectedRelease.id);
+  // Retarget the captured Server Action body at the protected, non-empty version.
+  const forged = {
+    ...captured,
+    body: captured.body
+      .replaceAll(decoy.id, protectedRelease.id)
+      .replace(/"expectedScopeRevision":"[0-9a-f]{32}"/, `"expectedScopeRevision":"${detail!.removalScope.revision}"`)
+      .replace(/"disposition":"none"/, '"disposition":"remove"'),
+  };
+  const [eventsBefore] = await db.select({ value: count() }).from(releaseEvents)
+    .where(eq(releaseEvents.releaseId, protectedRelease.id));
+
+  for (const [actor, storage] of [["editor", AUTH.editor], ["reader", AUTH.reader]] as const) {
+    const other = await observedPage(browser, capture, `${actor}-forged`, storage);
+    audit.use(other);
+    await other.goto("/b/CASS/releases");
+    await expect(other.getByRole("article", { name: protectedRelease.name })).toBeVisible();
+    await expect(other.getByText(`Actions pour ${protectedRelease.name}`)).toHaveCount(0);
+    await expect(other.getByRole("button", { name: `Réordonner ${protectedRelease.name}` })).toHaveCount(0);
+    await expect(other.getByRole("button", { name: `Monter ${protectedRelease.name}` })).toHaveCount(0);
+    await other.goto(`/b/CASS/releases/${protectedRelease.id}`);
+    await expect(other.getByRole("button", { name: `Supprimer ${protectedRelease.name}` })).toHaveCount(0);
+    await expect(other.getByRole("button", { name: `Fusionner ${protectedRelease.name}` })).toHaveCount(0);
+    expect(forged.body).toContain(protectedRelease.id);
+    expect(forged.body).toContain('"disposition":"remove"');
+    const response = await replayForgedRequest(other, { ...forged, url: forged.url.replace(decoy.id, protectedRelease.id) });
+    expect(response.status).toBeLessThan(500);
+    expect(response.text).toContain("Gérer les releases");
+    for (const replay of [forgedMerge, forgedReorder]) {
+      const refused = await replayForgedRequest(other, replay);
+      expect(refused.status).toBeLessThan(500);
+      expect(refused.text).toContain("Gérer les releases");
+    }
+  }
+  expect(await releaseExists(decoy.id)).toBe(true);
+  await expect(
+    db.select({ id: releases.id, revision: releases.revision, rank: releases.rank })
+      .from(releases).where(sql`${releases.id} in (${decoy.id}, ${decoyTarget.id})`).orderBy(asc(releases.id)),
+  ).resolves.toEqual(decoyRevisions);
+  expect(await releaseExists(protectedRelease.id)).toBe(true);
+  expect(await assignedVersionIds(item.id)).toEqual([protectedRelease.id]);
+  const [eventsAfter] = await db.select({ value: count() }).from(releaseEvents)
+    .where(eq(releaseEvents.releaseId, protectedRelease.id));
+  expect(eventsAfter?.value).toBe(eventsBefore?.value);
+});
+
+audited(22, "refuse une suppression dont l’aperçu d’impact est devenu stale", async ({ page }) => {
+  const release = await fixtureRelease("R2-S22 Impact stale");
+  const first = await fixtureTask("R2-S22 premier");
+  const second = await fixtureTask("R2-S22 ajouté ensuite");
+  await assignVersions(first.id, [release.id]);
+
+  await page.goto(`/b/CASS/releases/${release.id}`);
+  await page.getByRole("button", { name: `Supprimer ${release.name}` }).click();
+  const dialog = page.getByRole("dialog", { name: `Supprimer ${release.name}` });
+  await expect(dialog).toContainText("1 élément lié");
+  await dialog.getByLabel("Retirer la version des éléments").check();
+  await assignVersions(second.id, [release.id]);
+  await clickPost(page, () => dialog.getByRole("button", { name: "Supprimer", exact: true }).click());
+  await expect(dialog.getByRole("alert")).toContainText("ont changé");
+  await expect(dialog.getByRole("button", { name: "Supprimer", exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Examiner l’impact actualisé" }).click();
+  await expect(dialog).toContainText("2 éléments liés");
+  expect(await releaseExists(release.id)).toBe(true);
+  expect(await assignedVersionIds(first.id)).toEqual([release.id]);
+  expect(await assignedVersionIds(second.id)).toEqual([release.id]);
+});
+
+audited(23, "garde le dialogue et la sélection après une suppression interceptée", async ({ page, capture }) => {
+  const release = await fixtureRelease("R2-S23 Panne réseau");
+  const target = await fixtureRelease("R2-S23 Destination");
+  const item = await fixtureTask("R2-S23 item");
+  await assignVersions(item.id, [release.id]);
+  await page.goto(`/b/CASS/releases/${release.id}`);
+  const intercepted = await interceptNextPost(page, `/b/CASS/releases/${release.id}`, capture);
+  await page.getByRole("button", { name: `Supprimer ${release.name}` }).click();
+  const dialog = page.getByRole("dialog", { name: `Supprimer ${release.name}` });
+  await dialog.getByLabel("Transférer vers une autre version").check();
+  await dialog.getByLabel("Version de destination").selectOption({ label: target.name });
+  await dialog.getByRole("button", { name: "Supprimer", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toHaveText("Suppression impossible.");
+  await expect(dialog.getByLabel("Transférer vers une autre version")).toBeChecked();
+  await expect(dialog.getByLabel("Version de destination")).toHaveValue(target.id);
+  intercepted();
+  capture.console.push("[expected] POST suppression interrompu volontairement; dialogue et DB conservés");
+  await page.unroute("**/*");
+  expect(await releaseExists(release.id)).toBe(true);
+  expect(await assignedVersionIds(item.id)).toEqual([release.id]);
+});
+
+audited(24, "réordonne par glisser-déposer puis Monter, partout et pour un second utilisateur", async ({ page, browser, capture, audit }) => {
+  const x = await fixtureRelease("R2-S24 X");
+  const y = await fixtureRelease("R2-S24 Y");
+  const z = await fixtureRelease("R2-S24 Z");
+  const item = await fixtureTask("R2-S24 item");
+  const assigned = await fixtureTask("R2-S24 item affecté");
+  await assignVersions(assigned.id, [x.id]);
+  const names = [x.name, y.name, z.name];
+
+  await page.goto("/b/CASS/releases");
+  await expect.poll(() => articleOrder(page, names)).toEqual([x.name, y.name, z.name]);
+  const handle = page.getByRole("button", { name: `Réordonner ${z.name}` });
+  const dropTarget = page.getByRole("article", { name: x.name });
+  await handle.scrollIntoViewIfNeeded();
+  const from = await handle.boundingBox();
+  const to = await dropTarget.boundingBox();
+  if (!from || !to) throw new Error("Positions de glisser-déposer introuvables.");
+  await clickPost(page, async () => {
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + from.width / 2, from.y - 10, { steps: 5 });
+    await page.mouse.move(to.x + to.width / 2, to.y + 5, { steps: 20 });
+    await page.mouse.up();
+  });
+  await expect.poll(() => articleOrder(page, names)).toEqual([z.name, x.name, y.name]);
+
+  await clickPost(page, () => page.getByRole("button", { name: `Monter ${y.name}` }).click());
+  await expect.poll(() => articleOrder(page, names)).toEqual([z.name, y.name, x.name]);
+  await page.reload();
+  await expect.poll(() => articleOrder(page, names)).toEqual([z.name, y.name, x.name]);
+
+  await page.goto("/b/CASS?view=list");
+  await page.getByRole("button", { name: "+ Version" }).click();
+  await expect(page.getByLabel(z.name, { exact: true })).toBeVisible();
+  await expect.poll(async () => {
+    const labels = await page.getByRole("checkbox").evaluateAll((nodes) =>
+      nodes.map((node) => node.closest("label")?.textContent?.trim() ?? node.getAttribute("aria-label") ?? ""),
+    );
+    return labels.map((label) => names.find((name) => label.includes(name))).filter(Boolean);
+  }).toEqual([z.name, y.name, x.name]);
+  await page.keyboard.press("Escape");
+  await page.goto(`/b/CASS?view=list&item=${item.key}`);
+  await page.getByRole("button", { name: "Versions", exact: true }).click();
+  await expect(page.getByRole("menuitemcheckbox", { name: z.name })).toBeVisible();
+  await expect.poll(async () => {
+    const labels = await page.getByRole("menuitemcheckbox").evaluateAll((nodes) =>
+      nodes.map((node) => node.textContent?.trim() ?? ""),
+    );
+    return labels.map((label) => names.find((name) => label.includes(name))).filter(Boolean);
+  }).toEqual([z.name, y.name, x.name]);
+  // An item already on the last version (X) still lists options in manual order.
+  await page.keyboard.press("Escape");
+  await page.goto(`/b/CASS?view=list&item=${assigned.key}`);
+  await page.getByRole("button", { name: "Versions", exact: true }).click();
+  await expect(page.getByRole("menuitemcheckbox", { name: z.name })).toBeVisible();
+  await expect.poll(async () => {
+    const labels = await page.getByRole("menuitemcheckbox").evaluateAll((nodes) =>
+      nodes.map((node) => node.textContent?.trim() ?? ""),
+    );
+    return labels.map((label) => names.find((name) => label.includes(name))).filter(Boolean);
+  }).toEqual([z.name, y.name, x.name]);
+
+  const reader = await observedPage(browser, capture, "reader-order", AUTH.reader);
+  audit.use(reader);
+  await reader.goto("/b/CASS/releases");
+  await expect.poll(() => articleOrder(reader, names)).toEqual([z.name, y.name, x.name]);
+});
+
+audited(25, "génère les notes depuis l’état courant, publiée ou non", async ({ page }) => {
+  const backlog = await backlogFixture();
+  const actorId = await accountId(EMAIL.admin);
+  const published = await fixtureRelease("R2-S25 Publiée");
+  const draft = await fixtureRelease("R2-S25 Brouillon");
+  const feature = await fixtureTask("R2-S25 fonctionnalité", { status: "done" });
+  const bug = await fixtureTask("R2-S25 correction", { status: "done", kind: "bug" });
+  const open = await fixtureTask("R2-S25 en cours", { status: "in_progress" });
+  await assignVersions(feature.id, [published.id]);
+  await assignVersions(bug.id, [published.id]);
+  await assignVersions(open.id, [draft.id]);
+  await publishKeep(published.id, backlog.id);
+
+  await page.goto(`/b/CASS/releases/${published.id}`);
+  await page.getByRole("link", { name: "Notes de release" }).click();
+  await expect(page).toHaveURL(new RegExp(`/b/CASS/releases/${published.id}/notes$`));
+  const textarea = page.getByRole("textbox", { name: "Notes de release (Markdown)" });
+  await expect(textarea).toHaveValue(new RegExp(`## Fonctionnalités\\n\\n- ${feature.key} — R2-S25 fonctionnalité`));
+  await expect(textarea).toHaveValue(new RegExp(`## Corrections\\n\\n- ${bug.key} — R2-S25 correction`));
+  await expect(textarea).toHaveValue(/Publiée le 20 août 2026\./);
+
+  await updateItem({ id: feature.id, title: "R2-S25 fonctionnalité renommée" }, actorId, "e2e-s25-rename");
+  await page.reload();
+  await expect(textarea).toHaveValue(new RegExp(`- ${feature.key} — R2-S25 fonctionnalité renommée`));
+
+  await page.goto(`/b/CASS/releases/${draft.id}/notes`);
+  await expect(textarea).toHaveValue(/Aucun élément terminé dans cette version\./);
+  await page.getByLabel("Inclure les éléments non terminés").click();
+  await expect(page).toHaveURL(/incomplete=1/);
+  await expect(page.getByLabel("Inclure les éléments non terminés")).toBeChecked();
+  await expect(textarea).toHaveValue(new RegExp(`## Non terminés\\n\\n- ${open.key} — R2-S25 en cours`));
+  await updateItem({ id: open.id, statusId: backlog.status("done") }, actorId, "e2e-s25-done");
+  await page.reload();
+  await expect(textarea).toHaveValue(new RegExp(`## Fonctionnalités\\n\\n- ${open.key} — R2-S25 en cours`));
+});
+
+audited(26, "édite les notes puis copie et télécharge Markdown et HTML sans HTML brut", async ({ page }) => {
+  const release = await fixtureRelease("R2-S26 Export");
+  const item = await fixtureTask("R2-S26 livré", { status: "done" });
+  await assignVersions(item.id, [release.id]);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto(`/b/CASS/releases/${release.id}/notes`);
+  const textarea = page.getByRole("textbox", { name: "Notes de release (Markdown)" });
+  await expect(textarea).toHaveValue(new RegExp(`- ${item.key} — R2-S26 livré`));
+  await textarea.press("ControlOrMeta+End");
+  await textarea.pressSequentially("\n- Ajout manuel\n\n<img src=x onerror=alert(1)>");
+  const preview = page.getByRole("region", { name: "Aperçu" });
+  await expect(preview.getByText("Ajout manuel")).toBeVisible();
+  await expect(preview.locator("img")).toHaveCount(0);
+  await expect(preview).toContainText("<img src=x onerror=alert(1)>");
+
+  await page.getByRole("button", { name: "Copier le Markdown" }).click();
+  await expect(page.getByRole("main").getByRole("status")).toHaveText("Markdown copié.");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("- Ajout manuel");
+  await page.getByRole("button", { name: "Copier le HTML" }).click();
+  await expect(page.getByRole("main").getByRole("status")).toHaveText("HTML copié.");
+  const copiedHtml = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copiedHtml).toContain("<li>Ajout manuel</li>");
+  expect(copiedHtml).not.toContain("<img");
+
+  const [markdownDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Télécharger .md" }).click(),
+  ]);
+  expect(markdownDownload.suggestedFilename()).toBe("notes-de-release-r2-s26-export.md");
+  const { readFile } = await import("node:fs/promises");
+  expect(await readFile((await markdownDownload.path())!, "utf8")).toContain("- Ajout manuel");
+  const [htmlDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Télécharger .html" }).click(),
+  ]);
+  expect(htmlDownload.suggestedFilename()).toBe("notes-de-release-r2-s26-export.html");
+  const html = await readFile((await htmlDownload.path())!, "utf8");
+  expect(html).toMatch(/^<!doctype html>/);
+  expect(html).toContain('<meta charset="utf-8">');
+  expect(html).toContain("<li>Ajout manuel</li>");
+  expect(html).not.toContain("<img");
+});
+
+audited(27, "ignore une version supprimée dans l’URL et la vue enregistrée, et reste responsive", async ({ page }) => {
+  const backlog = await backlogFixture();
+  const actorId = await accountId(EMAIL.admin);
+  const deleted = await fixtureRelease("R2-S27 Supprimée");
+  const item = await fixtureTask("R2-S27 item filtré");
+  const unrelated = await fixtureTask("R2-S27 item sans version");
+  await assignVersions(item.id, [deleted.id]);
+  const [view] = await db.insert(views).values({
+    name: "R2-S27 Vue version supprimée",
+    ownerId: actorId,
+    backlogId: backlog.id,
+    displayMode: "list",
+    filters: { releaseIds: [deleted.id] },
+  }).returning({ id: views.id });
+  const detail = await getReleaseDetail(backlog.id, deleted.id);
+  await deleteRelease({
+    backlogId: backlog.id,
+    releaseId: deleted.id,
+    expectedRevision: detail!.revision,
+    expectedScopeRevision: detail!.removalScope.revision,
+    fixVersions: { disposition: "remove" },
+  }, actorId, "e2e-s27-delete");
+
+  for (const url of [
+    `/b/CASS?view=list&version=${deleted.id}`,
+    `/b/CASS?view=list&version=${deleted.id}&v=${view!.id}`,
+  ]) {
+    await page.goto(url);
+    await expect(page.getByText(item.key, { exact: true })).toBeVisible();
+    await expect(page.getByText(unrelated.key, { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: new RegExp(deleted.name) })).toHaveCount(0);
+  }
+  const [stored] = await db.select({ filters: views.filters }).from(views).where(eq(views.id, view!.id));
+  expect(stored?.filters).toEqual({ releaseIds: [deleted.id] });
+
+  const target = await fixtureRelease("R2-S27 Responsive");
+  for (const width of [390, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of ["/b/CASS/releases", `/b/CASS/releases/${target.id}/notes`]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+      const overflow = await page.evaluate(() =>
+        document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow, `${path} à ${width}px`).toBeLessThanOrEqual(1);
+    }
+  }
 });

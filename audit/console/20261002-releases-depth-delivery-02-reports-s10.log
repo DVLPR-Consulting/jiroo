@@ -1,0 +1,11 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS?view=backlog 200 388ms
+[measure] planned commitment 21 pts vs recent average 6.25 over 4 sprints
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[overflow] planned warning 390x844 document=0px main=0px chart=n/a
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=8232af92-1faf-4893-b5bb-94bc852a0ba5 200 189ms
+[duration] scenario 10: 1551ms

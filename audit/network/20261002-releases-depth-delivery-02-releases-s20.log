@@ -1,0 +1,174 @@
+[request] [specialist] GET http://localhost:3010/b/CASS/releases/c53c0688-84d8-4ef2-be1f-bdb4844637fd
+[response] [specialist] GET 200 http://localhost:3010/b/CASS/releases/c53c0688-84d8-4ef2-be1f-bdb4844637fd
+[request] [specialist] GET http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[request] [specialist] GET http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_0j_yph7._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_1n4psfz._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/17yv_%40radix-ui_react-label_dist_index_mjs_1-sflb_._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[response] [specialist] GET 200 http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_0j_yph7._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/17yv_%40radix-ui_react-label_dist_index_mjs_1-sflb_._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_1n4psfz._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[request] [specialist] POST http://localhost:3010/b/CASS/releases/c53c0688-84d8-4ef2-be1f-bdb4844637fd
+[response] [specialist] POST 200 http://localhost:3010/b/CASS/releases/c53c0688-84d8-4ef2-be1f-bdb4844637fd
+[request] [specialist] GET http://localhost:3010/b/CASS/releases?_rsc=DfwI9OLhIp1slz80
+[response] [specialist] GET 200 http://localhost:3010/b/CASS/releases?_rsc=DfwI9OLhIp1slz80
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_0k-dqv6._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1f1v8ll._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_0k-dqv6._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1f1v8ll._.js
+[request] [specialist] GET http://localhost:3010/__nextjs_font/geist-latin.woff2
+[response] [specialist] GET 200 http://localhost:3010/__nextjs_font/geist-latin.woff2
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_0k-dqv6._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1f1v8ll._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/_0k-dqv6._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1f1v8ll._.js
+[request] [specialist] GET http://localhost:3010/b/CASS/releases/2fb2b804-9efe-4b49-a9c9-ab5069f98682
+[response] [specialist] GET 200 http://localhost:3010/b/CASS/releases/2fb2b804-9efe-4b49-a9c9-ab5069f98682
+[request] [specialist] GET http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[response] [specialist] GET 200 http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[request] [specialist] GET http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[response] [specialist] GET 200 http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_0j_yph7._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_1n4psfz._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/17yv_%40radix-ui_react-label_dist_index_mjs_1-sflb_._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_0j_yph7._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/_1n4psfz._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/17yv_%40radix-ui_react-label_dist_index_mjs_1-sflb_._.js
+[response] [specialist] GET 200 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[request] [specialist] GET http://localhost:3010/__nextjs_font/geist-latin.woff2
+[response] [specialist] GET 200 http://localhost:3010/__nextjs_font/geist-latin.woff2
+[request] [specialist] POST http://localhost:3010/b/CASS/releases/2fb2b804-9efe-4b49-a9c9-ab5069f98682
+[response] [specialist] POST 200 http://localhost:3010/b/CASS/releases/2fb2b804-9efe-4b49-a9c9-ab5069f98682
+[request] [specialist] GET http://localhost:3010/b/CASS/releases?_rsc=wB6RerkCxti4pZfA
+[response] [specialist] GET 200 http://localhost:3010/b/CASS/releases?_rsc=wB6RerkCxti4pZfA
+[request] [specialist] GET http://localhost:3010/b/CASS/releases/f93587dd-64be-4947-8a74-b42cefd18329
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_0k-dqv6._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1f1v8ll._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/_0k-dqv6._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1f1v8ll._.js
+[response] [specialist] GET 200 http://localhost:3010/b/CASS/releases/f93587dd-64be-4947-8a74-b42cefd18329
+[request] [specialist] GET http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[response] [specialist] GET 200 http://localhost:3010/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2
+[request] [specialist] GET http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[response] [specialist] GET 200 http://localhost:3010/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_0j_yph7._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/_1n4psfz._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/17yv_%40radix-ui_react-label_dist_index_mjs_1-sflb_._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_166tivi._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_next-devtools_index_0uzn-tp.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-dom_1e0c46t._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_react-server-dom-turbopack_1gdw-73._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_compiled_0lruwte._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_client_05ykf_5._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/07p8_next_dist_0q61aw4._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/_1anvha4._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/turbopack-_174fudk._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e47._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/_0j_yph7._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/_1b_jy28._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myf._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/_0_1znob._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/1a7c_zod_v4_0_p_dem._.js
+[request] [specialist] GET http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/node_modules__pnpm_1co50rd._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/_1n7_wyq._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/_1n4psfz._.js
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/17yv_%40radix-ui_react-label_dist_index_mjs_1-sflb_._.js
+[request] [specialist] GET http://localhost:3010/__nextjs_font/geist-latin.woff2
+[response] [specialist] GET 200 http://localhost:3010/__nextjs_font/geist-latin.woff2
+[response] [specialist] GET 304 http://localhost:3010/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsay._.js
+[request] [specialist] POST http://localhost:3010/b/CASS/releases/f93587dd-64be-4947-8a74-b42cefd18329
+[response] [specialist] POST 200 http://localhost:3010/b/CASS/releases/f93587dd-64be-4947-8a74-b42cefd18329
+[request] [specialist] GET http://localhost:3010/b/CASS/releases?_rsc=8FlVRTg7Wbq0u8_r
+[response] [specialist] GET 200 http://localhost:3010/b/CASS/releases?_rsc=8FlVRTg7Wbq0u8_r

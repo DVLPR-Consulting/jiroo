@@ -1,0 +1,8 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=sprint&sprint=098b5bfe-99e3-480a-b6d2-ec341768445d 200 664ms
+[page-size] items=50 journal=50
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=velocity&limit=7 200 183ms
+[duration] scenario 1: 1616ms

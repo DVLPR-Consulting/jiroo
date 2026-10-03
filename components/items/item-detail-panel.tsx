@@ -190,12 +190,12 @@ export function ItemDetailPanel({
     toPatch: (next) => ({ fixVersionIds: next }),
     onSuccess: () => toast.success("Fix versions mises à jour."),
   });
-  const fixVersionOptions = useMemo(
-    () => [...new Map(
-      [...fixVersions, ...releaseOptions].map((version) => [version.id, version]),
-    ).values()],
-    [fixVersions, releaseOptions],
-  );
+  // The backlog's version options carry the manual order and fresh metadata;
+  // assigned versions missing from them (e.g. archived) are appended for display.
+  const fixVersionOptions = useMemo(() => {
+    const known = new Set(releaseOptions.map((version) => version.id));
+    return [...releaseOptions, ...fixVersions.filter((version) => !known.has(version.id))];
+  }, [fixVersions, releaseOptions]);
 
   const close = () => viewUrl.push((params) => params.delete("item"));
 

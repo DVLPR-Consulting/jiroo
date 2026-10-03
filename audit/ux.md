@@ -606,3 +606,23 @@ d’élément du graphe complètent la preuve visuelle.
 - Libellés à arbitrer : « Engagement » d’un sprint actif (recommandation :
   engagement au démarrage, total vivant en « Périmètre actuel ») et « moyenne
   récente » d’un sprint terminé qui inclut ce sprint.
+
+## Fonctionnalité auditée : profondeur Releases (PR2, 2 octobre 2026)
+
+Parcours observés dans `20261002-releases-depth-delivery-02` (S17–S27) :
+fusion depuis la liste et depuis le détail (retour à la liste), suppression avec
+transfert ou retrait sans valeur par défaut, confirmation simple d’une version
+vide, aperçu d’impact devenu stale avec bouton « Examiner l’impact actualisé »,
+panne réseau conservant la sélection, glisser-déposer puis « Monter » avec ordre
+persistant pour un second utilisateur, notes éditables avec aperçu et
+copie/téléchargement, et absence de débordement horizontal à 390/768/1024/1440
+sur Releases et Notes.
+
+### Dette UX restante
+
+1. Le focus revient au document après suppression d’une version depuis la liste.
+2. Les poignées de réordonnancement n’apparaissent que versions archivées
+   masquées (message explicatif affiché) ; pas d’ordre dédié aux archivées.
+3. « Copier le HTML » copie le HTML en texte brut (pas de `text/html` riche).
+4. L’aperçu des notes ajoute un second titre de niveau 1 à la page.
+5. Lecteur d’écran réel, zoom 200 % et navigateurs non Chromium non rejoués.

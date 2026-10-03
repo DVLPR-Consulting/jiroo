@@ -106,6 +106,13 @@
       "when": 1790946133491,
       "tag": "0014_better_auth_two_factor_lockout",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790968051071,
+      "tag": "0015_jira_releases_depth",
+      "breakpoints": true
     }
   ]
 }

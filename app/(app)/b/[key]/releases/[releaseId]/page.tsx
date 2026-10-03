@@ -138,6 +138,9 @@ export default async function ReleaseDetailPage({
           (candidate) => candidate.id !== releaseId && !candidate.archived && !candidate.released,
         )
         .map(({ id, name }) => ({ id, name }))}
+      mergeTargets={releaseSummaries
+        .filter((candidate) => candidate.id !== releaseId && !candidate.archived)
+        .map(({ id, name, revision, released }) => ({ id, name, revision, released }))}
       scope={{ page: scopePage, total: scopeResult.total, rows: scopeResult.rows }}
       scopeFilters={{ statusCategory: scopeStatus, estimate: scopeEstimate }}
       events={{

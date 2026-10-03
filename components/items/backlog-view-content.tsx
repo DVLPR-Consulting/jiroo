@@ -30,6 +30,7 @@ import {
   sortItems,
   withAncestors,
   enrichHierarchy,
+  withKnownReleaseIds,
   type FilterItem,
 } from "@/lib/items/filter";
 import { PRIORITY_LABELS } from "@/lib/design/constants";
@@ -90,7 +91,9 @@ export async function BacklogViewContent({
     const value = firstSearchParam(sp[name]);
     return value === undefined ? [] : [[name, value]];
   });
-  const viewState = parseViewState(new URLSearchParams(viewStateEntries));
+  // Requested state from the URL; the Version filter is sanitized below once the
+  // backlog's versions are known (deleted versions are ignored, D19).
+  const requestedViewState = parseViewState(new URLSearchParams(viewStateEntries));
 
   const session = await requireAppPageSession();
   const userId = session.user.id;
@@ -121,12 +124,12 @@ export async function BacklogViewContent({
   const dirty =
     activeViewRow !== null &&
     isViewDirty(columnsToViewState(activeViewRow), {
-      state: viewState,
+      state: requestedViewState,
       displayMode: view as DisplayMode,
     });
 
   const [
-    releaseFilteredItems,
+    requestedReleaseItems,
     labelPairs,
     fixVersionPairs,
     releaseSummaries,
@@ -137,7 +140,7 @@ export async function BacklogViewContent({
     recentVelocity,
     activeSprintCommitment,
   ] = await Promise.all([
-    listItems(backlog.id, { releaseIds: viewState.filters.releaseIds }),
+    listItems(backlog.id, { releaseIds: requestedViewState.filters.releaseIds }),
     listItemLabelPairs(backlog.id),
     listItemFixVersionPairs(backlog.id),
     listReleaseSummaries(backlog.id, { includeArchived: true }),
@@ -166,6 +169,18 @@ export async function BacklogViewContent({
       ? getActiveSprintStartCommitment(backlog.id)
       : Promise.resolve(null),
   ]);
+  const viewState = {
+    ...requestedViewState,
+    filters: withKnownReleaseIds(
+      requestedViewState.filters,
+      new Set(releaseSummaries.map((release) => release.id)),
+    ),
+  };
+  // Only unknown versions were requested: show every item, not an empty list.
+  const releaseFilteredItems =
+    requestedViewState.filters.releaseIds.length > 0 && viewState.filters.releaseIds.length === 0
+      ? await listItems(backlog.id)
+      : requestedReleaseItems;
   const releaseMatchedIds = new Set(releaseFilteredItems.map((item) => item.id));
   const releaseFilterActive = viewState.filters.releaseIds.length > 0;
   const [items, detailItems] = await Promise.all([

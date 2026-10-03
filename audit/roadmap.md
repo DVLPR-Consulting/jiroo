@@ -565,3 +565,28 @@ que le JUnit (inventaire porté par le fichier de scan).
 1. Releases PR2 merge/delete-transfer/manual ordering/release notes;
 2. Firefox/WebKit, 768/1024/1440, 200% zoom and VoiceOver/NVDA;
 3. production-volume and higher-concurrency hardening.
+
+---
+
+## Mise à jour — Releases PR2 livrée localement le 2 octobre 2026 (JIR-39)
+
+Fusion, suppression avec transfert/retrait, ordre manuel et notes de release
+sont implémentés, revus et acceptés localement (run
+`20261002-releases-depth-delivery-02`, 63/63). Écarts assumés par rapport aux
+critères PR2 de cette feuille de route, sur décision du propriétaire :
+
+- les notes suivent l’état **courant** de la version (D14 a, comportement Jira)
+  et non un snapshot : le critère « notes reproductibles depuis un snapshot »
+  est remplacé ;
+- `manage_releases` seul suffit pour fusionner/supprimer, y compris quand des
+  liens d’items sont transférés ou retirés (D8 a, administration des versions
+  Jira) ;
+- travail connexe (related work), Affects versions, notes sauvegardées côté
+  serveur et navigation des snapshots orphelins restent hors portée (D1, D6, D17,
+  D3).
+
+### Next priorities
+
+1. related work and Git/PR/deployment readiness signals for releases;
+2. Firefox/WebKit, 200% zoom and VoiceOver/NVDA (Chromium only so far);
+3. production-volume and higher-concurrency hardening.

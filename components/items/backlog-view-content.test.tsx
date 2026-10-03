@@ -767,6 +767,106 @@ describe("BacklogViewContent read boundary", () => {
     }));
   });
 
+  it("ignores deleted versions in the Version filter instead of showing an empty list", async () => {
+    mocks.getBacklogByKeyForUser.mockResolvedValue({
+      id: "backlog-1",
+      key: "DEMO",
+      name: "Demo",
+      color: "#2563eb",
+      archivedAt: null,
+    });
+    mocks.getBacklogCapabilities.mockResolvedValue({
+      createItems: false,
+      editItems: false,
+      transitionItems: false,
+      scheduleItems: false,
+      assignItems: false,
+      manageSprints: false,
+      manageWorkflow: false,
+      manageMembers: false,
+      bulkChangeItems: false,
+    });
+    const row = {
+      id: "item-1",
+      backlogId: "backlog-1",
+      key: "DEMO-1",
+      sequence: 1,
+      type: "tache",
+      kind: "feature",
+      title: "Toujours visible",
+      description: null,
+      statusId: "status-1",
+      priority: 2,
+      estimatePoints: null,
+      assigneeId: null,
+      reporterId: null,
+      parentId: null,
+      path: "root.item1",
+      depth: 0,
+      dueDate: null,
+      rank: "a",
+      deletedAt: null,
+      createdAt: new Date("2026-08-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    };
+    mocks.listItems.mockImplementation(async (_backlogId: string, options?: { releaseIds?: string[] }) =>
+      options?.releaseIds?.length ? [] : [row],
+    );
+    mocks.listReleaseSummaries.mockResolvedValue([
+      { id: "release-live", name: "2026.10", released: false, archived: false },
+    ]);
+
+    render(
+      await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "list", version: "release-deleted" }),
+      }),
+    );
+
+    expect(mocks.listItems).toHaveBeenLastCalledWith("backlog-1");
+    expect(mocks.listItemsWithAncestors).not.toHaveBeenCalled();
+    expect(mocks.filterBarProps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: expect.objectContaining({
+          filters: expect.objectContaining({ releaseIds: [] }),
+        }),
+      }),
+    );
+    const listProps = mocks.itemListProps.mock.calls[0]?.[0] as {
+      groups: Array<{ items: Array<{ id: string }> }>;
+    };
+    expect(listProps.groups.flatMap((group) => group.items).map((item) => item.id)).toEqual([
+      "item-1",
+    ]);
+    cleanup();
+    vi.clearAllMocks();
+    mocks.listItems.mockResolvedValue([row]);
+    mocks.listItemsWithAncestors.mockResolvedValue([row]);
+    mocks.listItemFixVersionPairs.mockResolvedValue([]);
+    mocks.listItemLabelPairs.mockResolvedValue([]);
+    mocks.blockedItemIds.mockResolvedValue([]);
+    mocks.getViewByIdForUser.mockResolvedValue(null);
+    mocks.listSprintsForBacklog.mockResolvedValue({ sprints: [], memberships: [] });
+    mocks.listLabelsForBacklog.mockResolvedValue([]);
+
+    render(
+      await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({
+          view: "list",
+          version: "release-deleted,release-live",
+        }),
+      }),
+    );
+    expect(mocks.filterBarProps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: expect.objectContaining({
+          filters: expect.objectContaining({ releaseIds: ["release-live"] }),
+        }),
+      }),
+    );
+  });
+
   it("loads recent velocity and the active start commitment once for every sprint section", async () => {
     mocks.getBacklogByKeyForUser.mockResolvedValue({
       id: "backlog-1",

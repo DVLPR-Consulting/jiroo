@@ -2,9 +2,11 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ReleaseDetail } from "@/components/releases/release-detail";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 vi.mock("@/app/actions/releases", () => ({
   archiveReleaseAction: vi.fn(),
+  deleteReleaseAction: vi.fn(),
+  mergeReleaseAction: vi.fn(),
   publishReleaseAction: vi.fn(),
   unarchiveReleaseAction: vi.fn(),
   unreleaseReleaseAction: vi.fn(),
@@ -26,6 +28,8 @@ const props = {
     overdue: false,
     revision: 4,
     publicationScopeRevision: "0123456789abcdef0123456789abcdef",
+    publicationCount: 0,
+    removalScope: { revision: "0123456789abcdef0123456789abcdef", linkedCount: 0, trashedCount: 0 },
     progress: { total: 1, todo: 0, inProgress: 0, done: 1, totalPoints: 5, donePoints: 5, unestimated: 0 },
     createdAt: "2026-08-01T10:00:00.000Z",
     updatedAt: "2026-08-02T10:00:00.000Z",
@@ -36,6 +40,9 @@ const props = {
   capabilities: { manage: false, assignItems: false, bulkAssignItems: false },
   statusIds: { todo: ["todo-1"], inProgress: ["doing-1"], done: ["done-1"] },
   destinations: [{ id: "33333333-3333-4333-8333-333333333333", name: "Version 2" }],
+  mergeTargets: [
+    { id: "33333333-3333-4333-8333-333333333333", name: "Version 2", revision: 2, released: false },
+  ],
   scope: {
     page: 1,
     total: 1,
@@ -183,5 +190,47 @@ describe("ReleaseDetail", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("1 élément non terminé");
     expect(screen.getByRole("alert")).toHaveTextContent("périmètre actuel");
+  });
+});
+
+describe("ReleaseDetail merge and delete", () => {
+  it("offers Fusionner… and Supprimer… to a manager only", () => {
+    const { rerender } = render(
+      <ReleaseDetail {...props} capabilities={{ ...props.capabilities, manage: true }} />,
+    );
+    expect(screen.getByRole("button", { name: "Fusionner Version 1" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Supprimer Version 1" })).toBeVisible();
+    rerender(<ReleaseDetail {...props} />);
+    expect(screen.queryByRole("button", { name: "Fusionner Version 1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Supprimer Version 1" })).not.toBeInTheDocument();
+  });
+
+  it("labels reorder and received-items events", () => {
+    render(
+      <ReleaseDetail
+        {...props}
+        events={{
+          page: 1,
+          total: 2,
+          rows: [
+            { id: "e1", publicationId: null, actorName: "Ada", action: "release_reordered", createdAt: "2026-09-28T12:00:00.000Z" },
+            { id: "e2", publicationId: null, actorName: "Lin", action: "release_items_received", createdAt: "2026-09-28T12:00:00.000Z" },
+          ],
+        }}
+      />,
+    );
+    const history = screen.getByRole("region", { name: "Historique" });
+    expect(history).toHaveTextContent("Ada a déplacé la version dans l’ordre des versions");
+    expect(history).toHaveTextContent("Lin a reçu les éléments d’une version fusionnée ou supprimée");
+  });
+});
+
+describe("ReleaseDetail release notes", () => {
+  it("links every backlog reader to the release notes", () => {
+    render(<ReleaseDetail {...props} />);
+    expect(screen.getByRole("link", { name: "Notes de release" })).toHaveAttribute(
+      "href",
+      `/b/CASS/releases/${props.release.id}/notes`,
+    );
   });
 });

@@ -1,0 +1,25 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=c84adecf-00e8-4466-a0e2-6133e07934ba 200 279ms
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin-second] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-second] log: [HMR] connected
+[navigation] admin-second /b/CASS/reports?report=burndown&sprint=c84adecf-00e8-4466-a0e2-6133e07934ba 200 265ms
+[admin-second] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-second] log: [HMR] connected
+[reader] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader] log: [HMR] connected
+[navigation] reader /b/CASS/reports?report=burndown&sprint=c84adecf-00e8-4466-a0e2-6133e07934ba 200 293ms
+[reader] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=not-a-uuid 200 90ms
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/LABS/reports?report=burndown&sprint=2fa91764-3273-48a5-8af8-5af268b0d1af 200 143ms
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=2fa91764-3273-48a5-8af8-5af268b0d1af 200 123ms
+[duration] scenario 11: 3303ms

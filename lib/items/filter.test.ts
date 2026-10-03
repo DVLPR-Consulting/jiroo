@@ -9,6 +9,7 @@ import {
   groupItems,
   sortItems,
   enrichHierarchy,
+  withKnownReleaseIds,
   type ViewState,
   type Filters,
   type SortField,
@@ -592,5 +593,25 @@ describe("sortItems", () => {
     const copy = [...rows];
     sortItems(rows, { field: "priority", dir: "asc" });
     expect(rows).toEqual(copy);
+  });
+});
+
+describe("withKnownReleaseIds", () => {
+  it("drops version IDs that no longer exist and keeps the others in order", () => {
+    const state = parseViewState(new URLSearchParams("version=deleted,live-b,live-a"));
+    const sanitized = withKnownReleaseIds(state.filters, new Set(["live-a", "live-b"]));
+    expect(sanitized.releaseIds).toEqual(["live-b", "live-a"]);
+  });
+
+  it("makes the Version filter inactive when only unknown versions are selected", () => {
+    const state = parseViewState(new URLSearchParams("version=deleted"));
+    const sanitized = withKnownReleaseIds(state.filters, new Set(["live"]));
+    expect(sanitized.releaseIds).toEqual([]);
+    expect(isFiltersActive(sanitized)).toBe(false);
+  });
+
+  it("returns the same filters object when every version is known", () => {
+    const state = parseViewState(new URLSearchParams("version=live"));
+    expect(withKnownReleaseIds(state.filters, new Set(["live"]))).toBe(state.filters);
   });
 });

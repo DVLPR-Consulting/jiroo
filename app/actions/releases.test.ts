@@ -7,7 +7,10 @@ import {
 const mocks = vi.hoisted(() => ({
   archiveRelease: vi.fn(),
   createRelease: vi.fn(),
+  deleteRelease: vi.fn(),
   getSession: vi.fn(),
+  mergeRelease: vi.fn(),
+  reorderRelease: vi.fn(),
   publishRelease: vi.fn(),
   requireBacklogPermissionById: vi.fn(),
   requirePermission: vi.fn(),
@@ -28,7 +31,10 @@ vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/services/releases", () => ({
   archiveRelease: mocks.archiveRelease,
   createRelease: mocks.createRelease,
+  deleteRelease: mocks.deleteRelease,
+  mergeRelease: mocks.mergeRelease,
   publishRelease: mocks.publishRelease,
+  reorderRelease: mocks.reorderRelease,
   unarchiveRelease: mocks.unarchiveRelease,
   unreleaseRelease: mocks.unreleaseRelease,
   updateRelease: mocks.updateRelease,
@@ -37,7 +43,10 @@ vi.mock("@/lib/services/releases", () => ({
 import {
   archiveReleaseAction,
   createReleaseAction,
+  deleteReleaseAction,
+  mergeReleaseAction,
   publishReleaseAction,
+  reorderReleaseAction,
   unarchiveReleaseAction,
   unreleaseReleaseAction,
   updateReleaseAction,
@@ -95,6 +104,21 @@ function resetMocks() {
   mocks.unreleaseRelease.mockResolvedValue({ release: { id: releaseId, revision: 2 } });
   mocks.archiveRelease.mockResolvedValue({ id: releaseId, revision: 2 });
   mocks.unarchiveRelease.mockResolvedValue({ id: releaseId, revision: 2 });
+  mocks.deleteRelease.mockResolvedValue(removalResult(null));
+  mocks.mergeRelease.mockResolvedValue(
+    removalResult({ id: destinationReleaseId, revision: 3 }),
+  );
+  mocks.reorderRelease.mockResolvedValue({ id: releaseId, revision: 2, rank: "a1" });
+}
+
+function removalResult(targetRelease: { id: string; revision: number } | null) {
+  return {
+    deletedReleaseId: releaseId,
+    linkedCount: 2,
+    transferredCount: targetRelease ? 2 : 0,
+    removedCount: targetRelease ? 0 : 2,
+    targetRelease,
+  };
 }
 
 describe("release server action permissions", () => {
@@ -476,5 +500,163 @@ describe("release server action permissions", () => {
 
     await expect(invoke()).resolves.toEqual({ ok: false, error: message });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("release depth server actions", () => {
+  beforeEach(resetMocks);
+
+  const scope = "0123456789abcdef0123456789abcdef";
+  const deleteRemoveInput = {
+    backlogKey: "FORGED",
+    backlogId,
+    releaseId,
+    expectedRevision: 1,
+    expectedScopeRevision: scope,
+    fixVersions: { disposition: "remove" as const },
+  };
+  const deleteTransferInput = {
+    ...deleteRemoveInput,
+    fixVersions: {
+      disposition: "transfer" as const,
+      targetReleaseId: destinationReleaseId,
+      expectedTargetRevision: 2,
+    },
+  };
+  const deleteEmptyInput = { ...deleteRemoveInput, fixVersions: { disposition: "none" as const } };
+  const mergeInput = {
+    backlogKey: "FORGED",
+    backlogId,
+    sourceReleaseId: releaseId,
+    expectedSourceRevision: 1,
+    expectedScopeRevision: scope,
+    targetReleaseId: destinationReleaseId,
+    expectedTargetRevision: 2,
+  };
+  const reorderInput = {
+    backlogKey: "FORGED",
+    backlogId,
+    releaseId,
+    expectedRevision: 1,
+    beforeId: null,
+    afterId: destinationReleaseId,
+  };
+
+  const cases = [
+    { name: "merge", invoke: () => mergeReleaseAction(mergeInput), service: () => mocks.mergeRelease, error: "Fusion impossible." },
+    { name: "delete transfer", invoke: () => deleteReleaseAction(deleteTransferInput), service: () => mocks.deleteRelease, error: "Suppression impossible." },
+    { name: "delete remove", invoke: () => deleteReleaseAction(deleteRemoveInput), service: () => mocks.deleteRelease, error: "Suppression impossible." },
+    { name: "delete empty", invoke: () => deleteReleaseAction(deleteEmptyInput), service: () => mocks.deleteRelease, error: "Suppression impossible." },
+    { name: "reorder", invoke: () => reorderReleaseAction(reorderInput), service: () => mocks.reorderRelease, error: "Réordonnancement impossible." },
+  ];
+
+  it.each(cases)(
+    "authorizes $name with manage_releases only, as Jira version administration",
+    async ({ invoke, service }) => {
+      await expect(invoke()).resolves.toMatchObject({ ok: true });
+      expect(mocks.requireBacklogPermissionById.mock.calls.map(([input]) => input)).toEqual([
+        { actorId, backlogId, permission: "manage_releases" },
+      ]);
+      expect(service()).toHaveBeenCalledOnce();
+      expect(service().mock.calls[0]?.[1]).toBe(actorId);
+      expect(service().mock.calls[0]?.[2]).toMatch(/^[0-9a-f-]{36}$/);
+      expect(service().mock.calls[0]?.[0]).not.toHaveProperty("backlogKey");
+    },
+  );
+
+  it.each(cases)("returns a safe result for a missing session before $name", async ({ invoke, service, error }) => {
+    mocks.getSession.mockResolvedValueOnce(null);
+    await expect(invoke()).resolves.toEqual({ ok: false, error });
+    expect(mocks.requireBacklogPermissionById).not.toHaveBeenCalled();
+    expect(service()).not.toHaveBeenCalled();
+  });
+
+  it.each(cases)("refuses $name without manage_releases and writes nothing", async ({ invoke, service }) => {
+    mocks.requireBacklogPermissionById.mockRejectedValueOnce(
+      permissionDeniedError("manage_releases", { type: "backlog", backlogId }),
+    );
+    await expect(invoke()).resolves.toEqual({
+      ok: false,
+      error: "Vous n’avez pas la permission « Gérer les releases » pour ce backlog.",
+    });
+    expect(service()).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each(cases)("hides an inaccessible backlog for $name", async ({ invoke, service }) => {
+    mocks.requireBacklogPermissionById.mockRejectedValueOnce(resourceNotFoundError("backlog", backlogId));
+    await expect(invoke()).resolves.toEqual({
+      ok: false,
+      error: "La ressource demandée est introuvable.",
+    });
+    expect(service()).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: "delete without disposition", invoke: () => deleteReleaseAction({ ...deleteRemoveInput, fixVersions: undefined } as never) },
+    { name: "delete onto itself", invoke: () => deleteReleaseAction({ ...deleteTransferInput, fixVersions: { ...deleteTransferInput.fixVersions, targetReleaseId: releaseId } }) },
+    { name: "merge onto itself", invoke: () => mergeReleaseAction({ ...mergeInput, targetReleaseId: releaseId }) },
+    { name: "reorder self neighbour", invoke: () => reorderReleaseAction({ ...reorderInput, afterId: releaseId }) },
+  ])("rejects malformed $name before authentication", async ({ invoke }) => {
+    await expect(invoke()).resolves.toMatchObject({ ok: false });
+    expect(mocks.getSession).not.toHaveBeenCalled();
+    expect(mocks.deleteRelease).not.toHaveBeenCalled();
+    expect(mocks.mergeRelease).not.toHaveBeenCalled();
+    expect(mocks.reorderRelease).not.toHaveBeenCalled();
+  });
+
+  it("returns the current impact when the linked items changed since the preview", async () => {
+    mocks.deleteRelease.mockRejectedValueOnce(
+      Object.assign(
+        new Error("Les éléments liés à cette version ont changé. Vérifiez l’impact avant de réessayer."),
+        {
+          code: "RELEASE_SCOPE_STALE" as const,
+          currentScopeRevision: "fedcba9876543210fedcba9876543210",
+          currentLinkedCount: 3,
+          currentTrashedCount: 1,
+        },
+      ),
+    );
+    await expect(deleteReleaseAction(deleteRemoveInput)).resolves.toEqual({
+      ok: false,
+      reason: "stale_scope",
+      error: "Les éléments liés à cette version ont changé. Vérifiez l’impact avant de réessayer.",
+      currentScopeRevision: "fedcba9876543210fedcba9876543210",
+      currentLinkedCount: 3,
+      currentTrashedCount: 1,
+    });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "La version contient des éléments.",
+    "La release de destination a changé. Rechargez-la avant de réessayer.",
+    "Une version archivée ne peut pas être réordonnée.",
+    "Voisin invalide pour ce backlog.",
+  ])("passes the domain error through: %s", async (message) => {
+    mocks.deleteRelease.mockRejectedValueOnce(new Error(message));
+    await expect(deleteReleaseAction(deleteRemoveInput)).resolves.toEqual({ ok: false, error: message });
+  });
+
+  it("maps unknown failures to a generic message", async () => {
+    mocks.mergeRelease.mockRejectedValueOnce(new Error("duplicate key value violates unique constraint"));
+    await expect(mergeReleaseAction(mergeInput)).resolves.toEqual({ ok: false, error: "Fusion impossible." });
+  });
+
+  it("revalidates the stored backlog paths and the target detail", async () => {
+    await mergeReleaseAction(mergeInput);
+    expect(mocks.revalidatePath.mock.calls.map(([path]) => path)).toEqual([
+      "/b/STORED",
+      "/b/STORED/releases",
+      `/b/STORED/releases/${releaseId}`,
+      `/b/STORED/releases/${destinationReleaseId}`,
+    ]);
+    mocks.revalidatePath.mockClear();
+    await deleteReleaseAction(deleteRemoveInput);
+    expect(mocks.revalidatePath.mock.calls.map(([path]) => path)).toEqual([
+      "/b/STORED",
+      "/b/STORED/releases",
+      `/b/STORED/releases/${releaseId}`,
+    ]);
   });
 });

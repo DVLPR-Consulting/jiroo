@@ -1457,3 +1457,21 @@ d’un sprint actif dans le Backlog reste une décision produit ouverte, et
 l’inclusion du sprint consulté dans la « moyenne récente » d’un sprint terminé
 est acceptée comme contexte courant du backlog ; ni l’un ni l’autre n’est classé
 comme bug.
+
+## Releases PR2 — 2 octobre 2026 (JIR-39)
+
+Aucun nouveau `BUG-JIR` : le run `20261002-releases-depth-delivery-02` ne
+contient aucun défaut. Les problèmes trouvés en revue avant acceptation ont été
+corrigés dans la branche :
+
+| Constat de revue | Correctif |
+|---|---|
+| Échappement Markdown limité à l’inline (titres de setext, listes `1)`, code indenté, `\r` isolé) | `cf6399c` |
+| Réordonnancements rapides envoyant une révision périmée ; rollback vers un ordre plus ancien ; aperçu fusion/suppression figé au montage | `3e1e063` |
+| Révocation synchrone de l’URL de téléchargement ; changement d’option effaçant les modifications sans avertissement | `ef73ecd` |
+
+Observations ouvertes (mineures, non classées comme bugs) : au-delà de
+5 000 éléments, la coupe des notes suit l’ordre texte des clés ; les URL nues
+dans un titre deviennent des liens dans l’aperçu (URL `javascript:` neutralisées) ;
+après suppression depuis la liste, le focus revient au document ; l’aperçu des
+notes contient un second `<h1>`.

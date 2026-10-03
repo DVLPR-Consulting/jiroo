@@ -587,3 +587,22 @@ Addendum du 1er octobre 2026 : la preuve de référence devient
 revendiqué est inchangé ; le maintien du sprint entre onglets rejoint le
 comportement attendu d’un outil de reporting, et l’« Engagement » d’un sprint
 actif n’est pas encore aligné sur la définition Jira (estimation au démarrage).
+
+## Mise à jour — profondeur Releases (2 octobre 2026)
+
+Alignement Jira Cloud (sources : Atlassian « Manage versions », « Create
+release notes », REST v3 project versions `mergeto`, `removeAndSwap`, `move`) :
+
+- fusion = suppression de la source avec remplacement dans les Fix versions,
+  quel que soit l’état de la source ; cible non archivée ;
+- suppression avec transfert ou retrait ; seules les Fix versions existent dans
+  Jiroo (pas d’Affects versions) ;
+- une séquence d’ordre par projet, nouvelle version ajoutée en fin, équivalents
+  `Earlier`/`Later` via Monter/Descendre ;
+- notes regénérées depuis l’état courant à chaque vue, regroupées par nature,
+  export Markdown/HTML ; Jira reste devant sur le choix des types/champs et la
+  sauvegarde dans *Related work* (non livrés).
+
+Écarts délibérés : snapshots de publication conservés mais non navigables après
+suppression de leur version ; rangs historiques matérialisés paresseusement ;
+notes non persistées côté serveur.
