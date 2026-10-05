@@ -90,4 +90,13 @@ describe("changeOwnPasswordAction", () => {
       error: "Impossible de modifier le mot de passe. Réessayez.",
     });
   });
+
+  it("tells the user to sign in again when the rotated session cookie cannot be written", async () => {
+    mocks.forwardAuthCookies.mockRejectedValue(new Error("cookies are read-only here"));
+
+    await expect(changeOwnPasswordAction(valid)).resolves.toEqual({
+      ok: false,
+      error: "Mot de passe modifié. Reconnectez-vous avec le nouveau.",
+    });
+  });
 });

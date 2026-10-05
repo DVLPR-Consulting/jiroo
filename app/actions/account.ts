@@ -49,7 +49,13 @@ export async function changeOwnPasswordAction(input: {
       headers: await headers(),
       returnHeaders: true,
     });
-    await forwardAuthCookies(responseHeaders);
+    try {
+      await forwardAuthCookies(responseHeaders);
+    } catch {
+      // The password changed and every session was revoked, but this browser
+      // could not receive its new session: say so instead of inviting a retry.
+      return { ok: false, error: "Mot de passe modifié. Reconnectez-vous avec le nouveau." };
+    }
     return { ok: true };
   } catch (error) {
     const code = betterAuthErrorCode(error);
