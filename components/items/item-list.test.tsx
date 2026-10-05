@@ -272,6 +272,16 @@ describe("ItemList", () => {
     expect(screen.getAllByRole("img", { name: "À faire" })[0]).toBeVisible();
   });
 
+  it("floors the table width so the title column stays readable on narrow screens", () => {
+    const { unmount } = renderList({ ...listProps(), showFixVersions: false });
+    // 2.5rem selection + 59rem fixed columns + 12rem title floor.
+    expect(screen.getByRole("table")).toHaveStyle({ minWidth: "73.5rem" });
+    unmount();
+
+    renderList({ ...listProps(), showFixVersions: true });
+    expect(screen.getByRole("table")).toHaveStyle({ minWidth: "84.5rem" });
+  });
+
   it("toggles title sorting while preserving unrelated URL parameters", async () => {
     const user = userEvent.setup();
     const props = listProps();

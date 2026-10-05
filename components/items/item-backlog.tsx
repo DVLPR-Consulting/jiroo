@@ -85,6 +85,7 @@ import {
   type ActiveSprintStartCommitment,
   type RecentVelocityContext,
 } from "@/lib/items/sprint-planning";
+import { fixedTableMinWidth } from "@/lib/items/table-layout";
 
 type StatusOption = {
   id: string;
@@ -132,6 +133,20 @@ type RankItemAction = (input: {
 const HEADER_CLASS =
   "border-b border-border bg-[var(--surface-2)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
 const CELL_CLASS = "border-b border-border px-3 py-1.5 text-sm";
+// Fixed columns in rem, in colgroup order: ordre, clé, statut, priorité,
+// points, fix versions, assigné. The optional selection column comes first.
+const BACKLOG_FIXED_COLUMNS_REM = [2.5, 8, 10, 7, 6, 11, 11] as const;
+const SELECTION_COLUMN_REM = 2.5;
+
+function backlogTableStyle(canSelectItems: boolean) {
+  return {
+    minWidth: fixedTableMinWidth(
+      canSelectItems
+        ? [SELECTION_COLUMN_REM, ...BACKLOG_FIXED_COLUMNS_REM]
+        : BACKLOG_FIXED_COLUMNS_REM,
+    ),
+  };
+}
 
 const pointFormatter = new Intl.NumberFormat("fr-FR", {
   maximumFractionDigits: 2,
@@ -623,7 +638,10 @@ function LegacyItemBacklog({
           onDragCancel={manualOrder && canScheduleItems ? onDragCancel : undefined}
         >
         <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full table-fixed border-separate border-spacing-0">
+          <table
+            className="w-full table-fixed border-separate border-spacing-0"
+            style={backlogTableStyle(canSelectItems)}
+          >
             <colgroup>
               {canSelectItems ? <col className="w-10" /> : null}
               <col className="w-10" />
@@ -826,7 +844,10 @@ function SectionTable({
   onToggleSelection: (id: string, extendRange: boolean) => void;
 }) {
   return (
-    <table className="w-full table-fixed border-separate border-spacing-0">
+    <table
+      className="w-full table-fixed border-separate border-spacing-0"
+      style={backlogTableStyle(canSelectItems)}
+    >
       <colgroup>
         {canSelectItems ? <col className="w-10" /> : null}
         <col className="w-10" />
