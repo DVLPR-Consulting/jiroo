@@ -34,7 +34,6 @@ export type MergeDeleteTarget = { id: string; name: string; revision: number; re
 
 type Disposition = "" | "transfer" | "remove";
 
-
 export function ReleaseMergeDeleteDialog({
   mode,
   backlog,
