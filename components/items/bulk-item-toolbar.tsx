@@ -443,8 +443,11 @@ export function BulkItemToolbar({
         <DialogHeader>
           <DialogTitle>Confirmer la modification des Fix versions</DialogTitle>
           <DialogDescription>
-            Vérifiez cette opération avant de l’appliquer aux{" "}
-            {countLabel(selectedItems.length, "item sélectionné", "items sélectionnés")}.
+            Vérifiez cette opération avant de l’appliquer{" "}
+            {selectedItems.length === 1
+              ? "à l’item sélectionné"
+              : `aux ${countLabel(selectedItems.length, "item sélectionné", "items sélectionnés")}`}
+            .
           </DialogDescription>
         </DialogHeader>
         <p>{fixVersionSummary()}</p>

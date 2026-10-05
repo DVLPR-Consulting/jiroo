@@ -187,8 +187,11 @@ export function ReleaseMergeDeleteDialog({
             </li>
             {release.publicationCount > 0 ? (
               <li className="text-muted-foreground">
-                {countLabel(release.publicationCount, "publication conservée", "publications conservées")}{" "}
-                dans l’historique (avec son nom), mais plus consultables depuis cette version.
+                {countLabel(
+                  release.publicationCount,
+                  "publication conservée dans l’historique (avec son nom), mais plus consultable depuis cette version.",
+                  "publications conservées dans l’historique (avec son nom), mais plus consultables depuis cette version.",
+                )}
               </li>
             ) : null}
           </ul>

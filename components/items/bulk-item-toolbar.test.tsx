@@ -411,6 +411,32 @@ describe("BulkItemToolbar", () => {
     }
   });
 
+  it("agrees the Fix versions confirmation phrase with one or several selected items", async () => {
+    const user = userEvent.setup();
+    const input = props();
+    const releaseCapabilities = { manage: false, assignItems: false, bulkAssignItems: true };
+    const { unmount } = render(
+      <BulkItemToolbar
+        {...input}
+        selectedItems={[input.selectedItems[0]!]}
+        releaseOptions={releaseOptions}
+        releaseCapabilities={releaseCapabilities}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Appliquer les versions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Effacer toutes les versions" }));
+    expect(screen.getByRole("dialog", { name: "Confirmer la modification des Fix versions" }))
+      .toHaveTextContent("Vérifiez cette opération avant de l’appliquer à l’item sélectionné.");
+    unmount();
+
+    render(<BulkItemToolbar {...props()} releaseOptions={releaseOptions} releaseCapabilities={releaseCapabilities} />);
+    await user.click(screen.getByRole("button", { name: "Appliquer les versions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Effacer toutes les versions" }));
+    expect(screen.getByRole("dialog", { name: "Confirmer la modification des Fix versions" }))
+      .toHaveTextContent("Vérifiez cette opération avant de l’appliquer aux 2 items sélectionnés.");
+  });
+
   it("disables empty add, replace and remove while exposing an explicit clear-all command", async () => {
     const user = userEvent.setup();
     mocks.bulkUpdateItemsAction.mockResolvedValue({

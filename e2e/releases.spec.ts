@@ -350,7 +350,7 @@ async function applyBulkFixVersions(
     name: "Confirmer la modification des Fix versions",
   });
   await expect(dialog).toContainText(
-    `${selectedCount} ${selectedCount === 1 ? "item sélectionné" : "items sélectionnés"}`,
+    selectedCount === 1 ? "à l’item sélectionné" : `aux ${selectedCount} items sélectionnés`,
   );
   for (const consequence of expectedConsequences) {
     await expect(dialog).toContainText(consequence);
