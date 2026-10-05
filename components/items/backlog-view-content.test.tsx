@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   itemBacklogProps: vi.fn(),
   itemBoardProps: vi.fn(),
   itemDetailProps: vi.fn(),
+  itemDetailSheetKey: vi.fn(),
   itemListProps: vi.fn(),
   itemTreeProps: vi.fn(),
   listItemFixVersionPairs: vi.fn(),
@@ -95,6 +96,12 @@ vi.mock("@/components/items/item-detail-content", () => ({
   ItemDetailContent: (props: unknown) => {
     mocks.itemDetailProps(props);
     return null;
+  },
+}));
+vi.mock("@/components/items/item-detail-sheet", () => ({
+  ItemDetailSheet: ({ itemKey, children }: { itemKey: string; children: React.ReactNode }) => {
+    mocks.itemDetailSheetKey(itemKey);
+    return children;
   },
 }));
 vi.mock("@/components/items/item-list", () => ({
@@ -293,6 +300,8 @@ describe("BacklogViewContent read boundary", () => {
         canAssignItems: true,
       }),
     );
+    // The drawer frame opens with the URL; only its body streams in.
+    expect(mocks.itemDetailSheetKey).toHaveBeenCalledWith("DEMO-1");
   });
 
   it("projects safe permission booleans into focused product capability props", async () => {

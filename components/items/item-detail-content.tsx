@@ -1,4 +1,5 @@
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
+import { ItemDetailNotFound } from "@/components/items/item-detail-sheet";
 import { RecentItemTracker } from "@/components/items/recent-item-tracker";
 import type { ItemType } from "@/lib/design/constants";
 import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
@@ -75,7 +76,8 @@ export async function ItemDetailContent({
   releaseCapabilities?: ReleaseCapabilities;
 }) {
   const detail = await getItemByKeyForBacklog(itemKey, backlog.id);
-  if (!detail) return null;
+  // The drawer is already open: explain the miss instead of an empty panel.
+  if (!detail) return <ItemDetailNotFound itemKey={itemKey} />;
 
   const [activities, itemLabelIds, comments, links, refs] = await Promise.all([
     listActivities(detail.id),

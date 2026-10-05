@@ -180,7 +180,7 @@ export function EstimateField({
           onChange={(event) => setDraft(event.target.value)}
           aria-label="Points"
           aria-busy={field.pending}
-          className={selectClass}
+          className={`${selectClass} min-w-0`}
         />
         <button
           type="submit"

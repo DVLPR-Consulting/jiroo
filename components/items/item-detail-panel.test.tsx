@@ -3,7 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
 import { ItemDetailContent } from "@/components/items/item-detail-content";
+import { ItemDetailSheet } from "@/components/items/item-detail-sheet";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
+import type { ViewUrlEntry } from "@/lib/items/view-url-params";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
@@ -165,13 +167,28 @@ const publishedVersion = {
   archived: false,
 };
 
+/** The panel always renders inside the drawer frame, as in the app. */
+function DetailHarness({
+  initialEntries,
+  children,
+}: {
+  initialEntries: ViewUrlEntry[];
+  children: React.ReactNode;
+}) {
+  return (
+    <ViewUrlStateProvider initialEntries={initialEntries}>
+      <ItemDetailSheet itemKey={detail.key}>{children}</ItemDetailSheet>
+    </ViewUrlStateProvider>
+  );
+}
+
 function renderPanel(
   parent?: { key: string; title: string },
   detailOverride = detail,
   canEditItems = true,
 ) {
   return render(
-    <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+    <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
       <ItemDetailPanel
         {...baseProps}
         detail={detailOverride}
@@ -180,7 +197,7 @@ function renderPanel(
         canTransitionItems={canEditItems}
         canAssignItems={canEditItems}
       />
-    </ViewUrlStateProvider>,
+    </DetailHarness>,
   );
 }
 
@@ -227,12 +244,12 @@ describe("ItemDetailPanel header", () => {
     expect(screen.queryByText("Points")).not.toBeInTheDocument();
 
     rerender(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           detail={{ ...detail, type: "tache", estimatePoints: 5 }}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     expect(screen.getByText("Points")).toBeVisible();
@@ -295,22 +312,59 @@ describe("ItemDetailPanel header", () => {
     expect(dialog).toBeVisible();
     await user.keyboard("{Escape}");
 
-    expect(mocks.push).toHaveBeenCalled();
     expect(dialog).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=board"),
+    );
     expect(returnTarget).toHaveFocus();
     rendered.unmount();
     returnTarget.remove();
   });
 
-  it("uses a single-column mobile-first grid and a desktop side column", () => {
+  it("stacks the properties under the main column until a wide drawer gives them a third", () => {
     renderPanel();
 
-    expect(
-      screen.getByRole("dialog", { name: `${detail.key} — ${detail.title}` }),
-    ).toHaveClass("w-screen");
+    const dialog = screen.getByRole("dialog", { name: `${detail.key} — ${detail.title}` });
+    expect(dialog).toHaveClass("w-screen", "md:w-[min(960px,92vw)]");
+    expect(dialog).not.toHaveClass("md:w-[620px]");
     expect(screen.getByTestId("item-detail-grid")).toHaveClass(
       "grid-cols-1",
-      "md:grid-cols-[1fr_220px]",
+      "lg:grid-cols-[minmax(0,1fr)_340px]",
+    );
+  });
+
+  it("fills the viewport height and scrolls each column on its own when side by side", () => {
+    renderPanel();
+
+    const dialog = screen.getByRole("dialog", { name: `${detail.key} — ${detail.title}` });
+    // Full height from the insets; the body scrolls, never the frame.
+    expect(dialog).toHaveClass("inset-y-0", "flex", "flex-col", "overflow-hidden");
+    expect(dialog).not.toHaveClass("h-dvh");
+    expect(dialog).not.toHaveClass("overflow-y-auto");
+    expect(screen.getByRole("banner")).toHaveClass("flex-none");
+    expect(screen.getByTestId("item-detail-grid")).toHaveClass(
+      "min-h-0",
+      "flex-1",
+      "overflow-y-auto",
+      "lg:grid-rows-1",
+      "lg:overflow-hidden",
+    );
+    expect(screen.getByTestId("item-detail-main")).toHaveClass("lg:overflow-y-auto");
+    expect(screen.getByTestId("item-detail-properties")).toHaveClass("lg:overflow-y-auto");
+  });
+
+  it("pads the properties column like the main column and keeps fields inside it", () => {
+    renderPanel(undefined, { ...detail, type: "tache" });
+
+    const properties = screen.getByTestId("item-detail-properties");
+    const main = screen.getByTestId("item-detail-main");
+    expect(main).toHaveClass("p-5");
+    expect(properties).toHaveClass("min-w-0", "p-5", "lg:border-l");
+    for (const field of within(properties).getAllByTestId("item-detail-field")) {
+      expect(field).toHaveClass("min-w-0");
+    }
+    expect(within(properties).getByRole("spinbutton", { name: "Points" })).toHaveClass(
+      "min-w-0",
     );
   });
 
@@ -333,14 +387,14 @@ describe("ItemDetailPanel header", () => {
   it("keeps item details readable while hiding viewer mutation affordances", async () => {
     const user = userEvent.setup();
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           canEditItems={false}
           canTransitionItems={false}
           canAssignItems={false}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     expect(screen.getByRole("heading", { name: detail.title })).toBeVisible();
@@ -363,9 +417,9 @@ describe("ItemDetailPanel header", () => {
     } as const;
 
     const edited = render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel {...baseProps} {...denied} canEditItems />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
     expect(screen.getByRole("button", { name: `Renommer ${detail.key}` })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "Priorité" })).toBeVisible();
@@ -374,9 +428,9 @@ describe("ItemDetailPanel header", () => {
     edited.unmount();
 
     const transitioned = render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel {...baseProps} {...denied} canTransitionItems />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
     expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: `Renommer ${detail.key}` })).not.toBeInTheDocument();
@@ -385,23 +439,23 @@ describe("ItemDetailPanel header", () => {
     transitioned.unmount();
 
     const editedAndTransitioned = render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           {...denied}
           canEditItems
           canTransitionItems
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
     expect(screen.getByRole("combobox", { name: "Statut" })).toBeVisible();
     expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
     editedAndTransitioned.unmount();
 
     const assigned = render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel {...baseProps} {...denied} canAssignItems />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
     expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
@@ -409,14 +463,14 @@ describe("ItemDetailPanel header", () => {
     assigned.unmount();
 
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           {...denied}
           canEditItems
           canAssignItems
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
     expect(screen.getByRole("combobox", { name: "Assigné" })).toBeVisible();
     expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
@@ -429,7 +483,7 @@ describe("ItemDetailPanel header", () => {
     const reporterCandidate = { id: "reporter-candidate", name: "Rapporteuse candidate" };
 
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           detail={{
@@ -443,7 +497,7 @@ describe("ItemDetailPanel header", () => {
           canEditItems
           canAssignItems
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     const assigneeSelect = screen.getByRole("combobox", { name: "Assigné" });
@@ -467,14 +521,14 @@ describe("ItemDetailPanel header", () => {
 
   it("gates Fix version editing only with the release assign capability", () => {
     const readonly = render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           fixVersions={[currentArchivedVersion]}
           releaseOptions={[activeVersion]}
           releaseCapabilities={{ manage: true, assignItems: false, bulkAssignItems: true }}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     expect(screen.getByText("Legacy — Archivée")).toBeVisible();
@@ -482,7 +536,7 @@ describe("ItemDetailPanel header", () => {
     readonly.unmount();
 
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           canEditItems={false}
@@ -490,7 +544,7 @@ describe("ItemDetailPanel header", () => {
           releaseOptions={[activeVersion]}
           releaseCapabilities={{ manage: false, assignItems: true, bulkAssignItems: false }}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     expect(screen.getByRole("button", { name: "Versions" })).toBeEnabled();
@@ -500,14 +554,14 @@ describe("ItemDetailPanel header", () => {
     const user = userEvent.setup();
     mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: detail });
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           fixVersions={[activeVersion, publishedVersion, currentArchivedVersion]}
           releaseOptions={[activeVersion, publishedVersion]}
           releaseCapabilities={{ manage: false, assignItems: true, bulkAssignItems: false }}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     expect(screen.queryByText("Legacy — Archivée")).not.toBeInTheDocument();
@@ -536,14 +590,14 @@ describe("ItemDetailPanel header", () => {
       }),
     );
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           fixVersions={[currentArchivedVersion]}
           releaseOptions={[activeVersion]}
           releaseCapabilities={{ manage: false, assignItems: true, bulkAssignItems: false }}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     await user.click(screen.getByRole("button", { name: "Versions" }));
@@ -573,14 +627,14 @@ describe("ItemDetailPanel header", () => {
       archived: false,
     };
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           fixVersions={[{ ...thirdVersion, name: "stale name" }, currentArchivedVersion]}
           releaseOptions={[activeVersion, publishedVersion, thirdVersion]}
           releaseCapabilities={{ manage: false, assignItems: true, bulkAssignItems: false }}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     await user.click(screen.getByRole("button", { name: "Versions" }));
@@ -598,14 +652,14 @@ describe("ItemDetailPanel header", () => {
     const user = userEvent.setup();
     mocks.updateItemAction.mockRejectedValueOnce(new Error("internal release details"));
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           fixVersions={[]}
           releaseOptions={[activeVersion]}
           releaseCapabilities={{ manage: false, assignItems: true, bulkAssignItems: false }}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     await user.click(screen.getByRole("button", { name: "Versions" }));
@@ -622,7 +676,7 @@ describe("ItemDetailPanel header", () => {
   it("grants delete, comments, and links independently from ordinary editing", async () => {
     const user = userEvent.setup();
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           canEditItems={false}
@@ -642,7 +696,7 @@ describe("ItemDetailPanel header", () => {
             link: true,
           }}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     expect(screen.getByRole("button", { name: "Actions" })).toBeVisible();
@@ -661,7 +715,7 @@ describe("ItemDetailPanel header", () => {
     mocks.moveSprintItemAction.mockResolvedValue({ ok: true });
     const taskDetail = { ...detail, type: "tache" as const };
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           detail={taskDetail}
@@ -679,7 +733,7 @@ describe("ItemDetailPanel header", () => {
           canAssignItems={false}
           planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     expect(screen.queryByRole("button", { name: `Renommer ${detail.key}` }))
@@ -712,7 +766,7 @@ describe("ItemDetailPanel header", () => {
       }),
     );
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           detail={{ ...detail, type: "tache" }}
@@ -724,7 +778,7 @@ describe("ItemDetailPanel header", () => {
           canEditItems={false}
           planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     const parentSelect = screen.getByRole("combobox", { name: "Parent" });
@@ -741,7 +795,7 @@ describe("ItemDetailPanel header", () => {
     const user = userEvent.setup();
     mocks.reparentItemAction.mockRejectedValueOnce(new Error("internal parent details"));
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           detail={{ ...detail, type: "tache" }}
@@ -753,7 +807,7 @@ describe("ItemDetailPanel header", () => {
           canEditItems={false}
           planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     const parentSelect = screen.getByRole("combobox", { name: "Parent" });
@@ -770,7 +824,7 @@ describe("ItemDetailPanel header", () => {
     const initialSprintId = "66666666-6666-4666-8666-666666666666";
     const targetSprintId = "77777777-7777-4777-8777-777777777777";
     render(
-      <ViewUrlStateProvider initialEntries={[["view", "board"], ["item", detail.key]]}>
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
         <ItemDetailPanel
           {...baseProps}
           detail={{ ...detail, type: "tache" }}
@@ -782,7 +836,7 @@ describe("ItemDetailPanel header", () => {
           canEditItems={false}
           planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
         />
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     const sprintSelect = screen.getByRole("combobox", { name: "Sprint" });
@@ -840,9 +894,9 @@ describe("ItemDetailContent parent resolution", () => {
     });
 
     render(
-      <ViewUrlStateProvider initialEntries={[["item", detail.key]]}>
+      <DetailHarness initialEntries={[["item", detail.key]]}>
         {content}
-      </ViewUrlStateProvider>,
+      </DetailHarness>,
     );
 
     expect(mocks.getItemByKeyForBacklog).toHaveBeenCalledWith(
