@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -199,6 +199,22 @@ describe("release detail route", () => {
       params: Promise.resolve({ key: "CASS", releaseId }),
       searchParams: Promise.resolve({}),
     })).rejects.toThrow("not-found");
+  });
+
+  it("keeps the backlog view tabs with Releases as the current page", async () => {
+    render(await ReleaseDetailPage({
+      params: Promise.resolve({ key: "cass", releaseId }),
+      searchParams: Promise.resolve({}),
+    }));
+
+    const nav = screen.getByRole("navigation", { name: "Vues du backlog" });
+    expect(within(nav).getByRole("link", { name: "Releases" }))
+      .toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("link", { name: "Backlog" }))
+      .toHaveAttribute("href", "/b/CASS?view=backlog");
+    expect(within(nav).getByRole("link", { name: "Rapports" }))
+      .not.toHaveAttribute("aria-current");
+    expect(screen.getByText("Détail version")).toBeInTheDocument();
   });
 
   it("awaits pagination params and reads one selected visible publication snapshot", async () => {

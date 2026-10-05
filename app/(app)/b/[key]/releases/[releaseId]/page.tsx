@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { ReleaseDetail } from "@/components/releases/release-detail";
+import { BacklogNavBar } from "@/components/shell/view-tabs";
 import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
 import { checkPermission } from "@/lib/auth/authorization";
 import { projectBacklogCapabilities } from "@/lib/auth/capabilities";
@@ -121,47 +122,50 @@ export default async function ReleaseDetailPage({
     : null;
 
   return (
-    <ReleaseDetail
-      backlog={{ id: backlog.id, key: backlog.key, name: backlog.name }}
-      release={{
-        ...release,
-        createdAt: release.createdAt.toISOString(),
-        updatedAt: release.updatedAt.toISOString(),
-      }}
-      actor={{ id: session.user.id, name: session.user.name }}
-      driverOptions={rawDriverOptions.map(({ id, name }) => ({ id, name }))}
-      canBrowseUsers={browseUsersDecision.allowed}
-      capabilities={capabilities}
-      statusIds={statusIds}
-      destinations={releaseSummaries
-        .filter(
-          (candidate) => candidate.id !== releaseId && !candidate.archived && !candidate.released,
-        )
-        .map(({ id, name }) => ({ id, name }))}
-      mergeTargets={releaseSummaries
-        .filter((candidate) => candidate.id !== releaseId && !candidate.archived)
-        .map(({ id, name, revision, released }) => ({ id, name, revision, released }))}
-      scope={{ page: scopePage, total: scopeResult.total, rows: scopeResult.rows }}
-      scopeFilters={{ statusCategory: scopeStatus, estimate: scopeEstimate }}
-      events={{
-        page: eventPage,
-        total: eventResult.total,
-        rows: eventResult.rows.map((event) => ({
-          id: event.id,
-          publicationId: event.publicationId,
-          actorName: event.actor.name,
-          action: event.action,
-          createdAt: event.createdAt.toISOString(),
-        })),
-      }}
-      snapshot={snapshotResult && publicationId
-        ? {
-            publicationId,
-            page: snapshotPage,
-            total: snapshotResult.total,
-            rows: snapshotResult.rows,
-          }
-        : null}
-    />
+    <>
+      <BacklogNavBar active="releases" backlogKey={backlog.key} />
+      <ReleaseDetail
+        backlog={{ id: backlog.id, key: backlog.key, name: backlog.name }}
+        release={{
+          ...release,
+          createdAt: release.createdAt.toISOString(),
+          updatedAt: release.updatedAt.toISOString(),
+        }}
+        actor={{ id: session.user.id, name: session.user.name }}
+        driverOptions={rawDriverOptions.map(({ id, name }) => ({ id, name }))}
+        canBrowseUsers={browseUsersDecision.allowed}
+        capabilities={capabilities}
+        statusIds={statusIds}
+        destinations={releaseSummaries
+          .filter(
+            (candidate) => candidate.id !== releaseId && !candidate.archived && !candidate.released,
+          )
+          .map(({ id, name }) => ({ id, name }))}
+        mergeTargets={releaseSummaries
+          .filter((candidate) => candidate.id !== releaseId && !candidate.archived)
+          .map(({ id, name, revision, released }) => ({ id, name, revision, released }))}
+        scope={{ page: scopePage, total: scopeResult.total, rows: scopeResult.rows }}
+        scopeFilters={{ statusCategory: scopeStatus, estimate: scopeEstimate }}
+        events={{
+          page: eventPage,
+          total: eventResult.total,
+          rows: eventResult.rows.map((event) => ({
+            id: event.id,
+            publicationId: event.publicationId,
+            actorName: event.actor.name,
+            action: event.action,
+            createdAt: event.createdAt.toISOString(),
+          })),
+        }}
+        snapshot={snapshotResult && publicationId
+          ? {
+              publicationId,
+              page: snapshotPage,
+              total: snapshotResult.total,
+              rows: snapshotResult.rows,
+            }
+          : null}
+      />
+    </>
   );
 }
