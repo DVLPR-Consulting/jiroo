@@ -7,6 +7,7 @@ import type {
   SerializableBurndownReport,
   SerializableBurndownSprint,
 } from "@/lib/reports/burndown-serialization";
+import { countLabel, pointsLabel } from "@/lib/format/plural";
 
 export type { SerializableBurndownReport } from "@/lib/reports/burndown-serialization";
 
@@ -33,10 +34,10 @@ const shortDate = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "UTC",
 });
 
-const pts = (value: number) => `${number.format(value)} pts`;
+const pts = (value: number) => pointsLabel(value, number.format);
 const spokenDate = (iso: string) => `${longDateTime.format(new Date(iso))} UTC`;
 const remainingWords = (value: number) =>
-  `${number.format(value)} ${Math.abs(value) >= 2 ? "points restants" : "point restant"}`;
+  countLabel(value, "point restant", "points restants", number.format);
 
 function insufficientReasonCopy(
   reason: BurndownInsufficientReason,
@@ -313,7 +314,7 @@ function ExactValues({ backlogKey, report }: { backlogKey: string; report: Detai
       <h2 id="burndown-exact-title" className="t-h2">Valeurs exactes</h2>
       <p id="burndown-baseline" className="text-sm">
         Restant au démarrage : <strong>{pts(baseline.remainingPoints)}</strong>
-        {" · "}{baseline.unestimatedCount} non estimé{baseline.unestimatedCount > 1 ? "s" : ""}
+        {" · "}{countLabel(baseline.unestimatedCount, "non estimé", "non estimés")}
         {" · "}
         <time dateTime={baseline.occurredAt}>{dateTime.format(new Date(baseline.occurredAt))}</time>
       </p>
@@ -366,7 +367,7 @@ function ExactValues({ backlogKey, report }: { backlogKey: string; report: Detai
                     )}
                   </td>
                   <td className="p-3">{CAUSE_LABELS[point.cause]}</td>
-                  <td className="p-3 whitespace-nowrap">{signed.format(point.deltaPoints)} pts</td>
+                  <td className="p-3 whitespace-nowrap">{pointsLabel(point.deltaPoints, signed.format)}</td>
                   <td className="p-3 whitespace-nowrap">{pts(point.remainingPoints)}</td>
                   <td className="p-3">{point.unestimatedCount}</td>
                 </tr>
@@ -456,7 +457,7 @@ export function BurndownReportView({
         ) : null}
         <p className="text-sm">
           {comparison.state === "ready"
-            ? `Engagement ${pts(comparison.commitmentPoints)} · moyenne récente ${pts(comparison.averageCompletedPoints)} · écart ${signed.format(comparison.difference)} pts`
+            ? `Engagement ${pts(comparison.commitmentPoints)} · moyenne récente ${pts(comparison.averageCompletedPoints)} · écart ${pointsLabel(comparison.difference, signed.format)}`
             : "Pas encore de vélocité comparable"}
         </p>
       </section>

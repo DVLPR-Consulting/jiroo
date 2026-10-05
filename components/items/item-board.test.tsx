@@ -134,6 +134,27 @@ describe("ItemBoard", () => {
     expect(screen.getByText("Authentication")).toBeVisible();
   });
 
+  it("agrees the active sprint chips with French singular below two", () => {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[editableCard]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+        activeSprint={activeSprint}
+        activeSprintMetrics={{ ...activeMetrics, remainingPoints: 1, completedPoints: 0, unestimatedCount: 2 }}
+      />,
+    );
+
+    expect(screen.getByText("1 pt restant")).toBeVisible();
+    expect(screen.getByText("0 pt terminé")).toBeVisible();
+    expect(screen.getByText("2 non estimés")).toBeVisible();
+  });
+
   it("keeps cards compact when release data is present for upstream filtering", () => {
     renderBoard(
       <ItemBoard

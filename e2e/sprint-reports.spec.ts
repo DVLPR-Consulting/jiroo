@@ -452,7 +452,7 @@ async function expectComparison(
     expect(text).toContain("Pas encore de vélocité comparable");
     return;
   }
-  const match = /Engagement (.+?) pts · moyenne récente (.+?) pts · écart (.+?) pts/u.exec(text ?? "");
+  const match = /Engagement (.+?) pts? · moyenne récente (.+?) pts? · écart (.+?) pts?/u.exec(text ?? "");
   expect(match, `Comparaison de vélocité absente : ${text}`).not.toBeNull();
   expect(parseRenderedNumber(match![1]!)).toBe(commitmentPoints);
   expect(parseRenderedNumber(match![2]!)).toBeCloseTo(velocity.average, 2);
@@ -766,9 +766,9 @@ audited(1, "affiche les rapports figés et la vélocité explicable", async ({ p
     .toBeVisible();
   await expect(page.getByRole("group", { name: "Sprint Rapport 1 — engagement 8 points, terminé 5 points" }))
     .toBeVisible();
-  await expect(page.getByRole("group", { name: "Sprint Rapport 2 — engagement 13 points, terminé 0 points" }))
+  await expect(page.getByRole("group", { name: "Sprint Rapport 2 — engagement 13 points, terminé 0 point" }))
     .toBeVisible();
-  await expect(page.getByRole("group", { name: "Sprint Rapport 3 — engagement 0 points, terminé 0 points" }))
+  await expect(page.getByRole("group", { name: "Sprint Rapport 3 — engagement 0 point, terminé 0 point" }))
     .toBeVisible();
   await page.getByRole("link", { name: "12 sprints" }).click();
   await expect(page).toHaveURL(/limit=12/);
@@ -976,7 +976,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   );
   let journal = page.getByRole("region", { name: "Journal du sprint" });
   await expect(journal).toContainText(`a ajouté ${bulkTwo.key} au sprint avec 2 pts`);
-  await expect(journal).toContainText(`a ajouté ${bulkOne.key} au sprint avec 1 pts`);
+  await expect(journal).toContainText(`a ajouté ${bulkOne.key} au sprint avec 1 pt`);
   await expect(journal).toContainText(`a ajouté ${boardItem.key} au sprint avec 5 pts`);
   let measures = page.getByRole("region", { name: "Mesures du sprint" });
   await expect(measures.getByText("Périmètre actuel", { exact: true }).locator(".."))
@@ -994,7 +994,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   await page.goto(`/b/CASS/reports?report=sprint&sprint=${uiActive.id}`);
   journal = page.getByRole("region", { name: "Journal du sprint" });
   await expect(journal).toContainText(`a modifié ${bulkTwo.key} : 2 pts → 4 pts`);
-  await expect(journal).toContainText(`a modifié ${bulkOne.key} : 1 pts → 4 pts`);
+  await expect(journal).toContainText(`a modifié ${bulkOne.key} : 1 pt → 4 pts`);
   await expect(journal).toContainText(`a modifié ${boardItem.key} : 5 pts → 4 pts`);
   measures = page.getByRole("region", { name: "Mesures du sprint" });
   await expect(measures.getByText("Périmètre actuel", { exact: true }).locator(".."))
@@ -1015,7 +1015,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   await expect(journal).toContainText(`a retiré ${bulkOne.key} vers le Backlog avec 4 pts`);
   measures = page.getByRole("region", { name: "Mesures du sprint" });
   await expect(measures.getByText("Périmètre actuel", { exact: true }).locator(".."))
-    .toContainText("1 éléments · 4 pts · 0 non estimé");
+    .toContainText("1 élément · 4 pts · 0 non estimé");
   const remainingSection = page.getByRole("region", { name: "Non terminés (1)" });
   await expect(remainingSection).toContainText(boardItem.key);
   await expect(remainingSection).not.toContainText(bulkTwo.key);
@@ -1031,7 +1031,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
     .toContainText(`a terminé ${boardItem.key}`);
   measures = page.getByRole("region", { name: "Mesures du sprint" });
   await expect(measures.getByText("Terminés", { exact: true }).locator(".."))
-    .toContainText("1 éléments · 4 pts");
+    .toContainText("1 élément · 4 pts");
   await expect(page.getByRole("region", { name: "Terminés (1)" })).toContainText(boardItem.key);
 
   await page.goto("/b/CASS?view=board");
@@ -1041,7 +1041,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   await expect(journal).toContainText(`a rouvert ${boardItem.key}`);
   measures = page.getByRole("region", { name: "Mesures du sprint" });
   await expect(measures.getByText("Terminés", { exact: true }).locator(".."))
-    .toContainText("0 éléments · 0 pts");
+    .toContainText("0 élément · 0 pt");
   await expect(page.getByRole("region", { name: "Non terminés (1)" })).toContainText(boardItem.key);
   await expectJournalOrder(journal, [
     `a ajouté ${bulkTwo.key}`,
@@ -1089,7 +1089,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   await expect(page.getByRole("main").getByText("Historique figé", { exact: true })).toBeVisible();
   measures = page.getByRole("region", { name: "Mesures du sprint" });
   await expect(measures.getByText("Engagement", { exact: true }).locator(".."))
-    .toContainText("1 éléments · 6 pts · 0 non estimé");
+    .toContainText("1 élément · 6 pts · 0 non estimé");
   const carriedSection = page.getByRole("region", { name: "Reportés (1)" });
   await expect(carriedSection).toContainText(carriedItem.key);
   await expect(carriedSection).toContainText("Reporté vers Sprint UI Destination");

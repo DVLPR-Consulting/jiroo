@@ -56,6 +56,20 @@ async function openDialog(mode: "merge" | "delete", overrides: Partial<typeof re
 describe("ReleaseMergeDeleteDialog — delete", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("agrees the kept publications sentence with a single publication", async () => {
+    await openDialog("delete", { publicationCount: 1 });
+    expect(screen.getByText(
+      "1 publication conservée dans l’historique (avec son nom), mais plus consultable depuis cette version.",
+    )).toBeVisible();
+  });
+
+  it("keeps the plural kept publications sentence from two publications", async () => {
+    await openDialog("delete", { publicationCount: 2 });
+    expect(screen.getByText(
+      "2 publications conservées dans l’historique (avec son nom), mais plus consultables depuis cette version.",
+    )).toBeVisible();
+  });
+
   it("shows the impact and requires an explicit disposition", async () => {
     const user = await openDialog("delete");
     expect(screen.getByText("3 éléments liés")).toBeVisible();

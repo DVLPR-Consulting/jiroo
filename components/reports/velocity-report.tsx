@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { countLabel } from "@/lib/format/plural";
 
 type SerializableVelocityReport = {
   state: "ready" | "empty";
@@ -19,6 +20,8 @@ type SerializableVelocityReport = {
 
 const number = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
 const exact = (value: number | null) => value === null ? "—" : number.format(value);
+const spokenPoints = (value: number | null) =>
+  value === null ? "— points" : countLabel(value, "point", "points", number.format);
 
 export function VelocityReportView({
   backlogKey,
@@ -54,7 +57,7 @@ export function VelocityReportView({
           </p>
         </section>
       ) : (
-        <p className="font-medium">Moyenne des points terminés : {exact(report.averageCompletedPoints)} sur {report.population} sprints inclus</p>
+        <p className="font-medium">Moyenne des points terminés : {exact(report.averageCompletedPoints)} sur {countLabel(report.population, "sprint inclus", "sprints inclus")}</p>
       )}
       {report.bars.length > 0 ? <>
         <div className="overflow-x-auto rounded-xl border p-4">
@@ -67,7 +70,7 @@ export function VelocityReportView({
             const committedHeight = ((bar.committedPoints ?? 0) / maximum) * 160;
             const completedHeight = ((bar.completedPoints ?? 0) / maximum) * 160;
             return (
-              <g key={bar.sprintId} role="group" aria-label={`${bar.sprintName} — engagement ${exact(bar.committedPoints)} points, terminé ${exact(bar.completedPoints)} points`}>
+              <g key={bar.sprintId} role="group" aria-label={`${bar.sprintName} — engagement ${spokenPoints(bar.committedPoints)}, terminé ${spokenPoints(bar.completedPoints)}`}>
                 <rect x={x} y={200 - committedHeight} width="24" height={committedHeight} className="fill-muted-foreground" />
                 <rect x={x + 28} y={200 - completedHeight} width="24" height={completedHeight} className="fill-primary" />
                 <text x={x + 12} y={194 - committedHeight} textAnchor="middle" className="fill-foreground text-[10px]">{exact(bar.committedPoints)}</text>

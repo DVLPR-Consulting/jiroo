@@ -34,6 +34,7 @@ import { ReleaseMergeDeleteDialog } from "@/components/releases/release-merge-de
 import type { ReleaseCapabilities } from "@/lib/auth/capabilities";
 import type { ReleaseSummary } from "@/lib/services/releases";
 import type { StatusIdsByCategory } from "@/lib/services/statuses";
+import { countLabel } from "@/lib/format/plural";
 
 export type ReleasePersonOption = { id: string; name: string };
 
@@ -448,10 +449,11 @@ function SortableReleaseCard({
           detailHref={`/b/${backlog.key}/releases/${release.id}`}
         />
         <p className="text-sm font-medium">
-          {release.progress.todo + release.progress.inProgress}{" "}
-          {release.progress.todo + release.progress.inProgress === 1
-            ? "élément non terminé"
-            : "éléments non terminés"}
+          {countLabel(
+            release.progress.todo + release.progress.inProgress,
+            "élément non terminé",
+            "éléments non terminés",
+          )}
         </p>
       </article>
     </li>

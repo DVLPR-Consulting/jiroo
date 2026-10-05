@@ -171,7 +171,7 @@ describe("ReleaseList", () => {
     expect(screen.getByRole("article", { name: "Version publiée" }))
       .toHaveTextContent("Publiée");
     expect(screen.getByRole("article", { name: "Version publiée" }))
-      .toHaveTextContent("0 éléments non terminés");
+      .toHaveTextContent("0 élément non terminé");
     const overdue = screen.getByRole("article", { name: "Version en retard" });
     expect(overdue).toHaveTextContent("Non publiée");
     expect(overdue).toHaveTextContent("En retard");
@@ -210,6 +210,7 @@ describe("ReleaseList", () => {
 
     expect(screen.getByRole("link", { name: "Masquer les versions archivées" }))
       .toHaveAttribute("href", "/b/CASS/releases");
+    expect(screen.getByText("0 élément non terminé")).toBeVisible();
     expect(screen.getByText("Actions pour Version active")).toBeVisible();
     await user.click(screen.getByText("Actions pour Version active"));
     expect(screen.getByRole("button", { name: "Modifier Version active" })).toBeVisible();

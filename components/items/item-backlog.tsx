@@ -78,6 +78,7 @@ import type {
   SprintPlanningSection,
   SprintSummary,
 } from "@/lib/items/sprint-planning";
+import { countLabel } from "@/lib/format/plural";
 import {
   calculateSprintMetrics,
   sprintStartCommitmentFor,
@@ -554,13 +555,13 @@ function LegacyItemBacklog({
           Backlog
         </h2>
         <span className="text-xs text-muted-foreground">
-          {displayedItems.length} {displayedItems.length === 1 ? "item" : "items"}
+          {countLabel(displayedItems.length, "item", "items")}
         </span>
         <span className="text-xs text-muted-foreground">
-          {pointFormatter.format(totalPoints)} {totalPoints === 1 ? "point" : "points"}
+          {countLabel(totalPoints, "point", "points", pointFormatter.format)}
         </span>
         <span className="text-xs text-muted-foreground">
-          {unestimatedCount} non estimé{unestimatedCount > 1 ? "s" : ""}
+          {countLabel(unestimatedCount, "non estimé", "non estimés")}
         </span>
         {canScheduleItems && !manualOrder && displayedItems.length > 0 ? (
           <span className="text-xs text-muted-foreground">

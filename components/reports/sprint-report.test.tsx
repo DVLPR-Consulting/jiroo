@@ -89,6 +89,44 @@ describe("SprintReportView", () => {
       .querySelector('a[href*="eventPage=1"]')).not.toBeNull();
   });
 
+  it("agrees metric and item labels with counts below two", () => {
+    render(
+      <SprintReportView
+        backlogKey="CASS"
+        report={{
+          kind: "active",
+          ...base,
+          metrics: {
+            ...base.metrics,
+            initialItemCount: 1,
+            committedPoints: 1,
+            initialUnestimatedCount: 0,
+            currentItemCount: 0,
+            currentScopePoints: 0,
+            currentUnestimatedCount: 2,
+            completedItemCount: 1,
+            completedPoints: 1.5,
+            grossPointsAdded: 1,
+            grossPointsRemoved: 0,
+            netEstimateDelta: 1,
+            scopeEventCount: 1,
+          },
+          items: {
+            ...base.items,
+            rows: [{ ...base.items.rows[0]!, estimateAtStart: 3, estimateAtFinalParticipation: 1 }],
+          },
+        } satisfies SerializableSprintReport}
+      />,
+    );
+
+    expect(screen.getByText("Engagement").parentElement).toHaveTextContent("1 élément · 1 pt · 0 non estimé");
+    expect(screen.getByText("Terminés").parentElement).toHaveTextContent("1 élément · 1,5 pt");
+    expect(screen.getByText("Périmètre actuel").parentElement).toHaveTextContent("0 élément · 0 pt · 2 non estimés");
+    expect(screen.getByText("Évolution du périmètre").parentElement)
+      .toHaveTextContent("Ajoutés 1 pt · Retirés 0 pt · Delta 1 pt · 1 événement");
+    expect(screen.getByRole("region", { name: "Terminés (1)" })).toHaveTextContent("3 → 1 pt");
+  });
+
   it("renders frozen and legacy states without linking deleted identity or fabricating totals", () => {
     const completed: SerializableSprintReport = {
       kind: "completed",

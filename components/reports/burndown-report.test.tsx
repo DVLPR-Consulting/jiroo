@@ -241,6 +241,30 @@ describe("BurndownReportView", () => {
     expect(new URL(journalNext, "http://localhost").searchParams.has("itemPage")).toBe(false);
   });
 
+  it("agrees point labels with values below two", () => {
+    const singularBaseline: Point = { ...baseline, remainingPoints: 1, unestimatedCount: 0 };
+    render(
+      <BurndownReportView
+        backlogKey="CASS"
+        report={{
+          ...active,
+          baseline: singularBaseline,
+          planningComparison: {
+            state: "ready",
+            commitmentPoints: 1,
+            averageCompletedPoints: 2,
+            population: 1,
+            difference: -1,
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Engagement 1 pt · moyenne récente 2 pts · écart -1 pt")).toBeVisible();
+    expect(screen.getByText("Restant au démarrage", { exact: false }))
+      .toHaveTextContent("Restant au démarrage : 1 pt · 0 non estimé");
+  });
+
   it("links an exact row only when the item remains accessible", () => {
     render(<BurndownReportView backlogKey="CASS" report={active} />);
 

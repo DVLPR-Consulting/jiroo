@@ -162,7 +162,9 @@ describe("ReleaseDetail", () => {
       />,
     );
 
-    expect(screen.getByRole("alert")).toHaveTextContent("2 éléments non terminés");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "2 éléments non terminés seront concernés au moment de la publication.",
+    );
     expect(screen.getByText(/terminé signifie que le statut appartient à la catégorie/i)).toBeVisible();
     expect(screen.getByRole("link", { name: "En cours" })).toHaveAttribute(
       "aria-current",
@@ -174,6 +176,24 @@ describe("ReleaseDetail", () => {
     );
     expect(screen.getByRole("link", { name: "À faire" }).getAttribute("href"))
       .toContain("scopeStatus=todo");
+  });
+
+  it("agrees the publication warning verb with a single incomplete item", () => {
+    render(
+      <ReleaseDetail
+        {...props}
+        release={{
+          ...props.release,
+          released: false,
+          effectiveReleaseDate: null,
+          progress: { ...props.release.progress, total: 2, todo: 1, inProgress: 0, done: 1 },
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "1 élément non terminé sera concerné au moment de la publication.",
+    );
   });
 
   it("warns when the mutable current scope gains incompletes after publication", () => {

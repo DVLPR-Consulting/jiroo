@@ -4,6 +4,7 @@ import {
   SprintEventJournal,
   type SerializableEventPage,
 } from "@/components/reports/sprint-event-journal";
+import { countLabel, pointsLabel } from "@/lib/format/plural";
 
 type SerializableItem = {
   itemId: string | null;
@@ -99,13 +100,13 @@ function ItemRow({ backlogKey, item }: { backlogKey: string; item: SerializableI
             {[item.itemKind, item.itemType, item.statusCategory ?? item.outcome].filter(Boolean).join(" · ")}
           </p>
         </div>
-        <span>{pointValue(item.estimateAtFinalParticipation)}{item.estimateAtFinalParticipation === null ? "" : " pts"}</span>
+        <span>{item.estimateAtFinalParticipation === null ? pointValue(null) : pointsLabel(item.estimateAtFinalParticipation, number.format)}</span>
       </div>
       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
         {item.addedAfterStart ? <span>Ajouté après démarrage</span> : null}
         {item.removedAfterStart ? <span>Retiré après démarrage</span> : null}
         {item.initialCommitment && item.estimateAtStart !== item.estimateAtFinalParticipation ? (
-          <span>{pointValue(item.estimateAtStart)} → {pointValue(item.estimateAtFinalParticipation)} pts</span>
+          <span>{pointValue(item.estimateAtStart)} → {item.estimateAtFinalParticipation === null ? pointValue(null) : pointsLabel(item.estimateAtFinalParticipation, number.format)}</span>
         ) : null}
         {item.destinationSprint ? <span>Reporté vers {item.destinationSprint.name}</span> : null}
       </div>
@@ -193,10 +194,10 @@ export function SprintReportView({
 
       <section aria-label="Mesures du sprint" className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <dl className="contents">
-          <div className="rounded-xl border p-4"><dt className="font-medium">Engagement</dt><dd>{metrics.initialItemCount} éléments · {number.format(metrics.committedPoints)} pts · {metrics.initialUnestimatedCount} non estimé</dd></div>
-          <div className="rounded-xl border p-4"><dt className="font-medium">Terminés</dt><dd>{metrics.completedItemCount} éléments · {number.format(metrics.completedPoints)} pts</dd></div>
-          <div className="rounded-xl border p-4"><dt className="font-medium">{report.kind === "completed" ? "Périmètre final" : "Périmètre actuel"}</dt><dd>{metrics.currentItemCount} éléments · {number.format(metrics.currentScopePoints)} pts · {metrics.currentUnestimatedCount} non estimé</dd></div>
-          <div className="rounded-xl border p-4"><dt className="font-medium">Évolution du périmètre</dt><dd>Ajoutés {number.format(metrics.grossPointsAdded)} pts · Retirés {number.format(metrics.grossPointsRemoved)} pts · Delta {number.format(metrics.netEstimateDelta)} pts · {metrics.scopeEventCount} événements</dd></div>
+          <div className="rounded-xl border p-4"><dt className="font-medium">Engagement</dt><dd>{countLabel(metrics.initialItemCount, "élément", "éléments")} · {pointsLabel(metrics.committedPoints, number.format)} · {countLabel(metrics.initialUnestimatedCount, "non estimé", "non estimés")}</dd></div>
+          <div className="rounded-xl border p-4"><dt className="font-medium">Terminés</dt><dd>{countLabel(metrics.completedItemCount, "élément", "éléments")} · {pointsLabel(metrics.completedPoints, number.format)}</dd></div>
+          <div className="rounded-xl border p-4"><dt className="font-medium">{report.kind === "completed" ? "Périmètre final" : "Périmètre actuel"}</dt><dd>{countLabel(metrics.currentItemCount, "élément", "éléments")} · {pointsLabel(metrics.currentScopePoints, number.format)} · {countLabel(metrics.currentUnestimatedCount, "non estimé", "non estimés")}</dd></div>
+          <div className="rounded-xl border p-4"><dt className="font-medium">Évolution du périmètre</dt><dd>Ajoutés {pointsLabel(metrics.grossPointsAdded, number.format)} · Retirés {pointsLabel(metrics.grossPointsRemoved, number.format)} · Delta {pointsLabel(metrics.netEstimateDelta, number.format)} · {countLabel(metrics.scopeEventCount, "événement", "événements")}</dd></div>
         </dl>
       </section>
 

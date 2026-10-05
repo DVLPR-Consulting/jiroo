@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/lib/toast";
+import { countLabel } from "@/lib/format/plural";
 
 const SELECT =
   "h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -143,7 +144,7 @@ function PublishDialog({
           <DialogDescription>
             {previewIncompleteCount === 0
               ? "Aucun élément non terminé : le périmètre sera conservé."
-              : `Choisissez le traitement de ${previewIncompleteCount} éléments non terminés.`}
+              : `Choisissez le traitement de ${countLabel(previewIncompleteCount, "élément non terminé", "éléments non terminés")}.`}
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>

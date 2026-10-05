@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/lib/toast";
+import { countLabel } from "@/lib/format/plural";
 
 const SELECT =
   "h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -32,10 +33,6 @@ export type MergeDeleteRelease = {
 export type MergeDeleteTarget = { id: string; name: string; revision: number; released: boolean };
 
 type Disposition = "" | "transfer" | "remove";
-
-function plural(count: number, singular: string, pluralForm: string) {
-  return `${count} ${count === 1 ? singular : pluralForm}`;
-}
 
 export function ReleaseMergeDeleteDialog({
   mode,
@@ -183,15 +180,18 @@ export function ReleaseMergeDeleteDialog({
           <ul className="space-y-1 text-sm">
             <li className="font-medium">
               {hasLinks
-                ? `${plural(preview.linkedCount, "élément lié", "éléments liés")}${
+                ? `${countLabel(preview.linkedCount, "élément lié", "éléments liés")}${
                     preview.trashedCount > 0 ? `, dont ${preview.trashedCount} dans la corbeille` : ""
                   }`
                 : "Aucun élément lié"}
             </li>
             {release.publicationCount > 0 ? (
               <li className="text-muted-foreground">
-                {plural(release.publicationCount, "publication conservée", "publications conservées")}{" "}
-                dans l’historique (avec son nom), mais plus consultables depuis cette version.
+                {countLabel(
+                  release.publicationCount,
+                  "publication conservée dans l’historique (avec son nom), mais plus consultable depuis cette version.",
+                  "publications conservées dans l’historique (avec son nom), mais plus consultables depuis cette version.",
+                )}
               </li>
             ) : null}
           </ul>

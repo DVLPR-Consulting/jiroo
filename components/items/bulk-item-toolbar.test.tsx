@@ -267,6 +267,17 @@ describe("BulkItemToolbar", () => {
     ).toBeVisible();
   });
 
+  it("agrees a zero changed count with the French singular", async () => {
+    const user = userEvent.setup();
+    mocks.bulkUpdateItemsAction.mockResolvedValueOnce({ ok: true, changedCount: 0, unchangedCount: 2 });
+    render(<BulkItemToolbar {...props()} />);
+
+    await user.click(screen.getByRole("button", { name: "Modifier la priorité" }));
+    await user.click(screen.getByRole("menuitem", { name: "Haute" }));
+
+    expect(await screen.findByText("0 item modifié, 2 inchangés.")).toBeVisible();
+  });
+
   it("disables every command while pending and announces the result", async () => {
     const user = userEvent.setup();
     let resolve!: (value: {
@@ -398,6 +409,32 @@ describe("BulkItemToolbar", () => {
       );
       completedOperations += 1;
     }
+  });
+
+  it("agrees the Fix versions confirmation phrase with one or several selected items", async () => {
+    const user = userEvent.setup();
+    const input = props();
+    const releaseCapabilities = { manage: false, assignItems: false, bulkAssignItems: true };
+    const { unmount } = render(
+      <BulkItemToolbar
+        {...input}
+        selectedItems={[input.selectedItems[0]!]}
+        releaseOptions={releaseOptions}
+        releaseCapabilities={releaseCapabilities}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Appliquer les versions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Effacer toutes les versions" }));
+    expect(screen.getByRole("dialog", { name: "Confirmer la modification des Fix versions" }))
+      .toHaveTextContent("Vérifiez cette opération avant de l’appliquer à l’item sélectionné.");
+    unmount();
+
+    render(<BulkItemToolbar {...props()} releaseOptions={releaseOptions} releaseCapabilities={releaseCapabilities} />);
+    await user.click(screen.getByRole("button", { name: "Appliquer les versions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Effacer toutes les versions" }));
+    expect(screen.getByRole("dialog", { name: "Confirmer la modification des Fix versions" }))
+      .toHaveTextContent("Vérifiez cette opération avant de l’appliquer aux 2 items sélectionnés.");
   });
 
   it("disables empty add, replace and remove while exposing an explicit clear-all command", async () => {

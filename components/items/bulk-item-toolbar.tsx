@@ -34,6 +34,7 @@ import type {
   ReleaseCapabilities,
 } from "@/lib/auth/capabilities";
 import { toast } from "@/lib/toast";
+import { countLabel } from "@/lib/format/plural";
 
 export type BulkStatusOption = {
   id: string;
@@ -73,8 +74,8 @@ export type BulkItemToolbarProps = {
 };
 
 function resultMessage({ changedCount, unchangedCount }: MutationResult): string {
-  const changed = `${changedCount} ${changedCount === 1 ? "item modifié" : "items modifiés"}`;
-  const unchanged = `${unchangedCount} inchangé${unchangedCount > 1 ? "s" : ""}`;
+  const changed = countLabel(changedCount, "item modifié", "items modifiés");
+  const unchanged = countLabel(unchangedCount, "inchangé", "inchangés");
   return `${changed}, ${unchanged}.`;
 }
 
@@ -175,7 +176,7 @@ export function BulkItemToolbar({
       className="sticky bottom-3 z-30 mx-auto flex w-fit max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-border bg-[var(--surface-1)] p-2 shadow-lg"
     >
       <span className="px-1 text-sm font-semibold" aria-live="polite">
-        {selectedItems.length} {selectedItems.length === 1 ? "item sélectionné" : "items sélectionnés"}
+        {countLabel(selectedItems.length, "item sélectionné", "items sélectionnés")}
       </span>
 
       {canTransition ? <DropdownMenu>
@@ -442,8 +443,11 @@ export function BulkItemToolbar({
         <DialogHeader>
           <DialogTitle>Confirmer la modification des Fix versions</DialogTitle>
           <DialogDescription>
-            Vérifiez cette opération avant de l’appliquer aux {selectedItems.length}{" "}
-            {selectedItems.length === 1 ? "item sélectionné" : "items sélectionnés"}.
+            Vérifiez cette opération avant de l’appliquer{" "}
+            {selectedItems.length === 1
+              ? "à l’item sélectionné"
+              : `aux ${countLabel(selectedItems.length, "item sélectionné", "items sélectionnés")}`}
+            .
           </DialogDescription>
         </DialogHeader>
         <p>{fixVersionSummary()}</p>
@@ -466,7 +470,7 @@ export function BulkItemToolbar({
               applyPatch(patch);
             }}
           >
-            Appliquer à {selectedItems.length} {selectedItems.length === 1 ? "item" : "items"}
+            Appliquer à {countLabel(selectedItems.length, "item", "items")}
           </Button>
         </DialogFooter>
       </DialogContent>

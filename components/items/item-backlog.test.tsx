@@ -422,10 +422,10 @@ describe("ItemBacklog", () => {
     // The active sprint keeps its commitment frozen at start; only the live scope moves.
     expect(
       within(activeSection).getByText(
-        "Engagement 3 pts · moyenne récente 4 pts · écart -1 pts",
+        "Engagement 3 pts · moyenne récente 4 pts · écart -1 pt",
       ),
     ).toBeVisible();
-    expect(within(activeSection).getByText("Périmètre actuel 0 pts")).toBeVisible();
+    expect(within(activeSection).getByText("Périmètre actuel 0 pt")).toBeVisible();
     expect(within(futureSection).queryByText(/Périmètre actuel/)).not.toBeInTheDocument();
     expect(within(backlogSection).queryByText(/moyenne récente|vélocité/))
       .not.toBeInTheDocument();
