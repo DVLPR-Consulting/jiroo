@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { verification } from "@/lib/db/schema/auth";
 
@@ -23,4 +23,32 @@ export async function revokeTrustedDevices(executor: Executor, userId: string): 
     .where(and(eq(verification.value, userId), like(verification.identifier, `${TRUST_DEVICE_PREFIX}%`)))
     .returning({ id: verification.id });
   return revoked.length;
+}
+
+// - pending sign-in challenges (password verified, TOTP not yet): identifier
+//   `2fa-<random>`, value = user id, plus an attempt counter identified
+//   `2fa-attempts-<challenge identifier>` whose value is the attempt count.
+//   Completing a challenge only checks the TOTP, never the password again.
+const CHALLENGE_PREFIX = "2fa-";
+const ATTEMPTS_PREFIX = "2fa-attempts-";
+
+/**
+ * Deletes every pending two-factor sign-in challenge of a user and their
+ * attempt counters, so a password step passed before a password change or
+ * reset can no longer be completed.
+ */
+export async function revokePendingSignIns(executor: Executor, userId: string): Promise<number> {
+  const challenges = await executor
+    .delete(verification)
+    .where(and(eq(verification.value, userId), like(verification.identifier, `${CHALLENGE_PREFIX}%`)))
+    .returning({ identifier: verification.identifier });
+  if (challenges.length > 0) {
+    await executor.delete(verification).where(
+      inArray(
+        verification.identifier,
+        challenges.map((challenge) => `${ATTEMPTS_PREFIX}${challenge.identifier}`),
+      ),
+    );
+  }
+  return challenges.length;
 }

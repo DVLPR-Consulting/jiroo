@@ -98,6 +98,28 @@ async function trustedDevice(email: string, password: string, secret: string) {
   return device;
 }
 
+/** Passes the password step on a fresh device, leaving a pending TOTP challenge. */
+async function pendingChallenge(email: string, password: string) {
+  const device = new BetterAuthDevice();
+  const signIn = await device.post("/sign-in/email", { email, password });
+  expect(signIn.json).toMatchObject({ twoFactorRedirect: true });
+  return device;
+}
+
+async function expectChallengeRejected(device: BetterAuthDevice, secret: string) {
+  const verify = await device.post("/two-factor/verify-totp", { code: generateTotp(secret) });
+  expect(verify.status).toBe(401);
+  const current = await device.get("/get-session");
+  expect(current.json).toBeNull();
+}
+
+async function challengeRowsFor(userId: string) {
+  return db
+    .select({ identifier: verification.identifier })
+    .from(verification)
+    .where(and(eq(verification.value, userId), like(verification.identifier, "2fa-%")));
+}
+
 async function trustRowsFor(userId: string) {
   return db
     .select({ identifier: verification.identifier })
@@ -164,6 +186,7 @@ describeDb("account recovery service", () => {
       const target = await createTarget("password-trust");
       const secret = await enrollOverHttp(target.email, ORIGINAL_PASSWORD);
       const device = await trustedDevice(target.email, ORIGINAL_PASSWORD, secret);
+      expect(await trustRowsFor(target.id)).not.toHaveLength(0);
 
       await resetUserPassword(
         { userId: target.id, temporaryPassword: "temporaire-trust" },
@@ -176,6 +199,22 @@ describeDb("account recovery service", () => {
         password: "temporaire-trust",
       });
       expect(signIn.json).toMatchObject({ twoFactorRedirect: true });
+    });
+
+    it("invalidates a sign-in challenge opened with the old password", async () => {
+      const target = await createTarget("password-challenge");
+      const secret = await enrollOverHttp(target.email, ORIGINAL_PASSWORD);
+      const attacker = await pendingChallenge(target.email, ORIGINAL_PASSWORD);
+      expect(await challengeRowsFor(target.id)).not.toHaveLength(0);
+
+      await resetUserPassword(
+        { userId: target.id, temporaryPassword: "temporaire-challenge" },
+        adminId,
+      );
+
+      expect(await challengeRowsFor(target.id)).toHaveLength(0);
+      await expectChallengeRejected(attacker, secret);
+      expect(await sessionCount(target.id)).toBe(0);
     });
 
     it("records who reset whose password without storing the secret", async () => {
@@ -324,6 +363,16 @@ describeDb("account recovery service", () => {
         password: ORIGINAL_PASSWORD,
       });
       expect(signIn.json).toMatchObject({ twoFactorRedirect: true });
+    });
+
+    it("invalidates pending sign-in challenges", async () => {
+      const target = await createTarget("two-factor-challenge");
+      await enrollOverHttp(target.email, ORIGINAL_PASSWORD);
+      await pendingChallenge(target.email, ORIGINAL_PASSWORD);
+
+      await resetUserTwoFactor({ userId: target.id }, adminId);
+
+      expect(await challengeRowsFor(target.id)).toHaveLength(0);
     });
 
     it("rejects a user manager who is not a Jiroo administrator", async () => {

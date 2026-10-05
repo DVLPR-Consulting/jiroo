@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { requirePermissionWithoutBypassAudit } from "@/lib/auth/authorization";
-import { revokeTrustedDevices } from "@/lib/auth/pending-authentication";
+import { revokePendingSignIns, revokeTrustedDevices } from "@/lib/auth/pending-authentication";
 import { db } from "@/lib/db";
 import { account, session, twoFactor, user } from "@/lib/db/schema/auth";
 import { securityAuditEvents } from "@/lib/db/schema/domain";
@@ -128,6 +128,9 @@ export async function resetUserPassword(
     // A reset answers a suspected compromise: like sessions, device trust
     // granted before it must not survive (the user re-enters a TOTP once).
     const revokedTrustedDevices = await revokeTrustedDevices(tx, userId);
+    // A challenge opened with the old password would otherwise still finish
+    // the sign-in with a TOTP alone.
+    await revokePendingSignIns(tx, userId);
     await appendRecoveryAuditEvent(tx, {
       actorId,
       action: "user_password_reset",
@@ -164,6 +167,7 @@ export async function resetUserTwoFactor(
     // Trust is checked by user id only, so it would otherwise outlive the
     // factor it was granted for and skip the newly enrolled TOTP.
     const revokedTrustedDevices = await revokeTrustedDevices(tx, userId);
+    await revokePendingSignIns(tx, userId);
     await appendRecoveryAuditEvent(tx, {
       actorId,
       action: "user_two_factor_reset",

@@ -5,12 +5,17 @@ const mocks = vi.hoisted(() => ({
   forwardAuthCookies: vi.fn(),
   getSession: vi.fn(),
   headers: vi.fn(),
+  revokePendingSignIns: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: mocks.headers }));
 vi.mock("@/lib/auth", () => ({ auth: { api: { changePassword: mocks.changePassword } } }));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
+vi.mock("@/lib/db", () => ({ db: { marker: "db" } }));
+vi.mock("@/lib/auth/pending-authentication", () => ({
+  revokePendingSignIns: mocks.revokePendingSignIns,
+}));
 vi.mock("@/lib/auth/forward-auth-cookies", () => ({
   forwardAuthCookies: mocks.forwardAuthCookies,
 }));
@@ -49,6 +54,11 @@ describe("changeOwnPasswordAction", () => {
     });
     // Better Auth rotates the current session too; its new cookie must reach the browser.
     expect(mocks.forwardAuthCookies).toHaveBeenCalledWith(responseHeaders);
+    // Challenges opened with the old password must not complete afterwards.
+    expect(mocks.revokePendingSignIns).toHaveBeenCalledWith({ marker: "db" }, "user-1");
+    expect(mocks.revokePendingSignIns.mock.invocationCallOrder[0]).toBeGreaterThan(
+      mocks.changePassword.mock.invocationCallOrder[0]!,
+    );
   });
 
   it("requires a fully authenticated session", async () => {
@@ -80,6 +90,7 @@ describe("changeOwnPasswordAction", () => {
       error: "Mot de passe actuel incorrect.",
     });
     expect(mocks.forwardAuthCookies).not.toHaveBeenCalled();
+    expect(mocks.revokePendingSignIns).not.toHaveBeenCalled();
   });
 
   it("hides unexpected failures behind a generic message", async () => {

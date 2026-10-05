@@ -4,7 +4,9 @@ import { APIError } from "better-auth/api";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { forwardAuthCookies } from "@/lib/auth/forward-auth-cookies";
+import { revokePendingSignIns } from "@/lib/auth/pending-authentication";
 import { getSession } from "@/lib/auth/session";
+import { db } from "@/lib/db";
 import { changeOwnPasswordInput } from "@/lib/items/users";
 
 type ChangeOwnPasswordResult = { ok: true } | { ok: false; error: string };
@@ -49,6 +51,11 @@ export async function changeOwnPasswordAction(input: {
       headers: await headers(),
       returnHeaders: true,
     });
+    // Better Auth deletes sessions but not pending 2FA challenges: a password
+    // step passed with the old password could still be finished with a TOTP.
+    // This runs after Better Auth's own writes, outside any shared transaction;
+    // a sign-in in flight during that gap is the known race tracked as R3.
+    await revokePendingSignIns(db, session.user.id);
     try {
       await forwardAuthCookies(responseHeaders);
     } catch {
