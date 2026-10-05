@@ -4,12 +4,14 @@ import { APIError } from "better-auth/api";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { forwardAuthCookies } from "@/lib/auth/forward-auth-cookies";
-import { revokePendingSignIns } from "@/lib/auth/pending-authentication";
 import { getSession } from "@/lib/auth/session";
-import { db } from "@/lib/db";
 import { changeOwnPasswordInput } from "@/lib/items/users";
+import { changeOwnPasswordWithBudget } from "@/lib/services/password-change";
 
 type ChangeOwnPasswordResult = { ok: true } | { ok: false; error: string };
+
+const GENERIC_FAILURE_MESSAGE = "Impossible de modifier le mot de passe. Réessayez.";
+const SIGN_IN_AGAIN_MESSAGE = "Mot de passe modifié. Reconnectez-vous avec le nouveau.";
 
 const BETTER_AUTH_ERRORS: Record<string, string> = {
   INVALID_PASSWORD: "Mot de passe actuel incorrect.",
@@ -41,32 +43,51 @@ export async function changeOwnPasswordAction(input: {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Données invalides." };
   }
 
+  let responseHeaders: Headers | null = null;
+  let failureCode: string | null = null;
+  let outcome;
   try {
-    const { headers: responseHeaders } = await auth.api.changePassword({
-      body: {
-        currentPassword: parsed.data.currentPassword,
-        newPassword: parsed.data.newPassword,
-        revokeOtherSessions: true,
-      },
-      headers: await headers(),
-      returnHeaders: true,
+    // The budget check runs first: when it refuses, Better Auth (and its
+    // password hashing) is never reached.
+    outcome = await changeOwnPasswordWithBudget(session.user.id, async () => {
+      try {
+        const result = await auth.api.changePassword({
+          body: {
+            currentPassword: parsed.data.currentPassword,
+            newPassword: parsed.data.newPassword,
+            revokeOtherSessions: true,
+          },
+          headers: await headers(),
+          returnHeaders: true,
+        });
+        responseHeaders = result.headers;
+        return "changed";
+      } catch (error) {
+        failureCode = betterAuthErrorCode(error);
+        return failureCode === "INVALID_PASSWORD" ? "wrong_password" : "failed";
+      }
     });
-    // Better Auth deletes sessions but not pending 2FA challenges: a password
-    // step passed with the old password could still be finished with a TOTP.
-    // This runs after Better Auth's own writes, outside any shared transaction;
-    // a sign-in in flight during that gap is the known race tracked as R3.
-    await revokePendingSignIns(db, session.user.id);
-    try {
-      await forwardAuthCookies(responseHeaders);
-    } catch {
-      // The password changed and every session was revoked, but this browser
-      // could not receive its new session: say so instead of inviting a retry.
-      return { ok: false, error: "Mot de passe modifié. Reconnectez-vous avec le nouveau." };
-    }
-    return { ok: true };
-  } catch (error) {
-    const code = betterAuthErrorCode(error);
-    const message = code ? BETTER_AUTH_ERRORS[code] : undefined;
-    return { ok: false, error: message ?? "Impossible de modifier le mot de passe. Réessayez." };
+  } catch {
+    // If Better Auth already changed the password, revoking pending sign-ins
+    // or auditing failed afterwards: keep this browser signed out as well
+    // (its old session is gone) rather than inviting a doomed retry.
+    if (responseHeaders) return { ok: false, error: SIGN_IN_AGAIN_MESSAGE };
+    return { ok: false, error: GENERIC_FAILURE_MESSAGE };
   }
+
+  if (outcome === "rate_limited") {
+    return { ok: false, error: "Trop de tentatives. Réessayez dans quelques minutes." };
+  }
+  if (outcome !== "changed" || !responseHeaders) {
+    const message = failureCode ? BETTER_AUTH_ERRORS[failureCode] : undefined;
+    return { ok: false, error: message ?? GENERIC_FAILURE_MESSAGE };
+  }
+  try {
+    await forwardAuthCookies(responseHeaders);
+  } catch {
+    // The password changed and every session was revoked, but this browser
+    // could not receive its new session: say so instead of inviting a retry.
+    return { ok: false, error: SIGN_IN_AGAIN_MESSAGE };
+  }
+  return { ok: true };
 }
