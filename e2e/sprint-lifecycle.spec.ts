@@ -18,6 +18,7 @@ import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
 
 const ACTIVE_SPRINT = "Audit Sprint actif 2026-08-05";
 const NEXT_SPRINT = "Sprint 2";
+const RENAMED_SPRINT = "Audit recette renommée";
 const TASK_DONE = "Audit sprint — tâche terminée";
 const TASK_CARRIED = "Audit sprint — tâche reportée";
 const TASK_BOARD = "Audit sprint — créée depuis le board";
@@ -47,6 +48,7 @@ const TEST_SPRINT_NAMES = [
   "Audit clôture bloquée",
   "Audit sprint report créé",
   "Audit capacité",
+  RENAMED_SPRINT,
 ];
 
 const CONSOLE_PATH =
@@ -610,6 +612,38 @@ test("recalcule et explique un dépassement de capacité avant démarrage", asyn
   expect(capture.consoleErrors).toEqual([]);
   expect(capture.requestFailures).toEqual([]);
   expect(capture.httpErrors).toEqual([]);
+});
+
+test("démarre un sprint renommé avec son nom, son objectif et ses dates à jour", async ({
+  page,
+}) => {
+  const fixture = await sprintFixtureContext();
+  await createSprint({ backlogId: fixture.backlog.id }, fixture.actor.id);
+
+  await page.goto("/b/CASS?view=backlog");
+  await page.getByRole("button", { name: "Modifier Sprint 1" }).click();
+  await page.getByRole("textbox", { name: "Nom" }).fill(RENAMED_SPRINT);
+  await page.getByRole("textbox", { name: "Objectif" }).fill("Sprint de test 1 semaine");
+  await page.getByLabel("Début prévu").fill("2026-08-05T09:00");
+  await page.getByLabel("Fin prévue").fill("2026-08-12T18:00");
+  await businessPost(page, () =>
+    page.getByRole("button", { name: "Enregistrer" }).click(),
+  );
+  await expect(page.getByRole("heading", { name: RENAMED_SPRINT })).toBeVisible();
+
+  await page.getByRole("button", { name: `Démarrer ${RENAMED_SPRINT}` }).click();
+  await expect(page.getByRole("textbox", { name: "Nom" })).toHaveValue(RENAMED_SPRINT);
+  await expect(page.getByRole("textbox", { name: "Objectif" }))
+    .toHaveValue("Sprint de test 1 semaine");
+  await expect(page.getByLabel("Début", { exact: true })).toHaveValue("2026-08-05T09:00");
+  await expect(page.getByLabel("Fin", { exact: true })).toHaveValue("2026-08-12T18:00");
+  await businessPost(page, () =>
+    page.getByRole("button", { name: "Confirmer le démarrage" }).click(),
+  );
+
+  await expect(page).toHaveURL(/view=board/);
+  await expect(page.getByRole("heading", { name: RENAMED_SPRINT })).toBeVisible();
+  await expect(page.getByText("Objectif : Sprint de test 1 semaine")).toBeVisible();
 });
 
 test("restaure sélection et section après deux échecs réseau de planification", async ({

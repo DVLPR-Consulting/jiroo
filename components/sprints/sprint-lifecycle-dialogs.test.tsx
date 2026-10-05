@@ -125,6 +125,61 @@ describe("sprint lifecycle dialogs", () => {
     expect(screen.queryByText(/Dépassement de/)).not.toBeInTheDocument();
   });
 
+  it("opens with the sprint's current values after its props change and submits them", async () => {
+    const user = userEvent.setup();
+    mocks.startSprintAction.mockResolvedValueOnce({
+      ok: true,
+      sprintId: sprint.id,
+      committedItemCount: 3,
+      committedPoints: 13,
+      unestimatedCount: 1,
+    });
+    const { rerender } = render(<StartSprintDialog {...base} />);
+    const renamed = {
+      ...sprint,
+      name: "Recette 1",
+      goal: "Sprint de test 1 semaine",
+      capacityPoints: 15,
+      plannedStartAt: new Date(2026, 8, 1, 9, 30),
+      plannedEndAt: new Date(2026, 8, 8, 17, 0),
+    };
+    rerender(<StartSprintDialog {...base} sprint={renamed} />);
+
+    await user.click(screen.getByRole("button", { name: "Démarrer Recette 1" }));
+    expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("Recette 1");
+    expect(screen.getByRole("textbox", { name: "Objectif" }))
+      .toHaveValue("Sprint de test 1 semaine");
+    expect(screen.getByLabelText("Début")).toHaveValue("2026-09-01T09:30");
+    expect(screen.getByLabelText("Fin")).toHaveValue("2026-09-08T17:00");
+    expect(screen.getByRole("spinbutton", { name: "Capacité (points)" })).toHaveValue(15);
+    await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
+
+    await waitFor(() =>
+      expect(mocks.startSprintAction).toHaveBeenCalledWith({
+        backlogKey: "DEMO",
+        backlogId: base.backlogId,
+        id: sprint.id,
+        name: "Recette 1",
+        goal: "Sprint de test 1 semaine",
+        startAt: renamed.plannedStartAt.toISOString(),
+        endAt: renamed.plannedEndAt.toISOString(),
+        capacityPoints: 15,
+      }),
+    );
+  });
+
+  it("keeps start edits made while open when the sprint props refresh", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<StartSprintDialog {...base} />);
+    await user.click(screen.getByRole("button", { name: "Démarrer Sprint paiement" }));
+    const goal = screen.getByRole("textbox", { name: "Objectif" });
+    await user.clear(goal);
+    await user.type(goal, "Objectif en cours");
+    rerender(<StartSprintDialog {...base} sprint={{ ...sprint, capacityPoints: 12 }} />);
+
+    expect(goal).toHaveValue("Objectif en cours");
+  });
+
   it("shows global completion destinations and preserves blocker keys and selection", async () => {
     const user = userEvent.setup();
     mocks.completeSprintAction.mockResolvedValueOnce({

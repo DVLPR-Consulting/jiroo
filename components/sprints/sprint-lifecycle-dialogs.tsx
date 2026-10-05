@@ -128,8 +128,10 @@ export function StartSprintDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // Resync from the current props on every open: the sprint may have
+        // been renamed or re-planned since mount (JIR-54).
+        if (next) reset();
         setOpen(next);
-        if (!next) reset();
       }}
     >
       <DialogTrigger asChild>
