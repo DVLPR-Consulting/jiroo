@@ -141,4 +141,36 @@ describe("AdminPage read authorization", () => {
       }),
     );
   });
+
+  it.each([
+    { administerJiroo: true, expected: true },
+    { administerJiroo: false, expected: false },
+  ])(
+    "exposes account recovery on the users tab only to Jiroo administrators ($administerJiroo)",
+    async ({ administerJiroo, expected }) => {
+      mocks.checkPermission.mockImplementation(async ({ permission }) => ({
+        allowed: permission === "administer_jiroo" ? administerJiroo : true,
+      }));
+      mocks.listAdminUsers.mockResolvedValue([
+        { id: "u1", name: "Ada", email: "ada@example.test", role: "contributor" },
+      ]);
+
+      render(await AdminPage({ searchParams: Promise.resolve({ tab: "users" }) }));
+
+      expect(mocks.checkPermission).toHaveBeenCalledWith({
+        actorId: "platform-admin-1",
+        permission: "administer_jiroo",
+        scope: { type: "global" },
+      });
+      expect(mocks.adminTabsProps).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tab: "users",
+            canRecoverAccounts: expected,
+            currentUserId: "platform-admin-1",
+          }),
+        }),
+      );
+    },
+  );
 });

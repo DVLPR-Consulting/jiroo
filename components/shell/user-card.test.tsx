@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mocks.push }),
 }));
 vi.mock("@/lib/auth/client", () => ({ signOut: mocks.signOut }));
+vi.mock("@/app/actions/account", () => ({ changeOwnPasswordAction: vi.fn() }));
 
 const user = {
   name: "Ada Lovelace",
@@ -50,6 +51,17 @@ describe("UserCard", () => {
     expect(within(dialog).getByText("Ada Lovelace")).toBeVisible();
     expect(within(dialog).getByText("ada@example.com")).toBeVisible();
     expect(within(dialog).getByText("Administrateur")).toBeVisible();
+  });
+
+  it("opens the change-password dialog from its menu", async () => {
+    const interaction = userEvent.setup();
+    renderUserCard();
+
+    await interaction.click(screen.getByRole("button", { name: "Profil de Ada Lovelace" }));
+    await interaction.click(screen.getByRole("menuitem", { name: "Changer mon mot de passe" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Changer mon mot de passe" });
+    expect(within(dialog).getByLabelText("Mot de passe actuel")).toBeVisible();
   });
 
   it("opens the persisted theme and density preferences", async () => {

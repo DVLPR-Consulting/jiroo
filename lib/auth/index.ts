@@ -7,7 +7,13 @@ import * as schema from "@/lib/db/schema";
 export const auth = betterAuth({
   appName: "Jiroo",
   // Accounts are provisioned by administrators through the server-side API.
-  disabledPaths: ["/sign-up/email"],
+  // Password changes go through the rate-limited Server Action
+  // (app/actions/account.ts); auth.api calls are unaffected by disabledPaths.
+  disabledPaths: ["/sign-up/email", "/change-password"],
+  // Sessions live only in the database (no session.cookieCache, no
+  // secondaryStorage): account recovery revokes access by deleting session
+  // rows (lib/services/account-recovery.ts). Enabling either cache would let
+  // revoked sessions survive until the cache expires.
   database: drizzleAdapter(db, { provider: "pg", schema }),
   emailAndPassword: { enabled: true, autoSignIn: false },
   user: {

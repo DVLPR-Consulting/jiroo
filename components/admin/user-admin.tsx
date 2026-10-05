@@ -1,5 +1,6 @@
 "use client";
 
+import { UserAccountRecovery } from "@/components/admin/user-account-recovery";
 import { UserCreateDialog } from "@/components/admin/user-create-dialog";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
 import type { LabelHue } from "@/lib/design/constants";
@@ -14,9 +15,12 @@ function hueFor(value: string): LabelHue {
 export function UserAdmin({
   users,
   currentUserId,
+  canRecoverAccounts = false,
 }: {
   users: UserAdminDto[];
   currentUserId: string;
+  /** Jiroo administrators (administer_jiroo) may reset other users' access. */
+  canRecoverAccounts?: boolean;
 }) {
   return (
     <div className="space-y-4">
@@ -41,6 +45,9 @@ export function UserAdmin({
                 <p className="truncate text-xs text-muted-foreground">{adminUser.email}</p>
               </div>
               <span className="text-xs text-muted-foreground">Accès attribué par groupes et rôles de backlog</span>
+              {canRecoverAccounts && !isCurrentUser && (
+                <UserAccountRecovery target={{ id: adminUser.id, name: adminUser.name }} />
+              )}
             </li>
           );
         })}

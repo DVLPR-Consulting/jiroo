@@ -9,7 +9,10 @@ const mocks = vi.hoisted(() => ({
   restoreItem: vi.fn(),
 }));
 
-vi.mock("next/headers", () => ({ headers: mocks.headers }));
+vi.mock("next/headers", () => ({
+  headers: mocks.headers,
+  cookies: async () => ({ toString: () => "" }),
+}));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: mocks.authGetSession } },

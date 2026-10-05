@@ -17,7 +17,7 @@ export type AdminTab = "backlogs" | "users" | "groups" | "roles" | "schemes";
 
 export type AdminTabData =
   | { tab: "backlogs"; backlogs: Backlog[] }
-  | { tab: "users"; users: UserAdminDto[]; currentUserId: string }
+  | { tab: "users"; users: UserAdminDto[]; currentUserId: string; canRecoverAccounts: boolean }
   | ({ tab: "groups" } & GroupAdminProps)
   | ({ tab: "roles" } & ProjectRoleAdminProps)
   | ({ tab: "schemes" } & PermissionSchemeAdminProps);
@@ -85,7 +85,11 @@ export function AdminTabs({
       >
         {data.tab === "backlogs" && <BacklogAdmin backlogs={data.backlogs} />}
         {data.tab === "users" && (
-          <UserAdmin users={data.users} currentUserId={data.currentUserId} />
+          <UserAdmin
+            users={data.users}
+            currentUserId={data.currentUserId}
+            canRecoverAccounts={data.canRecoverAccounts}
+          />
         )}
         {data.tab === "groups" && <GroupAdmin {...data} />}
         {data.tab === "roles" && <ProjectRoleAdmin {...data} />}

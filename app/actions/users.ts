@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requirePermission } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
+import {
+  AccountRecoveryError,
+  resetUserPassword,
+  resetUserTwoFactor,
+} from "@/lib/services/account-recovery";
 import { createUser } from "@/lib/services/users";
 
 // ---------------------------------------------------------------------------
@@ -73,4 +78,44 @@ export async function setUserRoleAction(input: { userId: string; role: string })
     ok: false as const,
     error: "Les rôles de compte hérités ne peuvent plus être modifiés.",
   };
+}
+
+// ---------------------------------------------------------------------------
+// Account recovery (JIR-61) — the service enforces administer_jiroo, the
+// self-guard and the audit trail; the action maps errors to safe messages.
+// ---------------------------------------------------------------------------
+
+function mapRecoveryError(e: unknown) {
+  const authorizationError = mapActionAuthorizationError(e);
+  if (authorizationError) return authorizationError;
+  if (e instanceof AccountRecoveryError) return { ok: false as const, error: e.message };
+  return { ok: false as const, error: "Action impossible." };
+}
+
+export async function resetUserPasswordAction(input: {
+  userId: string;
+  temporaryPassword: string;
+}) {
+  const actorId = await authenticatedActorId();
+  try {
+    await resetUserPassword(
+      { userId: input.userId, temporaryPassword: input.temporaryPassword },
+      actorId,
+    );
+    revalidatePath("/admin");
+    return { ok: true as const };
+  } catch (e) {
+    return mapRecoveryError(e);
+  }
+}
+
+export async function resetUserTwoFactorAction(input: { userId: string }) {
+  const actorId = await authenticatedActorId();
+  try {
+    await resetUserTwoFactor({ userId: input.userId }, actorId);
+    revalidatePath("/admin");
+    return { ok: true as const };
+  } catch (e) {
+    return mapRecoveryError(e);
+  }
 }

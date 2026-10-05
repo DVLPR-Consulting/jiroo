@@ -56,7 +56,18 @@ export default async function AdminPage({
         backlogs: await listBacklogsForUser(session.user.id, { includeArchived: true }),
       }
     : activeTab === "users"
-      ? { tab: "users" as const, users: (await listAdminUsers()).map(({ id, name, email }) => ({ id, name, email })), currentUserId: session.user.id }
+      ? await (async () => {
+          const [rawUsers, recoveryDecision] = await Promise.all([
+            listAdminUsers(),
+            checkPermission({ actorId: session.user.id, permission: "administer_jiroo", scope: { type: "global" } }),
+          ]);
+          return {
+            tab: "users" as const,
+            users: rawUsers.map(({ id, name, email }) => ({ id, name, email })),
+            currentUserId: session.user.id,
+            canRecoverAccounts: recoveryDecision.allowed,
+          };
+        })()
       : activeTab === "groups"
         ? await (async () => {
             const globalDecision = await checkPermission({ actorId: session.user.id, permission: "administer_jiroo", scope: { type: "global" } });
