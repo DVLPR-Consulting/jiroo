@@ -3,7 +3,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, like } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { db } from "@/lib/db";
+import { databasePool, db } from "@/lib/db";
 import { user, verification } from "@/lib/db/schema/auth";
 import { securityAuditEvents } from "@/lib/db/schema/domain";
 import {
@@ -124,6 +124,43 @@ describeDb("changeOwnPasswordWithBudget", () => {
     expect(outcomes.sort()).toEqual(["rate_limited", "rate_limited", "wrong_password"]);
   });
 
+  it("never holds a pooled connection while Better Auth runs", async () => {
+    // Better Auth shares this pool: an attempt blocked on a connection held by
+    // the budget itself would freeze every request once the pool is full.
+    const users = await Promise.all(
+      Array.from({ length: (databasePool.options.max ?? 10) + 2 }, (_, index) => newUser(`pool-${index}`)),
+    );
+    const attempt = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await db.select({ id: user.id }).from(user).limit(1);
+      return "failed" as const;
+    };
+
+    const outcomes = await Promise.all(
+      users.map((userId) => changeOwnPasswordWithBudget(userId, attempt)),
+    );
+    expect(outcomes.every((outcome) => outcome === "failed")).toBe(true);
+  }, 15_000);
+
+  it("counts an attempt whose outcome was never recorded (crash-safe)", async () => {
+    const userId = await newUser("reserved");
+    await db.insert(securityAuditEvents).values(
+      Array.from({ length: PASSWORD_CHANGE_FAILURE_LIMIT }, () => ({
+        actorId: userId,
+        actorLabel: "fixture",
+        action: "user_password_change_attempted",
+        scope: "global" as const,
+        targetType: "user",
+        targetId: userId,
+        requestCorrelationId: randomUUID(),
+      })),
+    );
+
+    await expect(changeOwnPasswordWithBudget(userId, async () => "changed")).resolves.toBe(
+      "rate_limited",
+    );
+  });
+
   it("logs a successful change and closes pending sign-in challenges", async () => {
     const userId = await newUser("changed");
     const challenge = `2fa-${randomUUID()}`;
@@ -136,6 +173,7 @@ describeDb("changeOwnPasswordWithBudget", () => {
 
     const changed = await events(userId, "user_password_changed");
     expect(changed).toHaveLength(1);
+    expect(await events(userId, "user_password_change_attempted")).toHaveLength(0);
     expect(changed[0]).toMatchObject({ actorId: userId, targetId: userId, newValue: { pendingSignInsRevoked: 1 } });
     const left = await db
       .select({ id: verification.id })
@@ -149,5 +187,6 @@ describeDb("changeOwnPasswordWithBudget", () => {
 
     await expect(changeOwnPasswordWithBudget(userId, async () => "failed")).resolves.toBe("failed");
     expect(await events(userId, "user_password_change_failed")).toHaveLength(0);
+    expect(await events(userId, "user_password_change_attempted")).toHaveLength(0);
   });
 });
