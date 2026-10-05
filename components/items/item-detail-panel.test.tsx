@@ -321,15 +321,30 @@ describe("ItemDetailPanel header", () => {
     returnTarget.remove();
   });
 
-  it("uses a single-column mobile-first grid and a desktop side column", () => {
+  it("stacks the properties under the main column until a wide drawer gives them a third", () => {
     renderPanel();
 
-    expect(
-      screen.getByRole("dialog", { name: `${detail.key} — ${detail.title}` }),
-    ).toHaveClass("w-screen");
+    const dialog = screen.getByRole("dialog", { name: `${detail.key} — ${detail.title}` });
+    expect(dialog).toHaveClass("w-screen", "md:w-[min(960px,92vw)]");
+    expect(dialog).not.toHaveClass("md:w-[620px]");
     expect(screen.getByTestId("item-detail-grid")).toHaveClass(
       "grid-cols-1",
-      "md:grid-cols-[1fr_220px]",
+      "lg:grid-cols-[minmax(0,1fr)_340px]",
+    );
+  });
+
+  it("pads the properties column like the main column and keeps fields inside it", () => {
+    renderPanel(undefined, { ...detail, type: "tache" });
+
+    const properties = screen.getByTestId("item-detail-properties");
+    const main = screen.getByTestId("item-detail-main");
+    expect(main).toHaveClass("p-5");
+    expect(properties).toHaveClass("min-w-0", "p-5", "lg:border-l");
+    for (const field of within(properties).getAllByTestId("item-detail-field")) {
+      expect(field).toHaveClass("min-w-0");
+    }
+    expect(within(properties).getByRole("spinbutton", { name: "Points" })).toHaveClass(
+      "min-w-0",
     );
   });
 

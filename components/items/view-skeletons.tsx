@@ -88,7 +88,7 @@ function DetailPanelSkeleton({
         <Skeleton className="h-3 w-16" />
         <Skeleton className="ml-auto size-7" />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_220px]">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-4 p-5">
           <Skeleton className="h-7 w-3/4" />
           <div className="flex gap-2 border-b border-[var(--border)] pb-2">
@@ -98,7 +98,7 @@ function DetailPanelSkeleton({
           </div>
           <Skeleton className="h-28 w-full" />
         </div>
-        <div className="flex flex-col gap-5 border-t border-[var(--border)] bg-[var(--surface-2)] p-5 md:border-t-0 md:border-l">
+        <div className="flex flex-col gap-5 border-t border-[var(--border)] bg-[var(--surface-2)] p-5 lg:border-t-0 lg:border-l">
           {Array.from({ length: 5 }, (_, index) => (
             <div key={index} className="flex flex-col gap-2">
               <Skeleton className="h-3 w-16" />

@@ -78,9 +78,9 @@ const dateFmt = new Intl.DateTimeFormat("fr-FR", {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div data-testid="item-detail-field" className="flex min-w-0 flex-col gap-1">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <div className="text-sm">{children}</div>
+      <div className="min-w-0 text-sm">{children}</div>
     </div>
   );
 }
@@ -345,13 +345,14 @@ export function ItemDetailPanel({
         </div>
       </header>
 
-      {/* Body: 2-column grid */}
+      {/* Body: properties stack under the main column until the drawer is
+          wide enough to give them a readable ~third (Jira's Details panel). */}
       <div
         data-testid="item-detail-grid"
-        className="grid grid-cols-1 md:grid-cols-[1fr_220px]"
+        className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px]"
       >
         {/* Main column */}
-        <div className="flex min-w-0 flex-col gap-4 p-5">
+        <div data-testid="item-detail-main" className="flex min-w-0 flex-col gap-4 p-5">
           <EditableTitle
             itemId={detail.id}
             itemKey={detail.key}
@@ -424,8 +425,11 @@ export function ItemDetailPanel({
           )}
         </div>
 
-        {/* Side column */}
-        <div className="flex flex-col gap-4 border-t border-border bg-[var(--surface-2)] p-5 md:border-t-0 md:border-l">
+        {/* Side column: min-w-0 keeps wide controls inside its padding. */}
+        <div
+          data-testid="item-detail-properties"
+          className="flex min-w-0 flex-col gap-4 border-t border-border bg-[var(--surface-2)] p-5 lg:border-t-0 lg:border-l"
+        >
           <Field label="Statut">
             {canTransition ? (
               <StatusField

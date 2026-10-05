@@ -99,4 +99,39 @@ test.describe("panneau de détail", () => {
       "none",
     );
   });
+
+  test("donne aux propriétés une colonne lisible, rembourrée comme la colonne principale", async ({
+    page,
+  }) => {
+    const { dialog } = await openFirstBacklogRow(page);
+    const properties = page.getByTestId("item-detail-properties");
+    const drawerBox = await dialog.boundingBox();
+    const box = await properties.boundingBox();
+    if (!drawerBox || !box) throw new Error("Panneau de détail non mesurable.");
+
+    expect(box.width).toBeGreaterThanOrEqual(320);
+    expect(box.x + box.width).toBeLessThanOrEqual(drawerBox.x + drawerBox.width + 1);
+    await expect(properties).toHaveCSS("padding-right", "20px");
+    await expect(page.getByTestId("item-detail-main")).toHaveCSS("padding-left", "20px");
+    // No field spills over the column's right padding.
+    const overflow = await properties.evaluate((column) => {
+      const limit = column.getBoundingClientRect().right - 20 + 0.5;
+      return [...column.querySelectorAll("input, select, button")]
+        .filter((control) => control.getBoundingClientRect().right > limit).length;
+    });
+    expect(overflow).toBe(0);
+  });
+
+  test("empile les propriétés sous la colonne principale sur un écran étroit", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 900, height: 900 });
+    await openFirstBacklogRow(page);
+    const main = await page.getByTestId("item-detail-main").boundingBox();
+    const properties = await page.getByTestId("item-detail-properties").boundingBox();
+    if (!main || !properties) throw new Error("Panneau de détail non mesurable.");
+
+    expect(properties.y).toBeGreaterThanOrEqual(main.y + main.height - 1);
+    expect(Math.abs(properties.width - main.width)).toBeLessThanOrEqual(1);
+  });
 });
