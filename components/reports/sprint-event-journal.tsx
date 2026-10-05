@@ -1,4 +1,5 @@
 import { ReportPagination } from "@/components/reports/report-pagination";
+import { pointsLabel } from "@/lib/format/plural";
 
 export type SerializableSprintEvent = {
   id: string;
@@ -34,7 +35,7 @@ export type SerializableEventPage = {
 const points = (value: number | null) =>
   value === null
     ? "Non estimé"
-    : `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(value)} pts`;
+    : pointsLabel(value);
 
 function eventSentence(event: SerializableSprintEvent) {
   const actor = event.actor.name;

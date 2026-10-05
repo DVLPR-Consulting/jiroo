@@ -36,6 +36,27 @@ describe("VelocityReportView", () => {
     );
   });
 
+  it("agrees the average label and spoken points with a single included sprint", () => {
+    render(
+      <VelocityReportView
+        backlogKey="CASS"
+        report={{
+          state: "ready",
+          label: null,
+          limit: 7,
+          population: 1,
+          averageCompletedPoints: 5,
+          bars: [
+            { sprintId: "s1", sprintName: "Sprint 1", completedAt: "2026-08-01T12:00:00.000Z", committedPoints: 1, completedPoints: 1.5, includedInAverage: true, excludedReason: null },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Moyenne des points terminés : 5 sur 1 sprint inclus")).toBeVisible();
+    expect(screen.getByRole("group", { name: "Sprint 1 — engagement 1 point, terminé 1,5 point" })).toBeVisible();
+  });
+
   it("renders the explicit empty velocity state without a forecast", () => {
     render(
       <VelocityReportView

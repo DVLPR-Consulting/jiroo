@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { countLabel } from "@/lib/format/plural";
 
 type NavigationSprint = {
   id: string;
@@ -78,7 +79,7 @@ export function ReportNavigation({
       {report !== "velocity" && sprints.length === 0 ? (
         <p className="rounded-xl border p-4 text-sm text-muted-foreground">
           {plannedCount > 0
-            ? `${plannedCount} ${plannedCount === 1 ? "sprint est planifié" : "sprints sont planifiés"}, mais aucun n’a encore démarré.`
+            ? `${countLabel(plannedCount, "sprint est planifié", "sprints sont planifiés")}, mais aucun n’a encore démarré.`
             : "Aucun sprint actif ou terminé."}
         </p>
       ) : null}
