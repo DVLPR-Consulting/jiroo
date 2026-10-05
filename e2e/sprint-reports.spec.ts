@@ -808,7 +808,12 @@ audited(2, "distingue les états vides, planifiés, actifs non estimés et legac
   await page.reload();
   await expect(page.getByText("Tous les éléments actuels de ce sprint sont non estimés.")).toBeVisible();
 
-  await page.goto("/b/CASS?view=backlog");
+  // JIR-55: the backlog view tabs stay available on Reports, Rapports current.
+  const reportsTabs = page.getByRole("navigation", { name: "Vues du backlog" });
+  await expect(reportsTabs.getByRole("link", { name: "Rapports" }))
+    .toHaveAttribute("aria-current", "page");
+  await reportsTabs.getByRole("link", { name: "Backlog" }).click();
+  await expect(page).toHaveURL(/\/b\/CASS\?view=backlog$/);
   const activeRow = page.getByRole("row", { name: new RegExp(`^${activeItem.key} —`) });
   await activeRow.getByRole("button", { name: "Estimation : Non estimé" }).click();
   await page.getByRole("spinbutton", { name: "Points" }).fill("5");

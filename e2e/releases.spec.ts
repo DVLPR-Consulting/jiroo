@@ -441,6 +441,14 @@ async function replayForgedRequest(page: Page, request: ForgedRequest) {
 
 audited(1, "crée puis modifie une version", async ({ page }) => {
   await page.goto("/b/CASS/releases");
+  // JIR-55: the backlog view tabs stay available on Releases, Releases current.
+  const releasesTabs = page.getByRole("navigation", { name: "Vues du backlog" });
+  await expect(releasesTabs.getByRole("link", { name: "Releases" }))
+    .toHaveAttribute("aria-current", "page");
+  await releasesTabs.getByRole("link", { name: "Backlog" }).click();
+  await expect(page).toHaveURL(/\/b\/CASS\?view=backlog$/);
+  await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+  await page.goto("/b/CASS/releases");
   async function createThenEdit(input: {
     initialName: string; finalName: string; initialDescription: string; finalDescription: string;
     initialStartDate: string; initialTargetDate: string; finalStartDate: string; finalTargetDate: string;

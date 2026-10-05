@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({
   checkPermission: vi.fn(),
@@ -117,6 +117,19 @@ describe("releases list route", () => {
       ReleasesPage({ params: Promise.resolve({ key: "CASS" }) }),
     ).rejects.toThrow("not-found");
     expect(mocks.listReleaseSummaries).not.toHaveBeenCalled();
+  });
+
+  it("keeps the backlog view tabs with Releases as the current page", async () => {
+    render(await ReleasesPage({ params: Promise.resolve({ key: "cass" }) }));
+
+    const nav = screen.getByRole("navigation", { name: "Vues du backlog" });
+    expect(within(nav).getByRole("link", { name: "Backlog" }))
+      .toHaveAttribute("href", "/b/CASS?view=backlog");
+    expect(within(nav).getByRole("link", { name: "Releases" }))
+      .toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("link", { name: "Rapports" }))
+      .not.toHaveAttribute("aria-current");
+    expect(screen.queryByRole("button", { name: /Nouvel item|Grouper/ })).toBeNull();
   });
 
   it("passes only serializable minimal people and release payloads", async () => {

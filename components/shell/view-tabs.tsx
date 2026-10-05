@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-export const ITEM_VIEW_TABS = [
+const ITEM_VIEW_TABS = [
   ["backlog", "Backlog"],
   ["board", "Board"],
   ["list", "Liste"],
@@ -30,6 +30,14 @@ export function ViewBarFrame({ children }: { children: ReactNode }) {
   );
 }
 
+/** Project-level tabs that live on their own routes rather than as item views. */
+const PAGE_TABS = [
+  ["releases", "Releases"],
+  ["reports", "Rapports"],
+] as const;
+
+export type BacklogTab = ItemViewTab | (typeof PAGE_TABS)[number][0];
+
 type ViewTabsProps = {
   /** The current tab; anything else leaves every tab inactive. */
   active: string;
@@ -46,42 +54,73 @@ type ViewTabsProps = {
     }
 );
 
-export function ViewTabs({ active, backlogKey, itemViewLink }: ViewTabsProps) {
-  const linkFor = itemViewLink ?? ((view: ItemViewTab): ItemViewLink => ({
-    href: `/b/${encodeURIComponent(backlogKey ?? "")}?view=${view}`,
-  }));
+function backlogPath(backlogKey: string) {
+  return `/b/${encodeURIComponent(backlogKey)}`;
+}
+
+/** Plain item-view link for pages outside the item views (no URL state to keep). */
+function defaultItemViewLink(backlogKey: string) {
+  return (view: ItemViewTab): ItemViewLink => ({
+    href: `${backlogPath(backlogKey)}?view=${view}`,
+  });
+}
+
+function tabProps(current: boolean) {
+  return {
+    "aria-current": current ? ("page" as const) : undefined,
+    className: cn(TAB_CLASS, current ? ACTIVE_TAB_CLASS : INACTIVE_TAB_CLASS),
+  };
+}
+
+export function ViewTabs(props: ViewTabsProps) {
+  const { active, backlogKey } = props;
+  const linkFor = props.backlogKey === undefined
+    ? props.itemViewLink
+    : (props.itemViewLink ?? defaultItemViewLink(props.backlogKey));
 
   return (
-    <div className="inline-flex shrink-0 rounded-md border border-border p-0.5">
+    <nav
+      aria-label="Vues du backlog"
+      className="inline-flex shrink-0 rounded-md border border-border p-0.5"
+    >
       {ITEM_VIEW_TABS.map(([view, label]) => {
         const { href, onNavigate } = linkFor(view);
         return (
-          <Link
-            key={view}
-            href={href}
-            onNavigate={onNavigate}
-            className={cn(TAB_CLASS, active === view ? ACTIVE_TAB_CLASS : INACTIVE_TAB_CLASS)}
-          >
+          <Link key={view} href={href} onNavigate={onNavigate} {...tabProps(active === view)}>
             {label}
           </Link>
         );
       })}
-      {backlogKey ? (
-        <>
-          <Link
-            href={`/b/${encodeURIComponent(backlogKey)}/releases`}
-            className={cn(TAB_CLASS, INACTIVE_TAB_CLASS)}
-          >
-            Releases
-          </Link>
-          <Link
-            href={`/b/${encodeURIComponent(backlogKey)}/reports`}
-            className={cn(TAB_CLASS, INACTIVE_TAB_CLASS)}
-          >
-            Rapports
-          </Link>
-        </>
-      ) : null}
-    </div>
+      {backlogKey
+        ? PAGE_TABS.map(([tab, label]) => (
+            <Link
+              key={tab}
+              href={`${backlogPath(backlogKey)}/${tab}`}
+              {...tabProps(active === tab)}
+            >
+              {label}
+            </Link>
+          ))
+        : null}
+    </nav>
+  );
+}
+
+/**
+ * The view bar reduced to its project tabs, for backlog pages that are not
+ * item views (Releases, Rapports): no grouping, saved views, density or
+ * creation controls there.
+ */
+export function BacklogNavBar({
+  active,
+  backlogKey,
+}: {
+  active: BacklogTab;
+  backlogKey: string;
+}) {
+  return (
+    <ViewBarFrame>
+      <ViewTabs active={active} backlogKey={backlogKey} />
+    </ViewBarFrame>
   );
 }

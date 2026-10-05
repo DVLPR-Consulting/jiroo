@@ -7,6 +7,7 @@ import {
   type SerializableSprintReport,
 } from "@/components/reports/sprint-report";
 import { VelocityReportView } from "@/components/reports/velocity-report";
+import { BacklogNavBar } from "@/components/shell/view-tabs";
 import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
 import { requireAppPageSession } from "@/lib/auth/session";
 import { serializeBurndownReport } from "@/lib/reports/burndown-serialization";
@@ -164,9 +165,12 @@ export default async function ReportsPage({
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
-      {navigation}
-      {content}
-    </div>
+    <>
+      <BacklogNavBar active="reports" backlogKey={backlog.key} />
+      <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
+        {navigation}
+        {content}
+      </div>
+    </>
   );
 }
