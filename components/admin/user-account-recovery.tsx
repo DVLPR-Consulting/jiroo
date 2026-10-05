@@ -102,11 +102,11 @@ function ResetPasswordDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Réinitialiser le mot de passe de {target.name}</DialogTitle>
+          <DialogTitle>Réinitialiser le mot de passe de {target.name} ?</DialogTitle>
           <DialogDescription>
             Définissez un mot de passe temporaire et transmettez-le par un canal sûr. Toutes ses
-            sessions seront fermées ; sa double authentification reste inchangée. Il pourra
-            ensuite choisir son propre mot de passe depuis « Changer mon mot de passe ».
+            sessions seront fermées ; sa double authentification reste inchangée. Ce mot de passe
+            reste valable jusqu’à ce qu’il le remplace depuis « Changer mon mot de passe ».
           </DialogDescription>
         </DialogHeader>
         <form
@@ -224,7 +224,7 @@ function ResetTwoFactorDialog({
               });
             }}
           >
-            {pending ? "Réinitialisation…" : "Réinitialiser la 2FA"}
+            {pending ? "Réinitialisation…" : "Réinitialiser la double authentification"}
           </Button>
         </DialogFooter>
       </DialogContent>

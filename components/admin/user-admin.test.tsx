@@ -125,7 +125,7 @@ describe("UserAdmin account recovery", () => {
     await user.click(screen.getByRole("menuitem", { name: "Réinitialiser le mot de passe" }));
 
     const dialog = await screen.findByRole("dialog", {
-      name: "Réinitialiser le mot de passe de Thomas Dubois",
+      name: "Réinitialiser le mot de passe de Thomas Dubois ?",
     });
     expect(within(dialog).getByText(/Toutes ses sessions seront fermées/)).toBeVisible();
     const confirm = within(dialog).getByRole("button", { name: "Réinitialiser le mot de passe" });
@@ -185,7 +185,7 @@ describe("UserAdmin account recovery", () => {
       within(dialog).getByText(/devra configurer à nouveau la double authentification/),
     ).toBeVisible();
     expect(mocks.resetUserTwoFactorAction).not.toHaveBeenCalled();
-    await user.click(within(dialog).getByRole("button", { name: "Réinitialiser la 2FA" }));
+    await user.click(within(dialog).getByRole("button", { name: "Réinitialiser la double authentification" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(mocks.resetUserTwoFactorAction).toHaveBeenCalledWith({ userId: "user-2" });
@@ -222,10 +222,28 @@ describe("UserAdmin account recovery", () => {
       screen.getByRole("menuitem", { name: "Réinitialiser la double authentification" }),
     );
     const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Réinitialiser la 2FA" }));
+    await user.click(within(dialog).getByRole("button", { name: "Réinitialiser la double authentification" }));
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "Vous ne pouvez pas réinitialiser votre propre double authentification.",
     );
+  });
+
+  it("forgets the typed temporary password when the dialog is cancelled", async () => {
+    const user = userEvent.setup();
+    renderRecovery();
+
+    await user.click(screen.getByRole("button", { name: "Actions de compte pour Thomas Dubois" }));
+    await user.click(screen.getByRole("menuitem", { name: "Réinitialiser le mot de passe" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Mot de passe temporaire"), "provisoire-1");
+    await user.click(within(dialog).getByRole("button", { name: "Annuler" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Actions de compte pour Thomas Dubois" }));
+    await user.click(screen.getByRole("menuitem", { name: "Réinitialiser le mot de passe" }));
+    const reopened = await screen.findByRole("dialog");
+    expect(within(reopened).getByLabelText("Mot de passe temporaire")).toHaveValue("");
+    expect(mocks.resetUserPasswordAction).not.toHaveBeenCalled();
   });
 });
