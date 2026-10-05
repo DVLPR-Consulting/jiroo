@@ -62,11 +62,13 @@ function DialogContent({
       "top-1/2 left-1/2 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl p-4 sm:max-w-sm data-open:zoom-in-95 data-closed:zoom-out-95",
     // Wider than the handoff's 620px so the properties column gets roughly a
     // third (Jira's Details panel) without squeezing the main column.
+    // Full height from the insets alone (no redundant h-dvh);
+    // the frame never scrolls, its body (or each column) does.
     // Radix marks open/closed with data-state (not data-open/data-closed), so
     // the sheet animates on data-[state=*]. Handoff: translateX, 220ms,
     // cubic-bezier(.32,.72,0,1); no motion when the user asks for less.
     "sheet-right":
-      "inset-y-0 right-0 h-dvh w-screen overflow-y-auto border-l p-0 md:w-[min(960px,92vw)] duration-[220ms] ease-[cubic-bezier(.32,.72,0,1)] data-[state=open]:animate-in data-[state=open]:slide-in-from-right data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right motion-reduce:data-[state=open]:animate-none motion-reduce:data-[state=closed]:animate-none",
+      "inset-y-0 right-0 flex w-screen flex-col overflow-hidden border-l p-0 md:w-[min(960px,92vw)] duration-[220ms] ease-[cubic-bezier(.32,.72,0,1)] data-[state=open]:animate-in data-[state=open]:slide-in-from-right data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right motion-reduce:data-[state=open]:animate-none motion-reduce:data-[state=closed]:animate-none",
     "sheet-left":
       "inset-y-0 left-0 h-dvh w-[248px] max-w-[85vw] overflow-y-auto border-r p-0 data-open:slide-in-from-left data-closed:slide-out-to-left motion-reduce:animate-none",
   }[variant]

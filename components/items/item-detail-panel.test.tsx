@@ -333,6 +333,26 @@ describe("ItemDetailPanel header", () => {
     );
   });
 
+  it("fills the viewport height and scrolls each column on its own when side by side", () => {
+    renderPanel();
+
+    const dialog = screen.getByRole("dialog", { name: `${detail.key} — ${detail.title}` });
+    // Full height from the insets; the body scrolls, never the frame.
+    expect(dialog).toHaveClass("inset-y-0", "flex", "flex-col", "overflow-hidden");
+    expect(dialog).not.toHaveClass("h-dvh");
+    expect(dialog).not.toHaveClass("overflow-y-auto");
+    expect(screen.getByRole("banner")).toHaveClass("flex-none");
+    expect(screen.getByTestId("item-detail-grid")).toHaveClass(
+      "min-h-0",
+      "flex-1",
+      "overflow-y-auto",
+      "lg:grid-rows-1",
+      "lg:overflow-hidden",
+    );
+    expect(screen.getByTestId("item-detail-main")).toHaveClass("lg:overflow-y-auto");
+    expect(screen.getByTestId("item-detail-properties")).toHaveClass("lg:overflow-y-auto");
+  });
+
   it("pads the properties column like the main column and keeps fields inside it", () => {
     renderPanel(undefined, { ...detail, type: "tache" });
 

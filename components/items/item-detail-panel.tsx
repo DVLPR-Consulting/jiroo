@@ -280,7 +280,7 @@ export function ItemDetailPanel({
         {detail.key} — {detail.title}
       </DialogTitle>
       {/* Header */}
-      <header className="flex items-center gap-2 border-b border-border px-4 py-3">
+      <header className="flex flex-none items-center gap-2 border-b border-border px-4 py-3">
         <TypeIcon type={detail.type} />
         <nav
           aria-label="Fil d’Ariane"
@@ -346,13 +346,17 @@ export function ItemDetailPanel({
       </header>
 
       {/* Body: properties stack under the main column until the drawer is
-          wide enough to give them a readable ~third (Jira's Details panel). */}
+          wide enough to give them a readable ~third (Jira's Details panel);
+          side by side, each column scrolls on its own, as in Jira. */}
       <div
         data-testid="item-detail-grid"
-        className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px]"
+        className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-1 lg:overflow-hidden"
       >
         {/* Main column */}
-        <div data-testid="item-detail-main" className="flex min-w-0 flex-col gap-4 p-5">
+        <div
+          data-testid="item-detail-main"
+          className="flex min-w-0 flex-col gap-4 p-5 lg:overflow-y-auto"
+        >
           <EditableTitle
             itemId={detail.id}
             itemKey={detail.key}
@@ -428,7 +432,7 @@ export function ItemDetailPanel({
         {/* Side column: min-w-0 keeps wide controls inside its padding. */}
         <div
           data-testid="item-detail-properties"
-          className="flex min-w-0 flex-col gap-4 border-t border-border bg-[var(--surface-2)] p-5 lg:border-t-0 lg:border-l"
+          className="flex min-w-0 flex-col gap-4 border-t border-border bg-[var(--surface-2)] p-5 lg:overflow-y-auto lg:border-t-0 lg:border-l"
         >
           <Field label="Statut">
             {canTransition ? (

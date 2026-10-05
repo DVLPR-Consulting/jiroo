@@ -152,4 +152,50 @@ test.describe("panneau de détail", () => {
     expect(properties.y).toBeGreaterThanOrEqual(main.y + main.height - 1);
     expect(Math.abs(properties.width - main.width)).toBeLessThanOrEqual(1);
   });
+
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 2000, height: 1100 },
+  ]) {
+    test(`occupe toute la hauteur et fait défiler les propriétés seules à ${viewport.width}×${viewport.height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      const { dialog } = await openFirstBacklogRow(page);
+      await dialog.evaluate((element) =>
+        Promise.all(element.getAnimations().map((animation) => animation.finished)),
+      );
+      const box = await dialog.boundingBox();
+      expect(box?.y).toBe(0);
+      expect(box?.height).toBe(viewport.height);
+
+      const properties = page.getByTestId("item-detail-properties");
+      // The last property section and the metadata under it are reachable.
+      await expect(properties.getByText("Développement", { exact: true })).toBeAttached();
+      const columnEnd = properties.getByText(/^Maj le /);
+      await columnEnd.scrollIntoViewIfNeeded();
+      await expect(columnEnd).toBeInViewport();
+      // The properties column is its own scroll container; when it overflows,
+      // only it scrolls — never the main column or the drawer frame.
+      await expect(properties).toHaveCSS("overflow-y", "auto");
+      const scroll = await properties.evaluate((column) => ({
+        overflows: column.scrollHeight > column.clientHeight,
+        top: column.scrollTop,
+      }));
+      if (scroll.overflows) expect(scroll.top).toBeGreaterThan(0);
+      expect(
+        await page.getByTestId("item-detail-main").evaluate((column) => column.scrollTop),
+      ).toBe(0);
+      expect(await dialog.evaluate((frame) => frame.scrollTop)).toBe(0);
+    });
+  }
+
+  test("suit la hauteur de la fenêtre quand elle change, panneau ouvert", async ({ page }) => {
+    const { dialog } = await openFirstBacklogRow(page);
+    await page.setViewportSize({ width: 2000, height: 1100 });
+    await expect
+      .poll(async () => (await dialog.boundingBox())?.height)
+      .toBe(1100);
+  });
 });
+
