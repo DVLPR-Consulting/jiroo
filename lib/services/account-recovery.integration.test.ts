@@ -113,11 +113,31 @@ async function expectChallengeRejected(device: BetterAuthDevice, secret: string)
   expect(current.json).toBeNull();
 }
 
+/** Challenges of the user plus their `2fa-attempts-*` counters. */
 async function challengeRowsFor(userId: string) {
-  return db
+  const challenges = await db
     .select({ identifier: verification.identifier })
     .from(verification)
     .where(and(eq(verification.value, userId), like(verification.identifier, "2fa-%")));
+  const counters = challenges.length
+    ? await db
+        .select({ identifier: verification.identifier })
+        .from(verification)
+        .where(
+          inArray(
+            verification.identifier,
+            challenges.map((row) => `2fa-attempts-${row.identifier}`),
+          ),
+        )
+    : [];
+  return [...challenges, ...counters];
+}
+
+async function countersFor(identifiers: string[]) {
+  return db
+    .select({ identifier: verification.identifier })
+    .from(verification)
+    .where(inArray(verification.identifier, identifiers.map((id) => `2fa-attempts-${id}`)));
 }
 
 async function trustRowsFor(userId: string) {
@@ -205,7 +225,8 @@ describeDb("account recovery service", () => {
       const target = await createTarget("password-challenge");
       const secret = await enrollOverHttp(target.email, ORIGINAL_PASSWORD);
       const attacker = await pendingChallenge(target.email, ORIGINAL_PASSWORD);
-      expect(await challengeRowsFor(target.id)).not.toHaveLength(0);
+      const opened = await challengeRowsFor(target.id);
+      expect(opened).toHaveLength(2); // challenge + attempt counter
 
       await resetUserPassword(
         { userId: target.id, temporaryPassword: "temporaire-challenge" },
@@ -213,6 +234,7 @@ describeDb("account recovery service", () => {
       );
 
       expect(await challengeRowsFor(target.id)).toHaveLength(0);
+      expect(await countersFor(opened.map((row) => row.identifier))).toHaveLength(0);
       await expectChallengeRejected(attacker, secret);
       expect(await sessionCount(target.id)).toBe(0);
     });
@@ -367,12 +389,16 @@ describeDb("account recovery service", () => {
 
     it("invalidates pending sign-in challenges", async () => {
       const target = await createTarget("two-factor-challenge");
-      await enrollOverHttp(target.email, ORIGINAL_PASSWORD);
-      await pendingChallenge(target.email, ORIGINAL_PASSWORD);
+      const secret = await enrollOverHttp(target.email, ORIGINAL_PASSWORD);
+      const attacker = await pendingChallenge(target.email, ORIGINAL_PASSWORD);
+      const opened = await challengeRowsFor(target.id);
+      expect(opened).toHaveLength(2);
 
       await resetUserTwoFactor({ userId: target.id }, adminId);
 
       expect(await challengeRowsFor(target.id)).toHaveLength(0);
+      expect(await countersFor(opened.map((row) => row.identifier))).toHaveLength(0);
+      await expectChallengeRejected(attacker, secret);
     });
 
     it("rejects a user manager who is not a Jiroo administrator", async () => {

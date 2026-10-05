@@ -14,6 +14,17 @@ import { resetUserPasswordInput, resetUserTwoFactorInput } from "@/lib/items/use
 // administrator sets a temporary password or clears the second factor; the
 // target's sessions are revoked and the change is written to the security
 // audit log in the same transaction. Secrets never reach the audit payload.
+//
+// KNOWN GAP (Codex review R3, pending an owner decision; likely needs an
+// auth-version column, i.e. a migration): the row lock below serializes the
+// recovery services only. Better Auth's sign-in does not take it, so a sign-in
+// that verified the OLD password (or passed a trusted-device check) before
+// this transaction commits can still create a session, a `2fa-*` challenge or
+// a renewed trust row after it, under READ COMMITTED. Deleting sessions,
+// challenges and trust here closes everything that exists at commit time,
+// not authentications already in flight. Closing it requires sign-in and
+// recovery to share a freshness rule (e.g. a per-user auth version checked
+// before issuing or accepting a session).
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

@@ -33,6 +33,9 @@ const CHALLENGE_PREFIX = "2fa-";
 const ATTEMPTS_PREFIX = "2fa-attempts-";
 
 /**
+ * Revokes state present when it runs; a sign-in in flight can recreate it
+ * afterwards (see the R3 note in lib/services/account-recovery.ts).
+ *
  * Deletes every pending two-factor sign-in challenge of a user and their
  * attempt counters, so a password step passed before a password change or
  * reset can no longer be completed.
