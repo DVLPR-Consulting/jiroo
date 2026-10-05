@@ -38,7 +38,7 @@ import {
 } from "../scripts/e2e-reset-guard";
 import { reserveE2eRunId } from "../scripts/e2e-run-reservation";
 import { collectAndWriteE2eRunManifest } from "../scripts/e2e-run-manifest";
-import { generateTotp } from "./totp";
+import { generateTotp } from "../test-utils/totp";
 
 const PASSWORD = process.env.JIROO_PLAYWRIGHT_PASSWORD ?? "Audit-Local-2026!";
 

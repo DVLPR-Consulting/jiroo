@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../lib/db";
 import { twoFactor } from "../lib/db/schema/auth";
 import { createUser } from "../lib/services/users";
-import { generateTotp } from "./totp";
+import { generateTotp } from "../test-utils/totp";
 
 // JIR-61: administrator-driven account recovery and self-service password change.
 

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { requirePermissionWithoutBypassAudit } from "@/lib/auth/authorization";
+import { revokeTrustedDevices } from "@/lib/auth/pending-authentication";
 import { db } from "@/lib/db";
 import { account, session, twoFactor, user } from "@/lib/db/schema/auth";
 import { securityAuditEvents } from "@/lib/db/schema/domain";
@@ -124,11 +125,14 @@ export async function resetUserPassword(
       .returning({ id: account.id });
     if (updated.length === 0) throw new AccountRecoveryError(MISSING_CREDENTIAL_MESSAGE);
     const revokedSessions = await revokeAllSessions(tx, userId);
+    // A reset answers a suspected compromise: like sessions, device trust
+    // granted before it must not survive (the user re-enters a TOTP once).
+    const revokedTrustedDevices = await revokeTrustedDevices(tx, userId);
     await appendRecoveryAuditEvent(tx, {
       actorId,
       action: "user_password_reset",
       targetId: userId,
-      newValue: { revokedSessions },
+      newValue: { revokedSessions, revokedTrustedDevices },
       requestCorrelationId,
     });
     return { revokedSessions };
@@ -157,12 +161,15 @@ export async function resetUserTwoFactor(
     await tx.delete(twoFactor).where(eq(twoFactor.userId, userId));
     await tx.update(user).set({ twoFactorEnabled: false }).where(eq(user.id, userId));
     const revokedSessions = await revokeAllSessions(tx, userId);
+    // Trust is checked by user id only, so it would otherwise outlive the
+    // factor it was granted for and skip the newly enrolled TOTP.
+    const revokedTrustedDevices = await revokeTrustedDevices(tx, userId);
     await appendRecoveryAuditEvent(tx, {
       actorId,
       action: "user_two_factor_reset",
       targetId: userId,
       oldValue: { twoFactorEnabled: target.twoFactorEnabled === true },
-      newValue: { twoFactorEnabled: false, revokedSessions },
+      newValue: { twoFactorEnabled: false, revokedSessions, revokedTrustedDevices },
       requestCorrelationId,
     });
     return { revokedSessions };

@@ -1,14 +1,16 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { account, session, twoFactor, user } from "@/lib/db/schema/auth";
+import { account, session, twoFactor, user, verification } from "@/lib/db/schema/auth";
 import { permissionGrants, securityAuditEvents } from "@/lib/db/schema/domain";
 import { resetUserPassword, resetUserTwoFactor } from "@/lib/services/account-recovery";
 import { createUser } from "@/lib/services/users";
+import { BetterAuthDevice } from "@/test-utils/better-auth-http";
+import { generateTotp } from "@/test-utils/totp";
 
 vi.mock("server-only", () => ({}));
 
@@ -67,6 +69,42 @@ async function signInSucceeds(email: string, password: string): Promise<boolean>
   }
 }
 
+/** Enrolls TOTP through Better Auth's HTTP API and returns the secret. */
+async function enrollOverHttp(email: string, password: string): Promise<string> {
+  const device = new BetterAuthDevice();
+  const signIn = await device.post("/sign-in/email", { email, password });
+  expect(signIn.status).toBe(200);
+  const enable = await device.post("/two-factor/enable", { password });
+  expect(enable.status).toBe(200);
+  const secret = new URL((enable.json as { totpURI: string }).totpURI).searchParams.get("secret")!;
+  const verify = await device.post("/two-factor/verify-totp", { code: generateTotp(secret) });
+  expect(verify.status).toBe(200);
+  return secret;
+}
+
+/** Signs in with password + TOTP on a fresh device and marks it as trusted. */
+async function trustedDevice(email: string, password: string, secret: string) {
+  const device = new BetterAuthDevice();
+  const signIn = await device.post("/sign-in/email", { email, password });
+  expect(signIn.json).toMatchObject({ twoFactorRedirect: true });
+  const verify = await device.post("/two-factor/verify-totp", {
+    code: generateTotp(secret),
+    trustDevice: true,
+  });
+  expect(verify.status).toBe(200);
+  // Trusted: the next password sign-in skips the TOTP step.
+  const again = await device.post("/sign-in/email", { email, password });
+  expect(again.json).not.toMatchObject({ twoFactorRedirect: true });
+  return device;
+}
+
+async function trustRowsFor(userId: string) {
+  return db
+    .select({ identifier: verification.identifier })
+    .from(verification)
+    .where(and(eq(verification.value, userId), like(verification.identifier, "trust-device-%")));
+}
+
 async function auditEventsFor(targetId: string) {
   return db
     .select()
@@ -120,6 +158,24 @@ describeDb("account recovery service", () => {
       expect(await sessionCount(target.id)).toBe(0);
       expect(await signInSucceeds(target.email, ORIGINAL_PASSWORD)).toBe(false);
       expect(await signInSucceeds(target.email, "temporaire-2026")).toBe(true);
+    });
+
+    it("revokes trusted devices along with the sessions", async () => {
+      const target = await createTarget("password-trust");
+      const secret = await enrollOverHttp(target.email, ORIGINAL_PASSWORD);
+      const device = await trustedDevice(target.email, ORIGINAL_PASSWORD, secret);
+
+      await resetUserPassword(
+        { userId: target.id, temporaryPassword: "temporaire-trust" },
+        adminId,
+      );
+
+      expect(await trustRowsFor(target.id)).toHaveLength(0);
+      const signIn = await device.post("/sign-in/email", {
+        email: target.email,
+        password: "temporaire-trust",
+      });
+      expect(signIn.json).toMatchObject({ twoFactorRedirect: true });
     });
 
     it("records who reset whose password without storing the secret", async () => {
@@ -250,6 +306,24 @@ describeDb("account recovery service", () => {
       expect(factors).toHaveLength(1);
       expect(await sessionCount(target.id)).toBe(1);
       expect(await auditEventsFor(target.id)).toHaveLength(0);
+    });
+
+    it("revokes trusted devices so a re-enrolled account always asks for the new TOTP", async () => {
+      const target = await createTarget("two-factor-trust");
+      const oldSecret = await enrollOverHttp(target.email, ORIGINAL_PASSWORD);
+      const lostDevice = await trustedDevice(target.email, ORIGINAL_PASSWORD, oldSecret);
+      expect(await trustRowsFor(target.id)).not.toHaveLength(0);
+
+      await resetUserTwoFactor({ userId: target.id }, adminId);
+      expect(await trustRowsFor(target.id)).toHaveLength(0);
+
+      const newSecret = await enrollOverHttp(target.email, ORIGINAL_PASSWORD);
+      expect(newSecret).not.toBe(oldSecret);
+      const signIn = await lostDevice.post("/sign-in/email", {
+        email: target.email,
+        password: ORIGINAL_PASSWORD,
+      });
+      expect(signIn.json).toMatchObject({ twoFactorRedirect: true });
     });
 
     it("rejects a user manager who is not a Jiroo administrator", async () => {
