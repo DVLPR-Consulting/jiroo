@@ -15,3 +15,19 @@ describe("public registration", () => {
     expect(response.status).toBe(404);
   });
 });
+
+describe("password change endpoint", () => {
+  it("is only reachable through the rate-limited Server Action", async () => {
+    // auth.api calls still work; the public HTTP route would bypass the
+    // account-scoped attempt budget (lib/services/password-change.ts).
+    const response = await auth.handler(
+      new Request("http://localhost:3100/api/auth/change-password", {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost:3100" },
+        body: JSON.stringify({ currentPassword: "x", newPassword: "yyyyyyyy" }),
+      }),
+    );
+
+    expect(response.status).toBe(404);
+  });
+});

@@ -67,12 +67,11 @@ describeDb("revokePendingSignIns", () => {
     expect(before.challenges).toHaveLength(1);
     expect(before.attempts).toHaveLength(1);
 
-    const change = await target.device.post("/change-password", {
-      currentPassword: PASSWORD,
-      newPassword: "nouveau-mot-de-passe",
-      revokeOtherSessions: true,
+    // The HTTP route is disabled; the Server Action calls auth.api directly.
+    await auth.api.changePassword({
+      body: { currentPassword: PASSWORD, newPassword: "nouveau-mot-de-passe", revokeOtherSessions: true },
+      headers: target.device.requestHeaders(),
     });
-    expect(change.status).toBe(200);
     // Better Auth's changePassword leaves the challenge usable on its own.
     expect((await challengeRows(target.id)).challenges).toHaveLength(1);
 

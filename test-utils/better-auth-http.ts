@@ -18,22 +18,17 @@ export class BetterAuthDevice {
     return this.request("GET", path);
   }
 
-  cookieNames(): string[] {
-    return [...this.cookies.keys()];
-  }
-
-  /** Copies one cookie (e.g. the trust-device cookie) from another device. */
-  adoptCookie(from: BetterAuthDevice, nameFragment: string): void {
-    for (const [name, value] of from.cookies) {
-      if (name.includes(nameFragment)) this.cookies.set(name, value);
-    }
+  /** Request headers carrying this device's cookies, for direct auth.api calls. */
+  requestHeaders(): Headers {
+    const headers = new Headers({ origin: ORIGIN });
+    const cookie = [...this.cookies].map(([name, value]) => `${name}=${value}`).join("; ");
+    if (cookie) headers.set("cookie", cookie);
+    return headers;
   }
 
   private async request(method: string, path: string, body?: unknown) {
-    const headers = new Headers({ origin: ORIGIN });
+    const headers = this.requestHeaders();
     if (body !== undefined) headers.set("content-type", "application/json");
-    const cookie = [...this.cookies].map(([name, value]) => `${name}=${value}`).join("; ");
-    if (cookie) headers.set("cookie", cookie);
     const response = await auth.handler(
       new Request(`${ORIGIN}/api/auth${path}`, {
         method,
