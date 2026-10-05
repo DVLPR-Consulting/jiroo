@@ -1,3 +1,4 @@
+import { DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const BOARD_COLUMNS = 4;
@@ -70,43 +71,42 @@ function ListSkeleton({ label = "Chargement de la liste" }: { label?: string }) 
   );
 }
 
+/**
+ * Detail body placeholder streamed inside `ItemDetailSheet` while the item
+ * loads: the drawer frame is already open, so only its content is swapped.
+ */
 function DetailPanelSkeleton({
   label = "Chargement du panneau de détail",
 }: {
   label?: string;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
-      <aside
-        aria-busy="true"
-        aria-label={label}
-        className="h-full w-[620px] max-w-[92vw] overflow-auto border-l border-[var(--border)] bg-[var(--surface)] shadow-lg"
-      >
-        <div className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-3">
-          <Skeleton className="size-4" />
-          <Skeleton className="h-3 w-16" />
-          <Skeleton className="ml-auto size-7" />
+    <div aria-busy="true" aria-label={label} role="status">
+      <DialogTitle className="sr-only">{label}</DialogTitle>
+      <div className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-3">
+        <Skeleton className="size-4" />
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="ml-auto size-7" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_220px]">
+        <div className="flex min-w-0 flex-col gap-4 p-5">
+          <Skeleton className="h-7 w-3/4" />
+          <div className="flex gap-2 border-b border-[var(--border)] pb-2">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+          <Skeleton className="h-28 w-full" />
         </div>
-        <div className="grid grid-cols-[1fr_220px]">
-          <div className="flex min-w-0 flex-col gap-4 p-5">
-            <Skeleton className="h-7 w-3/4" />
-            <div className="flex gap-2 border-b border-[var(--border)] pb-2">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-16" />
+        <div className="flex flex-col gap-5 border-t border-[var(--border)] bg-[var(--surface-2)] p-5 md:border-t-0 md:border-l">
+          {Array.from({ length: 5 }, (_, index) => (
+            <div key={index} className="flex flex-col gap-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-6 w-full" />
             </div>
-            <Skeleton className="h-28 w-full" />
-          </div>
-          <div className="flex flex-col gap-5 border-l border-[var(--border)] bg-[var(--surface-2)] p-5">
-            {Array.from({ length: 5 }, (_, index) => (
-              <div key={index} className="flex flex-col gap-2">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-6 w-full" />
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
-      </aside>
+      </div>
     </div>
   );
 }

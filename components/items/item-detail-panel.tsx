@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Trash2, X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
@@ -19,12 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogClose, DialogTitle } from "@/components/ui/dialog";
 import {
   reparentItemAction,
   restoreItemAction,
@@ -90,6 +85,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+/** Detail header and body; rendered inside `ItemDetailSheet`, which owns the dialog. */
 export function ItemDetailPanel({
   detail,
   activities,
@@ -151,14 +147,6 @@ export function ItemDetailPanel({
   const canLink = itemCapabilities?.link ?? canEditItems;
   const router = useRouter();
   const viewUrl = useViewUrlState();
-  const [open, setOpen] = useState(true);
-  const returnFocusRef = useRef<HTMLElement | null>(
-    typeof document !== "undefined" &&
-      document.activeElement instanceof HTMLElement &&
-      document.activeElement !== document.body
-      ? document.activeElement
-      : null,
-  );
   const [tab, setTab] = useState<"detail" | "comments" | "activity">("detail");
   const [deleting, startDelete] = useTransition();
   const [planningPending, startPlanning] = useTransition();
@@ -197,8 +185,6 @@ export function ItemDetailPanel({
     const known = new Set(releaseOptions.map((version) => version.id));
     return [...releaseOptions, ...fixVersions.filter((version) => !known.has(version.id))];
   }, [fixVersions, releaseOptions]);
-
-  const close = () => viewUrl.push((params) => params.delete("item"));
 
   const handleCopyLink = async () => {
     try {
@@ -289,395 +275,366 @@ export function ItemDetailPanel({
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        setOpen(nextOpen);
-        if (!nextOpen) close();
-      }}
-    >
-      <DialogContent
-        variant="sheet-right"
-        showCloseButton={false}
-        aria-describedby={undefined}
-        className="bg-[var(--surface)] shadow-lg"
-        onCloseAutoFocus={(event) => {
-          const returnTarget = returnFocusRef.current;
-          if (returnTarget?.isConnected) {
-            event.preventDefault();
-            returnTarget.focus();
-          }
-        }}
-        onEscapeKeyDown={(event) => {
-          const target = event.target;
-          if (
-            target instanceof Element &&
-            target.matches('[aria-label="Titre de l’item"]')
-          ) {
-            event.preventDefault();
-          }
-        }}
-      >
-        <DialogTitle className="sr-only">
-          {detail.key} — {detail.title}
-        </DialogTitle>
-        {/* Header */}
-        <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <TypeIcon type={detail.type} />
-          <nav
-            aria-label="Fil d’Ariane"
-            className="flex min-w-0 items-center gap-1.5 text-sm"
+    <>
+      <DialogTitle className="sr-only">
+        {detail.key} — {detail.title}
+      </DialogTitle>
+      {/* Header */}
+      <header className="flex items-center gap-2 border-b border-border px-4 py-3">
+        <TypeIcon type={detail.type} />
+        <nav
+          aria-label="Fil d’Ariane"
+          className="flex min-w-0 items-center gap-1.5 text-sm"
+        >
+          {parent && (
+            <>
+              <span className="truncate" title={parent.title}>
+                <ItemKey value={parent.key} />
+              </span>
+              <span className="text-muted-foreground" aria-hidden>
+                {" / "}
+              </span>
+            </>
+          )}
+          <ItemKey value={detail.key} />
+        </nav>
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="flex items-center gap-1.5 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-[var(--muted)]"
           >
-            {parent && (
-              <>
-                <span className="truncate" title={parent.title}>
-                  <ItemKey value={parent.key} />
-                </span>
-                <span className="text-muted-foreground" aria-hidden>
-                  {" / "}
-                </span>
-              </>
-            )}
-            <ItemKey value={detail.key} />
-          </nav>
-          <div className="ml-auto flex items-center gap-1">
+            <Copy className="size-4" aria-hidden />
+            Copier le lien
+          </button>
+          {canDelete && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Actions"
+                  className="rounded px-2 py-1 text-sm text-muted-foreground hover:bg-[var(--muted)]"
+                >
+                  …
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  disabled={deleting}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    handleDelete();
+                  }}
+                  className="text-[var(--danger)] focus:text-[var(--danger)]"
+                >
+                  <Trash2 className="size-4" />
+                  {deleting ? "Suppression…" : "Supprimer l'item"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <DialogClose asChild>
             <button
               type="button"
-              onClick={handleCopyLink}
-              className="flex items-center gap-1.5 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-[var(--muted)]"
+              aria-label="Fermer"
+              className="rounded p-1 text-muted-foreground hover:bg-[var(--muted)]"
             >
-              <Copy className="size-4" aria-hidden />
-              Copier le lien
+              <X className="size-4" />
             </button>
-            {canDelete && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Actions"
-                    className="rounded px-2 py-1 text-sm text-muted-foreground hover:bg-[var(--muted)]"
-                  >
-                    …
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    disabled={deleting}
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      handleDelete();
-                    }}
-                    className="text-[var(--danger)] focus:text-[var(--danger)]"
-                  >
-                    <Trash2 className="size-4" />
-                    {deleting ? "Suppression…" : "Supprimer l'item"}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            <DialogClose asChild>
-              <button
-                type="button"
-                aria-label="Fermer"
-                className="rounded p-1 text-muted-foreground hover:bg-[var(--muted)]"
-              >
-                <X className="size-4" />
-              </button>
-            </DialogClose>
-          </div>
-        </header>
+          </DialogClose>
+        </div>
+      </header>
 
-        {/* Body: 2-column grid */}
-        <div
-          data-testid="item-detail-grid"
-          className="grid grid-cols-1 md:grid-cols-[1fr_220px]"
-        >
-          {/* Main column */}
-          <div className="flex min-w-0 flex-col gap-4 p-5">
-            <EditableTitle
+      {/* Body: 2-column grid */}
+      <div
+        data-testid="item-detail-grid"
+        className="grid grid-cols-1 md:grid-cols-[1fr_220px]"
+      >
+        {/* Main column */}
+        <div className="flex min-w-0 flex-col gap-4 p-5">
+          <EditableTitle
+            itemId={detail.id}
+            itemKey={detail.key}
+            backlogKey={backlogKey}
+            title={detail.title}
+            readOnly={!canEdit}
+          />
+
+          <div className="flex gap-1 border-b border-border">
+            <button
+              type="button"
+              onClick={() => setTab("detail")}
+              className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+                tab === "detail"
+                  ? "border-[var(--primary)] font-medium"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Détail
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("comments")}
+              className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+                tab === "comments"
+                  ? "border-[var(--primary)] font-medium"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Commentaires
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("activity")}
+              className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+                tab === "activity"
+                  ? "border-[var(--primary)] font-medium"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Activité
+            </button>
+          </div>
+
+          {tab === "detail" && (
+            <DescriptionEditor
               itemId={detail.id}
-              itemKey={detail.key}
               backlogKey={backlogKey}
-              title={detail.title}
+              description={detail.description}
               readOnly={!canEdit}
             />
+          )}
+          {tab === "comments" && (
+            <CommentThread
+              itemId={detail.id}
+              backlogKey={backlogKey}
+              comments={comments}
+              users={users.map((u) => ({ id: u.id, name: u.name }))}
+              currentUserId={currentUserId}
+              capabilities={{
+                add: itemCapabilities?.addComments ?? canEditItems,
+                editOwn: itemCapabilities?.editOwnComments ?? canEditItems,
+                deleteOwn: itemCapabilities?.deleteOwnComments ?? canEditItems,
+                deleteAll: itemCapabilities?.deleteAllComments ?? canEditItems,
+              }}
+            />
+          )}
+          {tab === "activity" && (
+            <ActivityLog activities={activities} users={users} statuses={statuses} />
+          )}
+        </div>
 
-            <div className="flex gap-1 border-b border-border">
-              <button
-                type="button"
-                onClick={() => setTab("detail")}
-                className={`-mb-px border-b-2 px-3 py-2 text-sm ${
-                  tab === "detail"
-                    ? "border-[var(--primary)] font-medium"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Détail
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab("comments")}
-                className={`-mb-px border-b-2 px-3 py-2 text-sm ${
-                  tab === "comments"
-                    ? "border-[var(--primary)] font-medium"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Commentaires
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab("activity")}
-                className={`-mb-px border-b-2 px-3 py-2 text-sm ${
-                  tab === "activity"
-                    ? "border-[var(--primary)] font-medium"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Activité
-              </button>
-            </div>
-
-            {tab === "detail" && (
-              <DescriptionEditor
+        {/* Side column */}
+        <div className="flex flex-col gap-4 border-t border-border bg-[var(--surface-2)] p-5 md:border-t-0 md:border-l">
+          <Field label="Statut">
+            {canTransition ? (
+              <StatusField
                 itemId={detail.id}
                 backlogKey={backlogKey}
-                description={detail.description}
-                readOnly={!canEdit}
+                statusId={detail.statusId}
+                statuses={statuses}
               />
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className="size-2 rounded-full"
+                  style={{ background: status?.color ?? "var(--border-strong)" }}
+                />
+                {status?.name ?? detail.statusId}
+              </span>
             )}
-            {tab === "comments" && (
-              <CommentThread
+          </Field>
+
+          <Field label="Priorité">
+            {canEdit ? (
+              <PriorityField
                 itemId={detail.id}
                 backlogKey={backlogKey}
-                comments={comments}
-                users={users.map((u) => ({ id: u.id, name: u.name }))}
-                currentUserId={currentUserId}
-                capabilities={{
-                  add: itemCapabilities?.addComments ?? canEditItems,
-                  editOwn: itemCapabilities?.editOwnComments ?? canEditItems,
-                  deleteOwn: itemCapabilities?.deleteOwnComments ?? canEditItems,
-                  deleteAll: itemCapabilities?.deleteAllComments ?? canEditItems,
-                }}
+                priority={detail.priority}
               />
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                <PrioIcon priority={priority} />
+                {PRIORITY_LABELS[priority]}
+              </span>
             )}
-            {tab === "activity" && (
-              <ActivityLog activities={activities} users={users} statuses={statuses} />
-            )}
-          </div>
+          </Field>
 
-          {/* Side column */}
-          <div className="flex flex-col gap-4 border-t border-border bg-[var(--surface-2)] p-5 md:border-t-0 md:border-l">
-            <Field label="Statut">
-              {canTransition ? (
-                <StatusField
+          {detail.type === "tache" && (
+            <Field label="Points">
+              {canEdit ? (
+                <EstimateField
                   itemId={detail.id}
                   backlogKey={backlogKey}
-                  statusId={detail.statusId}
-                  statuses={statuses}
+                  estimatePoints={detail.estimatePoints}
                 />
+              ) : detail.estimatePoints === null ? (
+                "Non estimé"
               ) : (
-                <span className="inline-flex items-center gap-2">
-                  <span
-                    aria-hidden
-                    className="size-2 rounded-full"
-                    style={{ background: status?.color ?? "var(--border-strong)" }}
-                  />
-                  {status?.name ?? detail.statusId}
-                </span>
+                pointsLabel(detail.estimatePoints, String)
               )}
             </Field>
+          )}
 
-            <Field label="Priorité">
-              {canEdit ? (
-                <PriorityField
-                  itemId={detail.id}
-                  backlogKey={backlogKey}
-                  priority={detail.priority}
-                />
-              ) : (
-                <span className="inline-flex items-center gap-2">
-                  <PrioIcon priority={priority} />
-                  {PRIORITY_LABELS[priority]}
-                </span>
-              )}
-            </Field>
-
-            {detail.type === "tache" && (
-              <Field label="Points">
-                {canEdit ? (
-                  <EstimateField
-                    itemId={detail.id}
-                    backlogKey={backlogKey}
-                    estimatePoints={detail.estimatePoints}
-                  />
-                ) : detail.estimatePoints === null ? (
-                  "Non estimé"
-                ) : (
-                  pointsLabel(detail.estimatePoints, String)
-                )}
-              </Field>
-            )}
-
-            <Field label="Nature">
-              {canEdit ? (
-                <KindField
-                  itemId={detail.id}
-                  backlogKey={backlogKey}
-                  kind={detail.kind}
-                />
-              ) : ITEM_KIND_LABELS[detail.kind]}
-            </Field>
-
-            {detail.type !== "composant" && (
-              <Field label="Parent">
-                {planningCapabilities?.reparent ? (
-                  <select
-                    aria-label="Parent"
-                    aria-busy={planningPending}
-                    disabled={planningPending}
-                    value={selectedParentId ?? ""}
-                    onChange={(event) => handleParentChange(event.target.value || null)}
-                    className="w-full rounded border border-border bg-[var(--surface)] px-2 py-1 text-sm"
-                  >
-                    <option value="">Aucun parent</option>
-                    {parentCandidates.map((candidate) => (
-                      <option key={candidate.id} value={candidate.id}>
-                        {candidate.key} — {candidate.title}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  parentCandidates.find((candidate) => candidate.id === selectedParentId)?.title ??
-                  parent?.title ??
-                  "Aucun parent"
-                )}
-              </Field>
-            )}
-
-            {detail.type === "tache" && (
-              <Field label="Sprint">
-                {planningCapabilities?.assignSprint ? (
-                  <select
-                    aria-label="Sprint"
-                    aria-busy={planningPending}
-                    disabled={planningPending}
-                    value={selectedSprintId ?? ""}
-                    onChange={(event) => handleSprintChange(event.target.value || null)}
-                    className="w-full rounded border border-border bg-[var(--surface)] px-2 py-1 text-sm"
-                  >
-                    <option value="">Backlog</option>
-                    {sprints.map((sprint) => (
-                      <option key={sprint.id} value={sprint.id}>{sprint.name}</option>
-                    ))}
-                  </select>
-                ) : selectedSprint?.name ?? "Backlog"}
-              </Field>
-            )}
-
-            {planningError && (
-              <p role="alert" className="text-xs text-destructive">{planningError}</p>
-            )}
-
-            <Field label="Assigné">
-              {canAssign ? (
-                <AssigneeField
-                  itemId={detail.id}
-                  backlogKey={backlogKey}
-                  assigneeId={detail.assigneeId}
-                  currentAssignee={assignee}
-                  users={assigneeCandidates}
-                />
-              ) : assignee?.name ?? "Non assigné"}
-            </Field>
-
-            <Field label="Fix versions">
-              <FixVersionPicker
-                value={fixVersionField.value}
-                options={fixVersionOptions}
-                disabled={!releaseCapabilities?.assignItems || fixVersionField.pending}
-                onChange={fixVersionField.update}
+          <Field label="Nature">
+            {canEdit ? (
+              <KindField
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                kind={detail.kind}
               />
-              {fixVersionField.error ? (
-                <p role="alert" className="mt-1 text-xs text-destructive">
-                  {fixVersionField.error}
-                </p>
-              ) : null}
-            </Field>
+            ) : ITEM_KIND_LABELS[detail.kind]}
+          </Field>
 
-            <Field label="Rapporteur">
-              {canEdit ? (
-                <ReporterField
-                  itemId={detail.id}
-                  backlogKey={backlogKey}
-                  reporterId={detail.reporterId}
-                  currentReporter={reporter}
-                  users={reporterCandidates}
-                />
-              ) : reporter?.name ?? "—"}
-            </Field>
-
-            <Field label="Labels">
-              {canEdit ? (
-                <LabelsField
-                  itemId={detail.id}
-                  backlogKey={backlogKey}
-                  backlogId={detail.backlogId}
-                  itemLabelIds={itemLabelIds}
-                  backlogLabels={backlogLabels}
-                />
-              ) : selectedLabels.length > 0 ? (
-                <span className="flex flex-wrap gap-1">
-                  {selectedLabels.map((label) => (
-                    <LabelPill key={label.id} name={label.name} color={label.color} />
+          {detail.type !== "composant" && (
+            <Field label="Parent">
+              {planningCapabilities?.reparent ? (
+                <select
+                  aria-label="Parent"
+                  aria-busy={planningPending}
+                  disabled={planningPending}
+                  value={selectedParentId ?? ""}
+                  onChange={(event) => handleParentChange(event.target.value || null)}
+                  className="w-full rounded border border-border bg-[var(--surface)] px-2 py-1 text-sm"
+                >
+                  <option value="">Aucun parent</option>
+                  {parentCandidates.map((candidate) => (
+                    <option key={candidate.id} value={candidate.id}>
+                      {candidate.key} — {candidate.title}
+                    </option>
                   ))}
-                </span>
+                </select>
               ) : (
-                "Aucun label"
+                parentCandidates.find((candidate) => candidate.id === selectedParentId)?.title ??
+                parent?.title ??
+                "Aucun parent"
               )}
             </Field>
+          )}
 
-            <Field label="Échéance">
-              {canEdit ? (
-                <DueDateField
-                  itemId={detail.id}
-                  backlogKey={backlogKey}
-                  dueDate={detail.dueDate}
-                />
-              ) : detail.dueDate ? (
-                dateFmt.format(new Date(detail.dueDate))
-              ) : (
-                "—"
-              )}
+          {detail.type === "tache" && (
+            <Field label="Sprint">
+              {planningCapabilities?.assignSprint ? (
+                <select
+                  aria-label="Sprint"
+                  aria-busy={planningPending}
+                  disabled={planningPending}
+                  value={selectedSprintId ?? ""}
+                  onChange={(event) => handleSprintChange(event.target.value || null)}
+                  className="w-full rounded border border-border bg-[var(--surface)] px-2 py-1 text-sm"
+                >
+                  <option value="">Backlog</option>
+                  {sprints.map((sprint) => (
+                    <option key={sprint.id} value={sprint.id}>{sprint.name}</option>
+                  ))}
+                </select>
+              ) : selectedSprint?.name ?? "Backlog"}
             </Field>
+          )}
 
-            <Field label="Liens">
-              <LinksSection
+          {planningError && (
+            <p role="alert" className="text-xs text-destructive">{planningError}</p>
+          )}
+
+          <Field label="Assigné">
+            {canAssign ? (
+              <AssigneeField
                 itemId={detail.id}
                 backlogKey={backlogKey}
-                links={links}
-                candidates={candidates}
-                canLink={canLink}
+                assigneeId={detail.assigneeId}
+                currentAssignee={assignee}
+                users={assigneeCandidates}
               />
-            </Field>
+            ) : assignee?.name ?? "Non assigné"}
+          </Field>
 
-            <Field label="Développement">
-              <DevRefsSection
+          <Field label="Fix versions">
+            <FixVersionPicker
+              value={fixVersionField.value}
+              options={fixVersionOptions}
+              disabled={!releaseCapabilities?.assignItems || fixVersionField.pending}
+              onChange={fixVersionField.update}
+            />
+            {fixVersionField.error ? (
+              <p role="alert" className="mt-1 text-xs text-destructive">
+                {fixVersionField.error}
+              </p>
+            ) : null}
+          </Field>
+
+          <Field label="Rapporteur">
+            {canEdit ? (
+              <ReporterField
                 itemId={detail.id}
                 backlogKey={backlogKey}
-                refs={refs}
-                canLink={canLink}
+                reporterId={detail.reporterId}
+                currentReporter={reporter}
+                users={reporterCandidates}
               />
-            </Field>
+            ) : reporter?.name ?? "—"}
+          </Field>
 
-            <div className="mt-2 flex flex-col gap-1 border-t border-border pt-3 text-xs text-muted-foreground">
-              <span>{ITEM_TYPE_LABELS[detail.type]}</span>
-              <span>Créé le {dateFmt.format(new Date(detail.createdAt))}</span>
-              <span>Maj le {dateFmt.format(new Date(detail.updatedAt))}</span>
-            </div>
+          <Field label="Labels">
+            {canEdit ? (
+              <LabelsField
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                backlogId={detail.backlogId}
+                itemLabelIds={itemLabelIds}
+                backlogLabels={backlogLabels}
+              />
+            ) : selectedLabels.length > 0 ? (
+              <span className="flex flex-wrap gap-1">
+                {selectedLabels.map((label) => (
+                  <LabelPill key={label.id} name={label.name} color={label.color} />
+                ))}
+              </span>
+            ) : (
+              "Aucun label"
+            )}
+          </Field>
+
+          <Field label="Échéance">
+            {canEdit ? (
+              <DueDateField
+                itemId={detail.id}
+                backlogKey={backlogKey}
+                dueDate={detail.dueDate}
+              />
+            ) : detail.dueDate ? (
+              dateFmt.format(new Date(detail.dueDate))
+            ) : (
+              "—"
+            )}
+          </Field>
+
+          <Field label="Liens">
+            <LinksSection
+              itemId={detail.id}
+              backlogKey={backlogKey}
+              links={links}
+              candidates={candidates}
+              canLink={canLink}
+            />
+          </Field>
+
+          <Field label="Développement">
+            <DevRefsSection
+              itemId={detail.id}
+              backlogKey={backlogKey}
+              refs={refs}
+              canLink={canLink}
+            />
+          </Field>
+
+          <div className="mt-2 flex flex-col gap-1 border-t border-border pt-3 text-xs text-muted-foreground">
+            <span>{ITEM_TYPE_LABELS[detail.type]}</span>
+            <span>Créé le {dateFmt.format(new Date(detail.createdAt))}</span>
+            <span>Maj le {dateFmt.format(new Date(detail.updatedAt))}</span>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </>
   );
 }

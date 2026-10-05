@@ -60,15 +60,23 @@ function DialogContent({
   const variantClassName = {
     center:
       "top-1/2 left-1/2 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl p-4 sm:max-w-sm data-open:zoom-in-95 data-closed:zoom-out-95",
+    // Radix marks open/closed with data-state (not data-open/data-closed), so
+    // the sheet animates on data-[state=*]. Handoff: translateX, 220ms,
+    // cubic-bezier(.32,.72,0,1); no motion when the user asks for less.
     "sheet-right":
-      "inset-y-0 right-0 h-dvh w-screen overflow-y-auto border-l p-0 md:w-[620px] md:max-w-[92vw] data-open:slide-in-from-right data-closed:slide-out-to-right motion-reduce:animate-none",
+      "inset-y-0 right-0 h-dvh w-screen overflow-y-auto border-l p-0 md:w-[620px] md:max-w-[92vw] duration-[220ms] ease-[cubic-bezier(.32,.72,0,1)] data-[state=open]:animate-in data-[state=open]:slide-in-from-right data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right motion-reduce:data-[state=open]:animate-none motion-reduce:data-[state=closed]:animate-none",
     "sheet-left":
       "inset-y-0 left-0 h-dvh w-[248px] max-w-[85vw] overflow-y-auto border-r p-0 data-open:slide-in-from-left data-closed:slide-out-to-left motion-reduce:animate-none",
   }[variant]
+  // Handoff overlay: dimmed (no blur), 180ms fade, in sync with the sheet.
+  const overlayClassName =
+    variant === "sheet-right"
+      ? "bg-[oklch(0.2_0.01_50/0.32)] duration-[180ms] supports-backdrop-filter:backdrop-blur-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 motion-reduce:data-[state=open]:animate-none motion-reduce:data-[state=closed]:animate-none dark:bg-black/50"
+      : undefined
 
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
