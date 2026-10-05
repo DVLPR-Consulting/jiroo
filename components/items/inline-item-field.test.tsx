@@ -214,4 +214,18 @@ describe("compact inline item editors", () => {
 
     expect(screen.getByRole("button", { name: "Estimation : 0 pt" })).toBeVisible();
   });
+
+  it("agrees the estimate unit in its visible text and accessible name", () => {
+    const { rerender } = render(
+      <InlineEstimate itemId="item-6" backlogKey="DEMO" estimatePoints={1} />,
+    );
+    expect(screen.getByRole("button", { name: "Estimation : 1 pt" })).toHaveTextContent(/^1 pt$/);
+
+    rerender(<InlineEstimate itemId="item-6" backlogKey="DEMO" estimatePoints={5} />);
+    expect(screen.getByRole("button", { name: "Estimation : 5 pts" })).toHaveTextContent(/^5 pts$/);
+
+    rerender(<InlineEstimate itemId="item-6" backlogKey="DEMO" estimatePoints={2} readOnly />);
+    expect(screen.getByText("2 pts")).toBeVisible();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
 });

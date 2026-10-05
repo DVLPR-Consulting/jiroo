@@ -71,9 +71,9 @@ describe("sprint lifecycle dialogs", () => {
 
     await user.click(screen.getByRole("button", { name: "Démarrer Sprint paiement" }));
     expect(screen.getByText("3 tâches")).toBeVisible();
-    expect(screen.getByText("13 / 10 pt")).toBeVisible();
+    expect(screen.getByText("13 / 10 pts")).toBeVisible();
     expect(screen.getByText("1 non estimée")).toBeVisible();
-    expect(screen.getByRole("alert")).toHaveTextContent("Dépassement de 3 pt");
+    expect(screen.getByRole("alert")).toHaveTextContent("Dépassement de 3 pts");
     await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
 
     await waitFor(() => expect(mocks.startSprintAction).toHaveBeenCalledOnce());
@@ -121,8 +121,48 @@ describe("sprint lifecycle dialogs", () => {
     await user.clear(capacity);
     await user.type(capacity, "20");
 
-    expect(screen.getByText("13 / 20 pt")).toBeVisible();
+    expect(screen.getByText("13 / 20 pts")).toBeVisible();
     expect(screen.queryByText(/Dépassement de/)).not.toBeInTheDocument();
+  });
+
+  it("agrees the start summary and over-capacity warning with singular points below two", async () => {
+    const user = userEvent.setup();
+    render(
+      <StartSprintDialog
+        {...base}
+        sprint={{ ...sprint, capacityPoints: 1 }}
+        metrics={{ ...metrics, estimatedPoints: 2, capacityPoints: 1, overCapacityPoints: 1 }}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Démarrer Sprint paiement" }));
+
+    expect(screen.getByText("2 / 1 pt")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Dépassement de 1 pt. Vous pouvez tout de même démarrer.",
+    );
+
+    const capacity = screen.getByRole("spinbutton", { name: "Capacité (points)" });
+    await user.clear(capacity);
+    expect(screen.getByText("2 pts")).toBeVisible();
+    await user.type(capacity, "0");
+    expect(screen.getByText("2 / 0 pt")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent("Dépassement de 2 pts.");
+  });
+
+  it("agrees each completion summary with its own points total", async () => {
+    render(
+      <CompleteSprintDialog
+        {...base}
+        sprint={{ ...sprint, state: "active" }}
+        plannedSprints={[]}
+        completedMetrics={{ ...metrics, itemCount: 1, estimatedPoints: 1 }}
+        incompleteMetrics={{ ...metrics, itemCount: 2, estimatedPoints: 8 }}
+      />,
+    );
+    await userEvent.setup().click(screen.getByRole("button", { name: "Clôturer Sprint paiement" }));
+
+    expect(screen.getByText("1 tâche · 1 pt")).toBeVisible();
+    expect(screen.getByText("2 tâches · 8 pts")).toBeVisible();
   });
 
   it("opens with the sprint's current values after its props change and submits them", async () => {

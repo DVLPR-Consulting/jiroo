@@ -128,8 +128,8 @@ describe("ItemBoard", () => {
 
     expect(screen.getByRole("heading", { name: "Sprint paiement" })).toBeVisible();
     expect(screen.getByText("Objectif : livrer le paiement invité")).toBeVisible();
-    expect(screen.getByText("8 pt restants")).toBeVisible();
-    expect(screen.getByText("5 pt terminés")).toBeVisible();
+    expect(screen.getByText("8 pts restants")).toBeVisible();
+    expect(screen.getByText("5 pts terminés")).toBeVisible();
     expect(screen.getByText("1 non estimé")).toBeVisible();
     expect(screen.getByText("Authentication")).toBeVisible();
   });

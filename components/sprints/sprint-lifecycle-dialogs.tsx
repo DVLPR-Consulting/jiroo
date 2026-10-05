@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
-import { countLabel } from "@/lib/format/plural";
+import { countLabel, pointsLabel } from "@/lib/format/plural";
 
 const FIELD =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -50,8 +50,8 @@ function MetricsSummary({ metrics }: { metrics: SprintMetrics }) {
       <span>{countLabel(metrics.itemCount, "tâche", "tâches")}</span>
       <span>
         {metrics.capacityPoints === null
-          ? `${metrics.estimatedPoints} pt`
-          : `${metrics.estimatedPoints} / ${metrics.capacityPoints} pt`}
+          ? pointsLabel(metrics.estimatedPoints, String)
+          : `${metrics.estimatedPoints} / ${pointsLabel(metrics.capacityPoints, String)}`}
       </span>
       {metrics.unestimatedCount > 0 && (
         <span>
@@ -150,7 +150,7 @@ export function StartSprintDialog({
           </div>
           {overCapacityPoints > 0 && (
             <p className="rounded-lg bg-amber-500/10 p-2 text-sm text-amber-800 dark:text-amber-300" role="alert">
-              Dépassement de {overCapacityPoints} pt. Vous pouvez tout de même démarrer.
+              {`Dépassement de ${pointsLabel(overCapacityPoints, String)}. Vous pouvez tout de même démarrer.`}
             </p>
           )}
           {error && (
@@ -266,11 +266,11 @@ export function CompleteSprintDialog({
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-lg bg-muted p-3">
               <p className="font-medium">Terminées</p>
-              <p>{countLabel(completedMetrics.itemCount, "tâche", "tâches")} · {completedMetrics.estimatedPoints} pt</p>
+              <p>{countLabel(completedMetrics.itemCount, "tâche", "tâches")} · {pointsLabel(completedMetrics.estimatedPoints, String)}</p>
             </div>
             <div className="rounded-lg bg-muted p-3">
               <p className="font-medium">Incomplètes</p>
-              <p>{countLabel(incompleteMetrics.itemCount, "tâche", "tâches")} · {incompleteMetrics.estimatedPoints} pt</p>
+              <p>{countLabel(incompleteMetrics.itemCount, "tâche", "tâches")} · {pointsLabel(incompleteMetrics.estimatedPoints, String)}</p>
             </div>
           </div>
           {sprint.goal && <p className="text-sm text-muted-foreground">Objectif : {sprint.goal}</p>}
