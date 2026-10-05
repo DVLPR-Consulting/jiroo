@@ -52,6 +52,7 @@ import {
 import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
 import type { ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
 import type { FixVersionOption } from "@/components/items/fix-version-picker";
+import { frenchPlural } from "@/lib/format/plural";
 
 export type BoardCard = {
   id: string;
@@ -862,10 +863,10 @@ export function ItemBoard({
             {activeSprintMetrics && (
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 font-medium">
-                  {activeSprintMetrics.remainingPoints} pt restants
+                  {activeSprintMetrics.remainingPoints} {frenchPlural(activeSprintMetrics.remainingPoints, "pt restant", "pt restants")}
                 </span>
                 <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 font-medium">
-                  {activeSprintMetrics.completedPoints} pt terminés
+                  {activeSprintMetrics.completedPoints} {frenchPlural(activeSprintMetrics.completedPoints, "pt terminé", "pt terminés")}
                 </span>
                 {activeSprintMetrics.unestimatedCount > 0 && (
                   <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 font-medium text-muted-foreground">

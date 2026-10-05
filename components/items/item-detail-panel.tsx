@@ -67,6 +67,7 @@ import type {
   PlanningCapabilities,
   ReleaseCapabilities,
 } from "@/lib/auth/capabilities";
+import { pointsLabel } from "@/lib/format/plural";
 
 type ItemRow = typeof itemsTable.$inferSelect;
 type ActivityRow = typeof activitiesTable.$inferSelect;
@@ -513,7 +514,7 @@ export function ItemDetailPanel({
                 ) : detail.estimatePoints === null ? (
                   "Non estimé"
                 ) : (
-                  `${detail.estimatePoints} pts`
+                  pointsLabel(detail.estimatePoints, String)
                 )}
               </Field>
             )}

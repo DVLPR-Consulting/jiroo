@@ -63,6 +63,34 @@ describe("SprintSectionHeader", () => {
     expect(onExpandedChange).toHaveBeenCalledWith(true);
   });
 
+  it("agrees task and unestimated counts with French singular below two", () => {
+    const { rerender } = render(
+      <SprintSectionHeader
+        kind="planned"
+        sprint={sprint}
+        metrics={{ ...metrics, itemCount: 0, unestimatedCount: 0 }}
+        expanded={false}
+        onExpandedChange={vi.fn()}
+        canManage
+      />,
+    );
+    expect(screen.getByText("0 tâche")).toBeVisible();
+    expect(screen.getByText("0 non estimé")).toBeVisible();
+
+    rerender(
+      <SprintSectionHeader
+        kind="planned"
+        sprint={sprint}
+        metrics={{ ...metrics, itemCount: 2, unestimatedCount: 2 }}
+        expanded={false}
+        onExpandedChange={vi.fn()}
+        canManage
+      />,
+    );
+    expect(screen.getByText("2 tâches")).toBeVisible();
+    expect(screen.getByText("2 non estimés")).toBeVisible();
+  });
+
   it("renders supplied actions while keeping sprint management controls permissioned", () => {
     const { rerender } = render(
       <SprintSectionHeader

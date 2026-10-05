@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
+import { countLabel } from "@/lib/format/plural";
 
 const FIELD =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -46,7 +47,7 @@ function toLocalDateTime(value: Date | null): string {
 function MetricsSummary({ metrics }: { metrics: SprintMetrics }) {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-      <span>{metrics.itemCount} {metrics.itemCount === 1 ? "tâche" : "tâches"}</span>
+      <span>{countLabel(metrics.itemCount, "tâche", "tâches")}</span>
       <span>
         {metrics.capacityPoints === null
           ? `${metrics.estimatedPoints} pt`
@@ -54,7 +55,7 @@ function MetricsSummary({ metrics }: { metrics: SprintMetrics }) {
       </span>
       {metrics.unestimatedCount > 0 && (
         <span>
-          {metrics.unestimatedCount} non {metrics.unestimatedCount === 1 ? "estimée" : "estimées"}
+          {countLabel(metrics.unestimatedCount, "non estimée", "non estimées")}
         </span>
       )}
     </div>
@@ -265,11 +266,11 @@ export function CompleteSprintDialog({
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-lg bg-muted p-3">
               <p className="font-medium">Terminées</p>
-              <p>{completedMetrics.itemCount} tâche{completedMetrics.itemCount === 1 ? "" : "s"} · {completedMetrics.estimatedPoints} pt</p>
+              <p>{countLabel(completedMetrics.itemCount, "tâche", "tâches")} · {completedMetrics.estimatedPoints} pt</p>
             </div>
             <div className="rounded-lg bg-muted p-3">
               <p className="font-medium">Incomplètes</p>
-              <p>{incompleteMetrics.itemCount} tâche{incompleteMetrics.itemCount === 1 ? "" : "s"} · {incompleteMetrics.estimatedPoints} pt</p>
+              <p>{countLabel(incompleteMetrics.itemCount, "tâche", "tâches")} · {incompleteMetrics.estimatedPoints} pt</p>
             </div>
           </div>
           {sprint.goal && <p className="text-sm text-muted-foreground">Objectif : {sprint.goal}</p>}

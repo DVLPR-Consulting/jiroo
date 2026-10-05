@@ -13,6 +13,7 @@ import type {
   ReleaseSummary,
 } from "@/lib/services/releases";
 import type { StatusIdsByCategory } from "@/lib/services/statuses";
+import { countLabel } from "@/lib/format/plural";
 
 type Person = { id: string; name: string };
 type Page<T> = { rows: T[]; total: number; page: number };
@@ -38,7 +39,7 @@ const EVENT_LABELS: Record<string, string> = {
 
 function pointLabel(points: number | null) {
   if (points === null) return "Non estimé";
-  return `${points} point${points > 1 ? "s" : ""}`;
+  return countLabel(points, "point", "points");
 }
 
 function stateLabel(release: SerializableRelease) {
@@ -222,8 +223,8 @@ export function ReleaseDetail({
         {incompleteCount > 0 ? (
           <p role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
             {release.released
-              ? `Le périmètre actuel contient ${incompleteCount} ${incompleteCount === 1 ? "élément non terminé" : "éléments non terminés"}. L’instantané publié reste inchangé.`
-              : `${incompleteCount} ${incompleteCount === 1 ? "élément non terminé" : "éléments non terminés"} seront concernés au moment de la publication.`}
+              ? `Le périmètre actuel contient ${countLabel(incompleteCount, "élément non terminé", "éléments non terminés")}. L’instantané publié reste inchangé.`
+              : `${countLabel(incompleteCount, "élément non terminé sera concerné", "éléments non terminés seront concernés")} au moment de la publication.`}
           </p>
         ) : null}
         <p className="text-sm text-muted-foreground">

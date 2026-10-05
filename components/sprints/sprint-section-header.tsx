@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
 import type { PlanningCapabilities } from "@/lib/auth/capabilities";
+import { countLabel, pointsLabel } from "@/lib/format/plural";
 
 const points = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
 const dates = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
@@ -88,13 +89,13 @@ export function SprintSectionHeader({
       </button>
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <span>{metrics.itemCount} tâche{metrics.itemCount === 1 ? "" : "s"}</span>
+        <span>{countLabel(metrics.itemCount, "tâche", "tâches")}</span>
         <span>
           {metrics.capacityPoints === null
             ? `${points.format(metrics.estimatedPoints)} pt`
             : `${points.format(metrics.estimatedPoints)} / ${points.format(metrics.capacityPoints)} pt`}
         </span>
-        <span>{metrics.unestimatedCount} non estimé{metrics.unestimatedCount > 1 ? "s" : ""}</span>
+        <span>{countLabel(metrics.unestimatedCount, "non estimé", "non estimés")}</span>
         {metrics.overCapacityPoints > 0 && (
           <span className="font-medium text-amber-700 dark:text-amber-300">
             Dépassement de {points.format(metrics.overCapacityPoints)} pt
@@ -165,7 +166,7 @@ function VelocityComparison({
   warnAboveAverage: boolean;
 }) {
   const currentScope = currentScopePoints !== null && (
-    <p>{`Périmètre actuel ${points.format(currentScopePoints)} pts`}</p>
+    <p>{`Périmètre actuel ${pointsLabel(currentScopePoints, points.format)}`}</p>
   );
   if (comparison === null) {
     return (
@@ -187,7 +188,7 @@ function VelocityComparison({
   return (
     <div className="flex basis-full flex-wrap gap-x-3 text-xs text-muted-foreground">
       <p>
-        {`Engagement ${points.format(comparison.commitmentPoints)} pts · moyenne récente ${points.format(comparison.averageCompletedPoints)} pts · écart ${signedPoints.format(comparison.difference)} pts`}
+        {`Engagement ${pointsLabel(comparison.commitmentPoints, points.format)} · moyenne récente ${pointsLabel(comparison.averageCompletedPoints, points.format)} · écart ${pointsLabel(comparison.difference, signedPoints.format)}`}
       </p>
       {currentScope}
       {warnAboveAverage && aboveAverage && (

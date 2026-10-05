@@ -3,6 +3,21 @@ import { describe, expect, it } from "vitest";
 import { ReleaseProgress } from "@/components/releases/release-progress";
 
 describe("ReleaseProgress", () => {
+  it("agrees point labels with values below two", () => {
+    render(
+      <ReleaseProgress
+        backlogKey="CASS"
+        releaseId="22222222-2222-4222-8222-222222222222"
+        progress={{ total: 2, todo: 1, inProgress: 0, done: 1, totalPoints: 1, donePoints: 0, unestimated: 0 }}
+        statusIds={{ todo: ["todo-1"], inProgress: [], done: ["done-1"] }}
+        detailHref="/b/CASS/releases/22222222-2222-4222-8222-222222222222"
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "0 point terminé" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "1 point estimé" })).toBeVisible();
+  });
+
   it("labels every segment without color and links to exact filtered item sets", () => {
     render(
       <ReleaseProgress
