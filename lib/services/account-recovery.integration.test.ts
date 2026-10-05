@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { account, session, twoFactor, user } from "@/lib/db/schema/auth";
-import { securityAuditEvents } from "@/lib/db/schema/domain";
+import { permissionGrants, securityAuditEvents } from "@/lib/db/schema/domain";
 import { resetUserPassword, resetUserTwoFactor } from "@/lib/services/account-recovery";
 import { createUser } from "@/lib/services/users";
 
@@ -16,8 +16,9 @@ const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.
 const fixtureId = randomUUID();
 const adminId = `recovery-admin-${fixtureId}`;
 const memberId = `recovery-member-${fixtureId}`;
+const userManagerId = `recovery-user-manager-${fixtureId}`;
 const ORIGINAL_PASSWORD = "mot-de-passe-initial";
-const createdUserIds = [adminId, memberId];
+const createdUserIds = [adminId, memberId, userManagerId];
 
 async function createTarget(label: string): Promise<{ id: string; email: string }> {
   const email = `recovery-${label}-${fixtureId}@example.test`;
@@ -78,7 +79,15 @@ describeDb("account recovery service", () => {
     await db.insert(user).values([
       { id: adminId, name: "Admin récupération", email: `${adminId}@example.test`, role: "admin", twoFactorEnabled: true },
       { id: memberId, name: "Membre récupération", email: `${memberId}@example.test`, role: "contributor", twoFactorEnabled: true },
+      { id: userManagerId, name: "Gestionnaire récupération", email: `${userManagerId}@example.test`, role: "contributor", twoFactorEnabled: true },
     ]);
+    // Holds the Users tab permission, but not Jiroo administration.
+    await db.insert(permissionGrants).values({
+      scope: "global",
+      permissionKey: "manage_users_groups",
+      principalType: "user",
+      userId: userManagerId,
+    });
   });
 
   afterAll(async () => {
@@ -146,6 +155,29 @@ describeDb("account recovery service", () => {
       ).rejects.toMatchObject({ name: "PermissionDeniedError" });
       expect(await sessionCount(target.id)).toBe(1);
       expect(await signInSucceeds(target.email, ORIGINAL_PASSWORD)).toBe(true);
+      expect(await auditEventsFor(target.id)).toHaveLength(0);
+    });
+
+    it("rejects a user manager who is not a Jiroo administrator", async () => {
+      const target = await createTarget("password-user-manager");
+
+      await expect(
+        resetUserPassword({ userId: target.id, temporaryPassword: "temporaire-2026" }, userManagerId),
+      ).rejects.toMatchObject({ name: "PermissionDeniedError" });
+      expect(await signInSucceeds(target.email, ORIGINAL_PASSWORD)).toBe(true);
+    });
+
+    it("rolls back when the target has no credential account", async () => {
+      const target = await createTarget("password-no-credential");
+      await db
+        .delete(account)
+        .where(and(eq(account.userId, target.id), eq(account.providerId, "credential")));
+      await addSessions(target.id, 2);
+
+      await expect(
+        resetUserPassword({ userId: target.id, temporaryPassword: "temporaire-2026" }, adminId),
+      ).rejects.toThrow("Ce compte n’a pas de mot de passe Jiroo.");
+      expect(await sessionCount(target.id)).toBe(2);
       expect(await auditEventsFor(target.id)).toHaveLength(0);
     });
 
@@ -218,6 +250,27 @@ describeDb("account recovery service", () => {
       expect(factors).toHaveLength(1);
       expect(await sessionCount(target.id)).toBe(1);
       expect(await auditEventsFor(target.id)).toHaveLength(0);
+    });
+
+    it("rejects a user manager who is not a Jiroo administrator", async () => {
+      const target = await createTarget("two-factor-user-manager");
+      await enrollTwoFactor(target.id);
+
+      await expect(resetUserTwoFactor({ userId: target.id }, userManagerId)).rejects.toMatchObject({
+        name: "PermissionDeniedError",
+      });
+      const factors = await db.select({ id: twoFactor.id }).from(twoFactor).where(eq(twoFactor.userId, target.id));
+      expect(factors).toHaveLength(1);
+    });
+
+    it("is idempotent for a user who never enrolled", async () => {
+      const target = await createTarget("two-factor-never-enrolled");
+
+      await expect(resetUserTwoFactor({ userId: target.id }, adminId)).resolves.toEqual({
+        revokedSessions: 0,
+      });
+      const [event] = await auditEventsFor(target.id);
+      expect(event?.oldValue).toEqual({ twoFactorEnabled: false });
     });
 
     it("refuses to reset the administrator's own two-factor authentication", async () => {
