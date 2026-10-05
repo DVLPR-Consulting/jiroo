@@ -18,6 +18,31 @@ describe("ReleaseProgress", () => {
     expect(screen.getByRole("link", { name: "1 point estimé" })).toBeVisible();
   });
 
+  it("formats decimal points with the French comma, with and without links", () => {
+    const progress = { total: 2, todo: 1, inProgress: 0, done: 1, totalPoints: 2.5, donePoints: 1.5, unestimated: 0 };
+    const { rerender } = render(
+      <ReleaseProgress
+        backlogKey="CASS"
+        releaseId="22222222-2222-4222-8222-222222222222"
+        progress={progress}
+        statusIds={{ todo: ["todo-1"], inProgress: [], done: ["done-1"] }}
+        detailHref="/b/CASS/releases/22222222-2222-4222-8222-222222222222"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "1,5 point terminé" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "2,5 points estimés" })).toBeVisible();
+
+    rerender(
+      <ReleaseProgress
+        backlogKey="CASS"
+        releaseId="22222222-2222-4222-8222-222222222222"
+        progress={progress}
+        statusIds={{ todo: ["todo-1"], inProgress: [], done: ["done-1"] }}
+      />,
+    );
+    expect(screen.getByText("1,5 / 2,5 points")).toBeVisible();
+  });
+
   it("labels every segment without color and links to exact filtered item sets", () => {
     render(
       <ReleaseProgress
