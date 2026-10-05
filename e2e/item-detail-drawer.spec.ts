@@ -221,4 +221,17 @@ test.describe("panneau de détail", () => {
     ).toBe(0);
     expect(await dialog.evaluate((frame) => frame.scrollTop)).toBe(0);
   });
+
+  test("se ferme au retour arrière et se rouvre en avant dans l’historique", async ({ page }) => {
+    const { key, dialog } = await openFirstBacklogRow(page);
+
+    await page.goBack();
+    await expect(page).not.toHaveURL(/[?&]item=/);
+    await expect(dialog).toHaveCount(0);
+
+    await page.goForward();
+    await expect(page).toHaveURL(new RegExp(`[?&]item=${key}(&|$)`));
+    await expect(page.getByRole("dialog", { name: new RegExp(`^${key} —`) })).toBeVisible();
+  });
 });
+

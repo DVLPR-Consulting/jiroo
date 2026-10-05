@@ -1,13 +1,17 @@
-import { Suspense, use } from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { Suspense, use, useEffect } from "react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  ITEM_DETAIL_SHEET_EXIT_MS,
   ItemDetailNotFound,
   ItemDetailSheet,
 } from "@/components/items/item-detail-sheet";
 import { DetailPanelSkeleton } from "@/components/items/view-skeletons";
-import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
+import {
+  useViewUrlState,
+  ViewUrlStateProvider,
+} from "@/components/shell/view-url-state";
 import { DialogTitle } from "@/components/ui/dialog";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
@@ -138,4 +142,92 @@ describe("ItemDetailSheet", () => {
     await user.click(screen.getByRole("button", { name: "Fermer" }));
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=backlog"));
   });
+
+  describe("deferred close under interruptions", () => {
+    const viewUrl: { current: ReturnType<typeof useViewUrlState> | null } = {
+      current: null,
+    };
+    function CaptureViewUrl() {
+      const state = useViewUrlState();
+      useEffect(() => {
+        viewUrl.current = state;
+      });
+      return null;
+    }
+    function tree(itemKey: string, extra: [string, string][] = []) {
+      return (
+        <ViewUrlStateProvider
+          initialEntries={[["view", "backlog"], ...extra, ["item", itemKey]]}
+        >
+          <CaptureViewUrl />
+          <ItemDetailSheet itemKey={itemKey}>
+            <DialogTitle>{itemKey} — Titre</DialogTitle>
+          </ItemDetailSheet>
+        </ViewUrlStateProvider>
+      );
+    }
+    function pressEscape() {
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      mocks.replace.mockReset();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      viewUrl.current = null;
+    });
+
+    it("navigates exactly when the 220ms exit slide ends, not a millisecond before", () => {
+      render(tree("CASS-4"));
+      pressEscape();
+
+      act(() => vi.advanceTimersByTime(ITEM_DETAIL_SHEET_EXIT_MS - 1));
+      expect(ITEM_DETAIL_SHEET_EXIT_MS).toBe(220);
+      expect(mocks.push).not.toHaveBeenCalled();
+
+      act(() => vi.advanceTimersByTime(1));
+      expect(mocks.push).toHaveBeenCalledTimes(1);
+      expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=backlog");
+    });
+
+    it("never navigates after being unmounted during the exit slide", () => {
+      const rendered = render(tree("CASS-4"));
+      pressEscape();
+      act(() => vi.advanceTimersByTime(100));
+
+      rendered.unmount();
+      act(() => vi.advanceTimersByTime(1000));
+
+      expect(mocks.push).not.toHaveBeenCalled();
+    });
+
+    it("does not let A's deferred close dismiss B opened during the delay", () => {
+      const rendered = render(tree("CASS-4"));
+      pressEscape();
+      act(() => vi.advanceTimersByTime(100));
+
+      // The server re-renders with B after a row click during A's exit.
+      rendered.rerender(tree("CASS-5"));
+      act(() => vi.advanceTimersByTime(1000));
+
+      expect(mocks.push).not.toHaveBeenCalled();
+      expect(screen.getByRole("dialog", { name: "CASS-5 — Titre" })).toBeVisible();
+    });
+
+    it("keeps URL params changed during the delay and only drops the item", () => {
+      render(tree("CASS-4"));
+      pressEscape();
+      act(() => {
+        viewUrl.current!.replace((params) => params.set("sort", "key"));
+        vi.advanceTimersByTime(ITEM_DETAIL_SHEET_EXIT_MS);
+      });
+
+      expect(mocks.push).toHaveBeenCalledTimes(1);
+      expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=backlog&sort=key");
+    });
+  });
 });
+
