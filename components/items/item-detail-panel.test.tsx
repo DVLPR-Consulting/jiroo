@@ -264,6 +264,18 @@ describe("ItemDetailPanel header", () => {
     expect(screen.queryByRole("spinbutton", { name: "Points" })).not.toBeInTheDocument();
   });
 
+  it("formats decimal task points with the French comma for a viewer", () => {
+    renderPanel(undefined, { ...detail, type: "tache", estimatePoints: 1.5 }, false);
+
+    expect(screen.getByText("1,5 pt")).toBeVisible();
+  });
+
+  it("keeps the editable estimate input machine-parseable", () => {
+    renderPanel(undefined, { ...detail, type: "tache", estimatePoints: 1.5 });
+
+    expect(screen.getByRole("spinbutton", { name: "Points" })).toHaveValue(1.5);
+  });
+
   it("copies the exact current href and confirms success", async () => {
     const user = userEvent.setup();
     Object.defineProperty(navigator, "clipboard", {

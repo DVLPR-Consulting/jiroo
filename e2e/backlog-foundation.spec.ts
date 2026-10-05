@@ -162,7 +162,7 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
     for (const key of [firstKey, secondKey]) {
       await expect(
         page.getByRole("row", { name: new RegExp(`^${key} —`) }).getByRole("button", {
-          name: "Estimation : 5 pt",
+          name: "Estimation : 5 pts",
         }),
       ).toBeVisible();
     }
@@ -258,9 +258,9 @@ test("distingue 5, zéro et non estimé puis restaure la valeur", async ({ page 
       page.getByRole("button", { name: "Enregistrer l’estimation" }).click(),
     );
     expect(five.status).toBeLessThan(400);
-    await expect(liveRow.getByRole("button", { name: "Estimation : 5 pt" })).toBeVisible();
+    await expect(liveRow.getByRole("button", { name: "Estimation : 5 pts" })).toBeVisible();
 
-    await liveRow.getByRole("button", { name: "Estimation : 5 pt" }).click();
+    await liveRow.getByRole("button", { name: "Estimation : 5 pts" }).click();
     await page.getByRole("spinbutton", { name: "Points" }).fill("0");
     const zero = await waitForBusinessPost(page, () =>
       page.getByRole("button", { name: "Enregistrer l’estimation" }).click(),

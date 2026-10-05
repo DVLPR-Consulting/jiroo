@@ -92,13 +92,13 @@ export function SprintSectionHeader({
         <span>{countLabel(metrics.itemCount, "tâche", "tâches")}</span>
         <span>
           {metrics.capacityPoints === null
-            ? `${points.format(metrics.estimatedPoints)} pt`
-            : `${points.format(metrics.estimatedPoints)} / ${points.format(metrics.capacityPoints)} pt`}
+            ? pointsLabel(metrics.estimatedPoints, points.format)
+            : `${points.format(metrics.estimatedPoints)} / ${pointsLabel(metrics.capacityPoints, points.format)}`}
         </span>
         <span>{countLabel(metrics.unestimatedCount, "non estimé", "non estimés")}</span>
         {metrics.overCapacityPoints > 0 && (
           <span className="font-medium text-amber-700 dark:text-amber-300">
-            Dépassement de {points.format(metrics.overCapacityPoints)} pt
+            {`Dépassement de ${pointsLabel(metrics.overCapacityPoints, points.format)}`}
           </span>
         )}
       </div>

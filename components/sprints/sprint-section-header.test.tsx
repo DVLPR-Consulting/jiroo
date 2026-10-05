@@ -52,9 +52,9 @@ describe("SprintSectionHeader", () => {
     expect(screen.getByRole("heading", { name: "Sprint paiement" })).toBeVisible();
     expect(screen.getByText("Planifié")).toBeVisible();
     expect(screen.getByText("Livrer le paiement invité")).toBeVisible();
-    expect(screen.getByText("13 / 10 pt")).toBeVisible();
+    expect(screen.getByText("13 / 10 pts")).toBeVisible();
     expect(screen.getByText("1 non estimé")).toBeVisible();
-    expect(screen.getByText("Dépassement de 3 pt")).toBeVisible();
+    expect(screen.getByText("Dépassement de 3 pts")).toBeVisible();
     expect(screen.getByText(/10 août 2026/)).toBeVisible();
 
     const toggle = screen.getByRole("button", { name: "Déplier Sprint paiement" });
@@ -89,6 +89,46 @@ describe("SprintSectionHeader", () => {
     );
     expect(screen.getByText("2 tâches")).toBeVisible();
     expect(screen.getByText("2 non estimés")).toBeVisible();
+  });
+
+  it("agrees the points unit with the capacity and over-capacity values", () => {
+    const { rerender } = render(
+      <SprintSectionHeader
+        kind="planned"
+        sprint={sprint}
+        metrics={{ ...metrics, estimatedPoints: 2.5, capacityPoints: 1.5, overCapacityPoints: 1 }}
+        expanded={false}
+        onExpandedChange={vi.fn()}
+        canManage
+      />,
+    );
+    expect(screen.getByText("2,5 / 1,5 pt")).toBeVisible();
+    expect(screen.getByText("Dépassement de 1 pt")).toBeVisible();
+
+    rerender(
+      <SprintSectionHeader
+        kind="planned"
+        sprint={sprint}
+        metrics={{ ...metrics, estimatedPoints: 4, capacityPoints: 2, overCapacityPoints: 2 }}
+        expanded={false}
+        onExpandedChange={vi.fn()}
+        canManage
+      />,
+    );
+    expect(screen.getByText("4 / 2 pts")).toBeVisible();
+    expect(screen.getByText("Dépassement de 2 pts")).toBeVisible();
+
+    rerender(
+      <SprintSectionHeader
+        kind="backlog"
+        sprint={null}
+        metrics={{ ...metrics, estimatedPoints: 1, capacityPoints: null, overCapacityPoints: 0 }}
+        expanded={false}
+        onExpandedChange={vi.fn()}
+        canManage
+      />,
+    );
+    expect(screen.getByText("1 pt")).toBeVisible();
   });
 
   it("renders supplied actions while keeping sprint management controls permissioned", () => {
@@ -146,7 +186,7 @@ describe("SprintSectionHeader", () => {
       />,
     );
     expect(screen.getByRole("heading", { name: "Backlog" })).toBeVisible();
-    expect(screen.getByText("13 pt")).toBeVisible();
+    expect(screen.getByText("13 pts")).toBeVisible();
     expect(screen.queryByText("Planifié")).not.toBeInTheDocument();
   });
 
@@ -196,8 +236,8 @@ describe("SprintSectionHeader", () => {
         "Engagement supérieur à la moyenne récente : avertissement non bloquant.",
       ),
     ).toBeVisible();
-    expect(screen.getByText("13 / 10 pt")).toBeVisible();
-    expect(screen.getByText("Dépassement de 3 pt")).toBeVisible();
+    expect(screen.getByText("13 / 10 pts")).toBeVisible();
+    expect(screen.getByText("Dépassement de 3 pts")).toBeVisible();
     expect(screen.getByRole("button", { name: "Démarrer" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Monter Sprint paiement" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Descendre Sprint paiement" })).toBeEnabled();

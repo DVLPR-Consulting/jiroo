@@ -342,7 +342,7 @@ describe("ItemBacklog", () => {
     );
     expect(screen.queryByRole("row", { name: "DEMO-1 — Authentification" }))
       .not.toBeInTheDocument();
-    expect(screen.getByText("3 / 8 pt")).toBeVisible();
+    expect(screen.getByText("3 / 8 pts")).toBeVisible();
   });
 
   it("moves a task across sprint sections with target-section neighbors", async () => {
@@ -469,8 +469,8 @@ describe("ItemBacklog", () => {
       .toBeVisible();
     expect(within(futureSection as HTMLElement).queryByRole("row", { name: "DEMO-1 — Authentification" }))
       .not.toBeInTheDocument();
-    expect(within(activeSection as HTMLElement).getByText("3 / 8 pt")).toBeVisible();
-    expect(within(futureSection as HTMLElement).getByText("5 / 8 pt")).toBeVisible();
+    expect(within(activeSection as HTMLElement).getByText("3 / 8 pts")).toBeVisible();
+    expect(within(futureSection as HTMLElement).getByText("5 / 8 pts")).toBeVisible();
     expect(screen.getByText("1 item sélectionné")).toBeVisible();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Déplacer DEMO-1" })).toHaveFocus(),
@@ -506,7 +506,7 @@ describe("ItemBacklog", () => {
     });
     expect(within(first).getByText("À faire")).toBeVisible();
     expect(within(first).getByText("Urgent")).toBeVisible();
-    expect(within(first).getByText("3 pt")).toBeVisible();
+    expect(within(first).getByText("3 pts")).toBeVisible();
     expect(within(first).getByText("Marie Lemaire")).toBeVisible();
 
     const second = screen.getByRole("row", { name: "DEMO-2 — Session" });
@@ -654,7 +654,7 @@ describe("ItemBacklog", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("region", { name: "Actions groupées" })).not.toBeInTheDocument();
 
-    const estimate = within(firstRow).getByRole("button", { name: "Estimation : 3 pt" });
+    const estimate = within(firstRow).getByRole("button", { name: "Estimation : 3 pts" });
     estimate.focus();
     await user.keyboard("{Control>}a{/Control}");
     expect(screen.queryByRole("region", { name: "Actions groupées" })).not.toBeInTheDocument();

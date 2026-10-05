@@ -480,7 +480,7 @@ export function ItemDetailPanel({
               ) : detail.estimatePoints === null ? (
                 "Non estimé"
               ) : (
-                pointsLabel(detail.estimatePoints, String)
+                pointsLabel(detail.estimatePoints)
               )}
             </Field>
           )}

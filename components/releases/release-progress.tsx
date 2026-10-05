@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReleaseProgress as ReleaseProgressDto } from "@/lib/services/releases";
 import type { StatusIdsByCategory } from "@/lib/services/statuses";
-import { countLabel } from "@/lib/format/plural";
+import { countLabel, formatPoints } from "@/lib/format/plural";
 
 const SEGMENTS = [
   { key: "todo", label: "À faire", color: "bg-slate-400" },
@@ -63,14 +63,14 @@ export function ReleaseProgress({
               className="underline-offset-2 hover:underline"
               href={`${detailHref}?scopeStatus=done&scopeEstimate=estimated`}
             >
-              {countLabel(progress.donePoints, "point terminé", "points terminés")}
+              {countLabel(progress.donePoints, "point terminé", "points terminés", formatPoints)}
             </Link>
             <span aria-hidden>/</span>
             <Link className="underline-offset-2 hover:underline" href={`${detailHref}?scopeEstimate=estimated`}>
-              {countLabel(progress.totalPoints, "point estimé", "points estimés")}
+              {countLabel(progress.totalPoints, "point estimé", "points estimés", formatPoints)}
             </Link>
           </>
-        ) : <span>{progress.donePoints} / {countLabel(progress.totalPoints, "point", "points")}</span>}
+        ) : <span>{formatPoints(progress.donePoints)} / {countLabel(progress.totalPoints, "point", "points", formatPoints)}</span>}
         {progress.unestimated > 0 ? (
           detailHref ? (
             <Link className="underline-offset-2 hover:underline" href={`${detailHref}?scopeEstimate=unestimated`}>

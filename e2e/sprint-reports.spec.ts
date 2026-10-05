@@ -11,6 +11,7 @@ import {
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
+import { pointsLabel } from "../lib/format/plural";
 import {
   backlogs,
   items,
@@ -1196,7 +1197,7 @@ audited(7, "rejoue le burndown actif depuis le baseline figé et le ledger", asy
     unestimatedCount: rows.at(-1)!.unestimatedCount,
   });
   await expect(page.locator("#burndown-baseline")).toContainText(
-    `Restant au démarrage : ${baseline.remainingPoints} pts · ${baseline.unestimatedCount} non estimé`,
+    `Restant au démarrage : ${pointsLabel(baseline.remainingPoints)} · ${baseline.unestimatedCount} non estimé`,
   );
   await expectBurndownTable(page, rows);
 

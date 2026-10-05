@@ -214,4 +214,34 @@ describe("compact inline item editors", () => {
 
     expect(screen.getByRole("button", { name: "Estimation : 0 pt" })).toBeVisible();
   });
+
+  it("agrees the estimate unit in its visible text and accessible name", () => {
+    const { rerender } = render(
+      <InlineEstimate itemId="item-6" backlogKey="DEMO" estimatePoints={1} />,
+    );
+    expect(screen.getByRole("button", { name: "Estimation : 1 pt" })).toHaveTextContent(/^1 pt$/);
+
+    rerender(<InlineEstimate itemId="item-6" backlogKey="DEMO" estimatePoints={5} />);
+    expect(screen.getByRole("button", { name: "Estimation : 5 pts" })).toHaveTextContent(/^5 pts$/);
+
+    rerender(<InlineEstimate itemId="item-6" backlogKey="DEMO" estimatePoints={2} readOnly />);
+    expect(screen.getByText("2 pts")).toBeVisible();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("formats a decimal estimate with the French comma but keeps the input parseable", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <InlineEstimate itemId="item-7" backlogKey="DEMO" estimatePoints={1.5} />,
+    );
+    const trigger = screen.getByRole("button", { name: "Estimation : 1,5 pt" });
+    expect(trigger).toHaveTextContent(/^1,5 pt$/);
+
+    await user.click(trigger);
+    expect(screen.getByRole("spinbutton", { name: "Points" })).toHaveValue(1.5);
+    await user.keyboard("{Escape}");
+
+    rerender(<InlineEstimate itemId="item-7" backlogKey="DEMO" estimatePoints={2.5} readOnly />);
+    expect(screen.getByText("2,5 pts")).toBeVisible();
+  });
 });

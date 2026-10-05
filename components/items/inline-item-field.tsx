@@ -20,6 +20,7 @@ import {
   type Priority,
   type StatusId,
 } from "@/lib/design/constants";
+import { pointsLabel } from "@/lib/format/plural";
 
 type StatusOption = {
   id: string;
@@ -247,7 +248,7 @@ export function InlineEstimate({
   const errorId = useId();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(estimatePoints === null ? "" : String(estimatePoints));
-  const label = estimatePoints === null ? "Non estimé" : `${estimatePoints} pt`;
+  const label = estimatePoints === null ? "Non estimé" : pointsLabel(estimatePoints);
 
   if (readOnly) {
     return <span className={readOnlyClass}>{label}</span>;
