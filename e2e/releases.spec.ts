@@ -441,6 +441,14 @@ async function replayForgedRequest(page: Page, request: ForgedRequest) {
 
 audited(1, "crée puis modifie une version", async ({ page }) => {
   await page.goto("/b/CASS/releases");
+  // JIR-55: the backlog view tabs stay available on Releases, Releases current.
+  const releasesTabs = page.getByRole("navigation", { name: "Vues du backlog" });
+  await expect(releasesTabs.getByRole("link", { name: "Releases" }))
+    .toHaveAttribute("aria-current", "page");
+  await releasesTabs.getByRole("link", { name: "Backlog" }).click();
+  await expect(page).toHaveURL(/\/b\/CASS\?view=backlog$/);
+  await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+  await page.goto("/b/CASS/releases");
   async function createThenEdit(input: {
     initialName: string; finalName: string; initialDescription: string; finalDescription: string;
     initialStartDate: string; initialTargetDate: string; finalStartDate: string; finalTargetDate: string;
@@ -737,6 +745,10 @@ audited(8, "conserve deux snapshots après dépublication et republication", asy
   const item = await fixtureTask("R09-S08 périmètre", { points: 8 });
   await assignVersions(item.id, [release.id]);
   await page.goto(`/b/CASS/releases/${release.id}`);
+  // JIR-55: the release detail keeps the backlog view tabs, Releases current.
+  await expect(page.getByRole("navigation", { name: "Vues du backlog" })
+    .getByRole("link", { name: "Releases" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: "← Toutes les versions" })).toBeVisible();
   await publishFromDialog(page, release.name, "keep");
   await page.getByRole("button", { name: `Annuler la publication ${release.name}` }).click();
   const unpublish = page.getByRole("dialog", { name: `Annuler la publication ${release.name}` });

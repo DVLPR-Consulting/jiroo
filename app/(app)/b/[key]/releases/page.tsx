@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { ReleaseList } from "@/components/releases/release-list";
+import { BacklogNavBar } from "@/components/shell/view-tabs";
 import {
   getBacklogCapabilities,
 } from "@/lib/auth/accessible-backlogs";
@@ -41,23 +42,26 @@ export default async function ReleasesPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6 lg:p-8">
-      <header>
-        <h1 className="t-h1">Releases — {backlog.name}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Planifiez les livraisons et suivez leur progression.
-        </p>
-      </header>
-      <ReleaseList
-        actor={{ id: session.user.id, name: session.user.name }}
-        backlog={{ id: backlog.id, key: backlog.key, name: backlog.name }}
-        canBrowseUsers={browseUsersDecision.allowed}
-        capabilities={capabilities}
-        driverOptions={rawDriverOptions.map(({ id, name }) => ({ id, name }))}
-        releases={releases}
-        showArchived={showArchived}
-        statusIds={statusIds}
-      />
-    </div>
+    <>
+      <BacklogNavBar active="releases" backlogKey={backlog.key} />
+      <div className="mx-auto max-w-6xl space-y-6 p-6 lg:p-8">
+        <header>
+          <h1 className="t-h1">Releases — {backlog.name}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Planifiez les livraisons et suivez leur progression.
+          </p>
+        </header>
+        <ReleaseList
+          actor={{ id: session.user.id, name: session.user.name }}
+          backlog={{ id: backlog.id, key: backlog.key, name: backlog.name }}
+          canBrowseUsers={browseUsersDecision.allowed}
+          capabilities={capabilities}
+          driverOptions={rawDriverOptions.map(({ id, name }) => ({ id, name }))}
+          releases={releases}
+          showArchived={showArchived}
+          statusIds={statusIds}
+        />
+      </div>
+    </>
   );
 }
