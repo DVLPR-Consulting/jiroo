@@ -111,6 +111,23 @@ describe("ReleaseDetail", () => {
     expect(snapshot).not.toHaveTextContent("Titre actuel modifié");
   });
 
+  it("formats decimal item points with the French comma in both sections", () => {
+    render(
+      <ReleaseDetail
+        {...props}
+        scope={{ ...props.scope, rows: [{ ...props.scope.rows[0]!, estimatePoints: 1.5 }] }}
+        snapshot={{ ...props.snapshot, rows: [{ ...props.snapshot.rows[0]!, estimatePoints: 2.5 }] }}
+      />,
+    );
+
+    const current = screen.getByRole("region", { name: "Périmètre actuel" });
+    expect(current).toHaveTextContent("1,5 point");
+    expect(current).not.toHaveTextContent("1.5");
+    const snapshot = screen.getByRole("region", { name: "Instantané de publication" });
+    expect(snapshot).toHaveTextContent("2,5 points");
+    expect(snapshot).not.toHaveTextContent("2.5");
+  });
+
   it("renders safe event summaries, no nested main, and no lifecycle controls for a reader", () => {
     render(<ReleaseDetail {...props} />);
 

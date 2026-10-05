@@ -13,7 +13,7 @@ import type {
   ReleaseSummary,
 } from "@/lib/services/releases";
 import type { StatusIdsByCategory } from "@/lib/services/statuses";
-import { countLabel } from "@/lib/format/plural";
+import { countLabel, formatPoints } from "@/lib/format/plural";
 
 type Person = { id: string; name: string };
 type Page<T> = { rows: T[]; total: number; page: number };
@@ -39,7 +39,7 @@ const EVENT_LABELS: Record<string, string> = {
 
 function pointLabel(points: number | null) {
   if (points === null) return "Non estimé";
-  return countLabel(points, "point", "points");
+  return countLabel(points, "point", "points", formatPoints);
 }
 
 function stateLabel(release: SerializableRelease) {
