@@ -165,6 +165,44 @@ describe("sprint lifecycle dialogs", () => {
     expect(screen.getByText("2 tâches · 8 pts")).toBeVisible();
   });
 
+  it("formats decimal points with the French comma in the start and completion dialogs", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(
+      <StartSprintDialog
+        {...base}
+        sprint={{ ...sprint, capacityPoints: 1.5 }}
+        metrics={{ ...metrics, estimatedPoints: 2.5, capacityPoints: 1.5, overCapacityPoints: 1 }}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Démarrer Sprint paiement" }));
+    expect(screen.getByText("2,5 / 1,5 pt")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Dépassement de 1 pt. Vous pouvez tout de même démarrer.",
+    );
+    const capacity = screen.getByRole("spinbutton", { name: "Capacité (points)" });
+    expect(capacity).toHaveValue(1.5);
+    await user.clear(capacity);
+    await user.type(capacity, "1.25");
+    expect(screen.getByText("2,5 / 1,25 pt")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent("Dépassement de 1,25 pt.");
+    await user.clear(capacity);
+    expect(screen.getByText("2,5 pts")).toBeVisible();
+    unmount();
+
+    render(
+      <CompleteSprintDialog
+        {...base}
+        sprint={{ ...sprint, state: "active" }}
+        plannedSprints={[]}
+        completedMetrics={{ ...metrics, itemCount: 1, estimatedPoints: 1.5 }}
+        incompleteMetrics={{ ...metrics, itemCount: 2, estimatedPoints: 2.5 }}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Clôturer Sprint paiement" }));
+    expect(screen.getByText("1 tâche · 1,5 pt")).toBeVisible();
+    expect(screen.getByText("2 tâches · 2,5 pts")).toBeVisible();
+  });
+
   it("opens with the sprint's current values after its props change and submits them", async () => {
     const user = userEvent.setup();
     mocks.startSprintAction.mockResolvedValueOnce({

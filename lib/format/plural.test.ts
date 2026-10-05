@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countLabel, frenchPlural, isFrenchPlural, pointsLabel } from "./plural";
+import { countLabel, formatPoints, frenchPlural, isFrenchPlural, pointsLabel } from "./plural";
 
 describe("isFrenchPlural", () => {
   it.each([
@@ -41,6 +41,14 @@ describe("countLabel", () => {
     const decimal = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
     expect(countLabel(1.5, "point", "points", decimal.format)).toBe("1,5 point");
     expect(countLabel(2.5, "point", "points", decimal.format)).toBe("2,5 points");
+  });
+});
+
+describe("formatPoints", () => {
+  it("prints a points value with the French decimal comma and no unit", () => {
+    expect(formatPoints(1.5)).toBe("1,5");
+    expect(formatPoints(13)).toBe("13");
+    expect(formatPoints(2.25)).toBe("2,25");
   });
 });
 

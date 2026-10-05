@@ -248,7 +248,7 @@ export function InlineEstimate({
   const errorId = useId();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(estimatePoints === null ? "" : String(estimatePoints));
-  const label = estimatePoints === null ? "Non estimé" : pointsLabel(estimatePoints, String);
+  const label = estimatePoints === null ? "Non estimé" : pointsLabel(estimatePoints);
 
   if (readOnly) {
     return <span className={readOnlyClass}>{label}</span>;

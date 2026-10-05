@@ -228,4 +228,20 @@ describe("compact inline item editors", () => {
     expect(screen.getByText("2 pts")).toBeVisible();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
+
+  it("formats a decimal estimate with the French comma but keeps the input parseable", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <InlineEstimate itemId="item-7" backlogKey="DEMO" estimatePoints={1.5} />,
+    );
+    const trigger = screen.getByRole("button", { name: "Estimation : 1,5 pt" });
+    expect(trigger).toHaveTextContent(/^1,5 pt$/);
+
+    await user.click(trigger);
+    expect(screen.getByRole("spinbutton", { name: "Points" })).toHaveValue(1.5);
+    await user.keyboard("{Escape}");
+
+    rerender(<InlineEstimate itemId="item-7" backlogKey="DEMO" estimatePoints={2.5} readOnly />);
+    expect(screen.getByText("2,5 pts")).toBeVisible();
+  });
 });

@@ -34,7 +34,12 @@ export function countLabel(
   return `${format(count)} ${frenchPlural(count, singular, plural)}`;
 }
 
+/** A points value with the French decimal comma ("1,5"), without the unit. */
+export function formatPoints(points: number): string {
+  return defaultNumber.format(points);
+}
+
 /** Abbreviated story points: "1 pt", "1,5 pt", "2 pts". */
-export function pointsLabel(points: number, format: NumberFormat = defaultNumber.format): string {
+export function pointsLabel(points: number, format: NumberFormat = formatPoints): string {
   return countLabel(points, "pt", "pts", format);
 }
