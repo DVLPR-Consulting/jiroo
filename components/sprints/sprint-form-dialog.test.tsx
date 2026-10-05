@@ -116,6 +116,36 @@ describe("sprint form dialogs", () => {
     expect(mocks.refresh).toHaveBeenCalledOnce();
   });
 
+  it("opens with the sprint's current values after its props change", async () => {
+    const user = userEvent.setup();
+    const props = {
+      backlogId: "11111111-1111-4111-8111-111111111111",
+      backlogKey: "DEMO",
+    };
+    const { rerender } = render(<EditSprintDialog {...props} sprint={sprint} />);
+    rerender(
+      <EditSprintDialog
+        {...props}
+        sprint={{
+          ...sprint,
+          name: "Recette 1",
+          goal: "Sprint de test 1 semaine",
+          capacityPoints: 15,
+          plannedStartAt: new Date(2026, 8, 1, 9, 30),
+          plannedEndAt: new Date(2026, 8, 8, 17, 0),
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Modifier Recette 1" }));
+    expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("Recette 1");
+    expect(screen.getByRole("textbox", { name: "Objectif" }))
+      .toHaveValue("Sprint de test 1 semaine");
+    expect(screen.getByLabelText("Début prévu")).toHaveValue("2026-09-01T09:30");
+    expect(screen.getByLabelText("Fin prévue")).toHaveValue("2026-09-08T17:00");
+    expect(screen.getByRole("spinbutton", { name: "Capacité (points)" })).toHaveValue(15);
+  });
+
   it("limits a completed sprint edit to its name and goal", async () => {
     const user = userEvent.setup();
     render(
