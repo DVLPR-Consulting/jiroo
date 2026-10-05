@@ -60,7 +60,7 @@ async function actorLabel(tx: Transaction, actorId: string): Promise<string> {
     .from(user)
     .where(eq(user.id, actorId))
     .limit(1);
-  if (!actor) throw new AccountRecoveryError(MISSING_USER_MESSAGE);
+  if (!actor) throw new AccountRecoveryError("Administrateur introuvable.");
   return actor.name;
 }
 
