@@ -7,7 +7,10 @@ const mocks = vi.hoisted(() => ({
   listBacklogsForUser: vi.fn(),
 }));
 
-vi.mock("next/headers", () => ({ headers: mocks.headers }));
+vi.mock("next/headers", () => ({
+  headers: mocks.headers,
+  cookies: async () => ({ toString: () => "" }),
+}));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: mocks.authGetSession } },

@@ -1,9 +1,21 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 
+// Next.js keeps cookies() in sync with cookies set by the current Server Action
+// before re-rendering, but headers() still carries the original Cookie header.
+// Reading from cookies() lets a rotated session (e.g. after a password change
+// that revokes every other session) authenticate the re-render.
+async function requestHeaders(): Promise<Headers> {
+  const forwarded = new Headers(await headers());
+  const cookieHeader = (await cookies()).toString();
+  if (cookieHeader) forwarded.set("cookie", cookieHeader);
+  else forwarded.delete("cookie");
+  return forwarded;
+}
+
 async function readRawSession() {
-  return auth.api.getSession({ headers: await headers() });
+  return auth.api.getSession({ headers: await requestHeaders() });
 }
 
 // Application callers fail closed: a password-only session is not an app session.

@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   authGetSession: vi.fn(),
+  cookies: vi.fn(),
   headers: vi.fn(),
 }));
 
-vi.mock("next/headers", () => ({ headers: mocks.headers }));
+vi.mock("next/headers", () => ({ headers: mocks.headers, cookies: mocks.cookies }));
 vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: mocks.authGetSession } },
 }));
@@ -42,6 +43,23 @@ describe("getSession", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.headers.mockResolvedValue(new Headers());
+    mocks.cookies.mockResolvedValue({ toString: () => "" });
+  });
+
+  it("reads the session from the request's current cookies, not the raw Cookie header", async () => {
+    // After a Server Action rotates the session cookie, Next.js re-renders with
+    // updated cookies() while headers() still carries the revoked token.
+    mocks.headers.mockResolvedValue(
+      new Headers({ cookie: "better-auth.session_token=revoked", "user-agent": "jsdom" }),
+    );
+    mocks.cookies.mockResolvedValue({ toString: () => "better-auth.session_token=rotated" });
+    mocks.authGetSession.mockResolvedValue(session(true));
+
+    await getSession();
+
+    const forwarded = mocks.authGetSession.mock.calls[0]?.[0]?.headers as Headers;
+    expect(forwarded.get("cookie")).toBe("better-auth.session_token=rotated");
+    expect(forwarded.get("user-agent")).toBe("jsdom");
   });
 
   it.each([false, null, undefined])(
