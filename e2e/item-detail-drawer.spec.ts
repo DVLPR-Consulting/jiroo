@@ -104,6 +104,10 @@ test.describe("panneau de détail", () => {
     page,
   }) => {
     const { dialog } = await openFirstBacklogRow(page);
+    // Measure the settled drawer, not a frame of its slide-in.
+    await dialog.evaluate((element) =>
+      Promise.all(element.getAnimations().map((animation) => animation.finished)),
+    );
     const properties = page.getByTestId("item-detail-properties");
     const drawerBox = await dialog.boundingBox();
     const box = await properties.boundingBox();
@@ -120,6 +124,20 @@ test.describe("panneau de détail", () => {
         .filter((control) => control.getBoundingClientRect().right > limit).length;
     });
     expect(overflow).toBe(0);
+    // Placeholders read in full (e.g. the GitHub URL field was truncated).
+    const truncated = await properties.evaluate((column) => {
+      const context = document.createElement("canvas").getContext("2d")!;
+      return [...column.querySelectorAll<HTMLInputElement>("input[placeholder]")]
+        .filter((input) => {
+          const style = getComputedStyle(input);
+          context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+          const room = input.clientWidth
+            - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+          return context.measureText(input.placeholder).width > room;
+        })
+        .map((input) => input.placeholder);
+    });
+    expect(truncated).toEqual([]);
   });
 
   test("empile les propriétés sous la colonne principale sur un écran étroit", async ({
