@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CircleUserRound, LogOut, SlidersHorizontal } from "lucide-react";
+import { CircleUserRound, KeyRound, LogOut, SlidersHorizontal } from "lucide-react";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
+import { ChangePasswordDialog } from "@/components/shell/change-password-dialog";
 import { UserPreferencesDialog } from "@/components/shell/user-preferences-dialog";
 import { UserProfileDialog } from "@/components/shell/user-profile-dialog";
 import { signOut } from "@/lib/auth/client";
@@ -31,6 +32,7 @@ export function UserCard({
   const roleLabel = ROLE_LABELS[user.role] ?? user.role;
   const [profileOpen, setProfileOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   async function handleSignOut() {
     await signOut();
@@ -76,6 +78,10 @@ export function UserCard({
             <SlidersHorizontal className="size-4" />
             Préférences
           </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setPasswordOpen(true)}>
+            <KeyRound className="size-4" />
+            Changer mon mot de passe
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={handleSignOut}>
             <LogOut className="size-4" />
             Déconnexion
@@ -84,6 +90,7 @@ export function UserCard({
       </DropdownMenu>
       <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} user={user} />
       <UserPreferencesDialog open={preferencesOpen} onOpenChange={setPreferencesOpen} />
+      <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
     </>
   );
 }

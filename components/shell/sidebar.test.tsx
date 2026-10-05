@@ -7,6 +7,9 @@ import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 
+// The user card's password dialog imports a Server Action module.
+vi.mock("@/app/actions/account", () => ({ changeOwnPasswordAction: vi.fn() }));
+
 vi.mock("next/navigation", () => ({
   useParams: () => ({ key: "CASS" }),
   usePathname: () => "/b/CASS",
