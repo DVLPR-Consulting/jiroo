@@ -182,6 +182,18 @@ describeDb("changeOwnPasswordWithBudget", () => {
     expect(left).toHaveLength(0);
   });
 
+  it("keeps the reservation counted when the attempt ends in an unexpected error", async () => {
+    const userId = await newUser("unexpected");
+
+    await expect(
+      changeOwnPasswordWithBudget(userId, async () => {
+        throw new Error("connection reset");
+      }),
+    ).rejects.toThrow("connection reset");
+    // The password may or may not have changed: the attempt stays counted.
+    expect(await events(userId, "user_password_change_attempted")).toHaveLength(1);
+  });
+
   it("does not log other Better Auth failures as password guesses", async () => {
     const userId = await newUser("failed");
 

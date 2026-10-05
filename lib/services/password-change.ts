@@ -39,8 +39,9 @@ async function lockUserBudget(tx: Transaction, userId: string): Promise<void> {
  * pool, so holding a connection or lock across it could exhaust the pool.
  * Phase 2 resolves the reservation: a wrong current password becomes a
  * `failed` row, a success becomes a `changed` row and revokes pending 2FA
- * sign-in challenges in the same transaction, any other error drops it. A
- * reservation left behind by a crash keeps counting, the safe direction.
+ * sign-in challenges in the same transaction, a known non-guess rejection
+ * drops it. A reservation left by a crash or unexpected error keeps
+ * counting, the safe direction.
  *
  * Better Auth's writes are not atomic with phase 2: a challenge created or
  * completed concurrently with the change can survive (the R3 race).
@@ -79,14 +80,12 @@ export async function changeOwnPasswordWithBudget(
   });
   if (!reservationId) return "rate_limited";
 
-  let outcome: PasswordChangeOutcome;
-  try {
-    outcome = await attempt();
-  } catch (error) {
-    await db.delete(securityAuditEvents).where(eq(securityAuditEvents.id, reservationId));
-    throw error;
-  }
+  // An unexpected error leaves the reservation in place: the password may
+  // already have changed, and an unresolved attempt keeps counting.
+  const outcome = await attempt();
 
+  // Known Better Auth rejections other than a wrong current password are not
+  // guesses (the action validates lengths first), so they cost no budget.
   if (outcome === "failed") {
     await db.delete(securityAuditEvents).where(eq(securityAuditEvents.id, reservationId));
     return outcome;

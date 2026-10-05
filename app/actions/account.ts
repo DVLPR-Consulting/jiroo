@@ -63,6 +63,8 @@ export async function changeOwnPasswordAction(input: {
         responseHeaders = result.headers;
         return "changed";
       } catch (error) {
+        // Unknown errors propagate so the budget keeps the attempt counted.
+        if (!(error instanceof APIError)) throw error;
         failureCode = betterAuthErrorCode(error);
         return failureCode === "INVALID_PASSWORD" ? "wrong_password" : "failed";
       }

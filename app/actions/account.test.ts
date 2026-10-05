@@ -108,8 +108,31 @@ describe("changeOwnPasswordAction", () => {
     expect(mocks.forwardAuthCookies).not.toHaveBeenCalled();
   });
 
-  it("hides other Better Auth failures without counting them as guesses", async () => {
+  it("lets unexpected errors reach the budget, which keeps the attempt counted", async () => {
     mocks.changePassword.mockRejectedValue(new Error("database offline"));
+    let thrown: unknown;
+    mocks.changeOwnPasswordWithBudget.mockImplementation(
+      async (_userId: string, attempt: () => Promise<string>) => {
+        try {
+          return await attempt();
+        } catch (error) {
+          thrown = error;
+          throw error;
+        }
+      },
+    );
+
+    await expect(changeOwnPasswordAction(valid)).resolves.toEqual({
+      ok: false,
+      error: "Impossible de modifier le mot de passe. Réessayez.",
+    });
+    expect(thrown).toBeInstanceOf(Error);
+  });
+
+  it("hides other Better Auth failures without counting them as guesses", async () => {
+    mocks.changePassword.mockRejectedValue(
+      new APIError("BAD_REQUEST", { code: "CREDENTIAL_ACCOUNT_NOT_FOUND", message: "x" }),
+    );
     let outcome: unknown;
     mocks.changeOwnPasswordWithBudget.mockImplementation(
       async (_userId: string, attempt: () => Promise<string>) => (outcome = await attempt()),
