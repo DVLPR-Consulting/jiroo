@@ -81,14 +81,19 @@ function DetailPanelSkeleton({
   label?: string;
 }) {
   return (
-    <div aria-busy="true" aria-label={label} role="status">
+    <div
+      aria-busy="true"
+      aria-label={label}
+      role="status"
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <DialogTitle className="sr-only">{label}</DialogTitle>
-      <div className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-3">
+      <div className="flex flex-none items-center gap-2 border-b border-[var(--border)] px-4 py-3">
         <Skeleton className="size-4" />
         <Skeleton className="h-3 w-16" />
         <Skeleton className="ml-auto size-7" />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-1">
         <div className="flex min-w-0 flex-col gap-4 p-5">
           <Skeleton className="h-7 w-3/4" />
           <div className="flex gap-2 border-b border-[var(--border)] pb-2">

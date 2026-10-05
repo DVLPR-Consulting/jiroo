@@ -106,7 +106,9 @@ test.describe("panneau de détail", () => {
     const { dialog } = await openFirstBacklogRow(page);
     // Measure the settled drawer, not a frame of its slide-in.
     await dialog.evaluate((element) =>
-      Promise.all(element.getAnimations().map((animation) => animation.finished)),
+      Promise.all(
+          element.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
+        ),
     );
     const properties = page.getByTestId("item-detail-properties");
     const drawerBox = await dialog.boundingBox();
@@ -163,7 +165,9 @@ test.describe("panneau de détail", () => {
       await page.setViewportSize(viewport);
       const { dialog } = await openFirstBacklogRow(page);
       await dialog.evaluate((element) =>
-        Promise.all(element.getAnimations().map((animation) => animation.finished)),
+        Promise.all(
+          element.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
+        ),
       );
       const box = await dialog.boundingBox();
       expect(box?.y).toBe(0);
@@ -197,5 +201,24 @@ test.describe("panneau de détail", () => {
       .poll(async () => (await dialog.boundingBox())?.height)
       .toBe(1100);
   });
-});
 
+  test("fait défiler la seule colonne des propriétés quand elle dépasse la hauteur", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 500 });
+    const { dialog } = await openFirstBacklogRow(page);
+    const properties = page.getByTestId("item-detail-properties");
+    expect(
+      await properties.evaluate((column) => column.scrollHeight > column.clientHeight),
+    ).toBe(true);
+
+    const columnEnd = properties.getByText(/^Maj le /);
+    await columnEnd.scrollIntoViewIfNeeded();
+    await expect(columnEnd).toBeInViewport();
+    expect(await properties.evaluate((column) => column.scrollTop)).toBeGreaterThan(0);
+    expect(
+      await page.getByTestId("item-detail-main").evaluate((column) => column.scrollTop),
+    ).toBe(0);
+    expect(await dialog.evaluate((frame) => frame.scrollTop)).toBe(0);
+  });
+});
