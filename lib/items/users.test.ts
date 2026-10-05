@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createUserInput, setRoleInput, ROLE_LABELS } from "./users";
+import {
+  changeOwnPasswordInput,
+  createUserInput,
+  resetUserPasswordInput,
+  resetUserTwoFactorInput,
+  setRoleInput,
+  ROLE_LABELS,
+} from "./users";
 
 // ---------------------------------------------------------------------------
 // createUserInput
@@ -157,5 +164,103 @@ describe("ROLE_LABELS", () => {
 
   it("maps viewer to Lecteur", () => {
     expect(ROLE_LABELS.viewer).toBe("Lecteur");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Account recovery inputs (JIR-61)
+// ---------------------------------------------------------------------------
+
+describe("resetUserPasswordInput", () => {
+  it("accepts a temporary password of at least 8 characters", () => {
+    expect(
+      resetUserPasswordInput.parse({ userId: "user-1", temporaryPassword: "temp-pass" }),
+    ).toEqual({ userId: "user-1", temporaryPassword: "temp-pass" });
+  });
+
+  it("applies the same 8-character minimum as user creation", () => {
+    const result = resetUserPasswordInput.safeParse({ userId: "user-1", temporaryPassword: "short" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("Mot de passe : 8 caractères minimum.");
+    }
+  });
+
+  it("rejects passwords longer than Better Auth accepts", () => {
+    const result = resetUserPasswordInput.safeParse({
+      userId: "user-1",
+      temporaryPassword: "x".repeat(129),
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("Mot de passe : 128 caractères maximum.");
+    }
+  });
+
+  it("requires the target user", () => {
+    const result = resetUserPasswordInput.safeParse({ userId: "", temporaryPassword: "temp-pass" });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0]?.message).toBe("L’utilisateur est requis.");
+  });
+});
+
+describe("resetUserTwoFactorInput", () => {
+  it("requires the target user", () => {
+    expect(resetUserTwoFactorInput.safeParse({ userId: "user-1" }).success).toBe(true);
+    expect(resetUserTwoFactorInput.safeParse({ userId: "" }).success).toBe(false);
+  });
+});
+
+describe("changeOwnPasswordInput", () => {
+  const valid = {
+    currentPassword: "ancien-mot",
+    newPassword: "nouveau-mot",
+    confirmation: "nouveau-mot",
+  };
+
+  it("accepts a matching new password", () => {
+    expect(changeOwnPasswordInput.parse(valid)).toEqual(valid);
+  });
+
+  it("requires the current password", () => {
+    const result = changeOwnPasswordInput.safeParse({ ...valid, currentPassword: "" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("Le mot de passe actuel est requis.");
+    }
+  });
+
+  it("rejects a new password shorter than 8 characters", () => {
+    const result = changeOwnPasswordInput.safeParse({
+      ...valid,
+      newPassword: "court",
+      confirmation: "court",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("Mot de passe : 8 caractères minimum.");
+    }
+  });
+
+  it("rejects a confirmation that does not match", () => {
+    const result = changeOwnPasswordInput.safeParse({ ...valid, confirmation: "autre-mot" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("Les mots de passe ne correspondent pas.");
+    }
+  });
+
+  it("rejects reusing the current password", () => {
+    const result = changeOwnPasswordInput.safeParse({
+      currentPassword: "meme-mot-1",
+      newPassword: "meme-mot-1",
+      confirmation: "meme-mot-1",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe(
+        "Le nouveau mot de passe doit être différent de l’actuel.",
+      );
+    }
   });
 });
