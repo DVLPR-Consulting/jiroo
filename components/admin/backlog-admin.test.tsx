@@ -81,6 +81,19 @@ describe("BacklogAdmin", () => {
     expect(dialog).toBeVisible();
   });
 
+  it("opens the edit dialog with the backlog's current values after its props change", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<BacklogAdmin backlogs={[backlog]} />);
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    rerender(<BacklogAdmin backlogs={[{ ...backlog, name: "Portail" }]} />);
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+
+    expect(within(screen.getByRole("dialog")).getByRole("textbox", { name: "Nom" })).toHaveValue("Portail");
+  });
+
   it("cannot close backlog creation while the request is pending", async () => {
     const user = userEvent.setup();
     let resolve!: (result: { ok: false; error: string }) => void;

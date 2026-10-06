@@ -109,8 +109,10 @@ function BacklogDialog({
       onOpenChange={(o) => {
         // Keep the dialog open while a request is in flight (JIR-57).
         if (!o && pending) return;
+        // Resync from the current props on every open: the backlog may have
+        // been renamed since mount.
+        if (o) reset();
         setOpen(o);
-        if (!o) reset();
       }}
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
