@@ -3,6 +3,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Radix marks open/closed overlays with data-state="open|closed", never with
+   bare data-open/data-closed attributes (those are Base UI's). Point the
+   shadcn data-open:/data-closed: variants at Radix's attribute so the
+   primitives' open/close animations actually run. */
+@custom-variant data-open (&[data-state="open"]);
+@custom-variant data-closed (&[data-state="closed"]);
+
 /* =========================================================================
    JIROO — Tokens (oklch). Source : .claude/output/design/styles/jiroo.css
    ========================================================================= */

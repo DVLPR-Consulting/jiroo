@@ -826,6 +826,8 @@ audited(10, "masque une version archivée des candidats tout en gardant l’affe
   await archivedCreate.getByRole("button", { name: "Versions", exact: true }).click();
   await expect(page.getByRole("menuitemcheckbox", { name: release.name, exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
+  // The menu keeps its layer (and the next Escape) until its exit animation ends.
+  await expect(page.getByRole("menu")).toHaveCount(0);
   await page.keyboard.press("Escape");
 
   await selectBulkItems(page, [item]);

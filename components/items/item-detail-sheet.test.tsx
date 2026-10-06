@@ -50,15 +50,17 @@ describe("ItemDetailSheet", () => {
     const dialog = screen.getByRole("dialog", { name: "CASS-4 — Titre" });
     expect(dialog).toHaveAttribute("data-state", "open");
     expect(dialog).toHaveClass(
-      "data-[state=open]:animate-in",
-      "data-[state=open]:slide-in-from-right",
-      "data-[state=closed]:animate-out",
-      "data-[state=closed]:slide-out-to-right",
+      "data-open:animate-in",
+      "data-open:slide-in-from-right",
+      "data-closed:animate-out",
+      "data-closed:slide-out-to-right",
       "duration-[220ms]",
       "ease-[cubic-bezier(.32,.72,0,1)]",
-      "motion-reduce:data-[state=open]:animate-none",
-      "motion-reduce:data-[state=closed]:animate-none",
+      "motion-reduce:data-open:animate-none",
+      "motion-reduce:data-closed:animate-none",
     );
+    // The drawer only slides; it never inherits the center dialog's fade.
+    expect(dialog.className).not.toMatch(/fade-(in|out)/);
   });
 
   it("fades a dimmed, unblurred overlay in step with the drawer", () => {
@@ -66,10 +68,12 @@ describe("ItemDetailSheet", () => {
 
     const overlay = document.querySelector('[data-slot="dialog-overlay"]');
     expect(overlay).toHaveClass(
-      "data-[state=open]:fade-in-0",
-      "data-[state=closed]:fade-out-0",
+      "data-open:fade-in-0",
+      "data-closed:fade-out-0",
+      "duration-[180ms]",
       "supports-backdrop-filter:backdrop-blur-none",
-      "motion-reduce:data-[state=open]:animate-none",
+      "motion-reduce:data-open:animate-none",
+      "motion-reduce:data-closed:animate-none",
     );
     expect(overlay).not.toHaveClass("supports-backdrop-filter:backdrop-blur-xs");
   });
