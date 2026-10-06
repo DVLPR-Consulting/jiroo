@@ -33,6 +33,14 @@ const destinations = [
   { id: "33333333-3333-4333-8333-333333333333", name: "Version 2" },
 ];
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 describe("release lifecycle dialogs", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -201,6 +209,62 @@ describe("release lifecycle dialogs", () => {
     await waitFor(() => expect(mocks.publishReleaseAction).toHaveBeenCalledWith(
       expect.objectContaining({ expectedScopeRevision: release.publicationScopeRevision }),
     ));
+  });
+
+  it("cannot close publish while the request is pending", async () => {
+    const user = userEvent.setup();
+    const request = deferred<{ ok: false; error: string }>();
+    mocks.publishReleaseAction.mockReturnValueOnce(request.promise);
+    render(
+      <ReleaseLifecycleDialogs
+        backlog={backlog}
+        release={release}
+        destinations={destinations}
+        canAssignItems
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Publier Version 1" }));
+    await user.type(screen.getByLabelText("Date de publication"), "2026-10-01");
+    await user.click(screen.getByRole("radio", { name: /conserver/i }));
+    await user.click(screen.getByRole("button", { name: "Publier" }));
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeVisible();
+
+    request.resolve({ ok: false, error: "Publication refusée." });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Publication refusée.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Publier" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Publier Version 1" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("cannot close a revision action while the request is pending", async () => {
+    const user = userEvent.setup();
+    const request = deferred<{ ok: false; error: string }>();
+    mocks.archiveReleaseAction.mockReturnValueOnce(request.promise);
+    render(
+      <ReleaseLifecycleDialogs
+        backlog={backlog}
+        release={release}
+        destinations={destinations}
+        canAssignItems
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Archiver Version 1" }));
+    await user.click(screen.getByRole("button", { name: "Confirmer l’archivage" }));
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeVisible();
+
+    request.resolve({ ok: false, error: "Archivage refusé." });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Archivage refusé.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Confirmer l’archivage" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Archiver Version 1" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("surfaces a stale scope, refreshes it, and requires an explicit new decision", async () => {

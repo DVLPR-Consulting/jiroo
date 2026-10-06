@@ -246,7 +246,15 @@ export function CreateReleaseDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Keep the dialog open while a request is in flight (JIR-57).
+        if (!next && pending) return;
+        setOpen(next);
+        if (!next) reset();
+      }}
+    >
       <DialogTrigger asChild>
         {trigger ?? <Button type="button">Créer une version</Button>}
       </DialogTrigger>
@@ -369,7 +377,15 @@ function EditReleaseDialogState({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Keep the dialog open while a request is in flight (JIR-57).
+        if (!next && pending) return;
+        setOpen(next);
+        if (!next) reset();
+      }}
+    >
       <DialogTrigger asChild>
         {trigger ?? <Button type="button" variant="outline" size="sm">Modifier <span className="sr-only">{release.name}</span></Button>}
       </DialogTrigger>

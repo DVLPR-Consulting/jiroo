@@ -201,6 +201,67 @@ describe("release form dialogs", () => {
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
+  it("cannot close creation while the request is pending", async () => {
+    const user = userEvent.setup();
+    const request = deferred<{ ok: false; error: string }>();
+    mocks.createReleaseAction.mockReturnValueOnce(request.promise);
+    render(
+      <CreateReleaseDialog
+        backlog={backlog}
+        actor={actor}
+        driverOptions={driverOptions}
+        canBrowseUsers
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Créer une version" }));
+    await user.type(screen.getByRole("textbox", { name: "Nom" }), "Version 2");
+    await user.click(screen.getByRole("button", { name: "Créer" }));
+
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("dialog", { name: "Créer une version" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("Version 2");
+
+    request.resolve({ ok: false, error: "Une release portant ce nom existe déjà." });
+    expect(await screen.findByRole("alert")).toHaveTextContent("existe déjà");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Créer" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Créer une version" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("");
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it("cannot close editing while the request is pending", async () => {
+    const user = userEvent.setup();
+    const request = deferred<{ ok: false; error: string }>();
+    mocks.updateReleaseAction.mockReturnValueOnce(request.promise);
+    render(
+      <EditReleaseDialog
+        backlog={backlog}
+        release={release}
+        actor={actor}
+        driverOptions={driverOptions}
+        canBrowseUsers
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Modifier Version 1" }));
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeVisible();
+
+    request.resolve({ ok: false, error: "Mise à jour refusée." });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Mise à jour refusée.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Enregistrer" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Modifier Version 1" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
   it("links a server name error to its field and focuses it", async () => {
     const user = userEvent.setup();
     mocks.createReleaseAction.mockResolvedValueOnce({

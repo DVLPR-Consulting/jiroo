@@ -129,6 +129,8 @@ function PublishDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // Keep the dialog open while a request is in flight (JIR-57).
+        if (!next && pending) return;
         // Resync from the current props on every open: the publication scope
         // may have changed since mount (JIR-57). Edits made while open stay.
         if (next) reset();
@@ -320,6 +322,8 @@ function RevisionActionDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // Keep the dialog open while a request is in flight (JIR-57).
+        if (!next && pending) return;
         setOpen(next);
         if (!next) setError(null);
       }}
