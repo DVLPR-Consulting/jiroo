@@ -162,6 +162,31 @@ describe("StatusManagerDialog", () => {
     expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("En cours");
   });
 
+  it("cannot be closed while a column request is pending", async () => {
+    const user = userEvent.setup();
+    let resolve!: (result: { ok: false; error: string }) => void;
+    mocks.createStatusAction.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    renderManager();
+    await user.click(screen.getByRole("button", { name: "Colonnes" }));
+    await user.click(screen.getByRole("button", { name: "Ajouter une colonne" }));
+    await user.type(screen.getByRole("textbox", { name: "Nom" }), "En cours");
+    await user.click(screen.getByRole("button", { name: "Ajouter la colonne" }));
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeVisible();
+
+    resolve({ ok: false, error: "Un statut portant ce nom existe déjà." });
+    expect(await screen.findByRole("alert")).toHaveTextContent("existe déjà");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ajouter la colonne" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Colonnes" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("reveals an exact replacement selector if an initially empty column becomes occupied", async () => {
     const user = userEvent.setup();
     const empty = {

@@ -59,7 +59,14 @@ function DeleteCommentDialog({
   onConfirm: () => void;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Keep the dialog open while a request is in flight (JIR-57).
+        if (!next && pending) return;
+        onOpenChange(next);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Supprimer le commentaire ?</DialogTitle>
