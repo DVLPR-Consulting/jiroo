@@ -107,6 +107,8 @@ function BacklogDialog({
     <Dialog
       open={open}
       onOpenChange={(o) => {
+        // Keep the dialog open while a request is in flight (JIR-57).
+        if (!o && pending) return;
         setOpen(o);
         if (!o) reset();
       }}

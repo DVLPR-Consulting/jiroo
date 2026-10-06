@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -76,5 +76,28 @@ describe("ProjectRoleAdmin", () => {
       "Ce rôle de projet est encore utilisé.",
     );
     expect(dialog).toBeVisible();
+  });
+
+  it("cannot close the deletion confirmation while the request is pending", async () => {
+    const user = userEvent.setup();
+    let resolve!: (result: { ok: false; error: string }) => void;
+    mocks.remove.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    render(<ProjectRoleAdmin roles={[{ ...role, blockers: [] }]} />);
+
+    await user.click(screen.getByRole("button", { name: "Supprimer Delivery" }));
+    const dialog = screen.getByRole("dialog", { name: "Supprimer Delivery" });
+    await user.click(within(dialog).getByRole("button", { name: "Confirmer la suppression" }));
+    await user.keyboard("{Escape}");
+    expect(dialog).toBeVisible();
+
+    resolve({ ok: false, error: "Ce rôle de projet est encore utilisé." });
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("encore utilisé");
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Confirmer la suppression" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

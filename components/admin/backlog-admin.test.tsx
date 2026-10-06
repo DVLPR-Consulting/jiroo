@@ -80,4 +80,31 @@ describe("BacklogAdmin", () => {
     expect(within(dialog).getByRole("alert")).toHaveTextContent("Cette clé est déjà utilisée.");
     expect(dialog).toBeVisible();
   });
+
+  it("cannot close backlog creation while the request is pending", async () => {
+    const user = userEvent.setup();
+    let resolve!: (result: { ok: false; error: string }) => void;
+    mocks.createBacklogAction.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    render(<BacklogAdmin backlogs={[backlog]} />);
+
+    await user.click(screen.getByRole("button", { name: "Nouveau backlog" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox", { name: "Clé" }), "OPS");
+    await user.type(within(dialog).getByRole("textbox", { name: "Nom" }), "Opérations");
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+    await user.keyboard("{Escape}");
+    expect(dialog).toBeVisible();
+
+    resolve({ ok: false, error: "Cette clé est déjà utilisée." });
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Cette clé est déjà utilisée.");
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Enregistrer" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Nouveau backlog" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });
