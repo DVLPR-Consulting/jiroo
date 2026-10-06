@@ -52,6 +52,7 @@ import {
   selectAllVisible,
   toggleItemSelection,
 } from "@/lib/items/selection";
+import { fixedTableMinWidth } from "@/lib/items/table-layout";
 
 type LabelChip = { id: string; name: string; color: string };
 type UserOption = { id: string; name: string };
@@ -86,6 +87,12 @@ export type ListItem = {
 
 type Group = { key: string; label: string; items: ListItem[] };
 type CurrentSort = { field: SortField; dir: SortDir } | null;
+
+// Fixed columns in rem, in colgroup order: clé, statut, prio, points, labels,
+// échéance, assigné. Selection (first) and fix versions (last) are optional.
+const LIST_FIXED_COLUMNS_REM = [8, 10, 4, 6, 12, 8, 11] as const;
+const SELECTION_COLUMN_REM = 2.5;
+const FIX_VERSIONS_COLUMN_REM = 11;
 
 const HEADER_CLASS =
   "border-b border-border bg-[var(--surface-2)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
@@ -490,7 +497,16 @@ export function ItemList({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <table className="w-full table-fixed border-separate border-spacing-0">
+      <table
+        className="w-full table-fixed border-separate border-spacing-0"
+        style={{
+          minWidth: fixedTableMinWidth([
+            ...(canSelectItems ? [SELECTION_COLUMN_REM] : []),
+            ...LIST_FIXED_COLUMNS_REM,
+            ...(showFixVersions ? [FIX_VERSIONS_COLUMN_REM] : []),
+          ]),
+        }}
+      >
         <colgroup>
           {canSelectItems ? <col className="w-10" /> : null}
           <col className="w-32" />

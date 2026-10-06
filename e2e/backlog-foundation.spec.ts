@@ -409,3 +409,55 @@ test("restaure le classement et conserve la sélection après deux échecs rése
   expect(capture.requestFailures.length).toBeGreaterThanOrEqual(2);
   expect(capture.httpErrors).toEqual([]);
 });
+
+/**
+ * JIR-42: at 390 px the fixed-width columns used to leave the title column at
+ * zero width, so « Titre » spilled over « Statut ». Every table header row must
+ * keep its cells side by side and the title column readable.
+ */
+async function expectReadableHeaderRows(page: Page) {
+  const tables = page.getByRole("table");
+  const tableCount = await tables.count();
+  expect(tableCount).toBeGreaterThan(0);
+  for (let index = 0; index < tableCount; index += 1) {
+    const headers = tables.nth(index).locator("thead th");
+    const boxes = await headers.evaluateAll((cells) =>
+      cells.map((cell) => {
+        const rect = cell.getBoundingClientRect();
+        return {
+          text: cell.textContent?.trim() ?? "",
+          left: rect.left,
+          right: rect.right,
+          clipped: cell.scrollWidth > cell.clientWidth + 1,
+        };
+      }),
+    );
+    for (let column = 1; column < boxes.length; column += 1) {
+      expect(boxes[column]!.left, `${boxes[column]!.text} chevauche ${boxes[column - 1]!.text}`)
+        .toBeGreaterThanOrEqual(boxes[column - 1]!.right - 1);
+    }
+    expect(boxes.filter((box) => box.clipped).map((box) => box.text)).toEqual([]);
+    const title = boxes.find((box) => box.text.startsWith("Titre"));
+    expect(title).toBeDefined();
+    expect(title!.right - title!.left).toBeGreaterThanOrEqual(190);
+  }
+}
+
+test("garde les en-têtes du Backlog et de la Liste lisibles à 390 par 844", async ({ page }) => {
+  const capture = observe(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/b/CASS?view=backlog");
+  await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+  await expectReadableHeaderRows(page);
+  const firstTitle = page.getByRole("table").first().locator("tbody td span.truncate").first();
+  await firstTitle.scrollIntoViewIfNeeded();
+  await expect(firstTitle).toBeVisible();
+  expect((await firstTitle.boundingBox())?.width ?? 0).toBeGreaterThan(0);
+
+  await page.goto("/b/CASS?view=list");
+  await expect(page.getByRole("table")).toBeVisible();
+  await expectReadableHeaderRows(page);
+  expect(capture.consoleErrors).toEqual([]);
+  expect(capture.requestFailures).toEqual([]);
+  expect(capture.httpErrors).toEqual([]);
+});

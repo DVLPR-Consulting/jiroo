@@ -297,6 +297,15 @@ describe("ItemBacklog", () => {
     expect(within(row).queryByText("Legacy")).not.toBeInTheDocument();
   });
 
+  it("floors every section table so the title column stays readable on narrow screens", () => {
+    render(<ItemBacklog {...sprintProps()} />);
+
+    const tables = screen.getAllByRole("table");
+    expect(tables).toHaveLength(3);
+    // 2.5rem selection + 55.5rem fixed columns + 12rem title floor.
+    for (const table of tables) expect(table).toHaveStyle({ minWidth: "70rem" });
+  });
+
   it("renders active, planned, and unscheduled sections in Jira planning order", () => {
     render(<ItemBacklog {...sprintProps()} />);
 
