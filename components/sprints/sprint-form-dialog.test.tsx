@@ -202,4 +202,42 @@ describe("sprint form dialogs", () => {
     expect(screen.queryByLabelText("Début prévu")).not.toBeInTheDocument();
     expect(screen.getByText(/sprint terminé/i)).toBeVisible();
   });
+
+  it("reports a rejected edit request, re-enables saving and stays closable", async () => {
+    const user = userEvent.setup();
+    // Drop any unconsumed one-shot result left by an earlier test.
+    mocks.updateSprintAction.mockReset().mockRejectedValueOnce(new Error("network"));
+    render(
+      <EditSprintDialog
+        backlogId="11111111-1111-4111-8111-111111111111"
+        backlogKey="DEMO"
+        sprint={sprint}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Modifier Sprint paiement" }));
+    await user.clear(screen.getByRole("textbox", { name: "Nom" }));
+    await user.type(screen.getByRole("textbox", { name: "Nom" }), "Sprint conservé");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Mise à jour du sprint impossible.",
+    );
+    await waitFor(() => expect(screen.getByRole("button", { name: "Enregistrer" })).toBeEnabled());
+    expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("Sprint conservé");
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("reports a rejected creation request and re-enables the button", async () => {
+    const user = userEvent.setup();
+    // Drop any unconsumed one-shot result left by an earlier test.
+    mocks.createSprintAction.mockReset().mockRejectedValueOnce(new Error("network"));
+    render(<CreateSprintButton backlogId="11111111-1111-4111-8111-111111111111" backlogKey="DEMO" />);
+    await user.click(screen.getByRole("button", { name: "Créer un sprint" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Création du sprint impossible.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Créer un sprint" })).toBeEnabled());
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
 });

@@ -344,4 +344,50 @@ describe("release lifecycle dialogs", () => {
     }));
     expect(mocks.refresh).toHaveBeenCalledOnce();
   });
+
+  it("reports a rejected publish request and stays closable", async () => {
+    const user = userEvent.setup();
+    // Drop any unconsumed one-shot result left by an earlier test.
+    mocks.publishReleaseAction.mockReset().mockRejectedValueOnce(new Error("network"));
+    render(
+      <ReleaseLifecycleDialogs
+        backlog={backlog}
+        release={release}
+        destinations={destinations}
+        canAssignItems
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Publier Version 1" }));
+    await user.type(screen.getByLabelText("Date de publication"), "2026-10-01");
+    await user.click(screen.getByRole("radio", { name: /conserver/i }));
+    await user.click(screen.getByRole("button", { name: "Publier" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Publication impossible.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Publier" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it("reports a rejected revision action and stays closable", async () => {
+    const user = userEvent.setup();
+    // Drop any unconsumed one-shot result left by an earlier test.
+    mocks.archiveReleaseAction.mockReset().mockRejectedValueOnce(new Error("network"));
+    render(
+      <ReleaseLifecycleDialogs
+        backlog={backlog}
+        release={release}
+        destinations={destinations}
+        canAssignItems
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Archiver Version 1" }));
+    await user.click(screen.getByRole("button", { name: "Confirmer l’archivage" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Archivage impossible.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Confirmer l’archivage" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
 });
