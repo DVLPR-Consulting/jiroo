@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import Link from "next/link";
+import { ViewTabsScroller } from "@/components/shell/view-tabs-scroller";
 import { cn } from "@/lib/utils";
 
 const ITEM_VIEW_TABS = [
@@ -16,8 +17,9 @@ export type ItemViewLink = {
   onNavigate?: ComponentProps<typeof Link>["onNavigate"];
 };
 
+// Inset focus ring: the scrolling row would clip an outer outline.
 const TAB_CLASS =
-  "rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium transition-colors";
+  "shrink-0 whitespace-nowrap rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
 const INACTIVE_TAB_CLASS = "text-[var(--subtle-foreground)] hover:text-foreground";
 const ACTIVE_TAB_CLASS = "bg-[var(--accent-subtle)] text-[var(--accent-subtle-fg)]";
 
@@ -79,9 +81,9 @@ export function ViewTabs(props: ViewTabsProps) {
     : (props.itemViewLink ?? defaultItemViewLink(props.backlogKey));
 
   return (
-    <nav
-      aria-label="Vues du backlog"
-      className="inline-flex shrink-0 rounded-md border border-border p-0.5"
+    <ViewTabsScroller
+      active={active}
+      className="inline-flex max-w-full shrink-0 overflow-x-auto rounded-md border border-border p-0.5 [scrollbar-width:none]"
     >
       {ITEM_VIEW_TABS.map(([view, label]) => {
         const { href, onNavigate } = linkFor(view);
@@ -102,7 +104,7 @@ export function ViewTabs(props: ViewTabsProps) {
             </Link>
           ))
         : null}
-    </nav>
+    </ViewTabsScroller>
   );
 }
 
