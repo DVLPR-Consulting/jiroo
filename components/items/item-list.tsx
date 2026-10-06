@@ -410,6 +410,9 @@ export function ItemList({
 
   function handleSelectionShortcut(event: React.KeyboardEvent<HTMLDivElement>) {
     const target = event.target as HTMLElement;
+    // Portaled menus and dialogs bubble through React but not through this
+    // DOM subtree; their keys (e.g. Escape closing a menu) are not ours.
+    if (!event.currentTarget.contains(target)) return;
     if (target.closest("button, a, input, textarea, select, [contenteditable='true']")) {
       return;
     }

@@ -467,6 +467,20 @@ describe("ItemList", () => {
     expect(screen.queryByRole("region", { name: "Actions groupées" })).not.toBeInTheDocument();
   });
 
+  it("keeps the selection when Escape only closes a bulk toolbar menu", async () => {
+    const user = userEvent.setup();
+    renderList();
+
+    await user.click(screen.getByRole("checkbox", { name: "Sélectionner DEMO-1" }));
+    await user.click(screen.getByRole("button", { name: "Modifier la priorité" }));
+    expect(screen.getByRole("menu")).toBeVisible();
+    // The portaled menu bubbles through React, not through the list's DOM.
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByText("1 item sélectionné")).toBeVisible();
+  });
+
   it("reconciles selection when visible list results change", async () => {
     const user = userEvent.setup();
     const input = listProps();
