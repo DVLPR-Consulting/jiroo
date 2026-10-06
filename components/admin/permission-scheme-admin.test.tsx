@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +10,7 @@ vi.mock("@/app/actions/authorization", () => ({
 }));
 
 import { PermissionSchemeAdmin } from "@/components/admin/permission-scheme-admin";
+import { simulateExitAnimations } from "@/test/exit-animation";
 
 const scheme = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -185,5 +186,60 @@ describe("PermissionSchemeAdmin", () => {
     await user.click(within(dialog).getByRole("button", { name: "Cloner" }));
     expect(await within(dialog).findByRole("alert")).toBeVisible();
     expect(within(dialog).getByRole("textbox", { name: "Nom du clone" })).toHaveValue("Copie produit");
+  });
+
+  it("keeps the matrix title and grants visible while the matrix closes", async () => {
+    const user = userEvent.setup();
+    render(<PermissionSchemeAdmin schemes={[scheme]} users={[]} groups={[]} roles={[]} />);
+    await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
+    const dialog = screen.getByRole("dialog", { name: "Matrice de Produit partagé" });
+
+    const restore = simulateExitAnimations();
+    try {
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(dialog).toHaveAttribute("data-state", "closed"));
+      expect(dialog).toHaveTextContent("Matrice de Produit partagé");
+      expect(within(dialog).getByRole("button", { name: "Retirer Produit de Consulter le backlog" })).toBeInTheDocument();
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps the affected backlogs visible while the shared-scheme confirmation closes", async () => {
+    const user = userEvent.setup();
+    render(<PermissionSchemeAdmin schemes={[scheme]} users={[]} groups={[]} roles={[]} />);
+    await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
+    await user.click(screen.getByRole("button", { name: "Retirer Produit de Consulter le backlog" }));
+    const confirmation = screen.getByRole("dialog", { name: "Modifier un schéma partagé" });
+
+    const restore = simulateExitAnimations();
+    try {
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(confirmation).toHaveAttribute("data-state", "closed"));
+      expect(confirmation).toHaveTextContent("Démonstration (DEMO)");
+      expect(confirmation).toHaveTextContent("Opérations (OPS)");
+      // Escape dismisses only the confirmation; the matrix underneath stays open.
+      const matrixDialog = screen.getByText("Matrice de Produit partagé").closest('[role="dialog"]');
+      expect(matrixDialog).toHaveAttribute("data-state", "open");
+    } finally {
+      restore();
+    }
+  });
+
+  it("ignores grant changes from the retained matrix while it closes", async () => {
+    const user = userEvent.setup();
+    render(<PermissionSchemeAdmin schemes={[{ ...scheme, usageCount: 1 }]} users={[]} groups={[]} roles={[]} />);
+    await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
+    const dialog = screen.getByRole("dialog", { name: "Matrice de Produit partagé" });
+
+    const restore = simulateExitAnimations();
+    try {
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(dialog).toHaveAttribute("data-state", "closed"));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Retirer Produit de Consulter le backlog", hidden: true }));
+      expect(mocks.remove).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
   });
 });

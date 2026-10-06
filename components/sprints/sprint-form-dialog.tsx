@@ -57,12 +57,16 @@ export function CreateSprintButton({
   function create() {
     setError(null);
     startTransition(async () => {
-      const result = await createSprintAction({ backlogId, backlogKey });
-      if (!result.ok) {
-        setError(result.error);
-        return;
+      try {
+        const result = await createSprintAction({ backlogId, backlogKey });
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        router.refresh();
+      } catch {
+        setError("Création du sprint impossible.");
       }
-      router.refresh();
     });
   }
 
@@ -126,27 +130,33 @@ export function EditSprintDialog({
     setError(null);
     setFieldErrors({});
     startTransition(async () => {
-      const result = await updateSprintAction({
-        backlogKey,
-        backlogId,
-        id: sprint.id,
-        name,
-        goal: goal.trim() || null,
-        ...(completed
-          ? {}
-          : {
-              plannedStartAt: toIso(plannedStartAt),
-              plannedEndAt: toIso(plannedEndAt),
-              capacityPoints: capacity === "" ? null : Number(capacity),
-            }),
-      });
-      if (!result.ok) {
-        setError(result.error);
-        if ("fieldErrors" in result) setFieldErrors(result.fieldErrors ?? {});
-        return;
+      try {
+        const result = await updateSprintAction({
+          backlogKey,
+          backlogId,
+          id: sprint.id,
+          name,
+          goal: goal.trim() || null,
+          ...(completed
+            ? {}
+            : {
+                plannedStartAt: toIso(plannedStartAt),
+                plannedEndAt: toIso(plannedEndAt),
+                capacityPoints: capacity === "" ? null : Number(capacity),
+              }),
+        });
+        if (!result.ok) {
+          setError(result.error);
+          if ("fieldErrors" in result) setFieldErrors(result.fieldErrors ?? {});
+          return;
+        }
+        setOpen(false);
+        router.refresh();
+      } catch {
+        // A rejected action (network failure) must not leave the dialog
+        // locked: the transition ends and the user can retry or close.
+        setError("Mise à jour du sprint impossible.");
       }
-      setOpen(false);
-      router.refresh();
     });
   }
 

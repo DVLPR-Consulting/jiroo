@@ -31,6 +31,9 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
   const [principalId, setPrincipalId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [removing, setRemoving] = useState<GlobalGrantDto | null>(null);
+  // The remove confirmation owns its error: an add-form error must never
+  // surface in it, and it starts clean on every open (JIR-64).
+  const [removeError, setRemoveError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const options = principalType === "user" ? users : groups;
 
@@ -46,7 +49,7 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
             <span className="font-medium">{grant.permissionLabel}</span>
             <span className="text-muted-foreground">{grant.principal.label}</span>
             {canManage && (
-              <Button className="ml-auto" size="sm" variant="ghost" onClick={() => setRemoving(grant)} disabled={pending}
+              <Button className="ml-auto" size="sm" variant="ghost" onClick={() => { setRemoveError(null); setRemoving(grant); }} disabled={pending}
                 aria-label={`Retirer ${grant.permissionLabel} pour ${grant.principal.label}`}>
                 Retirer
               </Button>
@@ -82,17 +85,17 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
           {error && <p role="alert" className="text-sm text-destructive md:col-span-4">{error}</p>}
         </form>
       )}
-      <Dialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}>
+      <Dialog open={removing !== null} onOpenChange={(open) => { if (!open && !pending) setRemoving(null); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Retirer la permission globale</DialogTitle><DialogDescription>Cette modification prend effet immédiatement.</DialogDescription></DialogHeader>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          {removeError && <p role="alert" className="text-sm text-destructive">{removeError}</p>}
           <DialogFooter>
             <Button variant="destructive" disabled={pending} aria-busy={pending} onClick={() => {
               if (!removing) return;
-              setError(null);
+              setRemoveError(null);
               startTransition(async () => {
                 const result = await removeGlobalPermissionGrantAction({ grantId: removing.id });
-                if (!result.ok) setError(result.error); else setRemoving(null);
+                if (!result.ok) setRemoveError(result.error); else setRemoving(null);
               });
             }}>Confirmer le retrait</Button>
           </DialogFooter>

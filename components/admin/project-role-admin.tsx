@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useRetainedWhileClosing } from "@/components/admin/use-retained-while-closing";
 
 export type ProjectRoleAdminDto = { id: string; key: string; name: string; description: string | null; protected: boolean; occupancyCount: number; blockers: string[] };
 export type ProjectRoleAdminProps = { roles: ProjectRoleAdminDto[] };
@@ -16,6 +17,10 @@ export function ProjectRoleAdmin({ roles }: ProjectRoleAdminProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleting, setDeleting] = useState<ProjectRoleAdminDto | null>(null);
   const [deletionError, setDeletionError] = useState<string | null>(null);
+  // Render the confirmation from the retained role, and leave its error in
+  // place on close (it is cleared on open), so nothing blanks during the
+  // exit animation (JIR-64).
+  const shownDeleting = useRetainedWhileClosing(deleting);
   const [pending, startTransition] = useTransition();
   const run = (key: string, action: () => Promise<{ ok: boolean; error?: string }>, done?: () => void) => { setErrors((current) => ({ ...current, [key]: "" })); startTransition(async () => { const result = await action(); if (!result.ok) setErrors((current) => ({ ...current, [key]: result.error ?? "Action impossible." })); else done?.(); }); };
   const runDeletion = (role: ProjectRoleAdminDto) => {
@@ -45,6 +50,6 @@ export function ProjectRoleAdmin({ roles }: ProjectRoleAdminProps) {
       {!role.protected && <div className="flex justify-end gap-2"><Button variant="outline" disabled={pending} onClick={() => run(role.id, () => updateProjectRoleAction({ projectRoleId: role.id, name: draft.name, description: draft.description || null }))}>Enregistrer le rôle</Button><Button variant="destructive" onClick={() => { setDeletionError(null); setDeleting(role); }} aria-label={`Supprimer ${role.name}`}>Supprimer</Button></div>}
     </section>; })}
     {roles.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">Aucun rôle de projet.</p>}
-    <Dialog open={deleting !== null} onOpenChange={(open) => { if (!open && !pending) { setDeleting(null); setDeletionError(null); } }}><DialogContent><DialogHeader><DialogTitle>Supprimer {deleting?.name}</DialogTitle><DialogDescription>Vérifiez les usages avant de supprimer ce rôle.</DialogDescription></DialogHeader>{deleting?.blockers.length ? <ul className="list-disc pl-5 text-sm">{deleting.blockers.map((blocker, index) => <li key={`${index}:${blocker}`}>{blocker}</li>)}</ul> : null}{deletionError && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{deletionError}</p>}<DialogFooter><Button variant="destructive" disabled={pending || Boolean(deleting?.blockers.length)} aria-busy={pending} onClick={() => deleting && runDeletion(deleting)}>Confirmer la suppression</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={deleting !== null} onOpenChange={(open) => { if (!open && !pending) setDeleting(null); }}><DialogContent><DialogHeader><DialogTitle>Supprimer {shownDeleting?.name}</DialogTitle><DialogDescription>Vérifiez les usages avant de supprimer ce rôle.</DialogDescription></DialogHeader>{shownDeleting?.blockers.length ? <ul className="list-disc pl-5 text-sm">{shownDeleting.blockers.map((blocker, index) => <li key={`${index}:${blocker}`}>{blocker}</li>)}</ul> : null}{deletionError && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{deletionError}</p>}<DialogFooter><Button variant="destructive" disabled={pending || Boolean(shownDeleting?.blockers.length)} aria-busy={pending} onClick={() => deleting && runDeletion(deleting)}>Confirmer la suppression</Button></DialogFooter></DialogContent></Dialog>
   </div>;
 }

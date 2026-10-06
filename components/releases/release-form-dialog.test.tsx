@@ -400,4 +400,51 @@ describe("release form dialogs", () => {
       driverId: null,
     }));
   });
+
+  it("reports a rejected creation request and stays closable", async () => {
+    const user = userEvent.setup();
+    // Drop any unconsumed one-shot result left by an earlier test.
+    mocks.createReleaseAction.mockReset().mockRejectedValueOnce(new Error("network"));
+    render(
+      <CreateReleaseDialog
+        backlog={backlog}
+        actor={actor}
+        driverOptions={driverOptions}
+        canBrowseUsers
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Créer une version" }));
+    await user.type(screen.getByRole("textbox", { name: "Nom" }), "Version 2");
+    await user.click(screen.getByRole("button", { name: "Créer" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Création de release impossible.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Créer" })).toBeEnabled());
+    expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("Version 2");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it("reports a rejected edit request and stays closable", async () => {
+    const user = userEvent.setup();
+    // Drop any unconsumed one-shot result left by an earlier test.
+    mocks.updateReleaseAction.mockReset().mockRejectedValueOnce(new Error("network"));
+    render(
+      <EditReleaseDialog
+        backlog={backlog}
+        release={release}
+        actor={actor}
+        driverOptions={driverOptions}
+        canBrowseUsers
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Modifier Version 1" }));
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Mise à jour de release impossible.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Enregistrer" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
 });

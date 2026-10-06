@@ -10,6 +10,7 @@ vi.mock("@/app/actions/authorization", () => ({
 }));
 
 import { ProjectRoleAdmin } from "@/components/admin/project-role-admin";
+import { simulateExitAnimations } from "@/test/exit-animation";
 
 const role = {
   id: "11111111-1111-4111-8111-111111111111", key: "delivery", name: "Delivery",
@@ -99,5 +100,59 @@ describe("ProjectRoleAdmin", () => {
     await waitFor(() => expect(within(dialog).getByRole("button", { name: "Confirmer la suppression" })).toBeEnabled());
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("keeps the role's title and blockers visible while the confirmation closes", async () => {
+    const user = userEvent.setup();
+    render(<ProjectRoleAdmin roles={[role]} />);
+    await user.click(screen.getByRole("button", { name: "Supprimer Delivery" }));
+    const dialog = screen.getByRole("dialog", { name: "Supprimer Delivery" });
+
+    const restore = simulateExitAnimations();
+    try {
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(dialog).toHaveAttribute("data-state", "closed"));
+      expect(dialog).toHaveTextContent("Supprimer Delivery");
+      expect(dialog).toHaveTextContent("1 autorisation de schéma");
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps the deletion error visible while the confirmation closes", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockResolvedValue({ ok: false, error: "Suppression refusée." });
+    render(<ProjectRoleAdmin roles={[{ ...role, blockers: [] }]} />);
+    await user.click(screen.getByRole("button", { name: "Supprimer Delivery" }));
+    const dialog = screen.getByRole("dialog", { name: "Supprimer Delivery" });
+    await user.click(within(dialog).getByRole("button", { name: "Confirmer la suppression" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Suppression refusée.");
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Confirmer la suppression" })).toBeEnabled());
+
+    const restore = simulateExitAnimations();
+    try {
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(dialog).toHaveAttribute("data-state", "closed"));
+      expect(dialog).toHaveTextContent("Suppression refusée.");
+    } finally {
+      restore();
+    }
+  });
+
+  it("opens a clean confirmation after an earlier deletion error", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockResolvedValue({ ok: false, error: "Suppression refusée." });
+    render(<ProjectRoleAdmin roles={[{ ...role, blockers: [] }]} />);
+    await user.click(screen.getByRole("button", { name: "Supprimer Delivery" }));
+    let dialog = screen.getByRole("dialog", { name: "Supprimer Delivery" });
+    await user.click(within(dialog).getByRole("button", { name: "Confirmer la suppression" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Suppression refusée.");
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Confirmer la suppression" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Supprimer Delivery" }));
+    dialog = screen.getByRole("dialog", { name: "Supprimer Delivery" });
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
   });
 });

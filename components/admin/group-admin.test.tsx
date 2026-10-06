@@ -17,6 +17,7 @@ vi.mock("@/components/admin/global-permission-admin", () => ({
 }));
 
 import { GroupAdmin } from "@/components/admin/group-admin";
+import { simulateExitAnimations } from "@/test/exit-animation";
 
 const groups = [{
   id: "11111111-1111-4111-8111-111111111111",
@@ -121,5 +122,58 @@ describe("GroupAdmin", () => {
     await waitFor(() => expect(within(dialog).getByRole("button", { name: "Confirmer la suppression" })).toBeEnabled());
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+  it("keeps the group's title and blockers visible while the confirmation closes", async () => {
+    const user = userEvent.setup();
+    render(<GroupAdmin groups={groups} users={users} globalGrants={[]} canAdministerGlobals={false} />);
+    await user.click(screen.getByRole("button", { name: "Supprimer le groupe" }));
+    const dialog = screen.getByRole("dialog", { name: "Supprimer Équipe produit" });
+
+    const restore = simulateExitAnimations();
+    try {
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(dialog).toHaveAttribute("data-state", "closed"));
+      expect(dialog).toHaveTextContent("Supprimer Équipe produit");
+      expect(dialog).toHaveTextContent("Utilisé par le rôle Membre dans DEMO");
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps the deletion error visible while the confirmation closes", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockResolvedValue({ ok: false, error: "Suppression refusée." });
+    render(<GroupAdmin groups={[{ ...groups[0]!, blockers: [] }]} users={users} globalGrants={[]} canAdministerGlobals={false} />);
+    await user.click(screen.getByRole("button", { name: "Supprimer le groupe" }));
+    const dialog = screen.getByRole("dialog", { name: "Supprimer Équipe produit" });
+    await user.click(within(dialog).getByRole("button", { name: "Confirmer la suppression" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Suppression refusée.");
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Confirmer la suppression" })).toBeEnabled());
+
+    const restore = simulateExitAnimations();
+    try {
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(dialog).toHaveAttribute("data-state", "closed"));
+      expect(dialog).toHaveTextContent("Suppression refusée.");
+    } finally {
+      restore();
+    }
+  });
+
+  it("opens a clean confirmation after an earlier deletion error", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockResolvedValue({ ok: false, error: "Suppression refusée." });
+    render(<GroupAdmin groups={[{ ...groups[0]!, blockers: [] }]} users={users} globalGrants={[]} canAdministerGlobals={false} />);
+    await user.click(screen.getByRole("button", { name: "Supprimer le groupe" }));
+    let dialog = screen.getByRole("dialog", { name: "Supprimer Équipe produit" });
+    await user.click(within(dialog).getByRole("button", { name: "Confirmer la suppression" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Suppression refusée.");
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Confirmer la suppression" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Supprimer le groupe" }));
+    dialog = screen.getByRole("dialog", { name: "Supprimer Équipe produit" });
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
   });
 });

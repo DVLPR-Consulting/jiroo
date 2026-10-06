@@ -78,3 +78,18 @@ describe("Toaster actions", () => {
     expect(screen.queryByText("Item supprimé.")).not.toBeInTheDocument();
   });
 });
+
+describe("Toaster motion", () => {
+  it("slides toasts in, but not for users who prefer reduced motion", () => {
+    toast.success("Item créé.");
+    render(<Toaster />);
+
+    const card = screen.getByText("Item créé.").parentElement;
+    expect(card).toHaveClass(
+      "animate-in",
+      "fade-in",
+      "slide-in-from-bottom-2",
+      "motion-reduce:animate-none",
+    );
+  });
+});
