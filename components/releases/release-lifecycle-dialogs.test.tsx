@@ -139,6 +139,70 @@ describe("release lifecycle dialogs", () => {
     expect(screen.getByRole("dialog", { name: "Publier Version 1" })).toBeVisible();
   });
 
+  it("opens publish with the current scope after its props refresh while closed", async () => {
+    const user = userEvent.setup();
+    mocks.publishReleaseAction.mockResolvedValueOnce({ ok: true, result: {} });
+    const props = { backlog, destinations, canAssignItems: true };
+    const { rerender } = render(
+      <ReleaseLifecycleDialogs {...props} release={{ ...release, progress: { todo: 0, inProgress: 0 } }} />,
+    );
+    await user.click(screen.getByRole("button", { name: "Publier Version 1" }));
+    expect(screen.getByText(/aucun élément non terminé/i)).toBeVisible();
+    await user.keyboard("{Escape}");
+
+    const refreshedScope = "fedcba9876543210fedcba9876543210";
+    rerender(
+      <ReleaseLifecycleDialogs
+        {...props}
+        release={{ ...release, publicationScopeRevision: refreshedScope, progress: { todo: 2, inProgress: 0 } }}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Publier Version 1" }));
+
+    expect(screen.queryByText(/aucun élément non terminé/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/2 éléments non terminés/i)).toBeVisible();
+    expect(screen.getByRole("radio", { name: /conserver/i })).not.toBeChecked();
+    await user.type(screen.getByLabelText("Date de publication"), "2026-10-01");
+    expect(screen.getByRole("button", { name: "Publier" })).toBeDisabled();
+    await user.click(screen.getByRole("radio", { name: /conserver/i }));
+    await user.click(screen.getByRole("button", { name: "Publier" }));
+
+    await waitFor(() => expect(mocks.publishReleaseAction).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedScopeRevision: refreshedScope, incompleteDisposition: "keep" }),
+    ));
+  });
+
+  it("keeps publish choices made while open when the release props refresh", async () => {
+    const user = userEvent.setup();
+    mocks.publishReleaseAction.mockResolvedValueOnce({ ok: true, result: {} });
+    const props = { backlog, destinations, canAssignItems: true };
+    const { rerender } = render(<ReleaseLifecycleDialogs {...props} release={release} />);
+    await user.click(screen.getByRole("button", { name: "Publier Version 1" }));
+    await user.type(screen.getByLabelText("Date de publication"), "2026-10-01");
+    await user.click(screen.getByRole("radio", { name: /déplacer/i }));
+
+    rerender(
+      <ReleaseLifecycleDialogs
+        {...props}
+        release={{
+          ...release,
+          publicationScopeRevision: "fedcba9876543210fedcba9876543210",
+          progress: { todo: 5, inProgress: 0 },
+        }}
+      />,
+    );
+
+    expect(screen.getByLabelText("Date de publication")).toHaveValue("2026-10-01");
+    expect(screen.getByRole("radio", { name: /déplacer/i })).toBeChecked();
+    expect(screen.getByText(/3 éléments non terminés/i)).toBeVisible();
+    await user.selectOptions(screen.getByLabelText("Version de destination"), "Version 2");
+    await user.click(screen.getByRole("button", { name: "Publier" }));
+
+    await waitFor(() => expect(mocks.publishReleaseAction).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedScopeRevision: release.publicationScopeRevision }),
+    ));
+  });
+
   it("surfaces a stale scope, refreshes it, and requires an explicit new decision", async () => {
     const user = userEvent.setup();
     mocks.publishReleaseAction.mockResolvedValueOnce({

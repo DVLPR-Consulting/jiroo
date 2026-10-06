@@ -129,8 +129,10 @@ function PublishDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // Resync from the current props on every open: the publication scope
+        // may have changed since mount (JIR-57). Edits made while open stay.
+        if (next) reset();
         setOpen(next);
-        if (!next) reset();
       }}
     >
       <DialogTrigger asChild>
