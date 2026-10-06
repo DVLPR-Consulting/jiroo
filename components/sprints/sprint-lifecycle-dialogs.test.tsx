@@ -53,6 +53,14 @@ const base = {
   metrics,
 };
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 describe("sprint lifecycle dialogs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -97,6 +105,30 @@ describe("sprint lifecycle dialogs", () => {
       .toBeVisible();
     expect(goal).toHaveValue("Objectif conservé");
     expect(screen.getByRole("dialog")).toBeVisible();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("cannot be closed while a start request is pending, so its response stays in that opening", async () => {
+    const user = userEvent.setup();
+    const request = deferred<{ ok: false; error: string }>();
+    mocks.startSprintAction.mockReturnValueOnce(request.promise);
+    render(<StartSprintDialog {...base} />);
+    await user.click(screen.getByRole("button", { name: "Démarrer Sprint paiement" }));
+    await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
+    expect(screen.getByRole("button", { name: "Démarrage…" })).toBeDisabled();
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("dialog")).toBeVisible();
+
+    request.resolve({ ok: false, error: "Un sprint est déjà actif pour ce backlog." });
+    expect(await screen.findByText("Un sprint est déjà actif pour ce backlog.")).toBeVisible();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Confirmer le démarrage" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Démarrer Sprint paiement" }));
+    expect(screen.queryByText("Un sprint est déjà actif pour ce backlog.")).not.toBeInTheDocument();
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
@@ -332,6 +364,34 @@ describe("sprint lifecycle dialogs", () => {
     );
     expect(mocks.refresh).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("cannot be closed while a completion request is pending", async () => {
+    const user = userEvent.setup();
+    const request = deferred<{ ok: false; error: string }>();
+    mocks.completeSprintAction.mockReturnValueOnce(request.promise);
+    render(
+      <CompleteSprintDialog
+        {...base}
+        sprint={{ ...sprint, state: "active" }}
+        plannedSprints={[]}
+        completedMetrics={metrics}
+        incompleteMetrics={metrics}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Clôturer Sprint paiement" }));
+    await user.click(screen.getByRole("button", { name: "Confirmer la clôture" }));
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeVisible();
+
+    request.resolve({ ok: false, error: "Le sprint a changé." });
+    expect(await screen.findByText("Le sprint a changé.")).toBeVisible();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Confirmer la clôture" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Clôturer Sprint paiement" }));
+    expect(screen.queryByText("Le sprint a changé.")).not.toBeInTheDocument();
   });
 
   it("reports a rejected completion request and retains the destination", async () => {

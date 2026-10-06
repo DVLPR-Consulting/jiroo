@@ -147,6 +147,30 @@ describe("NewItemButton", () => {
     expect(await screen.findByText("Création impossible.")).toBeVisible();
   });
 
+  it("cannot be closed while creation is pending, so its success cannot wipe a new draft", async () => {
+    const user = userEvent.setup();
+    const onCreated = vi.fn();
+    let resolve!: (result: { ok: true; item: { id: string; key: string } }) => void;
+    mocks.createItemAction.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    render(<NewItemButton {...dialogProps()} onCreated={onCreated} />);
+
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    await user.type(screen.getByRole("textbox", { name: "Titre" }), "Première");
+    await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Titre" })).toHaveValue("Première");
+    resolve({ ok: true, item: { id: "item-id", key: "DEMO-7" } });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(onCreated).toHaveBeenCalledOnce();
+  });
+
   it("creates a task in the supplied sprint context", async () => {
     const user = userEvent.setup();
     mocks.createItemAction.mockResolvedValueOnce({

@@ -30,6 +30,14 @@ const sprint = {
   capacityPoints: 20,
 };
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 describe("sprint form dialogs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -84,6 +92,36 @@ describe("sprint form dialogs", () => {
     expect(name).toHaveValue("Nom conservé");
     expect(name).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("dialog")).toBeVisible();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it("cannot be closed while an edit is pending, so its response stays in that opening", async () => {
+    const user = userEvent.setup();
+    const request = deferred<{ ok: false; error: string }>();
+    mocks.updateSprintAction.mockReturnValueOnce(request.promise);
+    render(
+      <EditSprintDialog
+        backlogId="11111111-1111-4111-8111-111111111111"
+        backlogKey="DEMO"
+        sprint={sprint}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Modifier Sprint paiement" }));
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+    expect(screen.getByRole("button", { name: "Enregistrement…" })).toBeDisabled();
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("dialog")).toBeVisible();
+
+    request.resolve({ ok: false, error: "Ce sprint a changé." });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Ce sprint a changé.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Enregistrer" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Modifier Sprint paiement" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 

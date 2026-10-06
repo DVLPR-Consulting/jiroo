@@ -99,4 +99,27 @@ describe("GroupAdmin", () => {
     expect(within(section).queryByRole("button", { name: "Retirer Ada Lovelace" })).not.toBeInTheDocument();
     expect(within(section).queryByRole("combobox", { name: "Ajouter un membre" })).not.toBeInTheDocument();
   });
+
+  it("cannot close the deletion confirmation while the request is pending", async () => {
+    const user = userEvent.setup();
+    let resolve!: (result: { ok: false; error: string }) => void;
+    mocks.remove.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    render(<GroupAdmin groups={[{ ...groups[0]!, blockers: [] }]} users={users} globalGrants={[]} canAdministerGlobals={false} />);
+
+    await user.click(screen.getByRole("button", { name: "Supprimer le groupe" }));
+    const dialog = screen.getByRole("dialog", { name: "Supprimer Équipe produit" });
+    await user.click(within(dialog).getByRole("button", { name: "Confirmer la suppression" }));
+    await user.keyboard("{Escape}");
+    expect(dialog).toBeVisible();
+
+    resolve({ ok: false, error: "Ce groupe est encore utilisé par un rôle de projet." });
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("encore utilisé");
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Confirmer la suppression" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
 });

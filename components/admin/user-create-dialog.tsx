@@ -36,8 +36,10 @@ export function UserCreateDialog() {
     <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
+        // Keep the dialog open while a request is in flight (JIR-57).
+        if (!nextOpen && pending) return;
         setOpen(nextOpen);
-        if (!nextOpen && !pending) reset();
+        if (!nextOpen) reset();
       }}
     >
       <DialogTrigger asChild>

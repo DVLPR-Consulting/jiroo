@@ -129,6 +129,8 @@ export function StartSprintDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // Keep the dialog open while a request is in flight (JIR-57).
+        if (!next && pending) return;
         // Resync from the current props on every open: the sprint may have
         // been renamed or re-planned since mount (JIR-54).
         if (next) reset();
@@ -249,6 +251,8 @@ export function CompleteSprintDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // Keep the dialog open while a request is in flight (JIR-57).
+        if (!next && pending) return;
         setOpen(next);
         if (!next) reset();
       }}

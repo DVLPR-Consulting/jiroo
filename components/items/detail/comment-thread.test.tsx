@@ -1,5 +1,7 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { deleteCommentAction } from "@/app/actions/comments";
 import { CommentThread, type CommentRow } from "./comment-thread";
 
 vi.mock("next/navigation", () => ({
@@ -145,5 +147,48 @@ describe("CommentThread", () => {
     expect(within(otherComment).queryByRole("button", { name: "Modifier" }))
       .not.toBeInTheDocument();
     expect(within(otherComment).getByRole("button", { name: "Supprimer" })).toBeVisible();
+  });
+
+  it("cannot close the delete confirmation while the deletion is pending", async () => {
+    const user = userEvent.setup();
+    let resolve!: (result: { ok: false; error: string }) => void;
+    vi.mocked(deleteCommentAction).mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    const comment = {
+      id: "comment-own",
+      authorId: "actor-1",
+      authorName: "Ada",
+      body: "Mon commentaire",
+      mentions: [],
+      createdAt: new Date("2026-08-04T08:00:00Z"),
+      editedAt: null,
+      deletedAt: null,
+      deleted: false,
+    } satisfies CommentRow;
+    render(
+      <CommentThread
+        itemId="item-1"
+        backlogKey="CASS"
+        comments={[comment]}
+        users={[]}
+        currentUserId="actor-1"
+        capabilities={{ add: false, editOwn: false, deleteOwn: true, deleteAll: false }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Supprimer" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Supprimer" }));
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeVisible();
+
+    resolve({ ok: false, error: "Suppression impossible." });
+    expect(await within(dialog).findByText("Suppression impossible.")).toBeVisible();
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Supprimer" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

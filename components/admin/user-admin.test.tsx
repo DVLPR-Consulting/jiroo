@@ -246,4 +246,32 @@ describe("UserAdmin account recovery", () => {
     expect(within(reopened).getByLabelText("Mot de passe temporaire")).toHaveValue("");
     expect(mocks.resetUserPasswordAction).not.toHaveBeenCalled();
   });
+
+  it("cannot close user creation while the request is pending", async () => {
+    const user = userEvent.setup();
+    let resolve!: (result: { ok: false; error: string }) => void;
+    mocks.createUserAction.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    render(<UserAdmin users={users} currentUserId="admin-1" />);
+
+    await user.click(screen.getByRole("button", { name: "Nouvel utilisateur" }));
+    await user.type(screen.getByRole("textbox", { name: "Nom" }), "Alice Martin");
+    await user.type(screen.getByRole("textbox", { name: "E-mail" }), "alice@example.test");
+    await user.type(screen.getByLabelText("Mot de passe initial"), "motdepasse123");
+    await user.click(screen.getByRole("button", { name: "Créer l’utilisateur" }));
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeVisible();
+
+    resolve({ ok: false, error: "Cet e-mail est déjà utilisé." });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Cet e-mail est déjà utilisé.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Créer l’utilisateur" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Nouvel utilisateur" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("");
+  });
 });
