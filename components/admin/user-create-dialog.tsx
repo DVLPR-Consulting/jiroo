@@ -38,8 +38,12 @@ export function UserCreateDialog() {
       onOpenChange={(nextOpen) => {
         // Keep the dialog open while a request is in flight (JIR-57).
         if (!nextOpen && pending) return;
+        // Reset on open rather than on close so the fields do not blank
+        // during the exit animation (JIR-64). The initial password alone is
+        // dropped on close: it should not linger in state between openings.
+        if (nextOpen) reset();
+        else setPassword("");
         setOpen(nextOpen);
-        if (!nextOpen) reset();
       }}
     >
       <DialogTrigger asChild>
@@ -67,7 +71,7 @@ export function UserCreateDialog() {
                 return;
               }
               setOpen(false);
-              reset();
+              setPassword("");
               toast.success("Utilisateur créé.");
             });
           }}

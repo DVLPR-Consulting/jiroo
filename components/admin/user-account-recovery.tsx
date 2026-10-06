@@ -72,6 +72,20 @@ export function UserAccountRecovery({ target }: { target: RecoveryTarget }) {
   );
 }
 
+/**
+ * Runs `clear` when a parent-controlled dialog opens. Clearing on open rather
+ * than on close keeps the closing dialog's content intact during its exit
+ * animation (JIR-64). It adjusts state during render, React's pattern for
+ * reacting to a prop change, so the cleared state shows on the first frame.
+ */
+function useClearOnOpen(open: boolean, clear: () => void) {
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) clear();
+  }
+}
+
 function ResetPasswordDialog({
   target,
   open,
@@ -85,11 +99,14 @@ function ResetPasswordDialog({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputId = `temporary-password-${target.id}`;
+  useClearOnOpen(open, () => setError(null));
 
   function close() {
     onOpenChange(false);
+    // The error is cleared on the next open so it does not blank during the
+    // exit animation (JIR-64); the temporary password is dropped right away
+    // so it never lingers in state between openings.
     setTemporaryPassword("");
-    setError(null);
   }
 
   return (
@@ -174,10 +191,10 @@ function ResetTwoFactorDialog({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  useClearOnOpen(open, () => setError(null));
 
   function close() {
     onOpenChange(false);
-    setError(null);
   }
 
   return (

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useRetainedWhileClosing } from "@/components/admin/use-retained-while-closing";
 
 export type GroupAdminDto = {
   id: string; name: string; protected: boolean; memberCount: number;
@@ -29,6 +30,10 @@ export function GroupAdmin({ groups, users, globalGrants, canAdministerGlobals }
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<GroupAdminDto | null>(null);
   const [deletionError, setDeletionError] = useState<string | null>(null);
+  // Render the confirmation from the retained group, and leave its error in
+  // place on close (it is cleared on open), so nothing blanks during the
+  // exit animation (JIR-64).
+  const shownDeleting = useRetainedWhileClosing(deleting);
   const [pending, startTransition] = useTransition();
   const run = (action: () => Promise<{ ok: boolean; error?: string }>, onSuccess?: () => void) => {
     setError(null);
@@ -78,6 +83,6 @@ export function GroupAdmin({ groups, users, globalGrants, canAdministerGlobals }
       {groups.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">Aucun groupe.</p>}
     </div>
     <GlobalPermissionAdmin grants={globalGrants} users={users} groups={groups} canManage={canAdministerGlobals} />
-    <Dialog open={deleting !== null} onOpenChange={(open) => { if (!open && !pending) { setDeleting(null); setDeletionError(null); } }}><DialogContent><DialogHeader><DialogTitle>Supprimer {deleting?.name}</DialogTitle><DialogDescription>Cette suppression est définitive.</DialogDescription></DialogHeader>{deleting?.blockers.length ? <ul className="list-disc pl-5 text-sm">{deleting.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul> : null}{deletionError && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{deletionError}</p>}<DialogFooter><Button variant="destructive" disabled={pending || Boolean(deleting?.blockers.length)} aria-busy={pending} onClick={() => deleting && runDeletion(deleting)}>Confirmer la suppression</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={deleting !== null} onOpenChange={(open) => { if (!open && !pending) setDeleting(null); }}><DialogContent><DialogHeader><DialogTitle>Supprimer {shownDeleting?.name}</DialogTitle><DialogDescription>Cette suppression est définitive.</DialogDescription></DialogHeader>{shownDeleting?.blockers.length ? <ul className="list-disc pl-5 text-sm">{shownDeleting.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul> : null}{deletionError && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{deletionError}</p>}<DialogFooter><Button variant="destructive" disabled={pending || Boolean(shownDeleting?.blockers.length)} aria-busy={pending} onClick={() => deleting && runDeletion(deleting)}>Confirmer la suppression</Button></DialogFooter></DialogContent></Dialog>
   </div>;
 }

@@ -33,7 +33,7 @@ function ToastCard({ toast: t }: { toast: Toast }) {
 
   return (
     <div
-      className="pointer-events-auto flex items-start gap-2 rounded-md border px-3 py-2 text-sm shadow animate-in fade-in slide-in-from-bottom-2"
+      className="pointer-events-auto flex items-start gap-2 rounded-md border px-3 py-2 text-sm shadow animate-in fade-in slide-in-from-bottom-2 motion-reduce:animate-none"
       style={
         isError
           ? {

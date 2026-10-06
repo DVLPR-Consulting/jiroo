@@ -17,6 +17,7 @@ vi.mock("@/app/actions/users", () => ({
 vi.mock("@/lib/toast", () => ({ toast: { success: mocks.toastSuccess } }));
 
 import { UserAdmin } from "@/components/admin/user-admin";
+import { simulateExitAnimations } from "@/test/exit-animation";
 
 const users = [
   {
@@ -85,6 +86,35 @@ describe("UserAdmin", () => {
       email: "alice@example.test",
       password: "motdepasse123",
     });
+  });
+
+  it("keeps the typed fields while user creation closes", async () => {
+    const user = userEvent.setup();
+    render(<UserAdmin users={users} currentUserId="admin-1" />);
+    await user.click(screen.getByRole("button", { name: "Nouvel utilisateur" }));
+    await user.type(screen.getByRole("textbox", { name: "Nom" }), "Alice Martin");
+    const dialog = screen.getByRole("dialog", { name: "Nouvel utilisateur" });
+
+    const restore = simulateExitAnimations();
+    try {
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(dialog).toHaveAttribute("data-state", "closed"));
+      expect(within(dialog).getByRole("textbox", { name: "Nom", hidden: true })).toHaveValue("Alice Martin");
+    } finally {
+      restore();
+    }
+  });
+
+  it("opens user creation empty after a cancelled draft", async () => {
+    const user = userEvent.setup();
+    render(<UserAdmin users={users} currentUserId="admin-1" />);
+    await user.click(screen.getByRole("button", { name: "Nouvel utilisateur" }));
+    await user.type(screen.getByRole("textbox", { name: "Nom" }), "Alice Martin");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Nouvel utilisateur" }));
+    expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("");
   });
 });
 
@@ -273,5 +303,93 @@ describe("UserAdmin account recovery", () => {
     await user.click(screen.getByRole("button", { name: "Nouvel utilisateur" }));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("");
+  });
+
+  async function failTwoFactorReset(user: ReturnType<typeof userEvent.setup>) {
+    mocks.resetUserTwoFactorAction.mockResolvedValue({ ok: false, error: "Réinitialisation refusée." });
+    await user.click(screen.getByRole("button", { name: "Actions de compte pour Thomas Dubois" }));
+    await user.click(
+      screen.getByRole("menuitem", { name: "Réinitialiser la double authentification" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Réinitialiser la double authentification" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Réinitialisation refusée.");
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Réinitialiser la double authentification" })).toBeEnabled(),
+    );
+    return dialog;
+  }
+
+  it("keeps the two-factor reset error while the dialog closes", async () => {
+    const user = userEvent.setup();
+    renderRecovery();
+    const dialog = await failTwoFactorReset(user);
+
+    const restore = simulateExitAnimations();
+    try {
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(dialog).toHaveAttribute("data-state", "closed"));
+      expect(dialog).toHaveTextContent("Réinitialisation refusée.");
+    } finally {
+      restore();
+    }
+  });
+
+  it("reopens the two-factor reset without the earlier error", async () => {
+    const user = userEvent.setup();
+    renderRecovery();
+    await failTwoFactorReset(user);
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Actions de compte pour Thomas Dubois" }));
+    await user.click(
+      screen.getByRole("menuitem", { name: "Réinitialiser la double authentification" }),
+    );
+    const reopened = await screen.findByRole("dialog");
+    expect(within(reopened).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  async function failPasswordReset(user: ReturnType<typeof userEvent.setup>) {
+    mocks.resetUserPasswordAction.mockResolvedValue({ ok: false, error: "Mot de passe refusé." });
+    await user.click(screen.getByRole("button", { name: "Actions de compte pour Thomas Dubois" }));
+    await user.click(screen.getByRole("menuitem", { name: "Réinitialiser le mot de passe" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Mot de passe temporaire"), "provisoire-1");
+    await user.click(within(dialog).getByRole("button", { name: "Réinitialiser le mot de passe" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Mot de passe refusé.");
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Réinitialiser le mot de passe" })).toBeEnabled(),
+    );
+    return dialog;
+  }
+
+  it("keeps the password reset error while the dialog closes", async () => {
+    const user = userEvent.setup();
+    renderRecovery();
+    const dialog = await failPasswordReset(user);
+
+    const restore = simulateExitAnimations();
+    try {
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(dialog).toHaveAttribute("data-state", "closed"));
+      expect(dialog).toHaveTextContent("Mot de passe refusé.");
+    } finally {
+      restore();
+    }
+  });
+
+  it("reopens the password reset without the earlier error", async () => {
+    const user = userEvent.setup();
+    renderRecovery();
+    await failPasswordReset(user);
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Actions de compte pour Thomas Dubois" }));
+    await user.click(screen.getByRole("menuitem", { name: "Réinitialiser le mot de passe" }));
+    const reopened = await screen.findByRole("dialog");
+    expect(within(reopened).queryByRole("alert")).not.toBeInTheDocument();
+    expect(within(reopened).getByLabelText("Mot de passe temporaire")).toHaveValue("");
   });
 });
