@@ -420,23 +420,23 @@ describe("ItemBacklog", () => {
     await waitFor(() => expect(mocks.moveSprintItemAction).toHaveBeenCalledOnce());
     expect(
       within(futureSection).getByText(
-        "Engagement 8 pts · moyenne récente 4 pts · écart +4 pts",
+        "Engagement 8 pts · moyenne des sprints précédents 4 pts · écart +4 pts",
       ),
     ).toBeVisible();
     expect(
       within(futureSection).getByText(
-        "Engagement supérieur à la moyenne récente : avertissement non bloquant.",
+        "Engagement supérieur à la moyenne des sprints précédents : avertissement non bloquant.",
       ),
     ).toBeVisible();
     // The active sprint keeps its commitment frozen at start; only the live scope moves.
     expect(
       within(activeSection).getByText(
-        "Engagement 3 pts · moyenne récente 4 pts · écart -1 pt",
+        "Engagement 3 pts · moyenne des sprints précédents 4 pts · écart -1 pt",
       ),
     ).toBeVisible();
     expect(within(activeSection).getByText("Périmètre actuel 0 pt")).toBeVisible();
     expect(within(futureSection).queryByText(/Périmètre actuel/)).not.toBeInTheDocument();
-    expect(within(backlogSection).queryByText(/moyenne récente|vélocité/))
+    expect(within(backlogSection).queryByText(/moyenne des sprints précédents|vélocité/))
       .not.toBeInTheDocument();
 
     resolveMove({ ok: true, item: { ...items[0], rank: "aV" } });

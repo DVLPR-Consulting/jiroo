@@ -229,11 +229,11 @@ describe("SprintSectionHeader", () => {
     );
 
     expect(
-      screen.getByText("Engagement 13 pts · moyenne récente 10 pts · écart +3 pts"),
+      screen.getByText("Engagement 13 pts · moyenne des sprints précédents 10 pts · écart +3 pts"),
     ).toBeVisible();
     expect(
       screen.getByText(
-        "Engagement supérieur à la moyenne récente : avertissement non bloquant.",
+        "Engagement supérieur à la moyenne des sprints précédents : avertissement non bloquant.",
       ),
     ).toBeVisible();
     expect(screen.getByText("13 / 10 pts")).toBeVisible();
@@ -268,7 +268,7 @@ describe("SprintSectionHeader", () => {
     );
 
     expect(
-      screen.getByText("Engagement 10 pts · moyenne récente 6,25 pts · écart +3,75 pts"),
+      screen.getByText("Engagement 10 pts · moyenne des sprints précédents 6,25 pts · écart +3,75 pts"),
     ).toBeVisible();
     expect(screen.getByText("Périmètre actuel 25 pts")).toBeVisible();
     expect(screen.queryByText(/avertissement non bloquant/)).not.toBeInTheDocument();
@@ -291,7 +291,7 @@ describe("SprintSectionHeader", () => {
     );
 
     const comparison = screen.getByText(
-      "Engagement 8 pts · moyenne récente 10 pts · écart -2 pts",
+      "Engagement 8 pts · moyenne des sprints précédents 10 pts · écart -2 pts",
     );
     expect(comparison).toBeVisible();
     expect(comparison.className).not.toMatch(/amber/);
@@ -318,7 +318,7 @@ describe("SprintSectionHeader", () => {
 
     expect(screen.getByText("Engagement au démarrage indisponible")).toBeVisible();
     expect(screen.getByText("Périmètre actuel 25 pts")).toBeVisible();
-    expect(screen.queryByText(/moyenne récente/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/moyenne des sprints précédents/)).not.toBeInTheDocument();
     expect(screen.queryByText(/écart/)).not.toBeInTheDocument();
   });
 
@@ -363,7 +363,7 @@ describe("SprintSectionHeader", () => {
     );
 
     expect(screen.getByText("Pas encore de vélocité comparable")).toBeVisible();
-    expect(screen.queryByText(/moyenne récente/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/moyenne des sprints précédents/)).not.toBeInTheDocument();
   });
 
   it("never renders velocity copy on the unscheduled Backlog", () => {
@@ -383,7 +383,7 @@ describe("SprintSectionHeader", () => {
       />,
     );
 
-    expect(screen.queryByText(/moyenne récente/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/moyenne des sprints précédents/)).not.toBeInTheDocument();
     expect(screen.queryByText(/vélocité/)).not.toBeInTheDocument();
   });
 });
