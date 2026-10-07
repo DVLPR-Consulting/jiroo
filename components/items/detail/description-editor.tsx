@@ -6,6 +6,10 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { updateItemAction } from "@/app/actions/items";
 import { ITEM_DESCRIPTION_MAX } from "@/lib/validation/item";
+import {
+  MarkdownEditor,
+  type MarkdownEditorHandle,
+} from "@/components/markdown/markdown-editor";
 
 export function DescriptionEditor({
   itemId,
@@ -23,7 +27,7 @@ export function DescriptionEditor({
   const [value, setValue] = useState(description ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<MarkdownEditorHandle>(null);
   const counterId = useId();
   const errorId = useId();
 
@@ -38,8 +42,9 @@ export function DescriptionEditor({
   }
   function save() {
     const trimmed = value.trim();
-    // Empty textarea clears the description: send null (empty string would
-    // trim to "" which the service stores as "", not null).
+    // An empty editor clears the description: send null (empty string would
+    // trim to "" which the service stores as "", not null). The value is the
+    // Markdown produced by the editor, or the stored text if left untouched.
     const next = trimmed === "" ? null : value;
     startTransition(async () => {
       const res = await updateItemAction({
@@ -62,21 +67,20 @@ export function DescriptionEditor({
   if (editing) {
     return (
       <div className="flex flex-col gap-2">
-        <textarea
+        <MarkdownEditor
           ref={editorRef}
           autoFocus
-          aria-label="Description (Markdown supporté)…"
-          aria-invalid={Boolean(error)}
-          aria-describedby={`${counterId}${error ? ` ${errorId}` : ""}`}
+          label="Description"
+          placeholder="Décrivez l’item…"
+          invalid={Boolean(error)}
+          describedBy={`${counterId}${error ? ` ${errorId}` : ""}`}
           maxLength={ITEM_DESCRIPTION_MAX}
-          rows={8}
-          className="w-full resize-y rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-sm leading-relaxed text-foreground outline-none focus:border-[var(--ring)]"
+          minHeightClassName="min-h-40"
           value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
+          onChange={(next) => {
+            setValue(next);
             setError(null);
           }}
-          placeholder="Description (Markdown supporté)…"
           disabled={pending}
         />
         <div className="flex items-start justify-between gap-3 text-xs text-muted-foreground">
