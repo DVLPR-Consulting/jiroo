@@ -1,0 +1,145 @@
+import type { GenericEndpointContext } from "@better-auth/core";
+import { defineRequestState, hasRequestState } from "@better-auth/core/context";
+import { createAuthMiddleware } from "better-auth/api";
+import { verifyPassword } from "better-auth/crypto";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { account, session, user } from "@/lib/db/schema/auth";
+
+// Credential freshness (JIR-62). `user.auth_version` is incremented by every
+// password or second-factor reset. A session is only honoured while it carries
+// the version that was current when its first factor (the password) was
+// verified, so a sign-in that verified the old password before a reset cannot
+// produce a usable session after it, whatever the interleaving.
+//
+// Better Auth gives no hook between "password verified" and "session created",
+// so the version travels through Better Auth's per-call request state (one
+// WeakMap per auth.api call or HTTP request, shared by its endpoint, plugin
+// hooks and database hooks):
+// - the password verifier captures the version in the same snapshot that
+//   proves the verified hash is still the stored one;
+// - the session creation hook stamps the session with the captured version;
+// - every Better Auth call first deletes a presented session whose version is
+//   no longer the user's (treated as signed out).
+
+type Grant = { userId: string; authVersion: number };
+
+type RequestGrants = {
+  /** First factor verified in this call, with the hash it matched. */
+  password?: Grant & { verifiedHash: string };
+  /** Valid session presented by this call (inherited by session rotations). */
+  session?: Grant;
+};
+
+const requestGrants = defineRequestState<RequestGrants>(() => ({}));
+
+async function currentGrants(): Promise<RequestGrants | null> {
+  return (await hasRequestState()) ? requestGrants.get() : null;
+}
+
+async function currentAuthVersion(userId: string): Promise<number | null> {
+  const [row] = await db
+    .select({ authVersion: user.authVersion })
+    .from(user)
+    .where(eq(user.id, userId));
+  return row?.authVersion ?? null;
+}
+
+/**
+ * Better Auth password verifier (`emailAndPassword.password.verify`). After
+ * the regular scrypt check, one query proves the verified hash is still the
+ * user's stored credential and reads the auth version from that same
+ * snapshot: a reset committed earlier fails here, one committed later
+ * outdates the captured version.
+ */
+export async function verifyPasswordCapturingAuthVersion(input: {
+  hash: string;
+  password: string;
+}): Promise<boolean> {
+  if (!(await verifyPassword(input))) return false;
+  const rows = await db
+    .select({ userId: account.userId, authVersion: user.authVersion })
+    .from(account)
+    .innerJoin(user, eq(user.id, account.userId))
+    .where(and(eq(account.providerId, "credential"), eq(account.password, input.hash)))
+    .limit(2);
+  if (rows.length !== 1) return false;
+  const grants = await currentGrants();
+  if (grants) grants.password = { ...rows[0]!, verifiedHash: input.hash };
+  return true;
+}
+
+/**
+ * Global Better Auth `hooks.before`: runs ahead of every endpoint, including
+ * `getSession` used by Server Components, Server Actions and route handlers.
+ * A presented session whose version is outdated is deleted, so Better Auth
+ * then sees no session at all.
+ */
+export const rejectStaleSession = createAuthMiddleware(async (ctx) => {
+  const token = await ctx.getSignedCookie(ctx.context.authCookies.sessionToken.name, ctx.context.secret);
+  if (!token) return;
+  const [row] = await db
+    .select({
+      id: session.id,
+      userId: session.userId,
+      sessionVersion: session.authVersion,
+      userVersion: user.authVersion,
+    })
+    .from(session)
+    .innerJoin(user, eq(user.id, session.userId))
+    .where(eq(session.token, token))
+    .limit(1);
+  if (!row) return;
+  if (row.sessionVersion !== row.userVersion) {
+    await db.delete(session).where(eq(session.id, row.id));
+    return;
+  }
+  const grants = await currentGrants();
+  if (grants) grants.session = { userId: row.userId, authVersion: row.sessionVersion };
+});
+
+type GrantSelector = (grants: RequestGrants) => Grant | undefined | "current";
+
+const TWO_FACTOR_VERIFICATION: GrantSelector = (grants) => grants.session ?? "current";
+
+// Every Better Auth path that creates a session in Jiroo's configuration, and
+// the first factor it continues. Any other path is refused.
+const SESSION_GRANTS: Record<string, GrantSelector> = {
+  "/sign-in/email": (grants) => grants.password,
+  "/change-password": (grants) => grants.password,
+  // Enrollment rotates the presented session.
+  "/two-factor/enable": (grants) => grants.session,
+  "/two-factor/disable": (grants) => grants.session,
+  "/two-factor/verify-totp": TWO_FACTOR_VERIFICATION,
+  "/two-factor/verify-backup-code": TWO_FACTOR_VERIFICATION,
+  "/two-factor/verify-otp": TWO_FACTOR_VERIFICATION,
+};
+
+/**
+ * `databaseHooks.session.create.before`: stamps the new session with the auth
+ * version of the first factor it continues, or refuses it (Better Auth then
+ * fails the sign-in). Refusing an already outdated version here is only an
+ * early exit; the read-side check is what closes the race.
+ */
+export async function stampSessionAuthVersion(
+  data: { userId: string } & Record<string, unknown>,
+  ctx: GenericEndpointContext | null,
+): Promise<false | { data: Record<string, unknown> }> {
+  const select = ctx?.path ? SESSION_GRANTS[ctx.path] : undefined;
+  const grants = await currentGrants();
+  if (!select || !grants) return false;
+  const selected = select(grants);
+  const current = await currentAuthVersion(data.userId);
+  if (current === null) return false;
+  const authVersion = selected === "current" ? current : selected?.authVersion;
+  if (selected !== "current" && selected?.userId !== data.userId) return false;
+  if (authVersion !== current) return false;
+  return { data: { ...data, authVersion } };
+}
+
+export const AUTH_VERSION_FIELD = {
+  type: "number",
+  required: false,
+  input: false,
+  returned: false,
+} as const;
