@@ -4,8 +4,10 @@ import { twoFactor } from "better-auth/plugins";
 import {
   AUTH_VERSION_FIELD,
   applyOwnPasswordChange,
+  captureConsumedChallenge,
   rejectStaleSession,
   stampSessionAuthVersion,
+  stampVerificationAuthVersion,
   verifyPasswordCapturingAuthVersion,
 } from "@/lib/auth/auth-version";
 import { db } from "@/lib/db";
@@ -36,10 +38,16 @@ export const auth = betterAuth({
   // A session only stays valid while its auth version is the user's
   // (lib/auth/auth-version.ts): checked before every Better Auth endpoint.
   session: { additionalFields: { authVersion: AUTH_VERSION_FIELD } },
+  // Carries the version of pending 2FA challenges and trusted devices.
+  verification: { additionalFields: { authVersion: AUTH_VERSION_FIELD } },
   hooks: { before: rejectStaleSession },
   databaseHooks: {
     session: { create: { before: stampSessionAuthVersion } },
     account: { update: { before: applyOwnPasswordChange } },
+    verification: {
+      create: { before: stampVerificationAuthVersion },
+      delete: { after: captureConsumedChallenge },
+    },
   },
   plugins: [twoFactor()],
 });

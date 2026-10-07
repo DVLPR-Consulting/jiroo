@@ -3,16 +3,17 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { APIError } from "better-auth/api";
 import { makeSignature } from "better-auth/crypto";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { auth } from "@/lib/auth";
 import { verifyPasswordCapturingAuthVersion } from "@/lib/auth/auth-version";
 import { db } from "@/lib/db";
-import { account, session, user } from "@/lib/db/schema/auth";
+import { account, session, user, verification } from "@/lib/db/schema/auth";
 import { securityAuditEvents } from "@/lib/db/schema/domain";
 import { resetUserPassword, resetUserTwoFactor } from "@/lib/services/account-recovery";
 import { createUser } from "@/lib/services/users";
 import { BetterAuthDevice } from "@/test-utils/better-auth-http";
+import { generateTotp } from "@/test-utils/totp";
 
 vi.mock("server-only", () => ({}));
 
@@ -24,6 +25,33 @@ const createdUserIds: string[] = [adminId];
 
 type Verify = (input: { hash: string; password: string }) => Promise<boolean>;
 let restoreVerify: (() => void) | null = null;
+let restoreCreateVerification: (() => void) | null = null;
+
+/**
+ * Suspends Better Auth just before it writes the next verification value
+ * whose identifier matches, e.g. the challenge or trust row of a sign-in.
+ */
+async function suspendNextVerificationWrite(matches: (identifier: string) => boolean) {
+  const context = await auth.$context;
+  const adapter = context.internalAdapter;
+  const original = adapter.createVerificationValue;
+  let reached!: () => void;
+  let release!: () => void;
+  const reachedPromise = new Promise<void>((resolve) => (reached = resolve));
+  const releasePromise = new Promise<void>((resolve) => (release = resolve));
+  restoreCreateVerification = () => {
+    adapter.createVerificationValue = original;
+  };
+  adapter.createVerificationValue = async (data) => {
+    if (matches(data.identifier)) {
+      restoreCreateVerification?.();
+      reached();
+      await releasePromise;
+    }
+    return original(data);
+  };
+  return { reached: reachedPromise, release };
+}
 
 /**
  * Suspends the next password verification right after it succeeded, before
@@ -56,6 +84,33 @@ async function newUser(label: string) {
   return { id: created.id, email };
 }
 
+/** Enrolls TOTP over HTTP; returns the secret. */
+async function enroll(email: string): Promise<string> {
+  const device = new BetterAuthDevice();
+  await device.post("/sign-in/email", { email, password: PASSWORD });
+  const enable = await device.post("/two-factor/enable", { password: PASSWORD });
+  const secret = new URL((enable.json as { totpURI: string }).totpURI).searchParams.get("secret")!;
+  const verify = await device.post("/two-factor/verify-totp", { code: generateTotp(secret) });
+  expect(verify.status).toBe(200);
+  return secret;
+}
+
+async function trustedDevice(email: string, secret: string) {
+  const device = new BetterAuthDevice();
+  const signIn = await device.post("/sign-in/email", { email, password: PASSWORD });
+  expect(signIn.json).toMatchObject({ twoFactorRedirect: true });
+  const verify = await device.post("/two-factor/verify-totp", { code: generateTotp(secret), trustDevice: true });
+  expect(verify.status).toBe(200);
+  return device;
+}
+
+async function verificationRows(userId: string, prefix: string) {
+  return db
+    .select({ identifier: verification.identifier, authVersion: verification.authVersion })
+    .from(verification)
+    .where(and(eq(verification.value, userId), like(verification.identifier, `${prefix}%`)));
+}
+
 async function sessionsOf(userId: string) {
   return db
     .select({ id: session.id, authVersion: session.authVersion })
@@ -84,6 +139,8 @@ describeDb("auth version (JIR-62)", () => {
   afterEach(() => {
     restoreVerify?.();
     restoreVerify = null;
+    restoreCreateVerification?.();
+    restoreCreateVerification = null;
   });
 
   beforeAll(async () => {
@@ -297,6 +354,112 @@ describeDb("auth version (JIR-62)", () => {
       expect(await signInSucceeds(target.email, "temporaire-2026")).toBe(true);
       expect(await signInSucceeds(target.email, "nouveau-mot-de-passe")).toBe(false);
       expect(await sessionsOf(target.id)).toHaveLength(1); // the temporary-password sign-in above
+    });
+  });
+
+  describe("two-factor challenges and trusted devices", () => {
+    it("keeps sign-in, TOTP challenges and trusted devices working at a non-zero version", async () => {
+      const target = await newUser("flows");
+      await db.update(user).set({ authVersion: 2 }).where(eq(user.id, target.id));
+      const secret = await enroll(target.email);
+
+      const device = new BetterAuthDevice();
+      const signIn = await device.post("/sign-in/email", { email: target.email, password: PASSWORD });
+      expect(signIn.json).toMatchObject({ twoFactorRedirect: true });
+      expect(await verificationRows(target.id, "2fa-")).toEqual([
+        { identifier: expect.any(String), authVersion: 2 },
+      ]);
+      const verify = await device.post("/two-factor/verify-totp", {
+        code: generateTotp(secret),
+        trustDevice: true,
+      });
+      expect(verify.status).toBe(200);
+      expect((await device.get("/get-session")).json).toMatchObject({ user: { id: target.id } });
+      expect(await verificationRows(target.id, "trust-device-")).toEqual([
+        { identifier: expect.any(String), authVersion: 2 },
+      ]);
+
+      // Trusted: the next password sign-in skips the TOTP step and is valid.
+      const again = await device.post("/sign-in/email", { email: target.email, password: PASSWORD });
+      expect(again.json).not.toMatchObject({ twoFactorRedirect: true });
+      expect((await device.get("/get-session")).json).toMatchObject({ user: { id: target.id } });
+      for (const row of await sessionsOf(target.id)) expect(row.authVersion).toBe(2);
+    });
+
+    it("a challenge carries its first-factor version: completing it after a reset yields no session", async () => {
+      const target = await newUser("challenge-version");
+      const secret = await enroll(target.email);
+      const attacker = new BetterAuthDevice();
+      await attacker.post("/sign-in/email", { email: target.email, password: PASSWORD });
+      const before = await sessionsOf(target.id);
+
+      // A reset whose challenge deletion missed this row (it is written by a
+      // sign-in in flight) still outdates it through the version.
+      await bumpAuthVersion(target.id);
+      const verify = await attacker.post("/two-factor/verify-totp", { code: generateTotp(secret) });
+
+      expect(verify.status).not.toBe(200);
+      expect((await attacker.get("/get-session")).json).toBeNull();
+      expect(await sessionsOf(target.id)).toHaveLength(before.length);
+    });
+
+    it("a challenge written after an admin reset commits is never stored", async () => {
+      const target = await newUser("challenge-race");
+      const secret = await enroll(target.email);
+      const attacker = new BetterAuthDevice();
+      const barrier = await suspendNextVerificationWrite((id) => id.startsWith("2fa-") && !id.startsWith("2fa-attempts-"));
+
+      const pending = attacker.post("/sign-in/email", { email: target.email, password: PASSWORD });
+      await barrier.reached;
+      await resetUserPassword({ userId: target.id, temporaryPassword: "temporaire-2026" }, adminId);
+      barrier.release();
+      await pending;
+
+      expect(await verificationRows(target.id, "2fa-")).toHaveLength(0);
+      const verify = await attacker.post("/two-factor/verify-totp", { code: generateTotp(secret) });
+      expect(verify.status).toBe(401);
+      expect((await attacker.get("/get-session")).json).toBeNull();
+      expect(await sessionsOf(target.id)).toHaveLength(0);
+    });
+
+    it("a trusted-device sign-in racing an admin reset leaves no session and no trust", async () => {
+      const target = await newUser("trust-race");
+      const secret = await enroll(target.email);
+      const device = await trustedDevice(target.email, secret);
+      const barrier = await suspendNextVerificationWrite((id) => id.startsWith("trust-device-"));
+
+      // The trust check passed and the renewal is about to be written.
+      const pending = device.post("/sign-in/email", { email: target.email, password: PASSWORD });
+      await barrier.reached;
+      await resetUserPassword({ userId: target.id, temporaryPassword: "temporaire-2026" }, adminId);
+      barrier.release();
+      await pending;
+
+      expect(await verificationRows(target.id, "trust-device-")).toHaveLength(0);
+      expect((await device.get("/get-session")).json).toBeNull();
+      expect(await sessionsOf(target.id)).toHaveLength(0);
+      // Same browser, new password: the TOTP is required again.
+      const next = await device.post("/sign-in/email", { email: target.email, password: "temporaire-2026" });
+      expect(next.json).toMatchObject({ twoFactorRedirect: true });
+      expect(await sessionsOf(target.id)).toHaveLength(0);
+    });
+
+    it("a trusted-device sign-in suspended after the password step yields no session after a reset", async () => {
+      const target = await newUser("trust-verified");
+      const secret = await enroll(target.email);
+      const device = await trustedDevice(target.email, secret);
+      const barrier = await suspendNextPasswordVerification();
+
+      const pending = device.post("/sign-in/email", { email: target.email, password: PASSWORD });
+      await barrier.reached;
+      await resetUserTwoFactor({ userId: target.id }, adminId);
+      barrier.release();
+      const signIn = await pending;
+
+      expect(signIn.status).not.toBe(200);
+      expect((await device.get("/get-session")).json).toBeNull();
+      expect(await sessionsOf(target.id)).toHaveLength(0);
+      expect(await verificationRows(target.id, "trust-device-")).toHaveLength(0);
     });
   });
 });

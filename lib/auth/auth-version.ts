@@ -1,10 +1,11 @@
+import { randomUUID } from "node:crypto";
 import type { GenericEndpointContext } from "@better-auth/core";
 import { defineRequestState, hasRequestState } from "@better-auth/core/context";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { verifyPassword } from "better-auth/crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { account, session, user } from "@/lib/db/schema/auth";
+import { account, session, user, verification } from "@/lib/db/schema/auth";
 
 // Credential freshness (JIR-62). `user.auth_version` is incremented by every
 // password or second-factor reset. A session is only honoured while it carries
@@ -20,7 +21,10 @@ import { account, session, user } from "@/lib/db/schema/auth";
 //   proves the verified hash is still the stored one;
 // - the session creation hook stamps the session with the captured version;
 // - every Better Auth call first deletes a presented session whose version is
-//   no longer the user's (treated as signed out).
+//   no longer the user's (treated as signed out);
+// - a pending 2FA challenge and a trusted device are only written while the
+//   version they continue is still current, and a completed challenge hands
+//   its version to the session it creates.
 
 type Grant = { userId: string; authVersion: number };
 
@@ -31,6 +35,8 @@ type RequestGrants = {
   session?: Grant;
   /** Version written by this call's own password change. */
   passwordChange?: Grant;
+  /** Pending 2FA challenge consumed by this call. */
+  challenge?: Grant;
 };
 
 const requestGrants = defineRequestState<RequestGrants>(() => ({}));
@@ -100,9 +106,11 @@ export const rejectStaleSession = createAuthMiddleware(async (ctx) => {
   if (grants) grants.session = { userId: row.userId, authVersion: row.sessionVersion };
 });
 
-type GrantSelector = (grants: RequestGrants) => Grant | undefined | "current";
+type GrantSelector = (grants: RequestGrants) => Grant | undefined;
 
-const TWO_FACTOR_VERIFICATION: GrantSelector = (grants) => grants.session ?? "current";
+// Completing a challenge continues its first factor; with a presented session
+// (enrollment), the session is rotated.
+const TWO_FACTOR_VERIFICATION: GrantSelector = (grants) => grants.challenge ?? grants.session;
 
 // Every Better Auth path that creates a session in Jiroo's configuration, and
 // the first factor it continues. Any other path is refused.
@@ -130,13 +138,75 @@ export async function stampSessionAuthVersion(
   const select = ctx?.path ? SESSION_GRANTS[ctx.path] : undefined;
   const grants = await currentGrants();
   if (!select || !grants) return false;
-  const selected = select(grants);
-  const current = await currentAuthVersion(data.userId);
-  if (current === null) return false;
-  const authVersion = selected === "current" ? current : selected?.authVersion;
-  if (selected !== "current" && selected?.userId !== data.userId) return false;
-  if (authVersion !== current) return false;
-  return { data: { ...data, authVersion } };
+  const grant = select(grants);
+  if (!grant || grant.userId !== data.userId) return false;
+  if ((await currentAuthVersion(grant.userId)) !== grant.authVersion) return false;
+  return { data: { ...data, authVersion: grant.authVersion } };
+}
+
+// Better Auth 1.6.22 two-factor identifiers (see pending-authentication.ts).
+const CHALLENGE_PREFIX = "2fa-";
+const ATTEMPTS_PREFIX = "2fa-attempts-";
+const TRUST_DEVICE_PREFIX = "trust-device-";
+
+function isChallenge(identifier: string): boolean {
+  return identifier.startsWith(CHALLENGE_PREFIX) && !identifier.startsWith(ATTEMPTS_PREFIX);
+}
+
+/**
+ * `databaseHooks.verification.create.before`. A pending 2FA challenge (after
+ * the password step) and a trusted device (created or renewed) are inserted
+ * here, stamped with the version of the first factor they continue, in one
+ * transaction holding a share lock on the user row: a reset (which locks the
+ * row for update, increments the version and deletes challenges and trust)
+ * either deletes the new row or makes this insert skip it. Better Auth's own
+ * insert is always skipped for these identifiers; it ignores the result.
+ */
+export async function stampVerificationAuthVersion(
+  data: Record<string, unknown>,
+): Promise<false | void> {
+  const { identifier, value, expiresAt } = data;
+  if (typeof identifier !== "string") return;
+  const challenge = isChallenge(identifier);
+  if (!challenge && !identifier.startsWith(TRUST_DEVICE_PREFIX)) return;
+  const grants = await currentGrants();
+  // Challenges follow the password step; trust follows a completed challenge
+  // or, when renewed, the password step of a trusted sign-in.
+  const grant = challenge ? grants?.password : (grants?.challenge ?? grants?.password);
+  if (!grant || grant.userId !== value || !(expiresAt instanceof Date)) return false;
+  await db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select({ authVersion: user.authVersion })
+      .from(user)
+      .where(eq(user.id, grant.userId))
+      .for("share");
+    if (locked?.authVersion !== grant.authVersion) return;
+    const now = new Date();
+    await tx.insert(verification).values({
+      id: randomUUID(),
+      identifier,
+      value: grant.userId,
+      expiresAt,
+      createdAt: now,
+      updatedAt: now,
+      authVersion: grant.authVersion,
+    });
+  });
+  return false;
+}
+
+/**
+ * `databaseHooks.verification.delete.after`: Better Auth consumes a pending
+ * challenge right before creating the session that completes it; its stored
+ * version becomes the session's.
+ */
+export async function captureConsumedChallenge(row: unknown): Promise<void> {
+  if (!row || typeof row !== "object") return;
+  const { identifier, value, authVersion } = row as Record<string, unknown>;
+  if (typeof identifier !== "string" || !isChallenge(identifier)) return;
+  if (typeof value !== "string" || typeof authVersion !== "number") return;
+  const grants = await currentGrants();
+  if (grants) grants.challenge = { userId: value, authVersion };
 }
 
 type Executor = Pick<typeof db, "update">;
