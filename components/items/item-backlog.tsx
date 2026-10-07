@@ -85,7 +85,7 @@ import {
   type ActiveSprintStartCommitment,
   type RecentVelocityContext,
 } from "@/lib/items/sprint-planning";
-import { fixedTableMinWidth } from "@/lib/items/table-layout";
+import { BACKLOG_COLUMNS, fixedTableMinWidth, SELECTION_COLUMN } from "@/lib/items/table-layout";
 
 type StatusOption = {
   id: string;
@@ -133,19 +133,29 @@ type RankItemAction = (input: {
 const HEADER_CLASS =
   "border-b border-border bg-[var(--surface-2)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
 const CELL_CLASS = "border-b border-border px-3 py-1.5 text-sm";
-// Fixed columns in rem, in colgroup order: ordre, clé, statut, priorité,
-// points, fix versions, assigné. The optional selection column comes first.
-const BACKLOG_FIXED_COLUMNS_REM = [2.5, 8, 10, 7, 6, 11, 11] as const;
-const SELECTION_COLUMN_REM = 2.5;
 
 function backlogTableStyle(canSelectItems: boolean) {
+  const fixed = Object.values(BACKLOG_COLUMNS);
   return {
-    minWidth: fixedTableMinWidth(
-      canSelectItems
-        ? [SELECTION_COLUMN_REM, ...BACKLOG_FIXED_COLUMNS_REM]
-        : BACKLOG_FIXED_COLUMNS_REM,
-    ),
+    minWidth: fixedTableMinWidth(canSelectItems ? [SELECTION_COLUMN, ...fixed] : fixed),
   };
+}
+
+/** Shared colgroup of the backlog and sprint tables (widths from table-layout). */
+function BacklogColGroup({ canSelectItems }: { canSelectItems: boolean }) {
+  return (
+    <colgroup>
+      {canSelectItems ? <col className={SELECTION_COLUMN.className} /> : null}
+      <col className={BACKLOG_COLUMNS.order.className} />
+      <col className={BACKLOG_COLUMNS.key.className} />
+      <col />
+      <col className={BACKLOG_COLUMNS.status.className} />
+      <col className={BACKLOG_COLUMNS.priority.className} />
+      <col className={BACKLOG_COLUMNS.points.className} />
+      <col className={BACKLOG_COLUMNS.fixVersions.className} />
+      <col className={BACKLOG_COLUMNS.assignee.className} />
+    </colgroup>
+  );
 }
 
 const pointFormatter = new Intl.NumberFormat("fr-FR", {
@@ -645,17 +655,7 @@ function LegacyItemBacklog({
             className="w-full table-fixed border-separate border-spacing-0"
             style={backlogTableStyle(canSelectItems)}
           >
-            <colgroup>
-              {canSelectItems ? <col className="w-10" /> : null}
-              <col className="w-10" />
-              <col className="w-32" />
-              <col />
-              <col className="w-40" />
-              <col className="w-28" />
-              <col className="w-24" />
-              <col className="w-44" />
-              <col className="w-44" />
-            </colgroup>
+            <BacklogColGroup canSelectItems={canSelectItems} />
             <thead className="sticky top-0 z-20">
               <tr>
                 {canSelectItems ? (
@@ -851,17 +851,7 @@ function SectionTable({
       className="w-full table-fixed border-separate border-spacing-0"
       style={backlogTableStyle(canSelectItems)}
     >
-      <colgroup>
-        {canSelectItems ? <col className="w-10" /> : null}
-        <col className="w-10" />
-        <col className="w-32" />
-        <col />
-        <col className="w-40" />
-        <col className="w-28" />
-        <col className="w-24" />
-        <col className="w-44" />
-        <col className="w-44" />
-      </colgroup>
+      <BacklogColGroup canSelectItems={canSelectItems} />
       <thead>
         <tr>
           {canSelectItems ? (

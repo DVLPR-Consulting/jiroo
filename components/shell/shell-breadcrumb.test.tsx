@@ -53,4 +53,28 @@ describe("ShellBreadcrumb", () => {
 
     expect(screen.getByText("Pôle pénal / Rapports")).toBeInTheDocument();
   });
+
+  it("lets the parent segment yield below the mobile breakpoint", () => {
+    route.search = "view=list&v=v1";
+    const { container } = render(<ShellBreadcrumb backlogs={backlogs} views={views} />);
+
+    const trail = container.querySelector('[aria-hidden="true"]');
+    expect(trail).toHaveAttribute("title", "Pôle civil · Liste / Mes urgences");
+    expect(container.querySelector('[data-slot="shell-breadcrumb-parent"]'))
+      .toHaveClass("hidden", "md:inline");
+    const current = container.querySelector('[data-slot="shell-breadcrumb-current"]');
+    expect(current).toHaveTextContent("Mes urgences");
+    expect(current).not.toHaveClass("hidden");
+  });
+
+  it("keeps a lone segment visible at every width", () => {
+    route.pathname = "/";
+    route.search = "";
+    const { container } = render(<ShellBreadcrumb backlogs={[]} views={[]} />);
+
+    expect(container.querySelector('[data-slot="shell-breadcrumb-current"]')).toBeNull();
+    const parent = container.querySelector('[data-slot="shell-breadcrumb-parent"]');
+    expect(parent).toHaveTextContent("Jiroo");
+    expect(parent).not.toHaveClass("hidden");
+  });
 });
