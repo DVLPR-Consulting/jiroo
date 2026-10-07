@@ -22,7 +22,7 @@ import { MarkdownToolbar } from "@/components/markdown/markdown-toolbar";
 import { cn } from "@/lib/utils";
 
 export type MarkdownEditorHandle = {
-  focus: () => void;
+  focus: (position?: "start" | "end") => void;
   /** Replaces the `length` characters before the caret with plain text. */
   replaceTextBeforeCaret: (length: number, text: string) => void;
 };
@@ -184,9 +184,9 @@ export function MarkdownEditor({
   useImperativeHandle(
     ref,
     () => ({
-      focus: () => {
+      focus: (position) => {
         if (rawFeatures) textareaRef.current?.focus();
-        else editor?.commands.focus();
+        else editor?.commands.focus(position ?? null);
       },
       replaceTextBeforeCaret: (length, text) => {
         if (!editor || rawFeatures) return;

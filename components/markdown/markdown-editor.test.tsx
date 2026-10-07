@@ -1,8 +1,11 @@
-import { useState } from "react";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { createRef, useState } from "react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { MarkdownEditor } from "@/components/markdown/markdown-editor";
+import {
+  MarkdownEditor,
+  type MarkdownEditorHandle,
+} from "@/components/markdown/markdown-editor";
 
 function Harness({
   initial,
@@ -247,5 +250,25 @@ describe("MarkdownEditor", () => {
     expect(screen.queryByRole("toolbar")).toBeNull();
     await user.type(raw, "\nfin");
     expect(markdown()).toBe(`${table}\nfin`);
+  });
+
+  it("reports the text before the caret and replaces it (for @-mentions)", async () => {
+    const ref = createRef<MarkdownEditorHandle>();
+    const onCaretTextChange = vi.fn();
+    const onChange = vi.fn();
+    render(
+      <MarkdownEditor
+        ref={ref}
+        value="Bonjour @Al"
+        label="Contenu"
+        onChange={onChange}
+        onCaretTextChange={onCaretTextChange}
+      />,
+    );
+    await screen.findByRole("toolbar");
+    act(() => ref.current!.focus("end"));
+    await waitFor(() => expect(onCaretTextChange).toHaveBeenLastCalledWith("Bonjour @Al"));
+    act(() => ref.current!.replaceTextBeforeCaret(3, "@Alice "));
+    expect(onChange).toHaveBeenLastCalledWith("Bonjour @Alice ");
   });
 });
