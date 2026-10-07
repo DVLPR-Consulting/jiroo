@@ -1,8 +1,8 @@
 import type { GenericEndpointContext } from "@better-auth/core";
 import { defineRequestState, hasRequestState } from "@better-auth/core/context";
-import { createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { verifyPassword } from "better-auth/crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { account, session, user } from "@/lib/db/schema/auth";
 
@@ -29,6 +29,8 @@ type RequestGrants = {
   password?: Grant & { verifiedHash: string };
   /** Valid session presented by this call (inherited by session rotations). */
   session?: Grant;
+  /** Version written by this call's own password change. */
+  passwordChange?: Grant;
 };
 
 const requestGrants = defineRequestState<RequestGrants>(() => ({}));
@@ -106,7 +108,7 @@ const TWO_FACTOR_VERIFICATION: GrantSelector = (grants) => grants.session ?? "cu
 // the first factor it continues. Any other path is refused.
 const SESSION_GRANTS: Record<string, GrantSelector> = {
   "/sign-in/email": (grants) => grants.password,
-  "/change-password": (grants) => grants.password,
+  "/change-password": (grants) => grants.passwordChange,
   // Enrollment rotates the presented session.
   "/two-factor/enable": (grants) => grants.session,
   "/two-factor/disable": (grants) => grants.session,
@@ -135,6 +137,86 @@ export async function stampSessionAuthVersion(
   if (selected !== "current" && selected?.userId !== data.userId) return false;
   if (authVersion !== current) return false;
   return { data: { ...data, authVersion } };
+}
+
+type Executor = Pick<typeof db, "update">;
+
+/**
+ * Outdates every session, pending challenge and trusted device of the user.
+ * Callers run it inside the transaction that resets the credential, after
+ * locking the user row.
+ */
+export async function incrementAuthVersion(executor: Executor, userId: string): Promise<number> {
+  const [row] = await executor
+    .update(user)
+    .set({ authVersion: sql`${user.authVersion} + 1` })
+    .where(eq(user.id, userId))
+    .returning({ authVersion: user.authVersion });
+  if (!row) throw new Error("User not found while incrementing its auth version.");
+  return row.authVersion;
+}
+
+function credentialsChanged(): APIError {
+  return new APIError("CONFLICT", {
+    code: "CREDENTIALS_CHANGED",
+    message: "The credentials changed while the password change was in progress.",
+  });
+}
+
+/**
+ * `databaseHooks.account.update.before`. Better Auth writes a changed
+ * password with a plain update, unrelated to the version captured when the
+ * current password was verified. Jiroo writes it here instead, in one
+ * transaction under the user row lock that admin resets also take: the write
+ * only happens if neither the stored hash nor the auth version moved since
+ * the verification, and it increments the version. Returning false then
+ * skips Better Auth's own write, which would otherwise be able to overwrite
+ * a concurrent reset. Better Auth's /change-password is the only route
+ * allowed to change a password through Better Auth in Jiroo.
+ */
+export async function applyOwnPasswordChange(
+  data: Record<string, unknown>,
+  ctx: GenericEndpointContext | null,
+): Promise<false | void> {
+  if (data.password === undefined) return;
+  if (ctx?.path !== "/change-password") {
+    throw new APIError("FORBIDDEN", {
+      code: "PASSWORD_UPDATE_NOT_ALLOWED",
+      message: "Passwords change through /change-password only.",
+    });
+  }
+  const grants = await currentGrants();
+  const verified = grants?.password;
+  // The change must concern the user of the presented (valid) session.
+  const userId = grants?.session?.userId;
+  if (!grants || !verified || verified.userId !== userId || typeof data.password !== "string") {
+    throw credentialsChanged();
+  }
+  const newHash = data.password;
+  const authVersion = await db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select({ authVersion: user.authVersion })
+      .from(user)
+      .where(eq(user.id, verified.userId))
+      .for("update");
+    if (locked?.authVersion !== verified.authVersion) return null;
+    const updated = await tx
+      .update(account)
+      .set({ password: newHash, updatedAt: new Date() })
+      .where(
+        and(
+          eq(account.userId, verified.userId),
+          eq(account.providerId, "credential"),
+          eq(account.password, verified.verifiedHash),
+        ),
+      )
+      .returning({ id: account.id });
+    if (updated.length !== 1) return null;
+    return incrementAuthVersion(tx, verified.userId);
+  });
+  if (authVersion === null) throw credentialsChanged();
+  grants.passwordChange = { userId: verified.userId, authVersion };
+  return false;
 }
 
 export const AUTH_VERSION_FIELD = {

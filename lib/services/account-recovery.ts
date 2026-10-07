@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { incrementAuthVersion } from "@/lib/auth/auth-version";
 import { requirePermissionWithoutBypassAudit } from "@/lib/auth/authorization";
 import { revokePendingSignIns, revokeTrustedDevices } from "@/lib/auth/pending-authentication";
 import { db } from "@/lib/db";
@@ -135,6 +136,9 @@ export async function resetUserPassword(
       .where(and(eq(account.userId, userId), eq(account.providerId, "credential")))
       .returning({ id: account.id });
     if (updated.length === 0) throw new AccountRecoveryError(MISSING_CREDENTIAL_MESSAGE);
+    // Outdates sessions, challenges and trust a sign-in still in flight
+    // could create after this commit (lib/auth/auth-version.ts).
+    await incrementAuthVersion(tx, userId);
     const revokedSessions = await revokeAllSessions(tx, userId);
     // A reset answers a suspected compromise: like sessions, device trust
     // granted before it must not survive (the user re-enters a TOTP once).
@@ -174,6 +178,7 @@ export async function resetUserTwoFactor(
     const target = await lockTarget(tx, userId);
     await tx.delete(twoFactor).where(eq(twoFactor.userId, userId));
     await tx.update(user).set({ twoFactorEnabled: false }).where(eq(user.id, userId));
+    await incrementAuthVersion(tx, userId);
     const revokedSessions = await revokeAllSessions(tx, userId);
     // Trust is checked by user id only, so it would otherwise outlive the
     // factor it was granted for and skip the newly enrolled TOTP.

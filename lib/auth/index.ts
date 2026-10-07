@@ -3,6 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { twoFactor } from "better-auth/plugins";
 import {
   AUTH_VERSION_FIELD,
+  applyOwnPasswordChange,
   rejectStaleSession,
   stampSessionAuthVersion,
   verifyPasswordCapturingAuthVersion,
@@ -38,6 +39,7 @@ export const auth = betterAuth({
   hooks: { before: rejectStaleSession },
   databaseHooks: {
     session: { create: { before: stampSessionAuthVersion } },
+    account: { update: { before: applyOwnPasswordChange } },
   },
   plugins: [twoFactor()],
 });
