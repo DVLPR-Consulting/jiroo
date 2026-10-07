@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({ helper: vi.fn() }));
 vi.mock("@/app/actions/authorization", () => ({ permissionHelperAction: mocks.helper }));
 
 import { PermissionHelper } from "@/components/admin/permission-helper";
+import { expectNoBoundary, renderWithBoundary, transportError } from "@/test/action-rejection";
 
 const props = {
   users: [{ id: "user-raw-uuid-11111111-1111-4111-8111-111111111111", name: "Ada" }],
@@ -43,5 +44,18 @@ describe("PermissionHelper", () => {
     await user.click(screen.getByRole("button", { name: "Vérifier la permission" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Action impossible. Réessayez.");
     expect(screen.getByRole("combobox", { name: "Permission à vérifier" })).toHaveValue("manage_releases");
+  });
+
+  it("affiche une erreur locale si la vérification échoue côté transport et permet de réessayer", async () => {
+    const user = userEvent.setup();
+    mocks.helper.mockRejectedValueOnce(transportError()).mockResolvedValueOnce({ ok: true, result: { allowed: true, permission: "edit_items", reasons: [{ type: "user_grant", label: "Ada" }] } });
+    renderWithBoundary(<PermissionHelper {...props} />);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Utilisateur à vérifier" }), props.users[0]!.id);
+    await user.click(screen.getByRole("button", { name: "Vérifier la permission" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Vérification impossible.");
+    expectNoBoundary();
+    await user.click(screen.getByRole("button", { name: "Vérifier la permission" }));
+    expect(await screen.findByText("Grant direct à Ada.")).toBeVisible();
   });
 });

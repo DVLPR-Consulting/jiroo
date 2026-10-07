@@ -54,7 +54,15 @@ export function AccessAdmin({ access, users, groups, schemes, canManageMembers, 
   const [simpleRoleId, setSimpleRoleId] = useState(() => protectedRoles.find((role) => role.key === "members")?.id ?? protectedRoles[0]?.id ?? "");
   const run = (action: () => Promise<{ ok: boolean; error?: string }>, success?: () => void) => {
     setError(null);
-    startTransition(async () => { const result = await action(); if (!result.ok) setError(result.error ?? "Action impossible."); else success?.(); });
+    startTransition(async () => {
+      try {
+        const result = await action();
+        if (!result.ok) setError(result.error ?? "Action impossible.");
+        else success?.();
+      } catch {
+        setError("Action impossible.");
+      }
+    });
   };
   const changeMode = (next: "simple" | "advanced") => run(
     () => setBacklogAccessModeAction({ backlogId: access.backlog.id, mode: next }),

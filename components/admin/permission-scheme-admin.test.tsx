@@ -10,6 +10,7 @@ vi.mock("@/app/actions/authorization", () => ({
 }));
 
 import { PermissionSchemeAdmin } from "@/components/admin/permission-scheme-admin";
+import { expectNoBoundary, renderWithBoundary, transportError } from "@/test/action-rejection";
 import { simulateExitAnimations } from "@/test/exit-animation";
 
 const scheme = {
@@ -241,5 +242,34 @@ describe("PermissionSchemeAdmin", () => {
     } finally {
       restore();
     }
+  });
+
+  it("garde la matrice ouverte avec une erreur locale si une modification échoue côté transport", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockRejectedValue(transportError());
+    renderWithBoundary(<PermissionSchemeAdmin schemes={[scheme]} users={[]} groups={[]} roles={[]} />);
+    await user.click(screen.getByRole("button", { name: "Modifier la matrice de Produit partagé" }));
+    await user.click(screen.getByRole("button", { name: "Retirer Produit de Consulter le backlog" }));
+    await user.click(screen.getByRole("button", { name: "Confirmer la modification" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Modification impossible.");
+    expectNoBoundary();
+    const matrix = screen.getByRole("dialog", { name: "Matrice de Produit partagé" });
+    await waitFor(() => expect(within(matrix).getByRole("button", { name: "Retirer Produit de Consulter le backlog" })).toBeEnabled());
+  });
+
+  it("garde le clonage ouvert et utilisable si le clonage échoue côté transport", async () => {
+    const user = userEvent.setup();
+    mocks.clone.mockRejectedValue(transportError());
+    renderWithBoundary(<PermissionSchemeAdmin schemes={[scheme]} users={[]} groups={[]} roles={[]} />);
+    await user.click(screen.getByRole("button", { name: "Cloner Produit partagé" }));
+    const dialog = screen.getByRole("dialog", { name: "Cloner le schéma" });
+    await user.click(within(dialog).getByRole("button", { name: "Cloner" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Clonage impossible.");
+    expectNoBoundary();
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Cloner" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });
