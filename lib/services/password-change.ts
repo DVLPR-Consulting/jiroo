@@ -43,8 +43,11 @@ async function lockUserBudget(tx: Transaction, userId: string): Promise<void> {
  * drops it. A reservation left by a crash or unexpected error keeps
  * counting, the safe direction.
  *
- * Better Auth's writes are not atomic with phase 2: a challenge created or
- * completed concurrently with the change can survive (the R3 race).
+ * The password write itself is atomic with an auth version increment
+ * (account.update.before hook in lib/auth/auth-version.ts): a session or
+ * challenge created concurrently from the old password carries the old
+ * version and is refused or treated as signed out. Revoking pending
+ * challenges in phase 2 only cleans up rows that can no longer complete.
  */
 export async function changeOwnPasswordWithBudget(
   userId: string,
