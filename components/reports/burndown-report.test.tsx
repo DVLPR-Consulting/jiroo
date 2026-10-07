@@ -179,7 +179,7 @@ describe("BurndownReportView", () => {
 
     expect(screen.getByText("Au-dessus de la trajectoire idéale")).toBeVisible();
     expect(screen.getByText(
-      "Engagement 13 pts · moyenne récente 10 pts · écart +3 pts",
+      "Engagement 13 pts · moyenne des sprints précédents 10 pts · écart +3 pts",
     )).toBeVisible();
 
     expect(screen.getByRole("figure", {
@@ -260,7 +260,7 @@ describe("BurndownReportView", () => {
       />,
     );
 
-    expect(screen.getByText("Engagement 1 pt · moyenne récente 2 pts · écart -1 pt")).toBeVisible();
+    expect(screen.getByText("Engagement 1 pt · moyenne des sprints précédents 2 pts · écart -1 pt")).toBeVisible();
     expect(screen.getByText("Restant au démarrage", { exact: false }))
       .toHaveTextContent("Restant au démarrage : 1 pt · 0 non estimé");
   });
@@ -442,7 +442,7 @@ describe("BurndownReportView", () => {
       />,
     );
     expect(screen.getByText("Pas encore de vélocité comparable")).toBeVisible();
-    expect(screen.queryByText(/moyenne récente/)).toBeNull();
+    expect(screen.queryByText(/moyenne des sprints précédents/)).toBeNull();
   });
 
   it("keeps legacy identity visible without fabricating totals", () => {

@@ -22,7 +22,7 @@ import {
 } from "@/lib/reports/burndown-calculations";
 import type { ActiveSprintStartCommitment } from "@/lib/items/sprint-planning";
 import {
-  getVelocityReport,
+  getPreviousSprintsVelocityContext,
   readSprintEventPage,
   type Page,
   type SprintReportEvent,
@@ -497,16 +497,7 @@ export async function getActiveSprintStartCommitment(
   };
 }
 
-export async function getRecentVelocityContext(backlogId: string): Promise<{
-  population: number;
-  averageCompletedPoints: number | null;
-}> {
-  const velocity = await getVelocityReport(backlogId, 7);
-  return {
-    population: velocity.population,
-    averageCompletedPoints: velocity.averageCompletedPoints,
-  };
-}
+export { getPreviousSprintsVelocityContext };
 
 export async function getBurndownReport(
   backlogId: string,
@@ -540,7 +531,8 @@ export async function getBurndownReport(
     // The ledger keeps the id of soft-deleted items; link only what the journal still exposes.
     return { ...point, itemId: event.itemId };
   });
-  const velocity = await getRecentVelocityContext(backlogId);
+  // Jira "Sprint commitment": compared to the sprints completed before this one.
+  const velocity = await getPreviousSprintsVelocityContext(backlogId, source.sprint.id);
   const baseline = calculation.exactPoints[0];
   assertConsistent(baseline !== undefined && baseline.cause === "start");
   return {

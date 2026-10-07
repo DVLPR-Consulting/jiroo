@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildCompletedParticipantRows,
   calculateSprintScopeMetrics,
+  calculatePreviousSprintsVelocity,
   calculateVelocity,
+  PREVIOUS_SPRINTS_WINDOW,
 } from "@/lib/reports/sprint-calculations";
 
 describe("calculateSprintScopeMetrics", () => {
@@ -467,5 +469,73 @@ describe("calculateVelocity", () => {
         { hasSnapshot: false, committedPoints: 8, completedPoints: 5 },
       ]),
     ).toEqual({ population: 0, averageCompletedPoints: null });
+  });
+});
+
+describe("calculatePreviousSprintsVelocity", () => {
+  const sprint = (sprintId: string, completedPoints: number | null, extra: Partial<{
+    hasSnapshot: boolean;
+    committedPoints: number | null;
+  }> = {}) => ({
+    sprintId,
+    hasSnapshot: extra.hasSnapshot ?? true,
+    committedPoints: extra.committedPoints === undefined ? 10 : extra.committedPoints,
+    completedPoints,
+  });
+
+  it("averages the five most recent completed sprints for a sprint not yet completed", () => {
+    expect(PREVIOUS_SPRINTS_WINDOW).toBe(5);
+    expect(
+      calculatePreviousSprintsVelocity(
+        [sprint("s7", 7), sprint("s6", 6), sprint("s5", 5), sprint("s4", 4), sprint("s3", 3), sprint("s2", 2)],
+        null,
+      ),
+    ).toEqual({ population: 5, averageCompletedPoints: 5 });
+  });
+
+  it("excludes the considered sprint and every sprint completed after it", () => {
+    expect(
+      calculatePreviousSprintsVelocity(
+        [
+          sprint("newer", 100),
+          sprint("self", 50),
+          sprint("p5", 5),
+          sprint("p4", 4),
+          sprint("p3", 3),
+          sprint("p2", 2),
+          sprint("p1", 1),
+          sprint("older", 100),
+        ],
+        "self",
+      ),
+    ).toEqual({ population: 5, averageCompletedPoints: 3 });
+  });
+
+  it("applies the velocity inclusion rules inside the five-sprint window", () => {
+    expect(
+      calculatePreviousSprintsVelocity(
+        [
+          sprint("self", 50),
+          sprint("p5", 6),
+          sprint("zero", 0, { committedPoints: 0 }),
+          sprint("legacy", null, { hasSnapshot: false, committedPoints: null }),
+          sprint("p2", 2),
+          sprint("p1", 0, { committedPoints: 4 }),
+          sprint("outside", 100),
+        ],
+        "self",
+      ),
+    ).toEqual({ population: 3, averageCompletedPoints: 2.67 });
+  });
+
+  it("uses fewer than five sprints when history is short, and none when there is no previous sprint", () => {
+    expect(
+      calculatePreviousSprintsVelocity([sprint("p2", 3), sprint("p1", 4)], null),
+    ).toEqual({ population: 2, averageCompletedPoints: 3.5 });
+    expect(
+      calculatePreviousSprintsVelocity([sprint("self", 8)], "self"),
+    ).toEqual({ population: 0, averageCompletedPoints: null });
+    expect(calculatePreviousSprintsVelocity([], null))
+      .toEqual({ population: 0, averageCompletedPoints: null });
   });
 });

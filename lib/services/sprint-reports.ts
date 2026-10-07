@@ -18,7 +18,11 @@ import {
   sprintReportSnapshots,
   sprints,
 } from "@/lib/db/schema/domain";
-import { calculateVelocity } from "@/lib/reports/sprint-calculations";
+import {
+  calculatePreviousSprintsVelocity,
+  calculateVelocity,
+  PREVIOUS_SPRINTS_WINDOW,
+} from "@/lib/reports/sprint-calculations";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type SprintState = typeof sprints.$inferSelect.state;
@@ -924,12 +928,26 @@ export async function getSprintReport(
   );
 }
 
-export async function getVelocityReport(
+/**
+ * Completed sprints of a backlog as velocity bars, newest first (completion
+ * time desc, then id desc). With `atOrBefore`, only that completed sprint and
+ * the ones ordered after it (completed earlier) are read.
+ */
+async function readCompletedSprintBars(
+  executor: Tx | typeof db,
   backlogId: string,
-  limitInput: unknown,
-): Promise<VelocityReport> {
-  const limit = velocityLimit.parse(limitInput);
-  const newest = await db
+  limit: number,
+  atOrBefore: string | null = null,
+): Promise<VelocityBar[]> {
+  const cursor = atOrBefore === null
+    ? undefined
+    : sql`(${sprints.completedAt}, ${sprints.id}) <= (
+        select cursor_sprint.completed_at, cursor_sprint.id
+        from sprints cursor_sprint
+        where cursor_sprint.backlog_id = ${backlogId}
+          and cursor_sprint.id = ${atOrBefore}
+      )`;
+  const newest = await executor
     .select({
       sprintId: sprints.id,
       currentSprintName: sprints.name,
@@ -948,10 +966,10 @@ export async function getVelocityReport(
         eq(sprintReportSnapshots.sprintId, sprints.id),
       ),
     )
-    .where(and(eq(sprints.backlogId, backlogId), eq(sprints.state, "completed")))
+    .where(and(eq(sprints.backlogId, backlogId), eq(sprints.state, "completed"), cursor))
     .orderBy(desc(sprints.completedAt), desc(sprints.id))
     .limit(limit);
-  const bars: VelocityBar[] = newest.reverse().flatMap((row) => {
+  return newest.flatMap((row) => {
     const completedAt = row.snapshotCompletedAt ?? row.sprintCompletedAt;
     if (!completedAt) return [];
     const hasSnapshot = row.snapshotId !== null;
@@ -974,13 +992,23 @@ export async function getVelocityReport(
           : "no_point_data" as const,
     }];
   });
-  const velocity = calculateVelocity(
-    bars.map((bar) => ({
-      hasSnapshot: bar.excludedReason !== "history_unavailable",
-      committedPoints: bar.committedPoints,
-      completedPoints: bar.completedPoints,
-    })),
-  );
+}
+
+function velocityInput(bar: VelocityBar) {
+  return {
+    hasSnapshot: bar.excludedReason !== "history_unavailable",
+    committedPoints: bar.committedPoints,
+    completedPoints: bar.completedPoints,
+  };
+}
+
+export async function getVelocityReport(
+  backlogId: string,
+  limitInput: unknown,
+): Promise<VelocityReport> {
+  const limit = velocityLimit.parse(limitInput);
+  const bars = (await readCompletedSprintBars(db, backlogId, limit)).reverse();
+  const velocity = calculateVelocity(bars.map(velocityInput));
   return {
     state: velocity.population === 0 ? "empty" : "ready",
     label: velocity.population === 0 ? "Pas encore de vélocité" : null,
@@ -989,4 +1017,38 @@ export async function getVelocityReport(
     population: velocity.population,
     averageCompletedPoints: velocity.averageCompletedPoints,
   };
+}
+
+/**
+ * Commitment comparison context (Jira "Sprint commitment" insight): average
+ * completed points of the five most recent sprints completed before `sprintId`,
+ * the sprint itself excluded. For an active or planned sprint (or none) this is
+ * simply the five latest completed sprints. Ordering and inclusion rules are the
+ * velocity report's (completion time desc, then id desc; sprints without a
+ * snapshot or with zero/zero points stay in the window but out of the average).
+ */
+export async function getPreviousSprintsVelocityContext(
+  backlogId: string,
+  sprintId: string | null = null,
+): Promise<{ population: number; averageCompletedPoints: number | null }> {
+  const latest = async (executor: Tx | typeof db) => calculatePreviousSprintsVelocity(
+    (await readCompletedSprintBars(executor, backlogId, PREVIOUS_SPRINTS_WINDOW))
+      .map((bar) => ({ sprintId: bar.sprintId, ...velocityInput(bar) })),
+    null,
+  );
+  // Backlog headers (active and planned sprints): one read, no transaction.
+  if (sprintId === null) return latest(db);
+  return db.transaction(async (tx) => {
+    const [target] = await tx.select({ state: sprints.state }).from(sprints).where(and(
+      eq(sprints.backlogId, backlogId),
+      eq(sprints.id, sprintId),
+    )).limit(1);
+    if (target?.state !== "completed") return latest(tx);
+    // The sprint itself plus the five completed before it; the sprint is dropped.
+    const bars = await readCompletedSprintBars(tx, backlogId, PREVIOUS_SPRINTS_WINDOW + 1, sprintId);
+    return calculatePreviousSprintsVelocity(
+      bars.map((bar) => ({ sprintId: bar.sprintId, ...velocityInput(bar) })),
+      sprintId,
+    );
+  }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }

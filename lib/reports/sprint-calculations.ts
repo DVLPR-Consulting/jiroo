@@ -243,3 +243,25 @@ export function calculateVelocity(
           ),
   };
 }
+
+/** Jira "Sprint commitment" insight: compare to the last five completed sprints. */
+export const PREVIOUS_SPRINTS_WINDOW = 5;
+
+/**
+ * Average completed points of the sprints completed before the one considered.
+ * `rows` are completed sprints, newest first, in the velocity report order
+ * (completion time desc, then id desc). When `sprintId` is among them, it and
+ * every sprint ordered before it are dropped; otherwise (active or planned
+ * sprint) the newest rows are used. The window counts completed sprints, then
+ * the velocity inclusion rules decide which of them enter the average.
+ */
+export function calculatePreviousSprintsVelocity(
+  rows: readonly (VelocityInput & { sprintId: string })[],
+  sprintId: string | null,
+  limit: number = PREVIOUS_SPRINTS_WINDOW,
+): VelocityCalculation {
+  const position = sprintId === null
+    ? -1
+    : rows.findIndex((row) => row.sprintId === sprintId);
+  return calculateVelocity(rows.slice(position + 1, position + 1 + limit));
+}

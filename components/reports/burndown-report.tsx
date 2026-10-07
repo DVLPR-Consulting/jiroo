@@ -457,7 +457,7 @@ export function BurndownReportView({
         ) : null}
         <p className="text-sm">
           {comparison.state === "ready"
-            ? `Engagement ${pts(comparison.commitmentPoints)} · moyenne récente ${pts(comparison.averageCompletedPoints)} · écart ${pointsLabel(comparison.difference, signed.format)}`
+            ? `Engagement ${pts(comparison.commitmentPoints)} · moyenne des sprints précédents ${pts(comparison.averageCompletedPoints)} · écart ${pointsLabel(comparison.difference, signed.format)}`
             : "Pas encore de vélocité comparable"}
         </p>
       </section>

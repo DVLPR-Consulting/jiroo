@@ -188,12 +188,12 @@ function VelocityComparison({
   return (
     <div className="flex basis-full flex-wrap gap-x-3 text-xs text-muted-foreground">
       <p>
-        {`Engagement ${pointsLabel(comparison.commitmentPoints, points.format)} · moyenne récente ${pointsLabel(comparison.averageCompletedPoints, points.format)} · écart ${pointsLabel(comparison.difference, signedPoints.format)}`}
+        {`Engagement ${pointsLabel(comparison.commitmentPoints, points.format)} · moyenne des sprints précédents ${pointsLabel(comparison.averageCompletedPoints, points.format)} · écart ${pointsLabel(comparison.difference, signedPoints.format)}`}
       </p>
       {currentScope}
       {warnAboveAverage && aboveAverage && (
         <p className="font-medium text-amber-700 dark:text-amber-300">
-          Engagement supérieur à la moyenne récente : avertissement non bloquant.
+          Engagement supérieur à la moyenne des sprints précédents : avertissement non bloquant.
         </p>
       )}
     </div>
