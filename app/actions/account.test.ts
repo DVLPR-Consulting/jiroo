@@ -145,6 +145,32 @@ describe("changeOwnPasswordAction", () => {
     expect(outcome).toBe("failed");
   });
 
+  it.each([
+    ["an internal Better Auth error", new APIError("INTERNAL_SERVER_ERROR", { code: "FAILED_TO_GET_SESSION", message: "x" })],
+    ["a concurrent credential change", new APIError("CONFLICT", { code: "CREDENTIALS_CHANGED", message: "x" })],
+    ["an APIError without a code", new APIError("INTERNAL_SERVER_ERROR")],
+  ])("propagates %s to the budget instead of treating it as a non-mutating rejection", async (_label, rejection) => {
+    mocks.changePassword.mockRejectedValue(rejection);
+    let thrown: unknown;
+    mocks.changeOwnPasswordWithBudget.mockImplementation(
+      async (_userId: string, attempt: () => Promise<string>) => {
+        try {
+          return await attempt();
+        } catch (error) {
+          thrown = error;
+          throw error;
+        }
+      },
+    );
+
+    await expect(changeOwnPasswordAction(valid)).resolves.toEqual({
+      ok: false,
+      error: "Impossible de modifier le mot de passe. Réessayez.",
+    });
+    expect(thrown).toBe(rejection);
+    expect(mocks.forwardAuthCookies).not.toHaveBeenCalled();
+  });
+
   it("tells the user to sign in again when the rotated session cookie cannot be written", async () => {
     mocks.forwardAuthCookies.mockRejectedValue(new Error("cookies are read-only here"));
 
