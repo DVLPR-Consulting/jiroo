@@ -38,28 +38,32 @@ export function GroupAdmin({ groups, users, globalGrants, canAdministerGlobals }
   const run = (action: () => Promise<{ ok: boolean; error?: string }>, onSuccess?: () => void) => {
     setError(null);
     startTransition(async () => {
+      let result: Awaited<ReturnType<typeof action>>;
       try {
-        const result = await action();
-        if (!result.ok) setError(result.error ?? "Action impossible.");
-        else onSuccess?.();
+        result = await action();
       } catch {
         setError("Action impossible.");
+        return;
       }
+      if (!result.ok) setError(result.error ?? "Action impossible.");
+      else onSuccess?.();
     });
   };
   const runDeletion = (group: GroupAdminDto) => {
     setDeletionError(null);
     startTransition(async () => {
+      let result: Awaited<ReturnType<typeof deleteGroupAction>>;
       try {
-        const result = await deleteGroupAction({ groupId: group.id });
-        if (!result.ok) {
-          setDeletionError(result.error ?? "Action impossible.");
-          return;
-        }
-        setDeleting(null);
+        result = await deleteGroupAction({ groupId: group.id });
       } catch {
         setDeletionError("Suppression impossible.");
+        return;
       }
+      if (!result.ok) {
+        setDeletionError(result.error ?? "Action impossible.");
+        return;
+      }
+      setDeleting(null);
     });
   };
 

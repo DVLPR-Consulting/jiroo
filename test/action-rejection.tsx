@@ -27,5 +27,17 @@ export function expectNoBoundary() {
   expect(screen.queryByTestId("error-boundary")).not.toBeInTheDocument();
 }
 
+/**
+ * A failure thrown by a success side effect (after the action resolved ok)
+ * is not a failed action: it must escape the action's local catch and reach
+ * the boundary instead of being reported as « … impossible. » (JIR-65).
+ */
+export async function expectBoundary() {
+  expect(await screen.findByTestId("error-boundary")).toBeInTheDocument();
+}
+
+/** A success side effect (e.g. a toast) that fails after the action succeeded. */
+export const successEffectError = () => new Error("toast failed");
+
 /** The rejection a server action call produces when the request never lands. */
 export const transportError = () => new TypeError("Failed to fetch");

@@ -17,7 +17,13 @@ vi.mock("@/app/actions/users", () => ({
 vi.mock("@/lib/toast", () => ({ toast: { success: mocks.toastSuccess } }));
 
 import { UserAdmin } from "@/components/admin/user-admin";
-import { expectNoBoundary, renderWithBoundary, transportError } from "@/test/action-rejection";
+import {
+  expectBoundary,
+  expectNoBoundary,
+  renderWithBoundary,
+  successEffectError,
+  transportError,
+} from "@/test/action-rejection";
 import { simulateExitAnimations } from "@/test/exit-animation";
 
 const users = [
@@ -442,5 +448,60 @@ describe("UserAdmin account recovery", () => {
     await waitFor(() => expect(within(dialog).getByRole("button", { name: "Réinitialiser la double authentification" })).toBeEnabled());
     await user.click(within(dialog).getByRole("button", { name: "Annuler" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+  it("does not report user creation as failed when a success effect throws", async () => {
+    const user = userEvent.setup();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.createUserAction.mockResolvedValue({ ok: true });
+    mocks.toastSuccess.mockImplementationOnce(() => {
+      throw successEffectError();
+    });
+    renderWithBoundary(<UserAdmin users={users} currentUserId="admin-1" />);
+    await user.click(screen.getByRole("button", { name: "Nouvel utilisateur" }));
+    await user.type(screen.getByRole("textbox", { name: "Nom" }), "Alice Martin");
+    await user.type(screen.getByRole("textbox", { name: "E-mail" }), "alice@example.test");
+    await user.type(screen.getByLabelText("Mot de passe initial"), "motdepasse123");
+    await user.click(screen.getByRole("button", { name: "Créer l’utilisateur" }));
+
+    await expectBoundary();
+    expect(screen.queryByText("Création impossible.")).not.toBeInTheDocument();
+    consoleError.mockRestore();
+  });
+
+  it("does not report the password reset as failed when a success effect throws", async () => {
+    const user = userEvent.setup();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.resetUserPasswordAction.mockResolvedValue({ ok: true });
+    mocks.toastSuccess.mockImplementationOnce(() => {
+      throw successEffectError();
+    });
+    renderWithBoundary(<UserAdmin users={users} currentUserId="admin-1" canRecoverAccounts />);
+    await user.click(screen.getByRole("button", { name: "Actions de compte pour Thomas Dubois" }));
+    await user.click(screen.getByRole("menuitem", { name: "Réinitialiser le mot de passe" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Mot de passe temporaire"), "provisoire-1");
+    await user.click(within(dialog).getByRole("button", { name: "Réinitialiser le mot de passe" }));
+
+    await expectBoundary();
+    expect(screen.queryByText("Réinitialisation impossible.")).not.toBeInTheDocument();
+    consoleError.mockRestore();
+  });
+
+  it("does not report the two-factor reset as failed when a success effect throws", async () => {
+    const user = userEvent.setup();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.resetUserTwoFactorAction.mockResolvedValue({ ok: true });
+    mocks.toastSuccess.mockImplementationOnce(() => {
+      throw successEffectError();
+    });
+    renderWithBoundary(<UserAdmin users={users} currentUserId="admin-1" canRecoverAccounts />);
+    await user.click(screen.getByRole("button", { name: "Actions de compte pour Thomas Dubois" }));
+    await user.click(screen.getByRole("menuitem", { name: "Réinitialiser la double authentification" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Réinitialiser la double authentification" }));
+
+    await expectBoundary();
+    expect(screen.queryByText("Réinitialisation impossible.")).not.toBeInTheDocument();
+    consoleError.mockRestore();
   });
 });

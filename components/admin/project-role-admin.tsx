@@ -25,28 +25,32 @@ export function ProjectRoleAdmin({ roles }: ProjectRoleAdminProps) {
   const run = (key: string, action: () => Promise<{ ok: boolean; error?: string }>, done?: () => void) => {
     setErrors((current) => ({ ...current, [key]: "" }));
     startTransition(async () => {
+      let result: Awaited<ReturnType<typeof action>>;
       try {
-        const result = await action();
-        if (!result.ok) setErrors((current) => ({ ...current, [key]: result.error ?? "Action impossible." }));
-        else done?.();
+        result = await action();
       } catch {
         setErrors((current) => ({ ...current, [key]: "Action impossible." }));
+        return;
       }
+      if (!result.ok) setErrors((current) => ({ ...current, [key]: result.error ?? "Action impossible." }));
+      else done?.();
     });
   };
   const runDeletion = (role: ProjectRoleAdminDto) => {
     setDeletionError(null);
     startTransition(async () => {
+      let result: Awaited<ReturnType<typeof deleteProjectRoleAction>>;
       try {
-        const result = await deleteProjectRoleAction({ projectRoleId: role.id });
-        if (!result.ok) {
-          setDeletionError(result.error ?? "Action impossible.");
-          return;
-        }
-        setDeleting(null);
+        result = await deleteProjectRoleAction({ projectRoleId: role.id });
       } catch {
         setDeletionError("Suppression impossible.");
+        return;
       }
+      if (!result.ok) {
+        setDeletionError(result.error ?? "Action impossible.");
+        return;
+      }
+      setDeleting(null);
     });
   };
   return <div className="space-y-4">

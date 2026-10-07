@@ -65,18 +65,20 @@ export function UserCreateDialog() {
             event.preventDefault();
             setError(null);
             startTransition(async () => {
+              let result: Awaited<ReturnType<typeof createUserAction>>;
               try {
-                const result = await createUserAction({ name, email, password });
-                if (!result.ok) {
-                  setError(result.error);
-                  return;
-                }
-                setOpen(false);
-                setPassword("");
-                toast.success("Utilisateur créé.");
+                result = await createUserAction({ name, email, password });
               } catch {
                 setError("Création impossible.");
+                return;
               }
+              if (!result.ok) {
+                setError(result.error);
+                return;
+              }
+              setOpen(false);
+              setPassword("");
+              toast.success("Utilisateur créé.");
             });
           }}
         >

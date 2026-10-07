@@ -55,13 +55,15 @@ export function AccessAdmin({ access, users, groups, schemes, canManageMembers, 
   const run = (action: () => Promise<{ ok: boolean; error?: string }>, success?: () => void) => {
     setError(null);
     startTransition(async () => {
+      let result: Awaited<ReturnType<typeof action>>;
       try {
-        const result = await action();
-        if (!result.ok) setError(result.error ?? "Action impossible.");
-        else success?.();
+        result = await action();
       } catch {
         setError("Action impossible.");
+        return;
       }
+      if (!result.ok) setError(result.error ?? "Action impossible.");
+      else success?.();
     });
   };
   const changeMode = (next: "simple" | "advanced") => run(

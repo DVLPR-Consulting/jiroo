@@ -205,16 +205,18 @@ export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
           }
           onSubmit={(values, close, setError) => {
             startTransition(async () => {
+              let result: Awaited<ReturnType<typeof createBacklogAction>>;
               try {
-                const result = await createBacklogAction(values);
-                if (!result.ok) {
-                  setError(result.error);
-                  return;
-                }
-                close();
+                result = await createBacklogAction(values);
               } catch {
                 setError("Création impossible.");
+                return;
               }
+              if (!result.ok) {
+                setError(result.error);
+                return;
+              }
+              close();
             });
           }}
         />
@@ -271,21 +273,23 @@ export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
                       }
                       onSubmit={(values, close, setError) => {
                         startTransition(async () => {
+                          let result: Awaited<ReturnType<typeof updateBacklogAction>>;
                           try {
-                            const result = await updateBacklogAction({
+                            result = await updateBacklogAction({
                               id: b.id,
                               key: values.key,
                               name: values.name,
                               color: values.color,
                             });
-                            if (!result.ok) {
-                              setError(result.error);
-                              return;
-                            }
-                            close();
                           } catch {
                             setError("Mise à jour impossible.");
+                            return;
                           }
+                          if (!result.ok) {
+                            setError(result.error);
+                            return;
+                          }
+                          close();
                         });
                       }}
                     />

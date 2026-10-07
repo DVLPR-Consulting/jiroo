@@ -66,13 +66,15 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
             const principal = principalType === "user"
               ? { type: "user" as const, userId: principalId }
               : { type: "group" as const, groupId: principalId };
+            let result: Awaited<ReturnType<typeof addGlobalPermissionGrantAction>>;
             try {
-              const result = await addGlobalPermissionGrantAction({ permission, principal });
-              if (!result.ok) setError(result.error);
-              else setPrincipalId("");
+              result = await addGlobalPermissionGrantAction({ permission, principal });
             } catch {
               setError("Ajout impossible.");
+              return;
             }
+            if (!result.ok) setError(result.error);
+            else setPrincipalId("");
           });
         }}>
           <select aria-label="Permission globale" value={permission} onChange={(e) => setPermission(e.target.value as GlobalPermissionKey)} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
@@ -98,12 +100,14 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
               if (!removing) return;
               setRemoveError(null);
               startTransition(async () => {
+                let result: Awaited<ReturnType<typeof removeGlobalPermissionGrantAction>>;
                 try {
-                  const result = await removeGlobalPermissionGrantAction({ grantId: removing.id });
-                  if (!result.ok) setRemoveError(result.error); else setRemoving(null);
+                  result = await removeGlobalPermissionGrantAction({ grantId: removing.id });
                 } catch {
                   setRemoveError("Retrait impossible.");
+                  return;
                 }
+                if (!result.ok) setRemoveError(result.error); else setRemoving(null);
               });
             }}>Confirmer le retrait</Button>
           </DialogFooter>
