@@ -66,9 +66,13 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
             const principal = principalType === "user"
               ? { type: "user" as const, userId: principalId }
               : { type: "group" as const, groupId: principalId };
-            const result = await addGlobalPermissionGrantAction({ permission, principal });
-            if (!result.ok) setError(result.error);
-            else setPrincipalId("");
+            try {
+              const result = await addGlobalPermissionGrantAction({ permission, principal });
+              if (!result.ok) setError(result.error);
+              else setPrincipalId("");
+            } catch {
+              setError("Ajout impossible.");
+            }
           });
         }}>
           <select aria-label="Permission globale" value={permission} onChange={(e) => setPermission(e.target.value as GlobalPermissionKey)} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
@@ -94,8 +98,12 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
               if (!removing) return;
               setRemoveError(null);
               startTransition(async () => {
-                const result = await removeGlobalPermissionGrantAction({ grantId: removing.id });
-                if (!result.ok) setRemoveError(result.error); else setRemoving(null);
+                try {
+                  const result = await removeGlobalPermissionGrantAction({ grantId: removing.id });
+                  if (!result.ok) setRemoveError(result.error); else setRemoving(null);
+                } catch {
+                  setRemoveError("Retrait impossible.");
+                }
               });
             }}>Confirmer le retrait</Button>
           </DialogFooter>

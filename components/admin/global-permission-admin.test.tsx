@@ -9,6 +9,7 @@ vi.mock("@/app/actions/authorization", () => ({
 }));
 
 import { GlobalPermissionAdmin } from "@/components/admin/global-permission-admin";
+import { expectNoBoundary, renderWithBoundary, transportError } from "@/test/action-rejection";
 
 const grants = [{
   id: "11111111-1111-4111-8111-111111111111",
@@ -93,6 +94,35 @@ describe("GlobalPermissionAdmin", () => {
     await user.keyboard("{Escape}");
     expect(screen.getByRole("dialog", { name: "Retirer la permission globale" })).toBeInTheDocument();
     resolve({ ok: true });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("affiche une erreur locale si l’ajout échoue côté transport et permet de réessayer", async () => {
+    const user = userEvent.setup();
+    mocks.add.mockRejectedValueOnce(transportError()).mockResolvedValueOnce({ ok: true });
+    renderWithBoundary(<GlobalPermissionAdmin grants={[]} users={[{ id: "u1", name: "Ada" }]} groups={[]} canManage />);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Principal" }), "u1");
+    await user.click(screen.getByRole("button", { name: "Ajouter la permission" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Ajout impossible.");
+    expectNoBoundary();
+    await user.click(screen.getByRole("button", { name: "Ajouter la permission" }));
+    await waitFor(() => expect(mocks.add).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+  });
+
+  it("garde la confirmation de retrait ouverte et utilisable si le retrait échoue côté transport", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockRejectedValue(transportError());
+    renderWithBoundary(<GlobalPermissionAdmin grants={grants} users={[]} groups={[]} canManage />);
+    await user.click(screen.getByRole("button", { name: "Retirer Administrer Jiroo pour Administrateurs" }));
+    const dialog = screen.getByRole("dialog", { name: "Retirer la permission globale" });
+    await user.click(within(dialog).getByRole("button", { name: "Confirmer le retrait" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Retrait impossible.");
+    expectNoBoundary();
+    expect(within(dialog).getByRole("button", { name: "Confirmer le retrait" })).toBeEnabled();
+    await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });
