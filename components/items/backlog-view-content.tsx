@@ -59,7 +59,7 @@ import { buildSprintSections } from "@/lib/items/sprint-planning";
 import { listSprintsForBacklog } from "@/lib/services/sprints";
 import {
   getActiveSprintStartCommitment,
-  getRecentVelocityContext,
+  getPreviousSprintsVelocityContext,
 } from "@/lib/services/sprint-burndown";
 
 const VIEW_STATE_PARAM_KEYS = [
@@ -160,9 +160,10 @@ export async function BacklogViewContent({
       .where(eq(itemRowsTable.backlogId, backlog.id))
       .groupBy(itemRowsTable.statusId),
     listSprintsForBacklog(backlog.id),
-    // Only the Backlog view renders planning comparisons; one backlog-level read.
+    // Only the Backlog view renders planning comparisons; one backlog-level read
+    // of the five latest completed sprints, compared by active and planned sprints.
     view === "backlog"
-      ? getRecentVelocityContext(backlog.id)
+      ? getPreviousSprintsVelocityContext(backlog.id)
       : Promise.resolve(null),
     // The active sprint is compared at its commitment frozen at start (Jira's
     // velocity "Commitment"); one aggregate read, Backlog view only.

@@ -19,7 +19,7 @@ import { InconsistentBurndownError } from "@/lib/reports/burndown-calculations";
 import {
   getActiveSprintStartCommitment,
   getBurndownReport,
-  getRecentVelocityContext,
+  getPreviousSprintsVelocityContext,
 } from "@/lib/services/sprint-burndown";
 import { appendSprintEventsInTx } from "@/lib/services/sprint-events";
 import { softDeleteItem, updateItem } from "@/lib/services/items";
@@ -131,34 +131,46 @@ async function startWithTasks(f: Fixture, taskIds: string[]) {
   return sprint;
 }
 
-async function createVelocitySnapshot(f: Fixture) {
+async function createVelocitySnapshot(f: Fixture, {
+  completedAt = new Date("2026-07-31T09:00:00.000Z"),
+  committedPoints = 8,
+  completedPoints = 5,
+  snapshot = true,
+}: {
+  completedAt?: Date;
+  committedPoints?: number;
+  completedPoints?: number;
+  snapshot?: boolean;
+} = {}) {
   const sprintId = randomUUID();
-  const completedAt = new Date("2026-07-31T09:00:00.000Z");
+  const sprintStartedAt = new Date(completedAt.getTime() - 14 * 24 * 3600 * 1000);
   await db.insert(sprints).values({
     id: sprintId,
     backlogId: f.backlog.id,
-    name: "Sprint vélocité",
+    name: `Sprint vélocité ${completedAt.toISOString()}`,
     state: "completed",
-    rank: "a0",
-    startedAt: new Date("2026-07-15T09:00:00.000Z"),
+    // Distinct ranks: several completed sprints may share a backlog.
+    rank: `a0${completedAt.getTime().toString(36)}V`,
+    startedAt: sprintStartedAt,
     completedAt,
     createdBy: f.actor.id,
   });
+  if (!snapshot) return sprintId;
   await db.insert(sprintReportSnapshots).values({
     backlogId: f.backlog.id,
     sprintId,
     sprintName: "Sprint vélocité figé",
     sprintGoal: null,
-    startedAt: new Date("2026-07-15T09:00:00.000Z"),
+    startedAt: sprintStartedAt,
     completedAt,
     createdAt: completedAt,
     createdBy: f.actor.id,
     initialItemCount: 1,
-    committedPoints: 8,
+    committedPoints,
     initialUnestimatedCount: 0,
     finalItemCount: 1,
     completedItemCount: 1,
-    completedPoints: 5,
+    completedPoints,
     finalUnestimatedCount: 0,
     grossPointsAdded: 0,
     grossPointsRemoved: 0,
@@ -167,6 +179,7 @@ async function createVelocitySnapshot(f: Fixture) {
     finalDestinationSummary: { backlog: 0, sprints: [] },
     requestCorrelationId: "burndown-velocity",
   });
+  return sprintId;
 }
 
 async function appendCompletionEvent(
@@ -729,13 +742,83 @@ describeDb("sprint burndown read model", () => {
     }
   });
 
-  it("reuses only the seven-sprint velocity population and average", async () => {
+  it("averages the five latest completed sprints for a sprint not yet completed", async () => {
     const f = await fixture();
     try {
-      await createVelocitySnapshot(f);
-      await expect(getRecentVelocityContext(f.backlog.id)).resolves.toEqual({
-        population: 1,
-        averageCompletedPoints: 5,
+      await expect(getPreviousSprintsVelocityContext(f.backlog.id)).resolves.toEqual({
+        population: 0,
+        averageCompletedPoints: null,
+      });
+      const day = (n: number) => new Date(Date.UTC(2026, 6, n, 9));
+      // Oldest first: only the five latest enter the window.
+      await createVelocitySnapshot(f, { completedAt: day(1), completedPoints: 100 });
+      await createVelocitySnapshot(f, { completedAt: day(2), completedPoints: 100 });
+      await createVelocitySnapshot(f, { completedAt: day(3), completedPoints: 2 });
+      await createVelocitySnapshot(f, { completedAt: day(4), snapshot: false });
+      await createVelocitySnapshot(f, { completedAt: day(5), committedPoints: 0, completedPoints: 0 });
+      await createVelocitySnapshot(f, { completedAt: day(6), committedPoints: 4, completedPoints: 0 });
+      await createVelocitySnapshot(f, { completedAt: day(7), completedPoints: 7 });
+      const planned = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+
+      const expected = { population: 3, averageCompletedPoints: 3 };
+      await expect(getPreviousSprintsVelocityContext(f.backlog.id)).resolves.toEqual(expected);
+      await expect(getPreviousSprintsVelocityContext(f.backlog.id, planned.id))
+        .resolves.toEqual(expected);
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("averages the five sprints completed before a completed sprint, excluding it", async () => {
+    const f = await fixture();
+    try {
+      const day = (n: number) => new Date(Date.UTC(2026, 6, n, 9));
+      const first = await createVelocitySnapshot(f, { completedAt: day(1), completedPoints: 1 });
+      for (const [n, points] of [[2, 2], [3, 3], [4, 4], [5, 5], [6, 6]] as const) {
+        await createVelocitySnapshot(f, { completedAt: day(n), completedPoints: points });
+      }
+      const considered = await createVelocitySnapshot(f, { completedAt: day(7), completedPoints: 50 });
+      await createVelocitySnapshot(f, { completedAt: day(8), completedPoints: 90 });
+
+      await expect(getPreviousSprintsVelocityContext(f.backlog.id, considered))
+        .resolves.toEqual({ population: 5, averageCompletedPoints: 4 });
+      await expect(getPreviousSprintsVelocityContext(f.backlog.id, first))
+        .resolves.toEqual({ population: 0, averageCompletedPoints: null });
+    } finally {
+      await cleanupBacklogs(f.backlog.id);
+    }
+  });
+
+  it("compares a completed burndown to the sprints completed before it", async () => {
+    const f = await fixture();
+    try {
+      await createVelocitySnapshot(f, { completedPoints: 4 });
+      const task = await insertTask(f, "Engagée", 8, f.done.id);
+      const sprint = await startWithTasks(f, [task.id]);
+      vi.useFakeTimers();
+      vi.setSystemTime(completionAt);
+      await completeSprint(
+        { id: sprint.id, backlogId: f.backlog.id, destination: { type: "backlog" } },
+        f.actor.id,
+        "burndown-previous-average",
+      );
+      vi.useRealTimers();
+
+      // The sprint's own 8 completed points never enter its comparison.
+      await expect(getBurndownReport(f.backlog.id, sprint.id, options)).resolves.toMatchObject({
+        kind: "completed",
+        planningComparison: {
+          state: "ready",
+          commitmentPoints: 8,
+          population: 1,
+          averageCompletedPoints: 4,
+          difference: 4,
+        },
+      });
+      // A later planned sprint compares against it, as the latest completed sprint.
+      await expect(getPreviousSprintsVelocityContext(f.backlog.id)).resolves.toEqual({
+        population: 2,
+        averageCompletedPoints: 6,
       });
     } finally {
       await cleanupBacklogs(f.backlog.id);

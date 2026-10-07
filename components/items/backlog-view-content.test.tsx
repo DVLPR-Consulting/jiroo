@@ -24,7 +24,7 @@ const mocks = vi.hoisted(() => ({
   listUsersByIds: vi.fn(),
   blockedItemIds: vi.fn(),
   getViewByIdForUser: vi.fn(),
-  getRecentVelocityContext: vi.fn(),
+  getPreviousSprintsVelocityContext: vi.fn(),
   getActiveSprintStartCommitment: vi.fn(),
   notFound: vi.fn(),
   requireAppPageSession: vi.fn(),
@@ -70,7 +70,7 @@ vi.mock("@/lib/services/sprints", () => ({
   listSprintsForBacklog: mocks.listSprintsForBacklog,
 }));
 vi.mock("@/lib/services/sprint-burndown", () => ({
-  getRecentVelocityContext: mocks.getRecentVelocityContext,
+  getPreviousSprintsVelocityContext: mocks.getPreviousSprintsVelocityContext,
   getActiveSprintStartCommitment: mocks.getActiveSprintStartCommitment,
 }));
 vi.mock("@/lib/services/views", () => ({
@@ -157,7 +157,7 @@ describe("BacklogViewContent read boundary", () => {
     mocks.listSprintsForBacklog.mockResolvedValue({ sprints: [], memberships: [] });
     mocks.listReleaseSummaries.mockResolvedValue([]);
     mocks.getViewByIdForUser.mockResolvedValue(null);
-    mocks.getRecentVelocityContext.mockResolvedValue({
+    mocks.getPreviousSprintsVelocityContext.mockResolvedValue({
       population: 0,
       averageCompletedPoints: null,
     });
@@ -906,7 +906,7 @@ describe("BacklogViewContent read boundary", () => {
     const recentVelocity = { population: 3, averageCompletedPoints: 10 };
     let resolveVelocity: (value: typeof recentVelocity) => void = () => undefined;
     let sprintsRequestedBeforeVelocityResolved = false;
-    mocks.getRecentVelocityContext.mockReturnValue(
+    mocks.getPreviousSprintsVelocityContext.mockReturnValue(
       new Promise((resolve) => {
         resolveVelocity = resolve;
       }),
@@ -936,13 +936,13 @@ describe("BacklogViewContent read boundary", () => {
       paramsPromise: Promise.resolve({ key: "DEMO" }),
       searchParamsPromise: Promise.resolve({ view: "backlog" }),
     });
-    await vi.waitFor(() => expect(mocks.getRecentVelocityContext).toHaveBeenCalled());
+    await vi.waitFor(() => expect(mocks.getPreviousSprintsVelocityContext).toHaveBeenCalled());
     expect(sprintsRequestedBeforeVelocityResolved).toBe(true);
     resolveVelocity(recentVelocity);
     render(await pending);
 
-    expect(mocks.getRecentVelocityContext).toHaveBeenCalledOnce();
-    expect(mocks.getRecentVelocityContext).toHaveBeenCalledWith("backlog-1");
+    expect(mocks.getPreviousSprintsVelocityContext).toHaveBeenCalledOnce();
+    expect(mocks.getPreviousSprintsVelocityContext).toHaveBeenCalledWith("backlog-1");
     expect(mocks.getActiveSprintStartCommitment).toHaveBeenCalledOnce();
     expect(mocks.getActiveSprintStartCommitment).toHaveBeenCalledWith("backlog-1");
     const props = mocks.itemBacklogProps.mock.calls.at(-1)?.[0] as {
@@ -991,7 +991,7 @@ describe("BacklogViewContent read boundary", () => {
       }),
     );
 
-    expect(mocks.getRecentVelocityContext).not.toHaveBeenCalled();
+    expect(mocks.getPreviousSprintsVelocityContext).not.toHaveBeenCalled();
     expect(mocks.getActiveSprintStartCommitment).not.toHaveBeenCalled();
   });
 });
