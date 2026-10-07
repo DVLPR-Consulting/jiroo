@@ -22,16 +22,31 @@ export function ProjectRoleAdmin({ roles }: ProjectRoleAdminProps) {
   // exit animation (JIR-64).
   const shownDeleting = useRetainedWhileClosing(deleting);
   const [pending, startTransition] = useTransition();
-  const run = (key: string, action: () => Promise<{ ok: boolean; error?: string }>, done?: () => void) => { setErrors((current) => ({ ...current, [key]: "" })); startTransition(async () => { const result = await action(); if (!result.ok) setErrors((current) => ({ ...current, [key]: result.error ?? "Action impossible." })); else done?.(); }); };
+  const run = (key: string, action: () => Promise<{ ok: boolean; error?: string }>, done?: () => void) => {
+    setErrors((current) => ({ ...current, [key]: "" }));
+    startTransition(async () => {
+      try {
+        const result = await action();
+        if (!result.ok) setErrors((current) => ({ ...current, [key]: result.error ?? "Action impossible." }));
+        else done?.();
+      } catch {
+        setErrors((current) => ({ ...current, [key]: "Action impossible." }));
+      }
+    });
+  };
   const runDeletion = (role: ProjectRoleAdminDto) => {
     setDeletionError(null);
     startTransition(async () => {
-      const result = await deleteProjectRoleAction({ projectRoleId: role.id });
-      if (!result.ok) {
-        setDeletionError(result.error ?? "Action impossible.");
-        return;
+      try {
+        const result = await deleteProjectRoleAction({ projectRoleId: role.id });
+        if (!result.ok) {
+          setDeletionError(result.error ?? "Action impossible.");
+          return;
+        }
+        setDeleting(null);
+      } catch {
+        setDeletionError("Suppression impossible.");
       }
-      setDeleting(null);
     });
   };
   return <div className="space-y-4">

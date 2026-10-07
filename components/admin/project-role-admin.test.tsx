@@ -10,6 +10,7 @@ vi.mock("@/app/actions/authorization", () => ({
 }));
 
 import { ProjectRoleAdmin } from "@/components/admin/project-role-admin";
+import { expectNoBoundary, renderWithBoundary, transportError } from "@/test/action-rejection";
 import { simulateExitAnimations } from "@/test/exit-animation";
 
 const role = {
@@ -154,5 +155,33 @@ describe("ProjectRoleAdmin", () => {
     await user.click(screen.getByRole("button", { name: "Supprimer Delivery" }));
     dialog = screen.getByRole("dialog", { name: "Supprimer Delivery" });
     expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("affiche une erreur locale si l’enregistrement échoue côté transport et permet de réessayer", async () => {
+    const user = userEvent.setup();
+    mocks.update.mockRejectedValueOnce(transportError()).mockResolvedValueOnce({ ok: true });
+    renderWithBoundary(<ProjectRoleAdmin roles={[role]} />);
+    const section = screen.getByRole("region", { name: "Delivery" });
+    await user.click(within(section).getByRole("button", { name: "Enregistrer le rôle" }));
+
+    expect(await within(section).findByRole("alert")).toHaveTextContent("Action impossible.");
+    expectNoBoundary();
+    await user.click(within(section).getByRole("button", { name: "Enregistrer le rôle" }));
+    await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(2));
+  });
+
+  it("garde la modale de suppression ouverte et utilisable si la suppression échoue côté transport", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockRejectedValue(transportError());
+    renderWithBoundary(<ProjectRoleAdmin roles={[{ ...role, blockers: [] }]} />);
+    await user.click(screen.getByRole("button", { name: "Supprimer Delivery" }));
+    const dialog = screen.getByRole("dialog", { name: "Supprimer Delivery" });
+    await user.click(within(dialog).getByRole("button", { name: "Confirmer la suppression" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Suppression impossible.");
+    expectNoBoundary();
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Confirmer la suppression" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });
