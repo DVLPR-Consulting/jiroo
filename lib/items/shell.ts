@@ -37,6 +37,7 @@ export function deriveShellContext({
     "/mine": { section: "Mes items", activeNav: "mine" as const },
     "/trash": { section: "Corbeille", activeNav: "trash" as const },
     "/admin": { section: "Administration", activeNav: "admin" as const },
+    "/aide": { section: "Aide", activeNav: null },
   }[pathname];
 
   if (specialRoute) {
