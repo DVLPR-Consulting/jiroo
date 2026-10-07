@@ -212,6 +212,31 @@ l'équipe Jiroo » (§ 2 et § 6), vérifié par Claude le 2 octobre 2026. En ca
 divergence future, citer les deux passages et demander un arbitrage, sans choisir
 silencieusement une règle.
 
+## Continuous integration (GitHub Actions)
+
+Owner decision of **7 October 2026** ([JIR-53](https://linear.app/dvlpr/issue/JIR-53)).
+The workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on
+every pull request to `main` and on every push to `main`, with a read-only
+token, no secrets, pnpm 10 (pinned, aligned with Vercel) and Node 24. A new
+commit on the same PR cancels the superseded run. All checks are blocking:
+
+| Check | Command | Scope |
+| --- | --- | --- |
+| `Audit (prod, high+)` | `pnpm audit --prod --audit-level=high` | High or critical advisories in production dependencies |
+| `typecheck` | `pnpm typecheck` | `tsc --noEmit` |
+| `lint` | `pnpm lint` | ESLint (warnings do not fail the check) |
+| `test` | `pnpm test` | `vitest run` without a database: DB suites are skipped because `JIROO_RUN_DB_TESTS` is unset |
+
+Not covered: Playwright E2E, DB-backed suites, `next build` (still exercised by
+the Vercel preview deploy) and migrations. A green CI is evidence of
+« Vérifié » only within that scope; the lot's own verification criteria still
+apply.
+
+Branch protection: once it is available on the repository, the owner may mark
+these checks as **required status checks** on `main` in the GitHub settings
+(see [JIR-34](https://linear.app/dvlpr/issue/JIR-34)). Agents do not change
+GitHub settings.
+
 ## Fin de session
 
 Pour toute intervention significative, actualiser tickets et plan si une évolution
