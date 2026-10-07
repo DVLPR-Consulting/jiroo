@@ -132,10 +132,16 @@ function ResetPasswordDialog({
             event.preventDefault();
             setError(null);
             startTransition(async () => {
-              const result = await resetUserPasswordAction({
-                userId: target.id,
-                temporaryPassword,
-              });
+              let result: Awaited<ReturnType<typeof resetUserPasswordAction>>;
+              try {
+                result = await resetUserPasswordAction({
+                  userId: target.id,
+                  temporaryPassword,
+                });
+              } catch {
+                setError("Réinitialisation impossible.");
+                return;
+              }
               if (!result.ok) {
                 setError(result.error);
                 return;
@@ -229,7 +235,13 @@ function ResetTwoFactorDialog({
             onClick={() => {
               setError(null);
               startTransition(async () => {
-                const result = await resetUserTwoFactorAction({ userId: target.id });
+                let result: Awaited<ReturnType<typeof resetUserTwoFactorAction>>;
+                try {
+                  result = await resetUserTwoFactorAction({ userId: target.id });
+                } catch {
+                  setError("Réinitialisation impossible.");
+                  return;
+                }
                 if (!result.ok) {
                   setError(result.error);
                   return;

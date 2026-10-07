@@ -82,9 +82,16 @@ export function PermissionSchemeAdmin({ schemes, users, groups, roles, initialSc
   const execute = (change: StagedChange) => {
     setMatrixError(null);
     startTransition(async () => {
-      const result = change.type === "remove"
-        ? await removeSchemeGrantAction({ schemeId: change.scheme.id, grantId: change.grantId, expectedVersion: change.scheme.version, expectedAffectedBacklogIds: affectedBacklogIds(change.scheme) })
-        : await addSchemeGrantAction({ schemeId: change.scheme.id, permission: change.permission, principal: change.principal, expectedVersion: change.scheme.version, expectedAffectedBacklogIds: affectedBacklogIds(change.scheme) });
+      let result: Awaited<ReturnType<typeof removeSchemeGrantAction | typeof addSchemeGrantAction>>;
+      try {
+        result = change.type === "remove"
+          ? await removeSchemeGrantAction({ schemeId: change.scheme.id, grantId: change.grantId, expectedVersion: change.scheme.version, expectedAffectedBacklogIds: affectedBacklogIds(change.scheme) })
+          : await addSchemeGrantAction({ schemeId: change.scheme.id, permission: change.permission, principal: change.principal, expectedVersion: change.scheme.version, expectedAffectedBacklogIds: affectedBacklogIds(change.scheme) });
+      } catch {
+        setStaged(null);
+        setMatrixError("Modification impossible.");
+        return;
+      }
       if (!result.ok) {
         if ("confirmationRequired" in result && result.confirmationRequired) {
           const refreshedScheme = {
@@ -172,6 +179,6 @@ export function PermissionSchemeAdmin({ schemes, users, groups, roles, initialSc
 
     <Dialog open={staged !== null} onOpenChange={(open) => !open && !pending && setStaged(null)}><DialogContent><DialogHeader><DialogTitle>Modifier un schéma partagé</DialogTitle><DialogDescription>Cette modification affectera tous les backlogs ci-dessous.</DialogDescription></DialogHeader><ul className="text-sm">{shownStaged?.scheme.affectedBacklogs.map((backlog) => <li key={backlog.id}>{backlog.name} ({backlog.key})</li>)}</ul><DialogFooter><Button disabled={pending} aria-busy={pending} onClick={() => staged && execute(staged)}>Confirmer la modification</Button></DialogFooter></DialogContent></Dialog>
 
-    <Dialog open={clone !== null} onOpenChange={(open) => { if (!open && !pending) setClone(null); }}><DialogContent><DialogHeader><DialogTitle>Cloner le schéma</DialogTitle><DialogDescription>Le clone reçoit la même matrice et n’est associé à aucun backlog.</DialogDescription></DialogHeader><Input aria-label="Nom du clone" value={cloneName} onChange={(e) => setCloneName(e.target.value)} /><Input aria-label="Description du clone" value={cloneDescription} onChange={(e) => setCloneDescription(e.target.value)} />{cloneError && <p role="alert" className="text-sm text-destructive">{cloneError}</p>}<DialogFooter><Button disabled={pending || !cloneName.trim()} aria-busy={pending} onClick={() => { if (!clone) return; setCloneError(null); startTransition(async () => { const result = await clonePermissionSchemeAction({ sourceSchemeId: clone.id, name: cloneName, description: cloneDescription || null }); if (!result.ok) setCloneError(result.error); else setClone(null); }); }}>Cloner</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={clone !== null} onOpenChange={(open) => { if (!open && !pending) setClone(null); }}><DialogContent><DialogHeader><DialogTitle>Cloner le schéma</DialogTitle><DialogDescription>Le clone reçoit la même matrice et n’est associé à aucun backlog.</DialogDescription></DialogHeader><Input aria-label="Nom du clone" value={cloneName} onChange={(e) => setCloneName(e.target.value)} /><Input aria-label="Description du clone" value={cloneDescription} onChange={(e) => setCloneDescription(e.target.value)} />{cloneError && <p role="alert" className="text-sm text-destructive">{cloneError}</p>}<DialogFooter><Button disabled={pending || !cloneName.trim()} aria-busy={pending} onClick={() => { if (!clone) return; setCloneError(null); startTransition(async () => { let result: Awaited<ReturnType<typeof clonePermissionSchemeAction>>; try { result = await clonePermissionSchemeAction({ sourceSchemeId: clone.id, name: cloneName, description: cloneDescription || null }); } catch { setCloneError("Clonage impossible."); return; } if (!result.ok) setCloneError(result.error); else setClone(null); }); }}>Cloner</Button></DialogFooter></DialogContent></Dialog>
   </div>;
 }

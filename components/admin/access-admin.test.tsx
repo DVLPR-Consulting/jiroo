@@ -13,6 +13,7 @@ vi.mock("@/app/actions/authorization", () => ({
 vi.mock("next/link", () => ({ default: (props: React.ComponentProps<"a">) => <a {...props} /> }));
 
 import { AccessAdmin } from "@/components/admin/access-admin";
+import { expectNoBoundary, renderWithBoundary, transportError } from "@/test/action-rejection";
 
 const base = {
   access: {
@@ -125,5 +126,19 @@ describe("AccessAdmin", () => {
     expect(screen.queryByRole("option", { name: "Lin" })).not.toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Produit" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ajouter à l’accès simple" })).toBeVisible();
+  });
+
+  it("affiche une erreur locale si une action échoue côté transport et permet de réessayer", async () => {
+    const user = userEvent.setup();
+    mocks.mode.mockRejectedValueOnce(transportError()).mockResolvedValueOnce({ ok: true });
+    renderWithBoundary(<AccessAdmin {...base} />);
+    await user.click(screen.getByRole("button", { name: "Mode Avancé" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Action impossible.");
+    expectNoBoundary();
+    expect(screen.getByRole("heading", { name: "Accès simple" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Mode Avancé" }));
+    expect(await screen.findByRole("heading", { name: "Accès avancé" })).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

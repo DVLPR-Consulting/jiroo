@@ -17,6 +17,7 @@ vi.mock("@/components/admin/global-permission-admin", () => ({
 }));
 
 import { GroupAdmin } from "@/components/admin/group-admin";
+import { expectNoBoundary, renderWithBoundary, transportError } from "@/test/action-rejection";
 import { simulateExitAnimations } from "@/test/exit-animation";
 
 const groups = [{
@@ -175,5 +176,34 @@ describe("GroupAdmin", () => {
     await user.click(screen.getByRole("button", { name: "Supprimer le groupe" }));
     dialog = screen.getByRole("dialog", { name: "Supprimer Équipe produit" });
     expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("affiche une erreur locale si la création échoue côté transport et permet de réessayer", async () => {
+    const user = userEvent.setup();
+    mocks.create.mockRejectedValueOnce(transportError()).mockResolvedValueOnce({ ok: true });
+    renderWithBoundary(<GroupAdmin groups={[]} users={users} globalGrants={[]} canAdministerGlobals={false} />);
+    await user.type(screen.getByRole("textbox", { name: "Nom du nouveau groupe" }), "Produit");
+    await user.click(screen.getByRole("button", { name: "Créer le groupe" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Action impossible.");
+    expectNoBoundary();
+    expect(screen.getByRole("textbox", { name: "Nom du nouveau groupe" })).toHaveValue("Produit");
+    await user.click(screen.getByRole("button", { name: "Créer le groupe" }));
+    await waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(2));
+  });
+
+  it("garde la modale de suppression ouverte et utilisable si la suppression échoue côté transport", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockRejectedValue(transportError());
+    renderWithBoundary(<GroupAdmin groups={[{ ...groups[0]!, blockers: [] }]} users={users} globalGrants={[]} canAdministerGlobals={false} />);
+    await user.click(screen.getByRole("button", { name: "Supprimer le groupe" }));
+    const dialog = screen.getByRole("dialog", { name: "Supprimer Équipe produit" });
+    await user.click(within(dialog).getByRole("button", { name: "Confirmer la suppression" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Suppression impossible.");
+    expectNoBoundary();
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Confirmer la suppression" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

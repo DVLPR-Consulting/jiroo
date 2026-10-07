@@ -37,12 +37,28 @@ export function GroupAdmin({ groups, users, globalGrants, canAdministerGlobals }
   const [pending, startTransition] = useTransition();
   const run = (action: () => Promise<{ ok: boolean; error?: string }>, onSuccess?: () => void) => {
     setError(null);
-    startTransition(async () => { const result = await action(); if (!result.ok) setError(result.error ?? "Action impossible."); else onSuccess?.(); });
+    startTransition(async () => {
+      let result: Awaited<ReturnType<typeof action>>;
+      try {
+        result = await action();
+      } catch {
+        setError("Action impossible.");
+        return;
+      }
+      if (!result.ok) setError(result.error ?? "Action impossible.");
+      else onSuccess?.();
+    });
   };
   const runDeletion = (group: GroupAdminDto) => {
     setDeletionError(null);
     startTransition(async () => {
-      const result = await deleteGroupAction({ groupId: group.id });
+      let result: Awaited<ReturnType<typeof deleteGroupAction>>;
+      try {
+        result = await deleteGroupAction({ groupId: group.id });
+      } catch {
+        setDeletionError("Suppression impossible.");
+        return;
+      }
       if (!result.ok) {
         setDeletionError(result.error ?? "Action impossible.");
         return;

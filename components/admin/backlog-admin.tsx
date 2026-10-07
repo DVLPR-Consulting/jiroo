@@ -189,6 +189,7 @@ function BacklogDialog({
 
 export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
   const [pending, startTransition] = useTransition();
+  const [archiveError, setArchiveError] = useState<string | null>(null);
 
   return (
     <div className="space-y-4">
@@ -204,7 +205,13 @@ export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
           }
           onSubmit={(values, close, setError) => {
             startTransition(async () => {
-              const result = await createBacklogAction(values);
+              let result: Awaited<ReturnType<typeof createBacklogAction>>;
+              try {
+                result = await createBacklogAction(values);
+              } catch {
+                setError("Création impossible.");
+                return;
+              }
               if (!result.ok) {
                 setError(result.error);
                 return;
@@ -214,6 +221,12 @@ export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
           }}
         />
       </div>
+
+      {archiveError && (
+        <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {archiveError}
+        </p>
+      )}
 
       <ul className="divide-y divide-border rounded-[var(--radius)] border border-border">
         {backlogs.map((b) => {
@@ -260,12 +273,18 @@ export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
                       }
                       onSubmit={(values, close, setError) => {
                         startTransition(async () => {
-                          const result = await updateBacklogAction({
-                            id: b.id,
-                            key: values.key,
-                            name: values.name,
-                            color: values.color,
-                          });
+                          let result: Awaited<ReturnType<typeof updateBacklogAction>>;
+                          try {
+                            result = await updateBacklogAction({
+                              id: b.id,
+                              key: values.key,
+                              name: values.name,
+                              color: values.color,
+                            });
+                          } catch {
+                            setError("Mise à jour impossible.");
+                            return;
+                          }
                           if (!result.ok) {
                             setError(result.error);
                             return;
@@ -279,8 +298,13 @@ export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
                       size="sm"
                       disabled={pending}
                       onClick={() => {
+                        setArchiveError(null);
                         startTransition(async () => {
-                          await archiveBacklogAction(b.id);
+                          try {
+                            await archiveBacklogAction(b.id);
+                          } catch {
+                            setArchiveError("Archivage impossible.");
+                          }
                         });
                       }}
                     >

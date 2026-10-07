@@ -65,7 +65,13 @@ export function UserCreateDialog() {
             event.preventDefault();
             setError(null);
             startTransition(async () => {
-              const result = await createUserAction({ name, email, password });
+              let result: Awaited<ReturnType<typeof createUserAction>>;
+              try {
+                result = await createUserAction({ name, email, password });
+              } catch {
+                setError("Création impossible.");
+                return;
+              }
               if (!result.ok) {
                 setError(result.error);
                 return;

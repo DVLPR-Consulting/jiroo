@@ -66,7 +66,13 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
             const principal = principalType === "user"
               ? { type: "user" as const, userId: principalId }
               : { type: "group" as const, groupId: principalId };
-            const result = await addGlobalPermissionGrantAction({ permission, principal });
+            let result: Awaited<ReturnType<typeof addGlobalPermissionGrantAction>>;
+            try {
+              result = await addGlobalPermissionGrantAction({ permission, principal });
+            } catch {
+              setError("Ajout impossible.");
+              return;
+            }
             if (!result.ok) setError(result.error);
             else setPrincipalId("");
           });
@@ -94,7 +100,13 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
               if (!removing) return;
               setRemoveError(null);
               startTransition(async () => {
-                const result = await removeGlobalPermissionGrantAction({ grantId: removing.id });
+                let result: Awaited<ReturnType<typeof removeGlobalPermissionGrantAction>>;
+                try {
+                  result = await removeGlobalPermissionGrantAction({ grantId: removing.id });
+                } catch {
+                  setRemoveError("Retrait impossible.");
+                  return;
+                }
                 if (!result.ok) setRemoveError(result.error); else setRemoving(null);
               });
             }}>Confirmer le retrait</Button>
