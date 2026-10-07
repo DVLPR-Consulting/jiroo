@@ -72,10 +72,9 @@ describeDb("revokePendingSignIns", () => {
       body: { currentPassword: PASSWORD, newPassword: "nouveau-mot-de-passe", revokeOtherSessions: true },
       headers: target.device.requestHeaders(),
     });
-    // Better Auth's changePassword leaves the challenge usable on its own.
-    expect((await challengeRows(target.id)).challenges).toHaveLength(1);
-
-    await expect(revokePendingSignIns(db, target.id)).resolves.toBe(1);
+    // The change revokes pending challenges in its own transaction (JIR-62).
+    expect((await challengeRows(target.id)).challenges).toHaveLength(0);
+    await expect(revokePendingSignIns(db, target.id)).resolves.toBe(0);
 
     const after = await db
       .select({ identifier: verification.identifier })

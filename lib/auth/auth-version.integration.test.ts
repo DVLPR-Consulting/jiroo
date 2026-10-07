@@ -329,6 +329,39 @@ describeDb("auth version (JIR-62)", () => {
       expect(await signInSucceeds(target.email, "nouveau-mot-de-passe")).toBe(true);
     });
 
+    it("revokes trusted devices and pending challenges in the same change", async () => {
+      const target = await newUser("self-trust");
+      const secret = await enroll(target.email);
+      const trusted = await trustedDevice(target.email, secret);
+      const owner = new BetterAuthDevice();
+      await owner.post("/sign-in/email", { email: target.email, password: PASSWORD });
+      await owner.post("/two-factor/verify-totp", { code: generateTotp(secret) });
+      const pending = new BetterAuthDevice();
+      const opened = await pending.post("/sign-in/email", { email: target.email, password: PASSWORD });
+      expect(opened.json).toMatchObject({ twoFactorRedirect: true });
+
+      const result = await auth.api.changePassword({
+        body: { currentPassword: PASSWORD, newPassword: "nouveau-mot-de-passe", revokeOtherSessions: true },
+        headers: owner.requestHeaders(),
+        returnHeaders: true,
+      });
+      const rotated = result.headers.getSetCookie().find((cookie) => cookie.startsWith("better-auth.session_token="));
+
+      expect(await verificationRows(target.id, "trust-device-")).toHaveLength(0);
+      expect(await verificationRows(target.id, "2fa-")).toHaveLength(0);
+      // The changing browser's rotated session stays valid.
+      const current = await auth.api.getSession({ headers: new Headers({ cookie: rotated!.split(";")[0]! }) });
+      expect(current?.user.id).toBe(target.id);
+      // The challenge opened before the change cannot complete.
+      const verify = await pending.post("/two-factor/verify-totp", { code: generateTotp(secret) });
+      expect(verify.status).toBe(401);
+      expect((await pending.get("/get-session")).json).toBeNull();
+      // The old trust cookie no longer skips the TOTP step.
+      const again = await trusted.post("/sign-in/email", { email: target.email, password: "nouveau-mot-de-passe" });
+      expect(again.json).toMatchObject({ twoFactorRedirect: true });
+      expect((await trusted.get("/get-session")).json).toBeNull();
+    });
+
     it("refuses to overwrite an admin reset that committed after the current password was verified", async () => {
       const target = await newUser("self-vs-admin");
       const owner = new BetterAuthDevice();

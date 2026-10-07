@@ -239,7 +239,8 @@ function credentialsChanged(): APIError {
  * current password was verified. Jiroo writes it here instead, in one
  * transaction under the user row lock that admin resets also take: the write
  * only happens if neither the stored hash nor the auth version moved since
- * the verification, and it increments the version. Returning false then
+ * the verification; it increments the version and revokes trusted devices
+ * and pending 2FA challenges in the same transaction. Returning false then
  * skips Better Auth's own write, which would otherwise be able to overwrite
  * a concurrent reset. Better Auth's /change-password is the only route
  * allowed to change a password through Better Auth in Jiroo.
@@ -282,7 +283,17 @@ export async function applyOwnPasswordChange(
       )
       .returning({ id: account.id });
     if (updated.length !== 1) return null;
-    return incrementAuthVersion(tx, verified.userId);
+    const authVersion = await incrementAuthVersion(tx, verified.userId);
+    // Like the admin resets: device trust and pending sign-in challenges
+    // granted before the change do not survive it (owner decision, JIR-62).
+    // Imported lazily: that module is server-only, this one is also loaded
+    // by scripts.
+    const { revokePendingSignIns, revokeTrustedDevices } = await import(
+      "@/lib/auth/pending-authentication"
+    );
+    await revokeTrustedDevices(tx, verified.userId);
+    await revokePendingSignIns(tx, verified.userId);
+    return authVersion;
   });
   if (authVersion === null) throw credentialsChanged();
   grants.passwordChange = { userId: verified.userId, authVersion };
