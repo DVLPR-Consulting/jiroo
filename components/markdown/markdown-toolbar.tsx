@@ -273,7 +273,6 @@ export function MarkdownToolbar({
               className={BUTTON}
               aria-label="Lien"
               aria-pressed={Boolean(state?.link)}
-              aria-expanded={linkOpen}
               title="Lien (Ctrl+K)"
               tabIndex={position === tabStop ? 0 : -1}
               disabled={disabled}
@@ -344,7 +343,10 @@ function LinkForm({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-border px-2 py-1.5">
+    <div
+      data-local-escape
+      className="flex flex-wrap items-center gap-2 border-t border-border px-2 py-1.5"
+    >
       <label htmlFor={inputId} className="text-xs text-muted-foreground">
         Adresse du lien
       </label>
