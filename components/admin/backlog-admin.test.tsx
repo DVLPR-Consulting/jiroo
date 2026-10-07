@@ -15,6 +15,7 @@ vi.mock("@/app/actions/backlogs", () => ({
 }));
 
 import { BacklogAdmin } from "@/components/admin/backlog-admin";
+import { expectNoBoundary, renderWithBoundary, transportError } from "@/test/action-rejection";
 
 const backlog = {
   id: "backlog-1",
@@ -119,5 +120,51 @@ describe("BacklogAdmin", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "Nouveau backlog" }));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("keeps the create dialog open with a local error when the request fails in transport", async () => {
+    const user = userEvent.setup();
+    mocks.createBacklogAction.mockRejectedValueOnce(transportError()).mockResolvedValueOnce({ ok: true });
+    renderWithBoundary(<BacklogAdmin backlogs={[]} />);
+    await user.click(screen.getByRole("button", { name: "Nouveau backlog" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox", { name: "Clé" }), "OPS");
+    await user.type(within(dialog).getByRole("textbox", { name: "Nom" }), "Opérations");
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Création impossible.");
+    expectNoBoundary();
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(mocks.createBacklogAction).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the edit dialog open with a local error when the request fails in transport", async () => {
+    const user = userEvent.setup();
+    mocks.updateBacklogAction.mockRejectedValue(transportError());
+    renderWithBoundary(<BacklogAdmin backlogs={[backlog]} />);
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Mise à jour impossible.");
+    expectNoBoundary();
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Enregistrer" })).toBeEnabled());
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("shows a local error when archiving fails in transport and allows a retry", async () => {
+    const user = userEvent.setup();
+    mocks.archiveBacklogAction.mockRejectedValueOnce(transportError()).mockResolvedValueOnce({ ok: true });
+    renderWithBoundary(<BacklogAdmin backlogs={[backlog]} />);
+    await user.click(screen.getByRole("button", { name: "Archiver" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Archivage impossible.");
+    expectNoBoundary();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Archiver" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Archiver" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect(mocks.archiveBacklogAction).toHaveBeenCalledTimes(2);
   });
 });
