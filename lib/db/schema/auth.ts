@@ -21,6 +21,10 @@ export const user = pgTable("user", {
     .notNull(),
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
   role: text("role").default("contributor"),
+  // Incremented by every credential or second-factor reset (JIR-62). A
+  // session, pending 2FA challenge or trusted device is only honoured while
+  // it carries the version current when its first factor was verified.
+  authVersion: integer("auth_version").default(0).notNull(),
 });
 
 export const session = pgTable(
@@ -38,6 +42,8 @@ export const session = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    // user.auth_version captured when the first factor was verified (JIR-62).
+    authVersion: integer("auth_version").default(0).notNull(),
   },
   (table) => [index("session_userId_idx").on(table.userId)],
 );
@@ -78,6 +84,9 @@ export const verification = pgTable(
       .defaultNow()
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
+    // For 2FA challenges and trusted devices: the user's auth version when
+    // they were granted (JIR-62). Unused (0) for other verification values.
+    authVersion: integer("auth_version").default(0).notNull(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
