@@ -132,6 +132,9 @@ export function SearchModal() {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // A focused widget that owns the shortcut (the Markdown editor's
+      // "Lien") has already handled it.
+      if (e.defaultPrevented) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setOpen((current) => !current);
