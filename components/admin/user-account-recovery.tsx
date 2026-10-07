@@ -132,18 +132,22 @@ function ResetPasswordDialog({
             event.preventDefault();
             setError(null);
             startTransition(async () => {
-              const result = await resetUserPasswordAction({
-                userId: target.id,
-                temporaryPassword,
-              });
-              if (!result.ok) {
-                setError(result.error);
-                return;
+              try {
+                const result = await resetUserPasswordAction({
+                  userId: target.id,
+                  temporaryPassword,
+                });
+                if (!result.ok) {
+                  setError(result.error);
+                  return;
+                }
+                close();
+                toast.success(
+                  `Mot de passe de ${target.name} réinitialisé. Ses sessions ont été fermées.`,
+                );
+              } catch {
+                setError("Réinitialisation impossible.");
               }
-              close();
-              toast.success(
-                `Mot de passe de ${target.name} réinitialisé. Ses sessions ont été fermées.`,
-              );
             });
           }}
         >
@@ -229,15 +233,19 @@ function ResetTwoFactorDialog({
             onClick={() => {
               setError(null);
               startTransition(async () => {
-                const result = await resetUserTwoFactorAction({ userId: target.id });
-                if (!result.ok) {
-                  setError(result.error);
-                  return;
+                try {
+                  const result = await resetUserTwoFactorAction({ userId: target.id });
+                  if (!result.ok) {
+                    setError(result.error);
+                    return;
+                  }
+                  close();
+                  toast.success(
+                    `Double authentification de ${target.name} réinitialisée. Ses sessions ont été fermées.`,
+                  );
+                } catch {
+                  setError("Réinitialisation impossible.");
                 }
-                close();
-                toast.success(
-                  `Double authentification de ${target.name} réinitialisée. Ses sessions ont été fermées.`,
-                );
               });
             }}
           >
