@@ -1031,23 +1031,24 @@ export async function getPreviousSprintsVelocityContext(
   backlogId: string,
   sprintId: string | null = null,
 ): Promise<{ population: number; averageCompletedPoints: number | null }> {
+  const latest = async (executor: Tx | typeof db) => calculatePreviousSprintsVelocity(
+    (await readCompletedSprintBars(executor, backlogId, PREVIOUS_SPRINTS_WINDOW))
+      .map((bar) => ({ sprintId: bar.sprintId, ...velocityInput(bar) })),
+    null,
+  );
+  // Backlog headers (active and planned sprints): one read, no transaction.
+  if (sprintId === null) return latest(db);
   return db.transaction(async (tx) => {
-    const [target] = sprintId === null
-      ? []
-      : await tx.select({ state: sprints.state }).from(sprints).where(and(
-        eq(sprints.backlogId, backlogId),
-        eq(sprints.id, sprintId),
-      )).limit(1);
-    const completed = target?.state === "completed";
-    const bars = await readCompletedSprintBars(
-      tx,
-      backlogId,
-      completed ? PREVIOUS_SPRINTS_WINDOW + 1 : PREVIOUS_SPRINTS_WINDOW,
-      completed ? sprintId : null,
-    );
+    const [target] = await tx.select({ state: sprints.state }).from(sprints).where(and(
+      eq(sprints.backlogId, backlogId),
+      eq(sprints.id, sprintId),
+    )).limit(1);
+    if (target?.state !== "completed") return latest(tx);
+    // The sprint itself plus the five completed before it; the sprint is dropped.
+    const bars = await readCompletedSprintBars(tx, backlogId, PREVIOUS_SPRINTS_WINDOW + 1, sprintId);
     return calculatePreviousSprintsVelocity(
       bars.map((bar) => ({ sprintId: bar.sprintId, ...velocityInput(bar) })),
-      completed ? sprintId : null,
+      sprintId,
     );
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
