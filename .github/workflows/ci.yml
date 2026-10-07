@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Read-only token: CI only checks code, it never writes to the repository.
+permissions:
+  contents: read
+
+# One run per PR (or per push to main); a new commit cancels the superseded run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# pnpm 10 is required: the repository breaks with pnpm 11. package.json has no
+# `packageManager` field, so the version is pinned here, aligned with the
+# Vercel build (`corepack pnpm@10.34.5`). Actions are pinned to major versions.
+env:
+  PNPM_VERSION: 10.34.5
+  NODE_VERSION: 24
+
+jobs:
+  audit:
+    name: Audit (prod, high+)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # `pnpm audit` reads pnpm-lock.yaml; no install is needed.
+      # Known false production paths: better-auth declares optional peer
+      # dependencies (vitest, jsdom, drizzle-kit) that `--prod` still reports,
+      # e.g. esbuild via drizzle-kit (moderate, below the blocking threshold).
+      # These tools are dev-only in Jiroo and are not shipped at runtime.
+      - run: pnpm audit --prod --audit-level=high
+
+  checks:
+    name: ${{ matrix.task }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [typecheck, lint, test]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # `test` is `vitest run`: unit and component tests only. DB-backed suites
+      # are skipped because JIROO_RUN_DB_TESTS is unset, and Playwright E2E
+      # (e2e/**) is excluded in vitest.config.ts. No secrets are required.
+      - run: pnpm run ${{ matrix.task }}
