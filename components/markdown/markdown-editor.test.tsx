@@ -64,7 +64,7 @@ describe("MarkdownEditor", () => {
       "href",
       "https://exemple.fr",
     );
-    expect(within(editor).getByRole("checkbox")).toBeChecked();
+    expect(within(editor).getByRole("checkbox", { name: "Tâche faite : fait" })).toBeChecked();
     expect(within(editor).getAllByRole("listitem")).toHaveLength(2);
     expect(onChange).not.toHaveBeenCalled();
   });

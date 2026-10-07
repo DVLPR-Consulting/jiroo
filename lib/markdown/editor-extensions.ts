@@ -75,7 +75,13 @@ export function markdownEditorExtensions({
     }),
     LiteralParagraph,
     TaskList,
-    TaskItem.configure({ nested: true }),
+    TaskItem.configure({
+      nested: true,
+      a11y: {
+        checkboxLabel: (node, checked) =>
+          `Tâche ${checked ? "faite" : "à faire"} : ${node.textContent || "tâche vide"}`,
+      },
+    }),
     Markdown,
     MarkdownLengthLimit.configure({ limit: maxLength }),
   ];
