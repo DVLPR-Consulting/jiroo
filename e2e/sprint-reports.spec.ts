@@ -415,12 +415,16 @@ async function beginAt(
 }
 
 /**
- * Independent oracle for the seven-sprint velocity rule (spec: newest seven
- * completed sprints; a snapshot with non-zero committed or completed points is
- * included). Reads immutable snapshot rows, never the rendered page.
+ * Independent oracle for the commitment comparison (JIR-37, Jira "Sprint
+ * commitment" insight): the five most recent completed sprints ordered before
+ * `sprintId` (completion time desc, then id desc), the sprint itself excluded;
+ * without a completed `sprintId`, the five latest. Inside that window a
+ * snapshot with non-zero committed or completed points is included. Reads
+ * immutable snapshot rows, never the rendered page.
  */
-async function expectedRecentVelocity(backlogId: string) {
-  const newest = await db.select({
+async function expectedPreviousSprintsVelocity(backlogId: string, sprintId: string | null = null) {
+  const completed = await db.select({
+    sprintId: sprints.id,
     committedPoints: sprintReportSnapshots.committedPoints,
     completedPoints: sprintReportSnapshots.completedPoints,
   }).from(sprints).leftJoin(
@@ -430,9 +434,10 @@ async function expectedRecentVelocity(backlogId: string) {
       eq(sprintReportSnapshots.sprintId, sprints.id),
     ),
   ).where(and(eq(sprints.backlogId, backlogId), eq(sprints.state, "completed")))
-    .orderBy(desc(sprints.completedAt), desc(sprints.id))
-    .limit(7);
-  const included = newest.filter((row) =>
+    .orderBy(desc(sprints.completedAt), desc(sprints.id));
+  const position = sprintId === null ? -1 : completed.findIndex((row) => row.sprintId === sprintId);
+  const window = completed.slice(position + 1, position + 6);
+  const included = window.filter((row) =>
     row.committedPoints !== null
     && row.completedPoints !== null
     && (row.committedPoints !== 0 || row.completedPoints !== 0));
@@ -447,13 +452,13 @@ async function expectedRecentVelocity(backlogId: string) {
 async function expectComparison(
   text: string | null,
   commitmentPoints: number,
-  velocity: Awaited<ReturnType<typeof expectedRecentVelocity>>,
+  velocity: Awaited<ReturnType<typeof expectedPreviousSprintsVelocity>>,
 ) {
   if (velocity.average === null) {
     expect(text).toContain("Pas encore de vélocité comparable");
     return;
   }
-  const match = /Engagement (.+?) pts? · moyenne récente (.+?) pts? · écart (.+?) pts?/u.exec(text ?? "");
+  const match = /Engagement (.+?) pts? · moyenne des sprints précédents (.+?) pts? · écart (.+?) pts?/u.exec(text ?? "");
   expect(match, `Comparaison de vélocité absente : ${text}`).not.toBeNull();
   expect(parseRenderedNumber(match![1]!)).toBe(commitmentPoints);
   expect(parseRenderedNumber(match![2]!)).toBeCloseTo(velocity.average, 2);
@@ -1213,7 +1218,7 @@ audited(7, "rejoue le burndown actif depuis le baseline figé et le ledger", asy
   await expectComparison(
     await trajectory.getByText(/Engagement|Pas encore de vélocité comparable/u).textContent(),
     burndown.commitmentPoints,
-    await expectedRecentVelocity(context.backlog.id),
+    await expectedPreviousSprintsVelocity(context.backlog.id),
   );
   await expectChartMatches(page, {
     firstRemaining: baseline.remainingPoints,
@@ -1315,14 +1320,14 @@ audited(8, "relie édition unitaire, bulk et Board au burndown, ordre par séque
   await expectComparison(
     await activeHeader.getByText(/Engagement \d|Pas encore de vélocité comparable/u).first().textContent(),
     burndown.commitmentPoints,
-    await expectedRecentVelocity(context.backlog.id),
+    await expectedPreviousSprintsVelocity(context.backlog.id),
   );
   // Live scope = every sprint row's current estimate (remaining + completed).
   // Polled: the header re-renders after the single-edit save just above.
   const currentScope = activeHeader.getByText(/^Périmètre actuel /u);
   await expect.poll(async () => parseRenderedNumber((await currentScope.textContent())!.replace("Périmètre actuel", "")))
     .toBe(expectedRemaining + expectedCompleted);
-  await expect(activeHeader.getByText("Engagement supérieur à la moyenne récente", { exact: false })).toHaveCount(0);
+  await expect(activeHeader.getByText("Engagement supérieur à la moyenne des sprints précédents", { exact: false })).toHaveCount(0);
 
   await auditedGoto(page, capture, "admin", `/b/CASS/reports?report=burndown&sprint=${burndown.sprintId}`);
   await expectBurndownSummary(page, {
@@ -1374,6 +1379,11 @@ audited(9, "fige le point final à la clôture et ignore les mutations ultérieu
   }).from(sprintReportSnapshots).where(eq(sprintReportSnapshots.sprintId, burndown.sprintId));
   expect(snapshot).toEqual({ committedPoints: burndown.commitmentPoints, completedPoints: finalCompleted });
 
+  // JIR-37: a completed sprint compares to the sprints completed before it, never itself.
+  const previousVelocity = await expectedPreviousSprintsVelocity(context.backlog.id, burndown.sprintId);
+  capture.console.push(
+    `[measure] completed commitment ${burndown.commitmentPoints} pts vs previous sprints average ${previousVelocity.average} over ${previousVelocity.population} sprints`,
+  );
   const expectFrozen = async () => {
     await expect(page.getByRole("main").getByText("Historique figé", { exact: true })).toBeVisible();
     await expectBurndownSummary(page, {
@@ -1392,7 +1402,7 @@ audited(9, "fige le point final à la clôture et ignore les mutations ultérieu
       await page.getByRole("region", { name: "Trajectoire" })
         .getByText(/Engagement|Pas encore de vélocité comparable/u).textContent(),
       burndown.commitmentPoints,
-      await expectedRecentVelocity(context.backlog.id),
+      previousVelocity,
     );
     await expectChartMatches(page, {
       firstRemaining: burndown.baseline.remainingPoints,
@@ -1467,7 +1477,7 @@ audited(10, "compare un sprint planifié à la vélocité récente sans bloquer"
   }
   burndown.plannedSprintId = planned.id;
   const commitment = BURNDOWN.plannedEstimates.reduce((sum, points) => sum + points, 0);
-  const velocity = await expectedRecentVelocity(context.backlog.id);
+  const velocity = await expectedPreviousSprintsVelocity(context.backlog.id);
 
   await auditedGoto(page, capture, "admin", "/b/CASS?view=backlog");
   const header = sprintHeader(page, BURNDOWN.plannedName);
@@ -1477,15 +1487,15 @@ audited(10, "compare un sprint planifié à la vélocité récente sans bloquer"
     commitment,
     velocity,
   );
-  const warning = header.getByText("Engagement supérieur à la moyenne récente : avertissement non bloquant.");
+  const warning = header.getByText("Engagement supérieur à la moyenne des sprints précédents : avertissement non bloquant.");
   const aboveAverage = velocity.average !== null && commitment > velocity.average;
-  expect(aboveAverage, "La fixture planifiée doit dépasser la moyenne récente").toBe(true);
+  expect(aboveAverage, "La fixture planifiée doit dépasser la moyenne des sprints précédents").toBe(true);
   await expect(warning).toBeVisible();
   // Non-blocking: manual capacity is untouched and start stays available.
   await expect(header.getByRole("button", { name: new RegExp(`Démarrer ${BURNDOWN.plannedName}`, "u") }))
     .toBeEnabled();
   capture.console.push(
-    `[measure] planned commitment ${commitment} pts vs recent average ${velocity.average} over ${velocity.population} sprints`,
+    `[measure] planned commitment ${commitment} pts vs previous sprints average ${velocity.average} over ${velocity.population} sprints`,
   );
   await header.scrollIntoViewIfNeeded();
   await writeAuditScreenshot("audit/screenshots/burndown-planned-warning-desktop.png", (path) =>
@@ -1495,7 +1505,7 @@ audited(10, "compare un sprint planifié à la vélocité récente sans bloquer"
     `[overflow] planned warning 390x844 document=${overflow.document}px main=${overflow.main}px chart=${overflow.chart === null ? "n/a" : `${overflow.chart}px`}`,
   );
   await expect(sprintHeader(page, BURNDOWN.plannedName)
-    .getByText("Engagement supérieur à la moyenne récente : avertissement non bloquant.")).toBeVisible();
+    .getByText("Engagement supérieur à la moyenne des sprints précédents : avertissement non bloquant.")).toBeVisible();
   await sprintHeader(page, BURNDOWN.plannedName).scrollIntoViewIfNeeded();
   await writeAuditScreenshot("audit/screenshots/burndown-planned-warning-mobile.png", (path) =>
     page.screenshot({ path, fullPage: true, caret: "initial" }));
