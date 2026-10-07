@@ -3,7 +3,8 @@
  *
  * Storage stays Markdown. The editor only accepts the subset it can round-trip
  * without losing meaning (see SUPPORTED_TOKENS); anything else — GFM tables,
- * raw HTML, images… — is reported by `unsupportedMarkdownFeatures` so the
+ * raw HTML, images, links outside the link policy… — is reported by
+ * `unsupportedMarkdownFeatures` so the
  * caller can keep the raw Markdown instead of silently dropping it.
  */
 import type { JSONContent } from "@tiptap/react";
@@ -43,6 +44,7 @@ const FEATURE_LABELS: Record<string, string> = {
 
 type Token = {
   type: string;
+  href?: string;
   tokens?: Token[];
   items?: Token[];
   nestedTokens?: Token[];
@@ -52,6 +54,12 @@ function collectUnsupported(tokens: Token[] | undefined, found: Set<string>) {
   for (const token of tokens ?? []) {
     if (!SUPPORTED_TOKENS.has(token.type)) {
       found.add(FEATURE_LABELS[token.type] ?? token.type);
+    } else if (
+      (token.type === "link" || token.type === "def") &&
+      !isAllowedLinkUrl(token.href ?? "")
+    ) {
+      // tel:, ftp:, "./page"… would lose their target in the editor.
+      found.add("lien non pris en charge");
     }
     collectUnsupported(token.tokens, found);
     collectUnsupported(token.items, found);

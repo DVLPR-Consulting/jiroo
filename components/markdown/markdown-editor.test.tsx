@@ -271,4 +271,34 @@ describe("MarkdownEditor", () => {
     act(() => ref.current!.replaceTextBeforeCaret(3, "@Alice "));
     expect(onChange).toHaveBeenLastCalledWith("Bonjour @Alice ");
   });
+
+  it("keeps @-mention support in the raw Markdown fallback", async () => {
+    const user = userEvent.setup();
+    const ref = createRef<MarkdownEditorHandle>();
+    const onCaretTextChange = vi.fn();
+    const table = "| a |\n|---|\n| 1 |";
+    function Controlled() {
+      const [value, setValue] = useState(table);
+      return (
+        <>
+          <MarkdownEditor
+            ref={ref}
+            value={value}
+            label="Contenu"
+            onChange={setValue}
+            onCaretTextChange={onCaretTextChange}
+          />
+          <output data-testid="markdown">{value}</output>
+        </>
+      );
+    }
+    render(<Controlled />);
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Contenu" }).tagName).toBe("TEXTAREA"),
+    );
+    await user.type(screen.getByRole("textbox", { name: "Contenu" }), "{End}\nMerci @Al");
+    expect(onCaretTextChange).toHaveBeenLastCalledWith("Merci @Al");
+    act(() => ref.current!.replaceTextBeforeCaret(3, "@Alice "));
+    expect(markdown()).toBe(`${table}\nMerci @Alice `);
+  });
 });

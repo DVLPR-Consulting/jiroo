@@ -96,6 +96,12 @@ export function MarkdownEditor({
     );
   };
 
+  // Raw fallback: the current line before the caret, like an editor block.
+  const reportRawCaret = (textarea: HTMLTextAreaElement) => {
+    const before = textarea.value.slice(0, textarea.selectionStart);
+    callbacks.current.onCaretTextChange?.(before.slice(before.lastIndexOf("\n") + 1));
+  };
+
   const load = (editor: Editor, markdown: string) => {
     const manager = editor.markdown;
     if (!manager) return;
@@ -189,7 +195,21 @@ export function MarkdownEditor({
         else editor?.commands.focus(position ?? null);
       },
       replaceTextBeforeCaret: (length, text) => {
-        if (!editor || rawFeatures) return;
+        const textarea = textareaRef.current;
+        if (rawFeatures && textarea) {
+          const caret = textarea.selectionStart;
+          const start = Math.max(0, caret - length);
+          const next = textarea.value.slice(0, start) + text + textarea.value.slice(caret);
+          emitted.current = next;
+          callbacks.current.onChange(next);
+          callbacks.current.onCaretTextChange?.(next.slice(0, start + text.length));
+          requestAnimationFrame(() => {
+            textarea.focus();
+            textarea.setSelectionRange(start + text.length, start + text.length);
+          });
+          return;
+        }
+        if (!editor) return;
         const { from } = editor.state.selection;
         editor
           .chain()
@@ -225,7 +245,9 @@ export function MarkdownEditor({
           onChange={(event) => {
             emitted.current = event.target.value;
             onChange(event.target.value);
+            reportRawCaret(event.currentTarget);
           }}
+          onSelect={(event) => reportRawCaret(event.currentTarget)}
           onKeyDown={(event) => {
             if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && onSubmitShortcut) {
               event.preventDefault();

@@ -112,6 +112,10 @@ describe("unsupportedMarkdownFeatures", () => {
     ["<div>bloc</div>", ["HTML"]],
     ["![capture](https://a.fr/x.png)", ["image"]],
     ["- liste\n\n| a |\n|---|\n| 1 |\n\n![i](u)", ["tableau", "image"]],
+    ["[appel](tel:+33100000000)", ["lien non pris en charge"]],
+    ["[voir](./page) et [ok](https://a.fr)", ["lien non pris en charge"]],
+    ["[x](javascript:alert(1))", ["lien non pris en charge"]],
+    ["[r][1]\n\n[1]: ftp://a.fr", ["lien non pris en charge"]],
   ])("reports %j", (markdown, expected) => {
     expect(unsupportedMarkdownFeatures(manager, markdown)).toEqual(expected);
   });
