@@ -278,7 +278,8 @@ planning comparison returns:
 When the population is zero, the UI says `Pas encore de vélocité comparable`.
 Otherwise it renders factual copy such as:
 
-`Engagement 13 pts · moyenne récente 10 pts · écart +3 pts`.
+`Engagement 13 pts · moyenne des sprints précédents 10 pts · écart +3 pts`
+(wording and population per the JIR-37 decision below).
 
 On planned sprint sections in the Backlog, an engagement above the recent
 average displays a non-blocking warning. It does not change `capacityPoints`,
@@ -298,6 +299,24 @@ Manual capacity and recent velocity remain separate rows with separate labels.
 > `Pas encore de vélocité comparable` plus `Périmètre actuel`. Planned sprints
 > are unchanged (current scope; amber warning planned-only); capacity and
 > controls are unchanged.
+
+> **Decision 2026-10-07 (JIR-37).** Aligned with Jira's Backlog insights
+> "Sprint commitment", which compares a sprint's commitment to the average
+> completed points of the last five completed sprints, the comparison (Backlog
+> active and planned sprint headers, Burndown line) uses the **five most recent
+> sprints completed before the sprint considered**, the sprint itself excluded.
+> Sprints are ordered as in the velocity report (completion time desc, then id
+> desc); for a completed sprint shown in the Burndown, the window starts with
+> the sprint completed just before it in that order. For active and planned
+> sprints it is simply the five latest completed sprints. The window counts
+> completed sprints; the velocity inclusion rules then decide which of them
+> enter the average (no snapshot or zero/zero points stay out), so the
+> population can be below five, and zero shows `Pas encore de vélocité
+> comparable`. Copy: `Engagement … · moyenne des sprints précédents … · écart
+> …`, warning `Engagement supérieur à la moyenne des sprints précédents :
+> avertissement non bloquant.` The velocity report is unchanged (average over
+> the seven or twelve displayed sprints, latest included, as Jira's velocity
+> chart).
 
 ## Read services
 
@@ -319,8 +338,8 @@ Detailed reports contain:
 - the existing independently paginated event journal.
 
 The read performs a fixed number of backlog-scoped queries: canonical sprint
-and snapshot, initial baseline, ordered events, and at most seven immutable
-velocity headers. It never fetches mutable current items for a completed
+and snapshot, initial baseline, ordered events, and at most six immutable
+velocity headers (the sprint and the five completed before it, JIR-37). It never fetches mutable current items for a completed
 burndown and never issues per-item queries.
 
 Planned-sprint summaries reuse a small backlog-level velocity context read
