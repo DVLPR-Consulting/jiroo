@@ -267,4 +267,27 @@ describe("ViewActions URL navigation", () => {
     act(() => requestSaveView());
     expect(screen.getByRole("button", { name: "Confirmer create" })).toBeInTheDocument();
   });
+
+  it("hides its button until there is something to save but keeps the save dialog reachable", () => {
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "list"]]}>
+        <ViewActions
+          backlogKey="DEMO"
+          backlogId="backlog-1"
+          activeView={null}
+          isOwner
+          dirty={false}
+          displayMode="list"
+          filters={filters}
+          group={null}
+          sort={null}
+          showTrigger={false}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.queryByRole("button", { name: /Enregistrer la vue/ })).not.toBeInTheDocument();
+    act(() => requestSaveView());
+    expect(screen.getByRole("button", { name: "Confirmer create" })).toBeInTheDocument();
+  });
 });

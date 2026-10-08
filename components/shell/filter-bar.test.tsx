@@ -1,5 +1,5 @@
 import { useLayoutEffect, type ReactNode } from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FilterBar } from "@/components/shell/filter-bar";
@@ -34,6 +34,12 @@ vi.mock("@/app/actions/items", () => ({
 
 // The sidebar's user card imports a Server Action module.
 vi.mock("@/app/actions/account", () => ({ changeOwnPasswordAction: vi.fn() }));
+
+/** Opens « + Filtre » and one of its facets (JIR-74). */
+async function addFilter(user: ReturnType<typeof userEvent.setup>, label: string) {
+  await user.click(screen.getByRole("button", { name: "Filtre" }));
+  await user.click(screen.getByRole("button", { name: label }));
+}
 
 /** Picks a grouping in the « Affichage » menu (JIR-74). */
 function chooseGroup(label: string) {
@@ -187,19 +193,81 @@ describe("FilterBar", () => {
     window.history.replaceState(null, "", "/");
   });
 
-  it("renders each inactive facet as a plus-prefixed chip", () => {
+  it("keeps Type, Statut and Parent on the bar and the other facets behind « + Filtre »", async () => {
+    const user = userEvent.setup();
     const { container } = renderBar();
 
-    for (const label of ["Type", "Statut", "Priorité", "Label", "Version", "Assigné", "Nature", "Sous"]) {
-      expect(screen.getByRole("button", { name: `+ ${label}` })).toHaveAttribute("data-active", "false");
-    }
     expect(
       [...container.querySelectorAll<HTMLButtonElement>("button[data-active]")].map((button) =>
         button.textContent?.trim(),
       ),
-    ).toEqual(["+ Type", "+ Statut", "+ Priorité", "+ Label", "+ Version", "+ Assigné", "+ Nature", "+ Sous"]);
+    ).toEqual(["Type", "Statut", "Parent"]);
+    for (const label of ["Priorité", "Label", "Version", "Nature"]) {
+      expect(screen.queryByRole("button", { name: label })).not.toBeInTheDocument();
+    }
+    await user.click(screen.getByRole("button", { name: "Filtre" }));
+    expect(
+      within(screen.getByRole("list", { name: "Ajouter un filtre" }))
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Priorité", "Label", "Version", "Nature"]);
     expect(screen.queryByRole("button", { name: /^Affichage/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Trier par" })).not.toBeInTheDocument();
+  });
+
+  it("filters by assignee with pressed avatar toggles, « Non assigné » included", async () => {
+    const user = userEvent.setup();
+    renderBar({
+      ...emptyState,
+      filters: { ...emptyState.filters, assignees: ["marie"] },
+    });
+
+    const group = screen.getByRole("group", { name: "Filtrer par assigné" });
+    expect(
+      within(group).getAllByRole("button").map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Non assigné", "Marie Lemaire"]);
+    expect(within(group).getByRole("button", { name: "Marie Lemaire" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    const unassigned = within(group).getByRole("button", { name: "Non assigné" });
+    expect(unassigned).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(unassigned);
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith(
+        "/b/DEMO?view=board&item=DEMO-1&assignee=marie%2Cnone",
+        { scroll: false },
+      ),
+    );
+  });
+
+  it("shows an active « + Filtre » facet as a chip with its value", async () => {
+    const user = userEvent.setup();
+    renderBar({
+      ...emptyState,
+      filters: { ...emptyState.filters, priorities: [4], kind: ["bug"] },
+    });
+
+    expect(screen.getByRole("button", { name: /^Priorité : / })).toHaveAttribute("data-active", "true");
+    expect(screen.getByRole("button", { name: "Nature : Bug" })).toHaveAttribute("data-active", "true");
+
+    await user.click(screen.getByRole("button", { name: "Filtre" }));
+    expect(
+      within(screen.getByRole("list", { name: "Ajouter un filtre" }))
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Label", "Version"]);
+  });
+
+  it("labels the free-text filter field", () => {
+    renderBar();
+
+    expect(screen.getByRole("searchbox", { name: "Filtrer les items" })).toHaveAttribute(
+      "placeholder",
+      "Filtrer…",
+    );
   });
 
   it("allows the filter controls to wrap instead of overflowing narrow content", () => {
@@ -215,7 +283,7 @@ describe("FilterBar", () => {
       filters: { ...emptyState.filters, types: ["tache"] },
     });
 
-    const typeChip = screen.getByRole("button", { name: /Type.*Tâche.*1/i });
+    const typeChip = screen.getByRole("button", { name: "Type : Tâche" });
     expect(typeChip).toHaveAttribute("data-active", "true");
 
     await user.click(screen.getByRole("button", { name: "Effacer le filtre Type" }));
@@ -229,7 +297,7 @@ describe("FilterBar", () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(screen.getByRole("button", { name: "+ Sous" }));
+    await user.click(screen.getByRole("button", { name: "Parent" }));
     await user.click(screen.getByLabelText("DEMO-2 — Refonte"));
 
     await waitFor(() =>
@@ -245,7 +313,7 @@ describe("FilterBar", () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(screen.getByRole("button", { name: "+ Version" }));
+    await addFilter(user, "Version");
     await user.click(screen.getByLabelText("2026.10"));
 
     await waitFor(() =>
@@ -263,7 +331,7 @@ describe("FilterBar", () => {
       filters: { ...emptyState.filters, releaseIds: ["release-archived"] },
     });
 
-    expect(screen.getByRole("button", { name: /Version.*2026\.09.*1/i })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Version : 2026.09" })).toHaveAttribute(
       "data-active",
       "true",
     );
@@ -298,7 +366,7 @@ describe("FilterBar", () => {
     );
     act(() => window.dispatchEvent(new PopStateEvent("popstate")));
 
-    await user.click(screen.getByRole("button", { name: "+ Version" }));
+    await addFilter(user, "Version");
     await user.click(screen.getByLabelText("2026.10"));
 
     await waitFor(() =>

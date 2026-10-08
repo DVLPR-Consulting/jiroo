@@ -51,6 +51,12 @@ export type ViewActionsProps = {
   filters: Filters;
   group: GroupKey | null;
   sort: { field: SortField; dir: SortDir } | null;
+  /**
+   * Whether the menu button shows (JIR-74: once the view differs from the
+   * defaults or a saved view is active). The dialogs stay mounted so the
+   * sidebar's « + Enregistrer une vue » can still open them.
+   */
+  showTrigger?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -120,6 +126,7 @@ export function ViewActions({
   filters,
   group,
   sort,
+  showTrigger = true,
 }: ViewActionsProps) {
   const router = useRouter();
   const viewUrl = useViewUrlState();
@@ -264,6 +271,7 @@ export function ViewActions({
 
   return (
     <>
+      {showTrigger && (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -364,6 +372,7 @@ export function ViewActions({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      )}
 
       {/* Save-as dialog */}
       <ViewSaveDialog

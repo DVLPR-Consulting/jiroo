@@ -36,6 +36,7 @@ import {
 import { PRIORITY_LABELS } from "@/lib/design/constants";
 import { requireAppPageSession } from "@/lib/auth/session";
 import { getViewByIdForUser } from "@/lib/services/views";
+import { hasSavableViewState } from "@/lib/items/filter-chips";
 import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
 import { PageHeader } from "@/components/shell/page-header";
 import { PROJECT_VIEWS } from "@/lib/items/shell";
@@ -557,21 +558,6 @@ export async function BacklogViewContent({
         title={PROJECT_VIEWS.find((candidate) => candidate.id === view)?.label}
         actions={
           <>
-            <ViewActions
-              backlogKey={key}
-              backlogId={backlog.id}
-              activeView={
-                activeViewRow
-                  ? { id: activeViewRow.id, name: activeViewRow.name, shared: activeViewRow.shared }
-                  : null
-              }
-              isOwner={isOwner}
-              dirty={dirty}
-              displayMode={view as DisplayMode}
-              filters={viewState.filters}
-              group={viewState.group}
-              sort={viewState.sort}
-            />
             {view === "board" && productCapabilities.workflow.manage ? (
               <StatusManagerDialog
                 key={statusList.map((status) => `${status.id}:${status.order}:${status.name}:${status.category}:${status.itemCount}`).join("|")}
@@ -613,6 +599,24 @@ export async function BacklogViewContent({
           type: item.type,
         }))}
         resultCount={resultCount}
+        actions={
+          <ViewActions
+            backlogKey={key}
+            backlogId={backlog.id}
+            activeView={
+              activeViewRow
+                ? { id: activeViewRow.id, name: activeViewRow.name, shared: activeViewRow.shared }
+                : null
+            }
+            isOwner={isOwner}
+            dirty={dirty}
+            displayMode={view as DisplayMode}
+            filters={viewState.filters}
+            group={viewState.group}
+            sort={viewState.sort}
+            showTrigger={activeViewRow !== null || hasSavableViewState(viewState)}
+          />
+        }
       />
       {view === "backlog" && (
         <ItemBacklog
