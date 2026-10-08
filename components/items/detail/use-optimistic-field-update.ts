@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateItemAction } from "@/app/actions/items";
+import { FieldStatusContext } from "@/components/items/detail/field-status";
 
 type UpdatePatch = Omit<
   Parameters<typeof updateItemAction>[0],
@@ -29,6 +30,11 @@ export function useOptimisticFieldUpdate<T>({
   const confirmedRef = useRef(value);
   const pendingRef = useRef(false);
   const revisionRef = useRef(0);
+  const reportStatus = useContext(FieldStatusContext);
+
+  useEffect(() => {
+    reportStatus?.({ pending, error });
+  }, [error, pending, reportStatus]);
 
   useEffect(() => {
     if (pendingRef.current) return;

@@ -11,6 +11,7 @@ import {
 } from "react";
 import { Pencil } from "lucide-react";
 import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
+import { FieldStatusContext, type FieldStatus } from "@/components/items/detail/field-status";
 import type { SequenceShortcutId } from "@/lib/shortcuts/registry";
 
 const FOCUSABLE = "select, input, textarea, button, [tabindex]:not([tabindex='-1'])";
@@ -62,6 +63,9 @@ export function DetailField({
   const labelId = useId();
   const valueId = useId();
   const [editing, setEditing] = useState(false);
+  // The editor stays mounted in read mode: its optimistic value, pending
+  // lock and error survive leaving the field, and it reports them here.
+  const [status, setStatus] = useState<FieldStatus>({ pending: false, error: null });
   const editRef = useRef<HTMLDivElement>(null);
   const readRef = useRef<HTMLButtonElement>(null);
   const returnFocus = useRef(false);
@@ -124,11 +128,19 @@ export function DetailField({
         {label}
       </dt>
       <dd className="m-0 flex min-w-0 flex-col gap-0.5 px-1 py-1">
-        {editable && editing ? (
-          <div ref={editRef} data-local-escape onBlur={onBlur} onKeyDown={onKeyDown} className="px-1">
-            {editor}
+        {editable && (
+          <div
+            ref={editRef}
+            hidden={!editing}
+            data-local-escape
+            onBlur={onBlur}
+            onKeyDown={onKeyDown}
+            className="px-1"
+          >
+            <FieldStatusContext.Provider value={setStatus}>{editor}</FieldStatusContext.Provider>
           </div>
-        ) : editable && editTrigger === "icon" ? (
+        )}
+        {editable && editing ? null : editable && editTrigger === "icon" ? (
           <span className="flex min-h-8 min-w-0 items-center gap-2 px-1.5 py-1">
             <span id={valueId} className="flex min-w-0 flex-1 items-center gap-2">
               {display}
@@ -159,6 +171,14 @@ export function DetailField({
           <span id={valueId} className="flex min-h-8 min-w-0 items-center gap-2 px-1.5 py-1">
             {display}
           </span>
+        )}
+        {editable && !editing && status.pending && (
+          <span className="px-1.5 text-xs text-muted-foreground">Enregistrement…</span>
+        )}
+        {editable && !editing && status.error && (
+          <p role="alert" className="px-1.5 text-xs text-[var(--danger)]">
+            {status.error}
+          </p>
         )}
         {after}
       </dd>

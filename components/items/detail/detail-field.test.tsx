@@ -62,7 +62,7 @@ describe("DetailField", () => {
 
   it("greys an empty value as « Aucun(e) »", () => {
     renderField({ value: null, emptyText: "Aucune" });
-    expect(screen.getByText("Aucune")).toHaveClass("text-muted-foreground");
+    expect(screen.getByText("Aucune", { selector: "span" })).toHaveClass("text-muted-foreground");
   });
 
   it("is plain text without an editor", () => {
