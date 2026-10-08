@@ -212,22 +212,38 @@ export function HelpGuide() {
           steps={[
             <>Cliquez sur un ticket (ou <Key>Entrée</Key> sur une ligne sélectionnée) : le détail s’ouvre en panneau latéral.</>,
             <>Cliquez sur le titre pour le renommer ; modifiez les propriétés (<Ui>Statut</Ui>, <Ui>Assigné</Ui>, <Ui>Labels</Ui>, <Ui>Échéance</Ui>…) directement.</>,
-            <>Description : cliquez dans la description (ou sur <Ui>Ajouter une description</Ui> / <Ui>Éditer</Ui>) pour l’ouvrir dans l’éditeur, rédigez, puis <Ui>Enregistrer</Ui> ou <Ui>Annuler</Ui>.</>,
+            <>Description : écrivez directement dedans, comme sur une page (voir <Ui>Écrire la description</Ui> ci-dessous).</>,
             <><Ui>Copier le lien</Ui> donne une adresse qui rouvre ce ticket.</>,
           ]}
         />
 
         <GuideTopic
-          title="Mise en forme du texte"
-          purpose="Rédiger descriptions, commentaires et notes de release avec une mise en forme visible, sans écrire de Markdown."
+          title="Écrire la description"
+          purpose="Rédiger la description d’un ticket comme une page, sans mode édition ni bouton d’enregistrement."
           steps={[
-            <>Barre <Ui>Mise en forme</Ui> : <Ui>Titre 2</Ui>, <Ui>Titre 3</Ui>, <Ui>Gras</Ui>, <Ui>Italique</Ui>, <Ui>Barré</Ui>, <Ui>Code en ligne</Ui>, <Ui>Liste à puces</Ui>, <Ui>Liste numérotée</Ui>, <Ui>Liste de tâches</Ui>, <Ui>Citation</Ui>, <Ui>Bloc de code</Ui>, <Ui>Lien</Ui>, <Ui>Annuler la modification</Ui>, <Ui>Rétablir la modification</Ui>.</>,
+            <>Cliquez dans la description et écrivez : elle est toujours modifiable sur place. Vide, elle affiche <Ui>Écrivez, ou tapez « / » pour insérer un bloc…</Ui></>,
+            <>L’enregistrement est automatique : après une courte pause de frappe, en quittant la description et à la fermeture du panneau. Sous le texte, l’état indique <Ui>Enregistrement…</Ui> puis <Ui>Enregistré</Ui>.</>,
+            <>Tapez <Key>/</Key> en début de ligne ou après une espace pour insérer un bloc : <Ui>Texte</Ui>, <Ui>Titre 1</Ui>, <Ui>Titre 2</Ui>, <Ui>Titre 3</Ui>, <Ui>Liste à puces</Ui>, <Ui>Liste numérotée</Ui>, <Ui>Liste de tâches</Ui>, <Ui>Citation</Ui>, <Ui>Bloc de code</Ui>, <Ui>Séparateur</Ui>. Continuez à taper pour filtrer, <Key>↑</Key> / <Key>↓</Key> puis <Key>Entrée</Key> pour choisir, <Key>Échap</Key> pour fermer le menu.</>,
+            <>Sélectionnez du texte pour faire apparaître la barre de mise en forme : <Ui>Gras</Ui>, <Ui>Italique</Ui>, <Ui>Barré</Ui>, <Ui>Code</Ui>, <Ui>Lien</Ui>.</>,
+            <><Key>Échap</Key> quitte la description (et l’enregistre) ; un second <Key>Échap</Key> ferme le panneau.</>,
+          ]}
+        >
+          <GuideNote>
+            Si l’enregistrement échoue, le message <Ui>Échec de l’enregistrement</Ui> s’affiche et votre texte est conservé : cliquez sur <Ui>Réessayer</Ui>. Sans droit de modification sur le ticket (rôle <Ui>Lecteur</Ui>, par exemple), la description s’affiche avec la même mise en forme, en lecture seule ; ses liens restent cliquables. Les enregistrements successifs d’une même séance d’écriture ne comptent que pour une seule entrée dans l’onglet <Ui>Activité</Ui>.
+          </GuideNote>
+        </GuideTopic>
+
+        <GuideTopic
+          title="Mise en forme du texte"
+          purpose="Rédiger commentaires et notes de release avec une mise en forme visible, sans écrire de Markdown."
+          steps={[
+            <>Barre <Ui>Mise en forme</Ui> (commentaires et notes de release) : <Ui>Titre 2</Ui>, <Ui>Titre 3</Ui>, <Ui>Gras</Ui>, <Ui>Italique</Ui>, <Ui>Barré</Ui>, <Ui>Code en ligne</Ui>, <Ui>Liste à puces</Ui>, <Ui>Liste numérotée</Ui>, <Ui>Liste de tâches</Ui>, <Ui>Citation</Ui>, <Ui>Bloc de code</Ui>, <Ui>Lien</Ui>, <Ui>Annuler la modification</Ui>, <Ui>Rétablir la modification</Ui>.</>,
             <>En tapant : <Key>##</Key> + espace (titre), <Key>-</Key> + espace (puce), <Key>1.</Key> + espace (liste numérotée), <Key>[ ]</Key> + espace (tâche), <Key>&gt;</Key> + espace (citation), <Key>**texte**</Key> (gras), <Key>`code`</Key>.</>,
             <><Ui>Lien</Ui> (ou <Key>⌘/Ctrl</Key> + <Key>K</Key> dans l’éditeur) : saisissez une <Ui>Adresse du lien</Ui> en http(s)://, mailto: ou relative, puis <Ui>Appliquer</Ui>.</>,
           ]}
         >
           <GuideNote>
-            Un contenu que l’éditeur ne sait pas afficher (tableau, HTML, image, lien d’un autre type…) s’ouvre en Markdown brut, avec un avertissement, pour ne rien perdre.
+            Un contenu que l’éditeur ne sait pas afficher (tableau, HTML, image, lien d’un autre type…) s’ouvre en Markdown brut, avec un avertissement, pour ne rien perdre. Pour une description dans ce cas, l’enregistrement n’est pas automatique : utilisez <Ui>Enregistrer</Ui> ou <Ui>Annuler</Ui> sous le texte.
           </GuideNote>
         </GuideTopic>
 
@@ -237,7 +253,7 @@ export function HelpGuide() {
           steps={[
             <>Onglet <Ui>Commentaires</Ui> : écrivez avec la même barre de mise en forme, tapez <Key>@</Key> pour mentionner quelqu’un, puis <Ui>Commenter</Ui> (ou <Key>⌘/Ctrl</Key> + <Key>Entrée</Key>).</>,
             <>Vous pouvez modifier ou supprimer vos propres commentaires.</>,
-            <>Onglet <Ui>Activité</Ui> : historique des modifications (statut, priorité, assignation…).</>,
+            <>Onglet <Ui>Activité</Ui> : historique des modifications (statut, priorité, assignation, description…).</>,
           ]}
         >
           <GuideNote>Une mention envoie une notification à la personne mentionnée.</GuideNote>
@@ -454,7 +470,7 @@ export function HelpGuide() {
             <li><Key>Maj</Key> + clic sur une case : sélectionner une plage.</li>
             <li><Key>⌘/Ctrl</Key> + <Key>Entrée</Key> : envoyer un commentaire.</li>
             <li>Titre en édition : <Key>Entrée</Key> enregistre, <Key>Échap</Key> annule.</li>
-            <li>Description : <Key>Entrée</Key> ou <Key>Espace</Key> sur le texte affiché ouvre l’éditeur.</li>
+            <li>Description : <Key>/</Key> ouvre le menu des blocs ; <Key>Échap</Key> quitte la description, un second <Key>Échap</Key> ferme le panneau.</li>
             <li>Glisser-déposer au clavier : <Key>Espace</Key> pour saisir, flèches pour déplacer, <Key>Espace</Key> pour déposer.</li>
           </ul>
         </GuideTopic>
