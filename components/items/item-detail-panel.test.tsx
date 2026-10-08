@@ -996,6 +996,52 @@ describe("ItemDetailPanel keyboard shortcuts", () => {
     expect(screen.getByRole("combobox", { name: "Statut" })).toHaveFocus();
   });
 
+  it("a unfolds « Détails » folded by a click, then focuses the visible assignee", () => {
+    renderWithShortcuts();
+    const details = screen.getByRole("button", { name: "Détails" });
+    fireEvent.click(details);
+    expect(details).toHaveAttribute("aria-expanded", "false");
+
+    pressInDrawer("a");
+
+    expect(details).toHaveAttribute("aria-expanded", "true");
+    const assignee = screen.getByRole("combobox", { name: "Assigné" });
+    expect(assignee).toBeVisible();
+    expect(assignee).toHaveFocus();
+    window.localStorage.clear();
+  });
+
+  it("a unfolds « Détails » folded by the stored preference", async () => {
+    window.localStorage.setItem("jiroo:item-drawer-panel:details", "collapsed");
+    renderWithShortcuts();
+    const details = screen.getByRole("button", { name: "Détails" });
+    await waitFor(() => expect(details).toHaveAttribute("aria-expanded", "false"));
+
+    pressInDrawer("a");
+
+    expect(details).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("combobox", { name: "Assigné" })).toHaveFocus();
+    window.localStorage.clear();
+  });
+
+  it("a leaves a folded « Détails » alone without the assign right or with shortcuts off", async () => {
+    window.localStorage.setItem("jiroo:item-drawer-panel:details", "collapsed");
+    const { unmount } = renderWithShortcuts({ canAssignItems: false });
+    const details = screen.getByRole("button", { name: "Détails" });
+    await waitFor(() => expect(details).toHaveAttribute("aria-expanded", "false"));
+    pressInDrawer("a");
+    expect(details).toHaveAttribute("aria-expanded", "false");
+    unmount();
+
+    window.localStorage.setItem("jiroo-shortcuts-enabled", "false");
+    renderWithShortcuts();
+    const folded = screen.getByRole("button", { name: "Détails" });
+    await waitFor(() => expect(folded).toHaveAttribute("aria-expanded", "false"));
+    pressInDrawer("a");
+    expect(folded).toHaveAttribute("aria-expanded", "false");
+    window.localStorage.clear();
+  });
+
   it("i assigns the item to the current user", async () => {
     renderWithShortcuts();
 

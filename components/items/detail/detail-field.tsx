@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -12,6 +13,7 @@ import {
 import { Pencil } from "lucide-react";
 import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import { FieldStatusContext, type FieldStatus } from "@/components/items/detail/field-status";
+import { PanelExpandContext } from "@/components/items/detail/collapsible-panel";
 import type { SequenceShortcutId } from "@/lib/shortcuts/registry";
 
 const FOCUSABLE = "select, input, textarea, button, [tabindex]:not([tabindex='-1'])";
@@ -70,7 +72,15 @@ export function DetailField({
   const readRef = useRef<HTMLButtonElement>(null);
   const returnFocus = useRef(false);
   const editable = editor !== undefined;
-  useShortcutHandler(shortcut ?? "item.assign", Boolean(shortcut) && editable && !editing && (() => setEditing(true)));
+  const expandPanel = useContext(PanelExpandContext);
+  // The shortcut unfolds a folded panel first, so the editor it opens is visible.
+  useShortcutHandler(
+    shortcut ?? "item.assign",
+    Boolean(shortcut) && editable && !editing && (() => {
+      expandPanel?.();
+      setEditing(true);
+    }),
+  );
 
   useEffect(() => {
     if (editing) {

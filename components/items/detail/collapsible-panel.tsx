@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { createContext, useCallback, useEffect, useId, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/**
+ * Unfolds the enclosing panel, e.g. when a shortcut (« a ») asks for one of
+ * its fields: the click, the stored preference and the shortcut share one
+ * expansion state. Null outside a panel.
+ */
+export const PanelExpandContext = createContext<(() => void) | null>(null);
 
 const STORAGE_PREFIX = "jiroo:item-drawer-panel:";
 
@@ -42,6 +49,10 @@ export function CollapsiblePanel({
 }) {
   const contentId = useId();
   const [expanded, setExpanded] = useState(true);
+  const expand = useCallback(() => {
+    setExpanded(true);
+    writeCollapsed(id, false);
+  }, [id]);
 
   // Read the device preference after mount: the server renders it expanded.
   useEffect(() => {
@@ -81,7 +92,7 @@ export function CollapsiblePanel({
         </button>
       </h3>
       <div id={contentId} hidden={!expanded}>
-        {children}
+        <PanelExpandContext.Provider value={expand}>{children}</PanelExpandContext.Provider>
       </div>
     </section>
   );
