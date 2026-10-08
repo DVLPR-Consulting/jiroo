@@ -302,6 +302,16 @@ describe("MarkdownEditor", () => {
     expect(markdown()).toBe(`${table}\nMerci @Alice `);
   });
 
+  it("keeps an uppercase named entity intact by editing it raw (Codex R2)", async () => {
+    const user = userEvent.setup();
+    render(<Harness initial="Avant &AMP; suite" />);
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Contenu" }).tagName).toBe("TEXTAREA"),
+    );
+    await user.type(screen.getByRole("textbox", { name: "Contenu" }), "{End}!");
+    expect(markdown()).toBe("Avant &AMP; suite!");
+  });
+
   it("opens with the caret after the given visible characters", async () => {
     const onCaretTextChange = vi.fn();
     render(

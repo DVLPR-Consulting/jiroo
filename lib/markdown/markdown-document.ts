@@ -53,8 +53,9 @@ type Token = {
 };
 
 // Named character references other than the four Tiptap decodes (amp, lt,
-// gt, quot) would turn into literal text on the next save.
-const NAMED_ENTITY = /&(?!(?:amp|lt|gt|quot);)[a-z][a-z\d]{1,31};/i;
+// gt, quot, lowercase only: "&AMP;" is valid HTML but Tiptap keeps it as
+// text) would turn into literal text on the next save.
+const NAMED_ENTITY = /&(?!(?:amp|lt|gt|quot);)[A-Za-z][A-Za-z\d]{1,31};/;
 
 function collectUnsupported(tokens: Token[] | undefined, found: Set<string>) {
   for (const token of tokens ?? []) {

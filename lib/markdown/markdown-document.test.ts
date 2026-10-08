@@ -176,6 +176,15 @@ describe("named HTML entities (Codex R2)", () => {
     expect(unsupportedMarkdownFeatures(manager, "- point &rarr; suite")).toEqual(["entité HTML"]);
   });
 
+  it.each(["&AMP;", "&LT;", "&GT;", "&QUOT;", "&Eacute;", "&COPY;"])(
+    "keeps the case-sensitive reference %s as raw Markdown",
+    (entity) => {
+      expect(unsupportedMarkdownFeatures(manager, `Avant ${entity} suite`)).toEqual([
+        "entité HTML",
+      ]);
+    },
+  );
+
   it.each([
     ["basic entities", "1 &lt; 2 &amp; 3 &gt; 0 &quot;ok&quot;"],
     ["numeric references", "&#233;t&#xE9;"],
