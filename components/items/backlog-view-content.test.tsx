@@ -133,6 +133,7 @@ vi.mock("@/components/shell/filter-bar", () => ({
 }));
 vi.mock("@/components/shell/view-actions", () => ({ ViewActions: () => null }));
 vi.mock("@/components/items/new-item-dialog", () => ({ NewItemButton: () => null }));
+vi.mock("@/components/shell/create-item-trigger", () => ({ TopbarCreateItem: () => null }));
 vi.mock("@/components/statuses/status-manager-dialog", () => ({
   StatusManagerDialog: () => null,
 }));
