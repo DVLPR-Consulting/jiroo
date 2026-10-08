@@ -80,8 +80,8 @@ export function HelpGuide() {
           purpose="Un backlog regroupe les tickets d’une équipe ou d’un projet, avec ses statuts, sprints, releases et vues."
           steps={[
             <>Changez de backlog avec le sélecteur en haut de la barre latérale.</>,
-            <><Ui>Tous les items</Ui> affiche le backlog courant ; <Ui>Mes items</Ui> liste les tickets qui vous sont assignés, tous backlogs confondus.</>,
-            <>Depuis n’importe quelle page (Aide, Administration, Releases…), cliquez sur le logo <Ui>Jiroo</Ui> ou sur le nom du backlog dans le fil d’Ariane pour revenir à l’accueil du backlog.</>,
+            <>Dans la section <Ui>Filtres</Ui> de la barre latérale, <Ui>Tous les items</Ui> affiche le backlog courant sans filtre ; <Ui>Mes items</Ui> liste les tickets qui vous sont assignés, tous backlogs confondus.</>,
+            <>Depuis n’importe quelle page (Aide, Administration, Releases…), cliquez sur le logo <Ui>Jiroo</Ui> ou sur le nom du backlog dans le fil d’Ariane, au-dessus du titre de la page, pour revenir à l’accueil du backlog.</>,
           ]}
         >
           <GuideNote>
@@ -116,7 +116,7 @@ export function HelpGuide() {
             « catégorie Terminé ».
           </p>
           <GuideNote>
-            Les personnes autorisées adaptent les statuts d’un backlog depuis le Board avec <Ui>Gérer les colonnes</Ui>
+            Les personnes autorisées adaptent les statuts d’un backlog depuis le Board, à droite du titre, avec <Ui>Gérer les colonnes</Ui>
             {" "}(ajouter, renommer, réordonner, supprimer avec un <Ui>Statut de destination</Ui>).
           </GuideNote>
         </GuideTopic>
@@ -133,7 +133,7 @@ export function HelpGuide() {
           title="Modèles"
           purpose="Pré-remplir un nouveau ticket avec une structure de description."
           steps={[
-            <>Dans <Ui>Nouvel item</Ui>, choisissez un <Ui>Modèle</Ui>.</>,
+            <>Dans la fenêtre <Ui>Nouvel item</Ui> (bouton <Ui>+ Créer</Ui>), choisissez un <Ui>Modèle</Ui>.</>,
             <><Ui>Rapport de bug</Ui> : nature Bug, sections Étapes pour reproduire, Comportement attendu, Comportement observé, Environnement.</>,
             <><Ui>User story</Ui> : « En tant que… je veux… afin de… » et critères d’acceptation.</>,
           ]}
@@ -144,7 +144,10 @@ export function HelpGuide() {
         <GuideTopic
           title="Choisir une vue"
           purpose="Regarder le même backlog sous l’angle utile au moment."
-          steps={[<>Utilisez les onglets sous l’en-tête : <Ui>Backlog</Ui>, <Ui>Board</Ui>, <Ui>Liste</Ui>, <Ui>Arbre</Ui>.</>]}
+          steps={[
+            <>Choisissez la vue dans la barre latérale, sous le sélecteur de backlog : <Ui>Backlog</Ui>, <Ui>Board</Ui>, <Ui>Liste</Ui>, <Ui>Arbre</Ui> (puis <Ui>Releases</Ui> et <Ui>Rapports</Ui>).</>,
+            <>Le titre de la page reprend le nom de la vue ; le fil d’Ariane au-dessus indique le backlog et, le cas échéant, la vue enregistrée active.</>,
+          ]}
         >
           <ul className="t-body list-disc space-y-1 pl-5">
             <li><Ui>Backlog</Ui> : les tâches par sprint et la section Backlog ; glisser-déposer pour classer et planifier.</li>
@@ -161,9 +164,10 @@ export function HelpGuide() {
           title="Filtrer et regrouper"
           purpose="Réduire la vue aux tickets qui vous intéressent."
           steps={[
-            <>Tapez dans <Ui>Filtrer…</Ui> ou ouvrez un filtre : <Ui>Type</Ui>, <Ui>Statut</Ui>, <Ui>Priorité</Ui>, <Ui>Label</Ui>, <Ui>Version</Ui>, <Ui>Assigné</Ui>, <Ui>Nature</Ui>, <Ui>Sous</Ui> (descendants d’un Composant ou d’une Epic).</>,
-            <>Regroupez avec <Ui>Grouper :</Ui> (Statut, Priorité, Assigné, Composant ; pas sur l’Arbre).</>,
-            <><Ui>Réinitialiser</Ui> efface tous les filtres.</>,
+            <>Tapez dans <Ui>Filtrer…</Ui>, ou cliquez sur un avatar pour ne voir que les tickets de cette personne (l’icône <Ui>Non assigné</Ui> pour les tickets sans assigné) ; un avatar enfoncé est un filtre actif, cliquez à nouveau pour le retirer.</>,
+            <>Ouvrez <Ui>Type</Ui>, <Ui>Statut</Ui> ou <Ui>Parent</Ui> (descendants d’un Composant ou d’une Epic). Les autres filtres, <Ui>Priorité</Ui>, <Ui>Label</Ui>, <Ui>Version</Ui> et <Ui>Nature</Ui>, sont derrière <Ui>+ Filtre</Ui>.</>,
+            <>Un filtre actif s’affiche en pastille avec sa valeur (ex. <Ui>Statut : En cours</Ui>) ; sa croix le retire, <Ui>Réinitialiser</Ui> efface tous les filtres.</>,
+            <>Regroupez avec le menu <Ui>Affichage</Ui> à droite du titre → <Ui>Grouper par</Ui> (Statut, Priorité, Assigné, Composant ; pas sur l’Arbre).</>,
           ]}
         >
           <GuideNote>Les filtres sont dans l’adresse de la page : copiez-la pour partager exactement la même vue.</GuideNote>
@@ -173,9 +177,9 @@ export function HelpGuide() {
           title="Vues enregistrées"
           purpose="Retrouver en un clic une combinaison de vue, filtres, regroupement et tri."
           steps={[
-            <>Réglez la vue, puis cliquez sur <Ui>Enregistrer la vue</Ui> et choisissez <Ui>Enregistrer sous…</Ui>.</>,
+            <>Réglez la vue : dès qu’un filtre, un regroupement ou un tri est actif, le bouton <Ui>Enregistrer la vue</Ui> apparaît à droite de la barre de filtres ; choisissez <Ui>Enregistrer sous…</Ui>. Vous pouvez aussi cliquer sur <Ui>+ Enregistrer une vue</Ui> dans la section <Ui>Filtres</Ui> de la barre latérale.</>,
             <>Donnez un <Ui>Nom de la vue</Ui> ; cochez <Ui>Partager avec l&apos;équipe</Ui> pour la rendre visible des autres.</>,
-            <>Retrouvez-la dans la barre latérale : <Ui>Vues perso</Ui> ou <Ui>Vues partagées</Ui>.</>,
+            <>Retrouvez-la dans la barre latérale, section <Ui>Filtres</Ui> : <Ui>Vues perso</Ui> ou <Ui>Vues partagées</Ui>.</>,
             <>Après modification, le menu de la vue propose <Ui>Enregistrer</Ui>, <Ui>Enregistrer sous…</Ui>, <Ui>Renommer…</Ui> et <Ui>Supprimer</Ui>.</>,
           ]}
         >
@@ -189,7 +193,7 @@ export function HelpGuide() {
         <GuideTopic
           title="Densité"
           purpose="Afficher plus ou moins de lignes à l’écran."
-          steps={[<>Choisissez <Ui>Confort</Ui> ou <Ui>Compact</Ui> dans la barre de vue (ou dans <Ui>Préférences</Ui>).</>]}
+          steps={[<>Ouvrez le menu <Ui>Affichage</Ui> à droite du titre de la vue et choisissez <Ui>Confort</Ui> ou <Ui>Compact</Ui> (ou dans <Ui>Préférences</Ui>) ; le bouton rappelle la densité courante.</>]}
         />
       </GuideSection>
 
@@ -198,7 +202,7 @@ export function HelpGuide() {
           title="Créer un ticket"
           purpose="Ajouter un Composant, une Epic, une Tâche ou une Sous-tâche."
           steps={[
-            <>Cliquez sur <Ui>Nouvel item</Ui> (ou touche <Key>C</Key>), ou sur <Ui>+ Tâche</Ui> dans une section du Backlog.</>,
+            <>Dans une vue du backlog, cliquez sur <Ui>+ Créer</Ui> dans la barre du haut, à côté du champ de recherche (ou touche <Key>C</Key>), ou sur <Ui>+ Tâche</Ui> dans une section du Backlog.</>,
             <>Choisissez le <Ui>Type</Ui>, saisissez le <Ui>Titre</Ui> et, sauf pour un Composant, le <Ui>Parent</Ui>.</>,
             <>Ajustez si besoin <Ui>Statut</Ui>, <Ui>Priorité</Ui>, <Ui>Nature</Ui>, <Ui>Fix versions</Ui>, puis <Ui>Créer</Ui>.</>,
           ]}
@@ -346,7 +350,7 @@ export function HelpGuide() {
           title="Créer une version"
           purpose="Planifier une livraison et suivre sa progression."
           steps={[
-            <>Onglet <Ui>Releases</Ui> du backlog → <Ui>Créer une version</Ui>.</>,
+            <>Barre latérale → <Ui>Releases</Ui> → <Ui>Créer une version</Ui>.</>,
             <>Renseignez <Ui>Nom</Ui> (obligatoire), <Ui>Description</Ui>, <Ui>Date de début</Ui>, <Ui>Date cible</Ui>, <Ui>Pilote</Ui>, puis <Ui>Créer</Ui>.</>,
           ]}
         />
@@ -404,7 +408,7 @@ export function HelpGuide() {
           title="Ouvrir un rapport"
           purpose="Mesurer ce qui a été engagé et livré."
           steps={[
-            <>Onglet <Ui>Rapports</Ui> du backlog, puis <Ui>Rapport de sprint</Ui>, <Ui>Vélocité</Ui> ou <Ui>Burndown</Ui>.</>,
+            <>Barre latérale → <Ui>Rapports</Ui>, puis <Ui>Rapport de sprint</Ui>, <Ui>Vélocité</Ui> ou <Ui>Burndown</Ui>.</>,
             <>Pour <Ui>Rapport de sprint</Ui> et <Ui>Burndown</Ui>, choisissez le <Ui>Sprint</Ui> puis <Ui>Afficher</Ui>. Pour <Ui>Vélocité</Ui>, choisissez <Ui>7 sprints</Ui> ou <Ui>12 sprints</Ui>.</>,
           ]}
         >
@@ -428,7 +432,7 @@ export function HelpGuide() {
           title="Rechercher"
           purpose="Retrouver un ticket dans tous vos backlogs."
           steps={[
-            <>Cliquez sur la loupe en haut à droite (ou <Key>⌘/Ctrl</Key> + <Key>K</Key>, ou <Key>/</Key>).</>,
+            <>Cliquez sur le champ <Ui>Rechercher un item…</Ui> au centre de la barre du haut (ou <Key>⌘/Ctrl</Key> + <Key>K</Key>, ou <Key>/</Key>).</>,
             <>Tapez un mot du titre ou de la description, ou une clé (ex. CASS-39).</>,
             <>Naviguez avec <Key>↑</Key> <Key>↓</Key> et ouvrez avec <Key>Entrée</Key>.</>,
           ]}
