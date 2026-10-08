@@ -1,14 +1,21 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
-import { backlogs, comments, items } from "../lib/db/schema";
+import { activities, backlogs, comments, items } from "../lib/db/schema";
 import { createItem } from "../lib/services/items";
 
 // JIR-66: Markdown is edited in the shared WYSIWYG editor (Tiptap) and still
 // stored as Markdown. Release notes are covered in releases.spec.ts (25, 26).
+// JIR-71: the description is a Notion-like page edited in place and saved
+// automatically, with a « / » block menu and a bar over the selection.
 
 const ADMIN_EMAIL = "platform-admin@jiroo.local";
+/** Review screenshots (JIR-71): JIROO_E2E_SHOTS_DIR or the test output. */
+function shotPath(testInfo: TestInfo, name: string) {
+  const dir = process.env.JIROO_E2E_SHOTS_DIR;
+  return dir ? `${dir}/${name}` : testInfo.outputPath(name);
+}
 
 async function fixtureItem(title: string, description: string | null = null) {
   const [admin] = await db.select({ id: user.id, name: user.name }).from(user)
@@ -37,6 +44,12 @@ async function openItem(page: Page, key: string) {
   return dialog;
 }
 
+async function descriptionActivities(id: string) {
+  return db.select({ oldValue: activities.oldValue, newValue: activities.newValue })
+    .from(activities)
+    .where(and(eq(activities.itemId, id), eq(activities.field, "description")));
+}
+
 async function storedDescription(id: string) {
   const [row] = await db.select({ description: items.description }).from(items)
     .where(eq(items.id, id));
@@ -46,94 +59,169 @@ async function storedDescription(id: string) {
 test.describe("éditeur Markdown visuel", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("met en forme une description à la barre d’outils et au clavier, l’enregistre en Markdown et la rouvre formatée", async ({
+  test("écrit la description en place, l’enregistre automatiquement en Markdown et la rouvre formatée", async ({
     page,
   }, testInfo) => {
-    const item = await fixtureItem("JIR-66 description");
+    const item = await fixtureItem("JIR-71 description");
     const dialog = await openItem(page, item.key);
+    const main = dialog.getByTestId("item-detail-main");
+    const editor = main.getByRole("textbox", { name: "Description" });
 
-    await dialog.getByRole("button", { name: "Ajouter une description" }).click();
-    const editor = dialog.getByRole("textbox", { name: "Description" });
-    await expect(editor).toBeFocused();
-    const toolbar = dialog.getByRole("toolbar", { name: "Mise en forme" });
+    // No edit mode: the editor is there, with its placeholder.
+    await expect(editor).toHaveAttribute("contenteditable", "true");
+    await expect(main.getByText("Écrivez, ou tapez « / » pour insérer un bloc…")).toBeVisible();
+    await expect(main.getByRole("button", { name: "Éditer" })).toHaveCount(0);
+    await expect(main.getByRole("button", { name: "Enregistrer" })).toHaveCount(0);
+    await expect(main.getByRole("toolbar", { name: "Mise en forme" })).toHaveCount(0);
+    await page.screenshot({ path: shotPath(testInfo, "jir71-rest-empty.png") });
 
-    // Toolbar: heading.
-    await toolbar.getByRole("button", { name: "Titre 2" }).click();
-    await expect(toolbar.getByRole("button", { name: "Titre 2" })).toHaveAttribute("aria-pressed", "true");
+    // « / » menu: filter, then insert a heading with the keyboard.
+    await editor.click();
+    await page.keyboard.type("/");
+    const menu = main.getByRole("listbox", { name: "Insérer un bloc" });
+    await expect(menu.getByRole("option")).toHaveCount(10);
+    await page.keyboard.type("titre");
+    await expect(menu.getByRole("option")).toHaveText(["Titre 1#", "Titre 2##", "Titre 3###"]);
+    await page.screenshot({ path: shotPath(testInfo, "jir71-focus-slash-menu.png") });
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await expect(menu).toHaveCount(0);
     await page.keyboard.type("Étapes");
     await page.keyboard.press("Enter");
-    // Markdown input rules: numbered list, bold, inline code, task list.
+    // Mouse: a task list from the menu.
+    await page.keyboard.type("/tâch");
+    await menu.getByRole("option", { name: /Liste de tâches/ }).click();
+    await page.keyboard.type("Vérifier");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+    // Markdown input rules still work.
     await page.keyboard.type("1. Ouvrir");
     await page.keyboard.press("Enter");
     await page.keyboard.type("Valider");
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter");
-    await page.keyboard.type("**important** et `code`");
-    await page.keyboard.press("Enter");
-    // Keyboard shortcut: italic.
-    await page.keyboard.press("ControlOrMeta+i");
-    await page.keyboard.type("nuance");
-    await page.keyboard.press("ControlOrMeta+i");
-    await page.keyboard.press("Enter");
-    await page.keyboard.type("[ ] Vérifier");
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("Enter");
+    await page.keyboard.type("Un mot important ici");
 
-    // Link: javascript: refused, Escape closes the form only, then a valid URL.
-    await page.keyboard.press("ControlOrMeta+k");
-    const url = dialog.getByRole("textbox", { name: "Adresse du lien" });
-    await expect(url).toBeFocused();
+    // Selection bar over « important »: bold, then a link checked against
+    // the link policy.
+    for (let i = 0; i < " ici".length; i += 1) await page.keyboard.press("ArrowLeft");
+    for (let i = 0; i < "important".length; i += 1) await page.keyboard.press("Shift+ArrowLeft");
+    const bar = main.getByRole("toolbar", { name: "Mise en forme de la sélection" });
+    await expect(bar).toBeVisible();
+    for (const name of ["Gras", "Italique", "Barré", "Code", "Lien"]) {
+      await expect(bar.getByRole("button", { name, exact: true })).toBeVisible();
+    }
+    await bar.getByRole("button", { name: "Gras" }).click();
+    await expect(editor.locator("strong")).toHaveText("important");
+    await page.screenshot({ path: shotPath(testInfo, "jir71-bubble-menu.png") });
+    await bar.getByRole("button", { name: "Lien" }).click();
+    const url = main.getByRole("textbox", { name: "Adresse du lien" });
     await url.fill("javascript:alert(1)");
     await url.press("Enter");
-    await expect(dialog.getByRole("alert")).toContainText("Adresse invalide");
+    await expect(main.getByRole("alert")).toContainText("Adresse invalide");
     await url.press("Escape");
     await expect(url).toHaveCount(0);
     await expect(dialog).toBeVisible();
-    await toolbar.getByRole("button", { name: "Lien" }).click();
-    await dialog.getByRole("textbox", { name: "Adresse du lien" }).fill("exemple.fr");
-    await dialog.getByRole("textbox", { name: "Adresse du lien" }).press("Enter");
 
-    await expect(editor.getByRole("heading", { level: 2, name: "Étapes" })).toBeVisible();
-    await expect(editor.locator("strong")).toHaveText("important");
-    await expect(dialog.getByText(/^\d+ \/ 20 000$/)).toBeVisible();
-    await page.screenshot({ path: testInfo.outputPath("description-editor.png") });
-
-    await dialog.getByTestId("item-detail-main").getByRole("button", { name: "Enregistrer" }).click();
-    await expect(editor).toHaveCount(0);
-
+    // Autosave after the pause, with its status.
+    const status = main.getByText("Enregistré", { exact: true });
+    await expect(status).toBeVisible();
     const expected = [
       "## Étapes",
-      "1. Ouvrir\n2. Valider",
-      "**important** et `code`",
-      "*nuance*",
       "- [ ] Vérifier",
-      "[https://exemple.fr](https://exemple.fr)",
+      "1. Ouvrir\n2. Valider",
+      "Un mot **important** ici",
     ].join("\n\n");
     await expect.poll(() => storedDescription(item.id)).toBe(expected);
 
-    // Read mode: unchanged react-markdown rendering of the stored Markdown.
-    await expect(dialog.getByRole("heading", { level: 2, name: "Étapes" })).toBeVisible();
-    await expect(dialog.getByRole("listitem").filter({ hasText: "Ouvrir" })).toBeVisible();
-    await expect(dialog.locator("strong", { hasText: "important" })).toBeVisible();
-    await expect(dialog.locator("code", { hasText: "code" })).toBeVisible();
-    await expect(dialog.locator('input[type="checkbox"]')).toHaveCount(1);
-    await expect(dialog.getByRole("link", { name: "https://exemple.fr" })).toHaveAttribute(
-      "href",
-      "https://exemple.fr",
-    );
-
-    // Reopened after a reload: still formatted, and an untouched save keeps it.
+    // Reloaded: same page, formatted, and nothing is saved again.
     await page.reload();
-    const reopened = page.getByRole("dialog", { name: new RegExp(`^${item.key} —`) });
-    await reopened.getByRole("button", { name: "Éditer" }).click();
-    const again = reopened.getByRole("textbox", { name: "Description" });
-    await expect(again.getByRole("heading", { level: 2, name: "Étapes" })).toBeVisible();
-    await expect(again.locator("em")).toHaveText("nuance");
-    await expect(again.getByRole("checkbox", { name: "Tâche à faire : Vérifier" })).not.toBeChecked();
-    await page.screenshot({ path: testInfo.outputPath("description-editor-reopened.png") });
-    await reopened.getByTestId("item-detail-main").getByRole("button", { name: "Annuler", exact: true }).click();
-    await expect(again).toHaveCount(0);
+    const reopened = page.getByRole("dialog", { name: new RegExp(`^${item.key} —`) })
+      .getByRole("textbox", { name: "Description" });
+    await expect(reopened.getByRole("heading", { level: 2, name: "Étapes" })).toBeVisible();
+    await expect(reopened.locator("strong")).toHaveText("important");
+    await expect(reopened.getByRole("checkbox", { name: "Tâche à faire : Vérifier" })).not.toBeChecked();
+    await page.screenshot({ path: shotPath(testInfo, "jir71-rest.png") });
     expect(await storedDescription(item.id)).toBe(expected);
+  });
+
+  test("garde une seule entrée d’historique pour plusieurs enregistrements automatiques", async ({
+    page,
+  }) => {
+    const item = await fixtureItem("JIR-71 historique", "Premier jet");
+    const dialog = await openItem(page, item.key);
+    const main = dialog.getByTestId("item-detail-main");
+    const editor = main.getByRole("textbox", { name: "Description" });
+    const saved = main.getByText("Enregistré", { exact: true });
+
+    await editor.getByText("Premier jet").click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(", complété");
+    await expect(saved).toBeVisible();
+    await expect.poll(() => storedDescription(item.id)).toBe("Premier jet, complété");
+    await page.keyboard.type(" puis relu");
+    await expect.poll(() => storedDescription(item.id)).toBe("Premier jet, complété puis relu");
+    // Blur saves too.
+    await page.keyboard.type(".");
+    await main.getByRole("button", { name: "Activité" }).click();
+    await expect.poll(() => storedDescription(item.id)).toBe("Premier jet, complété puis relu.");
+
+    expect(await descriptionActivities(item.id)).toEqual([
+      { oldValue: "Premier jet", newValue: "Premier jet, complété puis relu." },
+    ]);
+    await page.reload();
+    await page.getByRole("dialog", { name: new RegExp(`^${item.key} —`) })
+      .getByRole("button", { name: "Activité" }).click();
+    await expect(page.getByText("a modifié la description")).toHaveCount(1);
+  });
+
+  test("quitte l’éditeur avec Échap en enregistrant, puis ferme le panneau au second Échap", async ({
+    page,
+  }) => {
+    const item = await fixtureItem("JIR-71 échap", "Texte");
+    const dialog = await openItem(page, item.key);
+    const editor = dialog.getByRole("textbox", { name: "Description" });
+    await editor.getByText("Texte").click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" final");
+    await page.keyboard.press("Escape");
+    await expect(editor).not.toBeFocused();
+    await expect(dialog).toBeVisible();
+    await expect.poll(() => storedDescription(item.id)).toBe("Texte final");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+  });
+
+  test("affiche la description en lecture seule au lecteur", async ({ browser }, testInfo) => {
+    const item = await fixtureItem(
+      "JIR-71 lecteur",
+      "## Contexte\n\nVoir [la doc](https://exemple.fr).",
+    );
+    const context = await browser.newContext({
+      storageState: ".playwright/.auth/reader.json",
+      viewport: { width: 1440, height: 900 },
+    });
+    const page = await context.newPage();
+    try {
+      const dialog = await openItem(page, item.key);
+      const main = dialog.getByTestId("item-detail-main");
+      const editor = main.getByRole("textbox", { name: "Description" });
+      await expect(editor.getByRole("heading", { level: 2, name: "Contexte" })).toBeVisible();
+      await expect(editor).toHaveAttribute("contenteditable", "false");
+      await expect(editor).toHaveAttribute("aria-readonly", "true");
+      await expect(editor.getByRole("link", { name: "la doc" })).toHaveAttribute(
+        "href",
+        "https://exemple.fr",
+      );
+      await expect(main.getByText("Écrivez, ou tapez « / » pour insérer un bloc…")).toHaveCount(0);
+      await editor.getByText("Voir").click();
+      await page.keyboard.type("/");
+      await expect(main.getByRole("listbox")).toHaveCount(0);
+      await page.screenshot({ path: shotPath(testInfo, "jir71-read-only.png") });
+      expect(await storedDescription(item.id)).toBe("## Contexte\n\nVoir [la doc](https://exemple.fr).");
+    } finally {
+      await context.close();
+    }
   });
 
   test("écrit un commentaire formaté avec mention puis le modifie", async ({ page }, testInfo) => {
@@ -179,39 +267,5 @@ test.describe("éditeur Markdown visuel", () => {
         .where(eq(comments.itemId, item.id)).orderBy(desc(comments.createdAt)).limit(1);
       return row?.body;
     }).toBe(`Merci @${item.adminName} pour le **correctif**\n\n- à vérifier`);
-  });
-
-  test("ouvre l’éditeur en cliquant dans la description, caret près du clic, ou au clavier", async ({
-    page,
-  }, testInfo) => {
-    const description = "## Étapes\n\nCliquer sur le texte puis lire [la doc](https://exemple.fr).";
-    const item = await fixtureItem("JIR-66 clic", description);
-    const dialog = await openItem(page, item.key);
-    const main = dialog.getByTestId("item-detail-main");
-    const region = main.getByRole("button", { name: "Modifier la description" });
-    await expect(region).toHaveCSS("cursor", "text");
-    await expect(main.getByRole("button", { name: "Éditer" })).toHaveAttribute("data-variant", "outline");
-    await region.getByText("Cliquer sur le texte").hover({ position: { x: 30, y: 8 } });
-    await expect(region).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-    await page.screenshot({ path: testInfo.outputPath("description-click-hover.png") });
-
-    // Click near the start of the paragraph: the caret lands there.
-    await region.getByText("Cliquer sur le texte").click({ position: { x: 30, y: 8 } });
-    const editor = main.getByRole("textbox", { name: "Description" });
-    await expect(editor).toBeFocused();
-    await page.keyboard.type("§");
-    await main.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(editor).toHaveCount(0);
-    await expect.poll(() => storedDescription(item.id)).toContain("§");
-    const paragraph = (await storedDescription(item.id))!.split("\n").find((line) => line.includes("§"))!;
-    expect(paragraph.startsWith("C")).toBe(true);
-    expect(paragraph.indexOf("§")).toBeLessThanOrEqual(8);
-
-    // Keyboard: the focused rendering opens the editor with Enter.
-    await main.getByRole("button", { name: "Modifier la description" }).focus();
-    await page.keyboard.press("Enter");
-    await expect(editor).toBeFocused();
-    await main.getByRole("button", { name: "Annuler", exact: true }).click();
-    await expect(editor).toHaveCount(0);
   });
 });

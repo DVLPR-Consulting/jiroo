@@ -7,6 +7,7 @@ import EnrollPage from "@/app/(auth)/2fa/enroll/page";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
+  loadPage: vi.fn(),
   signInEmail: vi.fn(),
   verifyTotp: vi.fn(),
   enableTwoFactor: vi.fn(),
@@ -27,6 +28,8 @@ vi.mock("@/lib/auth/client", () => ({
   },
 }));
 
+vi.mock("@/lib/navigation/load-page", () => ({ loadPage: mocks.loadPage }));
+
 vi.mock("qrcode", () => ({
   default: { toDataURL: mocks.qrToDataUrl },
 }));
@@ -34,6 +37,7 @@ vi.mock("qrcode", () => ({
 describe("parcours 2FA", () => {
   beforeEach(() => {
     mocks.push.mockReset();
+    mocks.loadPage.mockReset();
     mocks.signInEmail.mockReset();
     mocks.verifyTotp.mockReset();
     mocks.enableTwoFactor.mockReset();
@@ -67,7 +71,8 @@ describe("parcours 2FA", () => {
     await interaction.type(screen.getByLabelText("Mot de passe"), "secret-test");
     await interaction.click(screen.getByRole("button", { name: "Se connecter" }));
 
-    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/2fa/enroll"));
+    await waitFor(() => expect(mocks.loadPage).toHaveBeenCalledWith("/2fa/enroll"));
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("routes an enrolled user with a trusted device directly to the app", async () => {
@@ -97,7 +102,8 @@ describe("parcours 2FA", () => {
     await interaction.type(screen.getByLabelText("Mot de passe"), "secret-test");
     await interaction.click(screen.getByRole("button", { name: "Se connecter" }));
 
-    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(mocks.loadPage).toHaveBeenCalledWith("/"));
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("leaves the untrusted-device challenge redirect to the Better Auth client hook", async () => {
@@ -113,6 +119,18 @@ describe("parcours 2FA", () => {
     await interaction.click(screen.getByRole("button", { name: "Se connecter" }));
 
     await waitFor(() => expect(mocks.signInEmail).toHaveBeenCalledTimes(1));
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.loadPage).not.toHaveBeenCalled();
+  });
+
+  it("enters the app with a full page load after the TOTP challenge", async () => {
+    mocks.verifyTotp.mockResolvedValue({ data: { status: true }, error: null });
+    render(<TwoFactorPage />);
+    const digits = screen.getAllByRole("textbox", { name: /Chiffre/ });
+    for (const [index, value] of [..."123456"].entries()) {
+      fireEvent.change(digits[index]!, { target: { value } });
+    }
+    await waitFor(() => expect(mocks.loadPage).toHaveBeenCalledWith("/"));
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
@@ -157,5 +175,6 @@ describe("parcours 2FA", () => {
     await waitFor(() =>
       expect(mocks.verifyTotp).toHaveBeenCalledWith({ code: "123456" }),
     );
+    await waitFor(() => expect(mocks.loadPage).toHaveBeenCalledWith("/"));
   });
 });

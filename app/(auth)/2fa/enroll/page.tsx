@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { authClient } from "@/lib/auth/client";
 import { AuthCard } from "@/components/auth/auth-card";
@@ -8,11 +7,11 @@ import { OtpInput } from "@/components/auth/otp-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { loadPage } from "@/lib/navigation/load-page";
 
 type Setup = { qr: string; secret: string; backupCodes: string[] };
 
 export default function EnrollPage() {
-  const router = useRouter();
   const [password, setPassword] = useState("");
   const [setup, setSetup] = useState<Setup | null>(null);
   const [saved, setSaved] = useState(false);
@@ -54,7 +53,7 @@ export default function EnrollPage() {
       setAttempt((a) => a + 1);
       return;
     }
-    router.push("/");
+    loadPage("/");
   }
 
   if (!setup) {

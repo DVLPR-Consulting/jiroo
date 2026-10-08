@@ -1,6 +1,8 @@
+
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import { nextItemRevision } from "@/lib/services/item-revision";
 import { user } from "@/lib/db/schema/auth";
 import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
 import { bulkChangeItemFixVersionsInTx } from "@/lib/services/item-fix-versions";
@@ -219,7 +221,7 @@ export async function bulkUpdateItems(
       if (!changed) continue;
       await tx
         .update(items)
-        .set({ ...patch, updatedAt: now })
+        .set({ ...patch, updatedAt: nextItemRevision() })
         .where(eq(items.id, row.id));
       await tx.insert(activities).values({
         ...activityForPatch(row, actorId, data.patch),
