@@ -106,7 +106,7 @@ test("ajoute un filtre en pastille, le retire, et propose alors d’enregistrer 
 
   await page.getByRole("button", { name: "Filtre", exact: true }).click();
   await page.getByRole("button", { name: "Nature", exact: true }).click();
-  await page.getByLabel("Bug", { exact: true }).click();
+  await page.getByRole("checkbox", { name: "Bug" }).click();
   await expect(page).toHaveURL(/kind=bug/);
   await page.keyboard.press("Escape");
 
