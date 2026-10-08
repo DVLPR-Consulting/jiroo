@@ -9,6 +9,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { Pencil } from "lucide-react";
 import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import type { SequenceShortcutId } from "@/lib/shortcuts/registry";
 
@@ -40,6 +41,7 @@ export function DetailField({
   editor,
   shortcut,
   after,
+  editTrigger = "value",
 }: {
   label: string;
   /** Read rendering; null or undefined when the field is empty. */
@@ -51,6 +53,11 @@ export function DetailField({
   shortcut?: SequenceShortcutId;
   /** Extra content under the value (e.g. « M'assigner »). */
   after?: ReactNode;
+  /**
+   * "icon" keeps the value interactive (e.g. the parent link) and opens the
+   * editor from a small « Modifier » button instead of the value itself.
+   */
+  editTrigger?: "value" | "icon";
 }) {
   const labelId = useId();
   const valueId = useId();
@@ -121,6 +128,21 @@ export function DetailField({
           <div ref={editRef} data-local-escape onBlur={onBlur} onKeyDown={onKeyDown} className="px-1">
             {editor}
           </div>
+        ) : editable && editTrigger === "icon" ? (
+          <span className="flex min-h-8 min-w-0 items-center gap-2 px-1.5 py-1">
+            <span id={valueId} className="flex min-w-0 flex-1 items-center gap-2">
+              {display}
+            </span>
+            <button
+              ref={readRef}
+              type="button"
+              aria-label={`Modifier : ${label}`}
+              onClick={() => setEditing(true)}
+              className="flex-none rounded-[var(--radius)] p-1 text-muted-foreground outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+            >
+              <Pencil aria-hidden className="size-3.5" />
+            </button>
+          </span>
         ) : editable ? (
           <button
             ref={readRef}

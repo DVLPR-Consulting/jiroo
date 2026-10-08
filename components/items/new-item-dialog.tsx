@@ -53,6 +53,9 @@ export type NewItemButtonProps = {
   items: Item[];
   statuses: Status[];
   initialStatusId?: string;
+  /** Type and parent to start from (e.g. « + Créer une sous-tâche » in the drawer). */
+  initialType?: ItemType;
+  initialParentId?: string;
   trigger?: ReactNode;
   onCreated?: (item: { id: string; key: string }) => void;
   enableShortcut?: boolean;
@@ -72,6 +75,8 @@ export function NewItemButton({
   items,
   statuses,
   initialStatusId,
+  initialType,
+  initialParentId,
   trigger,
   onCreated,
   enableShortcut = false,
@@ -86,11 +91,12 @@ export function NewItemButton({
   const [open, setOpen] = useState(false);
 
   const [templateId, setTemplateId] = useState<string>("");
-  const [type, setType] = useState<ItemType>(contextualTask ? "tache" : "composant");
+  const defaultType: ItemType = initialType ?? (contextualTask ? "tache" : "composant");
+  const [type, setType] = useState<ItemType>(defaultType);
   const [kind, setKind] = useState<ItemKind>("feature");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState<string>("");
-  const [parentId, setParentId] = useState<string>("");
+  const [parentId, setParentId] = useState<string>(initialParentId ?? "");
   const [statusId, setStatusId] = useState<string>(initialStatusId ?? "");
   const [priority, setPriority] = useState<Priority>(0);
   const [fixVersionIds, setFixVersionIds] = useState<string[]>([]);
@@ -124,11 +130,11 @@ export function NewItemButton({
 
   function reset() {
     setTemplateId("");
-    setType(contextualTask ? "tache" : "composant");
+    setType(defaultType);
     setKind("feature");
     setTitle("");
     setDescription("");
-    setParentId("");
+    setParentId(initialParentId ?? "");
     setStatusId(initialStatusId ?? "");
     setPriority(0);
     setFixVersionIds([]);

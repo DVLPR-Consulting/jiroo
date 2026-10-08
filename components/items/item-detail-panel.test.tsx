@@ -183,6 +183,12 @@ function DetailHarness({
   );
 }
 
+/** Opens a « Détails » row's editor, as a click on its value does. */
+async function editField(user: ReturnType<typeof userEvent.setup>, label: string) {
+  const iconTrigger = screen.queryByRole("button", { name: `Modifier : ${label}` });
+  await user.click(iconTrigger ?? screen.getByRole("button", { name: new RegExp(`^${label} `) }));
+}
+
 function renderPanel(
   parent?: { key: string; title: string },
   detailOverride = detail,
@@ -228,7 +234,11 @@ describe("ItemDetailPanel header", () => {
     renderPanel({ key: "PARENT-1", title: "Composant parent" });
 
     expect(screen.getByRole("navigation", { name: "Fil d’Ariane" })).toHaveTextContent(
-      "PARENT-1 / CASS-2",
+      /^PARENT-1\s*\/\s*CASS-2$/,
+    );
+    expect(screen.getByRole("link", { name: "PARENT-1" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("item=PARENT-1"),
     );
   });
 
@@ -240,7 +250,8 @@ describe("ItemDetailPanel header", () => {
     expect(within(breadcrumb).queryByText("PARENT-1")).not.toBeInTheDocument();
   });
 
-  it("shows story points only for tasks", () => {
+  it("shows story points only for tasks", async () => {
+    const user = userEvent.setup();
     const { rerender } = renderPanel();
     expect(screen.queryByText("Points")).not.toBeInTheDocument();
 
@@ -253,7 +264,8 @@ describe("ItemDetailPanel header", () => {
       </DetailHarness>,
     );
 
-    expect(screen.getByText("Points")).toBeVisible();
+    expect(screen.getByRole("button", { name: /^Points / })).toHaveTextContent("5 pts");
+    await editField(user, "Points");
     expect(screen.getByRole("spinbutton", { name: "Points" })).toHaveValue(5);
   });
 
@@ -271,8 +283,10 @@ describe("ItemDetailPanel header", () => {
     expect(screen.getByText("1,5 pt")).toBeVisible();
   });
 
-  it("keeps the editable estimate input machine-parseable", () => {
+  it("keeps the editable estimate input machine-parseable", async () => {
+    const user = userEvent.setup();
     renderPanel(undefined, { ...detail, type: "tache", estimatePoints: 1.5 });
+    await editField(user, "Points");
 
     expect(screen.getByRole("spinbutton", { name: "Points" })).toHaveValue(1.5);
   });
@@ -340,9 +354,11 @@ describe("ItemDetailPanel header", () => {
     const dialog = screen.getByRole("dialog", { name: `${detail.key} — ${detail.title}` });
     expect(dialog).toHaveClass("w-screen", "md:w-[min(960px,92vw)]");
     expect(dialog).not.toHaveClass("md:w-[620px]");
+    // A container query: the side column joins at a ~900 px drawer, not a viewport.
+    expect(screen.getByTestId("item-detail-grid").parentElement).toHaveClass("@container");
     expect(screen.getByTestId("item-detail-grid")).toHaveClass(
       "grid-cols-1",
-      "lg:grid-cols-[minmax(0,1fr)_340px]",
+      "@min-[900px]:grid-cols-[minmax(0,1fr)_340px]",
     );
   });
 
@@ -359,23 +375,20 @@ describe("ItemDetailPanel header", () => {
       "min-h-0",
       "flex-1",
       "overflow-y-auto",
-      "lg:grid-rows-1",
-      "lg:overflow-hidden",
+      "@min-[900px]:grid-rows-1",
+      "@min-[900px]:overflow-hidden",
     );
-    expect(screen.getByTestId("item-detail-main")).toHaveClass("lg:overflow-y-auto");
-    expect(screen.getByTestId("item-detail-properties")).toHaveClass("lg:overflow-y-auto");
+    expect(screen.getByTestId("item-detail-main")).toHaveClass("@min-[900px]:overflow-y-auto");
+    expect(screen.getByTestId("item-detail-properties")).toHaveClass("@min-[900px]:overflow-y-auto");
   });
 
-  it("pads the properties column like the main column and keeps fields inside it", () => {
+  it("keeps the properties column and its editors inside their width", async () => {
+    const user = userEvent.setup();
     renderPanel(undefined, { ...detail, type: "tache" });
 
     const properties = screen.getByTestId("item-detail-properties");
-    const main = screen.getByTestId("item-detail-main");
-    expect(main).toHaveClass("p-5");
-    expect(properties).toHaveClass("min-w-0", "p-5", "lg:border-l");
-    for (const field of within(properties).getAllByTestId("item-detail-field")) {
-      expect(field).toHaveClass("min-w-0");
-    }
+    expect(properties).toHaveClass("min-w-0", "bg-[var(--surface-2)]", "@min-[900px]:border-l");
+    await editField(user, "Points");
     expect(within(properties).getByRole("spinbutton", { name: "Points" })).toHaveClass(
       "min-w-0",
     );
@@ -411,14 +424,17 @@ describe("ItemDetailPanel header", () => {
     );
 
     expect(screen.getByRole("heading", { name: detail.title })).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Actions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Plus d’actions" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ajouter une description" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ajouter le lien" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ajouter" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Lier un item/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Lier une PR ou un commit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Priorité / })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Passer au statut/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Moyenne")).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: "Commentaires" }));
+    await user.click(screen.getByRole("tab", { name: "Commentaires" }));
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
@@ -428,6 +444,9 @@ describe("ItemDetailPanel header", () => {
       canTransitionItems: false,
       canAssignItems: false,
     } as const;
+    const priority = () => screen.queryByRole("button", { name: /^Priorité / });
+    const assignee = () => screen.queryByRole("button", { name: /^Assigné / });
+    const status = () => screen.queryByRole("combobox", { name: "Statut" });
 
     const edited = render(
       <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
@@ -435,9 +454,9 @@ describe("ItemDetailPanel header", () => {
       </DetailHarness>,
     );
     expect(screen.getByRole("button", { description: `Renommer ${detail.key}` })).toBeVisible();
-    expect(screen.getByRole("combobox", { name: "Priorité" })).toBeVisible();
-    expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
+    expect(priority()).toBeVisible();
+    expect(status()).not.toBeInTheDocument();
+    expect(assignee()).not.toBeInTheDocument();
     edited.unmount();
 
     const transitioned = render(
@@ -445,24 +464,19 @@ describe("ItemDetailPanel header", () => {
         <ItemDetailPanel {...baseProps} {...denied} canTransitionItems />
       </DetailHarness>,
     );
-    expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
+    expect(status()).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { description: `Renommer ${detail.key}` })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Priorité" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
+    expect(priority()).not.toBeInTheDocument();
+    expect(assignee()).not.toBeInTheDocument();
     transitioned.unmount();
 
     const editedAndTransitioned = render(
       <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
-        <ItemDetailPanel
-          {...baseProps}
-          {...denied}
-          canEditItems
-          canTransitionItems
-        />
+        <ItemDetailPanel {...baseProps} {...denied} canEditItems canTransitionItems />
       </DetailHarness>,
     );
-    expect(screen.getByRole("combobox", { name: "Statut" })).toBeVisible();
-    expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
+    expect(status()).toBeVisible();
+    expect(assignee()).not.toBeInTheDocument();
     editedAndTransitioned.unmount();
 
     const assigned = render(
@@ -470,26 +484,23 @@ describe("ItemDetailPanel header", () => {
         <ItemDetailPanel {...baseProps} {...denied} canAssignItems />
       </DetailHarness>,
     );
-    expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Priorité" })).not.toBeInTheDocument();
+    expect(assignee()).not.toBeInTheDocument();
+    expect(status()).not.toBeInTheDocument();
+    expect(priority()).not.toBeInTheDocument();
     assigned.unmount();
 
     render(
       <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
-        <ItemDetailPanel
-          {...baseProps}
-          {...denied}
-          canEditItems
-          canAssignItems
-        />
+        <ItemDetailPanel {...baseProps} {...denied} canEditItems canAssignItems />
       </DetailHarness>,
     );
-    expect(screen.getByRole("combobox", { name: "Assigné" })).toBeVisible();
-    expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
+    expect(assignee()).toBeVisible();
+    expect(screen.getByRole("button", { name: "M’assigner" })).toBeVisible();
+    expect(status()).not.toBeInTheDocument();
   });
 
-  it("renders current assignee and reporter identities as disabled non-candidate options", () => {
+  it("renders current assignee and reporter identities as disabled non-candidate options", async () => {
+    const user = userEvent.setup();
     const currentAssignee = { id: "former-assignee", name: "Ancienne assignée" };
     const currentReporter = { id: "former-reporter", name: "Ancien rapporteur" };
     const assignable = { id: "assignable-user", name: "Candidate assignable" };
@@ -513,6 +524,8 @@ describe("ItemDetailPanel header", () => {
       </DetailHarness>,
     );
 
+    expect(screen.getByRole("button", { name: /^Assigné / })).toHaveTextContent(currentAssignee.name);
+    await editField(user, "Assigné");
     const assigneeSelect = screen.getByRole("combobox", { name: "Assigné" });
     expect(assigneeSelect).toHaveValue(currentAssignee.id);
     expect(
@@ -522,6 +535,7 @@ describe("ItemDetailPanel header", () => {
       within(assigneeSelect).getByRole("option", { name: assignable.name }),
     ).toBeEnabled();
 
+    await editField(user, "Rapporteur");
     const reporterSelect = screen.getByRole("combobox", { name: "Rapporteur" });
     expect(reporterSelect).toHaveValue(currentReporter.id);
     expect(
@@ -712,13 +726,13 @@ describe("ItemDetailPanel header", () => {
       </DetailHarness>,
     );
 
-    expect(screen.getByRole("button", { name: "Actions" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Plus d’actions" })).toBeVisible();
     expect(screen.getByRole("button", { name: /\+ Lier un item/ })).toBeVisible();
     expect(screen.getByRole("button", { name: "Lier une PR ou un commit" })).toBeVisible();
     expect(screen.queryByRole("button", { description: `Renommer ${detail.key}` }))
       .not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Commentaires" }));
+    await user.click(screen.getByRole("tab", { name: "Commentaires" }));
     expect(await screen.findByRole("textbox", { name: "Nouveau commentaire" })).toBeVisible();
   });
 
@@ -751,8 +765,10 @@ describe("ItemDetailPanel header", () => {
 
     expect(screen.queryByRole("button", { description: `Renommer ${detail.key}` }))
       .not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Priorité" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Priorité / })).not.toBeInTheDocument();
+    await editField(user, "Parent");
     await user.selectOptions(screen.getByRole("combobox", { name: "Parent" }), "55555555-5555-4555-8555-555555555555");
+    await editField(user, "Sprint");
     await user.selectOptions(screen.getByRole("combobox", { name: "Sprint" }), "66666666-6666-4666-8666-666666666666");
 
     await waitFor(() => expect(mocks.reparentItemAction).toHaveBeenCalledWith({
@@ -794,6 +810,7 @@ describe("ItemDetailPanel header", () => {
       </DetailHarness>,
     );
 
+    await editField(user, "Parent");
     const parentSelect = screen.getByRole("combobox", { name: "Parent" });
     await user.selectOptions(parentSelect, "55555555-5555-4555-8555-555555555555");
     expect(parentSelect).toHaveValue("55555555-5555-4555-8555-555555555555");
@@ -823,6 +840,7 @@ describe("ItemDetailPanel header", () => {
       </DetailHarness>,
     );
 
+    await editField(user, "Parent");
     const parentSelect = screen.getByRole("combobox", { name: "Parent" });
     await user.selectOptions(parentSelect, "55555555-5555-4555-8555-555555555555");
 
@@ -852,6 +870,7 @@ describe("ItemDetailPanel header", () => {
       </DetailHarness>,
     );
 
+    await editField(user, "Sprint");
     const sprintSelect = screen.getByRole("combobox", { name: "Sprint" });
     await user.selectOptions(sprintSelect, targetSprintId);
 
@@ -917,7 +936,7 @@ describe("ItemDetailContent parent resolution", () => {
       detail.backlogId,
     );
     expect(screen.getByRole("navigation", { name: "Fil d’Ariane" })).toHaveTextContent(
-      "PARENT-1 / CASS-2",
+      /^PARENT-1\s*\/\s*CASS-2$/,
     );
   });
 });
@@ -986,7 +1005,7 @@ describe("ItemDetailPanel keyboard shortcuts", () => {
         expect.objectContaining({ id: detail.id, assigneeId: "better-auth-marie" }),
       ),
     );
-    expect(screen.getByRole("combobox", { name: "Assigné" })).toHaveValue("better-auth-marie");
+    expect(screen.getByRole("button", { name: /^Assigné / })).toHaveTextContent("Marie Lemaire");
   });
 
   it("does nothing the user is not allowed to do", () => {
@@ -1007,5 +1026,221 @@ describe("ItemDetailPanel keyboard shortcuts", () => {
     renderWithShortcuts({ assigneeCandidates: [{ id: "other", name: "Autre" }] });
     pressInDrawer("i");
     expect(mocks.updateItemAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("ItemDetailPanel Jira layout (JIR-73)", () => {
+  const writeText = vi.fn();
+
+  beforeEach(() => {
+    mocks.push.mockReset();
+    mocks.toastSuccess.mockReset();
+    mocks.toastError.mockReset();
+    mocks.updateItemAction.mockReset();
+    mocks.updateItemAction.mockResolvedValue({ ok: true });
+    writeText.mockReset();
+    writeText.mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    window.history.replaceState({}, "", "/b/CASS?view=board&item=CASS-2");
+    document.body.innerHTML = "";
+  });
+
+  const fullCapabilities = {
+    create: true,
+    edit: true,
+    transition: true,
+    assign: true,
+    delete: true,
+    restore: true,
+    addComments: true,
+    editOwnComments: true,
+    deleteOwnComments: true,
+    deleteAllComments: false,
+    link: true,
+  };
+  const createDialog = {
+    backlogId: detail.backlogId,
+    items: [],
+    statuses: [{ id: detail.statusId, name: "À faire" }],
+    canScheduleItems: true,
+    releaseOptions: [],
+  };
+
+  it("lists the children by type and offers to create one with the parent prefilled", async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          itemCapabilities={fullCapabilities}
+          createDialog={createDialog}
+          childItems={[
+            { id: "child-1", key: "CASS-7", title: "Tâche enfant", type: "tache", statusId: detail.statusId },
+          ]}
+        />
+      </DetailHarness>,
+    );
+
+    const children = screen.getByRole("region", { name: "Tâches" });
+    expect(within(children).getByRole("link", { name: /CASS-7.*Tâche enfant.*À faire/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Créer une tâche" })).toBeVisible();
+
+    await user.click(within(children).getByRole("button", { name: "+ Créer une tâche" }));
+    const dialog = await screen.findByRole("dialog", { name: /Nouvel item/ });
+    expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveValue("tache");
+  });
+
+  it("has no child section for a sub-task and no creation without the right", () => {
+    const { unmount } = render(
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel {...baseProps} detail={{ ...detail, type: "soustache" }} itemCapabilities={fullCapabilities} createDialog={createDialog} />
+      </DetailHarness>,
+    );
+    expect(screen.queryByRole("region", { name: "Sous-tâches" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Créer une/ })).not.toBeInTheDocument();
+    unmount();
+
+    render(
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel {...baseProps} itemCapabilities={{ ...fullCapabilities, create: false }} createDialog={createDialog} />
+      </DetailHarness>,
+    );
+    expect(screen.getByRole("region", { name: "Tâches" })).toHaveTextContent("Aucun enfant.");
+    expect(screen.queryByRole("button", { name: /Créer une tâche/ })).not.toBeInTheDocument();
+  });
+
+  it("opens the link form from the « Lier un item » action", async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel {...baseProps} itemCapabilities={fullCapabilities} />
+      </DetailHarness>,
+    );
+    await user.click(screen.getByRole("button", { name: "Lier un item" }));
+    expect(screen.getByRole("textbox", { name: "Rechercher un item à lier" })).toHaveFocus();
+  });
+
+  it("copies the item's branch name", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    render(
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel {...baseProps} />
+      </DetailHarness>,
+    );
+    await user.click(screen.getByRole("button", { name: /Copier le nom de branche/ }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("cass-2-paiement-en-ligne"));
+    expect(mocks.toastSuccess).toHaveBeenCalledWith(
+      "Nom de branche copié : cass-2-paiement-en-ligne",
+    );
+  });
+
+  it("assigns the item to me from the « M’assigner » link, then hides it", async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel {...baseProps} />
+      </DetailHarness>,
+    );
+    await user.click(screen.getByRole("button", { name: "M’assigner" }));
+    expect(mocks.updateItemAction).toHaveBeenCalledWith(
+      expect.objectContaining({ id: detail.id, assigneeId: "better-auth-marie" }),
+    );
+    expect(screen.getByRole("button", { name: /^Assigné / })).toHaveTextContent("Marie Lemaire");
+    expect(screen.queryByRole("button", { name: "M’assigner" })).not.toBeInTheDocument();
+  });
+
+  it("offers the next status of the workflow", () => {
+    render(
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          statuses={[
+            ...baseProps.statuses,
+            { id: "doing", name: "En cours", color: "#d99a00", category: "in_progress" },
+          ]}
+        />
+      </DetailHarness>,
+    );
+    expect(screen.getByRole("button", { name: "Passer au statut En cours" })).toBeVisible();
+  });
+
+  it("folds the Détails and Développement panels", async () => {
+    const user = userEvent.setup();
+    render(
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel {...baseProps} />
+      </DetailHarness>,
+    );
+    const details = screen.getByRole("button", { name: "Détails" });
+    await user.click(details);
+    expect(details).toHaveAttribute("aria-expanded", "false");
+    // Folded content leaves the accessibility tree.
+    expect(screen.queryByRole("button", { name: /^Priorité / })).toBeNull();
+    expect(screen.getByRole("button", { name: "Développement" })).toHaveAttribute("aria-expanded", "true");
+    window.localStorage.clear();
+  });
+
+  function renderInList(keys: string[]) {
+    const main = document.createElement("main");
+    for (const key of keys) {
+      const row = document.createElement("div");
+      row.setAttribute("data-shortcut-item", key);
+      row.tabIndex = 0;
+      main.append(row);
+    }
+    document.body.append(main);
+    return render(
+      <KeyboardShortcutsProvider>
+        <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+          <ItemDetailPanel {...baseProps} />
+        </DetailHarness>
+      </KeyboardShortcutsProvider>,
+    );
+  }
+
+  it("moves to the previous and next item of the view, with K / J too", async () => {
+    const user = userEvent.setup();
+    renderInList(["CASS-1", detail.key, "CASS-9"]);
+
+    await user.click(screen.getByRole("button", { name: "Item suivant (J)" }));
+    await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/b/CASS?view=board&item=CASS-9"));
+    await user.click(screen.getByRole("button", { name: "Item précédent (K)" }));
+    await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/b/CASS?view=board&item=CASS-1"));
+
+    mocks.push.mockReset();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "j" });
+    await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/b/CASS?view=board&item=CASS-9"));
+  });
+
+  it("disables the end of the list and hides the arrows without a list", () => {
+    const { unmount } = renderInList([detail.key, "CASS-9"]);
+    expect(screen.getByRole("button", { name: "Item précédent (K)" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Item suivant (J)" })).toBeEnabled();
+    unmount();
+    document.body.innerHTML = "";
+
+    renderInList(["CASS-1"]);
+    expect(screen.queryByRole("button", { name: "Item suivant (J)" })).not.toBeInTheDocument();
+  });
+
+  it("m brings the comments back from the history filter", async () => {
+    render(
+      <KeyboardShortcutsProvider>
+        <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+          <ItemDetailPanel {...baseProps} />
+        </DetailHarness>
+      </KeyboardShortcutsProvider>,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Historique" }));
+    expect(screen.queryByRole("button", { name: "Commenter" })).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "m" });
+    expect(screen.getByRole("tab", { name: "Commentaires" })).toHaveAttribute("aria-selected", "true");
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Nouveau commentaire" })).toHaveFocus(),
+    );
   });
 });

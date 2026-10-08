@@ -764,6 +764,7 @@ export async function BacklogViewContent({
               ) ?? []}
               releaseOptions={assignableReleaseOptions}
               releaseCapabilities={productCapabilities.releases}
+              createDialog={capabilities.createItems ? createDialogProps : undefined}
             />
           </Suspense>
         </ItemDetailSheet>
