@@ -124,8 +124,7 @@ vi.mock("@/components/shell/page-header", () => ({
     </header>
   ),
 }));
-vi.mock("@/components/theme/density-toggle", () => ({ DensityToggle: () => null }));
-vi.mock("@/components/shell/group-control", () => ({ GroupControl: () => null }));
+vi.mock("@/components/shell/display-menu", () => ({ DisplayMenu: () => null }));
 vi.mock("@/components/shell/filter-bar", () => ({
   FilterBar: (props: unknown) => {
     mocks.filterBarProps(props);

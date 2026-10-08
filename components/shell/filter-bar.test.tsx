@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ItemList } from "@/components/items/item-list";
 import { LinksSection } from "@/components/items/detail/links-section";
-import { GroupControl } from "@/components/shell/group-control";
+import { DisplayMenu } from "@/components/shell/display-menu";
+import { DensityProvider } from "@/components/theme/density-provider";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 import { Sidebar } from "@/components/shell/sidebar";
 import { SidebarStateProvider } from "@/components/shell/sidebar-state";
@@ -33,6 +34,16 @@ vi.mock("@/app/actions/items", () => ({
 
 // The sidebar's user card imports a Server Action module.
 vi.mock("@/app/actions/account", () => ({ changeOwnPasswordAction: vi.fn() }));
+
+/** Picks a grouping in the « Affichage » menu (JIR-74). */
+function chooseGroup(label: string) {
+  fireEvent.pointerDown(screen.getByRole("button", { name: /^Affichage/ }), {
+    button: 0,
+    ctrlKey: false,
+    pointerType: "mouse",
+  });
+  fireEvent.click(screen.getByRole("menuitemradio", { name: label }));
+}
 
 /** The project views now live in the sidebar (JIR-74). */
 function ProjectViewLinks() {
@@ -187,7 +198,7 @@ describe("FilterBar", () => {
         button.textContent?.trim(),
       ),
     ).toEqual(["+ Type", "+ Statut", "+ Priorité", "+ Label", "+ Version", "+ Assigné", "+ Nature", "+ Sous"]);
-    expect(screen.queryByRole("combobox", { name: "Grouper par" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Affichage/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Trier par" })).not.toBeInTheDocument();
   });
 
@@ -330,17 +341,17 @@ describe("FilterBar", () => {
           hierarchy={[]}
           resultCount={4}
         />
-        <GroupControl
+        <DensityProvider>
+          <DisplayMenu
           view="board"
           state={emptyState}
         />
+        </DensityProvider>
       </ViewUrlStateProvider>,
     );
 
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "auth" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "Grouper par" }), {
-      target: { value: "component" },
-    });
+    chooseGroup("Composant");
     await act(async () => vi.advanceTimersByTime(300));
 
     expect(mocks.replace).toHaveBeenLastCalledWith(
@@ -363,17 +374,17 @@ describe("FilterBar", () => {
           hierarchy={[]}
           resultCount={1}
         />
-        <GroupControl
+        <DensityProvider>
+          <DisplayMenu
           view="board"
           state={emptyState}
         />
+        </DensityProvider>
       </ViewUrlStateProvider>,
     );
 
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "auth" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "Grouper par" }), {
-      target: { value: "component" },
-    });
+    chooseGroup("Composant");
     await act(async () => vi.advanceTimersByTime(300));
 
     const latestParams = {
@@ -389,10 +400,12 @@ describe("FilterBar", () => {
     };
     rerender(
       <ViewUrlStateProvider initialEntries={paramEntries(latestParams)}>
-        <GroupControl
+        <DensityProvider>
+          <DisplayMenu
           view="board"
           state={groupedState}
         />
+        </DensityProvider>
       </ViewUrlStateProvider>,
     );
 
@@ -403,15 +416,15 @@ describe("FilterBar", () => {
     };
     rerender(
       <ViewUrlStateProvider initialEntries={paramEntries(olderParams)}>
-        <GroupControl
+        <DensityProvider>
+          <DisplayMenu
           view="board"
           state={groupedState}
         />
+        </DensityProvider>
       </ViewUrlStateProvider>,
     );
-    fireEvent.change(screen.getByRole("combobox", { name: "Grouper par" }), {
-      target: { value: "priority" },
-    });
+    chooseGroup("Priorité");
 
     expect(mocks.replace).toHaveBeenLastCalledWith(
       "/b/DEMO?view=board&item=DEMO-1&group=priority&q=auth",
@@ -423,18 +436,18 @@ describe("FilterBar", () => {
     const initialParams = { view: "board", item: "DEMO-1", q: "auth" };
     render(
       <ViewUrlStateProvider initialEntries={paramEntries(initialParams)}>
-        <GroupControl
+        <DensityProvider>
+          <DisplayMenu
           view="board"
           state={emptyState}
         />
+        </DensityProvider>
       </ViewUrlStateProvider>,
     );
 
     window.history.replaceState(null, "", "/b/DEMO?view=board&group=priority");
     window.dispatchEvent(new PopStateEvent("popstate"));
-    fireEvent.change(screen.getByRole("combobox", { name: "Grouper par" }), {
-      target: { value: "component" },
-    });
+    chooseGroup("Composant");
 
     expect(mocks.replace).toHaveBeenLastCalledWith(
       "/b/DEMO?view=board&group=component",
@@ -575,17 +588,17 @@ describe("FilterBar", () => {
     render(
       <ViewUrlStateProvider initialEntries={paramEntries(currentParams)}>
         <ProjectViewLinks />
-        <GroupControl
+        <DensityProvider>
+          <DisplayMenu
           view="board"
           state={emptyState}
         />
+        </DensityProvider>
       </ViewUrlStateProvider>,
     );
 
     const listLink = screen.getByRole("link", { name: "Liste" });
-    fireEvent.change(screen.getByRole("combobox", { name: "Grouper par" }), {
-      target: { value: "component" },
-    });
+    chooseGroup("Composant");
 
     expect(listLink).toHaveAttribute(
       "href",
@@ -718,10 +731,12 @@ describe("FilterBar", () => {
     const currentParams = { view: "board", item: "DEMO-1" };
     render(
       <ViewUrlStateProvider initialEntries={paramEntries(currentParams)}>
-        <GroupControl
+        <DensityProvider>
+          <DisplayMenu
           view="board"
           state={emptyState}
         />
+        </DensityProvider>
         <LinksSection
           itemId="item-1"
           backlogKey="DEMO"
@@ -732,9 +747,7 @@ describe("FilterBar", () => {
     );
 
     const relatedLink = screen.getByRole("link", { name: /DEMO-2.*Invoices/ });
-    fireEvent.change(screen.getByRole("combobox", { name: "Grouper par" }), {
-      target: { value: "component" },
-    });
+    chooseGroup("Composant");
 
     expect(relatedLink).toHaveAttribute(
       "href",
@@ -777,7 +790,9 @@ describe("FilterBar", () => {
     const initialParams = { view: "board", item: "DEMO-1", tag: "old" };
     const renderContents = (group: ViewState["group"]) => (
       <>
-        <GroupControl view="board" state={{ ...emptyState, group }} />
+        <DensityProvider>
+          <DisplayMenu view="board" state={{ ...emptyState, group }} />
+        </DensityProvider>
         <LinksSection
           itemId="item-1"
           backlogKey="DEMO"
@@ -792,9 +807,7 @@ describe("FilterBar", () => {
       </ViewUrlStateProvider>,
     );
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Grouper par" }), {
-      target: { value: "component" },
-    });
+    chooseGroup("Composant");
     const settledA = { ...initialParams, group: "component" };
     rerender(
       <ViewUrlStateProvider initialEntries={paramEntries(settledA)}>
@@ -802,9 +815,7 @@ describe("FilterBar", () => {
       </ViewUrlStateProvider>,
     );
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Grouper par" }), {
-      target: { value: "priority" },
-    });
+    chooseGroup("Priorité");
     const settledB = { ...initialParams, group: "priority" };
     rerender(
       <ViewUrlStateProvider initialEntries={paramEntries(settledB)}>
@@ -831,7 +842,9 @@ describe("FilterBar", () => {
     const pendingB = { ...initialParams, group: "component" };
     const renderContents = (group: ViewState["group"]) => (
       <>
-        <GroupControl view="board" state={{ ...emptyState, group }} />
+        <DensityProvider>
+          <DisplayMenu view="board" state={{ ...emptyState, group }} />
+        </DensityProvider>
         <LinksSection
           itemId="item-1"
           backlogKey="DEMO"
@@ -846,9 +859,7 @@ describe("FilterBar", () => {
       </ViewUrlStateProvider>,
     );
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Grouper par" }), {
-      target: { value: "component" },
-    });
+    chooseGroup("Composant");
     window.history.replaceState(
       null,
       "",
@@ -923,14 +934,14 @@ describe("FilterBar", () => {
           hierarchy={[]}
           resultCount={1}
         />
-        <GroupControl view="board" state={emptyState} />
+        <DensityProvider>
+          <DisplayMenu view="board" state={emptyState} />
+        </DensityProvider>
       </ViewUrlStateProvider>,
     );
 
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "auth" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "Grouper par" }), {
-      target: { value: "component" },
-    });
+    chooseGroup("Composant");
 
     expect(mocks.replace).toHaveBeenLastCalledWith(
       "/b/DEMO?view=board&tag=a&tag=b&group=component",

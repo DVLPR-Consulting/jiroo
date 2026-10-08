@@ -38,9 +38,8 @@ import { requireAppPageSession } from "@/lib/auth/session";
 import { getViewByIdForUser } from "@/lib/services/views";
 import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
 import { PageHeader } from "@/components/shell/page-header";
-import { DensityToggle } from "@/components/theme/density-toggle";
 import { PROJECT_VIEWS } from "@/lib/items/shell";
-import { GroupControl } from "@/components/shell/group-control";
+import { DisplayMenu } from "@/components/shell/display-menu";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewActions } from "@/components/shell/view-actions";
 import { ItemList } from "@/components/items/item-list";
@@ -558,10 +557,6 @@ export async function BacklogViewContent({
         title={PROJECT_VIEWS.find((candidate) => candidate.id === view)?.label}
         actions={
           <>
-            <GroupControl
-              view={view as DisplayMode}
-              state={viewState}
-            />
             <ViewActions
               backlogKey={key}
               backlogId={backlog.id}
@@ -586,7 +581,7 @@ export async function BacklogViewContent({
                 capabilities={productCapabilities.workflow}
               />
             ) : null}
-            <DensityToggle />
+            <DisplayMenu view={view as DisplayMode} state={viewState} />
           </>
         }
       />
