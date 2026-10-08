@@ -25,7 +25,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function Bind({ id, handler }: { id: SequenceShortcutId; handler: (() => void) | null }) {
+function Bind({ id, handler }: { id: SequenceShortcutId; handler: (() => boolean | void) | null }) {
   useShortcutHandler(id, handler);
   return null;
 }
@@ -66,8 +66,12 @@ describe("KeyboardShortcutsProvider", () => {
     }
 
     function ListBindings() {
-      useShortcutHandler("list.next", () => moveShortcutFocus(document, 1));
-      useShortcutHandler("list.open", () => openCurrentShortcutItem());
+      useShortcutHandler("list.next", () => {
+        moveShortcutFocus(document, 1);
+      });
+      useShortcutHandler("list.open", () => {
+        openCurrentShortcutItem();
+      });
       return null;
     }
 
@@ -273,6 +277,17 @@ describe("KeyboardShortcutsProvider", () => {
       </KeyboardShortcutsProvider>,
     );
     expect(press("i")).toBe(true);
+  });
+
+  it("leaves the key unconsumed when the handler declines it", () => {
+    const declined = vi.fn(() => false);
+    render(
+      <KeyboardShortcutsProvider>
+        <Bind id="create" handler={declined} />
+      </KeyboardShortcutsProvider>,
+    );
+    expect(press("c")).toBe(true);
+    expect(declined).toHaveBeenCalledTimes(1);
   });
 
   it("never fires while typing in a field", () => {

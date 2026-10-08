@@ -40,9 +40,15 @@ function mainRegion(): ParentNode {
 
 /** j / k / o over the rows and cards of the current item view. */
 function ListShortcuts() {
-  useShortcutHandler("list.next", () => moveShortcutFocus(mainRegion(), 1));
-  useShortcutHandler("list.previous", () => moveShortcutFocus(mainRegion(), -1));
-  useShortcutHandler("list.open", () => openCurrentShortcutItem());
+  useShortcutHandler("list.next", () => {
+    moveShortcutFocus(mainRegion(), 1);
+  });
+  useShortcutHandler("list.previous", () => {
+    moveShortcutFocus(mainRegion(), -1);
+  });
+  useShortcutHandler("list.open", () => {
+    openCurrentShortcutItem();
+  });
   return null;
 }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useEffect,
   useId,
   useMemo,
   useRef,
@@ -39,7 +38,7 @@ import { ITEM_TEMPLATES, getTemplate } from "@/lib/items/templates";
 import { allowedParentType } from "@/lib/tree/hierarchy";
 import { toast } from "@/lib/toast";
 import { ITEM_TITLE_MAX } from "@/lib/validation/item";
-import { shortcutsEnabledSnapshot } from "@/lib/shortcuts/preferences";
+import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import {
   FixVersionPicker,
   type FixVersionOption,
@@ -101,36 +100,18 @@ export function NewItemButton({
   const titleCounterId = useId();
   const titleErrorId = useId();
 
-  useEffect(() => {
-    if (!enableShortcut) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      const target = event.target;
-      const isEditing =
-        target instanceof Element &&
-        Boolean(target.closest("input, textarea, select, [contenteditable]"));
-
-      if (
-        event.defaultPrevented ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.altKey ||
-        event.shiftKey ||
-        event.key.toLowerCase() !== "c" ||
-        isEditing ||
-        document.querySelector('[role="dialog"]') ||
-        !shortcutsEnabledSnapshot()
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      setOpen(true);
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [enableShortcut]);
+  // « c » (Jira's create) goes through the app-wide shortcut layer, which
+  // already ignores fields, menus, IME composition, key repeat and the
+  // single-key toggle. It stays off while any dialog (the item drawer
+  // included) is open.
+  useShortcutHandler(
+    "create",
+    enableShortcut &&
+      (() => {
+        if (document.querySelector('[role="dialog"]')) return false;
+        setOpen(true);
+      }),
+  );
 
   const requiredParentType = allowedParentType(type);
   const availableItemTypes = canScheduleItems

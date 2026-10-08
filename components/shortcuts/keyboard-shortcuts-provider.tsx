@@ -22,7 +22,8 @@ import {
 import { KeyboardShortcutsDialog } from "@/components/shortcuts/keyboard-shortcuts-dialog";
 import { useShortcutsEnabled } from "@/components/shortcuts/use-shortcuts-enabled";
 
-type Handler = () => void;
+/** Return false to leave the key alone (the action does not apply right now). */
+type Handler = () => boolean | void;
 
 type ShortcutRegistry = {
   register: (id: SequenceShortcutId, handler: Handler) => () => void;
@@ -47,9 +48,7 @@ export function useShortcutHandler(
   const active = Boolean(handler);
   useEffect(() => {
     if (!registry || !active) return;
-    return registry.register(id, () => {
-      if (latest.current) latest.current();
-    });
+    return registry.register(id, () => (latest.current ? latest.current() : false));
   }, [registry, id, active]);
 }
 
@@ -110,9 +109,8 @@ export function KeyboardShortcutsProvider({ children }: { children: React.ReactN
               setHelpOpen(true);
             }
           : handlers.current.get(result.id)?.at(-1);
-      if (!handler) return;
+      if (!handler || handler() === false) return;
       event.preventDefault();
-      handler();
     }
 
     // A pending « g » is dropped on Escape (seen in the capture phase, before
