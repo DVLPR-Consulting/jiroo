@@ -20,6 +20,7 @@ import {
   RECENT_ITEMS_STORAGE_KEY,
   recordRecentKey,
 } from "@/lib/items/recent";
+import { OPEN_SEARCH_EVENT } from "@/lib/shortcuts/navigation";
 
 // ---------------------------------------------------------------------------
 // Highlight helper
@@ -146,6 +147,15 @@ export function SearchModal() {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // « / » (keyboard shortcut layer) opens the palette.
+  useEffect(() => {
+    function handleOpenSearch() {
+      setOpen(true);
+    }
+    window.addEventListener(OPEN_SEARCH_EVENT, handleOpenSearch);
+    return () => window.removeEventListener(OPEN_SEARCH_EVENT, handleOpenSearch);
   }, []);
 
   // -------------------------------------------------------------------------

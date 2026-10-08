@@ -1,10 +1,11 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
 import { ItemDetailContent } from "@/components/items/item-detail-content";
 import { ItemDetailSheet } from "@/components/items/item-detail-sheet";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
+import { KeyboardShortcutsProvider } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import type { ViewUrlEntry } from "@/lib/items/view-url-params";
 
 const mocks = vi.hoisted(() => ({
@@ -918,5 +919,93 @@ describe("ItemDetailContent parent resolution", () => {
     expect(screen.getByRole("navigation", { name: "Fil d’Ariane" })).toHaveTextContent(
       "PARENT-1 / CASS-2",
     );
+  });
+});
+
+describe("ItemDetailPanel keyboard shortcuts", () => {
+  beforeEach(() => {
+    mocks.updateItemAction.mockReset();
+    mocks.updateItemAction.mockResolvedValue({ ok: true });
+    mocks.refresh.mockReset();
+    window.history.replaceState({}, "", "/b/CASS?view=board&item=CASS-2");
+  });
+
+  function renderWithShortcuts(
+    overrides: Partial<Parameters<typeof ItemDetailPanel>[0]> = {},
+  ) {
+    return render(
+      <KeyboardShortcutsProvider>
+        <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+          <ItemDetailPanel
+            {...baseProps}
+            canEditItems
+            canTransitionItems
+            canAssignItems
+            {...overrides}
+          />
+        </DetailHarness>
+      </KeyboardShortcutsProvider>,
+    );
+  }
+
+  function pressInDrawer(key: string) {
+    fireEvent.keyDown(screen.getByRole("dialog"), { key });
+  }
+
+  it("m opens the comments and focuses the composer", async () => {
+    renderWithShortcuts();
+
+    pressInDrawer("m");
+
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Nouveau commentaire" })).toHaveFocus(),
+    );
+  });
+
+  it("e starts renaming the item", () => {
+    renderWithShortcuts();
+    pressInDrawer("e");
+    expect(screen.getByRole("textbox", { name: "Titre de l’item" })).toHaveFocus();
+  });
+
+  it("a focuses the assignee and s the status", () => {
+    renderWithShortcuts();
+    pressInDrawer("a");
+    expect(screen.getByRole("combobox", { name: "Assigné" })).toHaveFocus();
+    pressInDrawer("s");
+    expect(screen.getByRole("combobox", { name: "Statut" })).toHaveFocus();
+  });
+
+  it("i assigns the item to the current user", async () => {
+    renderWithShortcuts();
+
+    pressInDrawer("i");
+
+    await waitFor(() =>
+      expect(mocks.updateItemAction).toHaveBeenCalledWith(
+        expect.objectContaining({ id: detail.id, assigneeId: "better-auth-marie" }),
+      ),
+    );
+    expect(screen.getByRole("combobox", { name: "Assigné" })).toHaveValue("better-auth-marie");
+  });
+
+  it("does nothing the user is not allowed to do", () => {
+    renderWithShortcuts({
+      canEditItems: false,
+      canTransitionItems: false,
+      canAssignItems: false,
+    });
+
+    for (const key of ["e", "m", "a", "i", "s"]) pressInDrawer(key);
+
+    expect(mocks.updateItemAction).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox", { name: "Titre de l’item" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Nouveau commentaire" })).not.toBeInTheDocument();
+  });
+
+  it("i does nothing when the user cannot be assigned in this backlog", () => {
+    renderWithShortcuts({ assigneeCandidates: [{ id: "other", name: "Autre" }] });
+    pressInDrawer("i");
+    expect(mocks.updateItemAction).not.toHaveBeenCalled();
   });
 });

@@ -193,6 +193,7 @@ function ItemRow({
   return (
     <tr
       tabIndex={0}
+      data-shortcut-item={item.key}
       aria-label={`${item.key} — ${item.title}`}
       onClick={openItem}
       onKeyDown={handleKeyDown}
