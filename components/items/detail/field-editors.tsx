@@ -23,7 +23,6 @@ import {
 import { useOptimisticFieldUpdate } from "@/components/items/detail/use-optimistic-field-update";
 import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
 
-type StatusLite = { id: string; name: string; color: string; category: string };
 type UserLite = { id: string; name: string };
 type LabelLite = { id: string; name: string; color: string };
 
@@ -63,56 +62,6 @@ function toDateInputValue(date: Date | string | null): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-export function StatusField({
-  itemId,
-  backlogKey,
-  statusId,
-  statuses,
-}: {
-  itemId: string;
-  backlogKey: string;
-  statusId: string;
-  statuses: StatusLite[];
-}) {
-  const { value, pending, error, update } = useOptimisticFieldUpdate({
-    value: statusId,
-    itemId,
-    backlogKey,
-    toPatch: (next) => ({ statusId: next }),
-  });
-  const selected = statuses.find((s) => s.id === value);
-  const selectRef = useRef<HTMLSelectElement>(null);
-  useShortcutHandler("item.status", () => openSelect(selectRef.current));
-
-  return (
-    <div>
-      <div className="flex items-center gap-2">
-        <span
-          className="size-2 shrink-0 rounded-full"
-          style={{ background: selected?.color ?? "var(--border-strong)" }}
-          aria-hidden
-        />
-        <select
-          ref={selectRef}
-          className={selectClass}
-          value={value}
-          disabled={pending}
-          onChange={(e) => update(e.target.value)}
-          aria-label="Statut"
-          aria-busy={pending}
-        >
-          {statuses.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <FieldError error={error} />
-    </div>
-  );
 }
 
 export function PriorityField({
