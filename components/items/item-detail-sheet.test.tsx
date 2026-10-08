@@ -1,5 +1,5 @@
 import { Suspense, use, useEffect } from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -294,6 +294,24 @@ describe("ItemDetailSheet", () => {
       rendered.rerender(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
       expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBe(loading);
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("offers a close button while loading, and a late server answer does not reopen it", async () => {
+      const user = userEvent.setup();
+      const rendered = render(page(null, [["view", "backlog"]]));
+      await user.click(screen.getByRole("button", { name: "Ouvrir CASS-4" }));
+      const loading = screen.getByRole("dialog", { name: "Chargement du panneau de détail" });
+
+      // A touch user on a full-screen drawer must be able to cancel the load.
+      await user.click(within(loading).getByRole("button", { name: "Fermer" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/b/CASS?view=backlog"));
+
+      // The server's answer for the cancelled request arrives afterwards.
+      rendered.rerender(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      // Only one close button in the skeleton, none duplicated.
+      expect(screen.queryAllByRole("button", { name: "Fermer" })).toHaveLength(0);
     });
 
     it("renders the server body directly when the page loads with ?item=", () => {
