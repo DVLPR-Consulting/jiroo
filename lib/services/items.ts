@@ -770,11 +770,15 @@ const DESCRIPTION_SESSION_MINUTES = 10;
 /**
  * The description autosaves while the user types: successive saves by the
  * same actor form one editing session and must not flood the activity log.
- * When the item's latest activity is a description change by this actor
- * less than ten minutes old, it absorbs the new change (original « from »,
- * new « to », time of the latest save) and is dropped when the session ends
- * on the original text. Returns the activities still to insert. The item row
- * is locked by the caller, so concurrent saves of the item are serialized.
+ * The new change is merged into the item's latest activity only when that
+ * entry is unambiguous (no other activity of the item shares its timestamp:
+ * random ids do not order a tie) and continuous: a description change by
+ * the same actor, less than ten minutes old, whose « to » is this change's
+ * « from ». The merged entry keeps its original « from », takes the new
+ * « to » and the time of the latest save, and is dropped when the session
+ * ends on the original text. Otherwise a normal entry is inserted. Returns
+ * the activities still to insert. The caller holds the item row lock, so
+ * saves of the item are serialized.
  */
 async function coalesceDescriptionActivity(
   tx: Tx,
@@ -784,25 +788,30 @@ async function coalesceDescriptionActivity(
 ): Promise<(typeof activities.$inferInsert)[]> {
   const change = acts.find((act) => act.field === "description");
   if (!change) return acts;
-  const [latest] = await tx
+  const [latest, next] = await tx
     .select({
       id: activities.id,
       actorId: activities.actorId,
       action: activities.action,
       field: activities.field,
       oldValue: activities.oldValue,
+      newValue: activities.newValue,
+      // Exact (microsecond) timestamp, to detect ties.
+      at: sql<string>`${activities.at}::text`,
       recent: sql<boolean>`${activities.at} > now() - make_interval(mins => ${DESCRIPTION_SESSION_MINUTES})`,
     })
     .from(activities)
     .where(eq(activities.itemId, itemId))
     .orderBy(desc(activities.at), desc(activities.id))
-    .limit(1);
+    .limit(2);
   if (
     !latest ||
+    (next && next.at === latest.at) ||
     !latest.recent ||
     latest.action !== "update" ||
     latest.field !== "description" ||
-    latest.actorId !== actorId
+    latest.actorId !== actorId ||
+    (latest.newValue ?? null) !== (change.oldValue ?? null)
   ) {
     return acts;
   }

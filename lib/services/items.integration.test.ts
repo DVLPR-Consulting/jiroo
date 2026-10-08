@@ -1212,6 +1212,80 @@ describeDb("updateItem description activity coalescing", () => {
     }
   });
 
+  it("never coalesces into an ambiguous latest entry (equal timestamps)", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await withOtherUser(async (bobId) => {
+        const at = new Date(Date.now() - 60 * 1000);
+        await db.update(items).set({ description: "Bob" }).where(eq(items.id, fixture.item.id));
+        // Alice then Bob, same timestamp; Alice's random id sorts first.
+        await db.insert(activities).values([
+          {
+            id: "ffffffff-ffff-4fff-bfff-ffffffffffff",
+            itemId: fixture.item.id,
+            actorId: fixture.actorId,
+            action: "update",
+            field: "description",
+            oldValue: "Original",
+            newValue: "Alice",
+            at,
+          },
+          {
+            id: "aaaaaaaa-aaaa-4aaa-baaa-aaaaaaaaaaaa",
+            itemId: fixture.item.id,
+            actorId: bobId,
+            action: "update",
+            field: "description",
+            oldValue: "Alice",
+            newValue: "Bob",
+            at,
+          },
+        ]);
+
+        await updateItem({ id: fixture.item.id, description: "Original" }, fixture.actorId);
+
+        const audit = await descriptionAudit(fixture.item.id);
+        expect(
+          audit.map(({ actorId, oldValue, newValue }) => [actorId, oldValue, newValue]).sort(),
+        ).toEqual(
+          [
+            [fixture.actorId, "Original", "Alice"],
+            [bobId, "Alice", "Bob"],
+            [fixture.actorId, "Bob", "Original"],
+          ].sort(),
+        );
+      });
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("only coalesces an entry that continues into the change", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await db.update(items).set({ description: "Actuel" }).where(eq(items.id, fixture.item.id));
+      await db.insert(activities).values({
+        itemId: fixture.item.id,
+        actorId: fixture.actorId,
+        action: "update",
+        field: "description",
+        oldValue: null,
+        newValue: "Autre texte",
+        at: new Date(Date.now() - 60 * 1000),
+      });
+
+      await updateItem({ id: fixture.item.id, description: "Suite" }, fixture.actorId);
+
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit.map(({ oldValue, newValue }) => [oldValue, newValue])).toEqual([
+        [null, "Autre texte"],
+        ["Actuel", "Suite"],
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
   it("drops the entry when the session ends on the original description", async () => {
     const fixture = await createUpdateFixture();
     try {
