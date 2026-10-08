@@ -147,13 +147,28 @@ export function HelpGuide() {
           steps={[<>Utilisez les onglets sous l’en-tête : <Ui>Backlog</Ui>, <Ui>Board</Ui>, <Ui>Liste</Ui>, <Ui>Arbre</Ui>.</>]}
         >
           <ul className="t-body list-disc space-y-1 pl-5">
-            <li><Ui>Backlog</Ui> : les tâches par sprint et la section Backlog ; glisser-déposer pour classer et planifier.</li>
+            <li><Ui>Backlog</Ui> : les tâches par sprint et la section Backlog, une ligne compacte par tâche ; glisser-déposer pour classer et planifier.</li>
             <li><Ui>Board</Ui> : les tâches du sprint actif, une colonne par statut ; déplacer une carte change son statut.</li>
             <li><Ui>Liste</Ui> : tableau de tous les tickets, colonnes triables, menu <Ui>Colonnes</Ui>.</li>
             <li><Ui>Arbre</Ui> : la hiérarchie ; glisser un ticket sous un autre parent le rattache (règles de hiérarchie).</li>
           </ul>
           <GuideNote>
             Le classement manuel par glisser-déposer n’est possible que sans tri ni regroupement actif.
+          </GuideNote>
+        </GuideTopic>
+
+        <GuideTopic
+          title="Lire une ligne du Backlog"
+          purpose="Voir l’essentiel d’une tâche et le modifier sans l’ouvrir."
+          steps={[
+            <>À gauche : case de sélection, poignée de glisser-déposer, type, clé et titre (cliquez sur la ligne pour ouvrir le ticket).</>,
+            <>À droite : <Ui>Bug</Ui> si c’est un bug, l’epic parent, la priorité, les Fix versions, le statut, les points et l’assigné.</>,
+            <>Cliquez sur le statut, la priorité, les points ou l’avatar de l’assigné pour les modifier sur place.</>,
+          ]}
+        >
+          <GuideNote>
+            Une valeur vide n’est pas affichée : sans priorité ni points, leur bouton apparaît au survol de la ligne
+            ou au clavier. Un cercle pointillé signale une tâche non assignée.
           </GuideNote>
         </GuideTopic>
 
@@ -198,13 +213,28 @@ export function HelpGuide() {
           title="Créer un ticket"
           purpose="Ajouter un Composant, une Epic, une Tâche ou une Sous-tâche."
           steps={[
-            <>Cliquez sur <Ui>Nouvel item</Ui> (ou touche <Key>C</Key>), ou sur <Ui>+ Tâche</Ui> dans une section du Backlog.</>,
+            <>Cliquez sur <Ui>Nouvel item</Ui> (ou touche <Key>C</Key>).</>,
             <>Choisissez le <Ui>Type</Ui>, saisissez le <Ui>Titre</Ui> et, sauf pour un Composant, le <Ui>Parent</Ui>.</>,
             <>Ajustez si besoin <Ui>Statut</Ui>, <Ui>Priorité</Ui>, <Ui>Nature</Ui>, <Ui>Fix versions</Ui>, puis <Ui>Créer</Ui>.</>,
           ]}
         >
           <GuideNote>
             Description, assigné, labels, échéance et points se renseignent ensuite dans le détail du ticket.
+          </GuideNote>
+        </GuideTopic>
+
+        <GuideTopic
+          title="Créer une tâche depuis le Backlog"
+          purpose="Ajouter vite une tâche dans un sprint ou dans la section Backlog."
+          steps={[
+            <>En bas du sprint ou de la section Backlog, cliquez sur <Ui>Créer un item</Ui>.</>,
+            <>Saisissez le titre, choisissez l’<Ui>Epic parent</Ui> (la dernière utilisée est proposée), puis <Key>Entrée</Key>.</>,
+            <>Le champ reste ouvert pour la tâche suivante ; <Key>Échap</Key> le referme.</>,
+          ]}
+        >
+          <GuideNote>
+            <Ui>Plus d’options</Ui> ouvre la fenêtre de création complète (modèle, statut, priorité, nature, Fix
+            versions) pour la même section.
           </GuideNote>
         </GuideTopic>
 
@@ -296,8 +326,9 @@ export function HelpGuide() {
           title="Créer et modifier un sprint"
           purpose="Préparer une période de travail de l’équipe."
           steps={[
-            <>Vue <Ui>Backlog</Ui> → <Ui>Créer un sprint</Ui> : il est créé aussitôt (Sprint 1, Sprint 2…).</>,
-            <><Ui>Modifier</Ui> pour changer <Ui>Nom</Ui>, <Ui>Objectif</Ui>, <Ui>Début prévu</Ui>, <Ui>Fin prévue</Ui> et <Ui>Capacité (points)</Ui>.</>,
+            <>Vue <Ui>Backlog</Ui> → <Ui>Créer un sprint</Ui>, dans l’en-tête de la section Backlog : il est créé aussitôt (Sprint 1, Sprint 2…).</>,
+            <>Dans l’en-tête du sprint, menu <Ui>⋯</Ui> → <Ui>Modifier</Ui> (ou lien <Ui>Ajouter des dates et un objectif</Ui>) pour changer <Ui>Nom</Ui>, <Ui>Objectif</Ui>, <Ui>Début prévu</Ui>, <Ui>Fin prévue</Ui> et <Ui>Capacité (points)</Ui>.</>,
+            <>Menu <Ui>⋯</Ui> → <Ui>Monter</Ui> ou <Ui>Descendre</Ui> pour réordonner les sprints planifiés.</>,
           ]}
         />
 
@@ -305,9 +336,9 @@ export function HelpGuide() {
           title="Planifier et estimer"
           purpose="Choisir les tâches du sprint et mesurer la charge."
           steps={[
-            <>Glissez les tâches de la section Backlog vers le sprint (ou action groupée <Ui>Sprint</Ui>).</>,
-            <>Estimez chaque tâche dans son champ <Ui>Points</Ui> (<Ui>Non estimé</Ui> sinon).</>,
-            <>L’en-tête du sprint affiche le total de points, les tâches non estimées et un éventuel dépassement de capacité.</>,
+            <>Glissez les tâches de la section Backlog vers le sprint (ou action groupée <Ui>Sprint</Ui>). Un sprint vide affiche la zone « Glissez des items du backlog ici pour planifier le sprint ».</>,
+            <>Estimez chaque tâche en cliquant sur ses points dans la ligne (au survol si elle n’est pas encore estimée).</>,
+            <>L’en-tête du sprint affiche les points par statut (À faire, En cours, Terminé), le nombre d’items et de non estimés, la capacité et un éventuel dépassement.</>,
           ]}
         >
           <GuideNote>
@@ -320,7 +351,7 @@ export function HelpGuide() {
           title="Démarrer et suivre"
           purpose="Lancer le sprint et suivre son avancement au quotidien."
           steps={[
-            <>Sur un sprint planifié, cliquez sur <Ui>Démarrer</Ui>.</>,
+            <>Sur un sprint planifié, cliquez sur <Ui>Démarrer le sprint</Ui>.</>,
             <>Vérifiez <Ui>Nom</Ui>, <Ui>Début</Ui> et <Ui>Fin</Ui> (obligatoires), puis <Ui>Confirmer le démarrage</Ui>.</>,
             <>Le <Ui>Board</Ui> affiche alors le sprint actif : déplacez les cartes de colonne en colonne.</>,
           ]}
@@ -332,7 +363,7 @@ export function HelpGuide() {
           title="Clôturer"
           purpose="Terminer le sprint et décider du sort des tâches inachevées."
           steps={[
-            <>Sur le sprint actif, cliquez sur <Ui>Clôturer</Ui>.</>,
+            <>Sur le sprint actif, cliquez sur <Ui>Terminer le sprint</Ui>.</>,
             <>Choisissez la <Ui>Destination des tâches incomplètes</Ui> : <Ui>Backlog</Ui>, un sprint planifié ou <Ui>Nouveau sprint</Ui>.</>,
             <>Cliquez sur <Ui>Confirmer la clôture</Ui>.</>,
           ]}
