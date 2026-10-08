@@ -385,7 +385,7 @@ describe("ItemDetailPanel header", () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(screen.getByRole("button", { name: `Renommer ${detail.key}` }));
+    await user.click(screen.getByRole("button", { description: `Renommer ${detail.key}` }));
     expect(screen.getByRole("textbox", { name: "Titre de l’item" })).toHaveFocus();
     await user.keyboard("{Escape}");
 
@@ -434,7 +434,7 @@ describe("ItemDetailPanel header", () => {
         <ItemDetailPanel {...baseProps} {...denied} canEditItems />
       </DetailHarness>,
     );
-    expect(screen.getByRole("button", { name: `Renommer ${detail.key}` })).toBeVisible();
+    expect(screen.getByRole("button", { description: `Renommer ${detail.key}` })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "Priorité" })).toBeVisible();
     expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
@@ -446,7 +446,7 @@ describe("ItemDetailPanel header", () => {
       </DetailHarness>,
     );
     expect(screen.queryByRole("combobox", { name: "Statut" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: `Renommer ${detail.key}` })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { description: `Renommer ${detail.key}` })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Priorité" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
     transitioned.unmount();
@@ -715,7 +715,7 @@ describe("ItemDetailPanel header", () => {
     expect(screen.getByRole("button", { name: "Actions" })).toBeVisible();
     expect(screen.getByRole("button", { name: /\+ Lier un item/ })).toBeVisible();
     expect(screen.getByRole("button", { name: "Lier une PR ou un commit" })).toBeVisible();
-    expect(screen.queryByRole("button", { name: `Renommer ${detail.key}` }))
+    expect(screen.queryByRole("button", { description: `Renommer ${detail.key}` }))
       .not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Commentaires" }));
@@ -749,7 +749,7 @@ describe("ItemDetailPanel header", () => {
       </DetailHarness>,
     );
 
-    expect(screen.queryByRole("button", { name: `Renommer ${detail.key}` }))
+    expect(screen.queryByRole("button", { description: `Renommer ${detail.key}` }))
       .not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Priorité" })).not.toBeInTheDocument();
     await user.selectOptions(screen.getByRole("combobox", { name: "Parent" }), "55555555-5555-4555-8555-555555555555");
