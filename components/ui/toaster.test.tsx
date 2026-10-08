@@ -13,6 +13,24 @@ afterEach(() => {
 });
 
 describe("Toaster actions", () => {
+  it("shows a secondary action before the main one and runs it", async () => {
+    const open = vi.fn();
+    const undo = vi.fn();
+    toast.success("CASS-7 créé", {
+      action: { label: "Annuler", run: undo },
+      secondaryAction: { label: "Ouvrir", run: open },
+    });
+    const user = userEvent.setup();
+    render(<Toaster />);
+
+    const buttons = screen.getAllByRole("button").map((button) => button.textContent);
+    expect(buttons.slice(0, 2)).toEqual(["Ouvrir", "Annuler"]);
+    await user.click(screen.getByRole("button", { name: "Ouvrir" }));
+    expect(open).toHaveBeenCalledOnce();
+    expect(undo).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByText("CASS-7 créé")).not.toBeInTheDocument());
+  });
+
   it("awaits the action, disables it while pending, and dismisses on success", async () => {
     let resolveAction!: () => void;
     const actionPromise = new Promise<void>((resolve) => {

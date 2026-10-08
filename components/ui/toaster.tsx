@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { subscribe, getSnapshot, dismiss, toast } from "@/lib/toast";
-import type { Toast } from "@/lib/toast";
+import type { Toast, ToastAction } from "@/lib/toast";
 
 // ---------------------------------------------------------------------------
 // ToastCard — individual card with auto-dismiss timer
@@ -19,11 +19,11 @@ function ToastCard({ toast: t }: { toast: Toast }) {
 
   const isError = t.variant === "error";
 
-  async function handleAction() {
-    if (!t.action || actionPending) return;
+  async function handleAction(action: ToastAction | undefined) {
+    if (!action || actionPending) return;
     setActionPending(true);
     try {
-      await t.action.run();
+      await action.run();
       dismiss(t.id);
     } catch {
       setActionPending(false);
@@ -49,10 +49,20 @@ function ToastCard({ toast: t }: { toast: Toast }) {
       }
     >
       <span className="flex-1">{t.message}</span>
+      {t.secondaryAction && (
+        <button
+          type="button"
+          onClick={() => handleAction(t.secondaryAction)}
+          disabled={actionPending}
+          className="shrink-0 rounded border border-current px-2 py-0.5 font-medium hover:bg-current/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-50"
+        >
+          {t.secondaryAction.label}
+        </button>
+      )}
       {t.action && (
         <button
           type="button"
-          onClick={handleAction}
+          onClick={() => handleAction(t.action)}
           disabled={actionPending}
           className="shrink-0 rounded border border-current px-2 py-0.5 font-medium hover:bg-current/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-50"
         >

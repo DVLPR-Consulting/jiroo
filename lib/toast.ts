@@ -10,9 +10,11 @@ export type Toast = {
   variant: "success" | "error";
   message: string;
   action?: ToastAction;
+  /** A second, non-destructive action shown before `action` (e.g. « Ouvrir »). */
+  secondaryAction?: ToastAction;
 };
 
-type ToastOptions = { action?: ToastAction };
+type ToastOptions = { action?: ToastAction; secondaryAction?: ToastAction };
 
 // ---------------------------------------------------------------------------
 // Internal state
@@ -53,9 +55,9 @@ export function push(
   options?: ToastOptions,
 ): number {
   const id = nextId++;
-  const nextToast: Toast = options?.action
-    ? { id, variant, message, action: options.action }
-    : { id, variant, message };
+  const nextToast: Toast = { id, variant, message };
+  if (options?.action) nextToast.action = options.action;
+  if (options?.secondaryAction) nextToast.secondaryAction = options.secondaryAction;
   toasts = [...toasts, nextToast];
   notify();
   return id;
