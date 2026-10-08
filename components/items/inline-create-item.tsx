@@ -150,7 +150,9 @@ export function InlineCreateItem({
         aria-invalid={error ? true : undefined}
         placeholder="Que faut-il faire ?"
         maxLength={ITEM_TITLE_MAX}
-        disabled={pending}
+        // Read-only, not disabled, while saving: the field keeps focus for the next item.
+        readOnly={pending}
+        aria-busy={pending || undefined}
         autoFocus
         className="h-8 min-w-0 flex-1 basis-48 rounded-[var(--radius)] border border-[var(--border-strong)] bg-transparent px-2.5 text-sm outline-none focus-visible:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]/40"
       />
