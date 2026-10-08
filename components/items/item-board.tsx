@@ -314,6 +314,7 @@ function CardInner({
         {onOpen ? (
           <button
             type="button"
+            data-shortcut-item={card.key}
             aria-label={`${card.key} — ${card.title}`}
             onClick={(event) => {
               event.stopPropagation();

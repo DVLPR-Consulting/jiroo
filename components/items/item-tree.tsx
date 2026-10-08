@@ -374,6 +374,7 @@ export function ItemTree({
           }}
           role="button"
           tabIndex={isContext ? -1 : 0}
+          data-shortcut-item={isContext ? undefined : node.key}
           aria-disabled={isContext || undefined}
           aria-label={`${node.key} — ${node.title}`}
           className={`group relative flex items-center gap-2 py-1.5 pr-3 text-sm transition-colors ${

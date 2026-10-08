@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import HelpPage from "@/app/(app)/aide/page";
 import { GUIDE_SECTIONS } from "@/components/help/guide-sections";
+import { SHORTCUTS, shortcutText } from "@/lib/shortcuts/registry";
 
 describe("HelpPage", () => {
   it("renders the guide title and every section heading", () => {
@@ -44,6 +45,19 @@ describe("HelpPage", () => {
       expect(target?.tagName).toBe("SECTION");
       expect(target).toHaveAccessibleName(link.textContent ?? "");
     }
+  });
+
+  it("lists every registry shortcut and how to turn single-key shortcuts off", () => {
+    render(<HelpPage />);
+
+    const shortcuts = within(
+      screen.getByRole("region", { name: /Recherche, notifications et raccourcis/ }),
+    );
+    for (const shortcut of SHORTCUTS) {
+      expect(shortcuts.getByText(shortcut.label)).toBeInTheDocument();
+      expect(shortcuts.getAllByText(shortcutText(shortcut)).length).toBeGreaterThan(0);
+    }
+    expect(shortcuts.getAllByText(/Raccourcis à une touche/).length).toBeGreaterThan(0);
   });
 
   it("explains each topic with its purpose and steps", () => {

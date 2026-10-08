@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NewItemButton } from "@/components/items/new-item-dialog";
+import { KeyboardShortcutsProvider } from "@/components/shortcuts/keyboard-shortcuts-provider";
 
 const mocks = vi.hoisted(() => ({
   createItemAction: vi.fn(),
@@ -10,6 +11,14 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mocks.refresh }),
+}));
+
+vi.mock("next/link", () => ({
+  default: ({ children, href, ...props }: { children: React.ReactNode; href: string }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("@/app/actions/items", () => ({
@@ -35,6 +44,16 @@ const releaseOptions = [
     archived: false,
   },
 ];
+
+/** « c » goes through the app-wide shortcut layer, as in the real shell. */
+function renderWithShortcuts(ui: React.ReactElement) {
+  const result = render(<KeyboardShortcutsProvider>{ui}</KeyboardShortcutsProvider>);
+  return {
+    ...result,
+    rerender: (next: React.ReactElement) =>
+      result.rerender(<KeyboardShortcutsProvider>{next}</KeyboardShortcutsProvider>),
+  };
+}
 
 function dialogProps() {
   return {
@@ -243,7 +262,7 @@ describe("NewItemButton", () => {
   });
 
   it("opens with C only when the shortcut is enabled", () => {
-    render(<NewItemButton {...dialogProps()} enableShortcut />);
+    renderWithShortcuts(<NewItemButton {...dialogProps()} enableShortcut />);
 
     fireEvent.keyDown(window, { key: "c" });
 
@@ -251,7 +270,7 @@ describe("NewItemButton", () => {
   });
 
   it("consumes C before opening a dialog with an empty title", () => {
-    render(<NewItemButton {...dialogProps()} enableShortcut />);
+    renderWithShortcuts(<NewItemButton {...dialogProps()} enableShortcut />);
 
     const notCancelled = fireEvent.keyDown(window, { key: "c" });
 
@@ -283,7 +302,7 @@ describe("NewItemButton", () => {
   });
 
   it("does not register the C shortcut by default", () => {
-    render(<NewItemButton {...dialogProps()} />);
+    renderWithShortcuts(<NewItemButton {...dialogProps()} />);
 
     fireEvent.keyDown(window, { key: "c" });
 
@@ -291,7 +310,7 @@ describe("NewItemButton", () => {
   });
 
   it("ignores C while typing, with modifiers, when prevented, or while another dialog is open", () => {
-    const { rerender } = render(
+    const { rerender } = renderWithShortcuts(
       <>
         <input aria-label="Champ" />
         <textarea aria-label="Zone de texte" />
@@ -335,8 +354,56 @@ describe("NewItemButton", () => {
     expect(screen.queryByRole("dialog", { name: "Nouvel item" })).not.toBeInTheDocument();
   });
 
+  it("ignores C in an open menu or listbox and in a component with its own keys", () => {
+    renderWithShortcuts(
+      <>
+        <div role="menu">
+          <button type="button" role="menuitem">Action du menu</button>
+        </div>
+        <div role="listbox" aria-label="Liste">
+          <div role="option" aria-selected="false" tabIndex={0}>Option de liste</div>
+        </div>
+        <div data-local-escape>
+          <button type="button">Contrôle local</button>
+        </div>
+        <NewItemButton {...dialogProps()} enableShortcut />
+      </>,
+    );
+
+    for (const target of [
+      screen.getByRole("menuitem", { name: "Action du menu" }),
+      screen.getByRole("option", { name: "Option de liste" }),
+      screen.getByRole("button", { name: "Contrôle local" }),
+    ]) {
+      const notCancelled = fireEvent.keyDown(target, { key: "c" });
+      expect(notCancelled).toBe(true);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    }
+  });
+
+  it("ignores C while composing text (IME) or when the key auto-repeats", () => {
+    renderWithShortcuts(<NewItemButton {...dialogProps()} enableShortcut />);
+
+    fireEvent.keyDown(window, { key: "c", isComposing: true });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "c", repeat: true });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("ignores C when single-key shortcuts are turned off", () => {
+    window.localStorage.setItem("jiroo-shortcuts-enabled", "false");
+    try {
+      renderWithShortcuts(<NewItemButton {...dialogProps()} enableShortcut />);
+      fireEvent.keyDown(window, { key: "c" });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    } finally {
+      window.localStorage.removeItem("jiroo-shortcuts-enabled");
+    }
+  });
+
   it("labels the enabled global trigger with its shortcut", () => {
-    render(<NewItemButton {...dialogProps()} enableShortcut />);
+    renderWithShortcuts(<NewItemButton {...dialogProps()} enableShortcut />);
 
     expect(screen.getByRole("button", { name: "Nouvel item" })).toHaveAttribute(
       "title",

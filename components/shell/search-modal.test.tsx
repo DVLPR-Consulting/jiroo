@@ -224,6 +224,17 @@ describe("SearchModal item navigation", () => {
     expect(screen.getByRole("dialog")).toBeVisible();
   });
 
+  it("opens the palette when the « / » shortcut asks for it", () => {
+    renderSubject();
+
+    act(() => {
+      window.dispatchEvent(new Event("jiroo:open-search"));
+    });
+
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Rechercher" })).toHaveFocus();
+  });
+
   it("leaves Command/Ctrl+K to a focused widget that already handled it", () => {
     renderSubject();
     const field = document.createElement("div");

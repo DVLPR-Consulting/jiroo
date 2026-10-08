@@ -5,6 +5,8 @@ import {
   useSidebarState,
 } from "@/components/shell/sidebar-state";
 import { RouteViewUrlStateProvider } from "@/components/shell/view-url-state";
+import { GlobalShortcuts } from "@/components/shortcuts/global-shortcuts";
+import { KeyboardShortcutsProvider } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
@@ -78,7 +80,10 @@ export function AppShell(props: {
   return (
     <SidebarStateProvider>
       <RouteViewUrlStateProvider>
-        <AppShellFrame {...props} />
+        <KeyboardShortcutsProvider>
+          <GlobalShortcuts />
+          <AppShellFrame {...props} />
+        </KeyboardShortcutsProvider>
       </RouteViewUrlStateProvider>
     </SidebarStateProvider>
   );

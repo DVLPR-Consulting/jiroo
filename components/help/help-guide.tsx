@@ -1,4 +1,5 @@
 import { GuideNote, GuideSection, GuideTopic, Key, Ui } from "@/components/help/guide-blocks";
+import { ShortcutList } from "@/components/shortcuts/shortcut-list";
 
 /**
  * Functional user guide content (French). Every label quoted with <Ui> is the
@@ -443,7 +444,7 @@ export function HelpGuide() {
           title="Rechercher"
           purpose="Retrouver un ticket dans tous vos backlogs."
           steps={[
-            <>Cliquez sur la loupe en haut à droite (ou <Key>⌘/Ctrl</Key> + <Key>K</Key>).</>,
+            <>Cliquez sur la loupe en haut à droite (ou <Key>⌘/Ctrl</Key> + <Key>K</Key>, ou <Key>/</Key>).</>,
             <>Tapez un mot du titre ou de la description, ou une clé (ex. CASS-39).</>,
             <>Naviguez avec <Key>↑</Key> <Key>↓</Key> et ouvrez avec <Key>Entrée</Key>.</>,
           ]}
@@ -462,18 +463,20 @@ export function HelpGuide() {
           <GuideNote>Seules les mentions (@) dans les commentaires génèrent une notification.</GuideNote>
         </GuideTopic>
 
-        <GuideTopic title="Raccourcis clavier" purpose="Aller plus vite sans la souris.">
-          <ul className="t-body list-disc space-y-1 pl-5">
-            <li><Key>⌘/Ctrl</Key> + <Key>K</Key> : ouvrir ou fermer la recherche (dans un éditeur de texte : ajouter un lien).</li>
-            <li><Key>C</Key> : nouvel item (dans une vue de backlog, hors saisie).</li>
-            <li><Key>Entrée</Key> ou <Key>Espace</Key> sur une ligne : ouvrir le ticket.</li>
-            <li><Key>⌘/Ctrl</Key> + <Key>A</Key> : tout sélectionner (Liste, Backlog) ; <Key>Échap</Key> : vider la sélection.</li>
-            <li><Key>Maj</Key> + clic sur une case : sélectionner une plage.</li>
-            <li><Key>⌘/Ctrl</Key> + <Key>Entrée</Key> : envoyer un commentaire.</li>
-            <li>Titre en édition : <Key>Entrée</Key> enregistre, <Key>Échap</Key> annule.</li>
-            <li>Description : <Key>/</Key> ouvre le menu des blocs ; <Key>Échap</Key> quitte la description, un second <Key>Échap</Key> ferme le panneau.</li>
-            <li>Glisser-déposer au clavier : <Key>Espace</Key> pour saisir, flèches pour déplacer, <Key>Espace</Key> pour déposer.</li>
-          </ul>
+        <GuideTopic
+          title="Raccourcis clavier"
+          purpose="Aller plus vite sans la souris, avec les touches de Jira."
+          steps={[
+            <>Appuyez sur <Key>?</Key> (hors saisie) pour afficher la fenêtre <Ui>Raccourcis clavier</Ui> ; <Key>Échap</Key> la ferme.</>,
+            <>Pour <Key>G</Key> puis une lettre, tapez les deux touches à moins d’une seconde d’intervalle. Hors d’un backlog, le dernier backlog consulté est utilisé.</>,
+            <>Dans une vue, <Key>J</Key> et <Key>K</Key> sélectionnent le ticket suivant ou précédent ; <Key>O</Key> ou <Key>Entrée</Key> l’ouvre.</>,
+            <>Pour désactiver les raccourcis à une touche, décochez <Ui>Raccourcis à une touche</Ui> dans la fenêtre <Ui>Raccourcis clavier</Ui> ou dans <Ui>Préférences</Ui> (menu de votre profil). Ce choix est conservé sur cet appareil.</>,
+          ]}
+        >
+          <GuideNote>
+            Les raccourcis à une touche sont sans effet pendant la saisie dans un champ, dans une autre fenêtre ou un menu ouvert, et quand une action ne vous est pas permise (par exemple <Key>I</Key> sans le droit d’assigner).
+          </GuideNote>
+          <ShortcutList headingLevel={4} idPrefix="guide-shortcuts" />
         </GuideTopic>
       </GuideSection>
 
