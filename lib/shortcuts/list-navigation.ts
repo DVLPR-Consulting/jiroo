@@ -50,3 +50,26 @@ export function openCurrentShortcutItem(): boolean {
   current.click();
   return true;
 }
+
+/** Keys of the view's items, in display order (`data-shortcut-item` values). */
+export function shortcutItemKeys(root: ParentNode): string[] {
+  return shortcutItems(root).flatMap((element) => {
+    const key = element.getAttribute("data-shortcut-item");
+    return key ? [key] : [];
+  });
+}
+
+/**
+ * The key before (-1) or after (+1) `current` in the view's order, for the
+ * item drawer's previous / next buttons (K / J). Null at either end, or when
+ * the open item is not part of the list.
+ */
+export function adjacentItemKey(
+  keys: readonly string[],
+  current: string,
+  step: 1 | -1,
+): string | null {
+  const index = keys.indexOf(current);
+  if (index === -1) return null;
+  return keys[index + step] ?? null;
+}
