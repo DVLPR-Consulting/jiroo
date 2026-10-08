@@ -198,13 +198,14 @@ export function HelpGuide() {
           title="Créer un ticket"
           purpose="Ajouter un Composant, une Epic, une Tâche ou une Sous-tâche."
           steps={[
-            <>Cliquez sur <Ui>Nouvel item</Ui> (ou touche <Key>C</Key>), ou sur <Ui>+ Tâche</Ui> dans une section du Backlog.</>,
-            <>Choisissez le <Ui>Type</Ui>, saisissez le <Ui>Titre</Ui> et, sauf pour un Composant, le <Ui>Parent</Ui>.</>,
-            <>Ajustez si besoin <Ui>Statut</Ui>, <Ui>Priorité</Ui>, <Ui>Nature</Ui>, <Ui>Fix versions</Ui>, puis <Ui>Créer</Ui>.</>,
+            <>Cliquez sur <Ui>Nouvel item</Ui> (ou touche <Key>C</Key>), ou sur <Ui>+ Tâche</Ui> dans une section du Backlog. Depuis le détail d’un ticket, <Ui>+ Créer une tâche</Ui> (ou une sous-tâche, un epic) préremplit le type et le parent.</>,
+            <>Choisissez le <Ui>Type</Ui> (et un <Ui>Modèle</Ui> si besoin), puis, sauf pour un Composant, le <Ui>Parent</Ui> obligatoire ; saisissez le <Ui>Titre</Ui> et la <Ui>Description</Ui> dans l’éditeur mis en forme.</>,
+            <>Dans <Ui>Détails</Ui>, ajustez <Ui>Statut</Ui>, <Ui>Assigné</Ui> (ou <Ui>M’assigner</Ui>), <Ui>Priorité</Ui>, <Ui>Points</Ui> et <Ui>Sprint</Ui> (tâches), <Ui>Nature</Ui>, <Ui>Labels</Ui>, <Ui>Fix versions</Ui>, <Ui>Échéance</Ui>, puis <Ui>Créer</Ui>.</>,
+            <>Cochez <Ui>Créer un autre</Ui> pour enchaîner : la fenêtre reste ouverte avec le même type, le même parent et le même sprint ; seuls le titre et la description sont vidés.</>,
           ]}
         >
           <GuideNote>
-            Description, assigné, labels, échéance et points se renseignent ensuite dans le détail du ticket.
+            Après la création, le message « CASS-7 créé » propose <Ui>Ouvrir</Ui> (affiche le ticket) et <Ui>Annuler</Ui>. Les champs absents de la fenêtre dépendent de vos droits (assignation, planification).
           </GuideNote>
         </GuideTopic>
 
@@ -212,10 +213,12 @@ export function HelpGuide() {
           title="Ouvrir et modifier un ticket"
           purpose="Voir et éditer toutes les informations d’un ticket sans quitter la vue."
           steps={[
-            <>Cliquez sur un ticket (ou <Key>Entrée</Key> sur une ligne sélectionnée) : le détail s’ouvre en panneau latéral.</>,
-            <>Cliquez sur le titre pour le renommer ; modifiez les propriétés (<Ui>Statut</Ui>, <Ui>Assigné</Ui>, <Ui>Labels</Ui>, <Ui>Échéance</Ui>…) directement.</>,
-            <>Description : cliquez dans la description (ou sur <Ui>Ajouter une description</Ui> / <Ui>Éditer</Ui>) pour l’ouvrir dans l’éditeur, rédigez, puis <Ui>Enregistrer</Ui> ou <Ui>Annuler</Ui>.</>,
-            <><Ui>Copier le lien</Ui> donne une adresse qui rouvre ce ticket.</>,
+            <>Cliquez sur un ticket (ou <Key>Entrée</Key> sur une ligne sélectionnée) : le détail s’ouvre en panneau latéral, avec le contenu à gauche et les propriétés à droite (en dessous sur un écran étroit, en plein écran sur mobile).</>,
+            <>En-tête : le fil d’Ariane mène au parent ; <Ui>Copier le lien</Ui> copie une adresse qui rouvre ce ticket ; <Ui>Plus d’actions</Ui> permet de supprimer ; <Ui>Item précédent (K)</Ui> et <Ui>Item suivant (J)</Ui> parcourent les tickets dans l’ordre de la vue affichée derrière ; <Ui>Fermer (Échap)</Ui>.</>,
+            <>Cliquez sur le titre pour le renommer. Description : cliquez dans la description (ou sur <Ui>Ajouter une description</Ui> / <Ui>Éditer</Ui>), rédigez, puis <Ui>Enregistrer</Ui> ou <Ui>Annuler</Ui>.</>,
+            <>Sous la description, la section des enfants (<Ui>Epics</Ui>, <Ui>Tâches</Ui> ou <Ui>Sous-tâches</Ui>) liste les tickets rattachés avec leur statut ; <Ui>+ Créer…</Ui> en ajoute un.</>,
+            <>À droite, le bouton de statut change le statut ; le bouton voisin (par exemple <Ui>En cours →</Ui>) passe directement au statut suivant du flux.</>,
+            <>Panneau <Ui>Détails</Ui> : cliquez sur une valeur (<Ui>Assigné</Ui>, <Ui>Priorité</Ui>, <Ui>Échéance</Ui>…) pour la modifier ; <Ui>M’assigner</Ui> vous attribue le ticket. Les panneaux <Ui>Détails</Ui> et <Ui>Développement</Ui> se replient ; ce choix est mémorisé sur l’appareil.</>,
           ]}
         />
 
@@ -237,9 +240,10 @@ export function HelpGuide() {
           title="Commentaires et activité"
           purpose="Échanger sur un ticket et retrouver qui a changé quoi."
           steps={[
-            <>Onglet <Ui>Commentaires</Ui> : écrivez avec la même barre de mise en forme, tapez <Key>@</Key> pour mentionner quelqu’un, puis <Ui>Commenter</Ui> (ou <Key>⌘/Ctrl</Key> + <Key>Entrée</Key>).</>,
+            <>Section <Ui>Activité</Ui> du détail : la zone de commentaire est en tête (touche <Key>M</Key> pour y aller) ; écrivez avec la barre de mise en forme, tapez <Key>@</Key> pour mentionner quelqu’un, puis <Ui>Commenter</Ui> (ou <Key>⌘/Ctrl</Key> + <Key>Entrée</Key>).</>,
+            <>Le fil mêle commentaires et historique ; filtrez avec <Ui>Tout</Ui>, <Ui>Commentaires</Ui> ou <Ui>Historique</Ui>, et inversez l’ordre avec <Ui>Plus récents</Ui> / <Ui>Plus anciens</Ui>.</>,
+            <>L’historique montre l’ancienne et la nouvelle valeur (statut, parent, nature, priorité, assignation…) et les labels ajoutés ou retirés.</>,
             <>Vous pouvez modifier ou supprimer vos propres commentaires.</>,
-            <>Onglet <Ui>Activité</Ui> : historique des modifications (statut, priorité, assignation…).</>,
           ]}
         >
           <GuideNote>Une mention envoie une notification à la personne mentionnée.</GuideNote>
@@ -249,8 +253,8 @@ export function HelpGuide() {
           title="Liens entre tickets"
           purpose="Signaler une dépendance ou un doublon."
           steps={[
-            <>Dans le détail, section <Ui>Liens</Ui>, choisissez le <Ui>Type de relation</Ui> : Bloque, Est bloqué par, Lié à, Duplique, Est dupliqué par.</>,
-            <>Cherchez le ticket dans <Ui>Rechercher un item…</Ui>, puis <Ui>Ajouter le lien</Ui>.</>,
+            <>Dans le détail, cliquez sur <Ui>Lier un item</Ui> (ou <Ui>+ Lier un item</Ui> dans la section <Ui>Items liés</Ui>), puis choisissez le <Ui>Type de relation</Ui> : Bloque, Est bloqué par, Lié à, Duplique, Est dupliqué par.</>,
+            <>Cherchez le ticket dans <Ui>Rechercher un item…</Ui>, puis <Ui>Ajouter le lien</Ui>. Les liens s’affichent groupés par type.</>,
           ]}
         />
 
@@ -258,7 +262,8 @@ export function HelpGuide() {
           title="Liens GitHub"
           purpose="Rattacher une pull request, un commit ou une branche au ticket."
           steps={[
-            <>Section <Ui>Développement</Ui> : collez l’URL GitHub, puis <Ui>Ajouter</Ui>.</>,
+            <>Panneau <Ui>Développement</Ui> : <Ui>Lier une PR ou un commit</Ui>, collez l’URL GitHub, puis <Ui>Ajouter</Ui>.</>,
+            <><Ui>Copier le nom de branche</Ui> copie un nom prêt à l’emploi, par exemple <code className="font-mono text-[0.9em]">cass-3-ecran-de-verification-du-code</code>, pour créer la branche vous-même.</>,
           ]}
         >
           <GuideNote>Saisie manuelle uniquement (adresses https://github.com) : aucune synchronisation automatique avec GitHub.</GuideNote>
