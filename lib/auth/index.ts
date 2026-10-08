@@ -1,6 +1,15 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { twoFactor } from "better-auth/plugins";
+import {
+  AUTH_VERSION_FIELD,
+  applyOwnPasswordChange,
+  captureConsumedChallenge,
+  rejectStaleSession,
+  stampSessionAuthVersion,
+  stampVerificationAuthVersion,
+  verifyPasswordCapturingAuthVersion,
+} from "@/lib/auth/auth-version";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 
@@ -15,10 +24,29 @@ export const auth = betterAuth({
   // rows (lib/services/account-recovery.ts). Enabling either cache would let
   // revoked sessions survive until the cache expires.
   database: drizzleAdapter(db, { provider: "pg", schema }),
-  emailAndPassword: { enabled: true, autoSignIn: false },
+  emailAndPassword: {
+    enabled: true,
+    autoSignIn: false,
+    // Captures the auth version proven fresh with the password (JIR-62).
+    password: { verify: verifyPasswordCapturingAuthVersion },
+  },
   user: {
     additionalFields: {
       role: { type: "string", required: false, defaultValue: "contributor", input: false },
+    },
+  },
+  // A session only stays valid while its auth version is the user's
+  // (lib/auth/auth-version.ts): checked before every Better Auth endpoint.
+  session: { additionalFields: { authVersion: AUTH_VERSION_FIELD } },
+  // Carries the version of pending 2FA challenges and trusted devices.
+  verification: { additionalFields: { authVersion: AUTH_VERSION_FIELD } },
+  hooks: { before: rejectStaleSession },
+  databaseHooks: {
+    session: { create: { before: stampSessionAuthVersion } },
+    account: { update: { before: applyOwnPasswordChange } },
+    verification: {
+      create: { before: stampVerificationAuthVersion },
+      delete: { after: captureConsumedChallenge },
     },
   },
   plugins: [twoFactor()],

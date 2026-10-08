@@ -19,6 +19,17 @@ const BETTER_AUTH_ERRORS: Record<string, string> = {
   PASSWORD_TOO_LONG: "Mot de passe : 128 caractères maximum.",
 };
 
+// Better Auth rejections raised before anything is written (lengths, missing
+// credential). Any other APIError, including internal ones raised after the
+// password may have changed (e.g. the rotated session could not be created)
+// or CREDENTIALS_CHANGED (lib/auth/auth-version.ts), propagates so the
+// budget keeps the attempt counted.
+const NON_MUTATING_REJECTIONS = new Set([
+  "PASSWORD_TOO_SHORT",
+  "PASSWORD_TOO_LONG",
+  "CREDENTIAL_ACCOUNT_NOT_FOUND",
+]);
+
 function betterAuthErrorCode(error: unknown): string | null {
   if (!(error instanceof APIError)) return null;
   const code = (error.body as { code?: unknown } | undefined)?.code;
@@ -64,9 +75,16 @@ export async function changeOwnPasswordAction(input: {
         return "changed";
       } catch (error) {
         // Unknown errors propagate so the budget keeps the attempt counted.
-        if (!(error instanceof APIError)) throw error;
-        failureCode = betterAuthErrorCode(error);
-        return failureCode === "INVALID_PASSWORD" ? "wrong_password" : "failed";
+        const code = betterAuthErrorCode(error);
+        if (code === "INVALID_PASSWORD") {
+          failureCode = code;
+          return "wrong_password";
+        }
+        if (code !== null && NON_MUTATING_REJECTIONS.has(code)) {
+          failureCode = code;
+          return "failed";
+        }
+        throw error;
       }
     });
   } catch {

@@ -113,6 +113,13 @@
       "when": 1790968051071,
       "tag": "0015_jira_releases_depth",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791381421115,
+      "tag": "0016_auth_version",
+      "breakpoints": true
     }
   ]
 }
