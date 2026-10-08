@@ -1078,3 +1078,161 @@ describeDb("item fix version integration", () => {
     }
   });
 });
+
+describeDb("updateItem description activity coalescing", () => {
+  async function descriptionAudit(itemId: string) {
+    return db
+      .select({
+        id: activities.id,
+        actorId: activities.actorId,
+        field: activities.field,
+        oldValue: activities.oldValue,
+        newValue: activities.newValue,
+        at: activities.at,
+      })
+      .from(activities)
+      .where(eq(activities.itemId, itemId))
+      .orderBy(asc(activities.at), asc(activities.id));
+  }
+
+  async function withOtherUser<T>(run: (otherId: string) => Promise<T>) {
+    const otherId = `editor-${randomUUID()}`;
+    await db.insert(user).values({
+      id: otherId,
+      name: "Autre rédacteur",
+      email: `${otherId}@example.test`,
+    });
+    try {
+      return await run(otherId);
+    } finally {
+      await db.delete(activities).where(eq(activities.actorId, otherId));
+      await db.delete(user).where(eq(user.id, otherId));
+    }
+  }
+
+  it("keeps a single entry for successive autosaves of the same actor", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await updateItem({ id: fixture.item.id, description: "Premier jet" }, fixture.actorId);
+      await updateItem({ id: fixture.item.id, description: "Premier jet complété" }, fixture.actorId);
+      const updated = await updateItem(
+        { id: fixture.item.id, description: "Version finale" },
+        fixture.actorId,
+      );
+
+      expect(updated?.description).toBe("Version finale");
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit).toHaveLength(1);
+      expect(audit[0]).toMatchObject({
+        actorId: fixture.actorId,
+        field: "description",
+        oldValue: null,
+        newValue: "Version finale",
+      });
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("bumps the coalesced entry to the time of the latest save", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await updateItem({ id: fixture.item.id, description: "Avant" }, fixture.actorId);
+      const [first] = await descriptionAudit(fixture.item.id);
+      const earlier = new Date(Date.now() - 5 * 60 * 1000);
+      await db.update(activities).set({ at: earlier }).where(eq(activities.id, first!.id));
+
+      await updateItem({ id: fixture.item.id, description: "Après" }, fixture.actorId);
+
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit).toHaveLength(1);
+      expect(audit[0]!.id).toBe(first!.id);
+      expect(audit[0]!.at.getTime()).toBeGreaterThan(earlier.getTime());
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("starts a new entry after ten minutes", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await updateItem({ id: fixture.item.id, description: "Hier" }, fixture.actorId);
+      await db
+        .update(activities)
+        .set({ at: new Date(Date.now() - 11 * 60 * 1000) })
+        .where(eq(activities.itemId, fixture.item.id));
+
+      await updateItem({ id: fixture.item.id, description: "Aujourd'hui" }, fixture.actorId);
+
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit.map(({ oldValue, newValue }) => [oldValue, newValue])).toEqual([
+        [null, "Hier"],
+        ["Hier", "Aujourd'hui"],
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("starts a new entry when another actor edited the description last", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await withOtherUser(async (otherId) => {
+        await updateItem({ id: fixture.item.id, description: "De moi" }, fixture.actorId);
+        await updateItem({ id: fixture.item.id, description: "De l'autre" }, otherId);
+        await updateItem({ id: fixture.item.id, description: "De moi encore" }, fixture.actorId);
+
+        const audit = await descriptionAudit(fixture.item.id);
+        expect(audit.map(({ actorId, oldValue, newValue }) => [actorId, oldValue, newValue])).toEqual([
+          [fixture.actorId, null, "De moi"],
+          [otherId, "De moi", "De l'autre"],
+          [fixture.actorId, "De l'autre", "De moi encore"],
+        ]);
+      });
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("starts a new entry when another change was logged in between", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await updateItem({ id: fixture.item.id, description: "Texte" }, fixture.actorId);
+      await updateItem({ id: fixture.item.id, title: "Nouveau titre" }, fixture.actorId);
+      await updateItem({ id: fixture.item.id, description: "Texte revu" }, fixture.actorId);
+
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit.map(({ field, newValue }) => [field, newValue])).toEqual([
+        ["description", "Texte"],
+        ["title", "Nouveau titre"],
+        ["description", "Texte revu"],
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("drops the entry when the session ends on the original description", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await updateItem({ id: fixture.item.id, description: "Original" }, fixture.actorId);
+      await db
+        .update(activities)
+        .set({ at: new Date(Date.now() - 11 * 60 * 1000) })
+        .where(eq(activities.itemId, fixture.item.id));
+      await updateItem({ id: fixture.item.id, description: "Brouillon" }, fixture.actorId);
+      const updated = await updateItem(
+        { id: fixture.item.id, description: "Original" },
+        fixture.actorId,
+      );
+
+      expect(updated?.description).toBe("Original");
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit.map(({ oldValue, newValue }) => [oldValue, newValue])).toEqual([
+        [null, "Original"],
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});

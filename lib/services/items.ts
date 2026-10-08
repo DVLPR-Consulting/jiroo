@@ -754,11 +754,67 @@ export async function updateItem(
       occurredAt: now,
       mutations: [reportingMutation],
     });
-    await tx
-      .insert(activities)
-      .values(acts.map((act) => ({ ...act, requestCorrelationId: correlationId })));
+    const inserted = await coalesceDescriptionActivity(tx, cur.id, actorId, acts);
+    if (inserted.length > 0) {
+      await tx
+        .insert(activities)
+        .values(inserted.map((act) => ({ ...act, requestCorrelationId: correlationId })));
+    }
     return updated!;
   });
+}
+
+/** Window during which successive description saves share one activity entry. */
+const DESCRIPTION_SESSION_MINUTES = 10;
+
+/**
+ * The description autosaves while the user types: successive saves by the
+ * same actor form one editing session and must not flood the activity log.
+ * When the item's latest activity is a description change by this actor
+ * less than ten minutes old, it absorbs the new change (original « from »,
+ * new « to », time of the latest save) and is dropped when the session ends
+ * on the original text. Returns the activities still to insert. The item row
+ * is locked by the caller, so concurrent saves of the item are serialized.
+ */
+async function coalesceDescriptionActivity(
+  tx: Tx,
+  itemId: string,
+  actorId: string,
+  acts: (typeof activities.$inferInsert)[],
+): Promise<(typeof activities.$inferInsert)[]> {
+  const change = acts.find((act) => act.field === "description");
+  if (!change) return acts;
+  const [latest] = await tx
+    .select({
+      id: activities.id,
+      actorId: activities.actorId,
+      action: activities.action,
+      field: activities.field,
+      oldValue: activities.oldValue,
+      recent: sql<boolean>`${activities.at} > now() - make_interval(mins => ${DESCRIPTION_SESSION_MINUTES})`,
+    })
+    .from(activities)
+    .where(eq(activities.itemId, itemId))
+    .orderBy(desc(activities.at), desc(activities.id))
+    .limit(1);
+  if (
+    !latest ||
+    !latest.recent ||
+    latest.action !== "update" ||
+    latest.field !== "description" ||
+    latest.actorId !== actorId
+  ) {
+    return acts;
+  }
+  if ((latest.oldValue ?? null) === (change.newValue ?? null)) {
+    await tx.delete(activities).where(eq(activities.id, latest.id));
+  } else {
+    await tx
+      .update(activities)
+      .set({ newValue: change.newValue ?? null, at: sql`now()` })
+      .where(eq(activities.id, latest.id));
+  }
+  return acts.filter((act) => act !== change);
 }
 
 // Board drag: status change and/or reorder within the backlog's single global rank order.
