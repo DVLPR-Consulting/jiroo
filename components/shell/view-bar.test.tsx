@@ -55,20 +55,20 @@ describe("ViewBar", () => {
     mocks.push.mockReset();
   });
 
-  it("wraps secondary controls while keeping creation in the primary cluster", () => {
+  it("wraps secondary controls before the primary cluster", () => {
     const { container } = render(
       <ViewBar
         view="board"
         groupControlSlot={<button type="button">Grouper</button>}
         viewActionsSlot={<button type="button">Vues</button>}
-        newItemSlot={<button type="button">Nouvel item</button>}
+        workflowSlot={<button type="button">Statuts</button>}
       />,
     );
 
     expect(container.firstElementChild).toHaveClass("flex-wrap", "min-h-[46px]");
     expect(screen.getByRole("button", { name: "Grouper" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Vues" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Nouvel item" }).closest(
+    expect(screen.getByRole("button", { name: "Statuts" }).closest(
       '[data-slot="primary-actions"]',
     )).not.toBeNull();
   });

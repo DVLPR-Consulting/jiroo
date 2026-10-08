@@ -49,6 +49,8 @@ import { ItemDetailContent } from "@/components/items/item-detail-content";
 import { ItemDetailSheet } from "@/components/items/item-detail-sheet";
 import { DetailPanelSkeleton } from "@/components/items/view-skeletons";
 import { NewItemButton } from "@/components/items/new-item-dialog";
+import { CreateItemTrigger } from "@/components/shell/create-item-trigger";
+import { TopbarCreate } from "@/components/shell/topbar-create";
 import { StatusManagerDialog } from "@/components/statuses/status-manager-dialog";
 import {
   firstSearchParam,
@@ -585,19 +587,22 @@ export async function BacklogViewContent({
             capabilities={productCapabilities.workflow}
           />
         ) : null}
-        newItemSlot={capabilities.createItems && (
-          view !== "board" || (activeSprint !== null && capabilities.scheduleItems)
-        ) ? (
+      />
+      {capabilities.createItems && (
+        view !== "board" || (activeSprint !== null && capabilities.scheduleItems)
+      ) ? (
+        <TopbarCreate>
           <NewItemButton
             backlogKey={backlog.key}
             {...createDialogProps}
             {...(view === "board" && activeSprint
               ? { sprintId: activeSprint.id, contextLabel: activeSprint.name }
               : {})}
+            trigger={<CreateItemTrigger />}
             enableShortcut
           />
-        ) : null}
-      />
+        </TopbarCreate>
+      ) : null}
       <FilterBar
         state={viewState}
         statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}

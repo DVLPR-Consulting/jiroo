@@ -10,7 +10,6 @@ export function ViewBar({
   groupControlSlot,
   viewActionsSlot,
   workflowSlot,
-  newItemSlot,
 }: {
   view: string;
   backlogKey?: string;
@@ -20,7 +19,6 @@ export function ViewBar({
   viewActionsSlot?: React.ReactNode;
   /** Backlog workflow management, shown only when the caller authorizes it. */
   workflowSlot?: React.ReactNode;
-  newItemSlot?: React.ReactNode;
 }) {
   const viewUrl = useViewUrlState();
 
@@ -47,7 +45,6 @@ export function ViewBar({
       >
         {workflowSlot}
         <DensityToggle />
-        {newItemSlot}
       </div>
     </ViewBarFrame>
   );

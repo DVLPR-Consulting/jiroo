@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/shell/app-shell";
 import { Topbar } from "@/components/shell/topbar";
+import { TopbarCreate } from "@/components/shell/topbar-create";
+import { CreateItemTrigger } from "@/components/shell/create-item-trigger";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 
 vi.mock("server-only", () => ({}));
@@ -90,5 +92,46 @@ describe("Topbar", () => {
     expect(actions).toContainElement(
       screen.getByRole("button", { name: /Activer le thème/ }),
     );
+  });
+
+  it("centres the search field and lands the page's create action beside it", async () => {
+    const user = userEvent.setup();
+    const onCreate = vi.fn();
+    render(
+      <ThemeProvider>
+        <AppShell
+          sidebar={<aside>Navigation</aside>}
+          topbar={<Topbar notifications={[]} unreadCount={0} backlogs={[]} views={[]} />}
+        >
+          <TopbarCreate>
+            <CreateItemTrigger onClick={onCreate} />
+          </TopbarCreate>
+        </AppShell>
+      </ThemeProvider>,
+    );
+
+    const search = screen.getByRole("button", { name: "Rechercher un item" });
+    const create = await screen.findByRole("button", { name: "Créer" });
+    const centre = search.closest('[data-slot="topbar-center"]');
+    expect(centre).toContainElement(create);
+    expect(search.compareDocumentPosition(create)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(create).toHaveAttribute("title", "Créer un item (C)");
+    await user.click(create);
+    expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows no create action on pages that do not provide one", () => {
+    render(
+      <ThemeProvider>
+        <AppShell
+          sidebar={<aside>Navigation</aside>}
+          topbar={<Topbar notifications={[]} unreadCount={0} backlogs={[]} views={[]} />}
+        >
+          Contenu
+        </AppShell>
+      </ThemeProvider>,
+    );
+
+    expect(screen.queryByRole("button", { name: "Créer" })).not.toBeInTheDocument();
   });
 });
