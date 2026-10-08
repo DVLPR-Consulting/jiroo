@@ -1,0 +1,60 @@
+import { describe, expect, it } from "vitest";
+import { pointsByStatusCategory } from "@/lib/items/status-points";
+
+const statuses = [
+  { id: "todo", category: "todo" as const },
+  { id: "doing", category: "in_progress" as const },
+  { id: "review", category: "in_progress" as const },
+  { id: "done", category: "done" as const },
+];
+
+describe("pointsByStatusCategory", () => {
+  it("returns zero for every category without items", () => {
+    expect(pointsByStatusCategory([], statuses)).toEqual({ todo: 0, inProgress: 0, done: 0 });
+  });
+
+  it("sums estimates by Jira status category, merging the in-progress statuses", () => {
+    expect(
+      pointsByStatusCategory(
+        [
+          { statusId: "todo", estimatePoints: 3 },
+          { statusId: "doing", estimatePoints: 2 },
+          { statusId: "review", estimatePoints: 5 },
+          { statusId: "done", estimatePoints: 8 },
+          { statusId: "todo", estimatePoints: 1 },
+        ],
+        statuses,
+      ),
+    ).toEqual({ todo: 4, inProgress: 7, done: 8 });
+  });
+
+  it("ignores unestimated items", () => {
+    expect(
+      pointsByStatusCategory(
+        [
+          { statusId: "todo", estimatePoints: null },
+          { statusId: "done", estimatePoints: 2 },
+        ],
+        statuses,
+      ),
+    ).toEqual({ todo: 0, inProgress: 0, done: 2 });
+  });
+
+  it("rounds decimal estimates to two decimals", () => {
+    expect(
+      pointsByStatusCategory(
+        [
+          { statusId: "doing", estimatePoints: 0.1 },
+          { statusId: "doing", estimatePoints: 0.2 },
+        ],
+        statuses,
+      ),
+    ).toEqual({ todo: 0, inProgress: 0.3, done: 0 });
+  });
+
+  it("counts an unknown status as to do so the categories add up to the total", () => {
+    expect(
+      pointsByStatusCategory([{ statusId: "missing", estimatePoints: 3 }], statuses),
+    ).toEqual({ todo: 3, inProgress: 0, done: 0 });
+  });
+});
