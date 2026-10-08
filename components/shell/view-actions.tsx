@@ -27,7 +27,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { OPEN_SAVE_VIEW_EVENT } from "@/components/shell/save-view-event";
+import {
+  acknowledgeSaveView,
+  OPEN_SAVE_VIEW_EVENT,
+  takePendingSaveView,
+} from "@/components/shell/save-view-event";
 import { ViewSaveDialog } from "@/components/shell/view-save-dialog";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import type { DisplayMode } from "@/lib/items/views";
@@ -146,9 +150,12 @@ export function ViewActions({
   // The sidebar's « + Enregistrer une vue » line opens the save-as dialog.
   useEffect(() => {
     function handleOpenSaveView() {
+      acknowledgeSaveView();
       setSaveAsError(null);
       setSaveAsOpen(true);
     }
+    // A click made while this page was still loading.
+    if (takePendingSaveView()) handleOpenSaveView();
     window.addEventListener(OPEN_SAVE_VIEW_EVENT, handleOpenSaveView);
     return () => window.removeEventListener(OPEN_SAVE_VIEW_EVENT, handleOpenSaveView);
   }, []);

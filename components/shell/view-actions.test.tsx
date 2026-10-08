@@ -290,4 +290,11 @@ describe("ViewActions URL navigation", () => {
     act(() => requestSaveView());
     expect(screen.getByRole("button", { name: "Confirmer create" })).toBeInTheDocument();
   });
+
+  it("opens the save-as dialog for a sidebar request made before it mounted", () => {
+    requestSaveView();
+    renderActions({ activeView: null, dirty: false });
+
+    expect(screen.getByRole("button", { name: "Confirmer create" })).toBeInTheDocument();
+  });
 });
