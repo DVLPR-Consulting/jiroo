@@ -235,6 +235,17 @@ describe("SearchModal item navigation", () => {
     expect(screen.getByRole("textbox", { name: "Rechercher" })).toHaveFocus();
   });
 
+  it("leaves Command/Ctrl+K to a focused widget that already handled it", () => {
+    renderSubject();
+    const field = document.createElement("div");
+    document.body.append(field);
+    field.addEventListener("keydown", (event) => event.preventDefault());
+
+    fireEvent.keyDown(field, { key: "k", ctrlKey: true });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    field.remove();
+  });
+
   it("restores recent rows after the query is cleared", async () => {
     localStorage.setItem("jiroo-recent-items", JSON.stringify(["DEMO-2"]));
     mocks.recentItemsAction.mockResolvedValue({

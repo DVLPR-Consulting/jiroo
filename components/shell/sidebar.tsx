@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Layers, Settings, Trash2, User } from "lucide-react";
 import { BacklogSelector } from "@/components/shell/backlog-selector";
@@ -56,6 +57,8 @@ export function Sidebar({
     ? viewUrl.href(clearActiveBacklogViewParams)
     : context.allItemsHref;
 
+  const homeHref = context.activeBacklogKey ? `/b/${context.activeBacklogKey}` : "/";
+
   return (
     <div
       className={cn(
@@ -69,20 +72,27 @@ export function Sidebar({
           collapsed ? "h-12 justify-center" : "h-10 px-2",
         )}
       >
-        <div
-          role="img"
-          aria-label="Jiroo"
-          title={collapsed ? "Jiroo" : undefined}
-          className="t-h2 overflow-hidden font-semibold"
+        {/* The wordmark leads back to the active backlog home (JIR-72). */}
+        <Link
+          href={homeHref}
+          aria-label="Jiroo — accueil"
+          className="rounded-md focus-visible:outline-2 focus-visible:outline-ring"
         >
-          {collapsed ? (
-            <span aria-hidden="true">J</span>
-          ) : (
-            <span aria-hidden="true">
-              Jir<span className="text-[var(--primary)]">oo</span>
-            </span>
-          )}
-        </div>
+          <div
+            role="img"
+            aria-label="Jiroo"
+            title={collapsed ? "Jiroo" : undefined}
+            className="t-h2 overflow-hidden font-semibold"
+          >
+            {collapsed ? (
+              <span aria-hidden="true">J</span>
+            ) : (
+              <span aria-hidden="true">
+                Jir<span className="text-[var(--primary)]">oo</span>
+              </span>
+            )}
+          </div>
+        </Link>
       </div>
 
       <BacklogSelector

@@ -75,10 +75,11 @@ export const SHORTCUTS = [
   { id: "item.close", kind: "combo", group: "item", combo: ["Échap"], label: "Fermer le ticket", jira: "Échap" },
 
   // Autres
-  { id: "searchCombo", kind: "combo", group: "other", combo: ["⌘/Ctrl", "K"], label: "Ouvrir ou fermer la recherche" },
+  { id: "searchCombo", kind: "combo", group: "other", combo: ["⌘/Ctrl", "K"], label: "Ouvrir ou fermer la recherche (dans un éditeur de texte : ajouter un lien)" },
   { id: "selectAll", kind: "combo", group: "other", combo: ["⌘/Ctrl", "A"], label: "Tout sélectionner (Liste, Backlog) ; Échap vide la sélection" },
   { id: "rangeSelect", kind: "combo", group: "other", combo: ["Maj", "clic"], label: "Sélectionner une plage de cases" },
   { id: "sendComment", kind: "combo", group: "other", combo: ["⌘/Ctrl", "Entrée"], label: "Envoyer un commentaire" },
+  { id: "descriptionEdit", kind: "combo", group: "other", combo: ["Entrée"], label: "Description : ouvrir l’éditeur depuis le texte affiché (ou Espace)" },
   { id: "titleEdit", kind: "combo", group: "other", combo: ["Entrée"], label: "Titre en édition : enregistrer (Échap annule)" },
   { id: "keyboardDrag", kind: "combo", group: "other", combo: ["Espace"], label: "Glisser-déposer au clavier : Espace pour saisir, flèches pour déplacer, Espace pour déposer" },
 ] as const satisfies readonly ShortcutDefinition[];

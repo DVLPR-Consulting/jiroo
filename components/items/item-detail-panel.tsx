@@ -163,11 +163,19 @@ export function ItemDetailPanel({
   );
   useEffect(() => {
     if (composerFocusRequest === 0) return;
-    const main = mainRef.current;
-    const composer =
-      main?.querySelector<HTMLElement>('[aria-label="Nouveau commentaire"]') ??
-      main?.querySelector<HTMLElement>('textarea, [contenteditable="true"]');
-    composer?.focus();
+    // The rich-text composer is lazy-loaded: retry for a short while until
+    // its editable surface (or the raw Markdown textarea) is mounted.
+    const selector =
+      '[contenteditable="true"][aria-label="Nouveau commentaire"], textarea[aria-label="Nouveau commentaire"]';
+    let frame = 0;
+    const startedAt = Date.now();
+    const tryFocus = () => {
+      const composer = mainRef.current?.querySelector<HTMLElement>(selector);
+      if (composer) composer.focus();
+      else if (Date.now() - startedAt < 3000) frame = requestAnimationFrame(tryFocus);
+    };
+    tryFocus();
+    return () => cancelAnimationFrame(frame);
   }, [composerFocusRequest]);
   const [deleting, startDelete] = useTransition();
   const [planningPending, startPlanning] = useTransition();

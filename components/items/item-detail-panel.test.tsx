@@ -719,7 +719,7 @@ describe("ItemDetailPanel header", () => {
       .not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Commentaires" }));
-    expect(screen.getByRole("textbox", { name: "Nouveau commentaire" })).toBeVisible();
+    expect(await screen.findByRole("textbox", { name: "Nouveau commentaire" })).toBeVisible();
   });
 
   it("lets a scheduler change parent and sprint without editing ordinary fields", async () => {

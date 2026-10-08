@@ -81,6 +81,7 @@ export function HelpGuide() {
           steps={[
             <>Changez de backlog avec le sélecteur en haut de la barre latérale.</>,
             <><Ui>Tous les items</Ui> affiche le backlog courant ; <Ui>Mes items</Ui> liste les tickets qui vous sont assignés, tous backlogs confondus.</>,
+            <>Depuis n’importe quelle page (Aide, Administration, Releases…), cliquez sur le logo <Ui>Jiroo</Ui> ou sur le nom du backlog dans le fil d’Ariane pour revenir à l’accueil du backlog.</>,
           ]}
         >
           <GuideNote>
@@ -213,16 +214,30 @@ export function HelpGuide() {
           steps={[
             <>Cliquez sur un ticket (ou <Key>Entrée</Key> sur une ligne sélectionnée) : le détail s’ouvre en panneau latéral.</>,
             <>Cliquez sur le titre pour le renommer ; modifiez les propriétés (<Ui>Statut</Ui>, <Ui>Assigné</Ui>, <Ui>Labels</Ui>, <Ui>Échéance</Ui>…) directement.</>,
-            <>Description : <Ui>Ajouter une description</Ui> ou <Ui>Éditer</Ui>, rédigez avec mise en forme, puis <Ui>Enregistrer</Ui>.</>,
+            <>Description : cliquez dans la description (ou sur <Ui>Ajouter une description</Ui> / <Ui>Éditer</Ui>) pour l’ouvrir dans l’éditeur, rédigez, puis <Ui>Enregistrer</Ui> ou <Ui>Annuler</Ui>.</>,
             <><Ui>Copier le lien</Ui> donne une adresse qui rouvre ce ticket.</>,
           ]}
         />
 
         <GuideTopic
+          title="Mise en forme du texte"
+          purpose="Rédiger descriptions, commentaires et notes de release avec une mise en forme visible, sans écrire de Markdown."
+          steps={[
+            <>Barre <Ui>Mise en forme</Ui> : <Ui>Titre 2</Ui>, <Ui>Titre 3</Ui>, <Ui>Gras</Ui>, <Ui>Italique</Ui>, <Ui>Barré</Ui>, <Ui>Code en ligne</Ui>, <Ui>Liste à puces</Ui>, <Ui>Liste numérotée</Ui>, <Ui>Liste de tâches</Ui>, <Ui>Citation</Ui>, <Ui>Bloc de code</Ui>, <Ui>Lien</Ui>, <Ui>Annuler la modification</Ui>, <Ui>Rétablir la modification</Ui>.</>,
+            <>En tapant : <Key>##</Key> + espace (titre), <Key>-</Key> + espace (puce), <Key>1.</Key> + espace (liste numérotée), <Key>[ ]</Key> + espace (tâche), <Key>&gt;</Key> + espace (citation), <Key>**texte**</Key> (gras), <Key>`code`</Key>.</>,
+            <><Ui>Lien</Ui> (ou <Key>⌘/Ctrl</Key> + <Key>K</Key> dans l’éditeur) : saisissez une <Ui>Adresse du lien</Ui> en http(s)://, mailto: ou relative, puis <Ui>Appliquer</Ui>.</>,
+          ]}
+        >
+          <GuideNote>
+            Un contenu que l’éditeur ne sait pas afficher (tableau, HTML, image, lien d’un autre type…) s’ouvre en Markdown brut, avec un avertissement, pour ne rien perdre.
+          </GuideNote>
+        </GuideTopic>
+
+        <GuideTopic
           title="Commentaires et activité"
           purpose="Échanger sur un ticket et retrouver qui a changé quoi."
           steps={[
-            <>Onglet <Ui>Commentaires</Ui> : écrivez, tapez <Key>@</Key> pour mentionner quelqu’un, puis <Ui>Commenter</Ui>.</>,
+            <>Onglet <Ui>Commentaires</Ui> : écrivez avec la même barre de mise en forme, tapez <Key>@</Key> pour mentionner quelqu’un, puis <Ui>Commenter</Ui> (ou <Key>⌘/Ctrl</Key> + <Key>Entrée</Key>).</>,
             <>Vous pouvez modifier ou supprimer vos propres commentaires.</>,
             <>Onglet <Ui>Activité</Ui> : historique des modifications (statut, priorité, assignation…).</>,
           ]}
@@ -377,7 +392,7 @@ export function HelpGuide() {
           purpose="Produire le texte de livraison à partir des tickets de la version."
           steps={[
             <>Dans le détail de la version, ouvrez <Ui>Notes de release</Ui>.</>,
-            <>Ajustez le texte, puis <Ui>Copier le Markdown</Ui>, <Ui>Copier le HTML</Ui>, <Ui>Télécharger .md</Ui> ou <Ui>Télécharger .html</Ui>.</>,
+            <>Ajustez le texte dans l’éditeur mis en forme (aperçu à côté), puis <Ui>Copier le Markdown</Ui>, <Ui>Copier le HTML</Ui>, <Ui>Télécharger .md</Ui> ou <Ui>Télécharger .html</Ui>.</>,
           ]}
         >
           <GuideNote>Les modifications des notes ne sont pas enregistrées dans Jiroo : copiez ou téléchargez le résultat.</GuideNote>
