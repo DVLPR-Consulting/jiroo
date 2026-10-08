@@ -281,7 +281,9 @@ export function FilterBar({
         </button>
       )}
       <div className="ml-auto flex items-center gap-3">
-        {actions}
+        {/* A lone child: an element passed from a server component must not
+            sit in a keyed list next to the count. */}
+        {actions ? <div className="flex items-center">{actions}</div> : null}
         <span className="text-[13px] text-muted-foreground" role="status">
           {resultCount} résultat{resultCount > 1 ? "s" : ""}
         </span>
