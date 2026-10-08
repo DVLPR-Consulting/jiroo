@@ -14,6 +14,9 @@ const mocks = vi.hoisted(() => ({
   requireAppPageSession: vi.fn(),
 }));
 
+vi.mock("@/components/shell/shell-breadcrumb", () => ({
+  ShellBreadcrumb: () => <nav aria-label="Fil d’Ariane" />,
+}));
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("@/lib/auth/session", () => ({

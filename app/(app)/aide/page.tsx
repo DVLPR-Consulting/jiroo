@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { HelpGuide } from "@/components/help/help-guide";
 import { GuideToc } from "@/components/help/guide-toc";
+import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
 
 export const metadata: Metadata = { title: "Aide — Jiroo" };
 
@@ -9,6 +10,7 @@ export default function HelpPage() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:py-8 print:max-w-none print:p-0">
       <header className="mb-6 space-y-1">
+        <ShellBreadcrumb />
         <h1 className="t-h1">Guide d’utilisation</h1>
         <p className="t-body text-muted-foreground">
           Les fonctions de Jiroo, section par section : à quoi elles servent et comment s’en servir.

@@ -116,7 +116,15 @@ vi.mock("@/components/items/item-tree", () => ({
     return null;
   },
 }));
-vi.mock("@/components/shell/view-bar", () => ({ ViewBar: () => null }));
+vi.mock("@/components/shell/page-header", () => ({
+  PageHeader: ({ title, actions }: { title?: React.ReactNode; actions?: React.ReactNode }) => (
+    <header>
+      <h1>{title}</h1>
+      {actions}
+    </header>
+  ),
+}));
+vi.mock("@/components/theme/density-toggle", () => ({ DensityToggle: () => null }));
 vi.mock("@/components/shell/group-control", () => ({ GroupControl: () => null }));
 vi.mock("@/components/shell/filter-bar", () => ({
   FilterBar: (props: unknown) => {

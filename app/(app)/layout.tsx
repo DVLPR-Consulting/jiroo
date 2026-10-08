@@ -7,6 +7,7 @@ import { getShellCounts } from "@/lib/services/shell";
 import { AppShell } from "@/components/shell/app-shell";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
+import { ShellDataProvider } from "@/components/shell/shell-data";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAppPageSession();
@@ -35,15 +36,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         />
       }
       topbar={
-        <Topbar
-          notifications={notifications}
-          unreadCount={notifCount}
-          backlogs={backlogs}
-          views={views}
-        />
+        <Topbar notifications={notifications} unreadCount={notifCount} />
       }
     >
-      {children}
+      <ShellDataProvider
+        backlogs={backlogs.map(({ id, key, name }) => ({ id, key, name }))}
+        views={views.map(({ id, name, backlogId }) => ({ id, name, backlogId }))}
+      >
+        {children}
+      </ShellDataProvider>
     </AppShell>
   );
 }

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({
   checkPermission: vi.fn(),
@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
 }));
 
+vi.mock("@/components/shell/shell-breadcrumb", () => ({
+  ShellBreadcrumb: () => <nav aria-label="Fil d’Ariane" />,
+}));
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 vi.mock("@/lib/auth/session", () => ({
@@ -119,17 +122,12 @@ describe("releases list route", () => {
     expect(mocks.listReleaseSummaries).not.toHaveBeenCalled();
   });
 
-  it("keeps the backlog view tabs with Releases as the current page", async () => {
+  it("titles the page Releases under the breadcrumb, without view controls", async () => {
     render(await ReleasesPage({ params: Promise.resolve({ key: "cass" }) }));
 
-    const nav = screen.getByRole("navigation", { name: "Vues du backlog" });
-    expect(within(nav).getByRole("link", { name: "Backlog" }))
-      .toHaveAttribute("href", "/b/CASS?view=backlog");
-    expect(within(nav).getByRole("link", { name: "Releases" }))
-      .toHaveAttribute("aria-current", "page");
-    expect(within(nav).getByRole("link", { name: "Rapports" }))
-      .not.toHaveAttribute("aria-current");
-    expect(screen.queryByRole("button", { name: /Nouvel item|Grouper/ })).toBeNull();
+    expect(screen.getByRole("navigation", { name: "Fil d’Ariane" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Releases" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Créer|Affichage/ })).toBeNull();
   });
 
   it("passes only serializable minimal people and release payloads", async () => {

@@ -7,8 +7,8 @@ import { ItemList } from "@/components/items/item-list";
 import { LinksSection } from "@/components/items/detail/links-section";
 import { GroupControl } from "@/components/shell/group-control";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
-import { ViewBar } from "@/components/shell/view-bar";
-import { DensityProvider } from "@/components/theme/density-provider";
+import { Sidebar } from "@/components/shell/sidebar";
+import { SidebarStateProvider } from "@/components/shell/sidebar-state";
 import type { ViewState } from "@/lib/items/filter";
 import type { LinkWithOther } from "@/lib/services/links";
 
@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  useParams: () => ({ key: "DEMO" }),
+  useSearchParams: () => new URLSearchParams("view=board"),
   usePathname: () => "/b/DEMO",
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
@@ -28,6 +30,25 @@ vi.mock("@/app/actions/items", () => ({
   softDeleteItemAction: vi.fn(),
   updateItemAction: vi.fn(),
 }));
+
+// The sidebar's user card imports a Server Action module.
+vi.mock("@/app/actions/account", () => ({ changeOwnPasswordAction: vi.fn() }));
+
+/** The project views now live in the sidebar (JIR-74). */
+function ProjectViewLinks() {
+  return (
+    <SidebarStateProvider>
+      <Sidebar
+        backlogs={[{ id: "backlog-1", key: "DEMO", name: "Démo", color: "#2563eb" }]}
+        views={[]}
+        userId="user-1"
+        user={{ name: "Ada", email: "ada@example.com", role: "contributor" }}
+        canAdminister={false}
+        counts={{ allByBacklog: {}, mine: 0, trash: 0 }}
+      />
+    </SidebarStateProvider>
+  );
+}
 
 vi.mock("@/app/actions/links", () => ({
   addLinkAction: vi.fn(),
@@ -486,14 +507,12 @@ describe("FilterBar", () => {
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
-  it("keeps a later tab and the query when its debounce finishes", async () => {
+  it("keeps a later view link and the query when its debounce finishes", async () => {
     vi.useFakeTimers();
     const currentParams = { view: "board", item: "DEMO-1" };
     const { rerender } = render(
       <ViewUrlStateProvider initialEntries={paramEntries(currentParams)}>
-        <DensityProvider>
-          <ViewBar view="board" />
-        </DensityProvider>
+        <ProjectViewLinks />
         <FilterBar
           state={emptyState}
           statuses={[]}
@@ -511,9 +530,7 @@ describe("FilterBar", () => {
     const navigatedParams = { view: "list", item: "DEMO-1" };
     rerender(
       <ViewUrlStateProvider initialEntries={paramEntries(navigatedParams)}>
-        <DensityProvider>
-          <ViewBar view="list" />
-        </DensityProvider>
+        <ProjectViewLinks />
         <FilterBar
           state={emptyState}
           statuses={[]}
@@ -534,13 +551,11 @@ describe("FilterBar", () => {
     );
   });
 
-  it("leaves modified tab clicks to the link while retaining the full href", () => {
+  it("leaves modified view-link clicks to the link while retaining the full href", () => {
     const currentParams = { view: "board", item: "DEMO-1", q: "auth" };
     render(
       <ViewUrlStateProvider initialEntries={paramEntries(currentParams)}>
-        <DensityProvider>
-          <ViewBar view="board" />
-        </DensityProvider>
+        <ProjectViewLinks />
       </ViewUrlStateProvider>,
     );
 
@@ -555,13 +570,11 @@ describe("FilterBar", () => {
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
-  it("updates a modified-click tab href from an optimistic grouping write", () => {
+  it("updates a modified-click view-link href from an optimistic grouping write", () => {
     const currentParams = { view: "board", item: "DEMO-1", q: "auth" };
     render(
       <ViewUrlStateProvider initialEntries={paramEntries(currentParams)}>
-        <DensityProvider>
-          <ViewBar view="board" />
-        </DensityProvider>
+        <ProjectViewLinks />
         <GroupControl
           view="board"
           state={emptyState}
@@ -900,9 +913,7 @@ describe("FilterBar", () => {
           ["tag", "b"],
         ]}
       >
-        <DensityProvider>
-          <ViewBar view="board" />
-        </DensityProvider>
+        <ProjectViewLinks />
         <FilterBar
           state={emptyState}
           statuses={[]}

@@ -21,7 +21,7 @@ describe("Topbar", () => {
     document.documentElement.dataset.sidebar = "open";
   });
 
-  it("places one compact sidebar trigger before the separator and breadcrumb", async () => {
+  it("leads with one compact sidebar trigger and leaves the breadcrumb to the page", async () => {
     const user = userEvent.setup();
     render(
       <ThemeProvider>
@@ -31,10 +31,6 @@ describe("Topbar", () => {
             <Topbar
               notifications={[]}
               unreadCount={0}
-              backlogs={[
-                { id: "backlog-1", key: "CASS", name: "Cour de cassation" },
-              ]}
-              views={[]}
             />
           }
         >
@@ -53,14 +49,8 @@ describe("Topbar", () => {
     expect(trigger).toHaveClass("focus-visible:ring-[var(--ring)]");
     expect(trigger.querySelector(".lucide-panel-left")).toBeInTheDocument();
     expect(topbar?.children[0]).toBe(trigger);
-    expect(topbar?.children[1]).toHaveAttribute(
-      "data-slot",
-      "sidebar-trigger-separator",
-    );
-    expect(topbar?.children[2]).toHaveAttribute(
-      "data-slot",
-      "shell-breadcrumb",
-    );
+    expect(topbar?.children[1]).toHaveAttribute("data-slot", "topbar-center");
+    expect(screen.queryByRole("navigation", { name: "Fil d’Ariane" })).not.toBeInTheDocument();
 
     await user.click(trigger);
 
@@ -75,7 +65,7 @@ describe("Topbar", () => {
         <AppShell
           sidebar={<aside>Navigation</aside>}
           topbar={
-            <Topbar notifications={[]} unreadCount={0} backlogs={[]} views={[]} />
+            <Topbar notifications={[]} unreadCount={0} />
           }
         >
           Contenu
@@ -101,7 +91,7 @@ describe("Topbar", () => {
       <ThemeProvider>
         <AppShell
           sidebar={<aside>Navigation</aside>}
-          topbar={<Topbar notifications={[]} unreadCount={0} backlogs={[]} views={[]} />}
+          topbar={<Topbar notifications={[]} unreadCount={0} />}
         >
           <TopbarCreate>
             <CreateItemTrigger onClick={onCreate} />
@@ -125,7 +115,7 @@ describe("Topbar", () => {
       <ThemeProvider>
         <AppShell
           sidebar={<aside>Navigation</aside>}
-          topbar={<Topbar notifications={[]} unreadCount={0} backlogs={[]} views={[]} />}
+          topbar={<Topbar notifications={[]} unreadCount={0} />}
         >
           Contenu
         </AppShell>

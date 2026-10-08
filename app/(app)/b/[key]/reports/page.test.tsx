@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
   velocityReportProps: vi.fn(),
 }));
 
+vi.mock("@/components/shell/shell-breadcrumb", () => ({
+  ShellBreadcrumb: () => <nav aria-label="Fil d’Ariane" />,
+}));
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 vi.mock("@/lib/auth/session", () => ({
@@ -293,17 +296,11 @@ describe("reports route", () => {
     expect(mocks.listReportableSprints).not.toHaveBeenCalled();
   });
 
-  it("keeps the backlog view tabs with Rapports as the current page", async () => {
+  it("leads the report with the breadcrumb, without view controls", async () => {
     render(await ReportsPage({ params: Promise.resolve({ key: "cass" }) }));
 
-    const nav = screen.getByRole("navigation", { name: "Vues du backlog" });
-    expect(within(nav).getByRole("link", { name: "Backlog" }))
-      .toHaveAttribute("href", "/b/CASS?view=backlog");
-    expect(within(nav).getByRole("link", { name: "Rapports" }))
-      .toHaveAttribute("aria-current", "page");
-    expect(within(nav).getByRole("link", { name: "Releases" }))
-      .not.toHaveAttribute("aria-current");
-    expect(screen.queryByRole("button", { name: /Nouvel item|Grouper/ })).toBeNull();
+    expect(screen.getByRole("navigation", { name: "Fil d’Ariane" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Créer|Affichage/ })).toBeNull();
   });
 
   it("selects the active sprint, keeps viewer data complete, and serializes dates and bigint", async () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   activeProjectView,
+  deriveBreadcrumb,
   deriveShellContext,
   PROJECT_VIEWS,
   projectViewHref,
@@ -220,5 +221,59 @@ describe("project views (sidebar)", () => {
     ["/mine", "view=list"],
   ])("activates nothing on %s", (pathname, search) => {
     expect(activeProjectView(pathname, new URLSearchParams(search), "CASS")).toBeNull();
+  });
+});
+
+describe("deriveBreadcrumb (page header)", () => {
+  const crumbs = (pathname: string, search = "", list = backlogs) =>
+    deriveBreadcrumb({ pathname, search: new URLSearchParams(search), backlogs: list, views });
+
+  it("leads an item view with the clickable project then the view", () => {
+    expect(crumbs("/b/CASS", "view=list")).toEqual([
+      { label: "Pôle civil", href: "/b/CASS" },
+      { label: "Liste" },
+    ]);
+  });
+
+  it("appends the active saved view name", () => {
+    expect(crumbs("/b/cass", "view=backlog&v=view-1")).toEqual([
+      { label: "Pôle civil", href: "/b/CASS" },
+      { label: "Backlog" },
+      { label: "Mes urgences" },
+    ]);
+  });
+
+  it("ignores a saved view of another backlog", () => {
+    expect(crumbs("/b/CASS", "v=view-2")).toEqual([
+      { label: "Pôle civil", href: "/b/CASS" },
+      { label: "Board" },
+    ]);
+  });
+
+  it.each([
+    ["/b/PEN/releases", "Pôle pénal", "/b/PEN", "Releases"],
+    ["/b/pen/reports", "Pôle pénal", "/b/PEN", "Rapports"],
+    ["/aide", "Pôle civil", "/b/CASS", "Aide"],
+    ["/admin", "Pôle civil", "/b/CASS", "Administration"],
+    ["/mine", "Pôle civil", "/b/CASS", "Mes items"],
+    ["/trash", "Pôle civil", "/b/CASS", "Corbeille"],
+  ])("links %s back to its project", (pathname, project, href, current) => {
+    expect(crumbs(pathname)).toEqual([{ label: project, href }, { label: current }]);
+  });
+
+  it("links the section of a page nested under it", () => {
+    expect(crumbs("/b/PEN/releases/r-1")).toEqual([
+      { label: "Pôle pénal", href: "/b/PEN" },
+      { label: "Releases", href: "/b/PEN/releases" },
+    ]);
+  });
+
+  it("does not link a stale backlog", () => {
+    expect(crumbs("/b/old", "view=tree")).toEqual([{ label: "OLD" }, { label: "Arbre" }]);
+  });
+
+  it("keeps a lone segment without any backlog", () => {
+    expect(crumbs("/", "", [])).toEqual([{ label: "Jiroo" }]);
+    expect(crumbs("/admin", "", [])).toEqual([{ label: "Administration" }]);
   });
 });

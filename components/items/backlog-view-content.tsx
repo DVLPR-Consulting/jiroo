@@ -37,7 +37,9 @@ import { PRIORITY_LABELS } from "@/lib/design/constants";
 import { requireAppPageSession } from "@/lib/auth/session";
 import { getViewByIdForUser } from "@/lib/services/views";
 import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
-import { ViewBar } from "@/components/shell/view-bar";
+import { PageHeader } from "@/components/shell/page-header";
+import { DensityToggle } from "@/components/theme/density-toggle";
+import { PROJECT_VIEWS } from "@/lib/items/shell";
 import { GroupControl } from "@/components/shell/group-control";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewActions } from "@/components/shell/view-actions";
@@ -552,41 +554,41 @@ export async function BacklogViewContent({
 
   return (
     <div className="flex h-full flex-col">
-      <ViewBar
-        view={view}
-        backlogKey={backlog.key}
-        groupControlSlot={
-          <GroupControl
-            view={view as DisplayMode}
-            state={viewState}
-          />
+      <PageHeader
+        title={PROJECT_VIEWS.find((candidate) => candidate.id === view)?.label}
+        actions={
+          <>
+            <GroupControl
+              view={view as DisplayMode}
+              state={viewState}
+            />
+            <ViewActions
+              backlogKey={key}
+              backlogId={backlog.id}
+              activeView={
+                activeViewRow
+                  ? { id: activeViewRow.id, name: activeViewRow.name, shared: activeViewRow.shared }
+                  : null
+              }
+              isOwner={isOwner}
+              dirty={dirty}
+              displayMode={view as DisplayMode}
+              filters={viewState.filters}
+              group={viewState.group}
+              sort={viewState.sort}
+            />
+            {view === "board" && productCapabilities.workflow.manage ? (
+              <StatusManagerDialog
+                key={statusList.map((status) => `${status.id}:${status.order}:${status.name}:${status.category}:${status.itemCount}`).join("|")}
+                backlogId={backlog.id}
+                backlogKey={backlog.key}
+                statuses={statusList}
+                capabilities={productCapabilities.workflow}
+              />
+            ) : null}
+            <DensityToggle />
+          </>
         }
-        viewActionsSlot={
-          <ViewActions
-            backlogKey={key}
-            backlogId={backlog.id}
-            activeView={
-              activeViewRow
-                ? { id: activeViewRow.id, name: activeViewRow.name, shared: activeViewRow.shared }
-                : null
-            }
-            isOwner={isOwner}
-            dirty={dirty}
-            displayMode={view as DisplayMode}
-            filters={viewState.filters}
-            group={viewState.group}
-            sort={viewState.sort}
-          />
-        }
-        workflowSlot={view === "board" && productCapabilities.workflow.manage ? (
-          <StatusManagerDialog
-            key={statusList.map((status) => `${status.id}:${status.order}:${status.name}:${status.category}:${status.itemCount}`).join("|")}
-            backlogId={backlog.id}
-            backlogKey={backlog.key}
-            statuses={statusList}
-            capabilities={productCapabilities.workflow}
-          />
-        ) : null}
       />
       {capabilities.createItems && (
         view !== "board" || (activeSprint !== null && capabilities.scheduleItems)

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { ReleaseDetail } from "@/components/releases/release-detail";
-import { BacklogNavBar } from "@/components/shell/view-tabs";
+import { PageHeader } from "@/components/shell/page-header";
 import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
 import { checkPermission } from "@/lib/auth/authorization";
 import { projectBacklogCapabilities } from "@/lib/auth/capabilities";
@@ -123,7 +123,7 @@ export default async function ReleaseDetailPage({
 
   return (
     <>
-      <BacklogNavBar active="releases" backlogKey={backlog.key} />
+      <PageHeader className="mx-auto w-full max-w-6xl pb-0" />
       <ReleaseDetail
         backlog={{ id: backlog.id, key: backlog.key, name: backlog.name }}
         release={{

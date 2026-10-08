@@ -140,3 +140,58 @@ export function activeProjectView(
   const view = search.get("view") ?? "";
   return ITEM_VIEW_IDS.includes(view) ? (view as ItemViewId) : "board";
 }
+
+// ---------------------------------------------------------------------------
+// Page header breadcrumb (JIR-74)
+// ---------------------------------------------------------------------------
+
+export type BreadcrumbSegment = { label: string; href?: string };
+
+/**
+ * The trail above the page title: `Projet / Vue`, then `/ Vue enregistrée`
+ * when one is active. The project leads back to its home (JIR-72); the last
+ * segment is the current page unless the page is nested below it.
+ */
+export function deriveBreadcrumb(input: {
+  pathname: string;
+  search: URLSearchParams;
+  backlogs: ShellBacklog[];
+  views: ShellView[];
+}): BreadcrumbSegment[] {
+  const context = deriveShellContext(input);
+  const backlog = context.activeBacklogKey
+    ? input.backlogs.find(
+        (candidate) => candidate.key.toUpperCase() === context.activeBacklogKey,
+      )
+    : undefined;
+  const project: BreadcrumbSegment | undefined = backlog
+    ? { label: backlog.name, href: `/b/${backlog.key.toUpperCase()}` }
+    : undefined;
+
+  if (context.mode) {
+    const savedViewId = input.search.get("v");
+    const backlogKey = context.activeBacklogKey;
+    const savedView =
+      backlogKey && savedViewId
+        ? input.views.find(
+            (view) => view.id === savedViewId && view.backlogKey.toUpperCase() === backlogKey,
+          )
+        : undefined;
+    return [
+      project ?? { label: context.section },
+      { label: context.mode },
+      ...(savedView ? [{ label: savedView.name }] : []),
+    ];
+  }
+
+  if (!project) return [{ label: context.section }];
+  if (context.section === backlog!.name) return [{ label: project.label }];
+
+  const nested = /^\/b\/[^/]+\/(releases|reports)\/.+$/.exec(input.pathname);
+  return [
+    project,
+    nested
+      ? { label: context.section, href: `${project.href}/${nested[1]}` }
+      : { label: context.section },
+  ];
+}
