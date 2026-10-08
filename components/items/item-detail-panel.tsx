@@ -433,7 +433,7 @@ export function ItemDetailPanel({
 
           {tab === "detail" && (
             <DescriptionEditor
-              key={detail.id}
+              key={`${currentUserId}:${detail.id}`}
               itemId={detail.id}
               currentUserId={currentUserId}
               backlogKey={backlogKey}

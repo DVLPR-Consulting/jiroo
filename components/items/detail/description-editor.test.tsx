@@ -216,6 +216,24 @@ describe("DescriptionEditor (Notion-like page)", () => {
     expect(mocks.updateItemAction).toHaveBeenCalledTimes(1);
   });
 
+  it("drops a failed draft when the signed-in user changes without unmounting", async () => {
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: false, error: "Indisponible" });
+    const { user, rerender } = renderDescription("A", { userId: "alice" });
+    const textbox = await retype(user, "B");
+    await act(async () => textbox.blur());
+    expect(await screen.findByRole("button", { name: "Réessayer" })).toBeInTheDocument();
+
+    rerender(
+      <DescriptionEditor itemId="item-1" currentUserId="bob" backlogKey="DEMO" description="A" />,
+    );
+    const bobs = await editor();
+    await waitFor(() => expect(bobs).toHaveTextContent("A"));
+    expect(bobs).not.toHaveTextContent("B");
+    expect(screen.queryByRole("button", { name: "Réessayer" })).toBeNull();
+    await new Promise((res) => setTimeout(res, 50));
+    expect(mocks.updateItemAction).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps drafts per item", async () => {
     mocks.updateItemAction.mockResolvedValueOnce({ ok: false, error: "Indisponible" });
     const first = renderDescription("A");

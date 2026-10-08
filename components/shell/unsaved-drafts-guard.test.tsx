@@ -1,6 +1,7 @@
 import { act, render, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UnsavedDraftsGuard } from "@/components/shell/unsaved-drafts-guard";
+import { DraftsSession } from "@/components/shell/drafts-session";
 import { resetAutosaveRegistry, useAutosave } from "@/lib/autosave/use-autosave";
 
 function beforeUnload() {
@@ -92,5 +93,26 @@ describe("UnsavedDraftsGuard", () => {
     visibility.mockRestore();
     expect(save).toHaveBeenCalledWith("B");
     await act(async () => finish({ ok: true }));
+  });
+
+  it("never flushes another account's draft from a new shell", async () => {
+    const save = vi.fn().mockResolvedValue({ ok: false, error: "Indisponible" });
+    const alice = renderHook(() =>
+      useAutosave({ user: "alice", key: "item-description:alice:item-1", initial: "A", save, delay: 900 }),
+    );
+    act(() => alice.result.current.change("B"));
+    alice.unmount();
+    await act(async () => {});
+    expect(save).toHaveBeenCalledTimes(1);
+
+    // Bob's shell, no editor opened yet; then the page is hidden.
+    render(<DraftsSession userId="bob" />);
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    visibility.mockRestore();
+    await act(async () => {});
+    expect(save).toHaveBeenCalledTimes(1);
   });
 });

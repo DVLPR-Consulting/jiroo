@@ -2,11 +2,18 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { createAutosaveScheduler, type AutosaveScheduler, type SaveResult } from "@/lib/autosave/scheduler";
-import { acquireDraft, clearDrafts, releaseDraft, retainDraft } from "@/lib/autosave/registry";
+import {
+  acquireDraft,
+  clearDrafts,
+  releaseDraft,
+  retainDraft,
+  setActiveDraftUser,
+} from "@/lib/autosave/registry";
 
 /** Test helper: forgets every kept draft. */
 export function resetAutosaveRegistry() {
   clearDrafts();
+  setActiveDraftUser(null);
 }
 
 /**
@@ -56,8 +63,8 @@ export function useAutosave<T>({
   // Unmount (and Strict Mode's simulated one): save what is pending now.
   useEffect(() => {
     retainDraft(entry);
-    return () => releaseDraft(key, entry);
-  }, [entry, key]);
+    return () => releaseDraft(entry);
+  }, [entry]);
 
   return {
     ...snapshot,

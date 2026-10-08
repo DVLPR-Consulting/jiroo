@@ -35,14 +35,13 @@ const sameDescription = (a: string, b: string) => a.trim() === b.trim();
  * switched), read-only for users who cannot edit the item. Content the editor
  * cannot round-trip is edited as raw Markdown with an explicit save.
  */
-export function DescriptionEditor({
-  itemId,
-  currentUserId,
-  backlogKey,
-  description,
-  revision,
-  readOnly = false,
-}: {
+export function DescriptionEditor(props: DescriptionEditorProps) {
+  // Another signed-in user or item is another editor: its kept draft (if
+  // any) is never reused across that boundary.
+  return <DescriptionEditorBody key={`${props.currentUserId}:${props.itemId}`} {...props} />;
+}
+
+type DescriptionEditorProps = {
   itemId: string;
   /** Signed-in user: kept drafts belong to them only. */
   currentUserId: string;
@@ -51,7 +50,16 @@ export function DescriptionEditor({
   /** Server revision of `description` (the item's update time, in ms). */
   revision?: number;
   readOnly?: boolean;
-}) {
+};
+
+function DescriptionEditorBody({
+  itemId,
+  currentUserId,
+  backlogKey,
+  description,
+  revision,
+  readOnly = false,
+}: DescriptionEditorProps) {
   const router = useRouter();
   const stored = description ?? "";
   const [raw, setRaw] = useState(false);
