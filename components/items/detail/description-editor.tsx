@@ -89,7 +89,9 @@ export function DescriptionEditor({
   // trimmed: they must not reset the editor under the caret.
   if (stored !== seenDescription) {
     setSeenDescription(stored);
-    if (!sameDescription(stored, value) && autosave.adopt(stored)) setValue(stored);
+    // Unsaved raw Markdown is not tracked by the scheduler: keep it too.
+    const rawDirty = raw && !sameDescription(value, seenDescription);
+    if (!rawDirty && !sameDescription(stored, value) && autosave.adopt(stored)) setValue(stored);
   }
 
   function onChange(next: string) {

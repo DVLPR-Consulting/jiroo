@@ -326,6 +326,31 @@ describe("DescriptionEditor (Notion-like page)", () => {
     expect(raw).toHaveValue(table);
   });
 
+  it("keeps unsaved raw Markdown when the description changes elsewhere", async () => {
+    const table = "| a | b |\n|---|---|\n| 1 | 2 |";
+    const { user, rerender } = renderDescription(table);
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Description" }).tagName).toBe("TEXTAREA"),
+    );
+    const raw = screen.getByRole("textbox", { name: "Description" });
+    await user.type(raw, "x");
+    rerender(<DescriptionEditor itemId="item-1" backlogKey="DEMO" description="Distant" />);
+    expect(screen.getByRole("textbox", { name: "Description" })).toHaveValue(`${table}x`);
+  });
+
+  it("returns to the text with Escape from the selection bar", async () => {
+    const { user } = renderDescription("Texte");
+    const textbox = await editor();
+    await user.click(textbox);
+    await user.keyboard("{Control>}a{/Control}");
+    const bar = await screen.findByRole("toolbar", { name: "Mise en forme de la sélection" });
+    const bold = within(bar).getByRole("button", { name: "Gras" });
+    bold.focus();
+    expect(bar).toHaveAttribute("data-local-escape");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(textbox).toHaveFocus());
+  });
+
   describe("read-only", () => {
     it("uses the same rendering, not editable, with clickable links", async () => {
       renderDescription(RICH, { readOnly: true });

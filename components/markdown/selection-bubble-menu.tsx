@@ -106,7 +106,18 @@ export function SelectionBubbleMenu({
       shouldShow={shouldShow}
       className="z-50 rounded-[var(--radius)] border border-border bg-[var(--surface)] shadow-[var(--shadow-md)]"
     >
-      <div role="toolbar" aria-label="Mise en forme de la sélection" className="flex items-center gap-0.5 p-1">
+      <div
+        role="toolbar"
+        aria-label="Mise en forme de la sélection"
+        // Escape on a button returns to the text instead of closing the drawer.
+        data-local-escape
+        className="flex items-center gap-0.5 p-1"
+        onKeyDown={(event) => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          editor.commands.focus();
+        }}
+      >
         {MARKS.map((mark) => (
           <button
             key={mark.id}
