@@ -102,7 +102,7 @@ function DeleteCommentDialog({
 // Single comment row
 // ---------------------------------------------------------------------------
 
-function CommentItem({
+export function CommentItem({
   comment,
   itemId,
   backlogKey,
