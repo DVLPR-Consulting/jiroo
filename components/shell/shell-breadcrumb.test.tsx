@@ -1,8 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
 
 const route = vi.hoisted(() => ({ pathname: "/b/CASS", search: "view=tree" }));
+
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...props}>{children}</a>
+  ),
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => route.pathname,
@@ -43,7 +49,8 @@ describe("ShellBreadcrumb", () => {
     route.search = "";
     render(<ShellBreadcrumb backlogs={backlogs} views={views} />);
 
-    expect(screen.getByText("Pôle civil / Administration")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Pôle civil" })).toHaveAttribute("href", "/b/CASS");
+    expect(screen.getByText("Administration")).toHaveAttribute("aria-current", "page");
   });
 
   it("describes the requested backlog reports section", () => {
@@ -51,7 +58,8 @@ describe("ShellBreadcrumb", () => {
     route.search = "view=tree&v=v1";
     render(<ShellBreadcrumb backlogs={backlogs} views={views} />);
 
-    expect(screen.getByText("Pôle pénal / Rapports")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Pôle pénal" })).toHaveAttribute("href", "/b/PEN");
+    expect(screen.getByText("Rapports")).toHaveAttribute("aria-current", "page");
   });
 
   it("lets the parent segment yield below the mobile breakpoint", () => {
@@ -76,5 +84,31 @@ describe("ShellBreadcrumb", () => {
     const parent = container.querySelector('[data-slot="shell-breadcrumb-parent"]');
     expect(parent).toHaveTextContent("Jiroo");
     expect(parent).not.toHaveClass("hidden");
+  });
+
+  it("links the backlog segment back to the backlog home outside backlog views", () => {
+    route.pathname = "/aide";
+    route.search = "";
+    render(<ShellBreadcrumb backlogs={backlogs} views={views} />);
+
+    const nav = screen.getByRole("navigation", { name: "Fil d’Ariane" });
+    expect(within(nav).getByRole("link", { name: "Pôle civil" })).toHaveAttribute(
+      "href",
+      "/b/CASS",
+    );
+  });
+
+  it("links a backlog feature page back to its own backlog", () => {
+    route.pathname = "/b/PEN/releases";
+    route.search = "";
+    render(<ShellBreadcrumb backlogs={backlogs} views={views} />);
+
+    expect(screen.getByRole("link", { name: "Pôle pénal" })).toHaveAttribute("href", "/b/PEN");
+  });
+
+  it("does not link the segment inside a backlog view", () => {
+    render(<ShellBreadcrumb backlogs={backlogs} views={views} />);
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 });

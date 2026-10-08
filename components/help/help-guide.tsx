@@ -80,6 +80,7 @@ export function HelpGuide() {
           steps={[
             <>Changez de backlog avec le sélecteur en haut de la barre latérale.</>,
             <><Ui>Tous les items</Ui> affiche le backlog courant ; <Ui>Mes items</Ui> liste les tickets qui vous sont assignés, tous backlogs confondus.</>,
+            <>Depuis n’importe quelle page (Aide, Administration, Releases…), cliquez sur le logo <Ui>Jiroo</Ui> ou sur le nom du backlog dans le fil d’Ariane pour revenir à l’accueil du backlog.</>,
           ]}
         >
           <GuideNote>

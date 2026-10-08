@@ -132,9 +132,14 @@ describe("positionAfterVisibleChars", () => {
     expect(positionAfterVisibleChars(doc, 1)).toBe(2);
   });
 
+  it("maps a count of zero to the start of the first text block (Codex R5)", () => {
+    editor.commands.setContent(markdownToDoc(manager, "## Début\n\nFin"));
+    expect(positionAfterVisibleChars(editor.state.doc, 0)).toBe(1);
+  });
+
   it("returns null when the count is out of range", () => {
     editor.commands.setContent(markdownToDoc(manager, "abc"));
-    expect(positionAfterVisibleChars(editor.state.doc, 0)).toBeNull();
+    expect(positionAfterVisibleChars(editor.state.doc, -1)).toBeNull();
     expect(positionAfterVisibleChars(editor.state.doc, 4)).toBeNull();
   });
 });
@@ -175,6 +180,15 @@ describe("named HTML entities (Codex R2)", () => {
     ).toEqual(["entité HTML"]);
     expect(unsupportedMarkdownFeatures(manager, "- point &rarr; suite")).toEqual(["entité HTML"]);
   });
+
+  it.each(["&AMP;", "&LT;", "&GT;", "&QUOT;", "&Eacute;", "&COPY;"])(
+    "keeps the case-sensitive reference %s as raw Markdown",
+    (entity) => {
+      expect(unsupportedMarkdownFeatures(manager, `Avant ${entity} suite`)).toEqual([
+        "entité HTML",
+      ]);
+    },
+  );
 
   it.each([
     ["basic entities", "1 &lt; 2 &amp; 3 &gt; 0 &quot;ok&quot;"],
