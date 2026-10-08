@@ -57,7 +57,7 @@ async function suspendNextVerificationWrite(matches: (identifier: string) => boo
  * Suspends the next password verification right after it succeeded, before
  * Better Auth creates anything: the deterministic window of the R3 race.
  */
-async function suspendNextPasswordVerification() {
+async function suspendNextPasswordVerification(when: "after" | "before" = "after") {
   const context = await auth.$context;
   const original: Verify = context.password.verify;
   let reached!: () => void;
@@ -69,6 +69,11 @@ async function suspendNextPasswordVerification() {
   };
   context.password.verify = async (input) => {
     restoreVerify?.();
+    if (when === "before") {
+      reached();
+      await releasePromise;
+      return original(input);
+    }
     const verified = await original(input);
     reached();
     await releasePromise;
@@ -360,6 +365,43 @@ describeDb("auth version (JIR-62)", () => {
       const again = await trusted.post("/sign-in/email", { email: target.email, password: "nouveau-mot-de-passe" });
       expect(again.json).toMatchObject({ twoFactorRedirect: true });
       expect((await trusted.get("/get-session")).json).toBeNull();
+    });
+
+    it("refuses a change whose session was revoked before the current password was verified", async () => {
+      const target = await newUser("self-revoked-session");
+      const owner = new BetterAuthDevice();
+      await owner.post("/sign-in/email", { email: target.email, password: PASSWORD });
+      const [before] = await db
+        .select({ password: account.password })
+        .from(account)
+        .where(eq(account.userId, target.id));
+      // Better Auth already accepted the session; the verifier has not run yet.
+      const barrier = await suspendNextPasswordVerification("before");
+
+      const settled = auth.api
+        .changePassword({
+          body: { currentPassword: PASSWORD, newPassword: "nouveau-mot-de-passe", revokeOtherSessions: true },
+          headers: owner.requestHeaders(),
+        })
+        .then(
+          () => null,
+          (error: unknown) => error,
+        );
+      await barrier.reached;
+      // The two-factor reset leaves the password hash unchanged.
+      await resetUserTwoFactor({ userId: target.id }, adminId);
+      barrier.release();
+      const error = await settled;
+
+      expect(error).toBeInstanceOf(APIError);
+      expect((error as APIError).body?.code).toBe("CREDENTIALS_CHANGED");
+      const [after] = await db
+        .select({ password: account.password })
+        .from(account)
+        .where(eq(account.userId, target.id));
+      expect(after!.password).toBe(before!.password);
+      expect(await authVersionOf(target.id)).toBe(1);
+      expect(await sessionsOf(target.id)).toHaveLength(0);
     });
 
     it("refuses to overwrite an admin reset that committed after the current password was verified", async () => {

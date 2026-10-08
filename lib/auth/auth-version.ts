@@ -238,8 +238,9 @@ function credentialsChanged(): APIError {
  * password with a plain update, unrelated to the version captured when the
  * current password was verified. Jiroo writes it here instead, in one
  * transaction under the user row lock that admin resets also take: the write
- * only happens if neither the stored hash nor the auth version moved since
- * the verification; it increments the version and revokes trusted devices
+ * only happens if the presented session carries the version proven with the
+ * current password and neither the stored hash nor the auth version moved
+ * since; it increments the version and revokes trusted devices
  * and pending 2FA challenges in the same transaction. Returning false then
  * skips Better Auth's own write, which would otherwise be able to overwrite
  * a concurrent reset. Better Auth's /change-password is the only route
@@ -258,9 +259,20 @@ export async function applyOwnPasswordChange(
   }
   const grants = await currentGrants();
   const verified = grants?.password;
-  // The change must concern the user of the presented (valid) session.
-  const userId = grants?.session?.userId;
-  if (!grants || !verified || verified.userId !== userId || typeof data.password !== "string") {
+  // The presented session, the current-password proof and (below, under the
+  // lock) the user row must belong to the same credential generation: a
+  // reset committed after the session was accepted but before the password
+  // was verified (a 2FA reset keeps the hash) must not let this request
+  // renew access.
+  const presented = grants?.session;
+  if (
+    !grants ||
+    !verified ||
+    !presented ||
+    verified.userId !== presented.userId ||
+    verified.authVersion !== presented.authVersion ||
+    typeof data.password !== "string"
+  ) {
     throw credentialsChanged();
   }
   const newHash = data.password;
