@@ -82,7 +82,7 @@ export function DescriptionEditor({
 
   const autosave = useAutosave({
     // One draft per item, kept until saved even if the editor unmounts.
-    key: readOnly ? undefined : `item-description:${itemId}`,
+    key: `item-description:${itemId}`,
     initial: stored,
     revision,
     save,

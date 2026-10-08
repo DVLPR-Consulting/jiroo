@@ -8,6 +8,7 @@ import { RouteViewUrlStateProvider } from "@/components/shell/view-url-state";
 import { GlobalShortcuts } from "@/components/shortcuts/global-shortcuts";
 import { KeyboardShortcutsProvider } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import { Toaster } from "@/components/ui/toaster";
+import { UnsavedDraftsGuard } from "@/components/shell/unsaved-drafts-guard";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 function AppShellFrame({
@@ -68,6 +69,7 @@ function AppShellFrame({
         <main className="min-h-0 flex-1 overflow-auto bg-background">{children}</main>
       </div>
       <Toaster />
+      <UnsavedDraftsGuard />
     </div>
   );
 }
