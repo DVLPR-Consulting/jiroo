@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  BACKLOG_COLUMNS,
   fixedTableMinWidth,
   LIST_COLUMNS,
   SELECTION_COLUMN,
@@ -11,7 +10,7 @@ import {
 describe("fixedTableMinWidth", () => {
   it("adds the title column floor to the fixed columns", () => {
     expect(
-      fixedTableMinWidth([SELECTION_COLUMN, BACKLOG_COLUMNS.key, BACKLOG_COLUMNS.status]),
+      fixedTableMinWidth([SELECTION_COLUMN, LIST_COLUMNS.key, LIST_COLUMNS.status]),
     ).toBe(`${20.5 + TITLE_COLUMN_MIN_REM}rem`);
   });
 
@@ -23,9 +22,6 @@ describe("fixedTableMinWidth", () => {
 describe("table columns", () => {
   const columns: [string, FixedColumn][] = [
     ["selection", SELECTION_COLUMN],
-    ...Object.entries(BACKLOG_COLUMNS).map(
-      ([name, column]): [string, FixedColumn] => [`backlog.${name}`, column],
-    ),
     ...Object.entries(LIST_COLUMNS).map(
       ([name, column]): [string, FixedColumn] => [`list.${name}`, column],
     ),

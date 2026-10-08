@@ -20,7 +20,7 @@ import {
   type Priority,
   type StatusId,
 } from "@/lib/design/constants";
-import { pointsLabel } from "@/lib/format/plural";
+import { formatPoints, pointsLabel } from "@/lib/format/plural";
 
 type StatusOption = {
   id: string;
@@ -104,6 +104,22 @@ const readOnlyClass =
   "inline-flex min-h-7 max-w-full items-center gap-1.5 px-1.5 py-1 text-xs text-muted-foreground";
 
 const contentClass = "min-w-40";
+
+/** Compact rows (Backlog): the estimate is a small badge, the assignee an avatar. */
+const compactBadgeClass =
+  "inline-flex h-6 min-w-[22px] items-center justify-center rounded-full bg-[var(--muted)] px-1.5 text-xs font-semibold tabular-nums text-muted-foreground";
+const compactTriggerClass =
+  "inline-flex min-h-7 items-center justify-center rounded px-0.5 outline-none hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60";
+
+function UnassignedCircle() {
+  return (
+    <span
+      aria-hidden
+      className="size-5 rounded-full"
+      style={{ border: "1.5px dashed var(--border-strong)" }}
+    />
+  );
+}
 
 export function InlineStatus({
   itemId,
@@ -238,11 +254,14 @@ export function InlineEstimate({
   backlogKey,
   estimatePoints,
   readOnly = false,
+  compact = false,
 }: {
   itemId: string;
   backlogKey: string;
   estimatePoints: number | null;
   readOnly?: boolean;
+  /** Badge with the number only; nothing when unestimated and read-only. */
+  compact?: boolean;
 }) {
   const { error, pending, update } = useInlineUpdate(itemId, backlogKey);
   const errorId = useId();
@@ -251,7 +270,14 @@ export function InlineEstimate({
   const label = estimatePoints === null ? "Non estimé" : pointsLabel(estimatePoints);
 
   if (readOnly) {
-    return <span className={readOnlyClass}>{label}</span>;
+    if (!compact) return <span className={readOnlyClass}>{label}</span>;
+    if (estimatePoints === null) return null;
+    return (
+      <span className={compactBadgeClass} title="Points">
+        <span aria-hidden>{formatPoints(estimatePoints)}</span>
+        <span className="sr-only">{label}</span>
+      </span>
+    );
   }
 
   return (
@@ -269,11 +295,24 @@ export function InlineEstimate({
             disabled={pending}
             aria-label={`Estimation : ${label}`}
             aria-describedby={error ? errorId : undefined}
-            className={triggerClass}
+            title={compact ? "Points" : undefined}
+            className={compact ? compactTriggerClass : triggerClass}
             onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
           >
-            {label}
+            {compact ? (
+              <span
+                className={
+                  estimatePoints === null
+                    ? `${compactBadgeClass} border border-dashed border-[var(--border-strong)] bg-transparent`
+                    : compactBadgeClass
+                }
+              >
+                {estimatePoints === null ? "–" : formatPoints(estimatePoints)}
+              </span>
+            ) : (
+              label
+            )}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -346,6 +385,7 @@ export function InlineAssignee({
   assigneeName,
   users,
   readOnly = false,
+  compact = false,
 }: {
   itemId: string;
   backlogKey: string;
@@ -353,6 +393,8 @@ export function InlineAssignee({
   assigneeName?: string | null;
   users: UserOption[];
   readOnly?: boolean;
+  /** Avatar only (dashed circle when unassigned); the name stays in its label. */
+  compact?: boolean;
 }) {
   const { error, pending, update } = useInlineUpdate(itemId, backlogKey);
   const errorId = useId();
@@ -360,6 +402,16 @@ export function InlineAssignee({
     users.find((user) => user.id === assigneeId) ??
     (assigneeId && assigneeName ? { id: assigneeId, name: assigneeName } : undefined);
   const label = selected?.name ?? "Non assigné";
+
+  if (readOnly && compact) {
+    return selected ? (
+      <InitialsAvatar name={selected.name} hue={hueFor(selected.id)} size={22} />
+    ) : (
+      <span role="img" aria-label="Non assigné" title="Non assigné" className="inline-flex">
+        <UnassignedCircle />
+      </span>
+    );
+  }
 
   if (readOnly) {
     return (
@@ -387,20 +439,21 @@ export function InlineAssignee({
             disabled={pending}
             aria-label={`Assigné : ${label}`}
             aria-describedby={error ? errorId : undefined}
-            className={triggerClass}
+            title={compact ? label : undefined}
+            className={compact ? compactTriggerClass : triggerClass}
             onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
           >
             {selected ? (
-              <InitialsAvatar name={selected.name} hue={hueFor(selected.id)} size={20} />
-            ) : (
-              <span
-                aria-hidden
-                className="size-5 rounded-full"
-                style={{ border: "1.5px dashed var(--border-strong)" }}
+              <InitialsAvatar
+                name={selected.name}
+                hue={hueFor(selected.id)}
+                size={compact ? 22 : 20}
               />
+            ) : (
+              <UnassignedCircle />
             )}
-            <span className="truncate">{label}</span>
+            {compact ? null : <span className="truncate">{label}</span>}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent

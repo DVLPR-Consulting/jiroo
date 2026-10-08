@@ -4,8 +4,9 @@
  * table therefore floors its width at its fixed columns plus a readable title
  * column, and its own scroll container absorbs the overflow instead.
  *
- * The floor stays below the title width both tables already get at 1440 px,
- * so wide screens keep their layout.
+ * The floor stays below the title width the table already gets at 1440 px,
+ * so wide screens keep their layout. (The Backlog view uses compact rows
+ * without columns since JIR-75.)
  */
 export const TITLE_COLUMN_MIN_REM = 12;
 
@@ -16,22 +17,8 @@ export const TITLE_COLUMN_MIN_REM = 12;
  */
 export type FixedColumn = { readonly className: string; readonly rem: number };
 
-/** Optional checkbox column, first in both item tables. */
+/** Optional checkbox column, first in the item table. */
 export const SELECTION_COLUMN = { className: "w-10", rem: 2.5 } as const satisfies FixedColumn;
-
-/**
- * Backlog / sprint tables, in colgroup order. The flexible title column sits
- * between `key` and `status`.
- */
-export const BACKLOG_COLUMNS = {
-  order: { className: "w-10", rem: 2.5 },
-  key: { className: "w-32", rem: 8 },
-  status: { className: "w-40", rem: 10 },
-  priority: { className: "w-28", rem: 7 },
-  points: { className: "w-24", rem: 6 },
-  fixVersions: { className: "w-44", rem: 11 },
-  assignee: { className: "w-44", rem: 11 },
-} as const satisfies Record<string, FixedColumn>;
 
 /**
  * List view table, in colgroup order. The flexible title column sits between

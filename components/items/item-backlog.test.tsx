@@ -236,8 +236,8 @@ function mockBacklogGeometry() {
   return vi
     .spyOn(HTMLElement.prototype, "getBoundingClientRect")
     .mockImplementation(function getBacklogRect(this: HTMLElement) {
-      const labelledRow = this.closest("tr[aria-label]") as HTMLElement | null;
-      const row = labelledRow ?? (this.matches("tr[aria-label]") ? this : null);
+      const labelledRow = this.closest('[role="row"][aria-label]') as HTMLElement | null;
+      const row = labelledRow ?? (this.matches('[role="row"][aria-label]') ? this : null);
       const key = row?.getAttribute("aria-label")?.split(" — ")[0];
       const index = key ? ["DEMO-1", "DEMO-2", "DEMO-3"].indexOf(key) : 0;
       const top = Math.max(index, 0) * 40;
@@ -264,7 +264,7 @@ describe("ItemBacklog", () => {
     mocks.moveSprintItemAction.mockReset();
   });
 
-  it("renders Fix versions after Points with two compact chips and a remainder", () => {
+  it("shows fix versions as compact chips with a remainder, only when present", () => {
     const input = sprintProps();
     if (!("sections" in input)) throw new Error("Sprint props expected");
     const versions = [
@@ -283,27 +283,31 @@ describe("ItemBacklog", () => {
             items: [versionedItem],
             groups: [{ key: "", label: "", items: [versionedItem] }],
           },
+          input.sections[2]!,
         ]}
       />,
     );
 
-    const headers = screen.getAllByRole("columnheader").map((header) => header.textContent?.trim());
-    expect(headers.indexOf("Fix versions")).toBe(headers.indexOf("Points") + 1);
-    expect(headers.indexOf("Assigné")).toBe(headers.indexOf("Fix versions") + 1);
+    expect(screen.queryByRole("columnheader")).not.toBeInTheDocument();
     const row = screen.getByRole("row", { name: /DEMO-1 — Authentification/ });
     expect(within(row).getByText("2026.10")).toBeVisible();
     expect(within(row).getByText("2026.09")).toBeVisible();
     expect(within(row).getByText("+1")).toBeVisible();
     expect(within(row).queryByText("Legacy")).not.toBeInTheDocument();
+    const bare = screen.getByRole("row", { name: /DEMO-3 — Déconnexion/ });
+    expect(within(bare).queryByText("—")).not.toBeInTheDocument();
   });
 
-  it("floors every section table so the title column stays readable on narrow screens", () => {
+  it("renders compact rows without a table width floor so phones never scroll sideways", () => {
     render(<ItemBacklog {...sprintProps()} />);
 
     const tables = screen.getAllByRole("table");
     expect(tables).toHaveLength(3);
-    // 2.5rem selection + 55.5rem fixed columns + 12rem title floor.
-    for (const table of tables) expect(table).toHaveStyle({ minWidth: "70rem" });
+    for (const table of tables) expect(table.getAttribute("style")).toBeNull();
+    for (const row of screen.getAllByRole("row", { name: /DEMO-/ })) {
+      expect(row.className).toContain("min-h-[var(--row-h)]");
+      expect(row.className).toContain("flex-wrap");
+    }
   });
 
   it("renders active, planned, and unscheduled sections in Jira planning order", () => {
@@ -565,7 +569,6 @@ describe("ItemBacklog", () => {
     expect(
       screen
         .getAllByRole("row")
-        .slice(1)
         .map((row) => row.getAttribute("aria-label")),
     ).toEqual([
       "DEMO-1 — Authentification",
@@ -574,30 +577,44 @@ describe("ItemBacklog", () => {
     ]);
   });
 
-  it("shows the compact planning fields on every row", () => {
-    render(<ItemBacklog {...props()} />);
+  it("puts the row fields on the right and hides empty values", () => {
+    const parented = [
+      { ...items[0]!, kind: "bug" as const, parent: { key: "DEMO-9", title: "Connexion sécurisée" } },
+      items[1]!,
+      { ...items[2]!, priority: 0 },
+    ];
+    render(<ItemBacklog {...props()} groups={[{ key: "", label: "", items: parented }]} />);
 
-    const first = screen.getByRole("row", {
-      name: "DEMO-1 — Authentification",
-    });
-    expect(within(first).getByText("À faire")).toBeVisible();
-    expect(within(first).getByText("Urgent")).toBeVisible();
-    expect(within(first).getByText("3 pts")).toBeVisible();
-    expect(within(first).getByText("Marie Lemaire")).toBeVisible();
+    const first = screen.getByRole("row", { name: "DEMO-1 — Authentification" });
+    expect(within(first).getByText("Bug")).toBeVisible();
+    expect(within(first).getByText("Connexion sécurisée")).toBeVisible();
+    expect(within(first).getByRole("button", { name: "Statut : À faire" })).toBeVisible();
+    expect(within(first).getByRole("button", { name: "Priorité : Urgent" })).toBeVisible();
+    expect(within(first).getByRole("button", { name: "Estimation : 3 pts" })).toHaveTextContent("3");
+    expect(within(first).getByRole("button", { name: "Assigné : Marie Lemaire" })).toBeVisible();
 
     const second = screen.getByRole("row", { name: "DEMO-2 — Session" });
-    expect(within(second).getByText("En cours")).toBeVisible();
-    expect(within(second).getByText("Nora Benali")).toBeVisible();
+    expect(within(second).queryByText("Bug")).not.toBeInTheDocument();
+    expect(within(second).getByRole("button", { name: "Statut : En cours" })).toBeVisible();
+    expect(within(second).getByRole("button", { name: "Assigné : Nora Benali" })).toBeVisible();
 
+    // No priority and no estimate: the editors only show on hover or focus.
     const third = screen.getByRole("row", { name: "DEMO-3 — Déconnexion" });
-    expect(within(third).getByText("Non estimé")).toBeVisible();
-    expect(within(third).getByText("Non assigné")).toBeVisible();
+    const priority = within(third).getByRole("button", { name: "Priorité : Aucune" });
+    expect(priority.parentElement?.parentElement?.className).toContain("opacity-0");
+    const estimate = within(third).getByRole("button", { name: "Estimation : Non estimé" });
+    expect(estimate.closest(".opacity-0")).not.toBeNull();
+    expect(within(third).queryByText("Non estimé")).not.toBeInTheDocument();
+    expect(within(third).queryByText("Non assigné")).not.toBeInTheDocument();
+    expect(within(third).getByRole("button", { name: "Assigné : Non assigné" })).toBeVisible();
   });
 
   it("keeps viewer rows readable without edit or drag controls", () => {
+    const viewerItems = [items[0]!, { ...items[2]!, priority: 0 }];
     render(
       <ItemBacklog
         {...props()}
+        groups={[{ key: "", label: "", items: viewerItems }]}
         canCreateItems={false}
         canEditItems={false}
         canTransitionItems={false}
@@ -611,9 +628,15 @@ describe("ItemBacklog", () => {
       name: "DEMO-1 — Authentification",
     });
     expect(within(first).getByText("À faire")).toBeVisible();
-    expect(within(first).getByText("Urgent")).toBeVisible();
-    expect(within(first).getByText("Marie Lemaire")).toBeVisible();
+    expect(within(first).getByRole("img", { name: "Urgent" })).toBeVisible();
+    expect(within(first).getByText("3 pts")).toBeInTheDocument();
+    expect(within(first).getByRole("img", { name: "Marie Lemaire" })).toBeVisible();
     expect(within(first).queryByRole("button")).not.toBeInTheDocument();
+
+    const bare = screen.getByRole("row", { name: "DEMO-3 — Déconnexion" });
+    expect(within(bare).queryByRole("img", { name: "Aucune" })).not.toBeInTheDocument();
+    expect(within(bare).queryByText(/estimé/)).not.toBeInTheDocument();
+    expect(within(bare).getByRole("img", { name: "Non assigné" })).toBeVisible();
     expect(
       screen.queryByRole("button", { name: /Déplacer DEMO-/ }),
     ).not.toBeInTheDocument();
