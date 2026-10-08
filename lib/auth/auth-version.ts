@@ -112,6 +112,12 @@ type GrantSelector = (grants: RequestGrants) => Grant | undefined;
 // (enrollment), the session is rotated.
 const TWO_FACTOR_VERIFICATION: GrantSelector = (grants) => grants.challenge ?? grants.session;
 
+const TWO_FACTOR_VERIFICATION_PATHS = new Set([
+  "/two-factor/verify-totp",
+  "/two-factor/verify-backup-code",
+  "/two-factor/verify-otp",
+]);
+
 // Every Better Auth path that creates a session in Jiroo's configuration, and
 // the first factor it continues. Any other path is refused.
 const SESSION_GRANTS: Record<string, GrantSelector> = {
@@ -164,15 +170,23 @@ function isChallenge(identifier: string): boolean {
  */
 export async function stampVerificationAuthVersion(
   data: Record<string, unknown>,
+  ctx: GenericEndpointContext | null,
 ): Promise<false | void> {
   const { identifier, value, expiresAt } = data;
   if (typeof identifier !== "string") return;
   const challenge = isChallenge(identifier);
   if (!challenge && !identifier.startsWith(TRUST_DEVICE_PREFIX)) return;
   const grants = await currentGrants();
-  // Challenges follow the password step; trust follows a completed challenge
-  // or, when renewed, the password step of a trusted sign-in.
-  const grant = challenge ? grants?.password : (grants?.challenge ?? grants?.password);
+  // The proof is chosen by route: a challenge and a renewed trust follow the
+  // password step of a sign-in; a new trust follows the challenge completed
+  // by this 2FA verification. Any other route writes neither.
+  const path = ctx?.path;
+  const grant =
+    path === "/sign-in/email"
+      ? grants?.password
+      : !challenge && path && TWO_FACTOR_VERIFICATION_PATHS.has(path)
+        ? grants?.challenge
+        : undefined;
   if (!grant || grant.userId !== value || !(expiresAt instanceof Date)) return false;
   await db.transaction(async (tx) => {
     const [locked] = await tx
@@ -198,13 +212,21 @@ export async function stampVerificationAuthVersion(
 /**
  * `databaseHooks.verification.delete.after`: Better Auth consumes a pending
  * challenge right before creating the session that completes it; its stored
- * version becomes the session's.
+ * version becomes the session's. Better Auth also deletes expired
+ * verification rows of any user during lookups, through the same hook: only
+ * an unexpired challenge deleted by a 2FA verification route is the one this
+ * request consumed (the session hook further requires its user).
  */
-export async function captureConsumedChallenge(row: unknown): Promise<void> {
+export async function captureConsumedChallenge(
+  row: unknown,
+  ctx: GenericEndpointContext | null,
+): Promise<void> {
+  if (!ctx?.path || !TWO_FACTOR_VERIFICATION_PATHS.has(ctx.path)) return;
   if (!row || typeof row !== "object") return;
-  const { identifier, value, authVersion } = row as Record<string, unknown>;
+  const { identifier, value, authVersion, expiresAt } = row as Record<string, unknown>;
   if (typeof identifier !== "string" || !isChallenge(identifier)) return;
   if (typeof value !== "string" || typeof authVersion !== "number") return;
+  if (!(expiresAt instanceof Date) || expiresAt.getTime() <= Date.now()) return;
   const grants = await currentGrants();
   if (grants) grants.challenge = { userId: value, authVersion };
 }

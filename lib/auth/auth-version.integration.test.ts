@@ -1,12 +1,17 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
+import { runWithRequestState } from "@better-auth/core/context";
 import { APIError } from "better-auth/api";
 import { makeSignature } from "better-auth/crypto";
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { auth } from "@/lib/auth";
-import { verifyPasswordCapturingAuthVersion } from "@/lib/auth/auth-version";
+import {
+  captureConsumedChallenge,
+  stampVerificationAuthVersion,
+  verifyPasswordCapturingAuthVersion,
+} from "@/lib/auth/auth-version";
 import { db } from "@/lib/db";
 import { account, session, user, verification } from "@/lib/db/schema/auth";
 import { securityAuditEvents } from "@/lib/db/schema/domain";
@@ -495,6 +500,62 @@ describeDb("auth version (JIR-62)", () => {
       expect(verify.status).toBe(401);
       expect((await attacker.get("/get-session")).json).toBeNull();
       expect(await sessionsOf(target.id)).toHaveLength(0);
+    });
+
+    it("renews a valid trust even when another user's expired challenge is cleaned up meanwhile", async () => {
+      const target = await newUser("trust-cleanup");
+      const other = await newUser("trust-cleanup-other");
+      const secret = await enroll(target.email);
+      const device = await trustedDevice(target.email, secret);
+      // Better Auth deletes expired verification rows while reading the trust.
+      await db.insert(verification).values({
+        id: randomUUID(),
+        identifier: `2fa-expired-${fixtureId}`,
+        value: other.id,
+        expiresAt: new Date(Date.now() - 60_000),
+        authVersion: 0,
+      });
+
+      const signIn = await device.post("/sign-in/email", { email: target.email, password: PASSWORD });
+
+      expect(signIn.json).not.toMatchObject({ twoFactorRedirect: true });
+      expect(await verificationRows(target.id, "trust-device-")).toHaveLength(1);
+      const again = await device.post("/sign-in/email", { email: target.email, password: PASSWORD });
+      expect(again.json).not.toMatchObject({ twoFactorRedirect: true });
+    });
+
+    it("a deleted challenge of another user never replaces the sign-in's own proof", async () => {
+      const target = await newUser("proof-isolation");
+      const other = await newUser("proof-isolation-other");
+      const [stored] = await db
+        .select({ password: account.password })
+        .from(account)
+        .where(eq(account.userId, target.id));
+      const signIn = { path: "/sign-in/email" } as Parameters<typeof stampVerificationAuthVersion>[1];
+      const trustIdentifier = `trust-device-isolation-${fixtureId}`;
+
+      // One Better Auth call: password step, then a lookup's cleanup deletes
+      // another user's expired challenge, then the trust is renewed.
+      await runWithRequestState(new WeakMap(), async () => {
+        await expect(
+          verifyPasswordCapturingAuthVersion({ hash: stored!.password!, password: PASSWORD }),
+        ).resolves.toBe(true);
+        await captureConsumedChallenge(
+          {
+            identifier: `2fa-cleaned-${fixtureId}`,
+            value: other.id,
+            authVersion: 0,
+            expiresAt: new Date(Date.now() - 60_000),
+          },
+          signIn,
+        );
+        await stampVerificationAuthVersion(
+          { identifier: trustIdentifier, value: target.id, expiresAt: new Date(Date.now() + 60_000) },
+          signIn,
+        );
+      });
+
+      expect(await verificationRows(target.id, "trust-device-isolation-")).toHaveLength(1);
     });
 
     it("a trusted-device sign-in racing an admin reset leaves no session and no trust", async () => {
