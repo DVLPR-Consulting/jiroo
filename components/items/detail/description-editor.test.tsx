@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DescriptionEditor } from "@/components/items/detail/description-editor";
@@ -133,6 +133,85 @@ describe("DescriptionEditor", () => {
       id: "item-1",
       backlogKey: "DEMO",
       description: table,
+    });
+  });
+
+  describe("click to edit (Jira)", () => {
+    const RICH = "Voir [la doc](https://exemple.fr) et le **texte**.\n\n- [ ] tâche";
+
+    function renderRead(description: string | null = RICH) {
+      render(<DescriptionEditor itemId="item-1" backlogKey="DEMO" description={description} />);
+      return screen.queryByRole("button", { name: "Modifier la description" });
+    }
+
+    it("exposes the rendering as a focusable « Modifier la description » control", () => {
+      const region = renderRead()!;
+      expect(region).toHaveAttribute("tabindex", "0");
+      expect(region).toHaveClass("cursor-text");
+      expect(within(region).getByRole("link", { name: "la doc" })).toBeVisible();
+    });
+
+    it("opens the editor when the text is clicked", async () => {
+      const user = userEvent.setup();
+      renderRead();
+      await user.click(screen.getByText("texte"));
+      expect(await screen.findByRole("textbox", { name: "Description" })).toBeVisible();
+    });
+
+    it("does not open the editor from a link or a task checkbox", async () => {
+      const user = userEvent.setup();
+      renderRead();
+      const link = screen.getByRole("link", { name: "la doc" });
+      link.addEventListener("click", (event) => event.preventDefault());
+      await user.click(link);
+      fireEvent.click(screen.getByRole("checkbox"));
+      expect(screen.queryByRole("toolbar")).toBeNull();
+      expect(screen.queryByRole("textbox", { name: "Description" })).toBeNull();
+    });
+
+    it("does not hijack a text selection", () => {
+      const region = renderRead()!;
+      window.getSelection()!.selectAllChildren(region);
+      fireEvent.click(screen.getByText("texte"));
+      expect(screen.queryByRole("textbox", { name: "Description" })).toBeNull();
+      window.getSelection()!.removeAllRanges();
+    });
+
+    it.each(["{Enter}", " "])("opens the editor with %j on the focused rendering", async (key) => {
+      const user = userEvent.setup();
+      const region = renderRead()!;
+      region.focus();
+      await user.keyboard(key);
+      expect(await screen.findByRole("textbox", { name: "Description" })).toBeVisible();
+    });
+
+    it("shows « Éditer » as an outline button with an icon", async () => {
+      const user = userEvent.setup();
+      renderRead();
+      const edit = screen.getByRole("button", { name: "Éditer" });
+      expect(edit.tagName).toBe("BUTTON");
+      expect(edit).toHaveAttribute("data-slot", "button");
+      expect(edit).toHaveAttribute("data-variant", "outline");
+      expect(edit.querySelector("svg")).not.toBeNull();
+      await user.click(edit);
+      expect(await screen.findByRole("textbox", { name: "Description" })).toBeVisible();
+    });
+
+    it("makes the empty state the same click-to-edit surface", async () => {
+      const user = userEvent.setup();
+      renderRead(null);
+      const empty = screen.getByRole("button", { name: "Ajouter une description" });
+      expect(empty).toHaveClass("cursor-text");
+      await user.click(empty);
+      expect(await screen.findByRole("textbox", { name: "Description" })).toBeVisible();
+    });
+
+    it("keeps the read-only rendering inert", () => {
+      render(
+        <DescriptionEditor itemId="item-1" backlogKey="DEMO" description={RICH} readOnly />,
+      );
+      expect(screen.queryByRole("button", { name: "Modifier la description" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Éditer" })).toBeNull();
     });
   });
 });

@@ -16,6 +16,7 @@ import {
 import {
   docToMarkdown,
   markdownToDoc,
+  positionAfterVisibleChars,
   unsupportedMarkdownFeatures,
 } from "@/lib/markdown/markdown-document";
 import { MarkdownToolbar } from "@/components/markdown/markdown-toolbar";
@@ -57,6 +58,7 @@ export function MarkdownEditor({
   maxLength,
   disabled = false,
   autoFocus = false,
+  autoFocusVisibleOffset,
   invalid = false,
   describedBy,
   minHeightClassName = "min-h-32",
@@ -73,6 +75,11 @@ export function MarkdownEditor({
   maxLength?: number;
   disabled?: boolean;
   autoFocus?: boolean;
+  /**
+   * With autoFocus: put the caret after this many non-whitespace characters
+   * (e.g. where the read rendering was clicked) instead of at the end.
+   */
+  autoFocusVisibleOffset?: number | null;
   invalid?: boolean;
   describedBy?: string;
   minHeightClassName?: string;
@@ -87,6 +94,8 @@ export function MarkdownEditor({
   const [rawFeatures, setRawFeatures] = useState<string[] | null>(null);
   const [linkRequest, setLinkRequest] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Autofocus requested while the editor was disabled.
+  const pendingFocus = useRef<number | "end" | null>(null);
   // Last Markdown emitted by the editor, to tell user edits from new values.
   const emitted = useRef<string | null>(null);
   const callbacks = useRef({ onChange, onSubmitShortcut, onCaretTextChange });
@@ -107,19 +116,21 @@ export function MarkdownEditor({
     callbacks.current.onCaretTextChange?.(before.slice(before.lastIndexOf("\n") + 1));
   };
 
+  /** Loads Markdown into the editor; returns false for the raw fallback. */
   const load = (editor: Editor, markdown: string) => {
     const manager = editor.markdown;
-    if (!manager) return;
+    if (!manager) return false;
     const unsupported = unsupportedMarkdownFeatures(manager, markdown);
     setRawFeatures(unsupported.length > 0 ? unsupported : null);
     emitted.current = markdown;
-    if (unsupported.length > 0) return;
+    if (unsupported.length > 0) return false;
     editor
       .chain()
       .setMeta(BYPASS_LENGTH_LIMIT, true)
       .setMeta("addToHistory", false)
       .setContent(markdownToDoc(manager, markdown), { emitUpdate: false })
       .run();
+    return true;
   };
 
   const editor = useEditor({
@@ -151,8 +162,16 @@ export function MarkdownEditor({
       },
     },
     onCreate: ({ editor: created }) => {
-      load(created, value);
-      if (autoFocus) created.commands.focus("end");
+      const visual = load(created, value);
+      if (autoFocus && visual) {
+        const position =
+          autoFocusVisibleOffset == null
+            ? null
+            : positionAfterVisibleChars(created.state.doc, autoFocusVisibleOffset);
+        // A disabled editor (save still settling) cannot take focus yet.
+        if (created.isEditable) created.commands.focus(position ?? "end");
+        else pendingFocus.current = position ?? "end";
+      }
     },
     onUpdate: ({ editor: updated }) => {
       if (!updated.markdown) return;
@@ -176,7 +195,12 @@ export function MarkdownEditor({
   }, [editor, value]);
 
   useEffect(() => {
-    if (editor && !editor.isDestroyed) editor.setEditable(!disabled, false);
+    if (!editor || editor.isDestroyed) return;
+    editor.setEditable(!disabled, false);
+    if (!disabled && pendingFocus.current !== null) {
+      editor.commands.focus(pendingFocus.current);
+      pendingFocus.current = null;
+    }
   }, [editor, disabled]);
 
   // Keep the dynamic ARIA state of the editable area in sync.

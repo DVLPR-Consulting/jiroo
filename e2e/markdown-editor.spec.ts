@@ -10,7 +10,7 @@ import { createItem } from "../lib/services/items";
 
 const ADMIN_EMAIL = "platform-admin@jiroo.local";
 
-async function fixtureItem(title: string) {
+async function fixtureItem(title: string, description: string | null = null) {
   const [admin] = await db.select({ id: user.id, name: user.name }).from(user)
     .where(eq(user.email, ADMIN_EMAIL));
   const [backlog] = await db.select({ id: backlogs.id }).from(backlogs)
@@ -25,7 +25,7 @@ async function fixtureItem(title: string) {
     type: "tache",
     parentId: epic.id,
     title: `${title} ${runId}`,
-    description: null,
+    description,
   }, admin.id, `e2e-markdown-editor-${title}-${runId}`);
   return { ...created, adminName: admin.name };
 }
@@ -179,5 +179,39 @@ test.describe("éditeur Markdown visuel", () => {
         .where(eq(comments.itemId, item.id)).orderBy(desc(comments.createdAt)).limit(1);
       return row?.body;
     }).toBe(`Merci @${item.adminName} pour le **correctif**\n\n- à vérifier`);
+  });
+
+  test("ouvre l’éditeur en cliquant dans la description, caret près du clic, ou au clavier", async ({
+    page,
+  }, testInfo) => {
+    const description = "## Étapes\n\nCliquer sur le texte puis lire [la doc](https://exemple.fr).";
+    const item = await fixtureItem("JIR-66 clic", description);
+    const dialog = await openItem(page, item.key);
+    const main = dialog.getByTestId("item-detail-main");
+    const region = main.getByRole("button", { name: "Modifier la description" });
+    await expect(region).toHaveCSS("cursor", "text");
+    await expect(main.getByRole("button", { name: "Éditer" })).toHaveAttribute("data-variant", "outline");
+    await region.getByText("Cliquer sur le texte").hover({ position: { x: 30, y: 8 } });
+    await expect(region).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await page.screenshot({ path: testInfo.outputPath("description-click-hover.png") });
+
+    // Click near the start of the paragraph: the caret lands there.
+    await region.getByText("Cliquer sur le texte").click({ position: { x: 30, y: 8 } });
+    const editor = main.getByRole("textbox", { name: "Description" });
+    await expect(editor).toBeFocused();
+    await page.keyboard.type("§");
+    await main.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(editor).toHaveCount(0);
+    await expect.poll(() => storedDescription(item.id)).toContain("§");
+    const paragraph = (await storedDescription(item.id))!.split("\n").find((line) => line.includes("§"))!;
+    expect(paragraph.startsWith("C")).toBe(true);
+    expect(paragraph.indexOf("§")).toBeLessThanOrEqual(8);
+
+    // Keyboard: the focused rendering opens the editor with Enter.
+    await main.getByRole("button", { name: "Modifier la description" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(editor).toBeFocused();
+    await main.getByRole("button", { name: "Annuler", exact: true }).click();
+    await expect(editor).toHaveCount(0);
   });
 });

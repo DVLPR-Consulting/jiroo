@@ -301,4 +301,30 @@ describe("MarkdownEditor", () => {
     act(() => ref.current!.replaceTextBeforeCaret(3, "@Alice "));
     expect(markdown()).toBe(`${table}\nMerci @Alice `);
   });
+
+  it("opens with the caret after the given visible characters", async () => {
+    const onCaretTextChange = vi.fn();
+    render(
+      <MarkdownEditor
+        value={"## Titre\n\nUn mot"}
+        label="Contenu"
+        autoFocus
+        autoFocusVisibleOffset={7}
+        onChange={vi.fn()}
+        onCaretTextChange={onCaretTextChange}
+      />,
+    );
+    await waitFor(() => expect(onCaretTextChange).toHaveBeenLastCalledWith("Un"));
+  });
+
+  it("takes the requested autofocus once it is enabled", async () => {
+    const { rerender } = render(
+      <MarkdownEditor value="texte" label="Contenu" autoFocus disabled onChange={vi.fn()} />,
+    );
+    const editor = await screen.findByRole("textbox", { name: "Contenu" });
+    await screen.findByRole("toolbar");
+    expect(editor).not.toHaveFocus();
+    rerender(<MarkdownEditor value="texte" label="Contenu" autoFocus onChange={vi.fn()} />);
+    await waitFor(() => expect(editor).toHaveFocus());
+  });
 });

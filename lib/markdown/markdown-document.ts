@@ -9,6 +9,7 @@
  */
 import type { JSONContent } from "@tiptap/react";
 import type { MarkdownManager } from "@tiptap/markdown";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { isAllowedLinkUrl } from "@/lib/markdown/link-url";
 
 /** marked token types the editor parses and serializes back faithfully. */
@@ -128,4 +129,34 @@ export function docToMarkdown(manager: MarkdownManager, doc: JSONContent): strin
   // Trailing blank lines come from the editor's trailing empty paragraph; the
   // last line keeps its own trailing spaces ("- [ ] " is an empty task).
   return manager.serialize(doc).replace(/\n\s*$/, "");
+}
+
+/**
+ * Document position right after the `count`-th non-whitespace text character,
+ * or null when the text is shorter. Used to put the caret where the user
+ * clicked in the read rendering: whitespace is ignored on both sides because
+ * the rendered HTML and the editor lay blocks out differently.
+ */
+export function positionAfterVisibleChars(
+  doc: ProseMirrorNode,
+  count: number,
+): number | null {
+  if (count <= 0) return null;
+  let remaining = count;
+  let found: number | null = null;
+  doc.descendants((node, pos) => {
+    if (found !== null) return false;
+    if (!node.isText) return true;
+    const text = node.text ?? "";
+    for (let index = 0; index < text.length; index += 1) {
+      if (/\s/.test(text[index]!)) continue;
+      remaining -= 1;
+      if (remaining === 0) {
+        found = pos + index + 1;
+        return false;
+      }
+    }
+    return false;
+  });
+  return found;
 }

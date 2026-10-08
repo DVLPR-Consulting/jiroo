@@ -8,6 +8,7 @@ import { markdownEditorExtensions } from "@/lib/markdown/editor-extensions";
 import {
   docToMarkdown,
   markdownToDoc,
+  positionAfterVisibleChars,
   unsupportedMarkdownFeatures,
 } from "@/lib/markdown/markdown-document";
 import { ITEM_TEMPLATES } from "@/lib/items/templates";
@@ -118,5 +119,22 @@ describe("unsupportedMarkdownFeatures", () => {
     ["[r][1]\n\n[1]: ftp://a.fr", ["lien non pris en charge"]],
   ])("reports %j", (markdown, expected) => {
     expect(unsupportedMarkdownFeatures(manager, markdown)).toEqual(expected);
+  });
+});
+
+describe("positionAfterVisibleChars", () => {
+  it("maps a count of visible characters to a document position", () => {
+    editor.commands.setContent(markdownToDoc(manager, "## Titre\n\nUn **mot** ici"));
+    const doc = editor.state.doc;
+    // "Titre" (5) + "Unmot" (5): right after the "t" of "mot".
+    const pos = positionAfterVisibleChars(doc, 10)!;
+    expect(doc.textBetween(0, pos, "|")).toBe("Titre|Un mot");
+    expect(positionAfterVisibleChars(doc, 1)).toBe(2);
+  });
+
+  it("returns null when the count is out of range", () => {
+    editor.commands.setContent(markdownToDoc(manager, "abc"));
+    expect(positionAfterVisibleChars(editor.state.doc, 0)).toBeNull();
+    expect(positionAfterVisibleChars(editor.state.doc, 4)).toBeNull();
   });
 });
