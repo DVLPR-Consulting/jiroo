@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReleaseNotesEditor } from "@/components/releases/release-notes-editor";
@@ -54,44 +54,65 @@ describe("ReleaseNotesEditor", () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it("renders the generated Markdown in an editable textarea and a live preview", async () => {
+  async function editor() {
+    const found = await screen.findByRole("textbox", { name: "Notes de release" });
+    await waitFor(() => expect(found).toHaveTextContent("CASS-1 — Recherche"));
+    return found;
+  }
+
+  /** Replaces the whole content with pasted plain text. */
+  async function replaceWith(user: ReturnType<typeof setupUser>, target: HTMLElement, text: string) {
+    await user.click(target);
+    await user.keyboard("{Control>}a{/Control}{Backspace}");
+    await user.paste(text);
+  }
+
+  it("renders the generated Markdown as formatted content and a live preview", async () => {
     const user = setupUser();
     renderEditor();
-    const textarea = screen.getByRole("textbox", { name: "Notes de release (Markdown)" });
-    expect(textarea).toHaveValue(initialMarkdown);
-    expect(screen.getByRole("heading", { name: "Fonctionnalités" })).toBeVisible();
+    const textbox = await editor();
+    expect(within(textbox).getByRole("heading", { level: 2, name: "Fonctionnalités" })).toBeVisible();
+    expect(screen.getByRole("toolbar", { name: "Mise en forme" })).toBeVisible();
+    const preview = screen.getByRole("region", { name: "Aperçu" });
+    expect(within(preview).getByRole("heading", { name: "Fonctionnalités" })).toBeVisible();
 
-    await user.clear(textarea);
-    await user.type(textarea, "## Ajout manuel");
-    expect(screen.getByRole("heading", { name: "Ajout manuel" })).toBeVisible();
+    await replaceWith(user, textbox, "Ajout manuel");
+    await user.keyboard("{Control>}a{/Control}");
+    await user.click(screen.getByRole("button", { name: "Titre 2" }));
+    expect(within(preview).getByRole("heading", { name: "Ajout manuel" })).toBeVisible();
   });
 
-  it("never renders raw HTML typed in the textarea", async () => {
+  // Pasted HTML only keeps what the editor schema knows (here <b> becomes
+  // bold); typed HTML-looking text stays literal (lib/markdown tests).
+  it("never renders raw HTML pasted in the editor", async () => {
     const user = setupUser();
     const { container } = renderEditor();
-    const textarea = screen.getByRole("textbox", { name: "Notes de release (Markdown)" });
-    await user.clear(textarea);
-    await user.click(textarea);
-    await user.paste('<img src=x onerror="alert(1)"><script>alert(2)</script><b>gras</b>');
+    await replaceWith(
+      user,
+      await editor(),
+      '<img src=x onerror="alert(1)"><script>alert(2)</script><b>gras</b>',
+    );
     const preview = screen.getByRole("region", { name: "Aperçu" });
     expect(preview.querySelector("img, script, b")).toBeNull();
-    expect(preview).toHaveTextContent('<img src=x onerror="alert(1)">');
+    expect(preview.querySelector("strong")).toHaveTextContent("gras");
     expect(container.querySelector("img, script")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Copier le Markdown" }));
+    expect(writeText).toHaveBeenLastCalledWith("**gras**");
   });
 
   it("copies the edited Markdown and the rendered HTML", async () => {
     const user = setupUser();
     renderEditor();
-    const textarea = screen.getByRole("textbox", { name: "Notes de release (Markdown)" });
-    await user.type(textarea, "\n- CASS-9 — Ajout");
+    await replaceWith(user, await editor(), "CASS-9 — Ajout");
+    await user.keyboard("{Control>}a{/Control}");
+    await user.click(screen.getByRole("button", { name: "Liste à puces" }));
     await user.click(screen.getByRole("button", { name: "Copier le Markdown" }));
-    expect(writeText).toHaveBeenLastCalledWith(`${initialMarkdown}\n- CASS-9 — Ajout`);
+    expect(writeText).toHaveBeenLastCalledWith("- CASS-9 — Ajout");
     expect(screen.getByRole("status")).toHaveTextContent("Markdown copié.");
 
     await user.click(screen.getByRole("button", { name: "Copier le HTML" }));
     const html = writeText.mock.lastCall?.[0] as string;
-    expect(html).toContain("<h2>Fonctionnalités</h2>");
-    expect(html).toContain("CASS-9 — Ajout");
+    expect(html).toContain("<li>CASS-9 — Ajout</li>");
     expect(screen.getByRole("status")).toHaveTextContent("HTML copié.");
   });
 
@@ -103,9 +124,10 @@ describe("ReleaseNotesEditor", () => {
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Copie impossible."));
   });
 
-  it("downloads .md and a standalone .html document", async () => {
+  it("downloads the untouched generated .md byte-identical and a standalone .html document", async () => {
     const user = setupUser();
     renderEditor();
+    await editor();
     await user.click(screen.getByRole("button", { name: "Télécharger .md" }));
     expect(clicked.at(-1)?.download).toBe("notes-de-release-2026-10.md");
     const mdBlob = (createObjectURL.mock.calls as unknown as Blob[][]).at(-1)?.[0] as Blob;
@@ -126,30 +148,31 @@ describe("ReleaseNotesEditor", () => {
   it("restores the generated text", async () => {
     const user = setupUser();
     renderEditor();
-    const textarea = screen.getByRole("textbox", { name: "Notes de release (Markdown)" });
-    await user.clear(textarea);
+    const textbox = await editor();
+    await replaceWith(user, textbox, "Brouillon");
     await user.click(screen.getByRole("button", { name: "Réinitialiser" }));
-    expect(textarea).toHaveValue(initialMarkdown);
+    await waitFor(() =>
+      expect(within(textbox).getByRole("heading", { level: 2, name: "Fonctionnalités" })).toBeVisible(),
+    );
     expect(screen.getByRole("status")).toHaveTextContent("Notes régénérées.");
+    await user.click(screen.getByRole("button", { name: "Copier le Markdown" }));
+    expect(writeText).toHaveBeenLastCalledWith(initialMarkdown);
   });
 
   it("neutralizes javascript: links in the preview", async () => {
     const user = setupUser();
     renderEditor();
-    const textarea = screen.getByRole("textbox", { name: "Notes de release (Markdown)" });
-    await user.clear(textarea);
-    await user.click(textarea);
-    await user.paste("[piège](javascript:alert(1))");
-    const link = screen.getByText("piège").closest("a");
-    expect(link?.getAttribute("href") ?? "").not.toMatch(/javascript:/i);
+    await replaceWith(user, await editor(), "[piège](javascript:alert(1))");
+    const preview = screen.getByRole("region", { name: "Aperçu" });
+    expect(preview.querySelector('a[href^="javascript" i]')).toBeNull();
   });
 
   it("regenerates when the server sends new notes, after confirming the loss of edits", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
     const user = setupUser();
     const { rerender } = renderEditor();
-    const textarea = screen.getByRole("textbox", { name: "Notes de release (Markdown)" });
-    await user.type(textarea, " édité");
+    const textbox = await editor();
+    await replaceWith(user, textbox, "édité");
     await user.click(screen.getByRole("checkbox", { name: "Inclure les éléments non terminés" }));
     expect(mocks.replace).not.toHaveBeenCalled();
     await user.click(screen.getByRole("checkbox", { name: "Inclure les éléments non terminés" }));
@@ -163,16 +186,17 @@ describe("ReleaseNotesEditor", () => {
         options={{ includeIncomplete: true, includeDescription: true }}
       />,
     );
-    expect(textarea).toHaveValue("# Régénérées\n");
+    await waitFor(() =>
+      expect(within(textbox).getByRole("heading", { level: 1, name: "Régénérées" })).toBeVisible(),
+    );
   });
 
   it("resets accepted edits when new options regenerate identical notes", async () => {
     vi.spyOn(window, "confirm").mockReturnValueOnce(true);
     const user = setupUser();
     const { rerender } = renderEditor();
-    const textarea = screen.getByRole("textbox", { name: "Notes de release (Markdown)" });
-    await user.clear(textarea);
-    await user.type(textarea, "# Version locale");
+    const textbox = await editor();
+    await replaceWith(user, textbox, "Version locale");
     await user.click(screen.getByRole("checkbox", { name: "Inclure les éléments non terminés" }));
     rerender(
       <ReleaseNotesEditor
@@ -182,7 +206,8 @@ describe("ReleaseNotesEditor", () => {
         options={{ includeIncomplete: true, includeDescription: true }}
       />,
     );
-    expect(textarea).toHaveValue(initialMarkdown);
+    await waitFor(() => expect(textbox).toHaveTextContent("CASS-1 — Recherche"));
+    expect(textbox).not.toHaveTextContent("Version locale");
   });
 
   it("round-trips options through the URL", async () => {

@@ -104,9 +104,12 @@ export function ItemDetailSheet({
         }}
         onEscapeKeyDown={(event) => {
           const target = event.target;
+          // Escape belongs to the title editor and to widgets that close
+          // themselves on it (the Markdown editor's link form).
           if (
             target instanceof Element &&
-            target.matches('[aria-label="Titre de l’item"]')
+            (target.matches('[aria-label="Titre de l’item"]') ||
+              target.closest("[data-local-escape]"))
           ) {
             event.preventDefault();
           }

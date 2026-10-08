@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import type { ReleaseNotesOptions } from "@/lib/validation/release";
 
 function escapeHtml(value: string) {
@@ -29,9 +29,10 @@ function download(fileName: string, type: string, content: string) {
 }
 
 /**
- * Release notes editor: generated Markdown edited locally (never saved, as Jira
- * regenerates notes on each view), previewed with react-markdown WITHOUT raw
- * HTML, and exported as Markdown or as HTML produced from the preview.
+ * Release notes editor: generated Markdown edited locally in the shared
+ * Markdown editor (never saved, as Jira regenerates notes on each view),
+ * previewed with react-markdown WITHOUT raw HTML, and exported as Markdown or
+ * as HTML produced from the preview.
  */
 export function ReleaseNotesEditor({
   initialMarkdown,
@@ -162,12 +163,14 @@ export function ReleaseNotesEditor({
       </p>
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor={`${prefix}-markdown`}>Notes de release (Markdown)</Label>
-          <textarea
-            id={`${prefix}-markdown`}
-            className="min-h-96 w-full rounded-lg border border-input bg-transparent p-3 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          <h2 className="text-sm font-medium">
+            Notes de release
+          </h2>
+          <MarkdownEditor
+            label="Notes de release"
+            minHeightClassName="min-h-96"
             value={markdown}
-            onChange={(event) => setMarkdown(event.target.value)}
+            onChange={setMarkdown}
           />
         </div>
         <section aria-labelledby={`${prefix}-preview`} className="space-y-2">

@@ -119,6 +119,23 @@ describe("ItemDetailSheet", () => {
     expect(mocks.push).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the drawer open when Escape belongs to a widget inside it", async () => {
+    const user = userEvent.setup();
+    renderSheet(
+      <>
+        <DialogTitle>CASS-4 — Titre</DialogTitle>
+        <div data-local-escape>
+          <input aria-label="Adresse du lien" />
+        </div>
+      </>,
+    );
+    await user.click(screen.getByRole("textbox", { name: "Adresse du lien" }));
+    await user.keyboard("{Escape}");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeVisible();
+  });
+
   it("drops the item immediately when the user prefers reduced motion", async () => {
     vi.stubGlobal(
       "matchMedia",

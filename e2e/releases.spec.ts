@@ -1469,24 +1469,27 @@ audited(25, "génère les notes depuis l’état courant, publiée ou non", asyn
   await page.goto(`/b/CASS/releases/${published.id}`);
   await page.getByRole("link", { name: "Notes de release" }).click();
   await expect(page).toHaveURL(new RegExp(`/b/CASS/releases/${published.id}/notes$`));
-  const textarea = page.getByRole("textbox", { name: "Notes de release (Markdown)" });
-  await expect(textarea).toHaveValue(new RegExp(`## Fonctionnalités\\n\\n- ${feature.key} — R2-S25 fonctionnalité`));
-  await expect(textarea).toHaveValue(new RegExp(`## Corrections\\n\\n- ${bug.key} — R2-S25 correction`));
-  await expect(textarea).toHaveValue(/Publiée le 20 août 2026\./);
+  const notes = page.getByRole("textbox", { name: "Notes de release" });
+  // The generated Markdown is shown formatted: each item under its section.
+  const section = (title: string) =>
+    notes.getByRole("heading", { level: 2, name: title }).locator("xpath=following-sibling::*[1]");
+  await expect(section("Fonctionnalités")).toHaveText(`${feature.key} — R2-S25 fonctionnalité`);
+  await expect(section("Corrections")).toHaveText(`${bug.key} — R2-S25 correction`);
+  await expect(notes).toContainText("Publiée le 20 août 2026.");
 
   await updateItem({ id: feature.id, title: "R2-S25 fonctionnalité renommée" }, actorId, "e2e-s25-rename");
   await page.reload();
-  await expect(textarea).toHaveValue(new RegExp(`- ${feature.key} — R2-S25 fonctionnalité renommée`));
+  await expect(section("Fonctionnalités")).toHaveText(`${feature.key} — R2-S25 fonctionnalité renommée`);
 
   await page.goto(`/b/CASS/releases/${draft.id}/notes`);
-  await expect(textarea).toHaveValue(/Aucun élément terminé dans cette version\./);
+  await expect(notes).toContainText("Aucun élément terminé dans cette version.");
   await page.getByLabel("Inclure les éléments non terminés").click();
   await expect(page).toHaveURL(/incomplete=1/);
   await expect(page.getByLabel("Inclure les éléments non terminés")).toBeChecked();
-  await expect(textarea).toHaveValue(new RegExp(`## Non terminés\\n\\n- ${open.key} — R2-S25 en cours`));
+  await expect(section("Non terminés")).toHaveText(`${open.key} — R2-S25 en cours`);
   await updateItem({ id: open.id, statusId: backlog.status("done") }, actorId, "e2e-s25-done");
   await page.reload();
-  await expect(textarea).toHaveValue(new RegExp(`## Fonctionnalités\\n\\n- ${open.key} — R2-S25 en cours`));
+  await expect(section("Fonctionnalités")).toHaveText(`${open.key} — R2-S25 en cours`);
 });
 
 audited(26, "édite les notes puis copie et télécharge Markdown et HTML sans HTML brut", async ({ page }) => {
@@ -1495,10 +1498,16 @@ audited(26, "édite les notes puis copie et télécharge Markdown et HTML sans H
   await assignVersions(item.id, [release.id]);
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto(`/b/CASS/releases/${release.id}/notes`);
-  const textarea = page.getByRole("textbox", { name: "Notes de release (Markdown)" });
-  await expect(textarea).toHaveValue(new RegExp(`- ${item.key} — R2-S26 livré`));
-  await textarea.press("ControlOrMeta+End");
-  await textarea.pressSequentially("\n- Ajout manuel\n\n<img src=x onerror=alert(1)>");
+  const notes = page.getByRole("textbox", { name: "Notes de release" });
+  // Edit in the visual editor: new list item after the generated one, then a
+  // paragraph whose HTML-looking text must stay literal.
+  await notes.getByText(`${item.key} — R2-S26 livré`).click();
+  await page.keyboard.press("End");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Ajout manuel");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("<img src=x onerror=alert(1)>");
   const preview = page.getByRole("region", { name: "Aperçu" });
   await expect(preview.getByText("Ajout manuel")).toBeVisible();
   await expect(preview.locator("img")).toHaveCount(0);

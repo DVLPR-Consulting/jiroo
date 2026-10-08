@@ -52,4 +52,16 @@ describe("HelpPage", () => {
     expect(screen.getAllByText("À quoi ça sert —").length).toBeGreaterThan(20);
     expect(screen.getAllByText("Comment faire").length).toBeGreaterThan(15);
   });
+
+  it("documents the rich-text editor (JIR-66)", () => {
+    render(<HelpPage />);
+    const tickets = document.querySelector("section#tickets") as HTMLElement;
+    const topic = within(tickets).getByRole("heading", { level: 3, name: "Mise en forme du texte" })
+      .closest("article, div, section") as HTMLElement;
+    for (const label of ["Titre 2", "Gras", "Liste de tâches", "Bloc de code", "Lien", "Rétablir la modification"]) {
+      expect(within(tickets).getAllByText(new RegExp(label)).length).toBeGreaterThan(0);
+    }
+    expect(topic).toHaveTextContent("Markdown brut");
+    expect(within(tickets).getByText(/Modifier la description|cliquez dans la description/i)).toBeVisible();
+  });
 });

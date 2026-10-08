@@ -4,11 +4,13 @@ import { z } from "zod";
 // commentBodySchema
 // ---------------------------------------------------------------------------
 
+export const COMMENT_BODY_MAX = 5000;
+
 export const commentBodySchema = z
   .string()
   .trim()
   .min(1, "Le commentaire ne peut pas être vide.")
-  .max(5000);
+  .max(COMMENT_BODY_MAX);
 
 // ---------------------------------------------------------------------------
 // addCommentInput

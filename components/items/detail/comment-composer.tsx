@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, useTransition, useRef, useCallback } from "react";
+import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { addCommentAction, editCommentAction } from "@/app/actions/comments";
+import {
+  MarkdownEditor,
+  type MarkdownEditorHandle,
+} from "@/components/markdown/markdown-editor";
+import { COMMENT_BODY_MAX } from "@/lib/items/comments";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -15,12 +20,11 @@ function normalize(s: string): string {
 }
 
 /**
- * Detect an active @-mention token immediately before the caret.
+ * Detect an active @-mention token at the end of the text before the caret.
  * Returns the partial name (after @) if active, otherwise null.
  */
-function getMentionQuery(text: string, caretPos: number): string | null {
-  const before = text.slice(0, caretPos);
-  const match = before.match(/@([\p{L}\p{N}_]*)$/u);
+function getMentionQuery(textBeforeCaret: string): string | null {
+  const match = textBeforeCaret.match(/@([\p{L}\p{N}_]*)$/u);
   return match ? (match[1] ?? null) : null;
 }
 
@@ -58,7 +62,7 @@ export function CommentComposer({
 
   // @-mention autocomplete state
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<MarkdownEditorHandle>(null);
 
   // Filtered candidates for the current @-token
   const mentionCandidates =
@@ -69,53 +73,27 @@ export function CommentComposer({
       : [];
 
   // ---------------------------------------------------------------------------
-  // Textarea change — track caret to detect active @-token
+  // Select a mention candidate from the dropdown: replace the @<query> token
+  // before the caret with @<Name> followed by a space.
   // ---------------------------------------------------------------------------
 
-  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    const val = e.target.value;
-    setBody(val);
-    const caret = e.target.selectionStart ?? val.length;
-    setMentionQuery(getMentionQuery(val, caret));
+  function selectMention(user: { id: string; name: string }) {
+    if (mentionQuery === null) return;
+    const applied = editorRef.current?.replaceTextBeforeCaret(
+      mentionQuery.length + 1,
+      `@${user.name} `,
+    );
+    setMentionQuery(null);
+    // Only notify someone whose mention is actually in the comment.
+    if (!applied) {
+      setError(
+        `Mention impossible : le commentaire atteint la limite de ${COMMENT_BODY_MAX.toLocaleString("fr-FR").replace(/\u202f/g, " ")} caractères.`,
+      );
+      return;
+    }
+    setError(null);
+    setMentionIds((prev) => new Set([...prev, user.id]));
   }
-
-  // Also update the mention query on cursor movement (click/arrow keys)
-  function handleSelect(e: React.SyntheticEvent<HTMLTextAreaElement>) {
-    const target = e.currentTarget;
-    const caret = target.selectionStart ?? target.value.length;
-    setMentionQuery(getMentionQuery(target.value, caret));
-  }
-
-  // ---------------------------------------------------------------------------
-  // Select a mention candidate from the dropdown
-  // ---------------------------------------------------------------------------
-
-  const selectMention = useCallback(
-    (user: { id: string; name: string }) => {
-      const ta = textareaRef.current;
-      if (!ta) return;
-
-      const caret = ta.selectionStart ?? body.length;
-      const before = body.slice(0, caret);
-      const after = body.slice(caret);
-
-      // Replace the @<query> token with @<Name> followed by a space
-      const replaced = before.replace(/@([\p{L}\p{N}_]*)$/u, `@${user.name} `);
-      const newBody = replaced + after;
-
-      setBody(newBody);
-      setMentionIds((prev) => new Set([...prev, user.id]));
-      setMentionQuery(null);
-
-      // Restore focus and move caret after the inserted mention
-      requestAnimationFrame(() => {
-        ta.focus();
-        const newCaret = replaced.length;
-        ta.setSelectionRange(newCaret, newCaret);
-      });
-    },
-    [body],
-  );
 
   // ---------------------------------------------------------------------------
   // Submit
@@ -161,18 +139,6 @@ export function CommentComposer({
   }
 
   // ---------------------------------------------------------------------------
-  // Keyboard: Cmd/Ctrl+Enter → submit; regular Enter → newline (no trap)
-  // ---------------------------------------------------------------------------
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      handleSubmit();
-    }
-    // All other keys (including plain Enter) pass through normally.
-  }
-
-  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -182,21 +148,22 @@ export function CommentComposer({
     <div className="flex flex-col gap-2">
       {/* Textarea + dropdown wrapper */}
       <div className="relative">
-        <textarea
-          ref={textareaRef}
-          rows={mode === "create" ? 4 : 6}
-          className="w-full resize-y rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-sm leading-relaxed text-foreground outline-none focus:border-[var(--ring)] disabled:opacity-60"
-          value={body}
-          onChange={handleChange}
-          onSelect={handleSelect}
-          onKeyDown={handleKeyDown}
+        <MarkdownEditor
+          ref={editorRef}
+          label={mode === "create" ? "Nouveau commentaire" : "Modifier le commentaire"}
           placeholder={
             mode === "create"
               ? "Écrire un commentaire… (Markdown, @ pour mentionner)"
               : undefined
           }
+          maxLength={COMMENT_BODY_MAX}
+          minHeightClassName={mode === "create" ? "min-h-24" : "min-h-32"}
+          value={body}
+          onChange={setBody}
+          onCaretTextChange={(text) => setMentionQuery(getMentionQuery(text))}
+          // Cmd/Ctrl+Enter submits; plain Enter adds a line.
+          onSubmitShortcut={handleSubmit}
           disabled={pending}
-          aria-label={mode === "create" ? "Nouveau commentaire" : "Modifier le commentaire"}
         />
 
         {/* @-mention autocomplete dropdown */}
@@ -211,7 +178,7 @@ export function CommentComposer({
                 <button
                   type="button"
                   className="w-full px-3 py-1.5 text-left text-sm hover:bg-[var(--muted)]"
-                  // Use mousedown so the textarea doesn't blur before the click fires
+                  // Use mousedown so the editor doesn't blur before the click fires
                   onMouseDown={(e) => {
                     e.preventDefault();
                     selectMention(u);
@@ -227,7 +194,7 @@ export function CommentComposer({
 
       {/* Inline error */}
       {error && (
-        <p className="t-sm" style={{ color: "var(--danger)" }}>
+        <p role="alert" className="t-sm" style={{ color: "var(--danger)" }}>
           {error}
         </p>
       )}
