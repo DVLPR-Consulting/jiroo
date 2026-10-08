@@ -78,9 +78,7 @@ export async function flushAllDrafts(): Promise<void> {
 export function clearDrafts() {
   for (const entry of entries.values()) {
     entry.unsubscribe();
-    // Drop the draft first: dispose would otherwise save it.
-    entry.scheduler.discard();
-    void entry.scheduler.dispose();
+    entry.scheduler.kill();
   }
   entries.clear();
   notify();

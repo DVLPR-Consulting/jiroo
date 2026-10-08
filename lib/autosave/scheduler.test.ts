@@ -272,4 +272,23 @@ describe("createAutosaveScheduler", () => {
     await vi.advanceTimersByTimeAsync(2000);
     expect(save).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["succeeds", { ok: true } as SaveResult],
+    ["fails", { ok: false, error: "Erreur" } as SaveResult],
+  ])("kill stops for good while a request is in flight that then %s", async (_, reply) => {
+    const { scheduler, save, calls, last } = setup({ initial: "A" });
+    scheduler.change("B");
+    void scheduler.flush();
+    const before = last();
+    scheduler.kill();
+    calls[0]!.reply.resolve(reply);
+    await settle();
+    scheduler.change("C");
+    await scheduler.flush();
+    await scheduler.retry();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(last()).toBe(before);
+  });
 });

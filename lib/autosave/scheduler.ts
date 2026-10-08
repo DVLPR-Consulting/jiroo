@@ -40,6 +40,12 @@ export type AutosaveScheduler<T> = {
    * last saved value becomes current again and nothing resends the draft.
    */
   discard: () => void;
+  /**
+   * Stops for good without saving (session purge): the debounce is
+   * cancelled, a request already sent may complete but its result changes
+   * nothing and triggers no further send; later calls are ignored.
+   */
+  kill: () => void;
   /** Flushes and stops: later calls and notifications are ignored. */
   dispose: () => Promise<void>;
   /** Current state; the same object until it changes (useSyncExternalStore). */
@@ -76,6 +82,7 @@ export function createAutosaveScheduler<T>({
   let timer: ReturnType<typeof setTimeout> | null = null;
   let inFlight: Promise<void> | null = null;
   let disposed = false;
+  let killed = false;
   let currentSave = save;
   /** Bumped by discard: a save started before it no longer reports errors. */
   let generation = 0;
@@ -111,7 +118,7 @@ export function createAutosaveScheduler<T>({
   };
 
   async function loop() {
-    while (!equals(latest, saved)) {
+    while (!killed && !equals(latest, saved)) {
       const value = latest;
       const started = generation;
       status = "saving";
@@ -122,6 +129,7 @@ export function createAutosaveScheduler<T>({
       } catch {
         result = { ok: false, error: DEFAULT_ERROR };
       }
+      if (killed) return;
       if (!result.ok) {
         if (started !== generation) return;
         status = "error";
@@ -192,6 +200,11 @@ export function createAutosaveScheduler<T>({
       error = null;
       if (status === "error") status = "idle";
       notify();
+    },
+    kill() {
+      killed = true;
+      disposed = true;
+      clearTimer();
     },
     dispose() {
       if (disposed) return inFlight ?? Promise.resolve();
