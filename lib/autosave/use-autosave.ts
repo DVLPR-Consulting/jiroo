@@ -5,9 +5,11 @@ import { createAutosaveScheduler, type AutosaveScheduler, type SaveResult } from
 import {
   acquireDraft,
   clearDrafts,
+  isDraftKept,
   releaseDraft,
   retainDraft,
   setActiveDraftUser,
+  subscribeDrafts,
 } from "@/lib/autosave/registry";
 
 /** Test helper: forgets every kept draft. */
@@ -43,15 +45,19 @@ export function useAutosave<T>({
   delay: number;
   equals?: (a: T, b: T) => boolean;
 }) {
-  const [entry] = useState(() =>
+  const acquire = () =>
     acquireDraft(
       user,
       key,
       () =>
         createAutosaveScheduler<T>({ initial, revision, delay, equals, save }) as
           AutosaveScheduler<unknown>,
-    ),
-  );
+    );
+  const [entry, setEntry] = useState(acquire);
+  // Never keep using a killed or dropped entry: take the kept one again, or
+  // a fresh one (the registry notifies when an entry goes away).
+  const kept = useSyncExternalStore(subscribeDrafts, () => isDraftKept(entry), () => true);
+  if (!kept) setEntry(acquire());
   const scheduler = entry.scheduler as AutosaveScheduler<T>;
   const snapshot = useSyncExternalStore(scheduler.subscribe, scheduler.snapshot, scheduler.snapshot);
 
@@ -62,6 +68,7 @@ export function useAutosave<T>({
 
   // Unmount (and Strict Mode's simulated one): save what is pending now.
   useEffect(() => {
+    if (!isDraftKept(entry)) return;
     retainDraft(entry);
     return () => releaseDraft(entry);
   }, [entry]);

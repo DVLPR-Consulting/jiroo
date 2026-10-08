@@ -5,6 +5,9 @@ import {
   clearDrafts,
   flushAllDrafts,
   hasUnsavedDrafts,
+  isDraftKept,
+  releaseDraft,
+  retainDraft,
   setActiveDraftUser,
 } from "@/lib/autosave/registry";
 
@@ -88,5 +91,37 @@ describe("active draft user", () => {
     setActiveDraftUser("alice");
     await flushAllDrafts();
     expect(save).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("release without an active user", () => {
+  beforeEach(() => clearDrafts());
+
+  it("keeps the draft as is: neither sent nor dropped", async () => {
+    const save = vi.fn().mockResolvedValue({ ok: true });
+    const entry = acquireDraft("alice", "k", () =>
+      createAutosaveScheduler<string>({ initial: "A", delay: 900, save }) as never,
+    );
+    retainDraft(entry);
+    entry.scheduler.change("B");
+    setActiveDraftUser(null);
+    releaseDraft(entry);
+    await new Promise((res) => setTimeout(res, 0));
+    expect(isDraftKept(entry)).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+    expect(hasUnsavedDrafts()).toBe(true);
+  });
+
+  it("still kills it when another user is active", () => {
+    const save = vi.fn();
+    const entry = acquireDraft("alice", "k", () =>
+      createAutosaveScheduler<string>({ initial: "A", delay: 900, save }) as never,
+    );
+    retainDraft(entry);
+    entry.scheduler.change("B");
+    setActiveDraftUser("bob");
+    releaseDraft(entry);
+    expect(isDraftKept(entry)).toBe(false);
+    expect(save).not.toHaveBeenCalled();
   });
 });

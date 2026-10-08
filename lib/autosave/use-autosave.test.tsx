@@ -57,4 +57,13 @@ describe("useAutosave", () => {
     expect(save).toHaveBeenCalledTimes(2);
     expect(result.current.status).toBe("saved");
   });
+
+  it("takes a fresh draft instead of a killed one", async () => {
+    const save = vi.fn().mockResolvedValue({ ok: true });
+    const { result } = renderHook(() => useAutosave({ user: "u1", key: "k", initial: "", save, delay: 900 }));
+    act(() => resetAutosaveRegistry());
+    act(() => result.current.change("après purge"));
+    await act(() => vi.advanceTimersByTimeAsync(900));
+    expect(save).toHaveBeenCalledWith("après purge");
+  });
 });

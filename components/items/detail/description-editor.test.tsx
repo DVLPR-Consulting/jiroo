@@ -3,6 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DescriptionEditor } from "@/components/items/detail/description-editor";
 import { resetAutosaveRegistry } from "@/lib/autosave/use-autosave";
+import { StrictMode } from "react";
+import { DraftsSession } from "@/components/shell/drafts-session";
+import { UnsavedDraftsGuard } from "@/components/shell/unsaved-drafts-guard";
 
 const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
@@ -232,6 +235,57 @@ describe("DescriptionEditor (Notion-like page)", () => {
     expect(screen.queryByRole("button", { name: "Réessayer" })).toBeNull();
     await new Promise((res) => setTimeout(res, 50));
     expect(mocks.updateItemAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a failed draft when the session and the editor unmount together", async () => {
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: false, error: "Indisponible" });
+    render(<UnsavedDraftsGuard />);
+    const user = userEvent.setup({ delay: 5 });
+    // Layout order: the session marker, then the page with the editor.
+    const shell = () => (
+      <>
+        <DraftsSession userId="alice" />
+        <DescriptionEditor itemId="item-1" currentUserId="alice" backlogKey="DEMO" description="A" />
+      </>
+    );
+    const first = render(shell());
+    const textbox = await retype(user, "B");
+    await act(async () => textbox.blur());
+    expect(await screen.findByRole("button", { name: "Réessayer" })).toBeInTheDocument();
+
+    // Session redirect: the whole shell goes at once.
+    first.unmount();
+    await act(async () => {});
+    const unload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(true);
+    expect(mocks.updateItemAction).toHaveBeenCalledTimes(1);
+
+    // The same user signs back in (no module reset).
+    render(shell());
+    const again = await editor();
+    await waitFor(() => expect(again).toHaveTextContent("B"));
+    expect(screen.getByRole("button", { name: "Réessayer" })).toBeInTheDocument();
+  });
+
+  it("autosaves under React Strict Mode with the session marker", async () => {
+    const user = userEvent.setup({ delay: 5 });
+    render(
+      <StrictMode>
+        <DraftsSession userId="alice" />
+        <DescriptionEditor itemId="item-1" currentUserId="alice" backlogKey="DEMO" description="A" />
+      </StrictMode>,
+    );
+    const textbox = await retype(user, "B");
+    await act(async () => textbox.blur());
+    await waitFor(() =>
+      expect(mocks.updateItemAction).toHaveBeenCalledWith({
+        id: "item-1",
+        backlogKey: "DEMO",
+        description: "B",
+      }),
+    );
+    expect(await screen.findByText("Enregistré")).toBeInTheDocument();
   });
 
   it("keeps drafts per item", async () => {

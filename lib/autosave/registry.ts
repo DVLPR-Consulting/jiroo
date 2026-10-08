@@ -76,18 +76,27 @@ export function acquireDraft(
   return entry;
 }
 
+/** Whether the entry is still kept (not killed nor dropped). */
+export function isDraftKept(entry: DraftEntry): boolean {
+  for (const candidate of entries.values()) if (candidate === entry) return true;
+  return false;
+}
+
 export function retainDraft(entry: DraftEntry) {
   entry.mounted += 1;
 }
 
 /**
- * The editor unmounted: flushes the draft if it belongs to the active user
- * (otherwise kills it), then drops the entry once unmounted and settled.
+ * The editor unmounted. Another signed-in user: the draft is killed. No
+ * active user (session ended, or a transient cleanup such as Strict Mode's
+ * effect replay): it is kept as is, neither sent nor dropped, and stays
+ * guarded. Its owner: it is flushed, then dropped once unmounted and settled.
  */
 export function releaseDraft(entry: DraftEntry) {
   entry.mounted -= 1;
   const id = [...entries].find(([, candidate]) => candidate === entry)?.[0];
   if (!id) return;
+  if (activeUser === null) return;
   if (entry.owner !== activeUser) {
     drop(id, entry);
     notify();
