@@ -55,7 +55,9 @@ test.describe("éditeur Markdown visuel", () => {
     await dialog.getByRole("button", { name: "Ajouter une description" }).click();
     const editor = dialog.getByRole("textbox", { name: "Description" });
     await expect(editor).toBeFocused();
-    const toolbar = dialog.getByRole("toolbar", { name: "Mise en forme" });
+    // The comment composer (always shown on top of the activity) has its own toolbar.
+    const toolbar = dialog.getByRole("region", { name: "Description" })
+      .getByRole("toolbar", { name: "Mise en forme" });
 
     // Toolbar: heading.
     await toolbar.getByRole("button", { name: "Titre 2" }).click();
@@ -139,7 +141,7 @@ test.describe("éditeur Markdown visuel", () => {
   test("écrit un commentaire formaté avec mention puis le modifie", async ({ page }, testInfo) => {
     const item = await fixtureItem("JIR-66 commentaire");
     const dialog = await openItem(page, item.key);
-    await dialog.getByRole("button", { name: "Commentaires" }).click();
+    await dialog.getByRole("tab", { name: "Commentaires" }).click();
 
     const composer = dialog.getByRole("textbox", { name: "Nouveau commentaire" });
     await composer.click();
