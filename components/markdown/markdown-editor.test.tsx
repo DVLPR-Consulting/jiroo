@@ -327,4 +327,45 @@ describe("MarkdownEditor", () => {
     rerender(<MarkdownEditor value="texte" label="Contenu" autoFocus onChange={vi.fn()} />);
     await waitFor(() => expect(editor).toHaveFocus());
   });
+
+  it("reports a caret replacement refused by the limit (Codex R3)", async () => {
+    const ref = createRef<MarkdownEditorHandle>();
+    const onChange = vi.fn();
+    render(
+      <MarkdownEditor ref={ref} value="abcd @a" label="Contenu" maxLength={10} onChange={onChange} />,
+    );
+    await screen.findByRole("toolbar");
+    act(() => ref.current!.focus("end"));
+    let applied: boolean | undefined;
+    act(() => {
+      applied = ref.current!.replaceTextBeforeCaret(2, "@Alice ");
+    });
+    expect(applied).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+    act(() => {
+      applied = ref.current!.replaceTextBeforeCaret(2, "@Al ");
+    });
+    expect(applied).toBe(true);
+    expect(onChange).toHaveBeenLastCalledWith("abcd @Al ");
+  });
+
+  it("refuses a raw-mode replacement past the limit", async () => {
+    const ref = createRef<MarkdownEditorHandle>();
+    const onChange = vi.fn();
+    const table = "| a |\n|---|\n| 1 |";
+    render(
+      <MarkdownEditor ref={ref} value={table} label="Contenu" maxLength={table.length + 2} onChange={onChange} />,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Contenu" }).tagName).toBe("TEXTAREA"),
+    );
+    const raw = screen.getByRole("textbox", { name: "Contenu" }) as HTMLTextAreaElement;
+    raw.setSelectionRange(table.length, table.length);
+    let applied: boolean | undefined;
+    act(() => {
+      applied = ref.current!.replaceTextBeforeCaret(0, "@Alice ");
+    });
+    expect(applied).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

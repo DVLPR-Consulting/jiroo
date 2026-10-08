@@ -24,8 +24,11 @@ import { cn } from "@/lib/utils";
 
 export type MarkdownEditorHandle = {
   focus: (position?: "start" | "end") => void;
-  /** Replaces the `length` characters before the caret with plain text. */
-  replaceTextBeforeCaret: (length: number, text: string) => void;
+  /**
+   * Replaces the `length` characters before the caret with plain text.
+   * Returns false when nothing changed (e.g. refused by the length limit).
+   */
+  replaceTextBeforeCaret: (length: number, text: string) => boolean;
 };
 
 /**
@@ -229,6 +232,7 @@ export function MarkdownEditor({
           const caret = textarea.selectionStart;
           const start = Math.max(0, caret - length);
           const next = textarea.value.slice(0, start) + text + textarea.value.slice(caret);
+          if (maxLength !== undefined && next.length > maxLength) return false;
           emitted.current = next;
           callbacks.current.onChange(next);
           callbacks.current.onCaretTextChange?.(next.slice(0, start + text.length));
@@ -236,18 +240,22 @@ export function MarkdownEditor({
             textarea.focus();
             textarea.setSelectionRange(start + text.length, start + text.length);
           });
-          return;
+          return true;
         }
-        if (!editor) return;
+        if (!editor) return false;
         const { from } = editor.state.selection;
+        const before = editor.state.doc;
         editor
           .chain()
           .focus()
           .insertContentAt({ from: Math.max(0, from - length), to: from }, { type: "text", text })
           .run();
+        // run() reports success even when the length limit filtered the
+        // transaction out: compare the documents instead.
+        return editor.state.doc !== before;
       },
     }),
-    [editor, rawFeatures],
+    [editor, rawFeatures, maxLength],
   );
 
   if (rawFeatures) {

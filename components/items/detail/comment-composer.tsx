@@ -79,9 +79,20 @@ export function CommentComposer({
 
   function selectMention(user: { id: string; name: string }) {
     if (mentionQuery === null) return;
-    editorRef.current?.replaceTextBeforeCaret(mentionQuery.length + 1, `@${user.name} `);
-    setMentionIds((prev) => new Set([...prev, user.id]));
+    const applied = editorRef.current?.replaceTextBeforeCaret(
+      mentionQuery.length + 1,
+      `@${user.name} `,
+    );
     setMentionQuery(null);
+    // Only notify someone whose mention is actually in the comment.
+    if (!applied) {
+      setError(
+        `Mention impossible : le commentaire atteint la limite de ${COMMENT_BODY_MAX.toLocaleString("fr-FR").replace(/\u202f/g, " ")} caractères.`,
+      );
+      return;
+    }
+    setError(null);
+    setMentionIds((prev) => new Set([...prev, user.id]));
   }
 
   // ---------------------------------------------------------------------------
@@ -183,7 +194,7 @@ export function CommentComposer({
 
       {/* Inline error */}
       {error && (
-        <p className="t-sm" style={{ color: "var(--danger)" }}>
+        <p role="alert" className="t-sm" style={{ color: "var(--danger)" }}>
           {error}
         </p>
       )}
