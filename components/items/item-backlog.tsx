@@ -929,21 +929,26 @@ function SectionTable({
 
 function SprintSectionDropZone({
   sectionId,
+  label,
   children,
 }: {
   sectionId: string;
+  label: string;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `section:${sectionId}` });
   return (
-    <div
+    <section
       ref={setNodeRef}
+      aria-label={label}
       data-sprint-section={sectionId}
       data-drop-target={isOver ? "true" : undefined}
-      className={isOver ? "bg-primary/5" : undefined}
+      className={`rounded-[var(--radius-lg)] border bg-[var(--surface)] ${
+        isOver ? "border-[var(--ring)] bg-[var(--accent-subtle)]" : "border-border"
+      }`}
     >
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -1243,21 +1248,15 @@ function SprintItemBacklog({
       aria-labelledby="sprint-backlog-heading"
       onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
     >
-      <header className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div>
-          <h2 id="sprint-backlog-heading" className="t-h2">Planification</h2>
-          {!manualOrder && visibleItems.length > 0 && canScheduleItems ? (
-            <p className="text-xs text-muted-foreground">
-              Effacez le tri ou le groupement pour modifier l’ordre manuel.
-            </p>
-          ) : null}
-        </div>
-        {canManageSprints ? (
-          <CreateSprintButton backlogId={backlogId} backlogKey={backlogKey} />
-        ) : null}
-      </header>
+      {/* The page title comes from the shell; this names the planning region. */}
+      <h2 id="sprint-backlog-heading" className="sr-only">Planification</h2>
+      {!manualOrder && visibleItems.length > 0 && canScheduleItems ? (
+        <p className="mx-3 mt-3 text-xs text-muted-foreground sm:mx-4">
+          Effacez le tri ou le groupement pour modifier l’ordre manuel.
+        </p>
+      ) : null}
       {rankError ? (
-        <p role="alert" className="mx-4 mt-3 rounded-lg bg-destructive px-3 py-2 text-sm text-destructive-foreground">
+        <p role="alert" className="mx-3 mt-3 rounded-lg bg-destructive px-3 py-2 text-sm text-destructive-foreground sm:mx-4">
           {rankError}
         </p>
       ) : null}
@@ -1277,6 +1276,7 @@ function SprintItemBacklog({
         onDragCancel={manualOrder && canScheduleItems ? handleDragCancel : undefined}
       >
         <div className="min-h-0 flex-1 overflow-auto">
+          <div className="flex flex-col gap-4 p-3 sm:p-4">
           {renderedSections.map((section) => {
             const sectionExpanded = expanded[section.id] ?? true;
             const sectionVisibleIds = sectionExpanded
@@ -1299,7 +1299,11 @@ function SprintItemBacklog({
                 null,
               );
             return (
-              <SprintSectionDropZone key={section.id} sectionId={section.id}>
+              <SprintSectionDropZone
+                key={section.id}
+                sectionId={section.id}
+                label={section.sprint?.name ?? "Backlog"}
+              >
                 <SprintSectionHeader
                   kind={section.kind}
                   sprint={section.sprint}
@@ -1321,6 +1325,13 @@ function SprintItemBacklog({
                   backlogKey={backlogKey}
                   primaryAction={canCreateInSection || canManageSprints ? (
                     <>
+                      {canManageSprints && section.kind === "backlog" ? (
+                        <CreateSprintButton
+                          backlogId={backlogId}
+                          backlogKey={backlogKey}
+                          variant="outline"
+                        />
+                      ) : null}
                       {canCreateInSection && createDialogProps ? (
                         <NewItemButton
                           backlogId={backlogId}
@@ -1412,6 +1423,7 @@ function SprintItemBacklog({
               </SprintSectionDropZone>
             );
           })}
+          </div>
           {canSelectItems && selectedItems.length > 0 ? (
             <BulkItemToolbar
               backlogId={backlogId}

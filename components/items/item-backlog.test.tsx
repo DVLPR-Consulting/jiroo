@@ -497,6 +497,20 @@ describe("ItemBacklog", () => {
     geometry.mockRestore();
   });
 
+  it("heads the Backlog section with its counts, points per status and a secondary Créer un sprint", () => {
+    render(<ItemBacklog {...sprintProps()} />);
+
+    const backlog = screen.getByRole("region", { name: "Backlog" });
+    expect(within(backlog).getByRole("heading", { name: "Backlog" })).toBeVisible();
+    expect(within(backlog).getByText("1 item · 1 non estimé")).toBeVisible();
+    expect(
+      within(backlog).getByText("Points par statut : À faire 0, En cours 0, Terminé 0"),
+    ).toBeInTheDocument();
+    expect(within(backlog).getByRole("button", { name: "Créer un sprint" }))
+      .toHaveAttribute("data-variant", "outline");
+    expect(screen.getAllByRole("button", { name: "Créer un sprint" })).toHaveLength(1);
+  });
+
   it("keeps the global Backlog selection name and contextualizes sprint headers", () => {
     render(<ItemBacklog {...sprintProps()} />);
 
