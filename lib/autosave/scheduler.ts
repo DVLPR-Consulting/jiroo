@@ -29,10 +29,10 @@ export type AutosaveScheduler<T> = {
   retry: () => Promise<void>;
   /**
    * Takes a server value (e.g. from a refresh) as the new baseline. Refused
-   * while a local change is pending, so it is never lost, and when its
-   * revision is older than the last acknowledged one (a late response would
-   * otherwise bring an older text back). A newer revision is always taken,
-   * even if its text equals an earlier one (a remote revert).
+   * while a local change is pending, so it is never lost. Revisions are
+   * unique per server write: an older one is a late response, an equal one
+   * is the known write (a different text there is refused), a newer one is
+   * taken even if its text equals an earlier one (a remote revert).
    */
   adopt: (value: T, revision?: number) => boolean;
   /**
@@ -172,8 +172,11 @@ export function createAutosaveScheduler<T>({
     retry: () => (disposed ? Promise.resolve() : run()),
     adopt(value, valueRevision) {
       if (disposed || compute().pending) return false;
-      if (valueRevision !== undefined && revision !== undefined && valueRevision < revision) {
-        return false;
+      if (valueRevision !== undefined && revision !== undefined) {
+        // Revisions are unique per write: older is stale, and an equal one
+        // is the write we already know (another text there is a late echo).
+        if (valueRevision < revision) return false;
+        if (valueRevision === revision && !equals(value, saved)) return false;
       }
       if (valueRevision !== undefined) revision = valueRevision;
       latest = value;

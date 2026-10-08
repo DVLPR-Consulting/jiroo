@@ -220,6 +220,22 @@ describe("createAutosaveScheduler", () => {
     expect(scheduler.adopt("v2", 3)).toBe(true);
   });
 
+  it("treats an equal revision as the same write and keeps the acknowledged text", async () => {
+    const { scheduler, calls } = setup({ initial: "A", revision: 1000 });
+    scheduler.change("B");
+    void scheduler.flush();
+    calls[0]!.reply.resolve({ ok: true, revision: 1001 });
+    await settle();
+    expect(scheduler.adopt("B", 1001)).toBe(true);
+    // A late response carrying another text at the same revision is stale.
+    expect(scheduler.adopt("A", 1001)).toBe(false);
+    expect(scheduler.current()).toBe("B");
+    // Out of order, older: ignored; newer: taken.
+    expect(scheduler.adopt("A", 1000)).toBe(false);
+    expect(scheduler.adopt("C", 1002)).toBe(true);
+    expect(scheduler.current()).toBe("C");
+  });
+
   it("adopts a newer remote revert to an earlier text", async () => {
     const { scheduler, calls } = setup({ initial: "A", revision: 1 });
     scheduler.change("B");

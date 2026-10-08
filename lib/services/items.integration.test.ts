@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Client } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
@@ -1305,6 +1305,41 @@ describeDb("updateItem description activity coalescing", () => {
       expect(audit.map(({ oldValue, newValue }) => [oldValue, newValue])).toEqual([
         [null, "Original"],
       ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
+
+describeDb("item revision (updatedAt) ordering", () => {
+  it("strictly increases on every write, even within one millisecond", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      // A clock behind the stored revision must not repeat or go back.
+      const ahead = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await db.update(items).set({ updatedAt: ahead }).where(eq(items.id, fixture.item.id));
+      const first = await updateItem({ id: fixture.item.id, description: "Un" }, fixture.actorId);
+      const second = await updateItem({ id: fixture.item.id, description: "Deux" }, fixture.actorId);
+      const third = await updateItem({ id: fixture.item.id, title: "Trois" }, fixture.actorId);
+
+      expect(first!.updatedAt.getTime()).toBe(ahead.getTime() + 1);
+      expect(second!.updatedAt.getTime()).toBe(ahead.getTime() + 2);
+      expect(third!.updatedAt.getTime()).toBe(ahead.getTime() + 3);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("uses whole milliseconds so the revision survives a JS Date", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      const updated = await updateItem({ id: fixture.item.id, description: "Texte" }, fixture.actorId);
+      const [row] = await db
+        .select({ micros: sql<string>`extract(microseconds from ${items.updatedAt})::text` })
+        .from(items)
+        .where(eq(items.id, fixture.item.id));
+      expect(Number(row!.micros) % 1000).toBe(0);
+      expect(updated!.updatedAt.getTime()).toBeGreaterThan(fixture.item.updatedAt.getTime());
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
     }

@@ -9,6 +9,7 @@ import { user } from "@/lib/db/schema/auth";
 import { nextItemKey } from "@/lib/items/key";
 import { canRestore } from "@/lib/items/trash";
 import { replaceItemFixVersionsInTx } from "@/lib/services/item-fix-versions";
+import { nextItemRevision } from "@/lib/services/item-revision";
 import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
 import {
   normalizeRequestCorrelationId,
@@ -744,7 +745,7 @@ export async function updateItem(
 
     const [updated] = await tx
       .update(items)
-      .set({ ...patch, updatedAt: now })
+      .set({ ...patch, updatedAt: nextItemRevision() })
       .where(eq(items.id, cur.id))
       .returning();
     await recordActiveItemMutationsInTx(tx, {
@@ -882,7 +883,7 @@ export async function moveItem(
 
       const [updated] = await tx
         .update(items)
-        .set({ ...patch, updatedAt: now })
+        .set({ ...patch, updatedAt: nextItemRevision() })
         .where(eq(items.id, cur.id))
         .returning();
       await recordActiveItemMutationsInTx(tx, {
@@ -965,7 +966,7 @@ export async function rankBacklogItem(input: unknown, actorId: string) {
 
       const [updated] = await tx
         .update(items)
-        .set({ rank: newRank, updatedAt: new Date() })
+        .set({ rank: newRank, updatedAt: nextItemRevision() })
         .where(eq(items.id, current.id))
         .returning();
       await tx.insert(activities).values(
@@ -1164,7 +1165,7 @@ export async function reparentItem(input: unknown, actorId: string) {
           .set({
             path: sql`(${newBase}::ltree || subpath(${items.path}, ${oldLevels - 1}))`,
             depth: sql`${items.depth} + ${depthDelta}`,
-            updatedAt: new Date(),
+            updatedAt: nextItemRevision(),
           })
           .where(subtree);
       }
@@ -1184,7 +1185,7 @@ export async function reparentItem(input: unknown, actorId: string) {
         acts.push(activityRow(node.id, actorId, "move", "rank", node.rank, newRank));
       }
 
-      const [updated] = await tx.update(items).set({ ...patch, updatedAt: new Date() }).where(eq(items.id, node.id)).returning();
+      const [updated] = await tx.update(items).set({ ...patch, updatedAt: nextItemRevision() }).where(eq(items.id, node.id)).returning();
       await tx.insert(activities).values(acts);
       return updated!;
     }),
