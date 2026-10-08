@@ -520,6 +520,8 @@ export async function createItem(
           parentId: data.parentId,
           statusId,
           priority: data.priority,
+          // Points join the sprint membership below with the item (estimateAtJoin).
+          estimatePoints: data.estimatePoints ?? null,
           assigneeId: data.assigneeId ?? null,
           reporterId: actorId,
           rank,

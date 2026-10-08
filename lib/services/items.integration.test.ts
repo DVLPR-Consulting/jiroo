@@ -10,7 +10,9 @@ import {
   activities,
   backlogs,
   itemFixVersions,
+  itemLabels,
   items,
+  labels,
   releases,
   sprintItems,
   sprints,
@@ -22,6 +24,7 @@ import {
   listItemsWithAncestors,
   moveItem,
   rankBacklogItem,
+  reparentItem,
   restoreItem,
   updateItem,
 } from "@/lib/services/items";
@@ -1075,6 +1078,185 @@ describeDb("item fix version integration", () => {
       ).toEqual([]);
     } finally {
       await cleanupReleaseBacklogs([fixture.backlogId, foreignBacklog!.id]);
+    }
+  });
+});
+
+describeDb("createItem with the « Nouvel item » fields (JIR-73)", () => {
+  it("stores task points with the item and its sprint membership in one transaction", async () => {
+    const fixture = await createTaskUpdateFixture();
+    const [sprint] = await db
+      .insert(sprints)
+      .values({
+        backlogId: fixture.backlogId,
+        name: "Sprint estimé",
+        rank: "a0",
+        createdBy: fixture.actorId,
+      })
+      .returning();
+    try {
+      const created = await createItem(
+        {
+          backlogId: fixture.backlogId,
+          title: "Tâche estimée",
+          type: "tache",
+          parentId: fixture.epicId,
+          sprintId: sprint!.id,
+          estimatePoints: 3.5,
+        },
+        fixture.actorId,
+      );
+
+      expect(created.estimatePoints).toBe(3.5);
+      const [membership] = await db
+        .select({ estimateAtJoin: sprintItems.estimateAtJoin })
+        .from(sprintItems)
+        .where(eq(sprintItems.itemId, created.id));
+      expect(membership).toEqual({ estimateAtJoin: 3.5 });
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("rejects points on a structural item before creating anything", async () => {
+    const fixture = await createTaskUpdateFixture();
+    try {
+      await expect(
+        createItem(
+          {
+            backlogId: fixture.backlogId,
+            title: "Epic estimée",
+            type: "epic",
+            parentId: fixture.componentId,
+            estimatePoints: 2,
+          },
+          fixture.actorId,
+        ),
+      ).rejects.toThrow("Seules les tâches peuvent être estimées.");
+      const stored = await db
+        .select({ id: items.id })
+        .from(items)
+        .where(eq(items.backlogId, fixture.backlogId));
+      expect(stored).toHaveLength(3);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("creates with assignee, labels and due date under the single create activity", async () => {
+    const fixture = await createTaskUpdateFixture();
+    const [label] = await db
+      .insert(labels)
+      .values({ backlogId: fixture.backlogId, name: "front", color: "--label-1" })
+      .returning();
+    try {
+      const created = await createItem(
+        {
+          backlogId: fixture.backlogId,
+          title: "Tâche complète",
+          type: "tache",
+          parentId: fixture.epicId,
+          assigneeId: fixture.actorId,
+          labelIds: [label!.id],
+          dueDate: "2026-11-02",
+        },
+        fixture.actorId,
+      );
+
+      expect(created.assigneeId).toBe(fixture.actorId);
+      expect(created.dueDate?.toISOString().slice(0, 10)).toBe("2026-11-02");
+      expect(
+        await db
+          .select({ labelId: itemLabels.labelId })
+          .from(itemLabels)
+          .where(eq(itemLabels.itemId, created.id)),
+      ).toEqual([{ labelId: label!.id }]);
+      expect(
+        await db
+          .select({ action: activities.action })
+          .from(activities)
+          .where(eq(activities.itemId, created.id)),
+      ).toEqual([{ action: "create" }]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
+
+describeDb("history of parent, nature and labels (JIR-73)", () => {
+  async function auditOf(itemId: string, field: string) {
+    return db
+      .select({
+        action: activities.action,
+        oldValue: activities.oldValue,
+        newValue: activities.newValue,
+      })
+      .from(activities)
+      .where(and(eq(activities.itemId, itemId), eq(activities.field, field)))
+      .orderBy(asc(activities.at), asc(activities.id));
+  }
+
+  it("logs a nature change with the old and new kind", async () => {
+    const fixture = await createTaskUpdateFixture();
+    try {
+      await updateItem({ id: fixture.item.id, kind: "bug" }, fixture.actorId);
+      expect(await auditOf(fixture.item.id, "kind")).toEqual([
+        { action: "update", oldValue: "feature", newValue: "bug" },
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("logs label changes with the before and after sets, so additions and removals show", async () => {
+    const fixture = await createTaskUpdateFixture();
+    const created = await db
+      .insert(labels)
+      .values([
+        { backlogId: fixture.backlogId, name: "front", color: "--label-1" },
+        { backlogId: fixture.backlogId, name: "back", color: "--label-2" },
+      ])
+      .returning();
+    const [front, back] = created;
+    try {
+      await updateItem({ id: fixture.item.id, labelIds: [front!.id] }, fixture.actorId);
+      await updateItem({ id: fixture.item.id, labelIds: [back!.id] }, fixture.actorId);
+      expect(await auditOf(fixture.item.id, "labels")).toEqual([
+        { action: "update", oldValue: null, newValue: front!.id },
+        { action: "update", oldValue: front!.id, newValue: back!.id },
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("logs a parent change with the old and new parent ids in the reparent transaction", async () => {
+    const fixture = await createTaskUpdateFixture();
+    const otherEpicId = randomUUID();
+    const [component] = await db
+      .select({ path: items.path, key: items.key })
+      .from(items)
+      .where(eq(items.id, fixture.componentId));
+    await db.insert(items).values({
+      id: otherEpicId,
+      key: `${component!.key}0`,
+      type: "epic",
+      backlogId: fixture.backlogId,
+      title: "Autre epic",
+      parentId: fixture.componentId,
+      statusId: fixture.item.statusId,
+      reporterId: fixture.actorId,
+      rank: "a5",
+      path: `${component!.path}.${otherEpicId.replaceAll("-", "")}`,
+      depth: 1,
+    });
+    try {
+      await reparentItem({ id: fixture.item.id, newParentId: otherEpicId }, fixture.actorId);
+      expect(await auditOf(fixture.item.id, "parent")).toEqual([
+        { action: "move", oldValue: fixture.epicId, newValue: otherEpicId },
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
     }
   });
 });
