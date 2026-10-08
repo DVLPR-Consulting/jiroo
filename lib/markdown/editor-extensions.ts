@@ -12,6 +12,7 @@ import { Markdown } from "@tiptap/markdown";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { docToMarkdown, escapeBlockStarts } from "@/lib/markdown/markdown-document";
 import { isAllowedLinkUrl } from "@/lib/markdown/link-url";
+import { SlashCommands, type SlashMenuStore } from "@/lib/markdown/slash-extension";
 
 /** Transaction meta letting a programmatic content reset bypass the limit. */
 export const BYPASS_LENGTH_LIMIT = "markdownLengthLimitBypass";
@@ -73,7 +74,12 @@ const SafeFenceCodeBlock = CodeBlock.extend({
 
 export function markdownEditorExtensions({
   maxLength = null,
-}: { maxLength?: number | null } = {}): AnyExtension[] {
+  slashMenu = null,
+}: {
+  maxLength?: number | null;
+  /** Enables the « / » block menu, rendered from this store. */
+  slashMenu?: SlashMenuStore | null;
+} = {}): AnyExtension[] {
   return [
     StarterKit.configure({
       paragraph: false,
@@ -101,5 +107,6 @@ export function markdownEditorExtensions({
     }),
     Markdown,
     MarkdownLengthLimit.configure({ limit: maxLength }),
+    ...(slashMenu ? [SlashCommands.configure({ store: slashMenu })] : []),
   ];
 }
