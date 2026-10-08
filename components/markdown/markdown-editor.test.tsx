@@ -312,6 +312,24 @@ describe("MarkdownEditor", () => {
     expect(markdown()).toBe("Avant &AMP; suite!");
   });
 
+  it("opens with the caret before the first character for an offset of zero (Codex R5)", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <MarkdownEditor
+        value={"Début\n\nFin"}
+        label="Contenu"
+        autoFocus
+        autoFocusVisibleOffset={0}
+        onChange={onChange}
+      />,
+    );
+    const editor = await screen.findByRole("textbox", { name: "Contenu" });
+    await waitFor(() => expect(editor).toHaveFocus());
+    await user.keyboard("X");
+    expect(onChange).toHaveBeenLastCalledWith("XDébut\n\nFin");
+  });
+
   it("opens with the caret after the given visible characters", async () => {
     const onCaretTextChange = vi.fn();
     render(

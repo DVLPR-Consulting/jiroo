@@ -141,7 +141,8 @@ export function docToMarkdown(manager: MarkdownManager, doc: JSONContent): strin
 
 /**
  * Document position right after the `count`-th non-whitespace text character,
- * or null when the text is shorter. Used to put the caret where the user
+ * or null when the text is shorter. A count of zero is the start of the first
+ * text block. Used to put the caret where the user
  * clicked in the read rendering: whitespace is ignored on both sides because
  * the rendered HTML and the editor lay blocks out differently.
  */
@@ -149,7 +150,20 @@ export function positionAfterVisibleChars(
   doc: ProseMirrorNode,
   count: number,
 ): number | null {
-  if (count <= 0) return null;
+  if (count < 0) return null;
+  if (count === 0) {
+    // A click before the first visible character: start of the first text block.
+    let start: number | null = null;
+    doc.descendants((node, pos) => {
+      if (start !== null) return false;
+      if (node.isTextblock) {
+        start = pos + 1;
+        return false;
+      }
+      return true;
+    });
+    return start;
+  }
   let remaining = count;
   let found: number | null = null;
   doc.descendants((node, pos) => {
