@@ -115,4 +115,36 @@ describe("UnsavedDraftsGuard", () => {
     await act(async () => {});
     expect(save).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps warning on the login page after the shell is gone, without flushing", async () => {
+    const save = vi.fn().mockResolvedValue({ ok: false, error: "Indisponible" });
+    // The authenticated shell (session + editor), separate from the root guard.
+    const shell = render(<DraftsSession userId="alice" />);
+    const alice = renderHook(() =>
+      useAutosave({ user: "alice", key: "item-description:alice:item-1", initial: "A", save, delay: 900 }),
+    );
+    act(() => alice.result.current.change("B"));
+    alice.unmount();
+    await act(async () => {});
+    // Session expired: redirect to /login unmounts the shell.
+    shell.unmount();
+    expect(beforeUnload()).toBe(true);
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    visibility.mockRestore();
+    await act(async () => {});
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("root layout", () => {
+  it("mounts the unsaved drafts guard outside the authenticated shell", async () => {
+    const fs = await import("node:fs");
+    const root = fs.readFileSync("app/layout.tsx", "utf8");
+    const shell = fs.readFileSync("components/shell/app-shell.tsx", "utf8");
+    expect(root).toContain("<UnsavedDraftsGuard />");
+    expect(shell).not.toContain("UnsavedDraftsGuard");
+  });
 });

@@ -4,9 +4,11 @@ import { useEffect, useSyncExternalStore } from "react";
 import { flushAllDrafts, hasUnsavedDrafts, subscribeDrafts } from "@/lib/autosave/registry";
 
 /**
- * Mounted once in the app shell: while any autosave draft is unsaved (even
- * after its editor closed), leaving the page asks for confirmation; hiding
- * the page saves every pending draft.
+ * Mounted once in the root layout, so it survives a redirect to /login:
+ * while any kept draft is unsaved (even after its editor or the whole
+ * authenticated shell unmounted), leaving the page asks for confirmation.
+ * Hiding the page saves the active user's pending drafts (none without a
+ * signed-in user).
  */
 export function UnsavedDraftsGuard() {
   const unsaved = useSyncExternalStore(subscribeDrafts, hasUnsavedDrafts, () => false);

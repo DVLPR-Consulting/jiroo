@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { DensityProvider } from "@/components/theme/density-provider";
 import { NoFlashScript } from "@/components/theme/no-flash-script";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { UnsavedDraftsGuard } from "@/components/shell/unsaved-drafts-guard";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,6 +38,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           <DensityProvider>{children}</DensityProvider>
+          {/* Root level: still warns on /login after a session redirect. */}
+          <UnsavedDraftsGuard />
         </ThemeProvider>
       </body>
     </html>
