@@ -223,6 +223,28 @@ describe("DescriptionEditor (Notion-like page)", () => {
     expect(document.activeElement?.closest("[data-local-escape]")).toBeNull();
   });
 
+  it("handles Escape even when a surrounding dialog cancels it (Radix)", async () => {
+    // Radix dialogs preventDefault Escape from a document capture listener.
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === "Escape") event.preventDefault();
+    };
+    document.addEventListener("keydown", cancel, true);
+    try {
+      const { user } = renderDescription(null);
+      const textbox = await editor();
+      await user.click(textbox);
+      await user.keyboard("/");
+      await screen.findByRole("listbox", { name: "Insérer un bloc" });
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("listbox")).toBeNull();
+      expect(textbox).toHaveFocus();
+      await user.keyboard("{Escape}");
+      expect(textbox).not.toHaveFocus();
+    } finally {
+      document.removeEventListener("keydown", cancel, true);
+    }
+  });
+
   it("inserts a block from the « / » menu", async () => {
     const { user } = renderDescription(null);
     const textbox = await editor();

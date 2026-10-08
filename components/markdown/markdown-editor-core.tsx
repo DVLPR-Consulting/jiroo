@@ -6,6 +6,7 @@ import {
   useImperativeHandle,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type Ref,
 } from "react";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
@@ -13,7 +14,12 @@ import {
   BYPASS_LENGTH_LIMIT,
   markdownEditorExtensions,
 } from "@/lib/markdown/editor-extensions";
-import { createSlashMenuStore, isSlashMenuActive } from "@/lib/markdown/slash-extension";
+import { exitSuggestion } from "@tiptap/suggestion";
+import {
+  createSlashMenuStore,
+  isSlashMenuActive,
+  SLASH_PLUGIN_KEY,
+} from "@/lib/markdown/slash-extension";
 import {
   docToMarkdown,
   markdownToDoc,
@@ -201,14 +207,7 @@ export function MarkdownEditor({
           : cn("px-3 py-2 outline-none", minHeightClassName, PROSE),
         ...(onEscape ? { "data-local-escape": "" } : {}),
       },
-      handleKeyDown: (view, event) => {
-        if (event.key === "Escape" && callbacks.current.onEscape) {
-          // The « / » menu closes itself first.
-          if (isSlashMenuActive(view.state)) return false;
-          event.preventDefault();
-          callbacks.current.onEscape();
-          return true;
-        }
+      handleKeyDown: (_view, event) => {
         const mod = event.metaKey || event.ctrlKey;
         if (mod && event.key === "Enter" && callbacks.current.onSubmitShortcut) {
           event.preventDefault();
@@ -364,10 +363,25 @@ export function MarkdownEditor({
     );
   }
 
+  /**
+   * Escape, handled before ProseMirror: a surrounding Radix dialog cancels
+   * the event (preventDefault) to stay open, and ProseMirror then ignores it.
+   * The « / » menu closes first; otherwise onEscape runs.
+   */
+  const onKeyDownCapture = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const handler = callbacks.current.onEscape;
+    if (event.key !== "Escape" || !handler || !editor || editor.isDestroyed) return;
+    if (!(event.target instanceof Node) || !editor.view.dom.contains(event.target)) return;
+    event.preventDefault();
+    if (isSlashMenuActive(editor.state)) exitSuggestion(editor.view, SLASH_PLUGIN_KEY);
+    else handler();
+  };
+
   if (page) {
     return (
       <div
         ref={pageRef}
+        onKeyDownCapture={onKeyDownCapture}
         className={cn("relative", disabled && "opacity-60")}
         data-invalid={invalid || undefined}
       >
@@ -393,7 +407,11 @@ export function MarkdownEditor({
   }
 
   return (
-    <div className={cn(FRAME, disabled && "opacity-60")} data-invalid={invalid || undefined}>
+    <div
+      className={cn(FRAME, disabled && "opacity-60")}
+      data-invalid={invalid || undefined}
+      onKeyDownCapture={onKeyDownCapture}
+    >
       {editor ? (
         <MarkdownToolbar
           editor={editor}
