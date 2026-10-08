@@ -344,8 +344,16 @@ function LinkForm({
 
   return (
     <div
+      // Escape from any control closes the form only, not the surrounding
+      // drawer or dialog (see item-detail-sheet), and refocuses the editor.
       data-local-escape
       className="flex flex-wrap items-center gap-2 border-t border-border px-2 py-1.5"
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        cancel();
+      }}
     >
       <label htmlFor={inputId} className="text-xs text-muted-foreground">
         Adresse du lien
@@ -369,11 +377,6 @@ function LinkForm({
           if (event.key === "Enter") {
             event.preventDefault();
             apply();
-          } else if (event.key === "Escape") {
-            // Close the form only, not the surrounding drawer or dialog.
-            event.preventDefault();
-            event.stopPropagation();
-            cancel();
           }
         }}
       />

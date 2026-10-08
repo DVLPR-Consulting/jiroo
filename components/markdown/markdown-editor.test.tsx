@@ -368,4 +368,21 @@ describe("MarkdownEditor", () => {
     expect(applied).toBe(false);
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["Adresse du lien", 0],
+    ["Appliquer", 1],
+    ["Retirer le lien", 2],
+    ["Fermer", 3],
+  ])("closes the link form with Escape from %s and refocuses the editor (Codex R4)", async (_name, tabs) => {
+    const user = userEvent.setup();
+    render(<Harness initial="[texte](https://exemple.fr)" />);
+    await selectAll(user);
+    await user.click(screen.getByRole("button", { name: "Lien" }));
+    expect(screen.getByRole("textbox", { name: "Adresse du lien" })).toHaveFocus();
+    for (let index = 0; index < tabs; index += 1) await user.tab();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("textbox", { name: "Adresse du lien" })).toBeNull();
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Contenu" })).toHaveFocus());
+  });
 });
