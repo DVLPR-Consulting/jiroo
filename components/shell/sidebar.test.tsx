@@ -124,6 +124,10 @@ describe("Sidebar", () => {
     const brand = screen.getByRole("img", { name: "Jiroo" });
 
     expect(brand).toHaveTextContent(/^Jiroo$/);
+    expect(screen.getByRole("link", { name: "Jiroo — accueil" })).toHaveAttribute(
+      "href",
+      "/b/CASS",
+    );
     expect(
       screen.queryByRole("button", { name: "Replier la barre latérale" }),
     ).not.toBeInTheDocument();
@@ -138,6 +142,10 @@ describe("Sidebar", () => {
 
     expect(brand).toHaveTextContent(/^J$/);
     expect(brand).toHaveAttribute("title", "Jiroo");
+    expect(screen.getByRole("link", { name: "Jiroo — accueil" })).toHaveAttribute(
+      "href",
+      "/b/CASS",
+    );
     expect(
       screen.queryByRole("button", { name: "Déplier la barre latérale" }),
     ).not.toBeInTheDocument();
