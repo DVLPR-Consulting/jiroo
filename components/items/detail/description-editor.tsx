@@ -37,12 +37,15 @@ const sameDescription = (a: string, b: string) => a.trim() === b.trim();
  */
 export function DescriptionEditor({
   itemId,
+  currentUserId,
   backlogKey,
   description,
   revision,
   readOnly = false,
 }: {
   itemId: string;
+  /** Signed-in user: kept drafts belong to them only. */
+  currentUserId: string;
   backlogKey: string;
   description: string | null;
   /** Server revision of `description` (the item's update time, in ms). */
@@ -82,7 +85,8 @@ export function DescriptionEditor({
 
   const autosave = useAutosave({
     // One draft per item, kept until saved even if the editor unmounts.
-    key: `item-description:${itemId}`,
+    user: currentUserId,
+    key: `item-description:${currentUserId}:${itemId}`,
     initial: stored,
     revision,
     save,

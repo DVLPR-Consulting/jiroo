@@ -17,6 +17,7 @@ export function resetAutosaveRegistry() {
  * and flushes when the page is hidden.
  */
 export function useAutosave<T>({
+  user,
   key,
   initial,
   revision,
@@ -24,7 +25,9 @@ export function useAutosave<T>({
   delay,
   equals,
 }: {
-  /** Identifies the draft (e.g. per user and item). */
+  /** Signed-in user: drafts never cross accounts. */
+  user: string;
+  /** Identifies the draft (e.g. per item). */
   key: string;
   initial: T;
   /** Server revision of the initial value (see SaveResult). */
@@ -35,6 +38,7 @@ export function useAutosave<T>({
 }) {
   const [entry] = useState(() =>
     acquireDraft(
+      user,
       key,
       () =>
         createAutosaveScheduler<T>({ initial, revision, delay, equals, save }) as

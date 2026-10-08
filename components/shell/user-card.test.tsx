@@ -5,12 +5,17 @@ import { UserCard } from "@/components/shell/user-card";
 import { DensityProvider } from "@/components/theme/density-provider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 
-const mocks = vi.hoisted(() => ({ push: vi.fn(), signOut: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  signOut: vi.fn(),
+  prepareSignOut: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mocks.push }),
 }));
 vi.mock("@/lib/auth/client", () => ({ signOut: mocks.signOut }));
+vi.mock("@/lib/autosave/sign-out", () => ({ prepareSignOut: mocks.prepareSignOut }));
 vi.mock("@/app/actions/account", () => ({ changeOwnPasswordAction: vi.fn() }));
 
 const user = {
@@ -32,6 +37,7 @@ function renderUserCard() {
 describe("UserCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.prepareSignOut.mockResolvedValue(true);
     localStorage.clear();
     document.documentElement.classList.remove("dark");
     document.documentElement.dataset.density = "comfy";
@@ -99,5 +105,19 @@ describe("UserCard", () => {
 
     await waitFor(() => expect(mocks.signOut).toHaveBeenCalledOnce());
     expect(mocks.push).toHaveBeenCalledWith("/login");
+  });
+
+  it("does not sign out when the user keeps unsaved description changes", async () => {
+    const interaction = userEvent.setup();
+    mocks.signOut.mockResolvedValue(undefined);
+    mocks.prepareSignOut.mockResolvedValueOnce(false);
+    renderUserCard();
+
+    await interaction.click(screen.getByRole("button", { name: "Profil de Ada Lovelace" }));
+    await interaction.click(screen.getByRole("menuitem", { name: "Déconnexion" }));
+
+    await waitFor(() => expect(mocks.prepareSignOut).toHaveBeenCalledOnce());
+    expect(mocks.signOut).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 });

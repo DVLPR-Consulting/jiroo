@@ -435,6 +435,7 @@ export function ItemDetailPanel({
             <DescriptionEditor
               key={detail.id}
               itemId={detail.id}
+              currentUserId={currentUserId}
               backlogKey={backlogKey}
               description={detail.description}
               revision={new Date(detail.updatedAt).getTime()}

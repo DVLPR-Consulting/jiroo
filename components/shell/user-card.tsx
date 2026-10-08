@@ -8,6 +8,7 @@ import { ChangePasswordDialog } from "@/components/shell/change-password-dialog"
 import { UserPreferencesDialog } from "@/components/shell/user-preferences-dialog";
 import { UserProfileDialog } from "@/components/shell/user-profile-dialog";
 import { signOut } from "@/lib/auth/client";
+import { prepareSignOut } from "@/lib/autosave/sign-out";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +36,7 @@ export function UserCard({
   const [passwordOpen, setPasswordOpen] = useState(false);
 
   async function handleSignOut() {
+    if (!(await prepareSignOut())) return;
     await signOut();
     router.push("/login");
   }

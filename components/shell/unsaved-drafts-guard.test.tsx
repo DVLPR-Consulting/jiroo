@@ -12,6 +12,7 @@ function beforeUnload() {
 function editorWith(save: (value: string) => Promise<unknown>) {
   return renderHook(() =>
     useAutosave({
+      user: "u1",
       key: "item-description:u1:item-1",
       initial: "A",
       save: save as never,

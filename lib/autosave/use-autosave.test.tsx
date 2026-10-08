@@ -13,7 +13,7 @@ afterEach(() => {
 describe("useAutosave", () => {
   it("saves after the debounce and exposes the status", async () => {
     const save = vi.fn().mockResolvedValue({ ok: true });
-    const { result } = renderHook(() => useAutosave({ key: "k", initial: "", save, delay: 900 }));
+    const { result } = renderHook(() => useAutosave({ user: "u1", key: "k", initial: "", save, delay: 900 }));
     act(() => result.current.change("texte"));
     await act(() => vi.advanceTimersByTimeAsync(900));
     expect(save).toHaveBeenCalledWith("texte");
@@ -25,7 +25,7 @@ describe("useAutosave", () => {
     const first = vi.fn().mockResolvedValue({ ok: true });
     const second = vi.fn().mockResolvedValue({ ok: true });
     const { result, rerender } = renderHook(
-      ({ save }) => useAutosave({ key: "k", initial: "", save, delay: 900 }),
+      ({ save }) => useAutosave({ user: "u1", key: "k", initial: "", save, delay: 900 }),
       { initialProps: { save: first } },
     );
     rerender({ save: second });
@@ -37,7 +37,7 @@ describe("useAutosave", () => {
 
   it("flushes a pending change on unmount", () => {
     const save = vi.fn().mockResolvedValue({ ok: true });
-    const { result, unmount } = renderHook(() => useAutosave({ key: "k", initial: "", save, delay: 900 }));
+    const { result, unmount } = renderHook(() => useAutosave({ user: "u1", key: "k", initial: "", save, delay: 900 }));
     act(() => result.current.change("pas perdu"));
     unmount();
     expect(save).toHaveBeenCalledWith("pas perdu");
@@ -48,7 +48,7 @@ describe("useAutosave", () => {
       .fn()
       .mockResolvedValueOnce({ ok: false, error: "Refusé." })
       .mockResolvedValueOnce({ ok: true });
-    const { result } = renderHook(() => useAutosave({ key: "k", initial: "", save, delay: 900 }));
+    const { result } = renderHook(() => useAutosave({ user: "u1", key: "k", initial: "", save, delay: 900 }));
     act(() => result.current.change("v"));
     await act(() => result.current.flush());
     expect(result.current.status).toBe("error");

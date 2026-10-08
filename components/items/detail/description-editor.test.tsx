@@ -25,13 +25,14 @@ const AFTER_PAUSE = { timeout: 3000 };
 
 function renderDescription(
   description: string | null,
-  props: { readOnly?: boolean; itemId?: string } = {},
+  props: { readOnly?: boolean; itemId?: string; userId?: string } = {},
 ) {
   // ProseMirror drops keys typed by user-event in jsdom without a small delay.
   const user = userEvent.setup({ delay: 5 });
   const view = render(
     <DescriptionEditor
       itemId={props.itemId ?? "item-1"}
+      currentUserId={props.userId ?? "user-1"}
       backlogKey="DEMO"
       description={description}
       readOnly={props.readOnly}
@@ -195,6 +196,26 @@ describe("DescriptionEditor (Notion-like page)", () => {
     await waitFor(() => expect(textbox).toHaveTextContent("Serveur"));
   });
 
+  it("never shows or sends another account's draft", async () => {
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: false, error: "Indisponible" });
+    const alice = renderDescription("A", { userId: "alice" });
+    await retype(alice.user, "B");
+    alice.unmount();
+    await act(async () => {});
+    expect(mocks.updateItemAction).toHaveBeenCalledTimes(1);
+
+    // Bob signs in within the same page (no full reload).
+    const { user } = renderDescription("A", { userId: "bob" });
+    const textbox = await editor();
+    await waitFor(() => expect(textbox).toHaveTextContent("A"));
+    expect(textbox).not.toHaveTextContent("B");
+    expect(screen.queryByRole("button", { name: "Réessayer" })).toBeNull();
+    await user.click(textbox);
+    await act(async () => textbox.blur());
+    await new Promise((res) => setTimeout(res, 50));
+    expect(mocks.updateItemAction).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps drafts per item", async () => {
     mocks.updateItemAction.mockResolvedValueOnce({ ok: false, error: "Indisponible" });
     const first = renderDescription("A");
@@ -251,14 +272,14 @@ describe("DescriptionEditor (Notion-like page)", () => {
     await editor();
     expect(screen.queryByText(/\/ 20 000/)).toBeNull();
     const long = "a".repeat(18_500);
-    rerender(<DescriptionEditor itemId="item-1" backlogKey="DEMO" description={long} />);
+    rerender(<DescriptionEditor itemId="item-1" currentUserId="user-1" backlogKey="DEMO" description={long} />);
     expect(await screen.findByText("18 500 / 20 000")).toBeInTheDocument();
   });
 
   it("takes a description saved elsewhere when nothing is pending", async () => {
     const { rerender } = renderDescription("Avant");
     const textbox = await editor();
-    rerender(<DescriptionEditor itemId="item-1" backlogKey="DEMO" description="Après" />);
+    rerender(<DescriptionEditor itemId="item-1" currentUserId="user-1" backlogKey="DEMO" description="Après" />);
     await waitFor(() => expect(textbox).toHaveTextContent("Après"));
     expect(mocks.updateItemAction).not.toHaveBeenCalled();
   });
@@ -270,22 +291,22 @@ describe("DescriptionEditor (Notion-like page)", () => {
     });
     const { user, rerender } = renderDescription("A");
     rerender(
-      <DescriptionEditor itemId="item-1" backlogKey="DEMO" description="A" revision={1000} />,
+      <DescriptionEditor itemId="item-1" currentUserId="user-1" backlogKey="DEMO" description="A" revision={1000} />,
     );
     const textbox = await retype(user, "B");
     await act(async () => textbox.blur());
     expect(await screen.findByText("Enregistré")).toBeInTheDocument();
     rerender(
-      <DescriptionEditor itemId="item-1" backlogKey="DEMO" description="B" revision={2000} />,
+      <DescriptionEditor itemId="item-1" currentUserId="user-1" backlogKey="DEMO" description="B" revision={2000} />,
     );
     // A refresh started before the save lands late: ignored.
     rerender(
-      <DescriptionEditor itemId="item-1" backlogKey="DEMO" description="A" revision={1000} />,
+      <DescriptionEditor itemId="item-1" currentUserId="user-1" backlogKey="DEMO" description="A" revision={1000} />,
     );
     expect(textbox).toHaveTextContent("B");
     // Someone else then restores « A »: taken.
     rerender(
-      <DescriptionEditor itemId="item-1" backlogKey="DEMO" description="A" revision={3000} />,
+      <DescriptionEditor itemId="item-1" currentUserId="user-1" backlogKey="DEMO" description="A" revision={3000} />,
     );
     await waitFor(() => expect(textbox).toHaveTextContent("A"));
     expect(textbox).not.toHaveTextContent("B");
@@ -295,7 +316,7 @@ describe("DescriptionEditor (Notion-like page)", () => {
   it("never replaces a change that is not saved yet", async () => {
     const { user, rerender } = renderDescription("Avant");
     const textbox = await retype(user, "Avant local");
-    rerender(<DescriptionEditor itemId="item-1" backlogKey="DEMO" description="Distant" />);
+    rerender(<DescriptionEditor itemId="item-1" currentUserId="user-1" backlogKey="DEMO" description="Distant" />);
     expect(textbox).toHaveTextContent("Avant local");
     await waitFor(
       () =>
@@ -430,7 +451,7 @@ describe("DescriptionEditor (Notion-like page)", () => {
     );
     const raw = screen.getByRole("textbox", { name: "Description" });
     await user.type(raw, "x");
-    rerender(<DescriptionEditor itemId="item-1" backlogKey="DEMO" description="Distant" />);
+    rerender(<DescriptionEditor itemId="item-1" currentUserId="user-1" backlogKey="DEMO" description="Distant" />);
     expect(screen.getByRole("textbox", { name: "Description" })).toHaveValue(`${table}x`);
   });
 
