@@ -4,7 +4,11 @@
  * change on failure. The React binding lives in `use-autosave`.
  */
 
-export type SaveResult = { ok: true } | { ok: false; error: string };
+/**
+ * `revision` orders server states (e.g. the record's update time): it lets
+ * adopt tell a late response from a newer change made elsewhere.
+ */
+export type SaveResult = { ok: true; revision?: number } | { ok: false; error: string };
 
 export type AutosaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -24,12 +28,13 @@ export type AutosaveScheduler<T> = {
   /** Saves the latest value again after a failure. */
   retry: () => Promise<void>;
   /**
-   * Takes a value saved elsewhere (another tab, another user) as the new
-   * baseline. Refused while a local change is pending, so it is never lost,
-   * and for a late echo of an earlier save of this scheduler (an out-of-order
-   * refresh would otherwise bring an older text back).
+   * Takes a server value (e.g. from a refresh) as the new baseline. Refused
+   * while a local change is pending, so it is never lost, and when its
+   * revision is older than the last acknowledged one (a late response would
+   * otherwise bring an older text back). A newer revision is always taken,
+   * even if its text equals an earlier one (a remote revert).
    */
-  adopt: (value: T) => boolean;
+  adopt: (value: T, revision?: number) => boolean;
   /**
    * Abandons the unsaved draft and its error (the user cancelled it): the
    * last saved value becomes current again and nothing resends the draft.
@@ -46,12 +51,15 @@ const DEFAULT_ERROR = "Échec de l’enregistrement.";
 
 export function createAutosaveScheduler<T>({
   initial,
+  revision: initialRevision,
   delay,
   save,
   onChange,
   equals = Object.is,
 }: {
   initial: T;
+  /** Revision of the initial value. */
+  revision?: number;
   delay: number;
   save: (value: T) => Promise<SaveResult>;
   onChange?: (snapshot: AutosaveSnapshot) => void;
@@ -67,8 +75,8 @@ export function createAutosaveScheduler<T>({
   let currentSave = save;
   /** Bumped by discard: a save started before it no longer reports errors. */
   let generation = 0;
-  /** Values this scheduler saved before the current baseline. */
-  const earlier: T[] = [];
+  /** Revision of the latest server state known (acknowledged or adopted). */
+  let revision = initialRevision;
 
   const snapshot = (): AutosaveSnapshot => ({
     status,
@@ -103,8 +111,9 @@ export function createAutosaveScheduler<T>({
         error = result.error || DEFAULT_ERROR;
         return;
       }
-      earlier.push(saved);
-      if (earlier.length > 50) earlier.shift();
+      if (result.revision !== undefined) {
+        revision = Math.max(revision ?? result.revision, result.revision);
+      }
       saved = value;
       error = null;
       status = "saved";
@@ -144,9 +153,12 @@ export function createAutosaveScheduler<T>({
     },
     flush: () => (disposed ? (inFlight ?? Promise.resolve()) : run()),
     retry: () => (disposed ? Promise.resolve() : run()),
-    adopt(value) {
+    adopt(value, valueRevision) {
       if (disposed || snapshot().pending) return false;
-      if (!equals(value, saved) && earlier.some((old) => equals(old, value))) return false;
+      if (valueRevision !== undefined && revision !== undefined && valueRevision < revision) {
+        return false;
+      }
+      if (valueRevision !== undefined) revision = valueRevision;
       latest = value;
       saved = value;
       return true;

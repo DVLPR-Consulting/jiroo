@@ -39,18 +39,21 @@ export function DescriptionEditor({
   itemId,
   backlogKey,
   description,
+  revision,
   readOnly = false,
 }: {
   itemId: string;
   backlogKey: string;
   description: string | null;
+  /** Server revision of `description` (the item's update time, in ms). */
+  revision?: number;
   readOnly?: boolean;
 }) {
   const router = useRouter();
   const stored = description ?? "";
   const [value, setValue] = useState(stored);
   const [raw, setRaw] = useState(false);
-  const [seenDescription, setSeenDescription] = useState(stored);
+  const [seen, setSeen] = useState({ description: stored, revision });
   const regionRef = useRef<HTMLDivElement>(null);
   const counterId = useId();
   const statusId = useId();
@@ -68,30 +71,35 @@ export function DescriptionEditor({
           const fieldError = "fieldErrors" in res ? res.fieldErrors?.description?.[0] : undefined;
           return { ok: false, error: fieldError ?? res.error };
         }
+        router.refresh();
+        const updatedAt = res.item?.updatedAt;
+        return { ok: true, revision: updatedAt ? new Date(updatedAt).getTime() : undefined };
       } catch {
         return { ok: false, error: "Le serveur est injoignable." };
       }
-      router.refresh();
-      return { ok: true };
     },
     [itemId, backlogKey, router],
   );
 
   const autosave = useAutosave({
     initial: stored,
+    revision,
     save,
     delay: AUTOSAVE_DELAY_MS,
     equals: sameDescription,
   });
 
-  // A description saved elsewhere (another user, another tab) replaces the
-  // text only when no local change is pending. Our own saves come back
+  // A newer server state (refresh, another user, another tab) replaces the
+  // text only when no local change is pending; a response older than our
+  // last acknowledged save is ignored (see adopt). Our own saves come back
   // trimmed: they must not reset the editor under the caret.
-  if (stored !== seenDescription) {
-    setSeenDescription(stored);
+  if (stored !== seen.description || revision !== seen.revision) {
+    setSeen({ description: stored, revision });
     // Unsaved raw Markdown is not tracked by the scheduler: keep it too.
-    const rawDirty = raw && !sameDescription(value, seenDescription);
-    if (!rawDirty && !sameDescription(stored, value) && autosave.adopt(stored)) setValue(stored);
+    const rawDirty = raw && !sameDescription(value, seen.description);
+    if (!rawDirty && autosave.adopt(stored, revision) && !sameDescription(stored, value)) {
+      setValue(stored);
+    }
   }
 
   function onChange(next: string) {

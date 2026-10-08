@@ -21,7 +21,7 @@ function deferred(): Deferred {
   return { promise, resolve, reject };
 }
 
-function setup(options: { initial?: string; delay?: number } = {}) {
+function setup(options: { initial?: string; delay?: number; revision?: number } = {}) {
   const calls: { value: string; reply: Deferred }[] = [];
   const save = vi.fn((value: string) => {
     const reply = deferred();
@@ -31,6 +31,7 @@ function setup(options: { initial?: string; delay?: number } = {}) {
   const snapshots: AutosaveSnapshot[] = [];
   const scheduler = createAutosaveScheduler<string>({
     initial: options.initial ?? "",
+    revision: options.revision,
     delay: options.delay ?? 800,
     save,
     onChange: (snapshot) => snapshots.push(snapshot),
@@ -203,20 +204,34 @@ describe("createAutosaveScheduler", () => {
     await settle();
   });
 
-  it("refuses a late echo of one of its own earlier saves", async () => {
-    const { scheduler, calls } = setup({ initial: "v0" });
+  it("ignores a server value older than the last acknowledged save", async () => {
+    const { scheduler, calls } = setup({ initial: "v0", revision: 1 });
     scheduler.change("v1");
     void scheduler.flush();
-    calls[0]!.reply.resolve({ ok: true });
+    calls[0]!.reply.resolve({ ok: true, revision: 2 });
     await settle();
     scheduler.change("v2");
     void scheduler.flush();
-    calls[1]!.reply.resolve({ ok: true });
+    calls[1]!.reply.resolve({ ok: true, revision: 3 });
     await settle();
     // A refresh started after the first save arrives last.
-    expect(scheduler.adopt("v1")).toBe(false);
-    expect(scheduler.adopt("v2")).toBe(true);
-    expect(scheduler.adopt("remote")).toBe(true);
+    expect(scheduler.adopt("v1", 2)).toBe(false);
+    expect(scheduler.adopt("v0", 1)).toBe(false);
+    expect(scheduler.adopt("v2", 3)).toBe(true);
+  });
+
+  it("adopts a newer remote revert to an earlier text", async () => {
+    const { scheduler, calls } = setup({ initial: "A", revision: 1 });
+    scheduler.change("B");
+    void scheduler.flush();
+    calls[0]!.reply.resolve({ ok: true, revision: 2 });
+    await settle();
+    expect(scheduler.adopt("B", 2)).toBe(true);
+    // Someone else restored « A » afterwards.
+    expect(scheduler.adopt("A", 3)).toBe(true);
+    expect(scheduler.snapshot().pending).toBe(false);
+    // And a late echo of our save is now older than that.
+    expect(scheduler.adopt("B", 2)).toBe(false);
   });
 
   it("discard drops a failed draft so nothing resends it", async () => {

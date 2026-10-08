@@ -16,18 +16,21 @@ const IDLE: AutosaveSnapshot = { status: "idle", error: null, pending: false };
  */
 export function useAutosave<T>({
   initial,
+  revision,
   save,
   delay,
   equals,
 }: {
   initial: T;
+  /** Server revision of the initial value (see SaveResult). */
+  revision?: number;
   save: (value: T) => Promise<SaveResult>;
   delay: number;
   equals?: (a: T, b: T) => boolean;
 }) {
   const [snapshot, setSnapshot] = useState<AutosaveSnapshot>(IDLE);
   const [scheduler] = useState(() =>
-    createAutosaveScheduler<T>({ initial, delay, equals, save, onChange: setSnapshot }),
+    createAutosaveScheduler<T>({ initial, revision, delay, equals, save, onChange: setSnapshot }),
   );
   // Later saves use the latest callback (fresh props / closures).
   useEffect(() => {

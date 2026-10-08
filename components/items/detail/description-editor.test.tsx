@@ -196,6 +196,35 @@ describe("DescriptionEditor (Notion-like page)", () => {
     expect(mocks.updateItemAction).not.toHaveBeenCalled();
   });
 
+  it("follows a remote revert but ignores a late echo of its own save", async () => {
+    mocks.updateItemAction.mockResolvedValueOnce({
+      ok: true,
+      item: { updatedAt: new Date(2000) },
+    });
+    const { user, rerender } = renderDescription("A");
+    rerender(
+      <DescriptionEditor itemId="item-1" backlogKey="DEMO" description="A" revision={1000} />,
+    );
+    const textbox = await retype(user, "B");
+    await act(async () => textbox.blur());
+    expect(await screen.findByText("Enregistré")).toBeInTheDocument();
+    rerender(
+      <DescriptionEditor itemId="item-1" backlogKey="DEMO" description="B" revision={2000} />,
+    );
+    // A refresh started before the save lands late: ignored.
+    rerender(
+      <DescriptionEditor itemId="item-1" backlogKey="DEMO" description="A" revision={1000} />,
+    );
+    expect(textbox).toHaveTextContent("B");
+    // Someone else then restores « A »: taken.
+    rerender(
+      <DescriptionEditor itemId="item-1" backlogKey="DEMO" description="A" revision={3000} />,
+    );
+    await waitFor(() => expect(textbox).toHaveTextContent("A"));
+    expect(textbox).not.toHaveTextContent("B");
+    expect(mocks.updateItemAction).toHaveBeenCalledTimes(1);
+  });
+
   it("never replaces a change that is not saved yet", async () => {
     const { user, rerender } = renderDescription("Avant");
     const textbox = await retype(user, "Avant local");

@@ -437,6 +437,7 @@ export function ItemDetailPanel({
               itemId={detail.id}
               backlogKey={backlogKey}
               description={detail.description}
+              revision={new Date(detail.updatedAt).getTime()}
               readOnly={!canEdit}
             />
           )}
