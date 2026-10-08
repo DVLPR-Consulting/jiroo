@@ -224,6 +224,17 @@ describe("SearchModal item navigation", () => {
     expect(screen.getByRole("dialog")).toBeVisible();
   });
 
+  it("opens the palette when the « / » shortcut asks for it", () => {
+    renderSubject();
+
+    act(() => {
+      window.dispatchEvent(new Event("jiroo:open-search"));
+    });
+
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Rechercher" })).toHaveFocus();
+  });
+
   it("restores recent rows after the query is cleared", async () => {
     localStorage.setItem("jiroo-recent-items", JSON.stringify(["DEMO-2"]));
     mocks.recentItemsAction.mockResolvedValue({
