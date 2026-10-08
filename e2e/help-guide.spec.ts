@@ -62,3 +62,17 @@ test("reste lisible sans débordement à 390 par 844", async ({ page }, testInfo
   await page.goto("/aide");
   await page.screenshot({ path: testInfo.outputPath("jir67-mobile-390.png") });
 });
+
+test("revient à l’accueil du backlog par le fil d’Ariane puis par le logo", async ({ page }) => {
+  // JIR-72: from the guide, the breadcrumb backlog segment and the wordmark lead back home.
+  await page.setViewportSize(DESKTOP);
+  await page.goto("/aide");
+
+  const breadcrumb = page.getByRole("navigation", { name: "Fil d’Ariane" });
+  await breadcrumb.locator('[data-slot="shell-breadcrumb-parent"]').click();
+  await expect(page).toHaveURL(/\/b\/CASS$/);
+
+  await page.goto("/aide");
+  await page.getByRole("link", { name: "Jiroo — accueil" }).click();
+  await expect(page).toHaveURL(/\/b\/CASS$/);
+});
