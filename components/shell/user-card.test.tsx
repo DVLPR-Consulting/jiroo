@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   signOut: vi.fn(),
   prepareSignOut: vi.fn(),
+  loadPage: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -16,6 +17,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/lib/auth/client", () => ({ signOut: mocks.signOut }));
 vi.mock("@/lib/autosave/sign-out", () => ({ prepareSignOut: mocks.prepareSignOut }));
+vi.mock("@/lib/navigation/load-page", () => ({ loadPage: mocks.loadPage }));
 vi.mock("@/app/actions/account", () => ({ changeOwnPasswordAction: vi.fn() }));
 
 const user = {
@@ -104,7 +106,9 @@ describe("UserCard", () => {
     await interaction.click(screen.getByRole("menuitem", { name: "Déconnexion" }));
 
     await waitFor(() => expect(mocks.signOut).toHaveBeenCalledOnce());
-    expect(mocks.push).toHaveBeenCalledWith("/login");
+    // A full page load: no in-memory state survives the identity change.
+    expect(mocks.loadPage).toHaveBeenCalledWith("/login");
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("does not sign out when the user keeps unsaved description changes", async () => {
@@ -118,6 +122,6 @@ describe("UserCard", () => {
 
     await waitFor(() => expect(mocks.prepareSignOut).toHaveBeenCalledOnce());
     expect(mocks.signOut).not.toHaveBeenCalled();
-    expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.loadPage).not.toHaveBeenCalled();
   });
 });

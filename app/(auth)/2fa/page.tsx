@@ -1,14 +1,13 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth/client";
 import { AuthCard } from "@/components/auth/auth-card";
 import { OtpInput } from "@/components/auth/otp-input";
 import { Button } from "@/components/ui/button";
+import { loadPage } from "@/lib/navigation/load-page";
 
 export default function TwoFactorPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -26,7 +25,7 @@ export default function TwoFactorPage() {
       setAttempt((a) => a + 1);
       return;
     }
-    router.push("/");
+    loadPage("/");
   }
 
   return (

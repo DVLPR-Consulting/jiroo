@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { CircleUserRound, KeyRound, LogOut, SlidersHorizontal } from "lucide-react";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { ChangePasswordDialog } from "@/components/shell/change-password-dialog";
@@ -15,6 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { loadPage } from "@/lib/navigation/load-page";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administrateur",
@@ -29,7 +29,6 @@ export function UserCard({
   user: { name: string; email: string; role: string };
   collapsed?: boolean;
 }) {
-  const router = useRouter();
   const roleLabel = ROLE_LABELS[user.role] ?? user.role;
   const [profileOpen, setProfileOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
@@ -38,7 +37,7 @@ export function UserCard({
   async function handleSignOut() {
     if (!(await prepareSignOut())) return;
     await signOut();
-    router.push("/login");
+    loadPage("/login");
   }
 
   return (

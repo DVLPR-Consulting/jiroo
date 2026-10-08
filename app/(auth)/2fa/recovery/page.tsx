@@ -1,15 +1,14 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth/client";
 import { AuthCard } from "@/components/auth/auth-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { loadPage } from "@/lib/navigation/load-page";
 
 export default function RecoveryPage() {
-  const router = useRouter();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -24,7 +23,7 @@ export default function RecoveryPage() {
       setError("Code de récupération invalide.");
       return;
     }
-    router.push("/");
+    loadPage("/");
   }
 
   return (
