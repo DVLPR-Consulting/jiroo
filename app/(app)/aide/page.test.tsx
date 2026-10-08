@@ -98,6 +98,10 @@ describe("HelpPage", () => {
       expect(topic).toHaveTextContent(`« ${label} »`);
     }
     expect(topic).toHaveTextContent("lecture seule");
+    // JIR-71: unsaved text survives closing the drawer, not a page reload.
+    expect(topic).toHaveTextContent("en revenant sur le ticket");
+    expect(topic).toHaveTextContent("demande confirmation avant de quitter ou de recharger la page");
+    expect(topic).toHaveTextContent("Se déconnecter quand même ?");
     expect(tickets).not.toHaveTextContent("Ajouter une description");
     expect(tickets).not.toHaveTextContent("Éditer");
   });

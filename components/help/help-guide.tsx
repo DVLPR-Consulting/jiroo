@@ -231,7 +231,7 @@ export function HelpGuide() {
           ]}
         >
           <GuideNote>
-            Si l’enregistrement échoue, le message <Ui>Échec de l’enregistrement</Ui> s’affiche et votre texte est conservé : cliquez sur <Ui>Réessayer</Ui>. Sans droit de modification sur le ticket (rôle <Ui>Lecteur</Ui>, par exemple), la description s’affiche avec la même mise en forme, en lecture seule ; ses liens restent cliquables. Les enregistrements successifs d’une même séance d’écriture ne comptent que pour une seule entrée dans l’onglet <Ui>Activité</Ui>.
+            Si l’enregistrement échoue, le message <Ui>Échec de l’enregistrement</Ui> s’affiche et votre texte est conservé : cliquez sur <Ui>Réessayer</Ui>, y compris en revenant sur le ticket après avoir fermé le panneau ou changé d’onglet. Ce texte n’est gardé que dans la page ouverte : tant qu’il n’est pas enregistré, le navigateur demande confirmation avant de quitter ou de recharger la page, et la déconnexion demande <Ui>Se déconnecter quand même ?</Ui>. Sans droit de modification sur le ticket (rôle <Ui>Lecteur</Ui>, par exemple), la description s’affiche avec la même mise en forme, en lecture seule ; ses liens restent cliquables. Les enregistrements successifs d’une même séance d’écriture ne comptent que pour une seule entrée dans l’onglet <Ui>Activité</Ui>.
           </GuideNote>
         </GuideTopic>
 
