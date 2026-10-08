@@ -92,6 +92,7 @@ export function ItemDetailSheet({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         variant="sheet-right"
+        data-shortcut-scope="item"
         showCloseButton={false}
         aria-describedby={undefined}
         className="bg-[var(--surface)] shadow-lg"

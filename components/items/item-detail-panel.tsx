@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Trash2, X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
@@ -57,6 +57,7 @@ import type {
 import { LinksSection } from "@/components/items/detail/links-section";
 import { DevRefsSection } from "@/components/items/detail/dev-refs-section";
 import { toast } from "@/lib/toast";
+import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import type {
   ItemCapabilities,
   PlanningCapabilities,
@@ -148,6 +149,26 @@ export function ItemDetailPanel({
   const router = useRouter();
   const viewUrl = useViewUrlState();
   const [tab, setTab] = useState<"detail" | "comments" | "activity">("detail");
+  const mainRef = useRef<HTMLDivElement>(null);
+  const [composerFocusRequest, setComposerFocusRequest] = useState(0);
+  const canComment = itemCapabilities?.addComments ?? canEditItems;
+  // « m » (Jira: add a comment) shows the comments and focuses the composer.
+  useShortcutHandler(
+    "item.comment",
+    canComment &&
+      (() => {
+        setTab("comments");
+        setComposerFocusRequest((request) => request + 1);
+      }),
+  );
+  useEffect(() => {
+    if (composerFocusRequest === 0) return;
+    const main = mainRef.current;
+    const composer =
+      main?.querySelector<HTMLElement>('[aria-label="Nouveau commentaire"]') ??
+      main?.querySelector<HTMLElement>('textarea, [contenteditable="true"]');
+    composer?.focus();
+  }, [composerFocusRequest]);
   const [deleting, startDelete] = useTransition();
   const [planningPending, startPlanning] = useTransition();
   const [selectedParentId, setSelectedParentId] = useState(detail.parentId);
@@ -354,6 +375,7 @@ export function ItemDetailPanel({
       >
         {/* Main column */}
         <div
+          ref={mainRef}
           data-testid="item-detail-main"
           className="flex min-w-0 flex-col gap-4 p-5 lg:overflow-y-auto"
         >
@@ -417,7 +439,7 @@ export function ItemDetailPanel({
               users={users.map((u) => ({ id: u.id, name: u.name }))}
               currentUserId={currentUserId}
               capabilities={{
-                add: itemCapabilities?.addComments ?? canEditItems,
+                add: canComment,
                 editOwn: itemCapabilities?.editOwnComments ?? canEditItems,
                 deleteOwn: itemCapabilities?.deleteOwnComments ?? canEditItems,
                 deleteAll: itemCapabilities?.deleteAllComments ?? canEditItems,
@@ -553,6 +575,7 @@ export function ItemDetailPanel({
                 assigneeId={detail.assigneeId}
                 currentAssignee={assignee}
                 users={assigneeCandidates}
+                currentUserId={currentUserId}
               />
             ) : assignee?.name ?? "Non assigné"}
           </Field>

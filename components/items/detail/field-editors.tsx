@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useRef, useTransition, useState } from "react";
 import { createLabelAction } from "@/app/actions/labels";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { LabelPill } from "@/components/items/label-pill";
@@ -21,6 +21,7 @@ import {
   type Priority,
 } from "@/lib/design/constants";
 import { useOptimisticFieldUpdate } from "@/components/items/detail/use-optimistic-field-update";
+import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
 
 type StatusLite = { id: string; name: string; color: string; category: string };
 type UserLite = { id: string; name: string };
@@ -37,6 +38,17 @@ function FieldError({ error }: { error: string | null }) {
 
 const selectClass =
   "w-full rounded-[var(--radius)] border border-border bg-[var(--surface)] px-2 py-1 text-sm text-foreground outline-none focus:border-[var(--ring)] disabled:opacity-60";
+
+/** Focus a native select and, where supported, open its list (shortcuts). */
+function openSelect(select: HTMLSelectElement | null) {
+  if (!select || select.disabled) return;
+  select.focus();
+  try {
+    select.showPicker?.();
+  } catch {
+    // Not allowed or not supported: the focused select still opens with the keyboard.
+  }
+}
 
 function asPriority(value: number): Priority {
   return Math.min(4, Math.max(0, value)) as Priority;
@@ -71,6 +83,8 @@ export function StatusField({
     toPatch: (next) => ({ statusId: next }),
   });
   const selected = statuses.find((s) => s.id === value);
+  const selectRef = useRef<HTMLSelectElement>(null);
+  useShortcutHandler("item.status", () => openSelect(selectRef.current));
 
   return (
     <div>
@@ -81,6 +95,7 @@ export function StatusField({
           aria-hidden
         />
         <select
+          ref={selectRef}
           className={selectClass}
           value={value}
           disabled={pending}
@@ -252,12 +267,15 @@ export function AssigneeField({
   assigneeId,
   currentAssignee,
   users,
+  currentUserId,
 }: {
   itemId: string;
   backlogKey: string;
   assigneeId: string | null;
   currentAssignee?: UserLite;
   users: UserLite[];
+  /** Enables « i » (assign to me) when this user is an assignable member. */
+  currentUserId?: string;
 }) {
   const field = useOptimisticFieldUpdate({
     value: assigneeId,
@@ -265,10 +283,22 @@ export function AssigneeField({
     backlogKey,
     toPatch: (next) => ({ assigneeId: next }),
   });
+  const selectRef = useRef<HTMLSelectElement>(null);
+  const canAssignToMe =
+    currentUserId !== undefined && users.some((user) => user.id === currentUserId);
+  useShortcutHandler("item.assign", () => openSelect(selectRef.current));
+  useShortcutHandler(
+    "item.assignToMe",
+    canAssignToMe &&
+      (() => {
+        if (!field.pending && field.value !== currentUserId) field.update(currentUserId);
+      }),
+  );
 
   return (
     <div>
       <select
+        ref={selectRef}
         className={selectClass}
         value={field.value ?? ""}
         disabled={field.pending}

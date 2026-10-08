@@ -4,6 +4,7 @@ import { useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { updateItemAction } from "@/app/actions/items";
+import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import { ITEM_TITLE_MAX } from "@/lib/validation/item";
 
 export function EditableTitle({
@@ -33,6 +34,8 @@ export function EditableTitle({
     setError(null);
     setEditing(true);
   }
+  // « e » (Jira: edit work item) starts renaming when the user may edit.
+  useShortcutHandler("item.edit", !readOnly && !editing && start);
   function save() {
     const next = value.trim();
     if (next === "") return;
