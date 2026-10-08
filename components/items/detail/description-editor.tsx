@@ -171,7 +171,10 @@ export function DescriptionEditor({
                 autosave.change(value);
                 void autosave.flush();
               }}
-              onCancel={() => setValue(stored)}
+              onCancel={() => {
+                autosave.discard();
+                setValue(stored);
+              }}
             />
           ) : null}
           <span id={statusId} aria-live="polite" className="ml-auto flex items-center gap-2">

@@ -351,6 +351,29 @@ describe("DescriptionEditor (Notion-like page)", () => {
     await waitFor(() => expect(textbox).toHaveFocus());
   });
 
+  it("never resends raw Markdown cancelled after a failed save", async () => {
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: false, error: "Indisponible" });
+    const table = "| a | b |\n|---|---|\n| 1 | 2 |";
+    const { user, unmount } = renderDescription(table);
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Description" }).tagName).toBe("TEXTAREA"),
+    );
+    await user.type(screen.getByRole("textbox", { name: "Description" }), "X");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+    expect(await screen.findByRole("button", { name: "Réessayer" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(screen.getByRole("textbox", { name: "Description" })).toHaveValue(table);
+    expect(screen.queryByRole("button", { name: "Réessayer" })).toBeNull();
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    visibility.mockRestore();
+    unmount();
+    await new Promise((res) => setTimeout(res, 50));
+    expect(mocks.updateItemAction).toHaveBeenCalledTimes(1);
+  });
+
   describe("read-only", () => {
     it("uses the same rendering, not editable, with clickable links", async () => {
       renderDescription(RICH, { readOnly: true });

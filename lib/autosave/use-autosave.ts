@@ -64,5 +64,6 @@ export function useAutosave<T>({
     flush: scheduler.flush,
     retry: scheduler.retry,
     adopt: scheduler.adopt,
+    discard: scheduler.discard,
   };
 }

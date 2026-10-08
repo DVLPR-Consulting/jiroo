@@ -30,6 +30,11 @@ export type AutosaveScheduler<T> = {
    * refresh would otherwise bring an older text back).
    */
   adopt: (value: T) => boolean;
+  /**
+   * Abandons the unsaved draft and its error (the user cancelled it): the
+   * last saved value becomes current again and nothing resends the draft.
+   */
+  discard: () => void;
   /** Flushes and stops: later calls and notifications are ignored. */
   dispose: () => Promise<void>;
   snapshot: () => AutosaveSnapshot;
@@ -60,6 +65,8 @@ export function createAutosaveScheduler<T>({
   let inFlight: Promise<void> | null = null;
   let disposed = false;
   let currentSave = save;
+  /** Bumped by discard: a save started before it no longer reports errors. */
+  let generation = 0;
   /** Values this scheduler saved before the current baseline. */
   const earlier: T[] = [];
 
@@ -81,6 +88,7 @@ export function createAutosaveScheduler<T>({
   async function loop() {
     while (!equals(latest, saved)) {
       const value = latest;
+      const started = generation;
       status = "saving";
       notify();
       let result: SaveResult;
@@ -90,6 +98,7 @@ export function createAutosaveScheduler<T>({
         result = { ok: false, error: DEFAULT_ERROR };
       }
       if (!result.ok) {
+        if (started !== generation) return;
         status = "error";
         error = result.error || DEFAULT_ERROR;
         return;
@@ -141,6 +150,15 @@ export function createAutosaveScheduler<T>({
       latest = value;
       saved = value;
       return true;
+    },
+    discard() {
+      if (disposed) return;
+      clearTimer();
+      generation += 1;
+      latest = saved;
+      error = null;
+      if (status === "error") status = "idle";
+      notify();
     },
     dispose() {
       if (disposed) return inFlight ?? Promise.resolve();

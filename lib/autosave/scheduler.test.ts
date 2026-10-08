@@ -218,4 +218,27 @@ describe("createAutosaveScheduler", () => {
     expect(scheduler.adopt("v2")).toBe(true);
     expect(scheduler.adopt("remote")).toBe(true);
   });
+
+  it("discard drops a failed draft so nothing resends it", async () => {
+    const { scheduler, save, calls, last } = setup({ initial: "base" });
+    scheduler.change("rejected");
+    void scheduler.flush();
+    calls[0]!.reply.resolve({ ok: false, error: "Erreur" });
+    await settle();
+    scheduler.discard();
+    expect(last()).toMatchObject({ status: "idle", error: null, pending: false });
+    await scheduler.retry();
+    await scheduler.flush();
+    await vi.advanceTimersByTimeAsync(2000);
+    await scheduler.dispose();
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it("discard cancels a pending debounce", async () => {
+    const { scheduler, save } = setup({ initial: "base" });
+    scheduler.change("typed");
+    scheduler.discard();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(save).not.toHaveBeenCalled();
+  });
 });
