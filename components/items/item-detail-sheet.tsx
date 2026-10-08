@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { useViewUrlState } from "@/components/shell/view-url-state";
+import { DetailPanelSkeleton } from "@/components/items/view-skeletons";
 import {
   Dialog,
   DialogClose,
@@ -119,6 +120,35 @@ export function ItemDetailSheet({
         {children}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Mounts the item drawer as soon as `?item=` is requested, not when the server
+ * answers. Opening an item re-renders the whole backlog view on the server
+ * (every view query runs again), so waiting for that round trip left the click
+ * without feedback for a second or more against a remote database. The frame
+ * and a skeleton now slide in on click; the server body (`children`, rendered
+ * for `itemKey`) replaces the skeleton inside the same dialog once it arrives.
+ */
+export function ItemDetailDrawer({
+  itemKey,
+  children,
+}: {
+  /** The item the server rendered `children` for, or null when none. */
+  itemKey: string | null;
+  children?: ReactNode;
+}) {
+  const viewUrl = useViewUrlState();
+  // The latest requested URL, including a push still waiting for the server.
+  const requestedKey = new URLSearchParams(
+    viewUrl.href(() => {}).split("?")[1] ?? "",
+  ).get("item");
+  if (!requestedKey) return null;
+  return (
+    <ItemDetailSheet itemKey={requestedKey}>
+      {requestedKey === itemKey ? children : <DetailPanelSkeleton />}
+    </ItemDetailSheet>
   );
 }
 
