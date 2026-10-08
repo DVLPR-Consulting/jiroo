@@ -6,6 +6,7 @@
 import { Extension, type AnyExtension } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Paragraph from "@tiptap/extension-paragraph";
+import CodeBlock from "@tiptap/extension-code-block";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Markdown } from "@tiptap/markdown";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
@@ -56,12 +57,27 @@ const LiteralParagraph = Paragraph.extend({
   },
 });
 
+/**
+ * Code block whose fence is longer than any backtick run in its content, so
+ * code containing "```" lines (Markdown examples) survives a save.
+ */
+const SafeFenceCodeBlock = CodeBlock.extend({
+  renderMarkdown(node, helpers) {
+    const body = node.content ? helpers.renderChildren(node.content) : "";
+    const longest = Math.max(0, ...(body.match(/`+/g) ?? []).map((run) => run.length));
+    const fence = "`".repeat(Math.max(3, longest + 1));
+    const language = String(node.attrs?.language ?? "").replace(/`/g, "");
+    return `${fence}${language}\n${body}\n${fence}`;
+  },
+});
+
 export function markdownEditorExtensions({
   maxLength = null,
 }: { maxLength?: number | null } = {}): AnyExtension[] {
   return [
     StarterKit.configure({
       paragraph: false,
+      codeBlock: false,
       underline: false,
       link: {
         openOnClick: false,
@@ -74,6 +90,7 @@ export function markdownEditorExtensions({
       },
     }),
     LiteralParagraph,
+    SafeFenceCodeBlock,
     TaskList,
     TaskItem.configure({
       nested: true,

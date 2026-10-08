@@ -138,3 +138,32 @@ describe("positionAfterVisibleChars", () => {
     expect(positionAfterVisibleChars(editor.state.doc, 4)).toBeNull();
   });
 });
+
+describe("code block fences (Codex R1)", () => {
+  it("keeps a code block containing a fence after an unrelated edit", () => {
+    const markdown = "Avant\n\n````js\n```\n````";
+    editor.commands.setContent(markdownToDoc(manager, markdown));
+    editor.commands.insertContentAt(2, "!");
+    const saved = docToMarkdown(manager, editor.getJSON());
+    expect(rendered(saved)).toBe(rendered(markdown.replace("Avant", "A!vant")));
+    expect(unsupportedMarkdownFeatures(manager, saved)).toEqual([]);
+  });
+
+  it("fences a newly typed code block longer than its own backtick runs", () => {
+    editor.commands.setContent({
+      type: "doc",
+      content: [
+        {
+          type: "codeBlock",
+          attrs: { language: "md" },
+          content: [{ type: "text", text: "```\nx\n`````" }],
+        },
+      ],
+    });
+    const saved = docToMarkdown(manager, editor.getJSON());
+    expect(saved).toBe("``````md\n```\nx\n`````\n``````");
+    expect(rendered(saved)).toBe(
+      '<pre><code class="language-md">```\nx\n`````\n</code></pre>',
+    );
+  });
+});
