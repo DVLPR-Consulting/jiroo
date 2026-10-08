@@ -42,10 +42,7 @@ import {
   NewItemButton,
   type NewItemButtonProps,
 } from "@/components/items/new-item-dialog";
-import {
-  CreateSprintButton,
-  EditSprintDialog,
-} from "@/components/sprints/sprint-form-dialog";
+import { CreateSprintButton } from "@/components/sprints/sprint-form-dialog";
 import {
   CompleteSprintDialog,
   StartSprintDialog,
@@ -85,6 +82,10 @@ import {
   type ActiveSprintStartCommitment,
   type RecentVelocityContext,
 } from "@/lib/items/sprint-planning";
+import {
+  pointsByStatusCategory,
+  type PointsByStatusCategory,
+} from "@/lib/items/status-points";
 import { BACKLOG_COLUMNS, fixedTableMinWidth, SELECTION_COLUMN } from "@/lib/items/table-layout";
 
 type StatusOption = {
@@ -788,6 +789,8 @@ type LegacyBacklogProps = SharedBacklogProps & {
 
 type SprintBacklogSection = SprintPlanningSection<BacklogItem> & {
   groups: BacklogGroup[];
+  /** Points per status category of the whole section (server-computed). */
+  statusPoints?: PointsByStatusCategory;
 };
 
 type MoveSprintItemAction = (input: {
@@ -1096,6 +1099,7 @@ function SprintItemBacklog({
       ...section,
       items: nextItems,
       groups: [{ key: "", label: "", items: nextItems }],
+      statusPoints: pointsByStatusCategory(nextItems, statuses),
       metrics: calculateSprintMetrics(
         planningItems,
         section.sprint?.capacityPoints ?? null,
@@ -1300,6 +1304,9 @@ function SprintItemBacklog({
                   kind={section.kind}
                   sprint={section.sprint}
                   metrics={section.metrics as SprintMetrics}
+                  statusPoints={
+                    section.statusPoints ?? pointsByStatusCategory(section.items, statuses)
+                  }
                   expanded={sectionExpanded}
                   onExpandedChange={(next) =>
                     setExpanded((current) => ({ ...current, [section.id]: next }))
@@ -1310,7 +1317,9 @@ function SprintItemBacklog({
                   canMoveDown={section.kind === "planned" && plannedIndex < planned.length - 1}
                   onMoveUp={() => reorderPlannedSprint(section.id, -1)}
                   onMoveDown={() => reorderPlannedSprint(section.id, 1)}
-                  actions={canCreateInSection || canManageSprints ? (
+                  backlogId={backlogId}
+                  backlogKey={backlogKey}
+                  primaryAction={canCreateInSection || canManageSprints ? (
                     <>
                       {canCreateInSection && createDialogProps ? (
                         <NewItemButton
@@ -1329,13 +1338,6 @@ function SprintItemBacklog({
                               + Tâche
                             </Button>
                           }
-                        />
-                      ) : null}
-                      {canManageSprints && section.sprint ? (
-                        <EditSprintDialog
-                          backlogId={backlogId}
-                          backlogKey={backlogKey}
-                          sprint={section.sprint}
                         />
                       ) : null}
                       {canManageSprints && section.kind === "planned" && section.sprint ? (

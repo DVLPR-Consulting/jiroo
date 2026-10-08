@@ -138,8 +138,8 @@ export function StartSprintDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button type="button" size="sm">
-          Démarrer <span className="sr-only">{sprint.name}</span>
+        <Button type="button">
+          Démarrer le sprint{" "}<span className="sr-only">{sprint.name}</span>
         </Button>
       </DialogTrigger>
       <DialogContent aria-describedby={undefined}>
@@ -258,8 +258,8 @@ export function CompleteSprintDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button type="button" size="sm" variant="outline">
-          Clôturer <span className="sr-only">{sprint.name}</span>
+        <Button type="button">
+          Terminer le sprint{" "}<span className="sr-only">{sprint.name}</span>
         </Button>
       </DialogTrigger>
       <DialogContent aria-describedby={undefined}>

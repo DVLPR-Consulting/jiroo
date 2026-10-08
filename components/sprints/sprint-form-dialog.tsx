@@ -46,9 +46,11 @@ function toIso(value: string): string | null {
 export function CreateSprintButton({
   backlogId,
   backlogKey,
+  variant = "default",
 }: {
   backlogId: string;
   backlogKey: string;
+  variant?: "default" | "outline";
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -72,8 +74,8 @@ export function CreateSprintButton({
 
   return (
     <div className="flex flex-col items-start gap-1">
-      <Button type="button" onClick={create} disabled={pending}>
-        <Plus className="size-4" />
+      <Button type="button" variant={variant} onClick={create} disabled={pending}>
+        {variant === "default" ? <Plus className="size-4" /> : null}
         {pending ? "Création…" : "Créer un sprint"}
       </Button>
       {error && (
@@ -90,16 +92,30 @@ export function EditSprintDialog({
   backlogKey,
   sprint,
   trigger,
+  open: controlledOpen,
+  onOpenChange,
+  returnFocus,
 }: {
   backlogId: string;
   backlogKey: string;
   sprint: SprintFormSummary;
   trigger?: ReactNode;
+  /** Controlled mode (opened from a menu or a link): no trigger is rendered. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Element to focus once the dialog closes, when it has no trigger. */
+  returnFocus?: () => HTMLElement | null;
 }) {
   const router = useRouter();
   const prefix = useId();
   const [pending, startTransition] = useTransition();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const controlled = controlledOpen !== undefined;
+  const open = controlled ? controlledOpen : uncontrolledOpen;
+  function setOpen(next: boolean) {
+    if (controlled) onOpenChange?.(next);
+    else setUncontrolledOpen(next);
+  }
   const [name, setName] = useState(sprint.name);
   const [goal, setGoal] = useState(sprint.goal ?? "");
   const [plannedStartAt, setPlannedStartAt] = useState(
@@ -114,6 +130,13 @@ export function EditSprintDialog({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const completed = sprint.state === "completed";
+  // Resync from the current props on every opening, including a controlled
+  // one: the sprint may have been renamed or re-planned since mount (JIR-54).
+  const [lastOpen, setLastOpen] = useState(open);
+  if (open !== lastOpen) {
+    setLastOpen(open);
+    if (open) reset();
+  }
 
   function reset() {
     setName(sprint.name);
@@ -168,20 +191,27 @@ export function EditSprintDialog({
       onOpenChange={(next) => {
         // Keep the dialog open while a request is in flight (JIR-57).
         if (!next && pending) return;
-        // Resync from the current props on every open: the sprint may have
-        // been renamed or re-planned since mount (JIR-54).
-        if (next) reset();
         setOpen(next);
       }}
     >
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button type="button" variant="ghost" size="sm">
-            Modifier <span className="sr-only">{sprint.name}</span>
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent aria-describedby={undefined}>
+      {controlled ? null : (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button type="button" variant="ghost" size="sm">
+              Modifier <span className="sr-only">{sprint.name}</span>
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
+      <DialogContent
+        aria-describedby={undefined}
+        onCloseAutoFocus={(event) => {
+          const target = returnFocus?.();
+          if (!target) return;
+          event.preventDefault();
+          target.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Modifier {sprint.name}</DialogTitle>
         </DialogHeader>

@@ -444,6 +444,22 @@ describe("ItemBacklog", () => {
     geometry.mockRestore();
   });
 
+  it("gives each sprint one primary lifecycle action and its points per status", () => {
+    const { container } = render(<ItemBacklog {...sprintProps()} />);
+
+    expect(screen.getByRole("button", { name: "Terminer le sprint Sprint actif" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Démarrer le sprint Sprint futur" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Démarrer le sprint Sprint actif" }))
+      .not.toBeInTheDocument();
+    const future = container.querySelector('[data-sprint-section="sprint-future"]') as HTMLElement;
+    // DEMO-2 (5 pts) is in progress.
+    expect(
+      within(future).getByText("Points par statut : À faire 0, En cours 5, Terminé 0"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Actions de Sprint futur" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Actions de Backlog" })).not.toBeInTheDocument();
+  });
+
   it("keeps the global Backlog selection name and contextualizes sprint headers", () => {
     render(<ItemBacklog {...sprintProps()} />);
 

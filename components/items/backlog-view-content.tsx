@@ -56,6 +56,7 @@ import {
   type ViewUrlEntry,
 } from "@/lib/items/view-url-params";
 import { buildSprintSections } from "@/lib/items/sprint-planning";
+import { pointsByStatusCategory } from "@/lib/items/status-points";
 import { listSprintsForBacklog } from "@/lib/services/sprints";
 import {
   getActiveSprintStartCommitment,
@@ -427,6 +428,8 @@ export async function BacklogViewContent({
     const visibleItems = sorted.map((row) => planningItemById.get(row.id)!);
     return {
       ...section,
+      // Like the section metrics, the status lozenges cover the whole section.
+      statusPoints: pointsByStatusCategory(section.items, statusList),
       items: visibleItems,
       groups: groupedRows.map(([groupKey, groupRows]) => ({
         key: groupKey,
