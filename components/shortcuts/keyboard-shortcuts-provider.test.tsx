@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -6,6 +6,10 @@ import {
   useShortcutHandler,
 } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import { SEQUENCE_TIMEOUT_MS } from "@/lib/shortcuts/engine";
+import {
+  moveShortcutFocus,
+  openCurrentShortcutItem,
+} from "@/lib/shortcuts/list-navigation";
 import type { SequenceShortcutId } from "@/lib/shortcuts/registry";
 
 vi.mock("next/link", () => ({
@@ -46,6 +50,109 @@ describe("KeyboardShortcutsProvider", () => {
 
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  describe("focus after the « Raccourcis clavier » dialog", () => {
+    function Rows({ onOpen, rows = ["DEMO-1", "DEMO-2", "DEMO-3"] }: { onOpen: (key: string) => void; rows?: string[] }) {
+      return (
+        <main>
+          {rows.map((key) => (
+            <button key={key} type="button" data-shortcut-item={key} onClick={() => onOpen(key)}>
+              {key}
+            </button>
+          ))}
+        </main>
+      );
+    }
+
+    function ListBindings() {
+      useShortcutHandler("list.next", () => moveShortcutFocus(document, 1));
+      useShortcutHandler("list.open", () => openCurrentShortcutItem());
+      return null;
+    }
+
+    function openHelpFrom(element: HTMLElement) {
+      element.focus();
+      press("?", element, { shiftKey: true });
+      return screen.findByRole("dialog", { name: "Raccourcis clavier" });
+    }
+
+    it("returns focus to the selected row on Escape, so o and j resume from it", async () => {
+      const user = userEvent.setup();
+      const onOpen = vi.fn();
+      render(
+        <KeyboardShortcutsProvider>
+          <ListBindings />
+          <Rows onOpen={onOpen} />
+        </KeyboardShortcutsProvider>,
+      );
+      const second = screen.getByRole("button", { name: "DEMO-2" });
+
+      await openHelpFrom(second);
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+      expect(second).toHaveFocus();
+      press("o", second);
+      expect(onOpen).toHaveBeenCalledWith("DEMO-2");
+      press("j", second);
+      expect(screen.getByRole("button", { name: "DEMO-3" })).toHaveFocus();
+    });
+
+    it("returns focus to the selected row from the close button", async () => {
+      const user = userEvent.setup();
+      render(
+        <KeyboardShortcutsProvider>
+          <Rows onOpen={vi.fn()} />
+        </KeyboardShortcutsProvider>,
+      );
+      const second = screen.getByRole("button", { name: "DEMO-2" });
+
+      await openHelpFrom(second);
+      await user.click(screen.getByRole("button", { name: "Close" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+      expect(second).toHaveFocus();
+    });
+
+    it("falls back to the same item when its row was re-rendered meanwhile", async () => {
+      const user = userEvent.setup();
+      const { rerender } = render(
+        <KeyboardShortcutsProvider>
+          <Rows onOpen={vi.fn()} />
+        </KeyboardShortcutsProvider>,
+      );
+      await openHelpFrom(screen.getByRole("button", { name: "DEMO-2" }));
+
+      // The list refreshed behind the dialog: the old row node is gone.
+      rerender(
+        <KeyboardShortcutsProvider>
+          <Rows key="refreshed" onOpen={vi.fn()} />
+        </KeyboardShortcutsProvider>,
+      );
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+      expect(screen.getByRole("button", { name: "DEMO-2" })).toHaveFocus();
+    });
+
+    it("leaves focus alone after following « Voir le guide »", async () => {
+      const user = userEvent.setup();
+      render(
+        <KeyboardShortcutsProvider>
+          <Rows onOpen={vi.fn()} />
+        </KeyboardShortcutsProvider>,
+      );
+      const second = screen.getByRole("button", { name: "DEMO-2" });
+      await openHelpFrom(second);
+
+      const guide = screen.getByRole("link", { name: "Voir le guide" });
+      guide.addEventListener("click", (event) => event.preventDefault());
+      await user.click(guide);
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+      expect(second).not.toHaveFocus();
+    });
   });
 
   it("runs the latest handler registered for a matched sequence", () => {

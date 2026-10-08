@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId } from "react";
+import { useId, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import {
 import { ShortcutList } from "@/components/shortcuts/shortcut-list";
 import { useShortcutsEnabled } from "@/components/shortcuts/use-shortcuts-enabled";
 import { writeShortcutsEnabled } from "@/lib/shortcuts/preferences";
+import { SHORTCUT_ITEM_SELECTOR } from "@/lib/shortcuts/list-navigation";
 
 /**
  * Switch for single-key shortcuts (WCAG 2.1.4: character key shortcuts can be
@@ -41,21 +42,61 @@ export function ShortcutsToggle() {
   );
 }
 
+/**
+ * Where focus goes back once the dialog closes. The dialog opens from a global
+ * key, not a trigger, so Radix has nothing to return to: restore the element
+ * focused before « ? » (the selected row, typically) so j / k / o resume from
+ * it. If that node was re-rendered meanwhile, fall back to the row of the same
+ * item; otherwise let focus settle as Radix leaves it.
+ */
+function restorableFocusTarget(previous: Element | null): HTMLElement | null {
+  if (!(previous instanceof HTMLElement)) return null;
+  if (previous.isConnected) return previous === document.body ? null : previous;
+  const key = previous.getAttribute("data-shortcut-item");
+  if (!key) return null;
+  return document.querySelector<HTMLElement>(
+    `${SHORTCUT_ITEM_SELECTOR}[data-shortcut-item="${CSS.escape(key)}"]`,
+  );
+}
+
 export function KeyboardShortcutsDialog({
   open,
   onOpenChange,
+  returnFocusTo = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The element focused when the dialog was opened. */
+  returnFocusTo?: Element | null;
 }) {
+  const navigating = useRef(false);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className="max-h-[85vh] overflow-y-auto sm:max-w-lg"
+        onOpenAutoFocus={() => {
+          navigating.current = false;
+        }}
+        onCloseAutoFocus={(event) => {
+          // « Voir le guide » navigates away: the new page owns focus.
+          if (navigating.current) return;
+          const target = restorableFocusTarget(returnFocusTo);
+          if (!target) return;
+          event.preventDefault();
+          target.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Raccourcis clavier</DialogTitle>
           <DialogDescription>
             Les touches reprennent celles de Jira. Elles sont sans effet pendant la saisie dans un champ.{" "}
-            <Link href="/aide#recherche" onClick={() => onOpenChange(false)}>
+            <Link
+              href="/aide#recherche"
+              onClick={() => {
+                navigating.current = true;
+                onOpenChange(false);
+              }}
+            >
               Voir le guide
             </Link>
           </DialogDescription>

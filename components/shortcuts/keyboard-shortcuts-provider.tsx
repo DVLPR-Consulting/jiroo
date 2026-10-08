@@ -63,6 +63,7 @@ export function useShortcutHandler(
 export function KeyboardShortcutsProvider({ children }: { children: React.ReactNode }) {
   const handlers = useRef(new Map<SequenceShortcutId, Handler[]>());
   const [helpOpen, setHelpOpen] = useState(false);
+  const [helpReturnFocus, setHelpReturnFocus] = useState<Element | null>(null);
   const enabled = useShortcutsEnabled();
 
   const registry = useMemo<ShortcutRegistry>(
@@ -104,7 +105,10 @@ export function KeyboardShortcutsProvider({ children }: { children: React.ReactN
 
       const handler =
         result.id === "help"
-          ? () => setHelpOpen(true)
+          ? () => {
+              setHelpReturnFocus(document.activeElement);
+              setHelpOpen(true);
+            }
           : handlers.current.get(result.id)?.at(-1);
       if (!handler) return;
       event.preventDefault();
@@ -118,7 +122,11 @@ export function KeyboardShortcutsProvider({ children }: { children: React.ReactN
   return (
     <ShortcutRegistryContext.Provider value={registry}>
       {children}
-      <KeyboardShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
+      <KeyboardShortcutsDialog
+        open={helpOpen}
+        onOpenChange={setHelpOpen}
+        returnFocusTo={helpReturnFocus}
+      />
     </ShortcutRegistryContext.Provider>
   );
 }
