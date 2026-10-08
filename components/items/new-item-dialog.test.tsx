@@ -533,4 +533,33 @@ describe("NewItemButton", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
   });
+
+  describe("prefilled parent consistency (JIR-73 R3)", () => {
+    it("never shows one parent while sending another when the prefilled one is not a candidate", async () => {
+      const user = userEvent.setup();
+      render(
+        <NewItemButton
+          {...dialogProps()}
+          items={[{ id: "other-epic", key: "DEMO-5", type: "epic", title: "Autre epic" }]}
+          initialType="tache"
+          initialParentId="opened-epic"
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveValue("");
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche");
+      expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
+      expect(mocks.createItemAction).not.toHaveBeenCalled();
+    });
+
+    it("keeps « Créer » disabled when no parent candidate exists", async () => {
+      const user = userEvent.setup();
+      render(
+        <NewItemButton {...dialogProps()} items={[]} initialType="tache" initialParentId="opened-epic" />,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche");
+      expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
+    });
+  });
 });

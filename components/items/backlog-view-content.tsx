@@ -774,7 +774,17 @@ export async function BacklogViewContent({
               ) ?? []}
               releaseOptions={assignableReleaseOptions}
               releaseCapabilities={productCapabilities.releases}
-              createDialog={capabilities.createItems ? createDialogProps : undefined}
+              // The drawer may show an item the view's filter left out: its
+              // child creation picks parents among the whole backlog.
+              createDialog={capabilities.createItems ? {
+                ...createDialogProps,
+                items: detailItems.map((item) => ({
+                  id: item.id,
+                  key: item.key,
+                  type: item.type,
+                  title: item.title,
+                })),
+              } : undefined}
             />
           </Suspense>
         </ItemDetailSheet>

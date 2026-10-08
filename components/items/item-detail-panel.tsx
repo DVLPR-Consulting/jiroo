@@ -424,11 +424,21 @@ export function ItemDetailPanel({
     linksRef.current?.scrollIntoView?.({ block: "nearest" });
   };
 
+  // The opened item is the child's parent: make sure it is a candidate even
+  // when the view's filter (e.g. a Fix version) left it out of the list.
+  const childDialogItems = useMemo(() => {
+    const dialogItems = createDialog?.items ?? [];
+    return dialogItems.some((item) => item.id === detail.id)
+      ? dialogItems
+      : [...dialogItems, { id: detail.id, key: detail.key, type: detail.type, title: detail.title }];
+  }, [createDialog?.items, detail.id, detail.key, detail.title, detail.type]);
+
   const createChildButton = (trigger: React.ReactNode) =>
     child && createDialog ? (
       <NewItemButton
         backlogKey={backlogKey}
         {...createDialog}
+        items={childDialogItems}
         initialType={child.type}
         initialParentId={detail.id}
         trigger={trigger}

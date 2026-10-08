@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
-import { backlogs, items, statuses } from "../lib/db/schema";
+import { backlogs, items, releases, statuses } from "../lib/db/schema";
 import { itemBranchName } from "../lib/items/branch-name";
 import { createItem } from "../lib/services/items";
 
@@ -275,5 +275,32 @@ test.describe("fenêtre « Nouvel item »", () => {
     await toast.getByRole("button", { name: "Ouvrir" }).click();
     await expect(page).toHaveURL(new RegExp(`[?&]item=${second!.key}(&|$)`));
     await expect(page.getByRole("dialog", { name: new RegExp(`^${second!.key} —`) })).toBeVisible();
+  });
+
+  test("crée une tâche sous l’epic ouvert même quand le filtre de version l’écarte de la liste", async ({ page }) => {
+    const { admin, backlog, epic } = await fixtures();
+    const [release] = await db.insert(releases).values({
+      backlogId: backlog.id,
+      name: `JIR-73 filtre ${RUN_ID}`,
+      releaseDate: "2026-12-01",
+      createdBy: admin.id,
+    }).returning();
+    // The new version has no item: the filtered list is empty.
+    const dialog = await openItem(page, epic.key, `list&version=${release!.id}`);
+    await expect(page.locator("main [data-shortcut-item]")).toHaveCount(0);
+
+    await dialog.getByRole("button", { name: "Créer une tâche", exact: true }).click();
+    const create = page.getByRole("dialog", { name: "Nouvel item" });
+    await expect(create.getByLabel("Parent")).toHaveValue(epic.id);
+    await expect(create.getByLabel("Parent").locator("option:checked")).toContainText(epic.key);
+    await create.getByRole("textbox", { name: "Titre" }).fill(`JIR-73 hors filtre ${RUN_ID}`);
+    await create.getByRole("button", { name: "Créer", exact: true }).click();
+    await expect(create).toHaveCount(0);
+
+    await expect.poll(async () => {
+      const [row] = await db.select({ parentId: items.parentId }).from(items)
+        .where(eq(items.title, `JIR-73 hors filtre ${RUN_ID}`));
+      return row?.parentId;
+    }).toBe(epic.id);
   });
 });

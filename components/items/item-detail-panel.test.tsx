@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
   replace: vi.fn(),
   restoreItemAction: vi.fn(),
+  createItemAction: vi.fn(),
   softDeleteItemAction: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/app/actions/items", () => ({
+  createItemAction: mocks.createItemAction,
   restoreItemAction: mocks.restoreItemAction,
   softDeleteItemAction: mocks.softDeleteItemAction,
   updateItemAction: mocks.updateItemAction,
@@ -1138,6 +1140,40 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
     await user.click(within(children).getByRole("button", { name: "+ Créer une tâche" }));
     const dialog = await screen.findByRole("dialog", { name: /Nouvel item/ });
     expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveValue("tache");
+  });
+
+  it("creates a child under the opened item even when the view's filter left it out", async () => {
+    const user = userEvent.setup();
+    mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: { id: "new-task", key: "CASS-30" } });
+    render(
+      <DetailHarness initialEntries={[["view", "list"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          itemCapabilities={fullCapabilities}
+          // A Fix version filter matched other epics only.
+          createDialog={{
+            ...createDialog,
+            items: [{ id: "other-epic", key: "CASS-5", type: "epic", title: "Autre epic" }],
+          }}
+        />
+      </DetailHarness>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Créer une tâche" }));
+    const dialog = await screen.findByRole("dialog", { name: /Nouvel item/ });
+    const parent = within(dialog).getByRole("combobox", { name: /Parent/ });
+    expect(parent).toHaveValue(detail.id);
+    expect(within(parent).getByRole("option", { selected: true })).toHaveTextContent(
+      `${detail.key} — ${detail.title}`,
+    );
+    await user.type(within(dialog).getByRole("textbox", { name: /Titre/ }), "Tâche filtrée");
+    await user.click(within(dialog).getByRole("button", { name: /^Créer$/ }));
+
+    await waitFor(() =>
+      expect(mocks.createItemAction).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "tache", parentId: detail.id, title: "Tâche filtrée" }),
+      ),
+    );
   });
 
   it("has no child section for a sub-task and no creation without the right", () => {

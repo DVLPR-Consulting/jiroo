@@ -245,6 +245,9 @@ export function NewItemButton({
     () => (requiredParentType ? items.filter((i) => i.type === requiredParentType) : []),
     [items, requiredParentType],
   );
+  // Only a listed parent counts: the select, the validation and the payload
+  // always agree, even if a prefilled parent is not among the candidates.
+  const selectedParentId = parentOptions.some((option) => option.id === parentId) ? parentId : "";
   const assignableUsers = fieldOptions.canAssign ? (fieldOptions.users ?? []) : [];
   const canAssignToMe =
     fieldOptions.currentUserId !== undefined &&
@@ -327,7 +330,7 @@ export function NewItemButton({
         backlogId,
         type,
         kind,
-        parentId: requiredParentType ? parentId || null : null,
+        parentId: requiredParentType ? selectedParentId || null : null,
         title: title.trim(),
         description: description.trim() ? description : null,
         statusId: statusId || undefined,
@@ -375,7 +378,7 @@ export function NewItemButton({
   }
 
   const parentRequired = requiredParentType !== null;
-  const submitDisabled = pending || !title.trim() || (parentRequired && !parentId);
+  const submitDisabled = pending || !title.trim() || (parentRequired && !selectedParentId);
 
   return (
     <Dialog
@@ -457,7 +460,7 @@ export function NewItemButton({
                 <select
                   id="item-parent"
                   className={FIELD}
-                  value={parentId}
+                  value={selectedParentId}
                   required
                   onChange={(e) => setParentId(e.target.value)}
                 >
