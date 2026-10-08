@@ -39,4 +39,16 @@ describe("DevRefsSection", () => {
     await user.tab();
     expect(remove).toHaveFocus();
   });
+
+  it("keeps the URL form behind « Lier une PR ou un commit »", async () => {
+    const user = userEvent.setup();
+    render(<DevRefsSection itemId="item-1" backlogKey="CASS" refs={[]} />);
+
+    expect(screen.queryByRole("textbox", { name: "URL GitHub à ajouter" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Lier une PR ou un commit" }));
+    const input = screen.getByRole("textbox", { name: "URL GitHub à ajouter" });
+    expect(input).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("textbox", { name: "URL GitHub à ajouter" })).not.toBeInTheDocument();
+  });
 });

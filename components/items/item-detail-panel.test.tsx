@@ -713,8 +713,8 @@ describe("ItemDetailPanel header", () => {
     );
 
     expect(screen.getByRole("button", { name: "Actions" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Ajouter le lien" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Ajouter" })).toBeVisible();
+    expect(screen.getByRole("button", { name: /\+ Lier un item/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Lier une PR ou un commit" })).toBeVisible();
     expect(screen.queryByRole("button", { name: `Renommer ${detail.key}` }))
       .not.toBeInTheDocument();
 

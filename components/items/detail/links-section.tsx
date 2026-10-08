@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { X } from "lucide-react";
@@ -33,12 +33,15 @@ export function LinksSection({
   links,
   candidates,
   canLink = true,
+  openRequest = 0,
 }: {
   itemId: string;
   backlogKey: string;
   links: LinkWithOther[];
   candidates: { id: string; key: string; title: string; type: ItemType }[];
   canLink?: boolean;
+  /** Incremented by the drawer's « Lier un item » action to open the form. */
+  openRequest?: number;
 }) {
   const router = useRouter();
   const viewUrl = useViewUrlState();
@@ -50,6 +53,30 @@ export function LinksSection({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // The add form stays behind « + Lier un item » until asked for (Jira).
+  const [formOpen, setFormOpen] = useState(false);
+  const [handledRequest, setHandledRequest] = useState(openRequest);
+  const [focusRequest, setFocusRequest] = useState(0);
+  if (openRequest !== handledRequest) {
+    setHandledRequest(openRequest);
+    setFormOpen(true);
+    setFocusRequest((request) => request + 1);
+  }
+  useEffect(() => {
+    if (focusRequest > 0) inputRef.current?.focus();
+  }, [focusRequest]);
+
+  function openForm() {
+    setFormOpen(true);
+    setFocusRequest((request) => request + 1);
+  }
+
+  function closeForm() {
+    setFormOpen(false);
+    setQuery("");
+    setSelectedId(null);
+    setOpen(false);
+  }
 
   // Collect ids already linked (any direction) to exclude from the picker
   const linkedIds = new Set(links.map((l) => l.other.id));
@@ -97,8 +124,7 @@ export function LinksSection({
       });
       if (res.ok) {
         toast.success("Lien ajouté.");
-        setQuery("");
-        setSelectedId(null);
+        closeForm();
         router.refresh();
       } else {
         toast.error(res.error);
@@ -125,8 +151,8 @@ export function LinksSection({
   return (
     <div className="flex flex-col gap-3">
       {/* Existing links grouped by label */}
-      {groups.length === 0 && (
-        <p className="text-xs text-muted-foreground">Aucun lien.</p>
+      {groups.length === 0 && !canLink && (
+        <p className="text-sm text-muted-foreground">Aucun item lié.</p>
       )}
 
       {groups.map((group) => (
@@ -154,6 +180,9 @@ export function LinksSection({
                 <ItemKey value={link.other.key} />
                 <span className="truncate text-foreground">{link.other.title}</span>
               </Link>
+              <span className="flex-none text-xs text-muted-foreground">
+                {link.other.statusName}
+              </span>
               {/* Remove button */}
               {canLink && (
                 <button
@@ -171,8 +200,29 @@ export function LinksSection({
         </div>
       ))}
 
+      {canLink && !formOpen && (
+        <button
+          type="button"
+          onClick={openForm}
+          className="flex h-10 items-center gap-1 rounded-[var(--radius-md)] border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-3.5 text-left text-[13.5px] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground"
+        >
+          + Lier un item
+          <span className="text-[var(--subtle-foreground)]">· Bloque, Lié à, Duplique</span>
+        </button>
+      )}
+
       {/* Add-link form */}
-      {canLink && <div className="flex flex-col gap-1.5">
+      {canLink && formOpen && <div
+        data-local-escape
+        className="flex flex-col gap-1.5"
+        onKeyDown={(event) => {
+          // Escape closes the form, not the drawer.
+          if (event.key === "Escape" && !open) {
+            event.preventDefault();
+            closeForm();
+          }
+        }}
+      >
         {/* Relation type select */}
         <select
           value={linkType}
@@ -236,15 +286,24 @@ export function LinksSection({
           )}
         </div>
 
-        {/* Add button */}
-        <button
-          type="button"
-          disabled={!selectedId || pending}
-          onClick={handleAdd}
-          className="self-start rounded bg-[var(--primary)] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {pending ? "Ajout…" : "Ajouter le lien"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={!selectedId || pending}
+            onClick={handleAdd}
+            className="rounded-[var(--radius)] bg-[var(--primary)] px-2.5 py-1 text-xs font-medium text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {pending ? "Ajout…" : "Ajouter le lien"}
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={closeForm}
+            className="rounded-[var(--radius)] px-2.5 py-1 text-xs text-muted-foreground hover:bg-[var(--muted)]"
+          >
+            Annuler
+          </button>
+        </div>
       </div>}
     </div>
   );
