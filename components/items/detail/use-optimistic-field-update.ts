@@ -36,9 +36,13 @@ export function useOptimisticFieldUpdate<T>({
     reportStatus?.({ pending, error });
   }, [error, pending, reportStatus]);
 
+  // The latest server value is always recorded as the confirmed one, even
+  // while a save is pending (the drawer may refresh meanwhile): a failure
+  // then falls back to it instead of an older value. The display only
+  // follows it once nothing is saving.
   useEffect(() => {
-    if (pendingRef.current) return;
     confirmedRef.current = value;
+    if (pendingRef.current) return;
     setOptimistic(value);
   }, [value]);
 

@@ -158,3 +158,68 @@ describe("Points follow the server value while not edited (JIR-73 R4)", () => {
     );
   });
 });
+
+describe("a server value received while saving is not lost (JIR-73 R4, round 3)", () => {
+  beforeEach(() => {
+    mocks.updateItemAction.mockReset();
+    mocks.refresh.mockReset();
+  });
+
+  function points(estimatePoints: number | null) {
+    return (
+      <div>
+        <dl>
+          <DetailField
+            label="Points"
+            value={estimatePoints === null ? null : `${estimatePoints} pts`}
+            editor={<EstimateField itemId="item-1" backlogKey="CASS" estimatePoints={estimatePoints} />}
+          />
+        </dl>
+        <button type="button">Ailleurs</button>
+      </div>
+    );
+  }
+
+  async function saveThirteenThenRefreshToEight() {
+    const user = userEvent.setup();
+    const settle = deferCalls();
+    const view = render(points(5));
+    await user.click(screen.getByRole("button", { name: /^Points / }));
+    const input = screen.getByRole("spinbutton", { name: "Points" });
+    await user.clear(input);
+    await user.type(input, "13");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await user.click(screen.getByRole("button", { name: "Ailleurs" }));
+    // A concurrent change reaches the drawer while 13 is still saving.
+    view.rerender(points(8));
+    expect(screen.getByRole("spinbutton", { name: "Points", hidden: true })).toBeDisabled();
+    return { user, settle };
+  }
+
+  it("falls back to the latest server value after a failed save, and saves from it", async () => {
+    const { user, settle } = await saveThirteenThenRefreshToEight();
+    await act(async () => settle[0]!({ ok: false, error: "ESTIMATION REFUSÉE" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("ESTIMATION REFUSÉE");
+    expect(screen.getByRole("button", { name: /^Points / })).toHaveTextContent("8 pts");
+    await user.click(screen.getByRole("button", { name: /^Points / }));
+    expect(screen.getByRole("spinbutton", { name: "Points" })).toHaveValue(8);
+
+    mocks.updateItemAction.mockResolvedValue({ ok: true, item: {} });
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+    expect(mocks.updateItemAction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ estimatePoints: 8 }),
+    );
+  });
+
+  it("keeps the saved value after success, not the older value received meanwhile", async () => {
+    const { user, settle } = await saveThirteenThenRefreshToEight();
+    await act(async () => settle[0]!({ ok: true, item: {} }));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^Points / }));
+    expect(screen.getByRole("spinbutton", { name: "Points" })).toHaveValue(13);
+    expect(mocks.refresh).toHaveBeenCalled();
+  });
+});
+
