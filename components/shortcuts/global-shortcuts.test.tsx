@@ -98,6 +98,38 @@ describe("GlobalShortcuts", () => {
     window.removeEventListener("jiroo:open-search", listener);
   });
 
+  it("moves through the view's items with j / k and opens one with o", () => {
+    const opened = vi.fn();
+    render(
+      <SidebarStateProvider>
+        <KeyboardShortcutsProvider>
+          <GlobalShortcuts />
+          <main>
+            {["CASS-1", "CASS-2"].map((itemKey) => (
+              <button
+                key={itemKey}
+                type="button"
+                data-shortcut-item={itemKey}
+                onClick={() => opened(itemKey)}
+              >
+                {itemKey}
+              </button>
+            ))}
+          </main>
+        </KeyboardShortcutsProvider>
+      </SidebarStateProvider>,
+    );
+
+    press("j");
+    expect(screen.getByRole("button", { name: "CASS-1" })).toHaveFocus();
+    fireEvent.keyDown(document.activeElement!, { key: "j" });
+    expect(screen.getByRole("button", { name: "CASS-2" })).toHaveFocus();
+    fireEvent.keyDown(document.activeElement!, { key: "k" });
+    expect(screen.getByRole("button", { name: "CASS-1" })).toHaveFocus();
+    fireEvent.keyDown(document.activeElement!, { key: "o" });
+    expect(opened).toHaveBeenCalledWith("CASS-1");
+  });
+
   it("toggles the sidebar with [", () => {
     renderShortcuts();
     expect(screen.getByLabelText("Barre latérale")).toHaveTextContent("ouverte");

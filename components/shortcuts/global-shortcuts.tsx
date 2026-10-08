@@ -5,6 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSidebarState } from "@/components/shell/sidebar-state";
 import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import {
+  moveShortcutFocus,
+  openCurrentShortcutItem,
+} from "@/lib/shortcuts/list-navigation";
+import {
   backlogKeyFromPath,
   GO_SHORTCUT_IDS,
   goShortcutHref,
@@ -30,7 +34,19 @@ function GoShortcut({ id, backlogKey }: { id: GoShortcutId; backlogKey: string |
   return null;
 }
 
-/** App-wide shortcuts: « / » search, « [ » sidebar and the « g » destinations. */
+function mainRegion(): ParentNode {
+  return document.querySelector("main") ?? document;
+}
+
+/** j / k / o over the rows and cards of the current item view. */
+function ListShortcuts() {
+  useShortcutHandler("list.next", () => moveShortcutFocus(mainRegion(), 1));
+  useShortcutHandler("list.previous", () => moveShortcutFocus(mainRegion(), -1));
+  useShortcutHandler("list.open", () => openCurrentShortcutItem());
+  return null;
+}
+
+/** App-wide shortcuts: « / » search, « [ » sidebar, « g » destinations and lists. */
 export function GlobalShortcuts() {
   const pathname = usePathname();
   const { toggle } = useSidebarState();
@@ -50,7 +66,12 @@ export function GlobalShortcuts() {
   });
   useShortcutHandler("toggleSidebar", toggle);
 
-  return GO_SHORTCUT_IDS.map((id) => (
-    <GoShortcut key={id} id={id} backlogKey={backlogKey} />
-  ));
+  return (
+    <>
+      {GO_SHORTCUT_IDS.map((id) => (
+        <GoShortcut key={id} id={id} backlogKey={backlogKey} />
+      ))}
+      <ListShortcuts />
+    </>
+  );
 }
