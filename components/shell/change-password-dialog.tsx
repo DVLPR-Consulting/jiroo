@@ -58,7 +58,9 @@ export function ChangePasswordDialog({
         <DialogHeader>
           <DialogTitle>Changer mon mot de passe</DialogTitle>
           <DialogDescription>
-            Vos autres sessions ouvertes seront fermées ; vous restez connecté sur cet appareil.
+            Vos autres sessions ouvertes seront fermées et vos appareils de confiance devront de
+            nouveau saisir un code de double authentification ; vous restez connecté sur cet
+            appareil.
           </DialogDescription>
         </DialogHeader>
         <form

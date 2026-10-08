@@ -35,7 +35,7 @@ function AppShellFrame({
 
   return (
     <div
-      className="grid h-screen overflow-hidden transition-[grid-template-columns] duration-150"
+      className="grid h-screen grid-rows-[minmax(0,1fr)] overflow-hidden transition-[grid-template-columns] duration-150"
       style={{
         gridTemplateColumns: mobile
           ? "minmax(0,1fr)"
@@ -61,7 +61,7 @@ function AppShellFrame({
           </DialogContent>
         </Dialog>
       )}
-      <div className="flex min-w-0 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-col">
         {topbar}
         <main className="min-h-0 flex-1 overflow-auto bg-background">{children}</main>
       </div>

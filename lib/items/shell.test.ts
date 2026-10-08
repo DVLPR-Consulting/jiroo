@@ -82,6 +82,7 @@ describe("deriveShellContext", () => {
   it.each([
     ["/trash", "Corbeille", "trash"],
     ["/admin", "Administration", "admin"],
+    ["/aide", "Aide", null],
   ] as const)("derives the exact %s section", (pathname, section, activeNav) => {
     expect(
       deriveShellContext({

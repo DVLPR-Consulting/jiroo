@@ -66,4 +66,29 @@ describe("Topbar", () => {
       screen.getByRole("button", { name: "Déplier la barre latérale" }),
     ).toBeVisible();
   });
+
+  it("shows the help link next to the notifications and theme controls", () => {
+    render(
+      <ThemeProvider>
+        <AppShell
+          sidebar={<aside>Navigation</aside>}
+          topbar={
+            <Topbar notifications={[]} unreadCount={0} backlogs={[]} views={[]} />
+          }
+        >
+          Contenu
+        </AppShell>
+      </ThemeProvider>,
+    );
+
+    const help = screen.getByRole("link", { name: "Aide" });
+    expect(help).toHaveAttribute("href", "/aide");
+    const actions = help.parentElement;
+    expect(actions).toContainElement(
+      screen.getByRole("button", { name: "Notifications" }),
+    );
+    expect(actions).toContainElement(
+      screen.getByRole("button", { name: /Activer le thème/ }),
+    );
+  });
 });

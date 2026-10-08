@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { incrementAuthVersion } from "@/lib/auth/auth-version";
 import { requirePermissionWithoutBypassAudit } from "@/lib/auth/authorization";
 import { revokePendingSignIns, revokeTrustedDevices } from "@/lib/auth/pending-authentication";
 import { db } from "@/lib/db";
@@ -15,16 +16,15 @@ import { resetUserPasswordInput, resetUserTwoFactorInput } from "@/lib/items/use
 // target's sessions are revoked and the change is written to the security
 // audit log in the same transaction. Secrets never reach the audit payload.
 //
-// KNOWN GAP (Codex review R3, pending an owner decision; likely needs an
-// auth-version column, i.e. a migration): the row lock below serializes the
-// recovery services only. Better Auth's sign-in does not take it, so a sign-in
-// that verified the OLD password (or passed a trusted-device check) before
-// this transaction commits can still create a session, a `2fa-*` challenge or
-// a renewed trust row after it, under READ COMMITTED. Deleting sessions,
-// challenges and trust here closes everything that exists at commit time,
-// not authentications already in flight. Closing it requires sign-in and
-// recovery to share a freshness rule (e.g. a per-user auth version checked
-// before issuing or accepting a session).
+// Sign-ins in flight (JIR-62): Better Auth's sign-in does not take the row
+// lock below, so a sign-in that verified the OLD password before this
+// transaction commits may still try to create a session, a `2fa-*`
+// challenge or a renewed trust row after it. Each reset increments
+// user.auth_version in the same transaction; lib/auth/auth-version.ts
+// refuses to write such a challenge or trust row (it inserts them under a
+// share lock on the same user row) and treats such a session as signed out
+// (its version is the pre-reset one). Deleting sessions, challenges and
+// trust here closes what exists at commit time.
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -135,6 +135,9 @@ export async function resetUserPassword(
       .where(and(eq(account.userId, userId), eq(account.providerId, "credential")))
       .returning({ id: account.id });
     if (updated.length === 0) throw new AccountRecoveryError(MISSING_CREDENTIAL_MESSAGE);
+    // Outdates sessions, challenges and trust a sign-in still in flight
+    // could create after this commit (lib/auth/auth-version.ts).
+    await incrementAuthVersion(tx, userId);
     const revokedSessions = await revokeAllSessions(tx, userId);
     // A reset answers a suspected compromise: like sessions, device trust
     // granted before it must not survive (the user re-enters a TOTP once).
@@ -174,6 +177,7 @@ export async function resetUserTwoFactor(
     const target = await lockTarget(tx, userId);
     await tx.delete(twoFactor).where(eq(twoFactor.userId, userId));
     await tx.update(user).set({ twoFactorEnabled: false }).where(eq(user.id, userId));
+    await incrementAuthVersion(tx, userId);
     const revokedSessions = await revokeAllSessions(tx, userId);
     // Trust is checked by user id only, so it would otherwise outlive the
     // factor it was granted for and skip the newly enrolled TOTP.

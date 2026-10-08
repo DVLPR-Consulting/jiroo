@@ -1,4 +1,5 @@
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { HelpLink } from "@/components/shell/help-link";
 import { NotificationBell } from "@/components/shell/notification-bell";
 import { SearchModal } from "@/components/shell/search-modal";
 import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
@@ -31,6 +32,7 @@ export function Topbar({
       <div className="ml-auto flex items-center gap-1">
         <SearchModal />
         <NotificationBell notifications={notifications} unreadCount={unreadCount} />
+        <HelpLink />
         <ThemeToggle />
       </div>
     </div>
