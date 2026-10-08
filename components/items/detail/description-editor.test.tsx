@@ -252,6 +252,26 @@ describe("DescriptionEditor (Notion-like page)", () => {
     expect(textbox).toHaveFocus();
   });
 
+  it("formats the selection from the selection bar", async () => {
+    const { user } = renderDescription("Texte");
+    const textbox = await editor();
+    await user.click(textbox);
+    await user.keyboard("{Control>}a{/Control}");
+    const bar = await screen.findByRole("toolbar", { name: "Mise en forme de la sélection" });
+    expect(
+      within(bar).getAllByRole("button").map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Gras", "Italique", "Barré", "Code", "Lien"]);
+    await user.click(within(bar).getByRole("button", { name: "Gras" }));
+    await act(async () => textbox.blur());
+    await waitFor(() =>
+      expect(mocks.updateItemAction).toHaveBeenCalledWith({
+        id: "item-1",
+        backlogKey: "DEMO",
+        description: "**Texte**",
+      }),
+    );
+  });
+
   it("keeps a table description editable as raw Markdown with an explicit save", async () => {
     const table = "| a | b |\n|---|---|\n| 1 | 2 |";
     const { user } = renderDescription(table);

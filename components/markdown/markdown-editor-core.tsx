@@ -21,6 +21,7 @@ import {
   unsupportedMarkdownFeatures,
 } from "@/lib/markdown/markdown-document";
 import { MarkdownToolbar } from "@/components/markdown/markdown-toolbar";
+import { SelectionBubbleMenu } from "@/components/markdown/selection-bubble-menu";
 import { SlashMenu } from "@/components/markdown/slash-menu";
 import { cn } from "@/lib/utils";
 
@@ -382,6 +383,7 @@ export function MarkdownEditor({
           <>
             <EditorContent editor={editor} />
             {slashMenu ? <SlashMenu editor={editor} store={slashMenu} container={pageRef} /> : null}
+            {!readOnly ? <SelectionBubbleMenu editor={editor} linkRequest={linkRequest} /> : null}
           </>
         ) : (
           <div className={minHeightClassName} aria-hidden />
