@@ -18,7 +18,8 @@ export function HelpGuide() {
         >
           <GuideNote>
             Pas d’inscription libre ni de mot de passe oublié en libre-service : un administrateur crée les comptes
-            et réinitialise les accès. Après une vérification réussie, le navigateur est mémorisé pendant un temps.
+            et réinitialise les accès. Après une vérification réussie, le navigateur est mémorisé pendant un temps ; il
+            peut vous être redemandé un code après un changement de mot de passe ou une réinitialisation.
           </GuideNote>
         </GuideTopic>
 
@@ -170,13 +171,17 @@ export function HelpGuide() {
           title="Vues enregistrées"
           purpose="Retrouver en un clic une combinaison de vue, filtres, regroupement et tri."
           steps={[
-            <>Réglez la vue, puis cliquez sur <Ui>Enregistrer la vue</Ui>.</>,
+            <>Réglez la vue, puis cliquez sur <Ui>Enregistrer la vue</Ui> et choisissez <Ui>Enregistrer sous…</Ui>.</>,
             <>Donnez un <Ui>Nom de la vue</Ui> ; cochez <Ui>Partager avec l&apos;équipe</Ui> pour la rendre visible des autres.</>,
             <>Retrouvez-la dans la barre latérale : <Ui>Vues perso</Ui> ou <Ui>Vues partagées</Ui>.</>,
             <>Après modification, le menu de la vue propose <Ui>Enregistrer</Ui>, <Ui>Enregistrer sous…</Ui>, <Ui>Renommer…</Ui> et <Ui>Supprimer</Ui>.</>,
           ]}
         >
-          <GuideNote>Seul le propriétaire modifie une vue ; les autres peuvent l’<Ui>Enregistrer sous…</Ui> pour en faire une copie.</GuideNote>
+          <GuideNote>
+            Dans ce menu, vous modifiez vos propres vues si vos droits le permettent ; pour reprendre la vue d’un
+            autre utilisateur, utilisez <Ui>Enregistrer sous…</Ui>. Les vues partagées restent soumises aux droits de
+            gestion des vues partagées du backlog.
+          </GuideNote>
         </GuideTopic>
 
         <GuideTopic
@@ -343,7 +348,7 @@ export function HelpGuide() {
 
         <GuideTopic
           title="Publier"
-          purpose="Marquer la version comme livrée et figer son contenu."
+          purpose="Marquer la version comme livrée et conserver un instantané de son contenu à la publication. Le périmètre courant peut encore évoluer."
           steps={[
             <>Cliquez sur <Ui>Publier</Ui> et indiquez la <Ui>Date de publication</Ui>.</>,
             <>S’il reste des tickets non terminés : <Ui>Conserver dans cette version</Ui> ou <Ui>Déplacer vers une autre version</Ui>.</>,
@@ -384,7 +389,7 @@ export function HelpGuide() {
           purpose="Mesurer ce qui a été engagé et livré."
           steps={[
             <>Onglet <Ui>Rapports</Ui> du backlog, puis <Ui>Rapport de sprint</Ui>, <Ui>Vélocité</Ui> ou <Ui>Burndown</Ui>.</>,
-            <>Choisissez le <Ui>Sprint</Ui> puis <Ui>Afficher</Ui>.</>,
+            <>Pour <Ui>Rapport de sprint</Ui> et <Ui>Burndown</Ui>, choisissez le <Ui>Sprint</Ui> puis <Ui>Afficher</Ui>. Pour <Ui>Vélocité</Ui>, choisissez <Ui>7 sprints</Ui> ou <Ui>12 sprints</Ui>.</>,
           ]}
         >
           <GuideNote>
@@ -445,14 +450,15 @@ export function HelpGuide() {
           title="Rôles dans un backlog"
           purpose="Ce que chacun peut faire dépend de son rôle dans chaque backlog."
         >
+          <p className="t-body">Dans la configuration par défaut :</p>
           <ul className="t-body list-disc space-y-1 pl-5">
             <li><Ui>Lecteur</Ui> : consulte le backlog, sans rien modifier.</li>
             <li><Ui>Membre</Ui> : crée, modifie, change le statut, planifie et assigne les tickets ; commente ; crée des liens.</li>
             <li><Ui>Administrateur</Ui> : tout ce que fait un membre, plus supprimer et restaurer, gérer sprints, releases, statuts, membres et vues partagées.</li>
           </ul>
           <GuideNote>
-            Les droits s’additionnent (utilisateur, groupes, rôles). Un bouton absent signifie que vous n’avez pas le
-            droit correspondant : demandez à un administrateur.
+            Les droits s’additionnent (utilisateur, groupes, rôles) et peuvent être ajustés par backlog. Les actions
+            disponibles dépendent de vos droits et de l&apos;état de l&apos;élément.
           </GuideNote>
         </GuideTopic>
 
@@ -460,7 +466,7 @@ export function HelpGuide() {
           title="Administration (administrateurs)"
           purpose="Gérer comptes, groupes, backlogs et accès."
           steps={[
-            <>Barre latérale → <Ui>Administration</Ui> (visible seulement si vous avez un droit d’administration).</>,
+            <>Barre latérale → <Ui>Administration</Ui> (visible seulement si vous avez un droit d’administration ; chaque onglet dépend de vos permissions).</>,
             <><Ui>Utilisateurs</Ui> : <Ui>Nouvel utilisateur</Ui> ; menu « … » → <Ui>Réinitialiser le mot de passe</Ui> ou <Ui>Réinitialiser la double authentification</Ui>.</>,
             <><Ui>Groupes</Ui> : créer, renommer, ajouter ou retirer des membres ; attribuer les permissions globales.</>,
             <><Ui>Backlogs</Ui> : <Ui>Nouveau backlog</Ui>, <Ui>Modifier</Ui>, <Ui>Archiver</Ui>, et <Ui>Accès</Ui> pour affecter personnes et groupes aux rôles.</>,
@@ -468,8 +474,11 @@ export function HelpGuide() {
           ]}
         >
           <GuideNote>
-            Un nouveau compte n’accède à aucun backlog tant qu’il n’a pas de rôle ou de groupe. Pas de
-            désactivation de compte dans l’interface.
+            La récupération des accès (mot de passe, double authentification) et l’attribution de permissions
+            globales sont réservées aux administrateurs de Jiroo ; la récupération concerne un autre compte que le
+            vôtre. Les accès dépendent des permissions du backlog : elles peuvent être attribuées à une personne, à
+            un groupe, à un rôle ou à tous les utilisateurs connectés. Vérifiez les accès avant de créer un compte de
+            test. Pas de désactivation de compte dans l’interface.
           </GuideNote>
         </GuideTopic>
       </GuideSection>
