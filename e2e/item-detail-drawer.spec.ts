@@ -82,6 +82,43 @@ test.describe("panneau de détail", () => {
     expect(consoleErrors).toEqual([]);
   });
 
+  test("s’ouvre dès le clic, avant la réponse du serveur, puis affiche l’item", async ({
+    page,
+  }) => {
+    await page.goto("/b/CASS?view=list");
+    const row = page.locator("tbody tr[aria-label^='CASS-']").first();
+    await expect(row).toBeVisible();
+    const key = (await row.getAttribute("aria-label"))?.split(" — ")[0];
+    if (!key) throw new Error("Ligne de liste introuvable.");
+    // Opening an item re-renders the whole view on the server: hold that
+    // response back, as a slow remote database does.
+    let release!: () => void;
+    const held = new Promise<void>((done) => {
+      release = done;
+    });
+    await page.route(
+      (url) => url.searchParams.get("item") === key,
+      async (route) => {
+        await held;
+        await route.continue();
+      },
+    );
+
+    await row.getByText(key, { exact: true }).click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible({ timeout: 1_000 });
+    await expect(dialog.getByRole("status", { name: "Chargement du panneau de détail" }))
+      .toBeVisible();
+    const loading = await dialog.elementHandle();
+
+    release();
+    await expect(page.getByRole("dialog", { name: new RegExp(`^${key} —`) })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`[?&]item=${key}(&|$)`));
+    // The server body filled the drawer opened on click; it was not replaced.
+    expect(await loading?.evaluate((element) => element.isConnected)).toBe(true);
+  });
+
   test("ouvre directement le lien profond sans animation si le mouvement est réduit", async ({
     page,
   }) => {

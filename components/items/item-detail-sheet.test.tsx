@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ITEM_DETAIL_SHEET_EXIT_MS,
+  ItemDetailDrawer,
   ItemDetailNotFound,
   ItemDetailSheet,
 } from "@/components/items/item-detail-sheet";
@@ -250,5 +251,59 @@ describe("ItemDetailSheet", () => {
       expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=backlog&sort=key");
     });
   });
-});
 
+  describe("ItemDetailDrawer", () => {
+    function OpenRow({ itemKey }: { itemKey: string }) {
+      const viewUrl = useViewUrlState();
+      return (
+        <button type="button" onClick={() => viewUrl.push((p) => p.set("item", itemKey))}>
+          Ouvrir {itemKey}
+        </button>
+      );
+    }
+
+    function page(serverItemKey: string | null, entries: [string, string][]) {
+      return (
+        <ViewUrlStateProvider initialEntries={entries}>
+          <OpenRow itemKey="CASS-4" />
+          <ItemDetailDrawer itemKey={serverItemKey}>
+            {serverItemKey ? <DialogTitle>{serverItemKey} — Titre</DialogTitle> : null}
+          </ItemDetailDrawer>
+        </ViewUrlStateProvider>
+      );
+    }
+
+    beforeEach(() => {
+      window.history.replaceState({}, "", "/b/CASS?view=backlog");
+    });
+
+    it("opens the drawer with a skeleton on click, before the server answers", async () => {
+      const user = userEvent.setup();
+      const rendered = render(page(null, [["view", "backlog"]]));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Ouvrir CASS-4" }));
+
+      // The server has not re-rendered the view yet: the drawer is already open.
+      expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=backlog&item=CASS-4");
+      const loading = screen.getByRole("dialog", { name: "Chargement du panneau de détail" });
+      expect(screen.getByRole("status", { name: "Chargement du panneau de détail" }))
+        .toBeInTheDocument();
+
+      // The server body then fills the same drawer.
+      rendered.rerender(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBe(loading);
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("renders the server body directly when the page loads with ?item=", () => {
+      render(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+    });
+
+    it("renders nothing without an item in the URL", () => {
+      render(page(null, [["view", "backlog"]]));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+});
