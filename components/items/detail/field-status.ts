@@ -10,3 +10,9 @@ export type FieldStatus = { pending: boolean; error: string | null };
  * visible after the row went back to read mode.
  */
 export const FieldStatusContext = createContext<((status: FieldStatus) => void) | null>(null);
+
+/**
+ * Whether the hosting row is in edit mode. Outside a « Détails » row the
+ * editor is always shown, hence the default.
+ */
+export const FieldEditingContext = createContext(true);

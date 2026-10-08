@@ -12,7 +12,11 @@ import {
 } from "react";
 import { Pencil } from "lucide-react";
 import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
-import { FieldStatusContext, type FieldStatus } from "@/components/items/detail/field-status";
+import {
+  FieldEditingContext,
+  FieldStatusContext,
+  type FieldStatus,
+} from "@/components/items/detail/field-status";
 import { PanelExpandContext } from "@/components/items/detail/collapsible-panel";
 import type { SequenceShortcutId } from "@/lib/shortcuts/registry";
 
@@ -147,7 +151,9 @@ export function DetailField({
             onKeyDown={onKeyDown}
             className="px-1"
           >
-            <FieldStatusContext.Provider value={setStatus}>{editor}</FieldStatusContext.Provider>
+            <FieldEditingContext.Provider value={editing}>
+              <FieldStatusContext.Provider value={setStatus}>{editor}</FieldStatusContext.Provider>
+            </FieldEditingContext.Provider>
           </div>
         )}
         {editable && editing ? null : editable && editTrigger === "icon" ? (

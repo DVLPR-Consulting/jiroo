@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useTransition, useState } from "react";
+import { useContext, useRef, useTransition, useState } from "react";
 import { createLabelAction } from "@/app/actions/labels";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { LabelPill } from "@/components/items/label-pill";
@@ -22,6 +22,7 @@ import {
 } from "@/lib/design/constants";
 import { useOptimisticFieldUpdate } from "@/components/items/detail/use-optimistic-field-update";
 import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
+import { FieldEditingContext } from "@/components/items/detail/field-status";
 
 type UserLite = { id: string; name: string };
 type LabelLite = { id: string; name: string; color: string };
@@ -123,6 +124,14 @@ export function EstimateField({
   const [draft, setDraft] = useState(
     estimatePoints === null ? "" : String(estimatePoints),
   );
+  // Kept mounted in read mode (DetailField): while the row is not edited and
+  // nothing is saving, the draft follows the confirmed value, so reopening
+  // never shows (or saves back) a stale estimate. An active edit is kept.
+  const editing = useContext(FieldEditingContext);
+  const confirmedDraft = field.value === null ? "" : String(field.value);
+  if (!editing && !field.pending && draft !== confirmedDraft) {
+    setDraft(confirmedDraft);
+  }
 
   return (
     <div>

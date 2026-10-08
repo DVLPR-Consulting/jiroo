@@ -101,3 +101,60 @@ describe("DetailField keeps the editor's save across read and edit (JIR-73 R1)",
     expect(screen.getByRole("alert")).toHaveTextContent("ESTIMATION REFUSÉE");
   });
 });
+
+describe("Points follow the server value while not edited (JIR-73 R4)", () => {
+  beforeEach(() => {
+    mocks.updateItemAction.mockReset();
+    mocks.updateItemAction.mockResolvedValue({ ok: true, item: {} });
+  });
+
+  function points(estimatePoints: number | null) {
+    return (
+      <div>
+        <dl>
+          <DetailField
+            label="Points"
+            value={estimatePoints === null ? null : `${estimatePoints} pts`}
+            editor={<EstimateField itemId="item-1" backlogKey="CASS" estimatePoints={estimatePoints} />}
+          />
+        </dl>
+        <button type="button">Ailleurs</button>
+      </div>
+    );
+  }
+
+  it.each([
+    [5, "5"],
+    [null, ""],
+  ] as const)("opens on the refreshed value (%s → 8) and saves that value", async (initial, shown) => {
+    const user = userEvent.setup();
+    const { rerender } = render(points(initial));
+    expect(screen.getByRole("spinbutton", { name: "Points", hidden: true })).toHaveValue(
+      shown === "" ? null : Number(shown),
+    );
+
+    rerender(points(8));
+    await user.click(screen.getByRole("button", { name: /^Points / }));
+    expect(screen.getByRole("spinbutton", { name: "Points" })).toHaveValue(8);
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+    expect(mocks.updateItemAction).toHaveBeenCalledWith(
+      expect.objectContaining({ estimatePoints: 8 }),
+    );
+  });
+
+  it("keeps what the user is typing when the server value changes meanwhile", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(points(5));
+    await user.click(screen.getByRole("button", { name: /^Points / }));
+    const input = screen.getByRole("spinbutton", { name: "Points" });
+    await user.clear(input);
+    await user.type(input, "13");
+
+    rerender(points(8));
+    expect(screen.getByRole("spinbutton", { name: "Points" })).toHaveValue(13);
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+    expect(mocks.updateItemAction).toHaveBeenCalledWith(
+      expect.objectContaining({ estimatePoints: 13 }),
+    );
+  });
+});
