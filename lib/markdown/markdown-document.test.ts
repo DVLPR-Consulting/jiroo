@@ -167,3 +167,24 @@ describe("code block fences (Codex R1)", () => {
     );
   });
 });
+
+describe("named HTML entities (Codex R2)", () => {
+  it("keeps named entities by editing such content as raw Markdown", () => {
+    expect(
+      unsupportedMarkdownFeatures(manager, "Texte &eacute;crit &copy; 2026 &nbsp; fin"),
+    ).toEqual(["entité HTML"]);
+    expect(unsupportedMarkdownFeatures(manager, "- point &rarr; suite")).toEqual(["entité HTML"]);
+  });
+
+  it.each([
+    ["basic entities", "1 &lt; 2 &amp; 3 &gt; 0 &quot;ok&quot;"],
+    ["numeric references", "&#233;t&#xE9;"],
+    ["already-escaped references", "\\&eacute; et &amp;copy;"],
+    ["entities inside code", "Voir `&eacute;` et\n\n```\n&copy;\n```"],
+  ])("edits %s visually and keeps their rendering", (_name, markdown) => {
+    expect(unsupportedMarkdownFeatures(manager, markdown)).toEqual([]);
+    editor.commands.setContent(markdownToDoc(manager, markdown));
+    editor.commands.insertContentAt(1, "!");
+    expect(rendered(docToMarkdown(manager, editor.getJSON()))).toBe(rendered(`!${markdown}`));
+  });
+});

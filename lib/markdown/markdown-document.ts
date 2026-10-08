@@ -45,11 +45,16 @@ const FEATURE_LABELS: Record<string, string> = {
 
 type Token = {
   type: string;
+  raw?: string;
   href?: string;
   tokens?: Token[];
   items?: Token[];
   nestedTokens?: Token[];
 };
+
+// Named character references other than the four Tiptap decodes (amp, lt,
+// gt, quot) would turn into literal text on the next save.
+const NAMED_ENTITY = /&(?!(?:amp|lt|gt|quot);)[a-z][a-z\d]{1,31};/i;
 
 function collectUnsupported(tokens: Token[] | undefined, found: Set<string>) {
   for (const token of tokens ?? []) {
@@ -61,6 +66,8 @@ function collectUnsupported(tokens: Token[] | undefined, found: Set<string>) {
     ) {
       // tel:, ftp:, "./page"… would lose their target in the editor.
       found.add("lien non pris en charge");
+    } else if (token.type === "text" && !token.tokens && NAMED_ENTITY.test(token.raw ?? "")) {
+      found.add("entité HTML");
     }
     collectUnsupported(token.tokens, found);
     collectUnsupported(token.items, found);
