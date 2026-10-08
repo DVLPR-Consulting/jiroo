@@ -199,6 +199,73 @@ describe("KeyboardShortcutsProvider", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  describe("cancelling a pending g", () => {
+    function renderBoard() {
+      const handler = vi.fn();
+      render(
+        <KeyboardShortcutsProvider>
+          <Bind id="go.board" handler={handler} />
+          <input aria-label="Champ" />
+          <div role="dialog" aria-label="Autre dialogue">
+            <button type="button">Dans le dialogue</button>
+          </div>
+        </KeyboardShortcutsProvider>,
+      );
+      return handler;
+    }
+
+    it("drops it on Escape", () => {
+      const handler = renderBoard();
+      press("g");
+      press("Escape");
+      press("a");
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("drops it on Escape even when another component consumed the key", () => {
+      const handler = renderBoard();
+      const swallow = (event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      };
+      document.body.addEventListener("keydown", swallow);
+      try {
+        press("g");
+        press("Escape");
+        press("a");
+      } finally {
+        document.body.removeEventListener("keydown", swallow);
+      }
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("drops it when the window loses focus", () => {
+      const handler = renderBoard();
+      press("g");
+      fireEvent.blur(window);
+      press("a");
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("drops it when focus moves into a field or another dialog", () => {
+      const handler = renderBoard();
+      press("g");
+      fireEvent.focusIn(screen.getByLabelText("Champ"));
+      press("a");
+
+      press("g");
+      fireEvent.focusIn(screen.getByRole("button", { name: "Dans le dialogue" }));
+      press("a");
+
+      expect(handler).not.toHaveBeenCalled();
+      press("g");
+      press("a");
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("leaves keys alone without a handler (e.g. no permission)", () => {
     render(
       <KeyboardShortcutsProvider>

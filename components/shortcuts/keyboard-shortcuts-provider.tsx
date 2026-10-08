@@ -115,8 +115,29 @@ export function KeyboardShortcutsProvider({ children }: { children: React.ReactN
       handler();
     }
 
+    // A pending « g » is dropped on Escape (seen in the capture phase, before
+    // any component can consume it), when the window loses focus, and when
+    // focus moves somewhere shortcuts stay silent (a field, a menu, a dialog).
+    function cancelOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") matcher.reset();
+    }
+    function cancelOnFocusIn(event: FocusEvent) {
+      if (shortcutContext(event.target) === null) matcher.reset();
+    }
+    function cancel() {
+      matcher.reset();
+    }
+
+    window.addEventListener("keydown", cancelOnEscape, true);
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("blur", cancel);
+    document.addEventListener("focusin", cancelOnFocusIn);
+    return () => {
+      window.removeEventListener("keydown", cancelOnEscape, true);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("blur", cancel);
+      document.removeEventListener("focusin", cancelOnFocusIn);
+    };
   }, [enabled]);
 
   return (
