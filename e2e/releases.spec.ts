@@ -441,13 +441,13 @@ async function replayForgedRequest(page: Page, request: ForgedRequest) {
 
 audited(1, "crée puis modifie une version", async ({ page }) => {
   await page.goto("/b/CASS/releases");
-  // JIR-55: the backlog view tabs stay available on Releases, Releases current.
-  const releasesTabs = page.getByRole("navigation", { name: "Vues du backlog" });
+  // JIR-55 / JIR-74: the project views stay in the sidebar on Releases, Releases current.
+  const releasesTabs = page.getByRole("navigation", { name: "Vues du projet" });
   await expect(releasesTabs.getByRole("link", { name: "Releases" }))
     .toHaveAttribute("aria-current", "page");
   await releasesTabs.getByRole("link", { name: "Backlog" }).click();
   await expect(page).toHaveURL(/\/b\/CASS\?view=backlog$/);
-  await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
   await page.goto("/b/CASS/releases");
   async function createThenEdit(input: {
     initialName: string; finalName: string; initialDescription: string; finalDescription: string;
@@ -494,7 +494,7 @@ audited(2, "persiste deux versions à la création puis depuis le détail", asyn
   const backlog = await backlogFixture();
 
   await page.goto("/b/CASS?view=list&fvcol=1");
-  await page.getByRole("button", { name: "Nouvel item" }).click();
+  await page.getByRole("button", { name: "Créer", exact: true }).click();
   const create = page.getByRole("dialog", { name: "Nouvel item" });
   await create.getByRole("textbox", { name: "Titre" }).fill("R09-S02 créé multi-version");
   await create.getByRole("button", { name: "Versions", exact: true }).click();
@@ -618,7 +618,8 @@ audited(4, "conserve le filtre Version après reload et dans une vue enregistré
     await assignVersions(matching.id, [release.id]);
 
     await page.goto("/b/CASS?view=list");
-    await page.getByRole("button", { name: "+ Version" }).click();
+    await page.getByRole("button", { name: "Filtre", exact: true }).click();
+    await page.getByRole("button", { name: "Version", exact: true }).click();
     await page.getByLabel(release.name).click();
     await expect(page).toHaveURL(new RegExp(`version=${release.id}`));
     await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
@@ -745,8 +746,8 @@ audited(8, "conserve deux snapshots après dépublication et republication", asy
   const item = await fixtureTask("R09-S08 périmètre", { points: 8 });
   await assignVersions(item.id, [release.id]);
   await page.goto(`/b/CASS/releases/${release.id}`);
-  // JIR-55: the release detail keeps the backlog view tabs, Releases current.
-  await expect(page.getByRole("navigation", { name: "Vues du backlog" })
+  // JIR-55 / JIR-74: the release detail keeps the sidebar project views, Releases current.
+  await expect(page.getByRole("navigation", { name: "Vues du projet" })
     .getByRole("link", { name: "Releases" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("link", { name: "← Toutes les versions" })).toBeVisible();
   await publishFromDialog(page, release.name, "keep");
@@ -821,7 +822,7 @@ audited(10, "masque une version archivée des candidats tout en gardant l’affe
   await page.keyboard.press("Escape");
 
   await page.goto("/b/CASS?view=list&fvcol=1");
-  await page.getByRole("button", { name: "Nouvel item" }).click();
+  await page.getByRole("button", { name: "Créer", exact: true }).click();
   const archivedCreate = page.getByRole("dialog", { name: "Nouvel item" });
   await archivedCreate.getByRole("button", { name: "Versions", exact: true }).click();
   await expect(page.getByRole("menuitemcheckbox", { name: release.name, exact: true })).toHaveCount(0);
@@ -835,7 +836,8 @@ audited(10, "masque une version archivée des candidats tout en gardant l’affe
   await toolbar.getByRole("button", { name: "Versions", exact: true }).click();
   await expect(page.getByRole("menuitemcheckbox", { name: release.name, exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "+ Version" }).click();
+  await page.getByRole("button", { name: "Filtre", exact: true }).click();
+  await page.getByRole("button", { name: "Version", exact: true }).click();
   await expect(page.getByLabel(release.name)).toHaveCount(0);
   await page.keyboard.press("Escape");
 
@@ -845,7 +847,7 @@ audited(10, "masque une version archivée des candidats tout en gardant l’affe
   await clickPost(page, () => unarchive.getByRole("button", { name: "Confirmer le désarchivage" }).click());
   await page.goto("/b/CASS?view=list&fvcol=1");
 
-  await page.getByRole("button", { name: "Nouvel item" }).click();
+  await page.getByRole("button", { name: "Créer", exact: true }).click();
   const activeCreate = page.getByRole("dialog", { name: "Nouvel item" });
   await activeCreate.getByRole("button", { name: "Versions", exact: true }).click();
   await expect(page.getByRole("menuitemcheckbox", { name: release.name, exact: true })).toBeVisible();
@@ -863,7 +865,8 @@ audited(10, "masque une version archivée des candidats tout en gardant l’affe
     .getByRole("button", { name: "Versions", exact: true }).click();
   await expect(page.getByRole("menuitemcheckbox", { name: release.name, exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "+ Version" }).click();
+  await page.getByRole("button", { name: "Filtre", exact: true }).click();
+  await page.getByRole("button", { name: "Version", exact: true }).click();
   await expect(page.getByLabel(release.name)).toBeVisible();
 });
 
@@ -1109,7 +1112,8 @@ audited(17, "fusionne une version en dédoublonnant les liens et la retire parto
   expect(await assignedVersionIds(both.id)).toEqual([target.id]);
 
   await page.goto("/b/CASS?view=list");
-  await page.getByRole("button", { name: "+ Version" }).click();
+  await page.getByRole("button", { name: "Filtre", exact: true }).click();
+  await page.getByRole("button", { name: "Version", exact: true }).click();
   await expect(page.getByLabel(target.name, { exact: true })).toBeVisible();
   await expect(page.getByLabel(source.name, { exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
@@ -1417,7 +1421,8 @@ audited(24, "réordonne par glisser-déposer puis Monter, partout et pour un sec
   await expect.poll(() => articleOrder(page, names)).toEqual([z.name, y.name, x.name]);
 
   await page.goto("/b/CASS?view=list");
-  await page.getByRole("button", { name: "+ Version" }).click();
+  await page.getByRole("button", { name: "Filtre", exact: true }).click();
+  await page.getByRole("button", { name: "Version", exact: true }).click();
   await expect(page.getByLabel(z.name, { exact: true })).toBeVisible();
   await expect.poll(async () => {
     const labels = await page.getByRole("checkbox").evaluateAll((nodes) =>
