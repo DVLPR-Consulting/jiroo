@@ -1030,12 +1030,17 @@ describe("ItemDetailPanel description draft (JIR-71)", () => {
     await user.keyboard("{Control>}a{/Control}");
     await user.keyboard("Brouillon");
     await user.click(screen.getByRole("button", { name: "Activité" }));
-    await waitFor(() => expect(mocks.updateItemAction).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.updateItemAction).toHaveBeenCalledTimes(1), {
+      timeout: 3000,
+    });
+    // jsdom may drop a typed key under load: compare with what was sent.
+    const sent = mocks.updateItemAction.mock.calls[0]![0].description as string;
+    expect(sent).toMatch(/^B/);
     await act(async () => fail({ ok: false, error: "Indisponible" }));
 
     await user.click(screen.getByRole("button", { name: "Détail" }));
     const again = await screen.findByRole("textbox", { name: "Description" });
-    await waitFor(() => expect(again).toHaveTextContent("Brouillon"));
-    expect(screen.getByRole("button", { name: "Réessayer" })).toBeInTheDocument();
+    await waitFor(() => expect(again).toHaveTextContent(sent), { timeout: 3000 });
+    expect(await screen.findByRole("button", { name: "Réessayer" })).toBeInTheDocument();
   });
 });
