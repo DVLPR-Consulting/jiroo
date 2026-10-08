@@ -25,7 +25,9 @@ export type AutosaveScheduler<T> = {
   retry: () => Promise<void>;
   /**
    * Takes a value saved elsewhere (another tab, another user) as the new
-   * baseline. Refused while a local change is pending, so it is never lost.
+   * baseline. Refused while a local change is pending, so it is never lost,
+   * and for a late echo of an earlier save of this scheduler (an out-of-order
+   * refresh would otherwise bring an older text back).
    */
   adopt: (value: T) => boolean;
   /** Flushes and stops: later calls and notifications are ignored. */
@@ -58,6 +60,8 @@ export function createAutosaveScheduler<T>({
   let inFlight: Promise<void> | null = null;
   let disposed = false;
   let currentSave = save;
+  /** Values this scheduler saved before the current baseline. */
+  const earlier: T[] = [];
 
   const snapshot = (): AutosaveSnapshot => ({
     status,
@@ -90,6 +94,8 @@ export function createAutosaveScheduler<T>({
         error = result.error || DEFAULT_ERROR;
         return;
       }
+      earlier.push(saved);
+      if (earlier.length > 50) earlier.shift();
       saved = value;
       error = null;
       status = "saved";
@@ -131,6 +137,7 @@ export function createAutosaveScheduler<T>({
     retry: () => (disposed ? Promise.resolve() : run()),
     adopt(value) {
       if (disposed || snapshot().pending) return false;
+      if (!equals(value, saved) && earlier.some((old) => equals(old, value))) return false;
       latest = value;
       saved = value;
       return true;

@@ -202,4 +202,20 @@ describe("createAutosaveScheduler", () => {
     calls[0]!.reply.resolve({ ok: true });
     await settle();
   });
+
+  it("refuses a late echo of one of its own earlier saves", async () => {
+    const { scheduler, calls } = setup({ initial: "v0" });
+    scheduler.change("v1");
+    void scheduler.flush();
+    calls[0]!.reply.resolve({ ok: true });
+    await settle();
+    scheduler.change("v2");
+    void scheduler.flush();
+    calls[1]!.reply.resolve({ ok: true });
+    await settle();
+    // A refresh started after the first save arrives last.
+    expect(scheduler.adopt("v1")).toBe(false);
+    expect(scheduler.adopt("v2")).toBe(true);
+    expect(scheduler.adopt("remote")).toBe(true);
+  });
 });
