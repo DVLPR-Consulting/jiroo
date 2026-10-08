@@ -60,6 +60,9 @@ export type NewItemButtonProps = {
   contextLabel?: string;
   canScheduleItems?: boolean;
   releaseOptions?: FixVersionOption[];
+  /** Pre-fills the title and parent when opened (« Plus d’options » of inline creation). */
+  initialTitle?: string;
+  initialParentId?: string;
 };
 
 // Shared field styling — matches Input's token-based look so native selects fit in.
@@ -79,6 +82,8 @@ export function NewItemButton({
   contextLabel,
   canScheduleItems = true,
   releaseOptions = [],
+  initialTitle,
+  initialParentId,
 }: NewItemButtonProps) {
   const router = useRouter();
   const contextualTask = contextLabel !== undefined;
@@ -218,6 +223,8 @@ export function NewItemButton({
         if (!o && pending) return;
         setOpen(o);
         if (!o) reset();
+        if (o && initialTitle) setTitle(initialTitle);
+        if (o && initialParentId) setParentId(initialParentId);
       }}
     >
       <DialogTrigger asChild>

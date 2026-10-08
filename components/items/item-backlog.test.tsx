@@ -8,6 +8,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   bulkUpdateItemsAction: vi.fn(),
+  createItemAction: vi.fn(),
   push: vi.fn(),
   rankBacklogItemAction: vi.fn(),
   refresh: vi.fn(),
@@ -24,6 +25,8 @@ vi.mock("@/components/shell/view-url-state", () => ({
 
 vi.mock("@/app/actions/items", () => ({
   bulkUpdateItemsAction: mocks.bulkUpdateItemsAction,
+  createItemAction: mocks.createItemAction,
+  softDeleteItemAction: vi.fn(),
   rankBacklogItemAction: mocks.rankBacklogItemAction,
   updateItemAction: vi.fn(),
 }));
@@ -128,6 +131,11 @@ function props(): React.ComponentProps<typeof ItemBacklog> {
   };
 }
 
+const epicId = "33333333-3333-4333-8333-333333333333";
+const epicItems = [
+  { id: epicId, key: "DEMO-9", type: "epic" as const, title: "Connexion sécurisée" },
+];
+
 function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
   const active = {
     id: "sprint-active",
@@ -220,7 +228,7 @@ function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
     hasItems: true,
     clearFiltersHref: "/b/DEMO?view=backlog",
     createDialogProps: {
-      items: items.map(({ id, key, type, title }) => ({ id, key, type, title })),
+      items: [...epicItems, ...items.map(({ id, key, type, title }) => ({ id, key, type, title }))],
       statuses: statuses.map(({ id, name }) => ({ id, name })),
     },
     canCreateItems: true,
@@ -262,6 +270,7 @@ describe("ItemBacklog", () => {
     mocks.rankBacklogItemAction.mockReset();
     mocks.refresh.mockReset();
     mocks.moveSprintItemAction.mockReset();
+    mocks.createItemAction.mockReset();
   });
 
   it("shows fix versions as compact chips with a remainder, only when present", () => {
@@ -515,6 +524,92 @@ describe("ItemBacklog", () => {
     expect(screen.getAllByRole("button", { name: "Créer un sprint" })).toHaveLength(1);
   });
 
+  it("creates an item inline at the bottom of a sprint with Entrée and keeps the field open", async () => {
+    const user = userEvent.setup();
+    mocks.createItemAction.mockResolvedValueOnce({
+      ok: true,
+      item: { id: "new-item", key: "DEMO-10" },
+    });
+    render(<ItemBacklog {...sprintProps()} />);
+    expect(screen.queryByRole("button", { name: /\+ Tâche/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Créer un item dans Sprint futur" }));
+    const field = screen.getByRole("textbox", { name: "Titre du nouvel item dans Sprint futur" });
+    expect(field).toHaveFocus();
+    // The only epic is pre-selected as the required parent.
+    expect(screen.getByRole("combobox", { name: "Epic parent" })).toHaveValue(epicId);
+    await user.type(field, "  Écran de vérification  {Enter}");
+
+    await waitFor(() =>
+      expect(mocks.createItemAction).toHaveBeenCalledWith({
+        backlogKey: "DEMO",
+        backlogId: "11111111-1111-4111-8111-111111111111",
+        type: "tache",
+        kind: "feature",
+        parentId: epicId,
+        title: "Écran de vérification",
+        sprintId: "sprint-future",
+      }),
+    );
+    await waitFor(() => expect(field).toHaveValue(""));
+    expect(field).toHaveFocus();
+    expect(mocks.refresh).toHaveBeenCalled();
+  });
+
+  it("creates in the Backlog section without a sprint and shows server errors inline", async () => {
+    const user = userEvent.setup();
+    mocks.createItemAction.mockResolvedValueOnce({
+      ok: false,
+      error: "Données invalides.",
+      fieldErrors: { title: ["Le titre est trop long."] },
+    });
+    render(<ItemBacklog {...sprintProps()} />);
+
+    await user.click(screen.getByRole("button", { name: "Créer un item dans Backlog" }));
+    const field = screen.getByRole("textbox", { name: "Titre du nouvel item dans Backlog" });
+    await user.type(field, "Titre{Enter}");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Le titre est trop long.");
+    expect(mocks.createItemAction).toHaveBeenCalledWith(
+      expect.objectContaining({ sprintId: null, title: "Titre" }),
+    );
+    expect(field).toHaveValue("Titre");
+    expect(field).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("asks for the parent epic and cancels inline creation with Escape", async () => {
+    const user = userEvent.setup();
+    const input = sprintProps() as Extract<
+      React.ComponentProps<typeof ItemBacklog>,
+      { sections: unknown }
+    >;
+    const twoEpics = [
+      ...epicItems,
+      { id: "44444444-4444-4444-8444-444444444444", key: "DEMO-8", type: "epic" as const, title: "Paiement" },
+    ];
+    render(
+      <ItemBacklog
+        {...input}
+        createDialogProps={{ ...input.createDialogProps!, items: twoEpics }}
+      />,
+    );
+
+    const opener = screen.getByRole("button", { name: "Créer un item dans Backlog" });
+    await user.click(opener);
+    const field = screen.getByRole("textbox", { name: "Titre du nouvel item dans Backlog" });
+    await user.type(field, "Sans parent{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Choisissez l’epic parent.");
+    expect(screen.getByRole("combobox", { name: "Epic parent" })).toHaveFocus();
+    expect(mocks.createItemAction).not.toHaveBeenCalled();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("textbox", { name: "Titre du nouvel item dans Backlog" }))
+      .not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Créer un item dans Backlog" })).toHaveFocus(),
+    );
+  });
+
   it("keeps the global Backlog selection name and contextualizes sprint headers", () => {
     render(<ItemBacklog {...sprintProps()} />);
 
@@ -662,7 +757,7 @@ describe("ItemBacklog", () => {
     );
     expect(screen.getByRole("button", { name: "Créer un sprint" })).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "Créer une tâche dans Sprint actif" }),
+      screen.queryByRole("button", { name: "Créer un item dans Sprint actif" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Déplacer DEMO-/ }),
@@ -684,13 +779,13 @@ describe("ItemBacklog", () => {
 
     const creator = render(<ItemBacklog {...sprintProps()} {...denied} canCreateItems />);
     expect(
-      screen.getByRole("button", { name: "Créer une tâche dans Backlog" }),
+      screen.getByRole("button", { name: "Créer un item dans Backlog" }),
     ).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "Créer une tâche dans Sprint actif" }),
+      screen.queryByRole("button", { name: "Créer un item dans Sprint actif" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Créer une tâche dans Sprint futur" }),
+      screen.queryByRole("button", { name: "Créer un item dans Sprint futur" }),
     ).not.toBeInTheDocument();
     creator.unmount();
 
@@ -703,7 +798,7 @@ describe("ItemBacklog", () => {
       />,
     );
     expect(
-      screen.getByRole("button", { name: "Créer une tâche dans Sprint actif" }),
+      screen.getByRole("button", { name: "Créer un item dans Sprint actif" }),
     ).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Créer un sprint" }),

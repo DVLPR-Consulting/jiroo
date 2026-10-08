@@ -71,6 +71,27 @@ describe("NewItemButton", () => {
     mocks.refresh.mockReset();
   });
 
+  it("opens pre-filled with the title and parent typed in an inline creation", async () => {
+    const user = userEvent.setup();
+    const epic = { id: "epic-id", key: "DEMO-9", type: "epic" as const, title: "Connexion" };
+    render(
+      <NewItemButton
+        {...dialogProps()}
+        items={[epic]}
+        contextLabel="Sprint 2"
+        sprintId={null}
+        initialTitle="Écran de vérification"
+        initialParentId="epic-id"
+        trigger={<button type="button">Plus d’options</button>}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Plus d’options" }));
+    expect(screen.getByRole("heading", { name: "Nouvelle tâche — Sprint 2" })).toBeVisible();
+    expect(screen.getByLabelText("Titre")).toHaveValue("Écran de vérification");
+    expect(screen.getByLabelText("Parent")).toHaveValue("epic-id");
+  });
+
   it("opens from a custom trigger with the supplied initial status", async () => {
     const user = userEvent.setup();
     render(

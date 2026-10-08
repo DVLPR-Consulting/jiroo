@@ -41,17 +41,14 @@ import {
   InlinePriority,
   InlineStatus,
 } from "@/components/items/inline-item-field";
-import {
-  NewItemButton,
-  type NewItemButtonProps,
-} from "@/components/items/new-item-dialog";
+import { InlineCreateItem } from "@/components/items/inline-create-item";
+import { type NewItemButtonProps } from "@/components/items/new-item-dialog";
 import { CreateSprintButton } from "@/components/sprints/sprint-form-dialog";
 import {
   CompleteSprintDialog,
   StartSprintDialog,
 } from "@/components/sprints/sprint-lifecycle-dialogs";
 import { SprintSectionHeader } from "@/components/sprints/sprint-section-header";
-import { Button } from "@/components/ui/button";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import type {
@@ -941,6 +938,17 @@ function SprintItemBacklog({
       )
   );
   const sectionSnapshot = useRef<SprintBacklogSection[] | null>(null);
+  const epics = useMemo(
+    () =>
+      (createDialogProps?.items ?? [])
+        .filter((item) => item.type === "epic")
+        .map(({ id, key, title }) => ({ id, key, title })),
+    [createDialogProps?.items],
+  );
+  // Inline creation remembers the last epic used, across sections.
+  const [createParentId, setCreateParentId] = useState(() =>
+    epics.length === 1 ? epics[0]!.id : "",
+  );
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -1282,32 +1290,13 @@ function SprintItemBacklog({
                       />
                     ) : null
                   }
-                  primaryAction={canCreateInSection || canManageSprints ? (
+                  primaryAction={canManageSprints ? (
                     <>
                       {canManageSprints && section.kind === "backlog" ? (
                         <CreateSprintButton
                           backlogId={backlogId}
                           backlogKey={backlogKey}
                           variant="outline"
-                        />
-                      ) : null}
-                      {canCreateInSection && createDialogProps ? (
-                        <NewItemButton
-                          backlogId={backlogId}
-                          backlogKey={backlogKey}
-                          {...createDialogProps}
-                          sprintId={section.sprint?.id ?? null}
-                          contextLabel={section.sprint?.name ?? "Backlog"}
-                          trigger={
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              aria-label={`Créer une tâche dans ${section.sprint?.name ?? "Backlog"}`}
-                            >
-                              + Tâche
-                            </Button>
-                          }
                         />
                       ) : null}
                       {canManageSprints && section.kind === "planned" && section.sprint ? (
@@ -1364,10 +1353,24 @@ function SprintItemBacklog({
                       </div>
                     </div>
                   ) : (
-                    <p className="border-b border-border px-4 py-5 text-sm text-muted-foreground">
+                    <p className="px-4 py-5 text-sm text-muted-foreground">
                       Aucune tâche dans cette section.
                     </p>
                   )
+                ) : null}
+                {sectionExpanded && canCreateInSection ? (
+                  <div className={section.items.length > 0 ? "border-t border-border" : undefined}>
+                    <InlineCreateItem
+                      backlogId={backlogId}
+                      backlogKey={backlogKey}
+                      sprintId={section.sprint?.id ?? null}
+                      contextLabel={section.sprint?.name ?? "Backlog"}
+                      parents={epics}
+                      parentId={createParentId}
+                      onParentChange={setCreateParentId}
+                      dialogProps={createDialogProps}
+                    />
+                  </div>
                 ) : null}
               </SprintSectionDropZone>
             );
