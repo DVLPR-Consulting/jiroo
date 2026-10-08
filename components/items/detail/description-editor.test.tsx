@@ -223,6 +223,35 @@ describe("DescriptionEditor (Notion-like page)", () => {
     expect(document.activeElement?.closest("[data-local-escape]")).toBeNull();
   });
 
+  it("inserts a block from the « / » menu", async () => {
+    const { user } = renderDescription(null);
+    const textbox = await editor();
+    await user.click(textbox);
+    await user.keyboard("/tit");
+    const menu = await screen.findByRole("listbox", { name: "Insérer un bloc" });
+    expect(within(menu).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Titre 1#",
+      "Titre 2##",
+      "Titre 3###",
+    ]);
+    expect(textbox).toHaveAttribute("aria-controls", menu.id);
+    await user.click(within(menu).getByRole("option", { name: /Titre 1/ }));
+    await user.keyboard("Contexte");
+    expect(within(textbox).getByRole("heading", { level: 1, name: "Contexte" })).toBeVisible();
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("closes the « / » menu with Escape without leaving the editor", async () => {
+    const { user } = renderDescription(null);
+    const textbox = await editor();
+    await user.click(textbox);
+    await user.keyboard("/");
+    await screen.findByRole("listbox", { name: "Insérer un bloc" });
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(textbox).toHaveFocus();
+  });
+
   it("keeps a table description editable as raw Markdown with an explicit save", async () => {
     const table = "| a | b |\n|---|---|\n| 1 | 2 |";
     const { user } = renderDescription(table);

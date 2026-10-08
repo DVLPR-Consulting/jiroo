@@ -13,7 +13,7 @@ import {
   BYPASS_LENGTH_LIMIT,
   markdownEditorExtensions,
 } from "@/lib/markdown/editor-extensions";
-import { isSlashMenuActive } from "@/lib/markdown/slash-extension";
+import { createSlashMenuStore, isSlashMenuActive } from "@/lib/markdown/slash-extension";
 import {
   docToMarkdown,
   markdownToDoc,
@@ -21,6 +21,7 @@ import {
   unsupportedMarkdownFeatures,
 } from "@/lib/markdown/markdown-document";
 import { MarkdownToolbar } from "@/components/markdown/markdown-toolbar";
+import { SlashMenu } from "@/components/markdown/slash-menu";
 import { cn } from "@/lib/utils";
 
 export type MarkdownEditorHandle = {
@@ -150,6 +151,7 @@ export function MarkdownEditor({
     };
   });
   const page = variant === "page";
+  const [slashMenu] = useState(() => (page ? createSlashMenuStore() : null));
   const pageRef = useRef<HTMLDivElement>(null);
 
   const reportCaret = (editor: Editor) => {
@@ -185,7 +187,7 @@ export function MarkdownEditor({
   const editor = useEditor({
     // Next.js renders client components on the server too: wait for mount.
     immediatelyRender: false,
-    extensions: markdownEditorExtensions({ maxLength: maxLength ?? null }),
+    extensions: markdownEditorExtensions({ maxLength: maxLength ?? null, slashMenu }),
     editable: !disabled && !readOnly,
     editorProps: {
       attributes: {
@@ -377,7 +379,10 @@ export function MarkdownEditor({
           </span>
         ) : null}
         {editor ? (
-          <EditorContent editor={editor} />
+          <>
+            <EditorContent editor={editor} />
+            {slashMenu ? <SlashMenu editor={editor} store={slashMenu} container={pageRef} /> : null}
+          </>
         ) : (
           <div className={minHeightClassName} aria-hidden />
         )}
