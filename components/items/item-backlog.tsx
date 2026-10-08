@@ -300,7 +300,6 @@ function BacklogRow({
       <div
         role="cell"
         className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-0.5"
-        onClick={(event) => event.stopPropagation()}
       >
         {item.kind === "bug" ? (
           <span

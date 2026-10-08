@@ -111,12 +111,15 @@ const compactBadgeClass =
 const compactTriggerClass =
   "inline-flex min-h-7 items-center justify-center rounded px-0.5 outline-none hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60";
 
-function UnassignedCircle() {
+function UnassignedCircle({ compact = false }: { compact?: boolean }) {
+  // Compact rows show nothing but this circle, so it needs a UI-contrast border.
   return (
     <span
       aria-hidden
-      className="size-5 rounded-full"
-      style={{ border: "1.5px dashed var(--border-strong)" }}
+      className={compact ? "size-[22px] rounded-full" : "size-5 rounded-full"}
+      style={{
+        border: `1.5px dashed var(${compact ? "--subtle-foreground" : "--border-strong"})`,
+      }}
     />
   );
 }
@@ -408,7 +411,7 @@ export function InlineAssignee({
       <InitialsAvatar name={selected.name} hue={hueFor(selected.id)} size={22} />
     ) : (
       <span role="img" aria-label="Non assigné" title="Non assigné" className="inline-flex">
-        <UnassignedCircle />
+        <UnassignedCircle compact />
       </span>
     );
   }
@@ -451,7 +454,7 @@ export function InlineAssignee({
                 size={compact ? 22 : 20}
               />
             ) : (
-              <UnassignedCircle />
+              <UnassignedCircle compact={compact} />
             )}
             {compact ? null : <span className="truncate">{label}</span>}
           </button>
