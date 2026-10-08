@@ -42,7 +42,11 @@ export type AutosaveScheduler<T> = {
   discard: () => void;
   /** Flushes and stops: later calls and notifications are ignored. */
   dispose: () => Promise<void>;
+  /** Current state; the same object until it changes (useSyncExternalStore). */
   snapshot: () => AutosaveSnapshot;
+  /** Latest value (the unsaved draft when one is pending). */
+  current: () => T;
+  subscribe: (listener: (snapshot: AutosaveSnapshot) => void) => () => void;
   /** Replaces the save function used by the next saves. */
   setSave: (save: (value: T) => Promise<SaveResult>) => void;
 };
@@ -78,14 +82,27 @@ export function createAutosaveScheduler<T>({
   /** Revision of the latest server state known (acknowledged or adopted). */
   let revision = initialRevision;
 
-  const snapshot = (): AutosaveSnapshot => ({
+  const compute = (): AutosaveSnapshot => ({
     status,
     error,
     pending: inFlight !== null || !equals(latest, saved) || status === "error",
   });
+  let current = compute();
+  const listeners = new Set<(snapshot: AutosaveSnapshot) => void>();
+  if (onChange) listeners.add(onChange);
 
   const notify = () => {
-    if (!disposed) onChange?.(snapshot());
+    if (disposed) return;
+    const next = compute();
+    if (
+      next.status === current.status &&
+      next.error === current.error &&
+      next.pending === current.pending
+    ) {
+      return;
+    }
+    current = next;
+    listeners.forEach((listener) => listener(current));
   };
 
   const clearTimer = () => {
@@ -154,13 +171,14 @@ export function createAutosaveScheduler<T>({
     flush: () => (disposed ? (inFlight ?? Promise.resolve()) : run()),
     retry: () => (disposed ? Promise.resolve() : run()),
     adopt(value, valueRevision) {
-      if (disposed || snapshot().pending) return false;
+      if (disposed || compute().pending) return false;
       if (valueRevision !== undefined && revision !== undefined && valueRevision < revision) {
         return false;
       }
       if (valueRevision !== undefined) revision = valueRevision;
       latest = value;
       saved = value;
+      notify();
       return true;
     },
     discard() {
@@ -177,7 +195,12 @@ export function createAutosaveScheduler<T>({
       disposed = true;
       return run();
     },
-    snapshot,
+    snapshot: () => current,
+    current: () => latest,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     setSave(next) {
       currentSave = next;
     },

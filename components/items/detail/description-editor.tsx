@@ -51,7 +51,6 @@ export function DescriptionEditor({
 }) {
   const router = useRouter();
   const stored = description ?? "";
-  const [value, setValue] = useState(stored);
   const [raw, setRaw] = useState(false);
   const [seen, setSeen] = useState({ description: stored, revision });
   const regionRef = useRef<HTMLDivElement>(null);
@@ -82,12 +81,19 @@ export function DescriptionEditor({
   );
 
   const autosave = useAutosave({
+    // One draft per item, kept until saved even if the editor unmounts.
+    key: readOnly ? undefined : `item-description:${itemId}`,
     initial: stored,
     revision,
     save,
     delay: AUTOSAVE_DELAY_MS,
     equals: sameDescription,
   });
+  // A draft kept from a previous mount (save running or failed) wins over
+  // the server value; otherwise start from the server value.
+  const [value, setValue] = useState(() =>
+    autosave.adopt(stored, revision) ? stored : autosave.current(),
+  );
 
   // A newer server state (refresh, another user, another tab) replaces the
   // text only when no local change is pending; a response older than our

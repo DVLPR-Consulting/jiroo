@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DescriptionEditor } from "@/components/items/detail/description-editor";
+import { resetAutosaveRegistry } from "@/lib/autosave/use-autosave";
 
 const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
@@ -56,6 +57,7 @@ async function retype(user: ReturnType<typeof userEvent.setup>, text: string) {
 
 describe("DescriptionEditor (Notion-like page)", () => {
   beforeEach(() => {
+    resetAutosaveRegistry();
     mocks.refresh.mockReset();
     mocks.updateItemAction.mockReset();
     mocks.updateItemAction.mockResolvedValue({ ok: true, item: {} });
@@ -138,6 +140,71 @@ describe("DescriptionEditor (Notion-like page)", () => {
       backlogKey: "DEMO",
       description: "Texte fin",
     });
+  });
+
+  it("keeps a draft whose save fails after the editor closed, with « Réessayer »", async () => {
+    let fail!: (value: unknown) => void;
+    mocks.updateItemAction.mockImplementationOnce(() => new Promise((res) => (fail = res)));
+    const first = renderDescription("A");
+    await retype(first.user, "B");
+    first.unmount();
+    expect(mocks.updateItemAction).toHaveBeenCalledWith({
+      id: "item-1",
+      backlogKey: "DEMO",
+      description: "B",
+    });
+    await act(async () => fail({ ok: false, error: "Indisponible" }));
+
+    // Reopened (or back from another tab): the draft and the error are there.
+    const { user } = renderDescription("A");
+    const textbox = await editor();
+    await waitFor(() => expect(textbox).toHaveTextContent("B"));
+    expect(screen.getByText("Échec de l’enregistrement : Indisponible")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Réessayer" }));
+    await waitFor(() => expect(mocks.updateItemAction).toHaveBeenCalledTimes(2));
+    expect(mocks.updateItemAction).toHaveBeenLastCalledWith({
+      id: "item-1",
+      backlogKey: "DEMO",
+      description: "B",
+    });
+    expect(await screen.findByText("Enregistré")).toBeInTheDocument();
+  });
+
+  it("shows the draft still being saved when remounted (tab switch)", async () => {
+    let finish!: (value: unknown) => void;
+    mocks.updateItemAction.mockImplementationOnce(() => new Promise((res) => (finish = res)));
+    const first = renderDescription("A");
+    await retype(first.user, "B");
+    first.unmount();
+    renderDescription("A");
+    const textbox = await editor();
+    await waitFor(() => expect(textbox).toHaveTextContent("B"));
+    expect(screen.getByText("Enregistrement…")).toBeInTheDocument();
+    await act(async () => finish({ ok: true, item: {} }));
+    expect(await screen.findByText("Enregistré")).toBeInTheDocument();
+    expect(mocks.updateItemAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts from the server value once a closed editor's save succeeded", async () => {
+    const first = renderDescription("A");
+    await retype(first.user, "B");
+    first.unmount();
+    await act(async () => {});
+    renderDescription("Serveur");
+    const textbox = await editor();
+    await waitFor(() => expect(textbox).toHaveTextContent("Serveur"));
+  });
+
+  it("keeps drafts per item", async () => {
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: false, error: "Indisponible" });
+    const first = renderDescription("A");
+    await retype(first.user, "B");
+    first.unmount();
+    await act(async () => {});
+    renderDescription("Autre", { itemId: "item-2" });
+    const textbox = await editor();
+    await waitFor(() => expect(textbox).toHaveTextContent("Autre"));
+    expect(screen.queryByRole("button", { name: "Réessayer" })).toBeNull();
   });
 
   it("clears the description with null when emptied", async () => {
