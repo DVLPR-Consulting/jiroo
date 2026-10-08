@@ -1,16 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/client";
 import { AuthCard } from "@/components/auth/auth-card";
 import { LoginHelp } from "@/components/auth/login-help";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { loadPage } from "@/lib/navigation/load-page";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +40,7 @@ export default function LoginPage() {
       data.user !== null &&
       "twoFactorEnabled" in data.user &&
       data.user.twoFactorEnabled === true;
-    router.push(alreadyEnrolled ? "/" : "/2fa/enroll");
+    loadPage(alreadyEnrolled ? "/" : "/2fa/enroll");
   }
 
   return (
