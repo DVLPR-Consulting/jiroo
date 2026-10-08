@@ -2,6 +2,7 @@
 
 import { DensityToggle } from "@/components/theme/density-toggle";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { ShortcutsToggle } from "@/components/shortcuts/keyboard-shortcuts-dialog";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,7 @@ export function UserPreferencesDialog({
           >
             <DensityToggle />
           </PreferenceRow>
+          <ShortcutsToggle />
         </div>
       </DialogContent>
     </Dialog>

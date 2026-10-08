@@ -39,6 +39,7 @@ import { ITEM_TEMPLATES, getTemplate } from "@/lib/items/templates";
 import { allowedParentType } from "@/lib/tree/hierarchy";
 import { toast } from "@/lib/toast";
 import { ITEM_TITLE_MAX } from "@/lib/validation/item";
+import { shortcutsEnabledSnapshot } from "@/lib/shortcuts/preferences";
 import {
   FixVersionPicker,
   type FixVersionOption,
@@ -117,7 +118,8 @@ export function NewItemButton({
         event.shiftKey ||
         event.key.toLowerCase() !== "c" ||
         isEditing ||
-        document.querySelector('[role="dialog"]')
+        document.querySelector('[role="dialog"]') ||
+        !shortcutsEnabledSnapshot()
       ) {
         return;
       }

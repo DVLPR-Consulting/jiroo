@@ -335,6 +335,17 @@ describe("NewItemButton", () => {
     expect(screen.queryByRole("dialog", { name: "Nouvel item" })).not.toBeInTheDocument();
   });
 
+  it("ignores C when single-key shortcuts are turned off", () => {
+    window.localStorage.setItem("jiroo-shortcuts-enabled", "false");
+    try {
+      render(<NewItemButton {...dialogProps()} enableShortcut />);
+      fireEvent.keyDown(window, { key: "c" });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    } finally {
+      window.localStorage.removeItem("jiroo-shortcuts-enabled");
+    }
+  });
+
   it("labels the enabled global trigger with its shortcut", () => {
     render(<NewItemButton {...dialogProps()} enableShortcut />);
 
