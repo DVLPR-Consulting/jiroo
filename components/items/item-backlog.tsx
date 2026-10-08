@@ -1394,6 +1394,15 @@ function SprintItemBacklog({
                       }
                       onToggleSelection={toggleSelection}
                     />
+                  ) : section.sprint ? (
+                    <div className="p-3 sm:p-3.5">
+                      <div
+                        data-empty-sprint-drop={section.id}
+                        className="flex min-h-[72px] items-center justify-center rounded-[var(--radius-md)] border-[1.5px] border-dashed border-[var(--border-strong)] px-3 text-center text-[13.5px] text-muted-foreground"
+                      >
+                        Glissez des items du backlog ici pour planifier le sprint
+                      </div>
+                    </div>
                   ) : (
                     <p className="border-b border-border px-4 py-5 text-sm text-muted-foreground">
                       Aucune tâche dans cette section.

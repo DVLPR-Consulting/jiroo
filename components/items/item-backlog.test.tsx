@@ -460,6 +460,43 @@ describe("ItemBacklog", () => {
     expect(screen.queryByRole("button", { name: "Actions de Backlog" })).not.toBeInTheDocument();
   });
 
+  it("invites dropping backlog items into an empty sprint and plans them there", async () => {
+    const user = userEvent.setup();
+    const geometry = mockBacklogGeometry();
+    mocks.moveSprintItemAction.mockResolvedValueOnce({ ok: true, item: items[2] });
+    const input = sprintProps() as Extract<
+      React.ComponentProps<typeof ItemBacklog>,
+      { sections: unknown }
+    >;
+    const [active, future, backlog] = input.sections;
+    const emptyFuture = {
+      ...future!,
+      items: [],
+      groups: [{ key: "", label: "", items: [] }],
+    };
+    const { container } = render(
+      <ItemBacklog {...input} sections={[active!, emptyFuture, backlog!]} />,
+    );
+    const futureSection = container.querySelector(
+      '[data-sprint-section="sprint-future"]',
+    ) as HTMLElement;
+    expect(
+      within(futureSection).getByText("Glissez des items du backlog ici pour planifier le sprint"),
+    ).toBeVisible();
+    const backlogSection = container.querySelector('[data-sprint-section="backlog"]') as HTMLElement;
+    expect(within(backlogSection).queryByText(/Glissez des items/)).not.toBeInTheDocument();
+
+    const handle = screen.getByRole("button", { name: "Déplacer DEMO-3" });
+    handle.focus();
+    await user.keyboard("[Space][ArrowUp][Space]");
+    await waitFor(() =>
+      expect(mocks.moveSprintItemAction).toHaveBeenCalledWith(
+        expect.objectContaining({ itemId: "item-3" }),
+      ),
+    );
+    geometry.mockRestore();
+  });
+
   it("keeps the global Backlog selection name and contextualizes sprint headers", () => {
     render(<ItemBacklog {...sprintProps()} />);
 
