@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { Sidebar } from "@/components/shell/sidebar";
@@ -131,7 +131,43 @@ describe("Sidebar", () => {
     expect(
       screen.queryByRole("button", { name: "Replier la barre latérale" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Vues perso")).toBeInTheDocument();
+    expect(screen.getByText("Filtres")).toBeInTheDocument();
+  });
+
+  it("lists the project views with the current one active", () => {
+    renderSidebar([["view", "list"], ["q", "kept"]]);
+
+    const nav = screen.getByRole("navigation", { name: "Vues du projet" });
+    const links = within(nav).getAllByRole("link");
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Backlog",
+      "Board",
+      "Liste",
+      "Arbre",
+      "Releases",
+      "Rapports",
+    ]);
+    // useSearchParams is mocked to view=board.
+    expect(within(nav).getByRole("link", { name: "Board" })).toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("link", { name: "Liste" })).toHaveAttribute(
+      "href",
+      "/b/CASS?view=list&q=kept",
+    );
+    expect(within(nav).getByRole("link", { name: "Releases" })).toHaveAttribute(
+      "href",
+      "/b/CASS/releases",
+    );
+    expect(within(nav).getByRole("link", { name: "Rapports" })).toHaveAttribute(
+      "href",
+      "/b/CASS/reports",
+    );
+  });
+
+  it("switches item views through the shared URL authority", () => {
+    renderSidebar([["view", "board"], ["q", "kept"]]);
+
+    fireEvent.click(screen.getByRole("link", { name: "Backlog" }));
+    expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=backlog&q=kept");
   });
 
   it("renders a compact accessible rail without open-only content", () => {
@@ -152,6 +188,8 @@ describe("Sidebar", () => {
     expect(screen.getByText("CASS")).toBeVisible();
     expect(screen.queryByText("Vues perso")).not.toBeInTheDocument();
     expect(screen.queryByText("Vues partagées")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Enregistrer une vue" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Backlog" })).toHaveAttribute("title", "Backlog");
     expect(screen.getByText("Tous les items")).toHaveClass("sr-only");
     expect(screen.getByRole("link", { name: /Tous les items 42/ })).toHaveAttribute(
       "title",

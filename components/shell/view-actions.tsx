@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Bookmark, ChevronDown } from "lucide-react";
 import {
@@ -27,6 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { OPEN_SAVE_VIEW_EVENT } from "@/components/shell/save-view-event";
 import { ViewSaveDialog } from "@/components/shell/view-save-dialog";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import type { DisplayMode } from "@/lib/items/views";
@@ -134,6 +135,16 @@ export function ViewActions({
   const [renameError, setRenameError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
+
+  // The sidebar's « + Enregistrer une vue » line opens the save-as dialog.
+  useEffect(() => {
+    function handleOpenSaveView() {
+      setSaveAsError(null);
+      setSaveAsOpen(true);
+    }
+    window.addEventListener(OPEN_SAVE_VIEW_EVENT, handleOpenSaveView);
+    return () => window.removeEventListener(OPEN_SAVE_VIEW_EVENT, handleOpenSaveView);
+  }, []);
 
   // -------------------------------------------------------------------------
   // Action handlers
