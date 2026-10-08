@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DescriptionEditor } from "@/components/items/detail/description-editor";
@@ -17,201 +17,276 @@ vi.mock("@/app/actions/items", () => ({
 }));
 
 const TEMPLATE = "## Étapes pour reproduire\n1. \n2. \n\n## Critères\n- [ ] ";
+const RICH = "Voir [la doc](https://exemple.fr) et le **texte**.";
+const PLACEHOLDER = "Écrivez, ou tapez « / » pour insérer un bloc…";
+/** Longer than the autosave pause. */
+const AFTER_PAUSE = { timeout: 3000 };
 
-async function openEditor(description: string | null) {
-  const user = userEvent.setup();
-  render(<DescriptionEditor itemId="item-1" backlogKey="DEMO" description={description} />);
-  await user.click(
-    screen.getByRole("button", { name: description ? "Éditer" : "Ajouter une description" }),
+function renderDescription(
+  description: string | null,
+  props: { readOnly?: boolean; itemId?: string } = {},
+) {
+  // ProseMirror drops keys typed by user-event in jsdom without a small delay.
+  const user = userEvent.setup({ delay: 5 });
+  const view = render(
+    <DescriptionEditor
+      itemId={props.itemId ?? "item-1"}
+      backlogKey="DEMO"
+      description={description}
+      readOnly={props.readOnly}
+    />,
   );
-  const editor = await screen.findByRole("textbox", { name: "Description" });
-  return { user, editor };
+  return { user, ...view };
 }
 
-describe("DescriptionEditor", () => {
+async function editor() {
+  const textbox = await screen.findByRole("textbox", { name: "Description" });
+  await waitFor(() => expect(textbox).toHaveAttribute("contenteditable"));
+  return textbox;
+}
+
+/** Replaces the whole text (jsdom cannot move the caret with Ctrl+End). */
+async function retype(user: ReturnType<typeof userEvent.setup>, text: string) {
+  const textbox = await editor();
+  await user.click(textbox);
+  await user.keyboard("{Control>}a{/Control}");
+  await user.keyboard(text);
+  return textbox;
+}
+
+describe("DescriptionEditor (Notion-like page)", () => {
   beforeEach(() => {
     mocks.refresh.mockReset();
     mocks.updateItemAction.mockReset();
+    mocks.updateItemAction.mockResolvedValue({ ok: true, item: {} });
   });
 
-  it("edits the Markdown description as formatted content", async () => {
-    const { editor } = await openEditor(TEMPLATE);
+  it("renders the description in the editor, editable in place", async () => {
+    renderDescription(TEMPLATE);
+    const textbox = await editor();
     await waitFor(() =>
-      expect(within(editor).getByRole("heading", { level: 2, name: "Étapes pour reproduire" }))
+      expect(within(textbox).getByRole("heading", { level: 2, name: "Étapes pour reproduire" }))
         .toBeVisible(),
     );
-    expect(within(editor).getByRole("checkbox")).not.toBeChecked();
-    expect(screen.getByRole("toolbar", { name: "Mise en forme" })).toBeVisible();
-    expect(screen.queryByText("## Étapes pour reproduire")).toBeNull();
+    expect(textbox).toHaveAttribute("contenteditable", "true");
+    expect(within(textbox).getByRole("checkbox")).not.toBeChecked();
+    expect(screen.queryByRole("button", { name: "Éditer" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Enregistrer" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Annuler" })).toBeNull();
+    expect(screen.queryByRole("toolbar", { name: "Mise en forme" })).toBeNull();
   });
 
-  it("saves the untouched Markdown unchanged", async () => {
-    mocks.updateItemAction.mockResolvedValueOnce({ ok: true });
-    const { user } = await openEditor(TEMPLATE);
-    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
-    expect(mocks.updateItemAction).toHaveBeenCalledWith({
-      id: "item-1",
-      backlogKey: "DEMO",
-      description: TEMPLATE,
-    });
-    expect(mocks.refresh).toHaveBeenCalled();
+  it("shows the placeholder instead of an empty state", async () => {
+    renderDescription(null);
+    await editor();
+    expect(screen.getByText(PLACEHOLDER)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ajouter une description" })).toBeNull();
   });
 
-  it("sends the Markdown produced by the toolbar on Enregistrer", async () => {
-    mocks.updateItemAction.mockResolvedValueOnce({ ok: true });
-    const { user, editor } = await openEditor("Texte");
-    await user.click(editor);
-    await user.keyboard("{Control>}a{/Control}");
-    await user.click(screen.getByRole("button", { name: "Gras" }));
-    expect(screen.getByText("9 / 20 000")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
-    expect(mocks.updateItemAction).toHaveBeenCalledWith({
-      id: "item-1",
-      backlogKey: "DEMO",
-      description: "**Texte**",
-    });
-  });
-
-  it("restores the read mode on Annuler without saving", async () => {
-    const { user, editor } = await openEditor("Texte");
-    await user.click(editor);
-    await user.keyboard("{Control>}a{/Control}");
-    await user.click(screen.getByRole("button", { name: "Gras" }));
-    await user.click(screen.getByRole("button", { name: "Annuler" }));
+  it("autosaves after a pause in typing and reports the status", async () => {
+    let resolve!: (value: unknown) => void;
+    mocks.updateItemAction.mockImplementationOnce(
+      () => new Promise((res) => (resolve = res)),
+    );
+    const { user } = renderDescription("Texte");
+    await retype(user, "Texte complété");
     expect(mocks.updateItemAction).not.toHaveBeenCalled();
-    expect(screen.queryByRole("toolbar")).toBeNull();
-    expect(screen.getByText("Texte").tagName).toBe("P");
-    // Reopening starts again from the stored value.
-    await user.click(screen.getByRole("button", { name: "Éditer" }));
-    const reopened = await screen.findByRole("textbox", { name: "Description" });
-    await waitFor(() => expect(reopened).toHaveTextContent("Texte"));
-    expect(reopened.querySelector("strong")).toBeNull();
+    await waitFor(() => expect(mocks.updateItemAction).toHaveBeenCalledTimes(1), AFTER_PAUSE);
+    expect(mocks.updateItemAction).toHaveBeenCalledWith({
+      id: "item-1",
+      backlogKey: "DEMO",
+      description: "Texte complété",
+    });
+    expect(screen.getByText("Enregistrement…")).toBeInTheDocument();
+    await act(async () => resolve({ ok: true, item: {} }));
+    expect(await screen.findByText("Enregistré")).toBeInTheDocument();
+    expect(mocks.refresh).toHaveBeenCalled();
+    expect(screen.getByText("Enregistré").closest("[aria-live]")).toHaveAttribute(
+      "aria-live",
+      "polite",
+    );
+  });
+
+  it("saves at once when the editor loses focus", async () => {
+    const { user } = renderDescription("Texte");
+    await retype(user, "Texte!");
+    await act(async () => (await editor()).blur());
+    await waitFor(() =>
+      expect(mocks.updateItemAction).toHaveBeenCalledWith({
+        id: "item-1",
+        backlogKey: "DEMO",
+        description: "Texte!",
+      }),
+    );
+  });
+
+  it("does not save a description that did not change", async () => {
+    const { user } = renderDescription("Texte");
+    const textbox = await editor();
+    await user.click(textbox);
+    await act(async () => textbox.blur());
+    await new Promise((res) => setTimeout(res, 1100));
+    expect(mocks.updateItemAction).not.toHaveBeenCalled();
+  });
+
+  it("saves the pending change when the drawer closes (unmount)", async () => {
+    const { user, unmount } = renderDescription("Texte");
+    await retype(user, "Texte fin");
+    unmount();
+    expect(mocks.updateItemAction).toHaveBeenCalledWith({
+      id: "item-1",
+      backlogKey: "DEMO",
+      description: "Texte fin",
+    });
   });
 
   it("clears the description with null when emptied", async () => {
-    mocks.updateItemAction.mockResolvedValueOnce({ ok: true });
-    const { user, editor } = await openEditor("Texte");
-    await user.click(editor);
+    const { user } = renderDescription("Texte");
+    const textbox = await editor();
+    await user.click(textbox);
     await user.keyboard("{Control>}a{/Control}{Backspace}");
-    expect(screen.getByText("0 / 20 000")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
-    expect(mocks.updateItemAction).toHaveBeenCalledWith({
-      id: "item-1",
-      backlogKey: "DEMO",
-      description: null,
-    });
+    await act(async () => textbox.blur());
+    await waitFor(() =>
+      expect(mocks.updateItemAction).toHaveBeenCalledWith({
+        id: "item-1",
+        backlogKey: "DEMO",
+        description: null,
+      }),
+    );
   });
 
-  it("counts the Markdown against the limit and associates a precise server error", async () => {
+  it("keeps the text on failure and retries on demand", async () => {
     mocks.updateItemAction.mockResolvedValueOnce({
       ok: false,
-      error: "Description trop longue (20 000 max).",
-      fieldErrors: { description: ["Description trop longue (20 000 max)."] },
+      error: "Mise à jour impossible.",
     });
-    const { user, editor } = await openEditor("Texte");
-
-    expect(screen.getByText("5 / 20 000")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
-
-    expect(await screen.findByText("Description trop longue (20 000 max).")).toBeVisible();
-    expect(editor).toHaveAttribute("aria-invalid", "true");
-    expect(editor.getAttribute("aria-describedby")).toMatch(/\S+ \S+/);
+    const { user } = renderDescription("Texte");
+    const textbox = await retype(user, "Texte gardé");
+    await act(async () => textbox.blur());
+    expect(
+      await screen.findByText("Échec de l’enregistrement : Mise à jour impossible."),
+    ).toBeInTheDocument();
+    expect(textbox).toHaveTextContent("Texte gardé");
+    expect(textbox).toHaveAttribute("aria-invalid", "true");
+    await user.click(screen.getByRole("button", { name: "Réessayer" }));
+    await waitFor(() => expect(mocks.updateItemAction).toHaveBeenCalledTimes(2));
+    expect(mocks.updateItemAction).toHaveBeenLastCalledWith({
+      id: "item-1",
+      backlogKey: "DEMO",
+      description: "Texte gardé",
+    });
+    expect(await screen.findByText("Enregistré")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Réessayer" })).toBeNull();
   });
 
-  it("keeps a table description editable as raw Markdown", async () => {
-    mocks.updateItemAction.mockResolvedValueOnce({ ok: true });
+  it("shows the counter only near the limit", async () => {
+    const { rerender } = renderDescription("Texte");
+    await editor();
+    expect(screen.queryByText(/\/ 20 000/)).toBeNull();
+    const long = "a".repeat(18_500);
+    rerender(<DescriptionEditor itemId="item-1" backlogKey="DEMO" description={long} />);
+    expect(await screen.findByText("18 500 / 20 000")).toBeInTheDocument();
+  });
+
+  it("takes a description saved elsewhere when nothing is pending", async () => {
+    const { rerender } = renderDescription("Avant");
+    const textbox = await editor();
+    rerender(<DescriptionEditor itemId="item-1" backlogKey="DEMO" description="Après" />);
+    await waitFor(() => expect(textbox).toHaveTextContent("Après"));
+    expect(mocks.updateItemAction).not.toHaveBeenCalled();
+  });
+
+  it("never replaces a change that is not saved yet", async () => {
+    const { user, rerender } = renderDescription("Avant");
+    const textbox = await retype(user, "Avant local");
+    rerender(<DescriptionEditor itemId="item-1" backlogKey="DEMO" description="Distant" />);
+    expect(textbox).toHaveTextContent("Avant local");
+    await waitFor(
+      () =>
+        expect(mocks.updateItemAction).toHaveBeenCalledWith({
+          id: "item-1",
+          backlogKey: "DEMO",
+          description: "Avant local",
+        }),
+      AFTER_PAUSE,
+    );
+  });
+
+  it("leaves the editor on Escape and lets the next Escape reach the drawer", async () => {
+    const { user } = renderDescription("Texte");
+    const textbox = await editor();
+    await user.click(textbox);
+    expect(textbox).toHaveAttribute("data-local-escape");
+    await user.keyboard("{Escape}");
+    expect(textbox).not.toHaveFocus();
+    expect(document.activeElement).toHaveAttribute("tabindex", "-1");
+    expect(document.activeElement?.closest("[data-local-escape]")).toBeNull();
+  });
+
+  it("keeps a table description editable as raw Markdown with an explicit save", async () => {
     const table = "| a | b |\n|---|---|\n| 1 | 2 |";
-    const { user } = await openEditor(table);
+    const { user } = renderDescription(table);
     await waitFor(() =>
       expect(screen.getByRole("textbox", { name: "Description" }).tagName).toBe("TEXTAREA"),
     );
     const raw = screen.getByRole("textbox", { name: "Description" });
-    expect(raw).toHaveValue(table);
     expect(raw).toHaveAttribute("maxlength", "20000");
+    await user.type(raw, "\n| 3 | 4 |");
+    await act(async () => raw.blur());
+    await new Promise((res) => setTimeout(res, 1100));
+    expect(mocks.updateItemAction).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Enregistrer" }));
     expect(mocks.updateItemAction).toHaveBeenCalledWith({
       id: "item-1",
       backlogKey: "DEMO",
-      description: table,
+      description: `${table}\n| 3 | 4 |`,
     });
   });
 
-  describe("click to edit (Jira)", () => {
-    const RICH = "Voir [la doc](https://exemple.fr) et le **texte**.\n\n- [ ] tâche";
+  it("cancels raw Markdown changes", async () => {
+    const table = "| a | b |\n|---|---|\n| 1 | 2 |";
+    const { user } = renderDescription(table);
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Description" }).tagName).toBe("TEXTAREA"),
+    );
+    const raw = screen.getByRole("textbox", { name: "Description" });
+    await user.type(raw, "x");
+    await user.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(raw).toHaveValue(table);
+  });
 
-    function renderRead(description: string | null = RICH) {
-      render(<DescriptionEditor itemId="item-1" backlogKey="DEMO" description={description} />);
-      return screen.queryByRole("button", { name: "Modifier la description" });
-    }
-
-    it("exposes the rendering as a focusable « Modifier la description » control", () => {
-      const region = renderRead()!;
-      expect(region).toHaveAttribute("tabindex", "0");
-      expect(region).toHaveClass("cursor-text");
-      expect(within(region).getByRole("link", { name: "la doc" })).toBeVisible();
-    });
-
-    it("opens the editor when the text is clicked", async () => {
-      const user = userEvent.setup();
-      renderRead();
-      await user.click(screen.getByText("texte"));
-      expect(await screen.findByRole("textbox", { name: "Description" })).toBeVisible();
-    });
-
-    it("does not open the editor from a link or a task checkbox", async () => {
-      const user = userEvent.setup();
-      renderRead();
-      const link = screen.getByRole("link", { name: "la doc" });
-      link.addEventListener("click", (event) => event.preventDefault());
-      await user.click(link);
-      fireEvent.click(screen.getByRole("checkbox"));
-      expect(screen.queryByRole("toolbar")).toBeNull();
-      expect(screen.queryByRole("textbox", { name: "Description" })).toBeNull();
-    });
-
-    it("does not hijack a text selection", () => {
-      const region = renderRead()!;
-      window.getSelection()!.selectAllChildren(region);
-      fireEvent.click(screen.getByText("texte"));
-      expect(screen.queryByRole("textbox", { name: "Description" })).toBeNull();
-      window.getSelection()!.removeAllRanges();
-    });
-
-    it.each(["{Enter}", " "])("opens the editor with %j on the focused rendering", async (key) => {
-      const user = userEvent.setup();
-      const region = renderRead()!;
-      region.focus();
-      await user.keyboard(key);
-      expect(await screen.findByRole("textbox", { name: "Description" })).toBeVisible();
-    });
-
-    it("shows « Éditer » as an outline button with an icon", async () => {
-      const user = userEvent.setup();
-      renderRead();
-      const edit = screen.getByRole("button", { name: "Éditer" });
-      expect(edit.tagName).toBe("BUTTON");
-      expect(edit).toHaveAttribute("data-slot", "button");
-      expect(edit).toHaveAttribute("data-variant", "outline");
-      expect(edit.querySelector("svg")).not.toBeNull();
-      await user.click(edit);
-      expect(await screen.findByRole("textbox", { name: "Description" })).toBeVisible();
-    });
-
-    it("makes the empty state the same click-to-edit surface", async () => {
-      const user = userEvent.setup();
-      renderRead(null);
-      const empty = screen.getByRole("button", { name: "Ajouter une description" });
-      expect(empty).toHaveClass("cursor-text");
-      await user.click(empty);
-      expect(await screen.findByRole("textbox", { name: "Description" })).toBeVisible();
-    });
-
-    it("keeps the read-only rendering inert", () => {
-      render(
-        <DescriptionEditor itemId="item-1" backlogKey="DEMO" description={RICH} readOnly />,
+  describe("read-only", () => {
+    it("uses the same rendering, not editable, with clickable links", async () => {
+      renderDescription(RICH, { readOnly: true });
+      const textbox = await screen.findByRole("textbox", { name: "Description" });
+      await waitFor(() => expect(textbox).toHaveAttribute("contenteditable", "false"));
+      expect(textbox).toHaveAttribute("aria-readonly", "true");
+      expect(within(textbox).getByRole("link", { name: "la doc" })).toHaveAttribute(
+        "href",
+        "https://exemple.fr",
       );
-      expect(screen.queryByRole("button", { name: "Modifier la description" })).toBeNull();
-      expect(screen.queryByRole("button", { name: "Éditer" })).toBeNull();
+      expect(screen.queryByText(PLACEHOLDER)).toBeNull();
+      expect(screen.queryByText("Enregistré")).toBeNull();
+    });
+
+    it("never saves", async () => {
+      renderDescription(RICH, { readOnly: true });
+      const textbox = await screen.findByRole("textbox", { name: "Description" });
+      fireEvent.blur(textbox);
+      await new Promise((res) => setTimeout(res, 1100));
+      expect(mocks.updateItemAction).not.toHaveBeenCalled();
+    });
+
+    it("says when there is no description", () => {
+      renderDescription(null, { readOnly: true });
+      expect(screen.getByText("Aucune description.")).toBeInTheDocument();
+      expect(screen.queryByRole("textbox")).toBeNull();
+    });
+
+    it("renders unsupported content as formatted Markdown", async () => {
+      renderDescription("| a | b |\n|---|---|\n| 1 | 2 |", { readOnly: true });
+      expect(await screen.findByRole("table")).toBeInTheDocument();
+      expect(screen.queryByRole("textbox")).toBeNull();
     });
   });
 });
