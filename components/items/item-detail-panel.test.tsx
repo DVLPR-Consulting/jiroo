@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
+import { resetAutosaveRegistry } from "@/lib/autosave/use-autosave";
 import { ItemDetailContent } from "@/components/items/item-detail-content";
 import { ItemDetailSheet } from "@/components/items/item-detail-sheet";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
@@ -1242,5 +1243,42 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
     await waitFor(() =>
       expect(screen.getByRole("textbox", { name: "Nouveau commentaire" })).toHaveFocus(),
     );
+  });
+});
+
+describe("ItemDetailPanel description draft (JIR-71)", () => {
+  beforeEach(() => {
+    resetAutosaveRegistry();
+    mocks.refresh.mockReset();
+    mocks.updateItemAction.mockReset();
+    window.history.replaceState({}, "", "/b/CASS?view=board&item=CASS-2");
+  });
+
+  it("keeps a description draft whose save failed, across a reopening of the drawer", async () => {
+    let fail!: (value: unknown) => void;
+    mocks.updateItemAction.mockImplementationOnce(() => new Promise((res) => (fail = res)));
+    const user = userEvent.setup({ delay: 5 });
+    const rendered = renderPanel();
+    const textbox = await screen.findByRole("textbox", { name: "Description" });
+    await waitFor(() => expect(textbox).toHaveAttribute("contenteditable", "true"));
+    await user.click(textbox);
+    await user.keyboard("{Control>}a{/Control}");
+    await user.keyboard("Brouillon");
+    // Leaving the description (here for the activity filter) saves it.
+    await user.click(screen.getByRole("tab", { name: "Historique" }));
+    await waitFor(() => expect(mocks.updateItemAction).toHaveBeenCalledTimes(1), {
+      timeout: 3000,
+    });
+    // jsdom may drop a typed key under load: compare with what was sent.
+    const sent = mocks.updateItemAction.mock.calls[0]![0].description as string;
+    expect(sent).toMatch(/^B/);
+    await act(async () => fail({ ok: false, error: "Indisponible" }));
+
+    // The draft is kept per user and item when the drawer closes and reopens.
+    rendered.unmount();
+    renderPanel();
+    const again = await screen.findByRole("textbox", { name: "Description" });
+    await waitFor(() => expect(again).toHaveTextContent(sent), { timeout: 3000 });
+    expect(await screen.findByRole("button", { name: "Réessayer" })).toBeInTheDocument();
   });
 });

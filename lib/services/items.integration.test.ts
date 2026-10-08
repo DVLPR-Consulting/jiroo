@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Client } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
@@ -1255,6 +1255,273 @@ describeDb("history of parent, nature and labels (JIR-73)", () => {
       expect(await auditOf(fixture.item.id, "parent")).toEqual([
         { action: "move", oldValue: fixture.epicId, newValue: otherEpicId },
       ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
+
+describeDb("updateItem description activity coalescing", () => {
+  async function descriptionAudit(itemId: string) {
+    return db
+      .select({
+        id: activities.id,
+        actorId: activities.actorId,
+        field: activities.field,
+        oldValue: activities.oldValue,
+        newValue: activities.newValue,
+        at: activities.at,
+      })
+      .from(activities)
+      .where(eq(activities.itemId, itemId))
+      .orderBy(asc(activities.at), asc(activities.id));
+  }
+
+  async function withOtherUser<T>(run: (otherId: string) => Promise<T>) {
+    const otherId = `editor-${randomUUID()}`;
+    await db.insert(user).values({
+      id: otherId,
+      name: "Autre rédacteur",
+      email: `${otherId}@example.test`,
+    });
+    try {
+      return await run(otherId);
+    } finally {
+      await db.delete(activities).where(eq(activities.actorId, otherId));
+      await db.delete(user).where(eq(user.id, otherId));
+    }
+  }
+
+  it("keeps a single entry for successive autosaves of the same actor", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await updateItem({ id: fixture.item.id, description: "Premier jet" }, fixture.actorId);
+      await updateItem({ id: fixture.item.id, description: "Premier jet complété" }, fixture.actorId);
+      const updated = await updateItem(
+        { id: fixture.item.id, description: "Version finale" },
+        fixture.actorId,
+      );
+
+      expect(updated?.description).toBe("Version finale");
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit).toHaveLength(1);
+      expect(audit[0]).toMatchObject({
+        actorId: fixture.actorId,
+        field: "description",
+        oldValue: null,
+        newValue: "Version finale",
+      });
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("bumps the coalesced entry to the time of the latest save", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await updateItem({ id: fixture.item.id, description: "Avant" }, fixture.actorId);
+      const [first] = await descriptionAudit(fixture.item.id);
+      const earlier = new Date(Date.now() - 5 * 60 * 1000);
+      await db.update(activities).set({ at: earlier }).where(eq(activities.id, first!.id));
+
+      await updateItem({ id: fixture.item.id, description: "Après" }, fixture.actorId);
+
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit).toHaveLength(1);
+      expect(audit[0]!.id).toBe(first!.id);
+      expect(audit[0]!.at.getTime()).toBeGreaterThan(earlier.getTime());
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("starts a new entry after ten minutes", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await updateItem({ id: fixture.item.id, description: "Hier" }, fixture.actorId);
+      await db
+        .update(activities)
+        .set({ at: new Date(Date.now() - 11 * 60 * 1000) })
+        .where(eq(activities.itemId, fixture.item.id));
+
+      await updateItem({ id: fixture.item.id, description: "Aujourd'hui" }, fixture.actorId);
+
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit.map(({ oldValue, newValue }) => [oldValue, newValue])).toEqual([
+        [null, "Hier"],
+        ["Hier", "Aujourd'hui"],
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("starts a new entry when another actor edited the description last", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await withOtherUser(async (otherId) => {
+        await updateItem({ id: fixture.item.id, description: "De moi" }, fixture.actorId);
+        await updateItem({ id: fixture.item.id, description: "De l'autre" }, otherId);
+        await updateItem({ id: fixture.item.id, description: "De moi encore" }, fixture.actorId);
+
+        const audit = await descriptionAudit(fixture.item.id);
+        expect(audit.map(({ actorId, oldValue, newValue }) => [actorId, oldValue, newValue])).toEqual([
+          [fixture.actorId, null, "De moi"],
+          [otherId, "De moi", "De l'autre"],
+          [fixture.actorId, "De l'autre", "De moi encore"],
+        ]);
+      });
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("starts a new entry when another change was logged in between", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await updateItem({ id: fixture.item.id, description: "Texte" }, fixture.actorId);
+      await updateItem({ id: fixture.item.id, title: "Nouveau titre" }, fixture.actorId);
+      await updateItem({ id: fixture.item.id, description: "Texte revu" }, fixture.actorId);
+
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit.map(({ field, newValue }) => [field, newValue])).toEqual([
+        ["description", "Texte"],
+        ["title", "Nouveau titre"],
+        ["description", "Texte revu"],
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("never coalesces into an ambiguous latest entry (equal timestamps)", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await withOtherUser(async (bobId) => {
+        const at = new Date(Date.now() - 60 * 1000);
+        await db.update(items).set({ description: "Bob" }).where(eq(items.id, fixture.item.id));
+        // Alice then Bob, same timestamp; Alice's random id sorts first.
+        await db.insert(activities).values([
+          {
+            id: "ffffffff-ffff-4fff-bfff-ffffffffffff",
+            itemId: fixture.item.id,
+            actorId: fixture.actorId,
+            action: "update",
+            field: "description",
+            oldValue: "Original",
+            newValue: "Alice",
+            at,
+          },
+          {
+            id: "aaaaaaaa-aaaa-4aaa-baaa-aaaaaaaaaaaa",
+            itemId: fixture.item.id,
+            actorId: bobId,
+            action: "update",
+            field: "description",
+            oldValue: "Alice",
+            newValue: "Bob",
+            at,
+          },
+        ]);
+
+        await updateItem({ id: fixture.item.id, description: "Original" }, fixture.actorId);
+
+        const audit = await descriptionAudit(fixture.item.id);
+        expect(
+          audit.map(({ actorId, oldValue, newValue }) => [actorId, oldValue, newValue]).sort(),
+        ).toEqual(
+          [
+            [fixture.actorId, "Original", "Alice"],
+            [bobId, "Alice", "Bob"],
+            [fixture.actorId, "Bob", "Original"],
+          ].sort(),
+        );
+      });
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("only coalesces an entry that continues into the change", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await db.update(items).set({ description: "Actuel" }).where(eq(items.id, fixture.item.id));
+      await db.insert(activities).values({
+        itemId: fixture.item.id,
+        actorId: fixture.actorId,
+        action: "update",
+        field: "description",
+        oldValue: null,
+        newValue: "Autre texte",
+        at: new Date(Date.now() - 60 * 1000),
+      });
+
+      await updateItem({ id: fixture.item.id, description: "Suite" }, fixture.actorId);
+
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit.map(({ oldValue, newValue }) => [oldValue, newValue])).toEqual([
+        [null, "Autre texte"],
+        ["Actuel", "Suite"],
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("drops the entry when the session ends on the original description", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      await updateItem({ id: fixture.item.id, description: "Original" }, fixture.actorId);
+      await db
+        .update(activities)
+        .set({ at: new Date(Date.now() - 11 * 60 * 1000) })
+        .where(eq(activities.itemId, fixture.item.id));
+      await updateItem({ id: fixture.item.id, description: "Brouillon" }, fixture.actorId);
+      const updated = await updateItem(
+        { id: fixture.item.id, description: "Original" },
+        fixture.actorId,
+      );
+
+      expect(updated?.description).toBe("Original");
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit.map(({ oldValue, newValue }) => [oldValue, newValue])).toEqual([
+        [null, "Original"],
+      ]);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
+
+describeDb("item revision (updatedAt) ordering", () => {
+  it("strictly increases on every write, even within one millisecond", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      // A clock behind the stored revision must not repeat or go back.
+      const ahead = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await db.update(items).set({ updatedAt: ahead }).where(eq(items.id, fixture.item.id));
+      const first = await updateItem({ id: fixture.item.id, description: "Un" }, fixture.actorId);
+      const second = await updateItem({ id: fixture.item.id, description: "Deux" }, fixture.actorId);
+      const third = await updateItem({ id: fixture.item.id, title: "Trois" }, fixture.actorId);
+
+      expect(first!.updatedAt.getTime()).toBe(ahead.getTime() + 1);
+      expect(second!.updatedAt.getTime()).toBe(ahead.getTime() + 2);
+      expect(third!.updatedAt.getTime()).toBe(ahead.getTime() + 3);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("uses whole milliseconds so the revision survives a JS Date", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      const updated = await updateItem({ id: fixture.item.id, description: "Texte" }, fixture.actorId);
+      const [row] = await db
+        .select({ micros: sql<string>`extract(microseconds from ${items.updatedAt})::text` })
+        .from(items)
+        .where(eq(items.id, fixture.item.id));
+      expect(Number(row!.micros) % 1000).toBe(0);
+      expect(updated!.updatedAt.getTime()).toBeGreaterThan(fixture.item.updatedAt.getTime());
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
     }

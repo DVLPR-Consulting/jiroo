@@ -583,9 +583,12 @@ export function ItemDetailPanel({
 
             <Section title="Description">
               <DescriptionEditor
+                key={`${currentUserId}:${detail.id}`}
                 itemId={detail.id}
+                currentUserId={currentUserId}
                 backlogKey={backlogKey}
                 description={detail.description}
+                revision={new Date(detail.updatedAt).getTime()}
                 readOnly={!canEdit}
               />
             </Section>

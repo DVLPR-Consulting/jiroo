@@ -1,4 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
+import { and, eq } from "drizzle-orm";
+import { db } from "../lib/db";
+import { user } from "../lib/db/schema/auth";
+import { backlogs, items } from "../lib/db/schema";
+import { createItem } from "../lib/services/items";
 
 type DrawerTrace = {
   firstAnimation: string | null;
@@ -54,6 +59,26 @@ async function openFirstBacklogRow(page: Page) {
   return { key, dialog, readTrace };
 }
 
+/** A fresh task of the CASS backlog, so description edits stay isolated. */
+async function fixtureTask(title: string, description: string) {
+  const [admin] = await db.select({ id: user.id }).from(user)
+    .where(eq(user.email, "platform-admin@jiroo.local"));
+  const [backlog] = await db.select({ id: backlogs.id }).from(backlogs)
+    .where(eq(backlogs.key, "CASS"));
+  if (!admin || !backlog) throw new Error("Fixtures E2E introuvables.");
+  const [epic] = await db.select({ id: items.id }).from(items)
+    .where(and(eq(items.backlogId, backlog.id), eq(items.type, "epic")));
+  if (!epic) throw new Error("Epic fixture introuvable.");
+  const runId = process.env.JIROO_E2E_RUN_ID ?? String(Date.now());
+  return createItem({
+    backlogId: backlog.id,
+    type: "tache",
+    parentId: epic.id,
+    title: `${title} ${runId}`,
+    description,
+  }, admin.id, `e2e-item-detail-drawer-${title}-${runId}`);
+}
+
 test.describe("panneau de détail", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -80,6 +105,30 @@ test.describe("panneau de détail", () => {
     await expect(dialog).toHaveCount(0);
     await expect(page).not.toHaveURL(/[?&]item=/);
     expect(consoleErrors).toEqual([]);
+  });
+
+  test("enregistre la description en cours de frappe quand le panneau se ferme", async ({
+    page,
+  }) => {
+    const item = await fixtureTask("JIR-71 fermeture", "Brouillon");
+    await page.goto(`/b/CASS?view=list&item=${item.key}`);
+    const dialog = page.getByRole("dialog", { name: new RegExp(`^${item.key} —`) });
+    const editor = dialog.getByRole("textbox", { name: "Description" });
+    await editor.getByText("Brouillon").click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" sauvé");
+    // Closed before the autosave pause ends.
+    await dialog.getByRole("button", { name: "Fermer" }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect.poll(async () => {
+      const [row] = await db.select({ description: items.description }).from(items)
+        .where(eq(items.id, item.id));
+      return row?.description;
+    }).toBe("Brouillon sauvé");
+
+    await page.goto(`/b/CASS?view=list&item=${item.key}`);
+    await expect(page.getByRole("dialog").getByRole("textbox", { name: "Description" }))
+      .toHaveText("Brouillon sauvé");
   });
 
   test("ouvre directement le lien profond sans animation si le mouvement est réduit", async ({
