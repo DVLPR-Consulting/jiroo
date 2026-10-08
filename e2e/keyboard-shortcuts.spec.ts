@@ -88,7 +88,8 @@ test("« j » / « k » sélectionnent un ticket et « o » l’ouvre ; « m » 
   await page.keyboard.press("m");
   const composer = drawer.getByRole("textbox", { name: "Nouveau commentaire" });
   await expect(composer).toBeFocused();
-  await expect(composer).toHaveValue("");
+  // The composer is the rich-text editor (contenteditable), empty here.
+  await expect(composer).toHaveText("");
   // Start from an unassigned item, then « i » assigns it to the signed-in user.
   const assignee = drawer.getByRole("combobox", { name: "Assigné" });
   const previous = await assignee.inputValue();
