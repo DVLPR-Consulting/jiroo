@@ -79,6 +79,8 @@ export const SHORTCUTS = [
   { id: "selectAll", kind: "combo", group: "other", combo: ["⌘/Ctrl", "A"], label: "Tout sélectionner (Liste, Backlog) ; Échap vide la sélection" },
   { id: "rangeSelect", kind: "combo", group: "other", combo: ["Maj", "clic"], label: "Sélectionner une plage de cases" },
   { id: "sendComment", kind: "combo", group: "other", combo: ["⌘/Ctrl", "Entrée"], label: "Envoyer un commentaire" },
+  { id: "titleEdit", kind: "combo", group: "other", combo: ["Entrée"], label: "Titre en édition : enregistrer (Échap annule)" },
+  { id: "keyboardDrag", kind: "combo", group: "other", combo: ["Espace"], label: "Glisser-déposer au clavier : Espace pour saisir, flèches pour déplacer, Espace pour déposer" },
 ] as const satisfies readonly ShortcutDefinition[];
 
 export type ShortcutId = (typeof SHORTCUTS)[number]["id"];
