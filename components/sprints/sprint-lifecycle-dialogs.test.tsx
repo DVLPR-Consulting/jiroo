@@ -316,7 +316,7 @@ describe("sprint lifecycle dialogs", () => {
     expect(destination).toHaveTextContent("Nouveau sprint");
     await user.selectOptions(destination, "new");
     await user.type(screen.getByRole("textbox", { name: "Nom du nouveau sprint" }), "Sprint report");
-    await user.click(screen.getByRole("button", { name: "Confirmer la clôture" }));
+    await user.click(screen.getByRole("button", { name: "Terminer le sprint" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Terminez les sous-tâches avant de clôturer le sprint.",
@@ -352,7 +352,7 @@ describe("sprint lifecycle dialogs", () => {
       screen.getByRole("combobox", { name: "Destination des tâches incomplètes" }),
       `existing:${futureId}`,
     );
-    await user.click(screen.getByRole("button", { name: "Confirmer la clôture" }));
+    await user.click(screen.getByRole("button", { name: "Terminer le sprint" }));
 
     await waitFor(() =>
       expect(mocks.completeSprintAction).toHaveBeenCalledWith({
@@ -380,14 +380,14 @@ describe("sprint lifecycle dialogs", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: "Terminer le sprint Sprint paiement" }));
-    await user.click(screen.getByRole("button", { name: "Confirmer la clôture" }));
+    await user.click(screen.getByRole("button", { name: "Terminer le sprint" }));
 
     await user.keyboard("{Escape}");
     expect(screen.getByRole("dialog")).toBeVisible();
 
     request.resolve({ ok: false, error: "Le sprint a changé." });
     expect(await screen.findByText("Le sprint a changé.")).toBeVisible();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Confirmer la clôture" })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Terminer le sprint" })).toBeEnabled());
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "Terminer le sprint Sprint paiement" }));
@@ -412,9 +412,9 @@ describe("sprint lifecycle dialogs", () => {
       name: "Destination des tâches incomplètes",
     });
     await user.selectOptions(destination, `existing:${futureId}`);
-    await user.click(screen.getByRole("button", { name: "Confirmer la clôture" }));
+    await user.click(screen.getByRole("button", { name: "Terminer le sprint" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Clôture impossible.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Impossible de terminer le sprint.");
     expect(destination).toHaveValue(`existing:${futureId}`);
     expect(screen.getByRole("dialog")).toBeVisible();
     expect(mocks.refresh).not.toHaveBeenCalled();

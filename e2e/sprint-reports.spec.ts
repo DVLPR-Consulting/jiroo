@@ -1070,7 +1070,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   await page.getByRole("button", { name: "Terminer le sprint Sprint UI vers Backlog" }).click();
   await page.getByLabel("Destination des tâches incomplètes").selectOption({ label: "Backlog" });
   await businessPost(page, () =>
-    page.getByRole("button", { name: "Confirmer la clôture" }).click());
+    page.getByRole("button", { name: "Terminer le sprint", exact: true }).click());
   await page.goto(`/b/CASS/reports?report=sprint&sprint=${uiActive.id}`);
   await expect(page.getByRole("main").getByText("Historique figé", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Journal du sprint" }))
@@ -1088,7 +1088,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   await page.getByLabel("Destination des tâches incomplètes")
     .selectOption({ label: "Sprint UI Destination" });
   await businessPost(page, () =>
-    page.getByRole("button", { name: "Confirmer la clôture" }).click());
+    page.getByRole("button", { name: "Terminer le sprint", exact: true }).click());
   await expect(page.getByRole("heading", { name: "Sprint UI Destination" })).toBeVisible();
   await expect(page.getByText(carriedItem.key, { exact: true })).toBeVisible();
   await page.goto(`/b/CASS/reports?report=sprint&sprint=${uiToPlanned.id}`);
@@ -1366,7 +1366,7 @@ audited(9, "fige le point final à la clôture et ignore les mutations ultérieu
   await auditedGoto(page, capture, "admin", "/b/CASS?view=backlog");
   await page.getByRole("button", { name: `Terminer le sprint ${BURNDOWN.sprintName}` }).click();
   await page.getByLabel("Destination des tâches incomplètes").selectOption({ label: "Backlog" });
-  await businessPost(page, () => page.getByRole("button", { name: "Confirmer la clôture" }).click());
+  await businessPost(page, () => page.getByRole("button", { name: "Terminer le sprint", exact: true }).click());
   burndown.steps.push({ itemKey: null, cause: "Clôture du sprint", deltaPoints: 0 });
 
   const rows = expectedBurndownRows(burndown.baseline, burndown.steps);

@@ -401,7 +401,7 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
     .selectOption({ label: NEXT_SPRINT });
   timings.push(
     `[timing] complete sprint ${await businessPost(page, () =>
-      page.getByRole("button", { name: "Confirmer la clôture" }).click())}ms`,
+      page.getByRole("button", { name: "Terminer le sprint", exact: true }).click())}ms`,
   );
   await expect(page.getByRole("heading", { name: NEXT_SPRINT })).toBeVisible();
   await expect(page.getByText(TASK_CARRIED, { exact: true })).toBeVisible();
@@ -525,8 +525,8 @@ test("conserve le sprint planifié et explique un échec réseau au démarrage",
     }
     await route.continue();
   });
-  await page.getByRole("button", { name: "Confirmer la clôture" }).click();
-  await expect(page.getByText("Clôture impossible.")).toBeVisible();
+  await page.getByRole("button", { name: "Terminer le sprint", exact: true }).click();
+  await expect(page.getByText("Impossible de terminer le sprint.")).toBeVisible();
   await expect(page.getByRole("dialog")).toBeVisible();
   const [stillActive] = await db
     .select({ state: sprints.state, completedAt: sprints.completedAt })
@@ -812,7 +812,7 @@ test("clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ou
     "backlog",
   );
   await businessPost(page, () =>
-    page.getByRole("button", { name: "Confirmer la clôture" }).click(),
+    page.getByRole("button", { name: "Terminer le sprint", exact: true }).click(),
   );
   const backlogSection = page.locator('[data-sprint-section="backlog"]');
   await expect(backlogSection.getByText(TASK_BACKLOG, { exact: true })).toBeVisible();
@@ -845,7 +845,7 @@ test("clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ou
     .getByRole("textbox", { name: "Nom du nouveau sprint" })
     .fill("Audit sprint report créé");
   await businessPost(page, () =>
-    page.getByRole("button", { name: "Confirmer la clôture" }).click(),
+    page.getByRole("button", { name: "Terminer le sprint", exact: true }).click(),
   );
   const createdSection = page.locator("[data-sprint-section]").filter({
     has: page.getByRole("heading", { name: "Audit sprint report créé" }),
@@ -883,7 +883,7 @@ test("clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ou
     .getByRole("button", { name: "Terminer le sprint Audit clôture bloquée" })
     .click();
   await businessPost(page, () =>
-    page.getByRole("button", { name: "Confirmer la clôture" }).click(),
+    page.getByRole("button", { name: "Terminer le sprint", exact: true }).click(),
   );
   await expect(page.getByRole("alert")).toContainText(
     "Terminez les sous-tâches avant de clôturer le sprint.",

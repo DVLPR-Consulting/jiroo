@@ -360,15 +360,15 @@ export function HelpGuide() {
         </GuideTopic>
 
         <GuideTopic
-          title="Clôturer"
+          title="Terminer un sprint"
           purpose="Terminer le sprint et décider du sort des tâches inachevées."
           steps={[
             <>Sur le sprint actif, cliquez sur <Ui>Terminer le sprint</Ui>.</>,
             <>Choisissez la <Ui>Destination des tâches incomplètes</Ui> : <Ui>Backlog</Ui>, un sprint planifié ou <Ui>Nouveau sprint</Ui>.</>,
-            <>Cliquez sur <Ui>Confirmer la clôture</Ui>.</>,
+            <>Confirmez avec le bouton <Ui>Terminer le sprint</Ui> de la fenêtre.</>,
           ]}
         >
-          <GuideNote>Les sous-tâches doivent être terminées avant la clôture. Un sprint ne se supprime pas.</GuideNote>
+          <GuideNote>Les sous-tâches doivent être terminées avant la fin du sprint. Un sprint ne se supprime pas.</GuideNote>
         </GuideTopic>
       </GuideSection>
 
