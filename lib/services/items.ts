@@ -9,6 +9,7 @@ import { user } from "@/lib/db/schema/auth";
 import { nextItemKey } from "@/lib/items/key";
 import { canRestore } from "@/lib/items/trash";
 import { replaceItemFixVersionsInTx } from "@/lib/services/item-fix-versions";
+import { nextItemRevision } from "@/lib/services/item-revision";
 import { assignItemsToSprintInTx } from "@/lib/services/sprint-membership";
 import {
   normalizeRequestCorrelationId,
@@ -744,7 +745,7 @@ export async function updateItem(
 
     const [updated] = await tx
       .update(items)
-      .set({ ...patch, updatedAt: now })
+      .set({ ...patch, updatedAt: nextItemRevision() })
       .where(eq(items.id, cur.id))
       .returning();
     await recordActiveItemMutationsInTx(tx, {
@@ -754,11 +755,76 @@ export async function updateItem(
       occurredAt: now,
       mutations: [reportingMutation],
     });
-    await tx
-      .insert(activities)
-      .values(acts.map((act) => ({ ...act, requestCorrelationId: correlationId })));
+    const inserted = await coalesceDescriptionActivity(tx, cur.id, actorId, acts);
+    if (inserted.length > 0) {
+      await tx
+        .insert(activities)
+        .values(inserted.map((act) => ({ ...act, requestCorrelationId: correlationId })));
+    }
     return updated!;
   });
+}
+
+/** Window during which successive description saves share one activity entry. */
+const DESCRIPTION_SESSION_MINUTES = 10;
+
+/**
+ * The description autosaves while the user types: successive saves by the
+ * same actor form one editing session and must not flood the activity log.
+ * The new change is merged into the item's latest activity only when that
+ * entry is unambiguous (no other activity of the item shares its timestamp:
+ * random ids do not order a tie) and continuous: a description change by
+ * the same actor, less than ten minutes old, whose « to » is this change's
+ * « from ». The merged entry keeps its original « from », takes the new
+ * « to » and the time of the latest save, and is dropped when the session
+ * ends on the original text. Otherwise a normal entry is inserted. Returns
+ * the activities still to insert. The caller holds the item row lock, so
+ * saves of the item are serialized.
+ */
+async function coalesceDescriptionActivity(
+  tx: Tx,
+  itemId: string,
+  actorId: string,
+  acts: (typeof activities.$inferInsert)[],
+): Promise<(typeof activities.$inferInsert)[]> {
+  const change = acts.find((act) => act.field === "description");
+  if (!change) return acts;
+  const [latest, next] = await tx
+    .select({
+      id: activities.id,
+      actorId: activities.actorId,
+      action: activities.action,
+      field: activities.field,
+      oldValue: activities.oldValue,
+      newValue: activities.newValue,
+      // Exact (microsecond) timestamp, to detect ties.
+      at: sql<string>`${activities.at}::text`,
+      recent: sql<boolean>`${activities.at} > now() - make_interval(mins => ${DESCRIPTION_SESSION_MINUTES})`,
+    })
+    .from(activities)
+    .where(eq(activities.itemId, itemId))
+    .orderBy(desc(activities.at), desc(activities.id))
+    .limit(2);
+  if (
+    !latest ||
+    (next && next.at === latest.at) ||
+    !latest.recent ||
+    latest.action !== "update" ||
+    latest.field !== "description" ||
+    latest.actorId !== actorId ||
+    (latest.newValue ?? null) !== (change.oldValue ?? null)
+  ) {
+    return acts;
+  }
+  if ((latest.oldValue ?? null) === (change.newValue ?? null)) {
+    await tx.delete(activities).where(eq(activities.id, latest.id));
+  } else {
+    await tx
+      .update(activities)
+      .set({ newValue: change.newValue ?? null, at: sql`now()` })
+      .where(eq(activities.id, latest.id));
+  }
+  return acts.filter((act) => act !== change);
 }
 
 // Board drag: status change and/or reorder within the backlog's single global rank order.
@@ -817,7 +883,7 @@ export async function moveItem(
 
       const [updated] = await tx
         .update(items)
-        .set({ ...patch, updatedAt: now })
+        .set({ ...patch, updatedAt: nextItemRevision() })
         .where(eq(items.id, cur.id))
         .returning();
       await recordActiveItemMutationsInTx(tx, {
@@ -900,7 +966,7 @@ export async function rankBacklogItem(input: unknown, actorId: string) {
 
       const [updated] = await tx
         .update(items)
-        .set({ rank: newRank, updatedAt: new Date() })
+        .set({ rank: newRank, updatedAt: nextItemRevision() })
         .where(eq(items.id, current.id))
         .returning();
       await tx.insert(activities).values(
@@ -1099,7 +1165,7 @@ export async function reparentItem(input: unknown, actorId: string) {
           .set({
             path: sql`(${newBase}::ltree || subpath(${items.path}, ${oldLevels - 1}))`,
             depth: sql`${items.depth} + ${depthDelta}`,
-            updatedAt: new Date(),
+            updatedAt: nextItemRevision(),
           })
           .where(subtree);
       }
@@ -1119,7 +1185,7 @@ export async function reparentItem(input: unknown, actorId: string) {
         acts.push(activityRow(node.id, actorId, "move", "rank", node.rank, newRank));
       }
 
-      const [updated] = await tx.update(items).set({ ...patch, updatedAt: new Date() }).where(eq(items.id, node.id)).returning();
+      const [updated] = await tx.update(items).set({ ...patch, updatedAt: nextItemRevision() }).where(eq(items.id, node.id)).returning();
       await tx.insert(activities).values(acts);
       return updated!;
     }),

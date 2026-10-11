@@ -6,6 +6,7 @@ import {
   useImperativeHandle,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type Ref,
 } from "react";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
@@ -13,6 +14,12 @@ import {
   BYPASS_LENGTH_LIMIT,
   markdownEditorExtensions,
 } from "@/lib/markdown/editor-extensions";
+import { exitSuggestion } from "@tiptap/suggestion";
+import {
+  createSlashMenuStore,
+  isSlashMenuActive,
+  SLASH_PLUGIN_KEY,
+} from "@/lib/markdown/slash-extension";
 import {
   docToMarkdown,
   markdownToDoc,
@@ -20,6 +27,8 @@ import {
   unsupportedMarkdownFeatures,
 } from "@/lib/markdown/markdown-document";
 import { MarkdownToolbar } from "@/components/markdown/markdown-toolbar";
+import { SelectionBubbleMenu } from "@/components/markdown/selection-bubble-menu";
+import { SlashMenu } from "@/components/markdown/slash-menu";
 import { cn } from "@/lib/utils";
 
 export type MarkdownEditorHandle = {
@@ -39,6 +48,14 @@ export type MarkdownEditorHandle = {
  */
 const PROSE =
   "text-sm leading-relaxed text-foreground [&_a]:text-[var(--primary)] [&_a]:underline [&_code]:rounded [&_code]:bg-[var(--muted)] [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-[var(--font-mono)] [&_code]:text-[0.85em] [&_h1]:my-2 [&_h1]:text-[17px] [&_h1]:leading-[1.3] [&_h1]:font-semibold [&_h2]:my-2 [&_h2]:text-[17px] [&_h2]:leading-[1.3] [&_h2]:font-semibold [&_h3]:my-2 [&_h3]:text-sm [&_h3]:font-semibold [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-2 [&_pre]:overflow-auto [&_pre]:rounded-[var(--radius)] [&_pre]:bg-[var(--muted)] [&_pre]:p-3 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-[var(--border-strong)] [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_hr]:my-3 [&_hr]:border-border [&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]]:pl-0 [&_ul[data-type=taskList]>li]:flex [&_ul[data-type=taskList]>li]:items-start [&_ul[data-type=taskList]>li]:gap-2 [&_ul[data-type=taskList]>li>label]:mt-[0.2em] [&_ul[data-type=taskList]>li>div]:min-w-0 [&_ul[data-type=taskList]>li>div]:flex-1 [&_ul[data-type=taskList]>li_p]:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0";
+
+/**
+ * Notion-like page: no frame, airy text, headings on the t-h1/t-h2/t-h3
+ * scale of app/globals.css (explicit values: token classes cannot be used
+ * through a variant).
+ */
+const PAGE_PROSE =
+  "text-sm leading-[1.7] text-foreground [&_a]:text-[var(--primary)] [&_a]:underline [&_a]:underline-offset-2 [&_code]:rounded [&_code]:bg-[var(--muted)] [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-[var(--font-mono)] [&_code]:text-[0.85em] [&_h1]:mt-6 [&_h1]:mb-1.5 [&_h1]:text-[22px] [&_h1]:leading-[1.2] [&_h1]:font-semibold [&_h1]:tracking-[-0.018em] [&_h2]:mt-5 [&_h2]:mb-1 [&_h2]:text-[17px] [&_h2]:leading-[1.3] [&_h2]:font-semibold [&_h2]:tracking-[-0.012em] [&_h3]:mt-4 [&_h3]:mb-1 [&_h3]:text-[14px] [&_h3]:leading-[1.35] [&_h3]:font-semibold [&_h3]:tracking-[-0.006em] [&_li]:my-0.5 [&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-1.5 [&_pre]:my-2 [&_pre]:overflow-auto [&_pre]:rounded-[var(--radius)] [&_pre]:bg-[var(--muted)] [&_pre]:p-3 [&_pre]:leading-relaxed [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-6 [&_blockquote]:my-2 [&_blockquote]:border-l-[3px] [&_blockquote]:border-[var(--border-strong)] [&_blockquote]:pl-3.5 [&_blockquote]:text-muted-foreground [&_hr]:my-4 [&_hr]:border-border [&_.ProseMirror-selectednode]:outline-2 [&_.ProseMirror-selectednode]:outline-[var(--ring)] [&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]]:pl-0.5 [&_ul[data-type=taskList]>li]:flex [&_ul[data-type=taskList]>li]:items-start [&_ul[data-type=taskList]>li]:gap-2 [&_ul[data-type=taskList]>li>label]:mt-[0.35em] [&_ul[data-type=taskList]>li>div]:min-w-0 [&_ul[data-type=taskList]>li>div]:flex-1 [&_ul[data-type=taskList]>li_p]:my-0 [&_.suggestion]:rounded-sm [&_.suggestion]:bg-[var(--muted)] [&>*:first-child]:mt-0 [&>*:last-child]:mb-0";
 
 const FRAME =
   "rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] focus-within:border-[var(--ring)] data-[invalid=true]:border-[var(--danger)]";
@@ -67,6 +84,11 @@ export function MarkdownEditor({
   minHeightClassName = "min-h-32",
   onSubmitShortcut,
   onCaretTextChange,
+  variant = "framed",
+  readOnly = false,
+  onBlur,
+  onEscape,
+  onRawModeChange,
   ref,
 }: {
   value: string;
@@ -90,6 +112,22 @@ export function MarkdownEditor({
   onSubmitShortcut?: () => void;
   /** Text of the current block before the caret (for @-mentions). */
   onCaretTextChange?: (textBeforeCaret: string) => void;
+  /**
+   * "framed": bordered box with a fixed toolbar (comments, release notes).
+   * "page": Notion-like page without frame, with the « / » block menu and a
+   * formatting bar over the selection.
+   */
+  variant?: "framed" | "page";
+  /** Same rendering, not editable, links clickable. */
+  readOnly?: boolean;
+  onBlur?: () => void;
+  /**
+   * Escape in the editable area (unless a menu of the editor uses it). When
+   * set, Escape no longer reaches the surrounding dialog (data-local-escape).
+   */
+  onEscape?: () => void;
+  /** Whether the content is edited as raw Markdown (see unsupported content). */
+  onRawModeChange?: (raw: boolean) => void;
   ref?: Ref<MarkdownEditorHandle>;
 }) {
   const contentId = useId();
@@ -101,10 +139,27 @@ export function MarkdownEditor({
   const pendingFocus = useRef<number | "end" | null>(null);
   // Last Markdown emitted by the editor, to tell user edits from new values.
   const emitted = useRef<string | null>(null);
-  const callbacks = useRef({ onChange, onSubmitShortcut, onCaretTextChange });
-  useEffect(() => {
-    callbacks.current = { onChange, onSubmitShortcut, onCaretTextChange };
+  const callbacks = useRef({
+    onChange,
+    onSubmitShortcut,
+    onCaretTextChange,
+    onBlur,
+    onEscape,
+    onRawModeChange,
   });
+  useEffect(() => {
+    callbacks.current = {
+      onChange,
+      onSubmitShortcut,
+      onCaretTextChange,
+      onBlur,
+      onEscape,
+      onRawModeChange,
+    };
+  });
+  const page = variant === "page";
+  const [slashMenu] = useState(() => (page ? createSlashMenuStore() : null));
+  const pageRef = useRef<HTMLDivElement>(null);
 
   const reportCaret = (editor: Editor) => {
     const { $from } = editor.state.selection;
@@ -139,15 +194,18 @@ export function MarkdownEditor({
   const editor = useEditor({
     // Next.js renders client components on the server too: wait for mount.
     immediatelyRender: false,
-    extensions: markdownEditorExtensions({ maxLength: maxLength ?? null }),
-    editable: !disabled,
+    extensions: markdownEditorExtensions({ maxLength: maxLength ?? null, slashMenu }),
+    editable: !disabled && !readOnly,
     editorProps: {
       attributes: {
         id: contentId,
         role: "textbox",
         "aria-multiline": "true",
         "aria-label": label,
-        class: cn("px-3 py-2 outline-none", minHeightClassName, PROSE),
+        class: page
+          ? cn("outline-none", minHeightClassName, PAGE_PROSE)
+          : cn("px-3 py-2 outline-none", minHeightClassName, PROSE),
+        ...(onEscape ? { "data-local-escape": "" } : {}),
       },
       handleKeyDown: (_view, event) => {
         const mod = event.metaKey || event.ctrlKey;
@@ -184,6 +242,7 @@ export function MarkdownEditor({
       reportCaret(updated);
     },
     onSelectionUpdate: ({ editor: updated }) => reportCaret(updated),
+    onBlur: () => callbacks.current.onBlur?.(),
   });
 
   const isEmpty = useEditorState({
@@ -198,13 +257,17 @@ export function MarkdownEditor({
   }, [editor, value]);
 
   useEffect(() => {
+    callbacks.current.onRawModeChange?.(rawFeatures !== null);
+  }, [rawFeatures]);
+
+  useEffect(() => {
     if (!editor || editor.isDestroyed) return;
-    editor.setEditable(!disabled, false);
+    editor.setEditable(!disabled && !readOnly, false);
     if (!disabled && pendingFocus.current !== null) {
       editor.commands.focus(pendingFocus.current);
       pendingFocus.current = null;
     }
-  }, [editor, disabled]);
+  }, [editor, disabled, readOnly]);
 
   // Keep the dynamic ARIA state of the editable area in sync.
   useEffect(() => {
@@ -217,7 +280,9 @@ export function MarkdownEditor({
     else dom.removeAttribute("aria-describedby");
     if (disabled) dom.setAttribute("aria-disabled", "true");
     else dom.removeAttribute("aria-disabled");
-  }, [editor, label, invalid, describedBy, disabled]);
+    if (readOnly) dom.setAttribute("aria-readonly", "true");
+    else dom.removeAttribute("aria-readonly");
+  }, [editor, label, invalid, describedBy, disabled, readOnly]);
 
   useImperativeHandle(
     ref,
@@ -279,6 +344,8 @@ export function MarkdownEditor({
           )}
           value={value}
           disabled={disabled}
+          readOnly={readOnly}
+          onBlur={() => onBlur?.()}
           onChange={(event) => {
             emitted.current = event.target.value;
             onChange(event.target.value);
@@ -296,8 +363,55 @@ export function MarkdownEditor({
     );
   }
 
+  /**
+   * Escape, handled before ProseMirror: a surrounding Radix dialog cancels
+   * the event (preventDefault) to stay open, and ProseMirror then ignores it.
+   * The « / » menu closes first; otherwise onEscape runs.
+   */
+  const onKeyDownCapture = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const handler = callbacks.current.onEscape;
+    if (event.key !== "Escape" || !handler || !editor || editor.isDestroyed) return;
+    if (!(event.target instanceof Node) || !editor.view.dom.contains(event.target)) return;
+    event.preventDefault();
+    if (isSlashMenuActive(editor.state)) exitSuggestion(editor.view, SLASH_PLUGIN_KEY);
+    else handler();
+  };
+
+  if (page) {
+    return (
+      <div
+        ref={pageRef}
+        onKeyDownCapture={onKeyDownCapture}
+        className={cn("relative", disabled && "opacity-60")}
+        data-invalid={invalid || undefined}
+      >
+        {placeholder && isEmpty && !readOnly ? (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute top-0 left-0 text-sm leading-[1.7] text-muted-foreground"
+          >
+            {placeholder}
+          </span>
+        ) : null}
+        {editor ? (
+          <>
+            <EditorContent editor={editor} />
+            {slashMenu ? <SlashMenu editor={editor} store={slashMenu} container={pageRef} /> : null}
+            {!readOnly ? <SelectionBubbleMenu editor={editor} linkRequest={linkRequest} /> : null}
+          </>
+        ) : (
+          <div className={minHeightClassName} aria-hidden />
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className={cn(FRAME, disabled && "opacity-60")} data-invalid={invalid || undefined}>
+    <div
+      className={cn(FRAME, disabled && "opacity-60")}
+      data-invalid={invalid || undefined}
+      onKeyDownCapture={onKeyDownCapture}
+    >
       {editor ? (
         <MarkdownToolbar
           editor={editor}

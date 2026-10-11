@@ -80,6 +80,33 @@ describe("HelpPage", () => {
       expect(within(tickets).getAllByText(new RegExp(label)).length).toBeGreaterThan(0);
     }
     expect(topic).toHaveTextContent("Markdown brut");
-    expect(within(tickets).getByText(/Modifier la description|cliquez dans la description/i)).toBeVisible();
+  });
+
+  it("documents the in-place description (JIR-71)", () => {
+    render(<HelpPage />);
+    const tickets = document.querySelector("section#tickets") as HTMLElement;
+    const topic = within(tickets).getByRole("heading", { level: 3, name: "Écrire la description" })
+      .closest("article, div, section") as HTMLElement;
+    for (const label of [
+      "Écrivez, ou tapez « / » pour insérer un bloc…",
+      "Enregistrement…",
+      "Enregistré",
+      "Échec de l’enregistrement",
+      "Réessayer",
+      "Titre 1",
+      "Séparateur",
+      "Italique",
+      "Code",
+      "Lecteur",
+    ]) {
+      expect(topic).toHaveTextContent(`« ${label} »`);
+    }
+    expect(topic).toHaveTextContent("lecture seule");
+    // JIR-71: unsaved text survives closing the drawer, not a page reload.
+    expect(topic).toHaveTextContent("en revenant sur le ticket");
+    expect(topic).toHaveTextContent("demande confirmation avant de quitter ou de recharger la page");
+    expect(topic).toHaveTextContent("Se déconnecter quand même ?");
+    expect(tickets).not.toHaveTextContent("Ajouter une description");
+    expect(tickets).not.toHaveTextContent("Éditer");
   });
 });

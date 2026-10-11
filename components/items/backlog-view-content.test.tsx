@@ -99,7 +99,7 @@ vi.mock("@/components/items/item-detail-content", () => ({
   },
 }));
 vi.mock("@/components/items/item-detail-sheet", () => ({
-  ItemDetailSheet: ({ itemKey, children }: { itemKey: string; children: React.ReactNode }) => {
+  ItemDetailDrawer: ({ itemKey, children }: { itemKey: string | null; children: React.ReactNode }) => {
     mocks.itemDetailSheetKey(itemKey);
     return children;
   },

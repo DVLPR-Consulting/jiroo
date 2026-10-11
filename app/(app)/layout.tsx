@@ -5,6 +5,7 @@ import { listVisibleViews } from "@/lib/services/views";
 import { unreadCount, listRecentNotifications } from "@/lib/services/notifications";
 import { getShellCounts } from "@/lib/services/shell";
 import { AppShell } from "@/components/shell/app-shell";
+import { DraftsSession } from "@/components/shell/drafts-session";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 import { ShellDataProvider } from "@/components/shell/shell-data";
@@ -39,6 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Topbar notifications={notifications} unreadCount={notifCount} />
       }
     >
+      <DraftsSession userId={session.user.id} />
       <ShellDataProvider
         backlogs={backlogs.map(({ id, key, name }) => ({ id, key, name }))}
         views={views.map(({ id, name, backlogId }) => ({ id, name, backlogId }))}

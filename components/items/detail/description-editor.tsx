@@ -1,231 +1,262 @@
 "use client";
 
-import {
-  useId,
-  useRef,
-  useState,
-  useTransition,
-  type KeyboardEvent,
-  type MouseEvent,
-} from "react";
-import { Pencil } from "lucide-react";
+import { useCallback, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { updateItemAction } from "@/app/actions/items";
-import { Button } from "@/components/ui/button";
+import { useAutosave } from "@/lib/autosave/use-autosave";
+import type { SaveResult } from "@/lib/autosave/scheduler";
 import { ITEM_DESCRIPTION_MAX } from "@/lib/validation/item";
-import {
-  MarkdownEditor,
-  type MarkdownEditorHandle,
-} from "@/components/markdown/markdown-editor";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
+import { cn } from "@/lib/utils";
 
+/** Static rendering, for read-only raw content and while the editor loads. */
 const PROSE =
-  "text-sm leading-relaxed text-foreground [&_a]:text-[var(--primary)] [&_a]:underline [&_code]:rounded [&_code]:bg-[var(--muted)] [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-[var(--font-mono)] [&_code]:text-[0.85em] [&_h1]:t-h2 [&_h2]:t-h2 [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-2 [&_pre]:overflow-auto [&_pre]:rounded-[var(--radius)] [&_pre]:bg-[var(--muted)] [&_pre]:p-3 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5";
+  "text-sm leading-[1.7] text-foreground [&_a]:text-[var(--primary)] [&_a]:underline [&_code]:rounded [&_code]:bg-[var(--muted)] [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-[var(--font-mono)] [&_code]:text-[0.85em] [&_h1]:mt-6 [&_h1]:mb-1.5 [&_h1]:text-[22px] [&_h1]:leading-[1.2] [&_h1]:font-semibold [&_h2]:mt-5 [&_h2]:mb-1 [&_h2]:text-[17px] [&_h2]:leading-[1.3] [&_h2]:font-semibold [&_h3]:mt-4 [&_h3]:mb-1 [&_h3]:font-semibold [&_li]:my-0.5 [&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-1.5 [&_pre]:overflow-auto [&_pre]:rounded-[var(--radius)] [&_pre]:bg-[var(--muted)] [&_pre]:p-3 [&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-6 [&_table]:my-2 [&_td]:border [&_td]:border-border [&_td]:px-2 [&_th]:border [&_th]:border-border [&_th]:px-2 [&>*:first-child]:mt-0";
 
-/** Click-to-edit surface (Jira): subtle hover frame and a text cursor. */
-const EDIT_SURFACE =
-  "-mx-2 block w-[calc(100%+1rem)] cursor-text rounded-[var(--radius)] border border-transparent px-2 py-1 text-left outline-none transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--muted)] focus-visible:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]/30";
+/** Pause in typing before the description is saved. */
+const AUTOSAVE_DELAY_MS = 900;
+/** The character counter only shows near the limit. */
+const COUNTER_FROM = Math.floor(ITEM_DESCRIPTION_MAX * 0.9);
 
-/** Elements of the rendering that keep their own click behaviour. */
-const OWN_CLICK = "a, button, input, label, select, textarea, summary";
+const PLACEHOLDER = "Écrivez, ou tapez « / » pour insérer un bloc…";
 
-/**
- * Number of non-whitespace characters before the clicked point, so the editor
- * can open with its caret there; null when the browser cannot tell.
- */
-function visibleOffsetAt(region: HTMLElement, x: number, y: number): number | null {
-  const doc = region.ownerDocument;
-  let node: Node | null = null;
-  let offset = 0;
-  if ("caretPositionFromPoint" in doc && typeof doc.caretPositionFromPoint === "function") {
-    const position = doc.caretPositionFromPoint(x, y);
-    if (position) ({ offsetNode: node, offset } = position);
-  } else if ("caretRangeFromPoint" in doc && typeof doc.caretRangeFromPoint === "function") {
-    const range = doc.caretRangeFromPoint(x, y);
-    if (range) ({ startContainer: node, startOffset: offset } = range);
-  }
-  if (!node || !region.contains(node)) return null;
-  const before = doc.createRange();
-  before.setStart(region, 0);
-  before.setEnd(node, offset);
-  return before.toString().replace(/\s/g, "").length;
+function formatCount(count: number) {
+  return count.toLocaleString("fr-FR").replace(/ /g, " ");
 }
 
-export function DescriptionEditor({
-  itemId,
-  backlogKey,
-  description,
-  readOnly = false,
-}: {
+/** The service trims the description (and stores an empty one as null). */
+const sameDescription = (a: string, b: string) => a.trim() === b.trim();
+
+/**
+ * Item description edited in place like a Notion page: always rendered by the
+ * editor, saved automatically (pause in typing, blur, drawer closed or item
+ * switched), read-only for users who cannot edit the item. Content the editor
+ * cannot round-trip is edited as raw Markdown with an explicit save.
+ */
+export function DescriptionEditor(props: DescriptionEditorProps) {
+  // Another signed-in user or item is another editor: its kept draft (if
+  // any) is never reused across that boundary.
+  return <DescriptionEditorBody key={`${props.currentUserId}:${props.itemId}`} {...props} />;
+}
+
+type DescriptionEditorProps = {
   itemId: string;
+  /** Signed-in user: kept drafts belong to them only. */
+  currentUserId: string;
   backlogKey: string;
   description: string | null;
+  /** Server revision of `description` (the item's update time, in ms). */
+  revision?: number;
   readOnly?: boolean;
-}) {
+};
+
+function DescriptionEditorBody({
+  itemId,
+  currentUserId,
+  backlogKey,
+  description,
+  revision,
+  readOnly = false,
+}: DescriptionEditorProps) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(description ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [caretOffset, setCaretOffset] = useState<number | null>(null);
-  const [pending, startTransition] = useTransition();
-  const editorRef = useRef<MarkdownEditorHandle>(null);
+  const stored = description ?? "";
+  const [raw, setRaw] = useState(false);
+  const [seen, setSeen] = useState({ description: stored, revision });
+  const regionRef = useRef<HTMLDivElement>(null);
   const counterId = useId();
-  const errorId = useId();
+  const statusId = useId();
 
-  function start(visibleOffset: number | null = null) {
-    setCaretOffset(visibleOffset);
-    setValue(description ?? "");
-    setError(null);
-    setEditing(true);
-  }
-  function cancel() {
-    setEditing(false);
-    setError(null);
-  }
-  function save() {
-    const trimmed = value.trim();
-    // An empty editor clears the description: send null (empty string would
-    // trim to "" which the service stores as "", not null). The value is the
-    // Markdown produced by the editor, or the stored text if left untouched.
-    const next = trimmed === "" ? null : value;
-    startTransition(async () => {
-      const res = await updateItemAction({
-        id: itemId,
-        backlogKey,
-        description: next,
-      });
-      if (!res.ok) {
-        const fieldError =
-          "fieldErrors" in res ? res.fieldErrors?.description?.[0] : undefined;
-        setError(fieldError ?? res.error);
-        editorRef.current?.focus();
-        return;
+  const save = useCallback(
+    async (next: string): Promise<SaveResult> => {
+      try {
+        const res = await updateItemAction({
+          id: itemId,
+          backlogKey,
+          // An emptied editor clears the description.
+          description: next.trim() === "" ? null : next,
+        });
+        if (!res.ok) {
+          const fieldError = "fieldErrors" in res ? res.fieldErrors?.description?.[0] : undefined;
+          return { ok: false, error: fieldError ?? res.error };
+        }
+        router.refresh();
+        const updatedAt = res.item?.updatedAt;
+        return { ok: true, revision: updatedAt ? new Date(updatedAt).getTime() : undefined };
+      } catch {
+        return { ok: false, error: "Le serveur est injoignable." };
       }
-      setEditing(false);
-      router.refresh();
-    });
-  }
+    },
+    [itemId, backlogKey, router],
+  );
 
-  if (editing) {
-    return (
-      <div className="flex flex-col gap-2">
-        <MarkdownEditor
-          ref={editorRef}
-          autoFocus
-          autoFocusVisibleOffset={caretOffset}
-          label="Description"
-          placeholder="Décrivez l’item…"
-          invalid={Boolean(error)}
-          describedBy={`${counterId}${error ? ` ${errorId}` : ""}`}
-          maxLength={ITEM_DESCRIPTION_MAX}
-          minHeightClassName="min-h-40"
-          value={value}
-          onChange={(next) => {
-            setValue(next);
-            setError(null);
-          }}
-          disabled={pending}
-        />
-        <div className="flex items-start justify-between gap-3 text-xs text-muted-foreground">
-          <span id={counterId}>
-            {value.length.toLocaleString("fr-FR").replace(/\u202f/g, " ")} /{" "}
-            {ITEM_DESCRIPTION_MAX.toLocaleString("fr-FR").replace(/\u202f/g, " ")}
-          </span>
-          {error && (
-            <span id={errorId} role="alert" className="text-right text-[var(--danger)]">
-              {error}
-            </span>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={save}
-            disabled={pending}
-            className="rounded-[var(--radius)] bg-[var(--primary)] px-3 py-1.5 text-sm font-medium text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)] disabled:opacity-60"
-          >
-            {pending ? "Enregistrement…" : "Enregistrer"}
-          </button>
-          <button
-            type="button"
-            onClick={cancel}
-            disabled={pending}
-            className="rounded-[var(--radius)] border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-[var(--muted)]"
-          >
-            Annuler
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const autosave = useAutosave({
+    // One draft per item, kept until saved even if the editor unmounts.
+    user: currentUserId,
+    key: `item-description:${currentUserId}:${itemId}`,
+    initial: stored,
+    revision,
+    save,
+    delay: AUTOSAVE_DELAY_MS,
+    equals: sameDescription,
+  });
+  // A draft kept from a previous mount (save running or failed) wins over
+  // the server value; otherwise start from the server value.
+  const [value, setValue] = useState(() =>
+    autosave.adopt(stored, revision) ? stored : autosave.current(),
+  );
 
-  if (readOnly) {
-    if (!description) {
-      return <p className="t-sm text-muted-foreground">Aucune description.</p>;
+  // A newer server state (refresh, another user, another tab) replaces the
+  // text only when no local change is pending; a response older than our
+  // last acknowledged save is ignored (see adopt). Our own saves come back
+  // trimmed: they must not reset the editor under the caret.
+  if (stored !== seen.description || revision !== seen.revision) {
+    setSeen({ description: stored, revision });
+    // Unsaved raw Markdown is not tracked by the scheduler: keep it too.
+    const rawDirty = raw && !sameDescription(value, seen.description);
+    if (!rawDirty && autosave.adopt(stored, revision) && !sameDescription(stored, value)) {
+      setValue(stored);
     }
+  }
+
+  function onChange(next: string) {
+    setValue(next);
+    if (!raw) autosave.change(next);
+  }
+
+  if (readOnly && (raw || !stored)) {
+    if (!stored) return <p className="t-sm text-muted-foreground">Aucune description.</p>;
     return (
       <div className={PROSE}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{stored}</ReactMarkdown>
       </div>
     );
   }
 
-  // Clicking the rendering opens the editor at the click (Jira), except on
-  // links, checkboxes and other controls, or when the user selected text.
-  function openFromClick(event: MouseEvent<HTMLDivElement>) {
-    const target = event.target;
-    if (target instanceof Element && target.closest(OWN_CLICK)) return;
-    const selection = window.getSelection();
-    if (selection && !selection.isCollapsed && event.currentTarget.contains(selection.anchorNode)) {
-      return;
-    }
-    start(visibleOffsetAt(event.currentTarget, event.clientX, event.clientY));
-  }
-
-  function openFromKeyboard(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.target !== event.currentTarget) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      start();
-    }
-  }
-
-  if (!description) {
-    return (
-      <button
-        type="button"
-        onClick={() => start()}
-        className={`${EDIT_SURFACE} t-sm py-2 text-muted-foreground hover:text-foreground`}
-      >
-        Ajouter une description
-      </button>
-    );
-  }
+  const showCounter = !readOnly && value.length >= COUNTER_FROM;
+  const failed = autosave.status === "error";
+  const describedBy = [showCounter ? counterId : null, failed ? statusId : null]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       <div
-        role="button"
-        tabIndex={0}
-        aria-label="Modifier la description"
-        title="Cliquer pour modifier"
-        onClick={openFromClick}
-        onKeyDown={openFromKeyboard}
-        className={`${EDIT_SURFACE} ${PROSE}`}
+        ref={regionRef}
+        // Échap leaves the editor here; a second Échap closes the drawer.
+        tabIndex={-1}
+        className={cn(
+          "-mx-2 rounded-[var(--radius)] px-2 py-1.5 outline-none transition-colors",
+          !readOnly &&
+            !raw &&
+            "hover:bg-[var(--muted)]/60 focus-within:bg-transparent focus-within:hover:bg-transparent",
+        )}
       >
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
+        <MarkdownEditor
+          variant="page"
+          readOnly={readOnly}
+          label="Description"
+          placeholder={PLACEHOLDER}
+          maxLength={ITEM_DESCRIPTION_MAX}
+          minHeightClassName={readOnly ? "min-h-0" : "min-h-24"}
+          invalid={failed}
+          describedBy={describedBy || undefined}
+          value={value}
+          onChange={onChange}
+          onBlur={() => {
+            if (!raw) void autosave.flush();
+          }}
+          onEscape={() => regionRef.current?.focus()}
+          onRawModeChange={setRaw}
+          fallback={
+            value ? (
+              <div className={PROSE}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
+              </div>
+            ) : (
+              <p className="min-h-24 text-sm leading-[1.7] text-muted-foreground">
+                {readOnly ? null : PLACEHOLDER}
+              </p>
+            )
+          }
+        />
       </div>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => start()}
-        className="self-start"
-      >
-        <Pencil aria-hidden />
-        Éditer
-      </Button>
+      {!readOnly ? (
+        <div className="flex min-h-5 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span id={counterId}>
+            {showCounter
+              ? `${formatCount(value.length)} / ${formatCount(ITEM_DESCRIPTION_MAX)}`
+              : null}
+          </span>
+          {raw ? (
+            <RawActions
+              busy={autosave.status === "saving"}
+              dirty={!sameDescription(value, stored)}
+              onSave={() => {
+                autosave.change(value);
+                void autosave.flush();
+              }}
+              onCancel={() => {
+                autosave.discard();
+                setValue(stored);
+              }}
+            />
+          ) : null}
+          <span id={statusId} aria-live="polite" className="ml-auto flex items-center gap-2">
+            {autosave.status === "saving" ? "Enregistrement…" : null}
+            {autosave.status === "saved" && !autosave.pending ? "Enregistré" : null}
+            {failed ? (
+              <>
+                <span className="text-[var(--danger)]">
+                  Échec de l’enregistrement{autosave.error ? ` : ${autosave.error}` : null}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void autosave.retry()}
+                  className="rounded px-1.5 py-0.5 font-medium text-foreground underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
+                >
+                  Réessayer
+                </button>
+              </>
+            ) : null}
+          </span>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+/** Explicit save of the raw Markdown fallback (no autosave there). */
+function RawActions({
+  busy,
+  dirty,
+  onSave,
+  onCancel,
+}: {
+  busy: boolean;
+  dirty: boolean;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <span className="flex gap-2">
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={busy || !dirty}
+        className="rounded-[var(--radius)] bg-[var(--primary)] px-3 py-1.5 text-sm font-medium text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)] disabled:opacity-60"
+      >
+        Enregistrer
+      </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={busy || !dirty}
+        className="rounded-[var(--radius)] border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-[var(--muted)] disabled:opacity-60"
+      >
+        Annuler
+      </button>
+    </span>
   );
 }

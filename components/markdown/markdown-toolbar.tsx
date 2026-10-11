@@ -300,16 +300,22 @@ export function MarkdownToolbar({
   );
 }
 
-function LinkForm({
+/**
+ * Link editor shared by the toolbar and the selection bar: http(s), mailto
+ * and relative links only (see link-url).
+ */
+export function LinkForm({
   editor,
   initialHref,
   hasLink,
   onClose,
+  className = "border-t border-border px-2 py-1.5",
 }: {
   editor: Editor;
   initialHref: string;
   hasLink: boolean;
   onClose: () => void;
+  className?: string;
 }) {
   const [href, setHref] = useState(initialHref);
   const [error, setError] = useState<string | null>(null);
@@ -347,7 +353,7 @@ function LinkForm({
       // Escape from any control closes the form only, not the surrounding
       // drawer or dialog (see item-detail-sheet), and refocuses the editor.
       data-local-escape
-      className="flex flex-wrap items-center gap-2 border-t border-border px-2 py-1.5"
+      className={`flex flex-wrap items-center gap-2 ${className}`}
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
         event.preventDefault();

@@ -1,4 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
+import { and, eq } from "drizzle-orm";
+import { db } from "../lib/db";
+import { user } from "../lib/db/schema/auth";
+import { backlogs, items } from "../lib/db/schema";
+import { createItem } from "../lib/services/items";
 
 type DrawerTrace = {
   firstAnimation: string | null;
@@ -54,6 +59,26 @@ async function openFirstBacklogRow(page: Page) {
   return { key, dialog, readTrace };
 }
 
+/** A fresh task of the CASS backlog, so description edits stay isolated. */
+async function fixtureTask(title: string, description: string) {
+  const [admin] = await db.select({ id: user.id }).from(user)
+    .where(eq(user.email, "platform-admin@jiroo.local"));
+  const [backlog] = await db.select({ id: backlogs.id }).from(backlogs)
+    .where(eq(backlogs.key, "CASS"));
+  if (!admin || !backlog) throw new Error("Fixtures E2E introuvables.");
+  const [epic] = await db.select({ id: items.id }).from(items)
+    .where(and(eq(items.backlogId, backlog.id), eq(items.type, "epic")));
+  if (!epic) throw new Error("Epic fixture introuvable.");
+  const runId = process.env.JIROO_E2E_RUN_ID ?? String(Date.now());
+  return createItem({
+    backlogId: backlog.id,
+    type: "tache",
+    parentId: epic.id,
+    title: `${title} ${runId}`,
+    description,
+  }, admin.id, `e2e-item-detail-drawer-${title}-${runId}`);
+}
+
 test.describe("panneau de détail", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -80,6 +105,67 @@ test.describe("panneau de détail", () => {
     await expect(dialog).toHaveCount(0);
     await expect(page).not.toHaveURL(/[?&]item=/);
     expect(consoleErrors).toEqual([]);
+  });
+
+  test("s’ouvre dès le clic, avant la réponse du serveur, puis affiche l’item", async ({
+    page,
+  }) => {
+    await page.goto("/b/CASS?view=list");
+    const row = page.locator("tbody tr[aria-label^='CASS-']").first();
+    await expect(row).toBeVisible();
+    const key = (await row.getAttribute("aria-label"))?.split(" — ")[0];
+    if (!key) throw new Error("Ligne de liste introuvable.");
+    // Opening an item re-renders the whole view on the server: hold that
+    // response back, as a slow remote database does.
+    let release!: () => void;
+    const held = new Promise<void>((done) => {
+      release = done;
+    });
+    await page.route(
+      (url) => url.searchParams.get("item") === key,
+      async (route) => {
+        await held;
+        await route.continue();
+      },
+    );
+
+    await row.getByText(key, { exact: true }).click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible({ timeout: 1_000 });
+    await expect(dialog.getByRole("status", { name: "Chargement du panneau de détail" }))
+      .toBeVisible();
+    const loading = await dialog.elementHandle();
+
+    release();
+    await expect(page.getByRole("dialog", { name: new RegExp(`^${key} —`) })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`[?&]item=${key}(&|$)`));
+    // The server body filled the drawer opened on click; it was not replaced.
+    expect(await loading?.evaluate((element) => element.isConnected)).toBe(true);
+  });
+
+  test("enregistre la description en cours de frappe quand le panneau se ferme", async ({
+    page,
+  }) => {
+    const item = await fixtureTask("JIR-71 fermeture", "Brouillon");
+    await page.goto(`/b/CASS?view=list&item=${item.key}`);
+    const dialog = page.getByRole("dialog", { name: new RegExp(`^${item.key} —`) });
+    const editor = dialog.getByRole("textbox", { name: "Description" });
+    await editor.getByText("Brouillon").click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" sauvé");
+    // Closed before the autosave pause ends.
+    await dialog.getByRole("button", { name: "Fermer" }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect.poll(async () => {
+      const [row] = await db.select({ description: items.description }).from(items)
+        .where(eq(items.id, item.id));
+      return row?.description;
+    }).toBe("Brouillon sauvé");
+
+    await page.goto(`/b/CASS?view=list&item=${item.key}`);
+    await expect(page.getByRole("dialog").getByRole("textbox", { name: "Description" }))
+      .toHaveText("Brouillon sauvé");
   });
 
   test("ouvre directement le lien profond sans animation si le mouvement est réduit", async ({
