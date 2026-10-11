@@ -1,4 +1,5 @@
-import { DialogTitle } from "@/components/ui/dialog";
+import { X } from "lucide-react";
+import { DialogClose, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const BOARD_COLUMNS = 4;
@@ -91,7 +92,17 @@ function DetailPanelSkeleton({
       <div className="flex flex-none items-center gap-2 border-b border-[var(--border)] px-4 py-3">
         <Skeleton className="size-4" />
         <Skeleton className="h-3 w-16" />
-        <Skeleton className="ml-auto size-7" />
+        {/* A real close control: on phones the drawer covers the whole
+            screen, so the load must stay cancellable by touch (JIR-77). */}
+        <DialogClose asChild>
+          <button
+            type="button"
+            aria-label="Fermer"
+            className="ml-auto rounded p-1 text-muted-foreground hover:bg-[var(--muted)]"
+          >
+            <X className="size-4" />
+          </button>
+        </DialogClose>
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-1">
         <div className="flex min-w-0 flex-col gap-4 p-5">

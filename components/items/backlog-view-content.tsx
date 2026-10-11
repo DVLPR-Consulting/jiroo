@@ -46,7 +46,7 @@ import { ItemBacklog } from "@/components/items/item-backlog";
 import { ItemBoard } from "@/components/items/item-board";
 import { ItemTree } from "@/components/items/item-tree";
 import { ItemDetailContent } from "@/components/items/item-detail-content";
-import { ItemDetailSheet } from "@/components/items/item-detail-sheet";
+import { ItemDetailDrawer } from "@/components/items/item-detail-sheet";
 import { DetailPanelSkeleton } from "@/components/items/view-skeletons";
 import { NewItemButton } from "@/components/items/new-item-dialog";
 import { StatusManagerDialog } from "@/components/statuses/status-manager-dialog";
@@ -737,10 +737,11 @@ export async function BacklogViewContent({
           planningCapabilities={productCapabilities.planning}
         />
       )}
-      {itemKey && (
-        // The drawer frame mounts with the URL change; only its body waits for
-        // the item, so the panel slides in once instead of swapping overlays.
-        <ItemDetailSheet itemKey={itemKey}>
+      {/* Always rendered: the drawer opens on click with a skeleton (client
+          side) and this body fills it once the server answers, so the panel
+          slides in once instead of waiting for the whole view to re-render. */}
+      <ItemDetailDrawer itemKey={itemKey ?? null}>
+        {itemKey && (
           <Suspense fallback={<DetailPanelSkeleton />}>
             <ItemDetailContent
               itemKey={itemKey}
@@ -774,8 +775,8 @@ export async function BacklogViewContent({
               releaseCapabilities={productCapabilities.releases}
             />
           </Suspense>
-        </ItemDetailSheet>
-      )}
+        )}
+      </ItemDetailDrawer>
     </div>
   );
 }

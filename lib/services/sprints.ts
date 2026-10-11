@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import { nextItemRevision } from "@/lib/services/item-revision";
 import { binaryTextOrder } from "@/lib/db/order";
 import {
   activities,
@@ -327,7 +328,7 @@ export async function moveItemToSprint(
 
     const [updated] = await tx
       .update(items)
-      .set({ rank, updatedAt: new Date() })
+      .set({ rank, updatedAt: nextItemRevision() })
       .where(eq(items.id, current.id))
       .returning();
     await tx.insert(activities).values({

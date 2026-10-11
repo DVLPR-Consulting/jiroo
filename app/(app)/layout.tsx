@@ -5,6 +5,7 @@ import { listVisibleViews } from "@/lib/services/views";
 import { unreadCount, listRecentNotifications } from "@/lib/services/notifications";
 import { getShellCounts } from "@/lib/services/shell";
 import { AppShell } from "@/components/shell/app-shell";
+import { DraftsSession } from "@/components/shell/drafts-session";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 
@@ -43,6 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         />
       }
     >
+      <DraftsSession userId={session.user.id} />
       {children}
     </AppShell>
   );
