@@ -82,7 +82,7 @@ export function FixVersionPicker({
   }
 
   return (
-    <div className={field ? "flex min-w-0 flex-col gap-1.5" : "flex min-w-0 flex-wrap items-center gap-1.5"}>
+    <div className={field ? "flex w-full min-w-0 flex-col gap-1.5" : "flex min-w-0 flex-wrap items-center gap-1.5"}>
       {selected.length > 0 ? (
         <span
           role="list"
