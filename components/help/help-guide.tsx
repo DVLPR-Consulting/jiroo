@@ -241,6 +241,10 @@ export function HelpGuide() {
             <Ui>Plus d’options</Ui> ouvre la fenêtre de création complète (modèle, statut, priorité, nature, Fix
             versions) pour la même section ; le type y est fixé à <Ui>Tâche</Ui>.
           </GuideNote>
+          <GuideNote>
+            <Ui>Créer un item</Ui> n’apparaît que si votre rôle permet de planifier : la tâche est rattachée à
+            un epic. Sinon, utilisez <Ui>+ Créer</Ui> en haut de l’écran pour les autres types.
+          </GuideNote>
         </GuideTopic>
 
         <GuideTopic
