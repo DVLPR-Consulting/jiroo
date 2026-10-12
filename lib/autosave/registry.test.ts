@@ -140,6 +140,32 @@ describe("release without an active user", () => {
     }
   });
 
+  it("resumes even when the owner returns before the suspended request cleaned up", async () => {
+    vi.useFakeTimers();
+    try {
+      let resolve!: (result: { ok: true }) => void;
+      const reply = new Promise<{ ok: true }>((res) => (resolve = res));
+      const save = vi.fn().mockReturnValueOnce(reply).mockResolvedValue({ ok: true });
+      const entry = acquireDraft("alice", "k", () =>
+        createAutosaveScheduler<string>({ initial: "A", delay: 20, save }) as never,
+      );
+      retainDraft(entry);
+      entry.scheduler.change("B");
+      const flight = entry.scheduler.flush();
+      entry.scheduler.change("C");
+      setActiveDraftUser(null);
+      // Runs after the loop stopped on the suspension, before its cleanup.
+      void reply.then(() => setActiveDraftUser("alice"));
+      resolve({ ok: true });
+      await flight;
+      await vi.advanceTimersByTimeAsync(80);
+      expect(save).toHaveBeenLastCalledWith("C");
+      expect(hasUnsavedDrafts()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("starts no next save after the request in flight when the session ends", async () => {
     let resolve!: (result: { ok: true }) => void;
     const save = vi

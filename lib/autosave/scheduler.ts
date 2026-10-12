@@ -229,7 +229,10 @@ export function createAutosaveScheduler<T>({
       if (disposed || !suspended) return;
       suspended = false;
       // A failed save waits for « Réessayer », as before the suspension.
-      if (!inFlight && status !== "error" && !equals(latest, saved)) arm();
+      // Armed even while a request seems in flight: its loop may already
+      // have stopped on the suspension (only its cleanup is left), and a
+      // live loop simply takes the latest value first.
+      if (status !== "error" && !equals(latest, saved)) arm();
     },
     dispose() {
       if (disposed) return inFlight ?? Promise.resolve();
