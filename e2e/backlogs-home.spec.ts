@@ -15,6 +15,17 @@ async function expectNoPageOverflow(page: Page) {
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.viewport);
 }
 
+/**
+ * A row's cell. Keep the shown one: a previously rendered copy of the page
+ * may linger hidden in the DOM (seen once in a full run).
+ */
+function cell(page: Page, key: string, name: string) {
+  return page
+    .locator(`[data-backlog-row="${key}"]`)
+    .filter({ visible: true })
+    .locator(`[data-cell="${name}"]`);
+}
+
 function rowNames(page: Page) {
   return page.locator("[data-backlog-row]").getByRole("link");
 }
@@ -47,9 +58,9 @@ test("liste les backlogs, garde un favori en tête après rechargement et ouvre 
     "page",
   );
   await expect(rowNames(page)).toHaveText(["Cour de cassation", "Laboratoire isolé"]);
-  const cass = page.locator('[data-backlog-row="CASS"]');
+  const cass = page.locator('[data-backlog-row="CASS"]').filter({ visible: true });
   await expect(cass.getByText("CASS", { exact: true })).toBeVisible();
-  await expect(cass.locator('[data-cell="open-items"]')).toHaveText(/^\d+/);
+  await expect(cell(page, "CASS", "open-items")).toHaveText(/^\d+/);
 
   const star = page.getByRole("button", { name: "Ajouter aux favoris : Laboratoire isolé" });
   await expect(star).toHaveAttribute("aria-pressed", "false");
@@ -78,8 +89,7 @@ test("liste les backlogs, garde un favori en tête après rechargement et ouvre 
 
   // A click anywhere on the row opens the backlog.
   // (The name's hit area covers the row: click the counter's position.)
-  const counter = await page
-    .locator('[data-backlog-row="CASS"] [data-cell="open-items"]')
+  const counter = await cell(page, "CASS", "open-items")
     .boundingBox();
   if (!counter) throw new Error("Compteur introuvable.");
   await page.mouse.click(counter.x + counter.width / 2, counter.y + counter.height / 2);
@@ -97,10 +107,10 @@ test("affiche le responsable choisi dans l’administration", async ({ page }, t
   await expect(dialog).toBeHidden();
 
   await page.goto("/");
-  const lead = page.locator('[data-backlog-row="CASS"] [data-cell="lead"]');
+  const lead = cell(page, "CASS", "lead");
   await expect(lead).toContainText("Membre E2E");
   await expect(lead.getByRole("img", { name: "Membre E2E" })).toBeVisible();
-  await expect(page.locator('[data-backlog-row="LABS"] [data-cell="lead"]')).toBeEmpty();
+  await expect(cell(page, "LABS", "lead")).toBeEmpty();
   await page.screenshot({
     path: testInfo.outputPath("jir82-home-lead-desktop-1440.png"),
     caret: "initial",
@@ -114,7 +124,7 @@ test("reste lisible sans débordement à 390 par 844", async ({ page }, testInfo
   await expect(page.getByRole("heading", { level: 1, name: "Backlogs" })).toBeVisible();
   await expect(rowNames(page)).toHaveText(["Cour de cassation", "Laboratoire isolé"]);
   await expect(
-    page.locator('[data-backlog-row="CASS"] [data-cell="open-items"]'),
+    cell(page, "CASS", "open-items"),
   ).toHaveText(/items? ouverts?$/);
   await expectNoPageOverflow(page);
   await page.screenshot({
