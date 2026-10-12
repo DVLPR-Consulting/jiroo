@@ -2,7 +2,7 @@ import "server-only";
 import { asc, eq } from "drizzle-orm";
 import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
 import {
-  checkPermission,
+  checkPermissions,
   listAssignableUsersForBacklog,
 } from "@/lib/auth/authorization";
 import { projectBacklogCapabilities } from "@/lib/auth/capabilities";
@@ -59,7 +59,7 @@ export async function loadItemDetailData({
     sprintSnapshot,
     releaseSummaries,
     fixVersionPairs,
-    browseUsersDecision,
+    globalDecisions,
   ] = await Promise.all([
     getBacklogCapabilities(userId, backlog.id),
     getItemByKeyForBacklog(itemKey, backlog.id),
@@ -73,13 +73,14 @@ export async function loadItemDetailData({
     listSprintsForBacklog(backlog.id),
     listReleaseSummaries(backlog.id, { includeArchived: true }),
     listItemFixVersionPairs(backlog.id),
-    checkPermission({
+    checkPermissions({
       actorId: userId,
-      permission: "browse_users",
+      permissions: ["browse_users"],
       scope: { type: "global" },
     }),
   ]);
   if (!capabilities) return null;
+  const canBrowseUsers = globalDecisions.get("browse_users")?.allowed === true;
   // The drawer is already open: explain the miss instead of an empty panel.
   if (!detail) return { kind: "not-found", itemKey };
 
@@ -97,14 +98,13 @@ export async function loadItemDetailData({
     listComments(detail.id),
     listLinksForItem(detail.id),
     listRefsForItem(detail.id),
-    browseUsersDecision.allowed ? listUsers() : Promise.resolve([]),
-    browseUsersDecision.allowed
-      ? listAssignableUsersForBacklog(backlog.id)
-      : Promise.resolve([]),
+    canBrowseUsers ? listUsers() : Promise.resolve([]),
+    canBrowseUsers ? listAssignableUsersForBacklog(backlog.id) : Promise.resolve([]),
   ]);
   // Names shown in the drawer: the directory (when browsable) plus everyone
-  // the backlog and this item reference, so no name falls back to an id.
-  const referencedUsers = await listUsersByIds([
+  // the backlog and this item reference, so no name falls back to an id. The
+  // whole directory already names everyone: look the others up only without it.
+  const referencedUsers = canBrowseUsers ? [] : await listUsersByIds([
     ...backlogItems.flatMap((item) => [item.assigneeId, item.reporterId]),
     detail.assigneeId,
     detail.reporterId,

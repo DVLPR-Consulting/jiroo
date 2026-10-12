@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  checkPermission: vi.fn(),
+  checkPermissions: vi.fn(),
   getBacklogByKeyForUser: vi.fn(),
   getBacklogCapabilities: vi.fn(),
   getItemByKeyForBacklog: vi.fn(),
@@ -38,7 +38,7 @@ vi.mock("@/lib/auth/accessible-backlogs", () => ({
   getBacklogCapabilities: mocks.getBacklogCapabilities,
 }));
 vi.mock("@/lib/auth/authorization", () => ({
-  checkPermission: mocks.checkPermission,
+  checkPermissions: mocks.checkPermissions,
   listAssignableUsersForBacklog: mocks.listAssignableUsersForBacklog,
 }));
 vi.mock("@/lib/services/backlogs", () => ({
@@ -114,6 +114,10 @@ const detail = row("item-detail", "DEMO-2", {
 });
 const child = row("item-child", "DEMO-3", { type: "soustache", parentId: detail.id });
 
+function browseUsers(allowed: boolean) {
+  mocks.checkPermissions.mockResolvedValue(new Map([["browse_users", { allowed }]]));
+}
+
 function load(itemKey = detail.key) {
   return loadItemDetailData({ userId: "viewer-1", backlogKey: "demo", itemKey });
 }
@@ -149,7 +153,7 @@ describe("loadItemDetailData", () => {
       { itemId: detail.id, releaseId: "release-archived" },
       { itemId: child.id, releaseId: "release-active" },
     ]);
-    mocks.checkPermission.mockResolvedValue({ allowed: true });
+    browseUsers(true);
     mocks.listActivities.mockResolvedValue([{ id: "activity-1", actorId: "user-actor" }]);
     mocks.getItemLabelIds.mockResolvedValue(["label-1"]);
     mocks.listComments.mockResolvedValue([{ id: "comment-1", authorId: "user-author" }]);
@@ -258,21 +262,19 @@ describe("loadItemDetailData", () => {
     expect(data.panel.sprintId).toBe("sprint-active");
   });
 
-  it("names every referenced user and projects assignable users into the pickers", async () => {
+  it("names users from the directory and projects assignable users into the pickers", async () => {
     const data = await load();
     if (data?.kind !== "item") throw new Error("expected an item");
 
-    expect(mocks.checkPermission).toHaveBeenCalledWith({
+    expect(mocks.checkPermissions).toHaveBeenCalledWith({
       actorId: "viewer-1",
-      permission: "browse_users",
+      permissions: ["browse_users"],
       scope: { type: "global" },
     });
-    expect(mocks.listUsersByIds).toHaveBeenCalledWith(
-      expect.arrayContaining(["user-assignee", "user-reporter", "user-actor", "user-author"]),
-    );
+    // The whole directory already names everyone: no extra lookup.
+    expect(mocks.listUsersByIds).not.toHaveBeenCalled();
     expect(data.panel.users).toEqual([
       { id: "user-assignee", name: "Assignée" },
-      { id: "user-actor", name: "Acteur" },
       { id: "user-other", name: "Autre" },
     ]);
     expect(data.panel.assigneeCandidates).toEqual([{ id: "user-assignee", name: "Assignée" }]);
@@ -284,12 +286,16 @@ describe("loadItemDetailData", () => {
   });
 
   it("does not materialize the user directory when browse_users is denied", async () => {
-    mocks.checkPermission.mockResolvedValue({ allowed: false });
+    browseUsers(false);
 
     const data = await load();
     if (data?.kind !== "item") throw new Error("expected an item");
 
     expect(mocks.listUsers).not.toHaveBeenCalled();
+    // Only the users the backlog and the item reference are named.
+    expect(mocks.listUsersByIds).toHaveBeenCalledWith(
+      expect.arrayContaining(["user-assignee", "user-reporter", "user-actor", "user-author"]),
+    );
     expect(mocks.listAssignableUsersForBacklog).not.toHaveBeenCalled();
     expect(data.panel.assigneeCandidates).toEqual([]);
     expect(data.panel.reporterCandidates).toEqual([]);
