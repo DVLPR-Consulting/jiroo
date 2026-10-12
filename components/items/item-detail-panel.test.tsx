@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { currentHref } from "@/test/history";
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
 import { resetAutosaveRegistry } from "@/lib/autosave/use-autosave";
 import { ItemDetailSheet } from "@/components/items/item-detail-sheet";
@@ -320,9 +321,9 @@ describe("ItemDetailPanel header", () => {
     await user.keyboard("{Escape}");
 
     expect(dialog).not.toBeInTheDocument();
-    await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=board"),
-    );
+    // Closing only drops `item` from the URL, through the History API.
+    await waitFor(() => expect(currentHref()).toBe("/b/CASS?view=board"));
+    expect(mocks.push).not.toHaveBeenCalled();
     expect(returnTarget).toHaveFocus();
     rendered.unmount();
     returnTarget.remove();
@@ -1203,13 +1204,14 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
     renderInList(["CASS-1", detail.key, "CASS-9"]);
 
     await user.click(screen.getByRole("button", { name: "Item suivant (J)" }));
-    await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/b/CASS?view=board&item=CASS-9"));
+    await waitFor(() => expect(currentHref()).toBe("/b/CASS?view=board&item=CASS-9"));
     await user.click(screen.getByRole("button", { name: "Item précédent (K)" }));
-    await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/b/CASS?view=board&item=CASS-1"));
+    await waitFor(() => expect(currentHref()).toBe("/b/CASS?view=board&item=CASS-1"));
 
-    mocks.push.mockReset();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "j" });
-    await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/b/CASS?view=board&item=CASS-9"));
+    await waitFor(() => expect(currentHref()).toBe("/b/CASS?view=board&item=CASS-9"));
+    // Switching items never goes through a server navigation.
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("disables the end of the list and hides the arrows without a list", () => {

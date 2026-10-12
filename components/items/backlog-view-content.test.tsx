@@ -308,6 +308,7 @@ describe("BacklogViewContent read boundary", () => {
       itemKey: "DEMO-1",
     });
     expect(mocks.itemDetailDrawerProps).toHaveBeenCalledWith({
+      backlogKey: "DEMO",
       itemKey: "DEMO-1",
       detail: detailPromise,
     });

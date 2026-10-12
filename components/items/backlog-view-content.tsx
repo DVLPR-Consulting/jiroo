@@ -636,7 +636,6 @@ export async function BacklogViewContent({
           users={assigneeCandidates}
           backlogKey={key}
           backlogId={backlog.id}
-          selectedKey={itemKey}
           filtersActive={filtersOn}
           hasItems={hasBacklogItems}
           clearFiltersHref={clearFiltersHref}
@@ -675,7 +674,6 @@ export async function BacklogViewContent({
           users={assigneeCandidates}
           backlogId={backlog.id}
           backlogKey={key}
-          selectedKey={itemKey}
           currentSort={viewState.sort}
           filtersActive={filtersOn}
           hasItems={items.length > 0}
@@ -726,7 +724,6 @@ export async function BacklogViewContent({
         <ItemTree
           backlogKey={key}
           items={treeData}
-          selectedKey={itemKey}
           statuses={statusList}
           contextIds={[...contextIds]}
           reparentItemAction={reparentItemAction}
@@ -744,6 +741,7 @@ export async function BacklogViewContent({
       {/* Always rendered: the drawer opens on click with a skeleton (client
           side); the detail, loaded on its own, streams into it. */}
       <ItemDetailDrawer
+        backlogKey={backlog.key}
         itemKey={itemKey ?? null}
         detail={itemKey
           ? loadItemDetailData({ userId, backlogKey: backlog.key, itemKey })

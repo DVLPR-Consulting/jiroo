@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { currentHref } from "@/test/history";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { NotificationBell } from "@/components/shell/notification-bell";
 import {
@@ -135,6 +136,7 @@ async function selectNotification(itemKey = "DEMO-1") {
 
 describe("NotificationBell item navigation", () => {
   beforeEach(() => {
+    window.history.replaceState(null, "", "/");
     mocks.pathname = "/b/DEMO";
     mocks.params = { key: "DEMO" };
     mocks.push.mockReset();
@@ -167,9 +169,11 @@ describe("NotificationBell item navigation", () => {
       expect(mocks.markReadAction).toHaveBeenCalledWith({
         id: "notification-demo-1",
       });
-      expect(mocks.push).toHaveBeenLastCalledWith(
+      // Same backlog: the drawer opens through the History API.
+      expect(currentHref()).toBe(
         "/b/DEMO?view=board&v=saved&group=component&type=tache&tag=a&tag=b&item=DEMO-1",
       );
+      expect(mocks.push).not.toHaveBeenCalled();
 
       await act(async () => {
         runPendingQuery?.();
@@ -190,10 +194,10 @@ describe("NotificationBell item navigation", () => {
 
     await selectNotification();
 
-    expect(mocks.push).toHaveBeenLastCalledWith(
+    expect(currentHref()).toBe(
       "/b/DEMO?view=board&v=saved&group=component&type=tache&tag=a&tag=b&item=DEMO-1",
     );
-    expect(mocks.push).toHaveBeenCalledTimes(3);
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -255,12 +259,12 @@ describe("NotificationBell item navigation", () => {
 
     const selecting = selectNotification();
     await waitFor(() => expect(mocks.markReadAction).toHaveBeenCalled());
-    expect(mocks.push).not.toHaveBeenCalled();
+    expect(currentHref()).not.toContain("item=");
 
     rendered.rerender(<NotificationSubject />);
     await act(async () => finishMarkRead?.({ ok: true }));
     await selecting;
-    expect(mocks.push).toHaveBeenCalledWith(
+    expect(currentHref()).toBe(
       "/b/DEMO?view=board&v=saved&group=component&type=tache&tag=a&tag=b&item=DEMO-1",
     );
   });

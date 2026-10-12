@@ -22,6 +22,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/shell/view-url-state", () => ({
   useViewUrlState: () => ({ push: mocks.push }),
   useOptionalViewUrlState: () => ({ push: mocks.push }),
+  useRequestedItemKey: () => null,
 }));
 
 vi.mock("@/app/actions/items", () => ({

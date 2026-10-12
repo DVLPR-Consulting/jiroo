@@ -51,6 +51,17 @@ function locationKey(pathname: string, params: URLSearchParams): string {
   return `${pathname}?${paramsKey(params)}`;
 }
 
+/** True when `next` only opens, switches or closes the item drawer. */
+function onlyItemChanged(previous: URLSearchParams, next: URLSearchParams): boolean {
+  if (previous.get("item") === next.get("item")) return false;
+  const withoutItem = (params: URLSearchParams) => {
+    const copy = new URLSearchParams(params);
+    copy.delete("item");
+    return paramsKey(copy);
+  };
+  return withoutItem(previous) === withoutItem(next);
+}
+
 export function ViewUrlStateProvider({
   initialEntries,
   children,
@@ -60,7 +71,11 @@ export function ViewUrlStateProvider({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [, startTransition] = useTransition();
+  const [routerPending, startTransition] = useTransition();
+  const routerPendingRef = useRef(routerPending);
+  useLayoutEffect(() => {
+    routerPendingRef.current = routerPending;
+  }, [routerPending]);
   const serverParams = new URLSearchParams(initialEntries);
   const serverQuery = serverParams.toString();
   const serverLocationKey = locationKey(pathname, serverParams);
@@ -159,8 +174,9 @@ export function ViewUrlStateProvider({
 
   const navigate = useCallback(
     (method: "push" | "replace", mutate: ParamsMutation, options?: NavigationOptions) => {
-      const currentQuery = latestParams.current.toString();
-      const next = new URLSearchParams(latestParams.current);
+      const previous = latestParams.current;
+      const currentQuery = previous.toString();
+      const next = new URLSearchParams(previous);
       mutate(next);
       latestParams.current = next;
       const query = next.toString();
@@ -177,6 +193,17 @@ export function ViewUrlStateProvider({
         publish();
       }
       const href = query ? `${pathname}?${query}` : pathname;
+      // Opening, switching or closing the item drawer changes no view data:
+      // update the URL through the History API, which Next.js syncs into
+      // useSearchParams without a server request, and let the drawer fetch
+      // its own detail. A server navigation would re-render the whole view.
+      // Behind a pending router navigation, stay on the router so that its
+      // commit cannot overwrite the URL afterwards.
+      if (!routerPendingRef.current && onlyItemChanged(previous, next)) {
+        if (method === "push") window.history.pushState(null, "", href);
+        else window.history.replaceState(null, "", href);
+        return;
+      }
       const routerOptions =
         options?.scroll === undefined ? undefined : { scroll: options.scroll };
       startTransition(() => {
