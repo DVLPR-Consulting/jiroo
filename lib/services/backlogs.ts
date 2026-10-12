@@ -66,7 +66,7 @@ export async function listBacklogsWithStarsForUser(
     })
     .from(backlogs)
     .where(and(isNull(backlogs.archivedAt), browseAccessPredicate(userId)))
-    .orderBy(desc(starred), asc(backlogs.name));
+    .orderBy(desc(starred), asc(backlogs.name), asc(backlogs.key));
 }
 
 /** Backlogs listed in Administration → Backlogs, archived included, with their lead. */
@@ -126,7 +126,7 @@ export async function listBacklogOverviewForUser(
     .from(backlogs)
     .leftJoin(user, eq(user.id, backlogs.leadUserId))
     .where(and(isNull(backlogs.archivedAt), browseAccessPredicate(userId)))
-    .orderBy(desc(starred), asc(backlogs.name));
+    .orderBy(desc(starred), asc(backlogs.name), asc(backlogs.key));
 
   const sprintsByBacklog = new Map(
     (await listActiveSprintProgress(rows.map((row) => row.id))).map(

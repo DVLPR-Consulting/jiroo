@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { databasePool, db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -258,6 +258,23 @@ describeDb("backlog overview (JIR-82)", () => {
       [fixture.backlogB.id, true],
       [fixture.backlogA.id, false],
     ]);
+  });
+
+  it("breaks name ties by key, the same way on the home page and in the selector", async () => {
+    const fixtureIds = [fixture.backlogA.id, fixture.backlogB.id];
+    await db.update(backlogs).set({ name: "Homonyme" }).where(inArray(backlogs.id, fixtureIds));
+    const byKey = [fixture.backlogA, fixture.backlogB]
+      .sort((a, b) => (a.key < b.key ? -1 : 1))
+      .map((backlog) => backlog.id);
+
+    const home = (await listBacklogOverviewForUser(fixture.admin))
+      .filter((row) => fixtureIds.includes(row.id))
+      .map((row) => row.id);
+    const selector = (await listBacklogsWithStarsForUser(fixture.admin))
+      .filter((row) => fixtureIds.includes(row.id))
+      .map((row) => row.id);
+    expect(home).toEqual(byKey);
+    expect(selector).toEqual(byKey);
   });
 });
 
