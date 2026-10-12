@@ -8,6 +8,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   bulkUpdateItemsAction: vi.fn(),
+  createItemAction: vi.fn(),
   push: vi.fn(),
   rankBacklogItemAction: vi.fn(),
   refresh: vi.fn(),
@@ -25,6 +26,8 @@ vi.mock("@/components/shell/view-url-state", () => ({
 
 vi.mock("@/app/actions/items", () => ({
   bulkUpdateItemsAction: mocks.bulkUpdateItemsAction,
+  createItemAction: mocks.createItemAction,
+  softDeleteItemAction: vi.fn(),
   rankBacklogItemAction: mocks.rankBacklogItemAction,
   updateItemAction: vi.fn(),
 }));
@@ -129,6 +132,11 @@ function props(): React.ComponentProps<typeof ItemBacklog> {
   };
 }
 
+const epicId = "33333333-3333-4333-8333-333333333333";
+const epicItems = [
+  { id: epicId, key: "DEMO-9", type: "epic" as const, title: "Connexion sécurisée" },
+];
+
 function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
   const active = {
     id: "sprint-active",
@@ -221,7 +229,7 @@ function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
     hasItems: true,
     clearFiltersHref: "/b/DEMO?view=backlog",
     createDialogProps: {
-      items: items.map(({ id, key, type, title }) => ({ id, key, type, title })),
+      items: [...epicItems, ...items.map(({ id, key, type, title }) => ({ id, key, type, title }))],
       statuses: statuses.map(({ id, name }) => ({ id, name })),
     },
     canCreateItems: true,
@@ -237,8 +245,8 @@ function mockBacklogGeometry() {
   return vi
     .spyOn(HTMLElement.prototype, "getBoundingClientRect")
     .mockImplementation(function getBacklogRect(this: HTMLElement) {
-      const labelledRow = this.closest("tr[aria-label]") as HTMLElement | null;
-      const row = labelledRow ?? (this.matches("tr[aria-label]") ? this : null);
+      const labelledRow = this.closest('[role="row"][aria-label]') as HTMLElement | null;
+      const row = labelledRow ?? (this.matches('[role="row"][aria-label]') ? this : null);
       const key = row?.getAttribute("aria-label")?.split(" — ")[0];
       const index = key ? ["DEMO-1", "DEMO-2", "DEMO-3"].indexOf(key) : 0;
       const top = Math.max(index, 0) * 40;
@@ -263,9 +271,10 @@ describe("ItemBacklog", () => {
     mocks.rankBacklogItemAction.mockReset();
     mocks.refresh.mockReset();
     mocks.moveSprintItemAction.mockReset();
+    mocks.createItemAction.mockReset();
   });
 
-  it("renders Fix versions after Points with two compact chips and a remainder", () => {
+  it("shows fix versions as compact chips with a remainder, only when present", () => {
     const input = sprintProps();
     if (!("sections" in input)) throw new Error("Sprint props expected");
     const versions = [
@@ -284,27 +293,31 @@ describe("ItemBacklog", () => {
             items: [versionedItem],
             groups: [{ key: "", label: "", items: [versionedItem] }],
           },
+          input.sections[2]!,
         ]}
       />,
     );
 
-    const headers = screen.getAllByRole("columnheader").map((header) => header.textContent?.trim());
-    expect(headers.indexOf("Fix versions")).toBe(headers.indexOf("Points") + 1);
-    expect(headers.indexOf("Assigné")).toBe(headers.indexOf("Fix versions") + 1);
+    expect(screen.queryByRole("columnheader")).not.toBeInTheDocument();
     const row = screen.getByRole("row", { name: /DEMO-1 — Authentification/ });
     expect(within(row).getByText("2026.10")).toBeVisible();
     expect(within(row).getByText("2026.09")).toBeVisible();
     expect(within(row).getByText("+1")).toBeVisible();
     expect(within(row).queryByText("Legacy")).not.toBeInTheDocument();
+    const bare = screen.getByRole("row", { name: /DEMO-3 — Déconnexion/ });
+    expect(within(bare).queryByText("—")).not.toBeInTheDocument();
   });
 
-  it("floors every section table so the title column stays readable on narrow screens", () => {
+  it("renders compact rows without a table width floor so phones never scroll sideways", () => {
     render(<ItemBacklog {...sprintProps()} />);
 
     const tables = screen.getAllByRole("table");
     expect(tables).toHaveLength(3);
-    // 2.5rem selection + 55.5rem fixed columns + 12rem title floor.
-    for (const table of tables) expect(table).toHaveStyle({ minWidth: "70rem" });
+    for (const table of tables) expect(table.getAttribute("style")).toBeNull();
+    for (const row of screen.getAllByRole("row", { name: /DEMO-/ })) {
+      expect(row.className).toContain("min-h-[var(--row-h)]");
+      expect(row.className).toContain("flex-wrap");
+    }
   });
 
   it("renders active, planned, and unscheduled sections in Jira planning order", () => {
@@ -445,6 +458,159 @@ describe("ItemBacklog", () => {
     geometry.mockRestore();
   });
 
+  it("gives each sprint one primary lifecycle action and its points per status", () => {
+    const { container } = render(<ItemBacklog {...sprintProps()} />);
+
+    expect(screen.getByRole("button", { name: "Terminer le sprint Sprint actif" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Démarrer le sprint Sprint futur" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Démarrer le sprint Sprint actif" }))
+      .not.toBeInTheDocument();
+    const future = container.querySelector('[data-sprint-section="sprint-future"]') as HTMLElement;
+    // DEMO-2 (5 pts) is in progress.
+    expect(
+      within(future).getByText("Points par statut : À faire 0, En cours 5, Terminé 0"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Actions de Sprint futur" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Actions de Backlog" })).not.toBeInTheDocument();
+  });
+
+  it("invites dropping backlog items into an empty sprint and plans them there", async () => {
+    const user = userEvent.setup();
+    const geometry = mockBacklogGeometry();
+    mocks.moveSprintItemAction.mockResolvedValueOnce({ ok: true, item: items[2] });
+    const input = sprintProps() as Extract<
+      React.ComponentProps<typeof ItemBacklog>,
+      { sections: unknown }
+    >;
+    const [active, future, backlog] = input.sections;
+    const emptyFuture = {
+      ...future!,
+      items: [],
+      groups: [{ key: "", label: "", items: [] }],
+    };
+    const { container } = render(
+      <ItemBacklog {...input} sections={[active!, emptyFuture, backlog!]} />,
+    );
+    const futureSection = container.querySelector(
+      '[data-sprint-section="sprint-future"]',
+    ) as HTMLElement;
+    expect(
+      within(futureSection).getByText("Glissez des items du backlog ici pour planifier le sprint"),
+    ).toBeVisible();
+    const backlogSection = container.querySelector('[data-sprint-section="backlog"]') as HTMLElement;
+    expect(within(backlogSection).queryByText(/Glissez des items/)).not.toBeInTheDocument();
+
+    const handle = screen.getByRole("button", { name: "Déplacer DEMO-3" });
+    handle.focus();
+    await user.keyboard("[Space][ArrowUp][Space]");
+    await waitFor(() =>
+      expect(mocks.moveSprintItemAction).toHaveBeenCalledWith(
+        expect.objectContaining({ itemId: "item-3" }),
+      ),
+    );
+    geometry.mockRestore();
+  });
+
+  it("heads the Backlog section with its counts, points per status and a secondary Créer un sprint", () => {
+    render(<ItemBacklog {...sprintProps()} />);
+
+    const backlog = screen.getByRole("region", { name: "Backlog" });
+    expect(within(backlog).getByRole("heading", { name: "Backlog" })).toBeVisible();
+    expect(within(backlog).getByText("1 item · 1 non estimé")).toBeVisible();
+    expect(
+      within(backlog).getByText("Points par statut : À faire 0, En cours 0, Terminé 0"),
+    ).toBeInTheDocument();
+    expect(within(backlog).getByRole("button", { name: "Créer un sprint" }))
+      .toHaveAttribute("data-variant", "outline");
+    expect(screen.getAllByRole("button", { name: "Créer un sprint" })).toHaveLength(1);
+  });
+
+  it("creates an item inline at the bottom of a sprint with Entrée and keeps the field open", async () => {
+    const user = userEvent.setup();
+    mocks.createItemAction.mockResolvedValueOnce({
+      ok: true,
+      item: { id: "new-item", key: "DEMO-10" },
+    });
+    render(<ItemBacklog {...sprintProps()} />);
+    expect(screen.queryByRole("button", { name: /\+ Tâche/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Créer un item dans Sprint futur" }));
+    const field = screen.getByRole("textbox", { name: "Titre du nouvel item dans Sprint futur" });
+    expect(field).toHaveFocus();
+    // The only epic is pre-selected as the required parent.
+    expect(screen.getByRole("combobox", { name: "Epic parent" })).toHaveValue(epicId);
+    await user.type(field, "  Écran de vérification  {Enter}");
+
+    await waitFor(() =>
+      expect(mocks.createItemAction).toHaveBeenCalledWith({
+        backlogKey: "DEMO",
+        backlogId: "11111111-1111-4111-8111-111111111111",
+        type: "tache",
+        kind: "feature",
+        parentId: epicId,
+        title: "Écran de vérification",
+        sprintId: "sprint-future",
+      }),
+    );
+    await waitFor(() => expect(field).toHaveValue(""));
+    expect(field).toHaveFocus();
+    expect(mocks.refresh).toHaveBeenCalled();
+  });
+
+  it("creates in the Backlog section without a sprint and shows server errors inline", async () => {
+    const user = userEvent.setup();
+    mocks.createItemAction.mockResolvedValueOnce({
+      ok: false,
+      error: "Données invalides.",
+      fieldErrors: { title: ["Le titre est trop long."] },
+    });
+    render(<ItemBacklog {...sprintProps()} />);
+
+    await user.click(screen.getByRole("button", { name: "Créer un item dans Backlog" }));
+    const field = screen.getByRole("textbox", { name: "Titre du nouvel item dans Backlog" });
+    await user.type(field, "Titre{Enter}");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Le titre est trop long.");
+    expect(mocks.createItemAction).toHaveBeenCalledWith(
+      expect.objectContaining({ sprintId: null, title: "Titre" }),
+    );
+    expect(field).toHaveValue("Titre");
+    expect(field).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("asks for the parent epic and cancels inline creation with Escape", async () => {
+    const user = userEvent.setup();
+    const input = sprintProps() as Extract<
+      React.ComponentProps<typeof ItemBacklog>,
+      { sections: unknown }
+    >;
+    const twoEpics = [
+      ...epicItems,
+      { id: "44444444-4444-4444-8444-444444444444", key: "DEMO-8", type: "epic" as const, title: "Paiement" },
+    ];
+    render(
+      <ItemBacklog
+        {...input}
+        createDialogProps={{ ...input.createDialogProps!, items: twoEpics }}
+      />,
+    );
+
+    const opener = screen.getByRole("button", { name: "Créer un item dans Backlog" });
+    await user.click(opener);
+    const field = screen.getByRole("textbox", { name: "Titre du nouvel item dans Backlog" });
+    await user.type(field, "Sans parent{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Choisissez l’epic parent.");
+    expect(screen.getByRole("combobox", { name: "Epic parent" })).toHaveFocus();
+    expect(mocks.createItemAction).not.toHaveBeenCalled();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("textbox", { name: "Titre du nouvel item dans Backlog" }))
+      .not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Créer un item dans Backlog" })).toHaveFocus(),
+    );
+  });
+
   it("keeps the global Backlog selection name and contextualizes sprint headers", () => {
     render(<ItemBacklog {...sprintProps()} />);
 
@@ -499,7 +665,6 @@ describe("ItemBacklog", () => {
     expect(
       screen
         .getAllByRole("row")
-        .slice(1)
         .map((row) => row.getAttribute("aria-label")),
     ).toEqual([
       "DEMO-1 — Authentification",
@@ -508,30 +673,44 @@ describe("ItemBacklog", () => {
     ]);
   });
 
-  it("shows the compact planning fields on every row", () => {
-    render(<ItemBacklog {...props()} />);
+  it("puts the row fields on the right and hides empty values", () => {
+    const parented = [
+      { ...items[0]!, kind: "bug" as const, parent: { key: "DEMO-9", title: "Connexion sécurisée" } },
+      items[1]!,
+      { ...items[2]!, priority: 0 },
+    ];
+    render(<ItemBacklog {...props()} groups={[{ key: "", label: "", items: parented }]} />);
 
-    const first = screen.getByRole("row", {
-      name: "DEMO-1 — Authentification",
-    });
-    expect(within(first).getByText("À faire")).toBeVisible();
-    expect(within(first).getByText("Urgent")).toBeVisible();
-    expect(within(first).getByText("3 pts")).toBeVisible();
-    expect(within(first).getByText("Marie Lemaire")).toBeVisible();
+    const first = screen.getByRole("row", { name: "DEMO-1 — Authentification" });
+    expect(within(first).getByText("Bug")).toBeVisible();
+    expect(within(first).getByText("Connexion sécurisée")).toBeVisible();
+    expect(within(first).getByRole("button", { name: "Statut : À faire" })).toBeVisible();
+    expect(within(first).getByRole("button", { name: "Priorité : Urgent" })).toBeVisible();
+    expect(within(first).getByRole("button", { name: "Estimation : 3 pts" })).toHaveTextContent("3");
+    expect(within(first).getByRole("button", { name: "Assigné : Marie Lemaire" })).toBeVisible();
 
     const second = screen.getByRole("row", { name: "DEMO-2 — Session" });
-    expect(within(second).getByText("En cours")).toBeVisible();
-    expect(within(second).getByText("Nora Benali")).toBeVisible();
+    expect(within(second).queryByText("Bug")).not.toBeInTheDocument();
+    expect(within(second).getByRole("button", { name: "Statut : En cours" })).toBeVisible();
+    expect(within(second).getByRole("button", { name: "Assigné : Nora Benali" })).toBeVisible();
 
+    // No priority and no estimate: the editors only show on hover or focus.
     const third = screen.getByRole("row", { name: "DEMO-3 — Déconnexion" });
-    expect(within(third).getByText("Non estimé")).toBeVisible();
-    expect(within(third).getByText("Non assigné")).toBeVisible();
+    const priority = within(third).getByRole("button", { name: "Priorité : Aucune" });
+    expect(priority.parentElement?.parentElement?.className).toContain("opacity-0");
+    const estimate = within(third).getByRole("button", { name: "Estimation : Non estimé" });
+    expect(estimate.closest(".opacity-0")).not.toBeNull();
+    expect(within(third).queryByText("Non estimé")).not.toBeInTheDocument();
+    expect(within(third).queryByText("Non assigné")).not.toBeInTheDocument();
+    expect(within(third).getByRole("button", { name: "Assigné : Non assigné" })).toBeVisible();
   });
 
   it("keeps viewer rows readable without edit or drag controls", () => {
+    const viewerItems = [items[0]!, { ...items[2]!, priority: 0 }];
     render(
       <ItemBacklog
         {...props()}
+        groups={[{ key: "", label: "", items: viewerItems }]}
         canCreateItems={false}
         canEditItems={false}
         canTransitionItems={false}
@@ -545,9 +724,15 @@ describe("ItemBacklog", () => {
       name: "DEMO-1 — Authentification",
     });
     expect(within(first).getByText("À faire")).toBeVisible();
-    expect(within(first).getByText("Urgent")).toBeVisible();
-    expect(within(first).getByText("Marie Lemaire")).toBeVisible();
+    expect(within(first).getByRole("img", { name: "Urgent" })).toBeVisible();
+    expect(within(first).getByText("3 pts")).toBeInTheDocument();
+    expect(within(first).getByRole("img", { name: "Marie Lemaire" })).toBeVisible();
     expect(within(first).queryByRole("button")).not.toBeInTheDocument();
+
+    const bare = screen.getByRole("row", { name: "DEMO-3 — Déconnexion" });
+    expect(within(bare).queryByRole("img", { name: "Aucune" })).not.toBeInTheDocument();
+    expect(within(bare).queryByText(/estimé/)).not.toBeInTheDocument();
+    expect(within(bare).getByRole("img", { name: "Non assigné" })).toBeVisible();
     expect(
       screen.queryByRole("button", { name: /Déplacer DEMO-/ }),
     ).not.toBeInTheDocument();
@@ -573,7 +758,7 @@ describe("ItemBacklog", () => {
     );
     expect(screen.getByRole("button", { name: "Créer un sprint" })).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "Créer une tâche dans Sprint actif" }),
+      screen.queryByRole("button", { name: "Créer un item dans Sprint actif" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Déplacer DEMO-/ }),
@@ -595,13 +780,13 @@ describe("ItemBacklog", () => {
 
     const creator = render(<ItemBacklog {...sprintProps()} {...denied} canCreateItems />);
     expect(
-      screen.getByRole("button", { name: "Créer une tâche dans Backlog" }),
+      screen.getByRole("button", { name: "Créer un item dans Backlog" }),
     ).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "Créer une tâche dans Sprint actif" }),
+      screen.queryByRole("button", { name: "Créer un item dans Sprint actif" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Créer une tâche dans Sprint futur" }),
+      screen.queryByRole("button", { name: "Créer un item dans Sprint futur" }),
     ).not.toBeInTheDocument();
     creator.unmount();
 
@@ -614,7 +799,7 @@ describe("ItemBacklog", () => {
       />,
     );
     expect(
-      screen.getByRole("button", { name: "Créer une tâche dans Sprint actif" }),
+      screen.getByRole("button", { name: "Créer un item dans Sprint actif" }),
     ).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Créer un sprint" }),

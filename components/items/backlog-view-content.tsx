@@ -58,6 +58,7 @@ import {
   type ViewUrlEntry,
 } from "@/lib/items/view-url-params";
 import { buildSprintSections } from "@/lib/items/sprint-planning";
+import { pointsByStatusCategory } from "@/lib/items/status-points";
 import { listSprintsForBacklog } from "@/lib/services/sprints";
 import {
   getActiveSprintStartCommitment,
@@ -388,6 +389,10 @@ export async function BacklogViewContent({
   }
   const filterRowById = new Map(filterRows.map((row) => [row.id, row]));
   const itemById = new Map(items.map((item) => [item.id, item]));
+  const parentPill = (parentId: string | null) => {
+    const parent = parentId ? itemById.get(parentId) : undefined;
+    return parent ? { key: parent.key, title: parent.title } : null;
+  };
   const planningItemById = new Map(
     items
       .filter((item) => item.type === "tache")
@@ -408,6 +413,7 @@ export async function BacklogViewContent({
           blocked: blockedSet.has(item.id),
           done: statusCategoryById.get(item.statusId) === "done",
           fixVersions: fixVersionsByItem.get(item.id) ?? [],
+          parent: parentPill(item.parentId),
         },
       ]),
   );
@@ -439,6 +445,8 @@ export async function BacklogViewContent({
     const visibleItems = sorted.map((row) => planningItemById.get(row.id)!);
     return {
       ...section,
+      // Like the section metrics, the status lozenges cover the whole section.
+      statusPoints: pointsByStatusCategory(section.items, statusList),
       items: visibleItems,
       groups: groupedRows.map(([groupKey, groupRows]) => ({
         key: groupKey,

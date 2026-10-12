@@ -873,7 +873,7 @@ audited(3, "conserve les lectures lecteur, second contexte et dissimule les ress
       .toBeVisible();
     await current.reload();
   }
-  await expect(reader.getByRole("button", { name: /Clôturer|Démarrer|Créer/ })).toHaveCount(0);
+  await expect(reader.getByRole("button", { name: /Terminer le sprint|Démarrer le sprint|Créer/ })).toHaveCount(0);
 
   const malformed = await page.goto("/b/CASS/reports?sprint=not-a-uuid");
   expect(malformed?.status()).toBe(200);
@@ -1067,10 +1067,10 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   ]);
 
   await page.goto("/b/CASS?view=backlog");
-  await page.getByRole("button", { name: "Clôturer Sprint UI vers Backlog" }).click();
+  await page.getByRole("button", { name: "Terminer le sprint Sprint UI vers Backlog" }).click();
   await page.getByLabel("Destination des tâches incomplètes").selectOption({ label: "Backlog" });
   await businessPost(page, () =>
-    page.getByRole("button", { name: "Confirmer la clôture" }).click());
+    page.getByRole("button", { name: "Terminer le sprint", exact: true }).click());
   await page.goto(`/b/CASS/reports?report=sprint&sprint=${uiActive.id}`);
   await expect(page.getByRole("main").getByText("Historique figé", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Journal du sprint" }))
@@ -1084,11 +1084,11 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   });
   await begin(fixtures.context, uiToPlanned.id, "Sprint UI vers planifié");
   await page.goto("/b/CASS?view=backlog");
-  await page.getByRole("button", { name: "Clôturer Sprint UI vers planifié" }).click();
+  await page.getByRole("button", { name: "Terminer le sprint Sprint UI vers planifié" }).click();
   await page.getByLabel("Destination des tâches incomplètes")
     .selectOption({ label: "Sprint UI Destination" });
   await businessPost(page, () =>
-    page.getByRole("button", { name: "Confirmer la clôture" }).click());
+    page.getByRole("button", { name: "Terminer le sprint", exact: true }).click());
   await expect(page.getByRole("heading", { name: "Sprint UI Destination" })).toBeVisible();
   await expect(page.getByText(carriedItem.key, { exact: true })).toBeVisible();
   await page.goto(`/b/CASS/reports?report=sprint&sprint=${uiToPlanned.id}`);
@@ -1364,9 +1364,9 @@ audited(9, "fige le point final à la clôture et ignore les mutations ultérieu
   requireBurndownFixture();
   const context = fixtures.context;
   await auditedGoto(page, capture, "admin", "/b/CASS?view=backlog");
-  await page.getByRole("button", { name: `Clôturer ${BURNDOWN.sprintName}` }).click();
+  await page.getByRole("button", { name: `Terminer le sprint ${BURNDOWN.sprintName}` }).click();
   await page.getByLabel("Destination des tâches incomplètes").selectOption({ label: "Backlog" });
-  await businessPost(page, () => page.getByRole("button", { name: "Confirmer la clôture" }).click());
+  await businessPost(page, () => page.getByRole("button", { name: "Terminer le sprint", exact: true }).click());
   burndown.steps.push({ itemKey: null, cause: "Clôture du sprint", deltaPoints: 0 });
 
   const rows = expectedBurndownRows(burndown.baseline, burndown.steps);
@@ -1492,7 +1492,7 @@ audited(10, "compare un sprint planifié à la vélocité récente sans bloquer"
   expect(aboveAverage, "La fixture planifiée doit dépasser la moyenne des sprints précédents").toBe(true);
   await expect(warning).toBeVisible();
   // Non-blocking: manual capacity is untouched and start stays available.
-  await expect(header.getByRole("button", { name: new RegExp(`Démarrer ${BURNDOWN.plannedName}`, "u") }))
+  await expect(header.getByRole("button", { name: new RegExp(`Démarrer le sprint ${BURNDOWN.plannedName}`, "u") }))
     .toBeEnabled();
   capture.console.push(
     `[measure] planned commitment ${commitment} pts vs previous sprints average ${velocity.average} over ${velocity.population} sprints`,
@@ -1545,7 +1545,7 @@ audited(11, "conserve le burndown pour lecteur et second contexte, dissimule ét
     await expect(current.getByRole("table", { name: "Valeurs exactes du burndown" }).locator("tbody tr"))
       .toHaveCount(rows.length);
   }
-  await expect(reader.getByRole("button", { name: /Clôturer|Démarrer|Créer/ })).toHaveCount(0);
+  await expect(reader.getByRole("button", { name: /Terminer le sprint|Démarrer le sprint|Créer/ })).toHaveCount(0);
 
   const malformed = await auditedGoto(page, capture, "admin", "/b/CASS/reports?report=burndown&sprint=not-a-uuid");
   expect(malformed?.status()).toBe(200);

@@ -29,29 +29,26 @@ import {
   reorderSprintAction as defaultReorderSprintAction,
 } from "@/app/actions/sprints";
 import { KindIcon } from "@/components/icons/kind-icon";
-import { PrioIcon } from "@/components/icons/prio-icon";
 import { TypeIcon } from "@/components/icons/type-icon";
-import { ItemKey } from "@/components/jiroo/item-key";
 import { BulkItemToolbar } from "@/components/items/bulk-item-toolbar";
 import {
   FixVersionChips,
   type FixVersionOption,
 } from "@/components/items/fix-version-picker";
-import { InlineEstimate } from "@/components/items/inline-item-field";
 import {
-  NewItemButton,
-  type NewItemButtonProps,
-} from "@/components/items/new-item-dialog";
-import {
-  CreateSprintButton,
-  EditSprintDialog,
-} from "@/components/sprints/sprint-form-dialog";
+  InlineAssignee,
+  InlineEstimate,
+  InlinePriority,
+  InlineStatus,
+} from "@/components/items/inline-item-field";
+import { InlineCreateItem } from "@/components/items/inline-create-item";
+import { type NewItemButtonProps } from "@/components/items/new-item-dialog";
+import { CreateSprintButton } from "@/components/sprints/sprint-form-dialog";
 import {
   CompleteSprintDialog,
   StartSprintDialog,
 } from "@/components/sprints/sprint-lifecycle-dialogs";
 import { SprintSectionHeader } from "@/components/sprints/sprint-section-header";
-import { Button } from "@/components/ui/button";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import type {
@@ -62,7 +59,6 @@ import type {
 } from "@/lib/auth/capabilities";
 import {
   PRIORITIES,
-  PRIORITY_LABELS,
   type ItemKind,
   type Priority,
 } from "@/lib/design/constants";
@@ -85,7 +81,10 @@ import {
   type ActiveSprintStartCommitment,
   type RecentVelocityContext,
 } from "@/lib/items/sprint-planning";
-import { BACKLOG_COLUMNS, fixedTableMinWidth, SELECTION_COLUMN } from "@/lib/items/table-layout";
+import {
+  pointsByStatusCategory,
+  type PointsByStatusCategory,
+} from "@/lib/items/status-points";
 
 type StatusOption = {
   id: string;
@@ -111,6 +110,8 @@ export type BacklogItem = {
   rank: string;
   blocked: boolean;
   fixVersions?: FixVersionOption[];
+  /** The parent epic, shown as a pill (a tâche always has one). */
+  parent?: { key: string; title: string } | null;
 };
 
 type BacklogGroup = {
@@ -130,40 +131,45 @@ type RankItemAction = (input: {
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> }
 >;
 
-const HEADER_CLASS =
-  "border-b border-border bg-[var(--surface-2)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
-const CELL_CLASS = "border-b border-border px-3 py-1.5 text-sm";
-
-function backlogTableStyle(canSelectItems: boolean) {
-  const fixed = Object.values(BACKLOG_COLUMNS);
-  return {
-    minWidth: fixedTableMinWidth(canSelectItems ? [SELECTION_COLUMN, ...fixed] : fixed),
-  };
-}
-
-/** Shared colgroup of the backlog and sprint tables (widths from table-layout). */
-function BacklogColGroup({ canSelectItems }: { canSelectItems: boolean }) {
-  return (
-    <colgroup>
-      {canSelectItems ? <col className={SELECTION_COLUMN.className} /> : null}
-      <col className={BACKLOG_COLUMNS.order.className} />
-      <col className={BACKLOG_COLUMNS.key.className} />
-      <col />
-      <col className={BACKLOG_COLUMNS.status.className} />
-      <col className={BACKLOG_COLUMNS.priority.className} />
-      <col className={BACKLOG_COLUMNS.points.className} />
-      <col className={BACKLOG_COLUMNS.fixVersions.className} />
-      <col className={BACKLOG_COLUMNS.assignee.className} />
-    </colgroup>
-  );
-}
-
 const pointFormatter = new Intl.NumberFormat("fr-FR", {
   maximumFractionDigits: 2,
 });
 
 function asPriority(value: number): Priority {
   return PRIORITIES.includes(value as Priority) ? (value as Priority) : 0;
+}
+
+/**
+ * Editable but empty values (no priority, no estimate) stay out of sight
+ * until the row is hovered or the control is focused (« ne rien afficher
+ * quand une valeur est vide »), so inline editing is never lost.
+ */
+const REVEAL_ON_ROW_HOVER =
+  "opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100";
+
+function SelectAllCheckbox({
+  checked,
+  indeterminate,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  onChange: () => void;
+  label: string;
+}) {
+  return (
+    <input
+      ref={(node) => {
+        if (node) node.indeterminate = indeterminate;
+      }}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      aria-label={label}
+      className="mx-1 size-4 shrink-0 cursor-pointer accent-[var(--primary)]"
+    />
+  );
 }
 
 function BacklogRow({
@@ -174,6 +180,8 @@ function BacklogRow({
   selectedKey,
   canSelectItems,
   canEditItems,
+  canTransitionItems,
+  canAssignItems,
   canScheduleItems,
   manualOrder,
   mutationPending,
@@ -187,6 +195,8 @@ function BacklogRow({
   selectedKey?: string;
   canSelectItems: boolean;
   canEditItems: boolean;
+  canTransitionItems: boolean;
+  canAssignItems: boolean;
   canScheduleItems: boolean;
   manualOrder: boolean;
   mutationPending: boolean;
@@ -194,12 +204,8 @@ function BacklogRow({
   onToggleSelection: (id: string, extendRange: boolean) => void;
 }) {
   const viewUrl = useViewUrlState();
-  const status = statuses.find((option) => option.id === item.statusId);
   const priority = asPriority(item.priority);
-  const assigneeName =
-    item.assigneeName ??
-    users.find((user) => user.id === item.assigneeId)?.name ??
-    "Non assigné";
+  const fixVersions = item.fixVersions ?? [];
   const {
     attributes,
     listeners,
@@ -219,8 +225,9 @@ function BacklogRow({
   }
 
   return (
-    <tr
+    <div
       ref={setNodeRef}
+      role="row"
       tabIndex={0}
       data-shortcut-item={item.key}
       aria-label={`${item.key} — ${item.title}`}
@@ -232,39 +239,30 @@ function BacklogRow({
           openItem();
         }
       }}
-      className={`cursor-pointer transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)] ${
+      className={`group/row flex min-h-[var(--row-h)] cursor-pointer flex-wrap items-center gap-x-2.5 gap-y-0.5 border-b border-border py-0.5 pl-2 pr-3 transition-colors last:border-b-0 hover:bg-[var(--muted)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)] sm:pr-3.5 ${
         selectedKey === item.key || bulkSelected ? "bg-[var(--accent-subtle)]" : ""
       }`}
       style={{
-        height: "var(--row-h)",
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.45 : 1,
       }}
     >
-      {canSelectItems ? (
-        <td
-          className={`${CELL_CLASS} px-2 text-center`}
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
+      <div role="cell" className="flex shrink-0 items-center gap-0.5">
+        {canSelectItems ? (
           <input
             type="checkbox"
             checked={bulkSelected}
             onChange={() => undefined}
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
               onToggleSelection(item.id, event.shiftKey);
             }}
             aria-label={`Sélectionner ${item.key}`}
-            className="size-4 cursor-pointer accent-[var(--primary)]"
+            className="mx-1 size-4 cursor-pointer accent-[var(--primary)]"
           />
-        </td>
-      ) : null}
-      <td
-        className={`${CELL_CLASS} px-1`}
-        onClick={(event) => event.stopPropagation()}
-      >
+        ) : null}
         {manualOrder && canScheduleItems ? (
           <button
             ref={setActivatorNodeRef}
@@ -274,70 +272,161 @@ function BacklogRow({
             aria-label={`Déplacer ${item.key}`}
             data-rank-handle={item.id}
             disabled={mutationPending}
-            className="inline-flex size-7 cursor-grab items-center justify-center rounded text-muted-foreground outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={(event) => event.stopPropagation()}
+            className="inline-flex size-6 cursor-grab items-center justify-center rounded text-[var(--subtle-foreground)] outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
           >
             <GripVertical aria-hidden size={15} />
           </button>
         ) : null}
-      </td>
-      <td className={`${CELL_CLASS} whitespace-nowrap`}>
-        <span className="inline-flex items-center gap-1.5">
-          <TypeIcon type={item.type} />
-          <ItemKey value={item.key} />
+      </div>
+      <div role="cell" className="flex min-w-0 flex-1 basis-48 items-center gap-2">
+        <TypeIcon type={item.type} />
+        <span className="shrink-0 font-mono text-[11.5px] font-medium text-muted-foreground">
+          {item.key}
         </span>
-      </td>
-      <td className={`${CELL_CLASS} min-w-0`}>
-        <span className="flex min-w-0 items-center gap-1.5">
-          <KindIcon kind={item.kind} />
-          <span className="truncate font-medium">{item.title}</span>
-          {item.blocked ? (
-            <span
-              className="inline-flex flex-none items-center rounded px-1.5 py-0.5 text-[11px] font-medium"
-              style={{
-                color: "var(--danger)",
-                background:
-                  "color-mix(in oklch, var(--danger) 14%, transparent)",
-              }}
-            >
-              bloqué
-            </span>
-          ) : null}
-        </span>
-      </td>
-      <td className={CELL_CLASS}>
-        <span className="inline-flex min-w-0 items-center gap-1.5">
+        <span className="min-w-0 truncate text-sm">{item.title}</span>
+        {item.blocked ? (
           <span
-            aria-hidden="true"
-            className="size-2 shrink-0 rounded-full"
-            style={{ backgroundColor: status?.color ?? "var(--muted-foreground)" }}
-          />
-          <span className="truncate">{status?.name ?? item.statusId}</span>
-        </span>
-      </td>
-      <td className={CELL_CLASS}>
-        <span className="inline-flex items-center gap-1.5">
-          <PrioIcon priority={priority} />
-          <span>{PRIORITY_LABELS[priority]}</span>
-        </span>
-      </td>
-      <td
-        className={CELL_CLASS}
-        onClick={(event) => event.stopPropagation()}
+            className="inline-flex flex-none items-center rounded px-1.5 py-0.5 text-[11px] font-medium"
+            style={{
+              color: "color-mix(in oklch, var(--danger) 80%, var(--foreground))",
+              background: "color-mix(in oklch, var(--danger) 14%, transparent)",
+            }}
+          >
+            bloqué
+          </span>
+        ) : null}
+      </div>
+      <div
+        role="cell"
+        className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-0.5"
       >
-        <InlineEstimate
+        {item.kind === "bug" ? (
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11.5px] font-medium"
+            style={{
+              color: "color-mix(in oklch, var(--danger) 80%, var(--foreground))",
+              background: "color-mix(in oklch, var(--danger) 12%, transparent)",
+            }}
+          >
+            <span aria-hidden className="inline-flex">
+              <KindIcon kind="bug" />
+            </span>
+            Bug
+          </span>
+        ) : null}
+        {item.parent ? (
+          <span
+            className="inline-flex max-w-40 items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--accent-subtle)] px-2 py-0.5 text-xs font-medium text-[var(--accent-subtle-fg)]"
+            title={`${item.parent.key} — ${item.parent.title}`}
+          >
+            <TypeIcon type="epic" size={11} />
+            <span className="truncate">{item.parent.title}</span>
+          </span>
+        ) : null}
+        {priority !== 0 ? (
+          <InlinePriority
+            itemId={item.id}
+            backlogKey={backlogKey}
+            priority={priority}
+            readOnly={!canEditItems}
+          />
+        ) : canEditItems ? (
+          <span className={REVEAL_ON_ROW_HOVER}>
+            <InlinePriority itemId={item.id} backlogKey={backlogKey} priority={0} />
+          </span>
+        ) : null}
+        {fixVersions.length > 0 ? <FixVersionChips versions={fixVersions} /> : null}
+        <span className="inline-flex w-28 min-w-0 justify-start">
+          <InlineStatus
+            itemId={item.id}
+            backlogKey={backlogKey}
+            statusId={item.statusId}
+            statuses={statuses}
+            readOnly={!canEditItems || !canTransitionItems}
+          />
+        </span>
+        <span
+          className={`inline-flex w-8 justify-center ${
+            item.estimatePoints === null && canEditItems ? REVEAL_ON_ROW_HOVER : ""
+          }`}
+        >
+          <InlineEstimate
+            itemId={item.id}
+            backlogKey={backlogKey}
+            estimatePoints={item.estimatePoints}
+            readOnly={!canEditItems}
+            compact
+          />
+        </span>
+        <InlineAssignee
           itemId={item.id}
           backlogKey={backlogKey}
-          estimatePoints={item.estimatePoints}
-          readOnly={!canEditItems}
+          assigneeId={item.assigneeId}
+          assigneeName={item.assigneeName}
+          users={users}
+          readOnly={!canEditItems || !canAssignItems}
+          compact
         />
-      </td>
-      <td className={CELL_CLASS}>
-        <FixVersionChips versions={item.fixVersions ?? []} />
-      </td>
-      <td className={CELL_CLASS}>
-        <span className="truncate">{assigneeName}</span>
-      </td>
-    </tr>
+      </div>
+    </div>
+  );
+}
+
+type RowListProps = {
+  label: string;
+  groups: BacklogGroup[];
+  grouped: boolean;
+  statuses: StatusOption[];
+  users: UserOption[];
+  backlogKey: string;
+  selectedKey?: string;
+  canSelectItems: boolean;
+  canEditItems: boolean;
+  canTransitionItems: boolean;
+  canAssignItems: boolean;
+  canScheduleItems: boolean;
+  manualOrder: boolean;
+  mutationPending: boolean;
+  selection: ReadonlySet<string>;
+  onToggleSelection: (id: string, extendRange: boolean) => void;
+};
+
+/** Compact, column-less rows of one section (Jira backlog). */
+function BacklogRowList({
+  label,
+  groups,
+  grouped,
+  selection,
+  ...rowProps
+}: RowListProps) {
+  return (
+    <div role="table" aria-label={label}>
+      {groups.map((group) => (
+        <div role="rowgroup" key={group.key || "rows"}>
+          {grouped ? (
+            <div role="row" className="border-b border-border bg-[var(--surface-2)]">
+              <div role="rowheader" className="px-3 py-1.5 text-xs font-semibold">
+                {group.label} · {group.items.length}
+              </div>
+            </div>
+          ) : null}
+          <SortableContext
+            items={group.items.map((item) => item.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {group.items.map((item) => (
+              <BacklogRow
+                key={item.id}
+                item={item}
+                {...rowProps}
+                bulkSelected={selection.has(item.id)}
+              />
+            ))}
+          </SortableContext>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -579,7 +668,17 @@ function LegacyItemBacklog({
       aria-labelledby="backlog-heading"
       onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
     >
-      <header className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-border px-4 py-3">
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-3 py-3 sm:px-4">
+        {canSelectItems && displayedItems.length > 0 ? (
+          <SelectAllCheckbox
+            checked={allSelected}
+            indeterminate={partlySelected}
+            onChange={() =>
+              setSelection(allSelected ? emptySelection() : selectAllVisible(visibleIds))
+            }
+            label="Sélectionner toutes les tâches visibles"
+          />
+        ) : null}
         <h2 id="backlog-heading" className="t-h2">
           Backlog
         </h2>
@@ -652,81 +751,24 @@ function LegacyItemBacklog({
           onDragCancel={manualOrder && canScheduleItems ? onDragCancel : undefined}
         >
         <div className="min-h-0 flex-1 overflow-auto">
-          <table
-            className="w-full table-fixed border-separate border-spacing-0"
-            style={backlogTableStyle(canSelectItems)}
-          >
-            <BacklogColGroup canSelectItems={canSelectItems} />
-            <thead className="sticky top-0 z-20">
-              <tr>
-                {canSelectItems ? (
-                  <th scope="col" className={`${HEADER_CLASS} px-2 text-center`}>
-                    <input
-                      ref={(node) => {
-                        if (node) node.indeterminate = partlySelected;
-                      }}
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={() =>
-                        setSelection(
-                          allSelected ? emptySelection() : selectAllVisible(visibleIds),
-                        )
-                      }
-                      aria-label="Sélectionner toutes les tâches visibles"
-                      className="size-4 cursor-pointer accent-[var(--primary)]"
-                    />
-                  </th>
-                ) : null}
-                <th scope="col" className={HEADER_CLASS}>
-                  <span className="sr-only">Ordre</span>
-                </th>
-                <th scope="col" className={HEADER_CLASS}>Clé</th>
-                <th scope="col" className={HEADER_CLASS}>Titre</th>
-                <th scope="col" className={HEADER_CLASS}>Statut</th>
-                <th scope="col" className={HEADER_CLASS}>Priorité</th>
-                <th scope="col" className={HEADER_CLASS}>Points</th>
-                <th scope="col" className={HEADER_CLASS}>Fix versions</th>
-                <th scope="col" className={HEADER_CLASS}>Assigné</th>
-              </tr>
-            </thead>
-            {displayedGroups.map((group) => (
-              <tbody key={group.key || "backlog"}>
-                {grouped ? (
-                  <tr>
-                    <th
-                      scope="rowgroup"
-                      colSpan={canSelectItems ? 9 : 8}
-                      className="border-b border-border bg-[var(--surface-2)] px-3 py-2 text-left text-xs font-semibold"
-                    >
-                      {group.label} · {group.items.length}
-                    </th>
-                  </tr>
-                ) : null}
-                <SortableContext
-                  items={group.items.map((item) => item.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {group.items.map((item) => (
-                    <BacklogRow
-                      key={item.id}
-                      item={item}
-                      statuses={statuses}
-                      users={users}
-                      backlogKey={backlogKey}
-                      selectedKey={selectedKey}
-                      canSelectItems={canSelectItems}
-                      canEditItems={canEditItems}
-                      canScheduleItems={canScheduleItems}
-                      manualOrder={manualOrder}
-                      mutationPending={mutationPending}
-                      bulkSelected={selection.selectedIds.has(item.id)}
-                      onToggleSelection={toggleSelection}
-                    />
-                  ))}
-                </SortableContext>
-              </tbody>
-            ))}
-          </table>
+          <BacklogRowList
+            label="Backlog"
+            groups={displayedGroups}
+            grouped={grouped}
+            statuses={statuses}
+            users={users}
+            backlogKey={backlogKey}
+            selectedKey={selectedKey}
+            canSelectItems={canSelectItems}
+            canEditItems={canEditItems}
+            canTransitionItems={canTransitionItems}
+            canAssignItems={canAssignItems}
+            canScheduleItems={canScheduleItems}
+            manualOrder={manualOrder}
+            mutationPending={mutationPending}
+            selection={selection.selectedIds}
+            onToggleSelection={toggleSelection}
+          />
           {canSelectItems && selectedItems.length > 0 ? (
             <BulkItemToolbar
               backlogId={backlogId}
@@ -788,6 +830,8 @@ type LegacyBacklogProps = SharedBacklogProps & {
 
 type SprintBacklogSection = SprintPlanningSection<BacklogItem> & {
   groups: BacklogGroup[];
+  /** Points per status category of the whole section (server-computed). */
+  statusPoints?: PointsByStatusCategory;
 };
 
 type MoveSprintItemAction = (input: {
@@ -812,135 +856,28 @@ type SprintBacklogProps = SharedBacklogProps & {
   createDialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions">;
 };
 
-function SectionTable({
-  section,
-  grouped,
-  statuses,
-  users,
-  backlogKey,
-  selectedKey,
-  canSelectItems,
-  canEditItems,
-  canScheduleItems,
-  manualOrder,
-  mutationPending,
-  selection,
-  allVisibleSelected,
-  partlyVisibleSelected,
-  onToggleAll,
-  onToggleSelection,
-}: {
-  section: SprintBacklogSection;
-  grouped: boolean;
-  statuses: StatusOption[];
-  users: UserOption[];
-  backlogKey: string;
-  selectedKey?: string;
-  canSelectItems: boolean;
-  canEditItems: boolean;
-  canScheduleItems: boolean;
-  manualOrder: boolean;
-  mutationPending: boolean;
-  selection: ReadonlySet<string>;
-  allVisibleSelected: boolean;
-  partlyVisibleSelected: boolean;
-  onToggleAll: () => void;
-  onToggleSelection: (id: string, extendRange: boolean) => void;
-}) {
-  return (
-    <table
-      className="w-full table-fixed border-separate border-spacing-0"
-      style={backlogTableStyle(canSelectItems)}
-    >
-      <BacklogColGroup canSelectItems={canSelectItems} />
-      <thead>
-        <tr>
-          {canSelectItems ? (
-            <th scope="col" className={`${HEADER_CLASS} px-2 text-center`}>
-              <input
-                ref={(node) => {
-                  if (node) node.indeterminate = partlyVisibleSelected;
-                }}
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={onToggleAll}
-                aria-label={
-                  section.sprint
-                    ? `Sélectionner toutes les tâches de ${section.sprint.name}`
-                    : "Sélectionner toutes les tâches visibles"
-                }
-                className="size-4 cursor-pointer accent-[var(--primary)]"
-              />
-            </th>
-          ) : null}
-          <th scope="col" className={HEADER_CLASS}><span className="sr-only">Ordre</span></th>
-          <th scope="col" className={HEADER_CLASS}>Clé</th>
-          <th scope="col" className={HEADER_CLASS}>Titre</th>
-          <th scope="col" className={HEADER_CLASS}>Statut</th>
-          <th scope="col" className={HEADER_CLASS}>Priorité</th>
-          <th scope="col" className={HEADER_CLASS}>Points</th>
-          <th scope="col" className={HEADER_CLASS}>Fix versions</th>
-          <th scope="col" className={HEADER_CLASS}>Assigné</th>
-        </tr>
-      </thead>
-      {section.groups.map((group) => (
-        <tbody key={group.key || section.id}>
-          {grouped ? (
-            <tr>
-              <th
-                scope="rowgroup"
-                colSpan={canSelectItems ? 9 : 8}
-                className="border-b border-border bg-[var(--surface-2)] px-3 py-2 text-left text-xs font-semibold"
-              >
-                {group.label} · {group.items.length}
-              </th>
-            </tr>
-          ) : null}
-          <SortableContext
-            items={group.items.map((item) => item.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {group.items.map((item) => (
-              <BacklogRow
-                key={item.id}
-                item={item}
-                statuses={statuses}
-                users={users}
-                backlogKey={backlogKey}
-                selectedKey={selectedKey}
-                canSelectItems={canSelectItems}
-                canEditItems={canEditItems}
-                canScheduleItems={canScheduleItems}
-                manualOrder={manualOrder}
-                mutationPending={mutationPending}
-                bulkSelected={selection.has(item.id)}
-                onToggleSelection={onToggleSelection}
-              />
-            ))}
-          </SortableContext>
-        </tbody>
-      ))}
-    </table>
-  );
-}
-
 function SprintSectionDropZone({
   sectionId,
+  label,
   children,
 }: {
   sectionId: string;
+  label: string;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `section:${sectionId}` });
   return (
-    <div
+    <section
       ref={setNodeRef}
+      aria-label={label}
       data-sprint-section={sectionId}
       data-drop-target={isOver ? "true" : undefined}
-      className={isOver ? "bg-primary/5" : undefined}
+      className={`rounded-[var(--radius-lg)] border bg-[var(--surface)] ${
+        isOver ? "border-[var(--ring)] bg-[var(--accent-subtle)]" : "border-border"
+      }`}
     >
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -1000,6 +937,17 @@ function SprintItemBacklog({
       )
   );
   const sectionSnapshot = useRef<SprintBacklogSection[] | null>(null);
+  const epics = useMemo(
+    () =>
+      (createDialogProps?.items ?? [])
+        .filter((item) => item.type === "epic")
+        .map(({ id, key, title }) => ({ id, key, title })),
+    [createDialogProps?.items],
+  );
+  // Inline creation remembers the last epic used, across sections.
+  const [createParentId, setCreateParentId] = useState(() =>
+    epics.length === 1 ? epics[0]!.id : "",
+  );
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -1096,6 +1044,7 @@ function SprintItemBacklog({
       ...section,
       items: nextItems,
       groups: [{ key: "", label: "", items: nextItems }],
+      statusPoints: pointsByStatusCategory(nextItems, statuses),
       metrics: calculateSprintMetrics(
         planningItems,
         section.sprint?.capacityPoints ?? null,
@@ -1239,21 +1188,15 @@ function SprintItemBacklog({
       aria-labelledby="sprint-backlog-heading"
       onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
     >
-      <header className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div>
-          <h2 id="sprint-backlog-heading" className="t-h2">Planification</h2>
-          {!manualOrder && visibleItems.length > 0 && canScheduleItems ? (
-            <p className="text-xs text-muted-foreground">
-              Effacez le tri ou le groupement pour modifier l’ordre manuel.
-            </p>
-          ) : null}
-        </div>
-        {canManageSprints ? (
-          <CreateSprintButton backlogId={backlogId} backlogKey={backlogKey} />
-        ) : null}
-      </header>
+      {/* The page title comes from the shell; this names the planning region. */}
+      <h2 id="sprint-backlog-heading" className="sr-only">Planification</h2>
+      {!manualOrder && visibleItems.length > 0 && canScheduleItems ? (
+        <p className="mx-3 mt-3 text-xs text-muted-foreground sm:mx-4">
+          Effacez le tri ou le groupement pour modifier l’ordre manuel.
+        </p>
+      ) : null}
       {rankError ? (
-        <p role="alert" className="mx-4 mt-3 rounded-lg bg-destructive px-3 py-2 text-sm text-destructive-foreground">
+        <p role="alert" className="mx-3 mt-3 rounded-lg bg-destructive px-3 py-2 text-sm text-destructive-foreground sm:mx-4">
           {rankError}
         </p>
       ) : null}
@@ -1273,6 +1216,7 @@ function SprintItemBacklog({
         onDragCancel={manualOrder && canScheduleItems ? handleDragCancel : undefined}
       >
         <div className="min-h-0 flex-1 overflow-auto">
+          <div className="flex flex-col gap-4 p-3 sm:p-4">
           {renderedSections.map((section) => {
             const sectionExpanded = expanded[section.id] ?? true;
             const sectionVisibleIds = sectionExpanded
@@ -1295,11 +1239,18 @@ function SprintItemBacklog({
                 null,
               );
             return (
-              <SprintSectionDropZone key={section.id} sectionId={section.id}>
+              <SprintSectionDropZone
+                key={section.id}
+                sectionId={section.id}
+                label={section.sprint?.name ?? "Backlog"}
+              >
                 <SprintSectionHeader
                   kind={section.kind}
                   sprint={section.sprint}
                   metrics={section.metrics as SprintMetrics}
+                  statusPoints={
+                    section.statusPoints ?? pointsByStatusCategory(section.items, statuses)
+                  }
                   expanded={sectionExpanded}
                   onExpandedChange={(next) =>
                     setExpanded((current) => ({ ...current, [section.id]: next }))
@@ -1310,32 +1261,41 @@ function SprintItemBacklog({
                   canMoveDown={section.kind === "planned" && plannedIndex < planned.length - 1}
                   onMoveUp={() => reorderPlannedSprint(section.id, -1)}
                   onMoveDown={() => reorderPlannedSprint(section.id, 1)}
-                  actions={canCreateInSection || canManageSprints ? (
+                  backlogId={backlogId}
+                  backlogKey={backlogKey}
+                  selectControl={
+                    canSelectItems && sectionVisibleIds.length > 0 ? (
+                      <SelectAllCheckbox
+                        checked={selectedCount === sectionVisibleIds.length}
+                        indeterminate={
+                          selectedCount > 0 && selectedCount < sectionVisibleIds.length
+                        }
+                        onChange={() =>
+                          setSelection((current) => {
+                            const next = new Set(current.selectedIds);
+                            if (selectedCount === sectionVisibleIds.length) {
+                              sectionVisibleIds.forEach((id) => next.delete(id));
+                            } else {
+                              sectionVisibleIds.forEach((id) => next.add(id));
+                            }
+                            return { selectedIds: next, anchorId: null };
+                          })
+                        }
+                        label={
+                          section.sprint
+                            ? `Sélectionner toutes les tâches de ${section.sprint.name}`
+                            : "Sélectionner toutes les tâches visibles"
+                        }
+                      />
+                    ) : null
+                  }
+                  primaryAction={canManageSprints ? (
                     <>
-                      {canCreateInSection && createDialogProps ? (
-                        <NewItemButton
+                      {canManageSprints && section.kind === "backlog" ? (
+                        <CreateSprintButton
                           backlogId={backlogId}
                           backlogKey={backlogKey}
-                          {...createDialogProps}
-                          sprintId={section.sprint?.id ?? null}
-                          contextLabel={section.sprint?.name ?? "Backlog"}
-                          trigger={
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              aria-label={`Créer une tâche dans ${section.sprint?.name ?? "Backlog"}`}
-                            >
-                              + Tâche
-                            </Button>
-                          }
-                        />
-                      ) : null}
-                      {canManageSprints && section.sprint ? (
-                        <EditSprintDialog
-                          backlogId={backlogId}
-                          backlogKey={backlogKey}
-                          sprint={section.sprint}
+                          variant="outline"
                         />
                       ) : null}
                       {canManageSprints && section.kind === "planned" && section.sprint ? (
@@ -1364,8 +1324,9 @@ function SprintItemBacklog({
                 />
                 {sectionExpanded ? (
                   section.items.length > 0 ? (
-                    <SectionTable
-                      section={section}
+                    <BacklogRowList
+                      label={section.sprint?.name ?? "Backlog"}
+                      groups={section.groups}
                       grouped={grouped}
                       statuses={statuses}
                       users={users}
@@ -1373,34 +1334,47 @@ function SprintItemBacklog({
                       selectedKey={selectedKey}
                       canSelectItems={canSelectItems}
                       canEditItems={canEditItems}
+                      canTransitionItems={canTransitionItems}
+                      canAssignItems={canAssignItems}
                       canScheduleItems={canScheduleItems}
                       manualOrder={manualOrder}
                       mutationPending={mutationPending}
                       selection={selection.selectedIds}
-                      allVisibleSelected={sectionVisibleIds.length > 0 && selectedCount === sectionVisibleIds.length}
-                      partlyVisibleSelected={selectedCount > 0 && selectedCount < sectionVisibleIds.length}
-                      onToggleAll={() =>
-                        setSelection((current) => {
-                          const next = new Set(current.selectedIds);
-                          if (selectedCount === sectionVisibleIds.length) {
-                            sectionVisibleIds.forEach((id) => next.delete(id));
-                          } else {
-                            sectionVisibleIds.forEach((id) => next.add(id));
-                          }
-                          return { selectedIds: next, anchorId: null };
-                        })
-                      }
                       onToggleSelection={toggleSelection}
                     />
+                  ) : section.sprint ? (
+                    <div className="p-3 sm:p-3.5">
+                      <div
+                        data-empty-sprint-drop={section.id}
+                        className="flex min-h-[72px] items-center justify-center rounded-[var(--radius-md)] border-[1.5px] border-dashed border-[var(--border-strong)] px-3 text-center text-[13.5px] text-muted-foreground"
+                      >
+                        Glissez des items du backlog ici pour planifier le sprint
+                      </div>
+                    </div>
                   ) : (
-                    <p className="border-b border-border px-4 py-5 text-sm text-muted-foreground">
+                    <p className="px-4 py-5 text-sm text-muted-foreground">
                       Aucune tâche dans cette section.
                     </p>
                   )
                 ) : null}
+                {sectionExpanded && canCreateInSection ? (
+                  <div className={section.items.length > 0 ? "border-t border-border" : undefined}>
+                    <InlineCreateItem
+                      backlogId={backlogId}
+                      backlogKey={backlogKey}
+                      sprintId={section.sprint?.id ?? null}
+                      contextLabel={section.sprint?.name ?? "Backlog"}
+                      parents={epics}
+                      parentId={createParentId}
+                      onParentChange={setCreateParentId}
+                      dialogProps={createDialogProps}
+                    />
+                  </div>
+                ) : null}
               </SprintSectionDropZone>
             );
           })}
+          </div>
           {canSelectItems && selectedItems.length > 0 ? (
             <BulkItemToolbar
               backlogId={backlogId}

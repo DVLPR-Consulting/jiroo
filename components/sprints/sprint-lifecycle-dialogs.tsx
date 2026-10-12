@@ -138,8 +138,8 @@ export function StartSprintDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button type="button" size="sm">
-          Démarrer <span className="sr-only">{sprint.name}</span>
+        <Button type="button">
+          Démarrer le sprint{" "}<span className="sr-only">{sprint.name}</span>
         </Button>
       </DialogTrigger>
       <DialogContent aria-describedby={undefined}>
@@ -242,7 +242,7 @@ export function CompleteSprintDialog({
         setOpen(false);
         router.refresh();
       } catch {
-        setError("Clôture impossible.");
+        setError("Impossible de terminer le sprint.");
       }
     });
   }
@@ -258,13 +258,13 @@ export function CompleteSprintDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button type="button" size="sm" variant="outline">
-          Clôturer <span className="sr-only">{sprint.name}</span>
+        <Button type="button">
+          Terminer le sprint{" "}<span className="sr-only">{sprint.name}</span>
         </Button>
       </DialogTrigger>
       <DialogContent aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>Clôturer {sprint.name}</DialogTitle>
+          <DialogTitle>Terminer {sprint.name}</DialogTitle>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -306,7 +306,7 @@ export function CompleteSprintDialog({
           )}
           <DialogFooter>
             <Button type="submit" disabled={pending || (destination === "new" && !newSprintName.trim())}>
-              {pending ? "Clôture…" : "Confirmer la clôture"}
+              {pending ? "Fin du sprint…" : "Terminer le sprint"}
             </Button>
           </DialogFooter>
         </form>

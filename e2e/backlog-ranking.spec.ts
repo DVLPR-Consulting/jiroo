@@ -44,7 +44,7 @@ test("classe à la souris, restaure au clavier et conserve chaque ordre", async 
   const handles = page.getByRole("button", { name: /^Déplacer CASS-/ });
   expect(await handles.count()).toBeGreaterThan(1);
 
-  const rows = page.locator("tr[aria-label]");
+  const rows = page.locator("[role=row][aria-label]");
   const initialOrder = await rows.evaluateAll((elements) =>
     elements.map((element) => element.getAttribute("aria-label")),
   );

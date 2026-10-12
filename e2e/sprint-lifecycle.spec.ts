@@ -14,6 +14,7 @@ import {
 import { createItem, updateItem } from "../lib/services/items";
 import { startSprint } from "../lib/services/sprint-lifecycle";
 import { createSprint } from "../lib/services/sprints";
+import { createInlineItem, sprintMenuAction } from "./backlog-helpers";
 import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
 
 const ACTIVE_SPRINT = "Audit Sprint actif 2026-08-05";
@@ -301,18 +302,13 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
   await expect(page.getByRole("heading", { name: "Sprint 1" })).toBeVisible();
 
   for (const title of [TASK_DONE, TASK_CARRIED]) {
-    await page.getByRole("button", { name: "Créer une tâche dans Sprint 1" }).click();
-    await expect(
-      page.getByRole("heading", { name: "Nouvelle tâche — Sprint 1" }),
-    ).toBeVisible();
-    await page.getByRole("textbox", { name: "Titre" }).fill(title);
-    await page.getByLabel("Parent").selectOption({ index: 1 });
     timings.push(
       `[timing] create ${title} ${await businessPost(page, () =>
-        page.getByRole("button", { name: /Créer$/ }).click())}ms`,
+        createInlineItem(page, "Sprint 1", title))}ms`,
     );
     await expect(page.getByText(title, { exact: true })).toBeVisible();
   }
+  await page.keyboard.press("Escape");
 
   timings.push(
     `[timing] create sprint 2 ${await businessPost(page, () =>
@@ -320,7 +316,7 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
   );
   await expect(page.getByRole("heading", { name: NEXT_SPRINT })).toBeVisible();
 
-  await page.getByRole("button", { name: "Démarrer Sprint 1" }).click();
+  await page.getByRole("button", { name: "Démarrer le sprint Sprint 1" }).click();
   await page.getByRole("textbox", { name: "Nom" }).fill(ACTIVE_SPRINT);
   await page
     .getByRole("textbox", { name: "Objectif" })
@@ -398,14 +394,14 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
   );
 
   await page.goto("/b/CASS?view=backlog");
-  await page.getByRole("button", { name: `Clôturer ${ACTIVE_SPRINT}` }).click();
+  await page.getByRole("button", { name: `Terminer le sprint ${ACTIVE_SPRINT}` }).click();
   await expect(page.getByText("1 tâche · 0 pt", { exact: true })).toBeVisible();
   await page
     .getByLabel("Destination des tâches incomplètes")
     .selectOption({ label: NEXT_SPRINT });
   timings.push(
     `[timing] complete sprint ${await businessPost(page, () =>
-      page.getByRole("button", { name: "Confirmer la clôture" }).click())}ms`,
+      page.getByRole("button", { name: "Terminer le sprint", exact: true }).click())}ms`,
   );
   await expect(page.getByRole("heading", { name: NEXT_SPRINT })).toBeVisible();
   await expect(page.getByText(TASK_CARRIED, { exact: true })).toBeVisible();
@@ -478,7 +474,7 @@ test("conserve le sprint planifié et explique un échec réseau au démarrage",
     page.getByRole("button", { name: "Créer un sprint" }).click(),
   );
   await expect(page.getByRole("heading", { name: "Sprint 1" })).toBeVisible();
-  await page.getByRole("button", { name: "Démarrer Sprint 1" }).click();
+  await page.getByRole("button", { name: "Démarrer le sprint Sprint 1" }).click();
   await page.getByLabel("Début", { exact: true }).fill("2026-08-05T09:00");
   await page.getByLabel("Fin", { exact: true }).fill("2026-08-19T18:00");
 
@@ -515,7 +511,7 @@ test("conserve le sprint planifié et explique un échec réseau au démarrage",
   );
   await expect(page).toHaveURL(/view=board/);
   await page.goto("/b/CASS?view=backlog");
-  await page.getByRole("button", { name: "Clôturer Sprint 1" }).click();
+  await page.getByRole("button", { name: "Terminer le sprint Sprint 1" }).click();
   let completionRejected = false;
   await page.route("**/*", async (route) => {
     if (
@@ -529,8 +525,8 @@ test("conserve le sprint planifié et explique un échec réseau au démarrage",
     }
     await route.continue();
   });
-  await page.getByRole("button", { name: "Confirmer la clôture" }).click();
-  await expect(page.getByText("Clôture impossible.")).toBeVisible();
+  await page.getByRole("button", { name: "Terminer le sprint", exact: true }).click();
+  await expect(page.getByText("Impossible de terminer le sprint.")).toBeVisible();
   await expect(page.getByRole("dialog")).toBeVisible();
   const [stillActive] = await db
     .select({ state: sprints.state, completedAt: sprints.completedAt })
@@ -585,7 +581,7 @@ test("recalcule et explique un dépassement de capacité avant démarrage", asyn
   await updateItem({ id: task.id, estimatePoints: 8 }, fixture.actor.id);
 
   await page.goto("/b/CASS?view=backlog");
-  await page.getByRole("button", { name: "Démarrer Sprint 1" }).click();
+  await page.getByRole("button", { name: "Démarrer le sprint Sprint 1" }).click();
   await page.getByLabel("Début", { exact: true }).fill("2026-08-05T09:00");
   await page.getByLabel("Fin", { exact: true }).fill("2026-08-19T18:00");
   const capacity = page.getByRole("spinbutton", { name: "Capacité (points)" });
@@ -621,7 +617,7 @@ test("démarre un sprint renommé avec son nom, son objectif et ses dates à jou
   await createSprint({ backlogId: fixture.backlog.id }, fixture.actor.id);
 
   await page.goto("/b/CASS?view=backlog");
-  await page.getByRole("button", { name: "Modifier Sprint 1" }).click();
+  await sprintMenuAction(page, "Sprint 1", "Modifier");
   await page.getByRole("textbox", { name: "Nom" }).fill(RENAMED_SPRINT);
   await page.getByRole("textbox", { name: "Objectif" }).fill("Sprint de test 1 semaine");
   await page.getByLabel("Début prévu").fill("2026-08-05T09:00");
@@ -631,7 +627,7 @@ test("démarre un sprint renommé avec son nom, son objectif et ses dates à jou
   );
   await expect(page.getByRole("heading", { name: RENAMED_SPRINT })).toBeVisible();
 
-  await page.getByRole("button", { name: `Démarrer ${RENAMED_SPRINT}` }).click();
+  await page.getByRole("button", { name: `Démarrer le sprint ${RENAMED_SPRINT}` }).click();
   await expect(page.getByRole("textbox", { name: "Nom" })).toHaveValue(RENAMED_SPRINT);
   await expect(page.getByRole("textbox", { name: "Objectif" }))
     .toHaveValue("Sprint de test 1 semaine");
@@ -810,13 +806,13 @@ test("clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ou
   });
   await page.goto("/b/CASS?view=backlog");
   await page
-    .getByRole("button", { name: "Clôturer Audit clôture Backlog" })
+    .getByRole("button", { name: "Terminer le sprint Audit clôture Backlog" })
     .click();
   await expect(page.getByLabel("Destination des tâches incomplètes")).toHaveValue(
     "backlog",
   );
   await businessPost(page, () =>
-    page.getByRole("button", { name: "Confirmer la clôture" }).click(),
+    page.getByRole("button", { name: "Terminer le sprint", exact: true }).click(),
   );
   const backlogSection = page.locator('[data-sprint-section="backlog"]');
   await expect(backlogSection.getByText(TASK_BACKLOG, { exact: true })).toBeVisible();
@@ -840,7 +836,7 @@ test("clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ou
   });
   await page.goto("/b/CASS?view=backlog");
   await page
-    .getByRole("button", { name: "Clôturer Audit clôture Nouveau" })
+    .getByRole("button", { name: "Terminer le sprint Audit clôture Nouveau" })
     .click();
   await page
     .getByLabel("Destination des tâches incomplètes")
@@ -849,7 +845,7 @@ test("clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ou
     .getByRole("textbox", { name: "Nom du nouveau sprint" })
     .fill("Audit sprint report créé");
   await businessPost(page, () =>
-    page.getByRole("button", { name: "Confirmer la clôture" }).click(),
+    page.getByRole("button", { name: "Terminer le sprint", exact: true }).click(),
   );
   const createdSection = page.locator("[data-sprint-section]").filter({
     has: page.getByRole("heading", { name: "Audit sprint report créé" }),
@@ -884,10 +880,10 @@ test("clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ou
   );
   await page.goto("/b/CASS?view=backlog");
   await page
-    .getByRole("button", { name: "Clôturer Audit clôture bloquée" })
+    .getByRole("button", { name: "Terminer le sprint Audit clôture bloquée" })
     .click();
   await businessPost(page, () =>
-    page.getByRole("button", { name: "Confirmer la clôture" }).click(),
+    page.getByRole("button", { name: "Terminer le sprint", exact: true }).click(),
   );
   await expect(page.getByRole("alert")).toContainText(
     "Terminez les sous-tâches avant de clôturer le sprint.",
@@ -934,13 +930,9 @@ test("laisse le lecteur consulter la planification et le Board sans aucun contr�
   await businessPost(page, () =>
     page.getByRole("button", { name: "Créer un sprint" }).click(),
   );
-  await page.getByRole("button", { name: "Créer une tâche dans Sprint 1" }).click();
-  await page.getByRole("textbox", { name: "Titre" }).fill(TASK_CARRIED);
-  await page.getByLabel("Parent").selectOption({ index: 1 });
-  await businessPost(page, () =>
-    page.getByRole("button", { name: "Créer", exact: true }).click(),
-  );
-  await page.getByRole("button", { name: "Démarrer Sprint 1" }).click();
+  await businessPost(page, () => createInlineItem(page, "Sprint 1", TASK_CARRIED));
+  await expect(page.getByText(TASK_CARRIED, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Démarrer le sprint Sprint 1" }).click();
   await page.getByRole("textbox", { name: "Nom" }).fill(ACTIVE_SPRINT);
   await page.getByRole("textbox", { name: "Objectif" }).fill("Objectif visible lecteur");
   await page.getByLabel("Début", { exact: true }).fill("2026-08-05T09:00");
@@ -963,9 +955,9 @@ test("laisse le lecteur consulter la planification et le Board sans aucun contr�
     await expect(viewer.getByText(TASK_CARRIED, { exact: true })).toBeVisible();
     await expect(viewer.getByRole("checkbox")).toHaveCount(0);
     await expect(viewer.getByRole("button", { name: /^Déplacer CASS-/ })).toHaveCount(0);
-    await expect(viewer.getByRole("button", { name: /^Créer une tâche dans/ })).toHaveCount(0);
-    await expect(viewer.getByRole("button", { name: `Modifier ${ACTIVE_SPRINT}` })).toHaveCount(0);
-    await expect(viewer.getByRole("button", { name: `Clôturer ${ACTIVE_SPRINT}` })).toHaveCount(0);
+    await expect(viewer.getByRole("button", { name: /^Créer un item dans/ })).toHaveCount(0);
+    await expect(viewer.getByRole("button", { name: `Actions de ${ACTIVE_SPRINT}` })).toHaveCount(0);
+    await expect(viewer.getByRole("button", { name: `Terminer le sprint ${ACTIVE_SPRINT}` })).toHaveCount(0);
     await expect(viewer.getByRole("region", { name: "Actions groupées" })).toHaveCount(0);
 
     await viewer.goto("/b/CASS?view=board");
@@ -1064,18 +1056,9 @@ test("planifie une plage de tâches en masse et conserve la section après recha
     .toBeVisible();
   await expect(sprintSection.getByRole("row", { name: new RegExp(`^${secondKey} —`) }))
     .toBeVisible();
-  await expect(sprintSection.getByText("3 tâches", { exact: true })).toBeVisible();
-  await expect(sprintSection.getByRole("columnheader").allTextContents()).resolves.toEqual([
-    "",
-    "Ordre",
-    "Clé",
-    "Titre",
-    "Statut",
-    "Priorité",
-    "Points",
-    "Fix versions",
-    "Assigné",
-  ]);
+  await expect(sprintSection.getByText(/^3 items · /)).toBeVisible();
+  // JIR-75: compact rows, no column header.
+  await expect(sprintSection.getByRole("columnheader")).toHaveCount(0);
   await page.getByRole("button", { name: "Replier Sprint 1" }).click();
   await expect(sprintSection.getByRole("row", { name: new RegExp(`^${firstKey} —`) }))
     .toHaveCount(0);

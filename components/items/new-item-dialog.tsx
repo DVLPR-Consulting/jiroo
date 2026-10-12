@@ -83,12 +83,19 @@ export type NewItemButtonProps = {
   initialParentId?: string;
   trigger?: ReactNode;
   onCreated?: (item: { id: string; key: string }) => void;
+  /** The dialog really closed (cancel, Échap or a create without « Créer un autre »). */
+  onClosed?: () => void;
   enableShortcut?: boolean;
   sprintId?: string | null;
   contextLabel?: string;
   canScheduleItems?: boolean;
   releaseOptions?: FixVersionOption[];
   fieldOptions?: NewItemFieldOptions;
+  /**
+   * Pre-fills the title when opened (« Plus d’options » of inline creation);
+   * `initialParentId` is re-applied on every opening too.
+   */
+  initialTitle?: string;
 };
 
 /** The dialog data a view hands down to its « Nouvel item » buttons. */
@@ -189,12 +196,14 @@ export function NewItemButton({
   initialParentId,
   trigger,
   onCreated,
+  onClosed,
   enableShortcut = false,
   sprintId,
   contextLabel,
   canScheduleItems = true,
   releaseOptions = [],
   fieldOptions = EMPTY_FIELD_OPTIONS,
+  initialTitle,
 }: NewItemButtonProps) {
   const router = useRouter();
   const viewUrl = useOptionalViewUrlState();
@@ -361,6 +370,7 @@ export function NewItemButton({
       } else {
         setOpen(false);
         reset();
+        onClosed?.();
       }
       toast.success(`${item.key} créé`, {
         secondaryAction: { label: "Ouvrir", run: () => openCreated(item.key) },
@@ -387,7 +397,12 @@ export function NewItemButton({
         // Keep the dialog open while a request is in flight (JIR-57).
         if (!o && pending) return;
         setOpen(o);
-        if (!o) reset();
+        if (!o) {
+          reset();
+          onClosed?.();
+        }
+        if (o && initialTitle) setTitle(initialTitle);
+        if (o && initialParentId) setParentId(initialParentId);
       }}
     >
       <DialogTrigger asChild>
@@ -705,6 +720,7 @@ export function NewItemButton({
               onClick={() => {
                 setOpen(false);
                 reset();
+                onClosed?.();
               }}
             >
               Annuler

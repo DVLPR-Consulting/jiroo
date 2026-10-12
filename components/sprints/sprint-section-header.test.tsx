@@ -1,7 +1,15 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SprintSectionHeader } from "@/components/sprints/sprint-section-header";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock("@/app/actions/sprints", () => ({
+  createSprintAction: vi.fn(),
+  updateSprintAction: vi.fn(),
+}));
+
+const statusPoints = { todo: 8, inProgress: 3, done: 2 };
 
 const sprint = {
   id: "sprint-1",
@@ -42,6 +50,7 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="planned"
         sprint={sprint}
+        statusPoints={statusPoints}
         metrics={metrics}
         expanded={false}
         onExpandedChange={onExpandedChange}
@@ -53,9 +62,14 @@ describe("SprintSectionHeader", () => {
     expect(screen.getByText("Planifié")).toBeVisible();
     expect(screen.getByText("Livrer le paiement invité")).toBeVisible();
     expect(screen.getByText("13 / 10 pts")).toBeVisible();
-    expect(screen.getByText("1 non estimé")).toBeVisible();
+    expect(screen.getByText("4 items · 1 non estimé")).toBeVisible();
     expect(screen.getByText("Dépassement de 3 pts")).toBeVisible();
     expect(screen.getByText(/10 août 2026/)).toBeVisible();
+    expect(
+      screen.getByText("Points par statut : À faire 8, En cours 3, Terminé 2"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ajouter des dates et un objectif" }))
+      .not.toBeInTheDocument();
 
     const toggle = screen.getByRole("button", { name: "Déplier Sprint paiement" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -68,27 +82,27 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="planned"
         sprint={sprint}
+        statusPoints={statusPoints}
         metrics={{ ...metrics, itemCount: 0, unestimatedCount: 0 }}
         expanded={false}
         onExpandedChange={vi.fn()}
         canManage
       />,
     );
-    expect(screen.getByText("0 tâche")).toBeVisible();
-    expect(screen.getByText("0 non estimé")).toBeVisible();
+    expect(screen.getByText("0 item · 0 non estimé")).toBeVisible();
 
     rerender(
       <SprintSectionHeader
         kind="planned"
         sprint={sprint}
+        statusPoints={statusPoints}
         metrics={{ ...metrics, itemCount: 2, unestimatedCount: 2 }}
         expanded={false}
         onExpandedChange={vi.fn()}
         canManage
       />,
     );
-    expect(screen.getByText("2 tâches")).toBeVisible();
-    expect(screen.getByText("2 non estimés")).toBeVisible();
+    expect(screen.getByText("2 items · 2 non estimés")).toBeVisible();
   });
 
   it("agrees the points unit with the capacity and over-capacity values", () => {
@@ -96,6 +110,7 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="planned"
         sprint={sprint}
+        statusPoints={statusPoints}
         metrics={{ ...metrics, estimatedPoints: 2.5, capacityPoints: 1.5, overCapacityPoints: 1 }}
         expanded={false}
         onExpandedChange={vi.fn()}
@@ -109,6 +124,7 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="planned"
         sprint={sprint}
+        statusPoints={statusPoints}
         metrics={{ ...metrics, estimatedPoints: 4, capacityPoints: 2, overCapacityPoints: 2 }}
         expanded={false}
         onExpandedChange={vi.fn()}
@@ -122,39 +138,54 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="backlog"
         sprint={null}
+        statusPoints={statusPoints}
         metrics={{ ...metrics, estimatedPoints: 1, capacityPoints: null, overCapacityPoints: 0 }}
         expanded={false}
         onExpandedChange={vi.fn()}
         canManage
       />,
     );
-    expect(screen.getByText("1 pt")).toBeVisible();
+    expect(screen.getByText("4 items · 1 non estimé")).toBeVisible();
+    expect(screen.queryByText(/Dépassement/)).not.toBeInTheDocument();
   });
 
-  it("renders supplied actions while keeping sprint management controls permissioned", () => {
+  it("puts sprint management behind the ⋯ menu while keeping one primary action", async () => {
+    const user = userEvent.setup();
+    const onMoveUp = vi.fn();
+    const onMoveDown = vi.fn();
     const { rerender } = render(
       <SprintSectionHeader
         kind="planned"
         sprint={sprint}
+        statusPoints={statusPoints}
         metrics={metrics}
         expanded
         onExpandedChange={vi.fn()}
         canManage
-        canMoveUp
+        canMoveUp={false}
         canMoveDown
-        onMoveUp={vi.fn()}
-        onMoveDown={vi.fn()}
-        actions={<button type="button">Démarrer</button>}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        backlogId="backlog-1"
+        backlogKey="DEMO"
+        primaryAction={<button type="button">Démarrer</button>}
       />,
     );
-    expect(screen.getByRole("button", { name: "Monter Sprint paiement" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Descendre Sprint paiement" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Démarrer" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Monter|Descendre/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Actions de Sprint paiement" }));
+    expect(screen.getByRole("menuitem", { name: "Modifier" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Monter" })).toHaveAttribute("aria-disabled", "true");
+    await user.click(screen.getByRole("menuitem", { name: "Descendre" }));
+    expect(onMoveDown).toHaveBeenCalledOnce();
+    expect(onMoveUp).not.toHaveBeenCalled();
 
     rerender(
       <SprintSectionHeader
         kind="planned"
         sprint={sprint}
+        statusPoints={statusPoints}
         metrics={metrics}
         expanded
         onExpandedChange={vi.fn()}
@@ -163,15 +194,97 @@ describe("SprintSectionHeader", () => {
         canMoveDown
         onMoveUp={vi.fn()}
         onMoveDown={vi.fn()}
-        actions={undefined}
+        backlogId="backlog-1"
+        backlogKey="DEMO"
       />,
     );
-    expect(screen.queryByRole("button", { name: "Monter Sprint paiement" }))
-      .not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Descendre Sprint paiement" }))
+    expect(screen.queryByRole("button", { name: "Actions de Sprint paiement" }))
       .not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Démarrer" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Replier Sprint paiement" })).toBeVisible();
+  });
+
+  it("offers only Modifier in the menu of the active sprint", async () => {
+    const user = userEvent.setup();
+    render(
+      <SprintSectionHeader
+        kind="active"
+        sprint={{ ...sprint, state: "active" }}
+        statusPoints={statusPoints}
+        metrics={metrics}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage
+        backlogId="backlog-1"
+        backlogKey="DEMO"
+      />,
+    );
+    expect(screen.getByText("Actif")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Actions de Sprint paiement" }));
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Modifier"]);
+  });
+
+  it("opens the sprint form from Modifier and returns focus to the menu button", async () => {
+    const user = userEvent.setup();
+    render(
+      <SprintSectionHeader
+        kind="planned"
+        sprint={sprint}
+        statusPoints={statusPoints}
+        metrics={metrics}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage
+        backlogId="backlog-1"
+        backlogKey="DEMO"
+      />,
+    );
+    const menuButton = screen.getByRole("button", { name: "Actions de Sprint paiement" });
+    await user.click(menuButton);
+    await user.click(screen.getByRole("menuitem", { name: "Modifier" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Modifier Sprint paiement" });
+    expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("Sprint paiement");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    await waitFor(() => expect(menuButton).toHaveFocus());
+  });
+
+  it("links a sprint without dates or goal to its form", async () => {
+    const user = userEvent.setup();
+    const bare = { ...sprint, goal: null, plannedStartAt: null, plannedEndAt: null };
+    const { rerender } = render(
+      <SprintSectionHeader
+        kind="planned"
+        sprint={bare}
+        statusPoints={statusPoints}
+        metrics={metrics}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage
+        backlogId="backlog-1"
+        backlogKey="DEMO"
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Ajouter des dates et un objectif" }));
+    expect(await screen.findByRole("dialog", { name: "Modifier Sprint paiement" })).toBeVisible();
+    expect(screen.getByLabelText("Début prévu")).toHaveValue("");
+
+    rerender(
+      <SprintSectionHeader
+        kind="planned"
+        sprint={bare}
+        statusPoints={statusPoints}
+        metrics={metrics}
+        expanded
+        onExpandedChange={vi.fn()}
+        canManage={false}
+        backlogId="backlog-1"
+        backlogKey="DEMO"
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Ajouter des dates et un objectif" }))
+      .not.toBeInTheDocument();
   });
 
   it("renders the unscheduled Backlog without sprint-only controls", () => {
@@ -179,6 +292,7 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="backlog"
         sprint={null}
+        statusPoints={statusPoints}
         metrics={{ ...metrics, capacityPoints: null, overCapacityPoints: 0 }}
         expanded
         onExpandedChange={vi.fn()}
@@ -186,15 +300,21 @@ describe("SprintSectionHeader", () => {
       />,
     );
     expect(screen.getByRole("heading", { name: "Backlog" })).toBeVisible();
-    expect(screen.getByText("13 pts")).toBeVisible();
+    expect(screen.getByText("4 items · 1 non estimé")).toBeVisible();
+    expect(
+      screen.getByText("Points par statut : À faire 8, En cours 3, Terminé 2"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Planifié")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Actions de/ })).not.toBeInTheDocument();
   });
 
-  it("lets a sprint manager reorder sprints without an item-edit capability", () => {
+  it("lets a sprint manager reorder sprints without an item-edit capability", async () => {
+    const user = userEvent.setup();
     render(
       <SprintSectionHeader
         kind="planned"
         sprint={sprint}
+        statusPoints={statusPoints}
         metrics={metrics}
         expanded
         onExpandedChange={vi.fn()}
@@ -204,11 +324,14 @@ describe("SprintSectionHeader", () => {
         canMoveDown
         onMoveUp={vi.fn()}
         onMoveDown={vi.fn()}
+        backlogId="backlog-1"
+        backlogKey="DEMO"
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Monter Sprint paiement" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Descendre Sprint paiement" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Actions de Sprint paiement" }));
+    expect(screen.getByRole("menuitem", { name: "Monter" })).not.toHaveAttribute("aria-disabled");
+    expect(screen.getByRole("menuitem", { name: "Descendre" })).not.toHaveAttribute("aria-disabled");
   });
 
   it("compares a planned commitment with recent velocity without blocking planning", () => {
@@ -216,6 +339,7 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="planned"
         sprint={sprint}
+        statusPoints={statusPoints}
         metrics={{ ...metrics, velocityComparison: aboveVelocity }}
         expanded
         onExpandedChange={vi.fn()}
@@ -224,7 +348,7 @@ describe("SprintSectionHeader", () => {
         canMoveDown
         onMoveUp={vi.fn()}
         onMoveDown={vi.fn()}
-        actions={<button type="button">Démarrer</button>}
+        primaryAction={<button type="button">Démarrer</button>}
       />,
     );
 
@@ -239,8 +363,6 @@ describe("SprintSectionHeader", () => {
     expect(screen.getByText("13 / 10 pts")).toBeVisible();
     expect(screen.getByText("Dépassement de 3 pts")).toBeVisible();
     expect(screen.getByRole("button", { name: "Démarrer" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Monter Sprint paiement" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Descendre Sprint paiement" })).toBeEnabled();
   });
 
   it("compares the active sprint's start commitment and shows the current scope separately", () => {
@@ -248,6 +370,7 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="active"
         sprint={{ ...sprint, state: "active" }}
+        statusPoints={statusPoints}
         metrics={{
           ...metrics,
           estimatedPoints: 25,
@@ -279,6 +402,7 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="active"
         sprint={{ ...sprint, state: "active" }}
+        statusPoints={statusPoints}
         metrics={{
           ...metrics,
           commitmentBasis: "sprint_start",
@@ -304,6 +428,7 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="active"
         sprint={{ ...sprint, state: "active" }}
+        statusPoints={statusPoints}
         metrics={{
           ...metrics,
           estimatedPoints: 25,
@@ -327,6 +452,7 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="planned"
         sprint={sprint}
+        statusPoints={statusPoints}
         metrics={{
           ...metrics,
           commitmentBasis: "current_scope",
@@ -346,6 +472,7 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="planned"
         sprint={sprint}
+        statusPoints={statusPoints}
         metrics={{
           ...metrics,
           velocityComparison: {
@@ -371,6 +498,7 @@ describe("SprintSectionHeader", () => {
       <SprintSectionHeader
         kind="backlog"
         sprint={null}
+        statusPoints={statusPoints}
         metrics={{
           ...metrics,
           capacityPoints: null,

@@ -130,7 +130,10 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
       page.getByRole("region", { name: "Actions groupées" }).getByText(/items? modifié/),
     ).toBeVisible();
     for (const key of [firstKey, secondKey]) {
-      await expect(page.getByRole("row", { name: new RegExp(`^${key} —`) })).toContainText("Haute");
+      await expect(
+        page.getByRole("row", { name: new RegExp(`^${key} —`) })
+          .getByRole("button", { name: "Priorité : Haute" }),
+      ).toBeVisible();
     }
 
     const status = await waitForBusinessPost(page, async () => {
@@ -150,7 +153,10 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
     timings.push(`[timing] bulk assignee ${assignee.elapsedMs}ms`);
     expect(assignee.status).toBeLessThan(400);
     for (const key of [firstKey, secondKey]) {
-      await expect(page.getByRole("row", { name: new RegExp(`^${key} —`) })).toContainText("Administrateur E2E");
+      await expect(
+        page.getByRole("row", { name: new RegExp(`^${key} —`) })
+          .getByRole("button", { name: "Assigné : Administrateur E2E" }),
+      ).toBeVisible();
     }
 
     await page.getByRole("spinbutton", { name: "Estimation groupée" }).fill("5");
@@ -236,7 +242,7 @@ test("distingue 5, zéro et non estimé puis restaure la valeur", async ({ page 
   const estimateButtons = page.getByRole("button", { name: /^Estimation :/ });
   await expect(estimateButtons.first()).toBeVisible();
   const firstButton = estimateButtons.first();
-  const row = firstButton.locator("xpath=ancestor::tr");
+  const row = firstButton.locator("xpath=ancestor::*[@role='row'][1]");
   const rowLabel = await row.getAttribute("aria-label");
   const key = rowLabel?.split(" — ")[0];
   if (!key) throw new Error("Tâche d’estimation introuvable.");
@@ -342,7 +348,7 @@ test("isole la sélection de la Liste et la réinitialise au changement de vue",
 test("restaure le classement et conserve la sélection après deux échecs réseau injectés", async ({ page }) => {
   const capture = observe(page);
   await page.goto("/b/CASS?view=backlog");
-  const rows = page.locator("tr[aria-label]");
+  const rows = page.locator("[role=row][aria-label]");
   const initialOrder = await rows.evaluateAll((elements) =>
     elements.map((element) => element.getAttribute("aria-label")),
   );
@@ -443,16 +449,50 @@ async function expectReadableHeaderRows(page: Page) {
   }
 }
 
-test("garde les en-têtes du Backlog et de la Liste lisibles à 390 par 844", async ({ page }) => {
+/**
+ * JIR-75: Backlog rows have no columns any more; at 390 px they wrap their
+ * fields under a readable title and never scroll sideways.
+ */
+async function expectBacklogRowsFit(page: Page) {
+  const rows = page.locator("[role=row][aria-label]");
+  expect(await rows.count()).toBeGreaterThan(0);
+  const layout = await rows.evaluateAll((elements) =>
+    elements.map((row) => {
+      const rect = row.getBoundingClientRect();
+      const title = row.querySelector<HTMLElement>("span.truncate");
+      return {
+        label: row.getAttribute("aria-label") ?? "",
+        right: rect.right,
+        overflow: row.scrollWidth - row.clientWidth,
+        titleWidth: title?.getBoundingClientRect().width ?? 0,
+      };
+    }),
+  );
+  const width = page.viewportSize()!.width;
+  for (const row of layout) {
+    expect(row.right, `${row.label} dépasse l’écran`).toBeLessThanOrEqual(width + 1);
+    expect(row.overflow, `${row.label} défile horizontalement`).toBeLessThanOrEqual(1);
+    expect(row.titleWidth, `${row.label} : titre illisible`).toBeGreaterThanOrEqual(80);
+  }
+  const scroller = await page.evaluate(() => {
+    const main = document.querySelector("main");
+    const overflowing = [...(main?.querySelectorAll<HTMLElement>("*") ?? [])].filter(
+      (element) => element.scrollWidth > element.clientWidth + 1
+        && getComputedStyle(element).overflowX !== "hidden"
+        && getComputedStyle(element).overflowX !== "clip"
+        && element.closest("[data-sprint-section]") !== null,
+    );
+    return overflowing.map((element) => element.className.toString().slice(0, 80));
+  });
+  expect(scroller, "Aucun défilement horizontal dans les sections").toEqual([]);
+}
+
+test("garde le Backlog et les en-têtes de la Liste lisibles à 390 par 844", async ({ page }) => {
   const capture = observe(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/b/CASS?view=backlog");
   await expect(page.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
-  await expectReadableHeaderRows(page);
-  const firstTitle = page.getByRole("table").first().locator("tbody td span.truncate").first();
-  await firstTitle.scrollIntoViewIfNeeded();
-  await expect(firstTitle).toBeVisible();
-  expect((await firstTitle.boundingBox())?.width ?? 0).toBeGreaterThan(0);
+  await expectBacklogRowsFit(page);
 
   await page.goto("/b/CASS?view=list");
   await expect(page.getByRole("table")).toBeVisible();
