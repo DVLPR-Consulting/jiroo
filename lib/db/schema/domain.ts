@@ -51,8 +51,26 @@ export const backlogs = pgTable("backlogs", {
   name: text("name").notNull(),
   color: text("color").notNull().default("#7c3030"),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
+  // Jira's "project lead": informative only, grants nothing (JIR-82).
+  leadUserId: text("lead_user_id").references(() => user.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// A user's favourite backlogs, listed first on the home page and in the
+// backlog selector (JIR-82, Jira's starred projects).
+export const backlogStars = pgTable(
+  "backlog_stars",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    backlogId: uuid("backlog_id")
+      .notNull()
+      .references(() => backlogs.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.backlogId] })],
+);
 
 export const sprints = pgTable(
   "sprints",
