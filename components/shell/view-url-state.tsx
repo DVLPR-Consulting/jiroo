@@ -234,6 +234,11 @@ export function RouteViewUrlStateProvider({ children }: { children: ReactNode })
   );
 }
 
+/** The view URL state when rendered inside a backlog view, else null. */
+export function useOptionalViewUrlState(): ViewUrlState | null {
+  return useContext(ViewUrlStateContext);
+}
+
 export function useViewUrlState(): ViewUrlState {
   const state = useContext(ViewUrlStateContext);
   if (!state) {

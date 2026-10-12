@@ -72,7 +72,9 @@ test.describe("éditeur Markdown visuel", () => {
     await expect(main.getByText("Écrivez, ou tapez « / » pour insérer un bloc…")).toBeVisible();
     await expect(main.getByRole("button", { name: "Éditer" })).toHaveCount(0);
     await expect(main.getByRole("button", { name: "Enregistrer" })).toHaveCount(0);
-    await expect(main.getByRole("toolbar", { name: "Mise en forme" })).toHaveCount(0);
+    // Only the comment composer, below, keeps a formatting toolbar.
+    await expect(dialog.getByRole("region", { name: "Description" })
+      .getByRole("toolbar", { name: "Mise en forme" })).toHaveCount(0);
     await page.screenshot({ path: shotPath(testInfo, "jir71-rest-empty.png") });
 
     // « / » menu: filter, then insert a heading with the keyboard.
@@ -163,7 +165,7 @@ test.describe("éditeur Markdown visuel", () => {
     await expect.poll(() => storedDescription(item.id)).toBe("Premier jet, complété puis relu");
     // Blur saves too.
     await page.keyboard.type(".");
-    await main.getByRole("button", { name: "Activité" }).click();
+    await main.getByRole("tab", { name: "Historique" }).click();
     await expect.poll(() => storedDescription(item.id)).toBe("Premier jet, complété puis relu.");
 
     expect(await descriptionActivities(item.id)).toEqual([
@@ -171,7 +173,7 @@ test.describe("éditeur Markdown visuel", () => {
     ]);
     await page.reload();
     await page.getByRole("dialog", { name: new RegExp(`^${item.key} —`) })
-      .getByRole("button", { name: "Activité" }).click();
+      .getByRole("tab", { name: "Historique" }).click();
     await expect(page.getByText("a modifié la description")).toHaveCount(1);
   });
 
@@ -227,7 +229,7 @@ test.describe("éditeur Markdown visuel", () => {
   test("écrit un commentaire formaté avec mention puis le modifie", async ({ page }, testInfo) => {
     const item = await fixtureItem("JIR-66 commentaire");
     const dialog = await openItem(page, item.key);
-    await dialog.getByRole("button", { name: "Commentaires" }).click();
+    await dialog.getByRole("tab", { name: "Commentaires" }).click();
 
     const composer = dialog.getByRole("textbox", { name: "Nouveau commentaire" });
     await composer.click();

@@ -16,7 +16,7 @@ import {
 } from "@/lib/shortcuts/engine";
 import {
   SEQUENCE_SHORTCUTS,
-  sequenceShortcutGroup,
+  sequenceShortcutForContext,
   type SequenceShortcutId,
 } from "@/lib/shortcuts/registry";
 import { KeyboardShortcutsDialog } from "@/components/shortcuts/keyboard-shortcuts-dialog";
@@ -98,17 +98,16 @@ export function KeyboardShortcutsProvider({ children }: { children: React.ReactN
       const result = matcher.feed(key, Date.now());
       if (result.type !== "match") return;
 
-      const group = sequenceShortcutGroup(result.id);
-      if (group === "list" && context !== "page") return;
-      if (group === "item" && context !== "item") return;
+      const id = sequenceShortcutForContext(result.id, context);
+      if (id === null) return;
 
       const handler =
-        result.id === "help"
+        id === "help"
           ? () => {
               setHelpReturnFocus(document.activeElement);
               setHelpOpen(true);
             }
-          : handlers.current.get(result.id)?.at(-1);
+          : handlers.current.get(id)?.at(-1);
       if (!handler || handler() === false) return;
       event.preventDefault();
     }

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateItemAction } from "@/app/actions/items";
+import { FieldStatusContext } from "@/components/items/detail/field-status";
 
 type UpdatePatch = Omit<
   Parameters<typeof updateItemAction>[0],
@@ -29,10 +30,19 @@ export function useOptimisticFieldUpdate<T>({
   const confirmedRef = useRef(value);
   const pendingRef = useRef(false);
   const revisionRef = useRef(0);
+  const reportStatus = useContext(FieldStatusContext);
 
   useEffect(() => {
-    if (pendingRef.current) return;
+    reportStatus?.({ pending, error });
+  }, [error, pending, reportStatus]);
+
+  // The latest server value is always recorded as the confirmed one, even
+  // while a save is pending (the drawer may refresh meanwhile): a failure
+  // then falls back to it instead of an older value. The display only
+  // follows it once nothing is saving.
+  useEffect(() => {
     confirmedRef.current = value;
+    if (pendingRef.current) return;
     setOptimistic(value);
   }, [value]);
 

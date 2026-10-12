@@ -72,6 +72,8 @@ export const SHORTCUTS = [
   { id: "item.assign", kind: "sequence", group: "item", sequence: ["a"], label: "Choisir l’assigné", jira: "a" },
   { id: "item.assignToMe", kind: "sequence", group: "item", sequence: ["i"], label: "M’assigner le ticket", jira: "i" },
   { id: "item.status", kind: "sequence", group: "item", sequence: ["s"], label: "Changer le statut" },
+  { id: "item.next", kind: "sequence", group: "item", sequence: ["j"], label: "Item suivant de la liste", jira: "j" },
+  { id: "item.previous", kind: "sequence", group: "item", sequence: ["k"], label: "Item précédent de la liste", jira: "k" },
   { id: "item.close", kind: "combo", group: "item", combo: ["Échap"], label: "Fermer le ticket", jira: "Échap" },
 
   // Autres
@@ -111,6 +113,34 @@ export function shortcutsInGroup(group: ShortcutGroupId): readonly ShortcutDefin
 /** Group of a sequence shortcut, used to pick the context it may fire in. */
 export function sequenceShortcutGroup(id: SequenceShortcutId): ShortcutGroupId {
   return SEQUENCE_SHORTCUTS.find((shortcut) => shortcut.id === id)!.group;
+}
+
+/** Groups whose sequence shortcuts may fire in each context. */
+const CONTEXT_GROUPS = {
+  page: ["global", "navigation", "list"],
+  item: ["global", "navigation", "item"],
+} as const satisfies Record<"page" | "item", readonly ShortcutGroupId[]>;
+
+/**
+ * The shortcut a matched key sequence stands for in `context`: list keys
+ * act on the page, item keys in the open item drawer, so « j » / « k » are
+ * the list's next / previous on the page and the drawer's next / previous
+ * item inside it. Null when nothing applies there.
+ */
+export function sequenceShortcutForContext(
+  id: SequenceShortcutId,
+  context: "page" | "item",
+): SequenceShortcutId | null {
+  const matched = SEQUENCE_SHORTCUTS.find((shortcut) => shortcut.id === id);
+  if (!matched) return null;
+  const groups: readonly ShortcutGroupId[] = CONTEXT_GROUPS[context];
+  const fitting = SEQUENCE_SHORTCUTS.find(
+    (shortcut) =>
+      groups.includes(shortcut.group) &&
+      shortcut.sequence.length === matched.sequence.length &&
+      shortcut.sequence.every((key, index) => key === matched.sequence[index]),
+  );
+  return fitting?.id ?? null;
 }
 
 /** The keys to render, one `<kbd>` each, with the word between them. */

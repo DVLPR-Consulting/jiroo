@@ -62,7 +62,7 @@ test("« g » puis une lettre change de vue, jamais pendant la saisie", async ({
   await expect(page).toHaveURL(/\/b\/CASS\/reports$/);
 });
 
-test("« j » / « k » sélectionnent un ticket et « o » l’ouvre ; « m » puis « i » dans le tiroir", async ({
+test("« j » / « k » sélectionnent un ticket et « o » l’ouvre ; dans le tiroir « j » / « k », « m » puis « i »", async ({
   page,
 }) => {
   await gotoBacklog(page);
@@ -81,8 +81,14 @@ test("« j » / « k » sélectionnent un ticket et « o » l’ouvre ; « m » 
   await expect(drawer).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`[?&]item=${key}(&|$)`));
 
-  // j / k belong to the list, not to the open item.
+  // In the drawer, j / k open the next / previous item of the list (Jira).
+  const nextKey = await rows.nth(1).getAttribute("data-shortcut-item");
   await page.keyboard.press("j");
+  await expect(page).toHaveURL(new RegExp(`[?&]item=${nextKey}(&|$)`));
+  const nextDrawer = page.getByRole("dialog", { name: new RegExp(`^${nextKey} —`) });
+  await expect(nextDrawer).toBeVisible();
+  await page.keyboard.press("k");
+  await expect(page).toHaveURL(new RegExp(`[?&]item=${key}(&|$)`));
   await expect(drawer).toBeVisible();
 
   await page.keyboard.press("m");
@@ -91,18 +97,22 @@ test("« j » / « k » sélectionnent un ticket et « o » l’ouvre ; « m » 
   // The composer is the rich-text editor (contenteditable), empty here.
   await expect(composer).toHaveText("");
   // Start from an unassigned item, then « i » assigns it to the signed-in user.
+  const assigneeValue = drawer.getByRole("button", { name: /^Assigné / });
+  await assigneeValue.click();
   const assignee = drawer.getByRole("combobox", { name: "Assigné" });
   const previous = await assignee.inputValue();
   await assignee.selectOption("");
   await expect(assignee).toHaveValue("");
   await expect(assignee).toBeEnabled();
-  await drawer.getByRole("button", { name: "Détail" }).focus();
+  await drawer.getByRole("button", { name: "Copier le lien" }).focus();
+  await expect(assigneeValue).toContainText("Non assigné");
   await page.keyboard.press("i");
-  await expect(assignee).not.toHaveValue("");
-  await expect(assignee).toBeEnabled();
+  await expect(assigneeValue).not.toContainText("Non assigné");
+  await expect(drawer.getByRole("button", { name: "M’assigner" })).toHaveCount(0);
   // Restore the seed for the other specs.
-  await assignee.selectOption(previous);
-  await expect(assignee).toHaveValue(previous);
+  await assigneeValue.click();
+  await drawer.getByRole("combobox", { name: "Assigné" }).selectOption(previous);
+  await expect(drawer.getByRole("combobox", { name: "Assigné" })).toHaveValue(previous);
 });
 
 test("les raccourcis à une touche se désactivent depuis la fenêtre « ? »", async ({ page }) => {

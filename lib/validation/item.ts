@@ -56,6 +56,7 @@ export const createItemSchema = z
     labelIds,
     fixVersionIds: fixVersionIds.default([]),
     sprintId: z.uuid("Sprint invalide.").nullable().optional(),
+    estimatePoints: estimatePointsSchema.optional(),
   })
   .refine((d) => (d.type === "composant") === (d.parentId === null), {
     message: "Un composant est une racine ; les autres types exigent un parent.",
@@ -64,6 +65,10 @@ export const createItemSchema = z
   .refine((d) => d.sprintId == null || d.type === "tache", {
     message: "Seules les tâches peuvent être planifiées dans un sprint.",
     path: ["sprintId"],
+  })
+  .refine((d) => d.estimatePoints == null || d.type === "tache", {
+    message: "Seules les tâches peuvent être estimées.",
+    path: ["estimatePoints"],
   });
 
 export const updateItemSchema = z.object({

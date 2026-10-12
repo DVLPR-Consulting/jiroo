@@ -7,10 +7,16 @@ import { KeyboardShortcutsProvider } from "@/components/shortcuts/keyboard-short
 const mocks = vi.hoisted(() => ({
   createItemAction: vi.fn(),
   refresh: vi.fn(),
+  push: vi.fn(),
+  toastSuccess: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: mocks.refresh }),
+  useRouter: () => ({ refresh: mocks.refresh, push: mocks.push }),
+}));
+
+vi.mock("@/lib/toast", () => ({
+  toast: { success: mocks.toastSuccess, error: vi.fn() },
 }));
 
 vi.mock("next/link", () => ({
@@ -101,7 +107,7 @@ describe("NewItemButton", () => {
 
     await user.click(screen.getByRole("button", { name: "Nouvel item" }));
     expect(screen.getByRole("button", { name: /^Créer$/ })).toBeVisible();
-    await user.type(screen.getByRole("textbox", { name: "Titre" }), "Carte créée");
+    await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Carte créée");
     await user.click(screen.getByRole("button", { name: /Créer$/ }));
 
     await waitFor(() =>
@@ -137,7 +143,7 @@ describe("NewItemButton", () => {
       screen.getByRole("menuitemcheckbox", { name: "2026.09 — Publiée" }),
     );
     await user.keyboard("{Escape}");
-    await user.type(screen.getByRole("textbox", { name: "Titre" }), "Versionnée");
+    await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Versionnée");
     await user.click(screen.getByRole("button", { name: /^Créer$/ }));
 
     await waitFor(() =>
@@ -158,7 +164,7 @@ describe("NewItemButton", () => {
     render(<NewItemButton {...dialogProps()} />);
 
     await user.click(screen.getByRole("button", { name: "Nouvel item" }));
-    await user.type(screen.getByRole("textbox", { name: "Titre" }), "Versionnée");
+    await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Versionnée");
     await user.click(screen.getByRole("button", { name: /^Créer$/ }));
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Versions" })).toBeDisabled());
@@ -178,13 +184,13 @@ describe("NewItemButton", () => {
     render(<NewItemButton {...dialogProps()} onCreated={onCreated} />);
 
     await user.click(screen.getByRole("button", { name: "Nouvel item" }));
-    await user.type(screen.getByRole("textbox", { name: "Titre" }), "Première");
+    await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Première");
     await user.click(screen.getByRole("button", { name: /^Créer$/ }));
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Close" }));
 
     expect(screen.getByRole("dialog")).toBeVisible();
-    expect(screen.getByRole("textbox", { name: "Titre" })).toHaveValue("Première");
+    expect(screen.getByRole("textbox", { name: /Titre/ })).toHaveValue("Première");
     resolve({ ok: true, item: { id: "item-id", key: "DEMO-7" } });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(onCreated).toHaveBeenCalledOnce();
@@ -211,8 +217,8 @@ describe("NewItemButton", () => {
     expect(screen.getByRole("heading", { name: "Nouvelle tâche — Sprint paiement" }))
       .toBeVisible();
     expect(screen.getByRole("combobox", { name: "Type" })).toHaveValue("tache");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Parent" }), "epic-id");
-    await user.type(screen.getByRole("textbox", { name: "Titre" }), "Paiement invité");
+    await user.selectOptions(screen.getByRole("combobox", { name: /Parent/ }), "epic-id");
+    await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Paiement invité");
     await user.click(screen.getByRole("button", { name: /Créer$/ }));
 
     await waitFor(() =>
@@ -275,7 +281,7 @@ describe("NewItemButton", () => {
     const notCancelled = fireEvent.keyDown(window, { key: "c" });
 
     expect(notCancelled).toBe(false);
-    expect(screen.getByRole("textbox", { name: "Titre" })).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: /Titre/ })).toHaveValue("");
   });
 
   it("announces the title limit and renders the server field error", async () => {
@@ -288,7 +294,7 @@ describe("NewItemButton", () => {
     render(<NewItemButton {...dialogProps()} />);
     await user.click(screen.getByRole("button", { name: "Nouvel item" }));
 
-    const title = screen.getByRole("textbox", { name: "Titre" });
+    const title = screen.getByRole("textbox", { name: /Titre/ });
     expect(title).toHaveAttribute("maxlength", "200");
     expect(screen.getByText("0 / 200")).toBeVisible();
 
@@ -409,5 +415,151 @@ describe("NewItemButton", () => {
       "title",
       "Nouvel item (C)",
     );
+  });
+
+  describe("Jira-style create screen (JIR-73)", () => {
+    const fieldOptions = {
+      users: [
+        { id: "me", name: "Marie Lemaire" },
+        { id: "paul", name: "Paul Martin" },
+      ],
+      canAssign: true,
+      currentUserId: "me",
+      sprints: [{ id: "44444444-4444-4444-8444-444444444444", name: "Sprint 4" }],
+      labels: [{ id: "55555555-5555-4555-8555-555555555555", name: "front", color: "--label-1" }],
+    };
+    const items = [{ id: "epic-id", key: "DEMO-2", type: "epic" as const, title: "Paiement" }];
+
+    beforeEach(() => {
+      mocks.toastSuccess.mockReset();
+      mocks.push.mockReset();
+    });
+
+    it("sends every field set in the Détails section", async () => {
+      const user = userEvent.setup();
+      mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: { id: "i", key: "DEMO-9" } });
+      render(
+        <NewItemButton
+          {...dialogProps()}
+          items={items}
+          fieldOptions={fieldOptions}
+          initialType="tache"
+          initialParentId="epic-id"
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      const dialog = screen.getByRole("dialog", { name: "Nouvel item" });
+      expect(dialog).toHaveTextContent("DEMO");
+      expect(screen.getByRole("combobox", { name: "Type" })).toHaveValue("tache");
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveValue("epic-id");
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche complète");
+      await user.click(screen.getByRole("button", { name: "M’assigner" }));
+      expect(screen.getByRole("combobox", { name: "Assigné" })).toHaveValue("me");
+      expect(screen.queryByRole("button", { name: "M’assigner" })).not.toBeInTheDocument();
+      await user.type(screen.getByRole("spinbutton", { name: "Points" }), "3.5");
+      await user.selectOptions(screen.getByRole("combobox", { name: "Sprint" }), "Sprint 4");
+      await user.click(screen.getByRole("button", { name: "Labels" }));
+      await user.click(screen.getByRole("menuitemcheckbox", { name: "front" }));
+      await user.keyboard("{Escape}");
+      await user.type(screen.getByLabelText("Échéance"), "2026-11-02");
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+      await waitFor(() =>
+        expect(mocks.createItemAction).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "tache",
+            parentId: "epic-id",
+            title: "Tâche complète",
+            assigneeId: "me",
+            estimatePoints: 3.5,
+            sprintId: "44444444-4444-4444-8444-444444444444",
+            labelIds: ["55555555-5555-4555-8555-555555555555"],
+            dueDate: "2026-11-02",
+          }),
+        ),
+      );
+    });
+
+    it("shows Points and Sprint for tasks only, and no Assigné without the right", async () => {
+      const user = userEvent.setup();
+      render(<NewItemButton {...dialogProps()} fieldOptions={{ ...fieldOptions, canAssign: false }} />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      expect(screen.queryByRole("spinbutton", { name: "Points" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "Sprint" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "Assigné" })).not.toBeInTheDocument();
+    });
+
+    it("« Créer un autre » keeps the dialog, type and parent, and clears the text", async () => {
+      const user = userEvent.setup();
+      mocks.createItemAction.mockResolvedValue({ ok: true, item: { id: "i", key: "DEMO-9" } });
+      render(<NewItemButton {...dialogProps()} items={items} initialType="tache" initialParentId="epic-id" />);
+
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await user.click(screen.getByRole("checkbox", { name: "Créer un autre" }));
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Première");
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+      await waitFor(() => expect(screen.getByRole("textbox", { name: /Titre/ })).toHaveValue(""));
+      expect(screen.getByRole("dialog", { name: "Nouvel item" })).toBeVisible();
+      expect(screen.getByRole("combobox", { name: "Type" })).toHaveValue("tache");
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveValue("epic-id");
+      expect(screen.getByRole("textbox", { name: /Titre/ })).toHaveFocus();
+    });
+
+    it("announces « <clé> créé » with « Ouvrir » and « Annuler »", async () => {
+      const user = userEvent.setup();
+      mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: { id: "i", key: "DEMO-9" } });
+      window.history.replaceState({}, "", "/b/DEMO?view=list");
+      render(<NewItemButton {...dialogProps()} />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Nouveau");
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+      await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+      const [message, options] = mocks.toastSuccess.mock.calls[0]!;
+      expect(message).toBe("DEMO-9 créé");
+      expect(options.action.label).toBe("Annuler");
+      expect(options.secondaryAction.label).toBe("Ouvrir");
+      options.secondaryAction.run();
+      expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=list&item=DEMO-9");
+    });
+
+    it("closes with « Annuler »", async () => {
+      const user = userEvent.setup();
+      render(<NewItemButton {...dialogProps()} />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await user.click(screen.getByRole("button", { name: "Annuler" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("prefilled parent consistency (JIR-73 R3)", () => {
+    it("never shows one parent while sending another when the prefilled one is not a candidate", async () => {
+      const user = userEvent.setup();
+      render(
+        <NewItemButton
+          {...dialogProps()}
+          items={[{ id: "other-epic", key: "DEMO-5", type: "epic", title: "Autre epic" }]}
+          initialType="tache"
+          initialParentId="opened-epic"
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveValue("");
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche");
+      expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
+      expect(mocks.createItemAction).not.toHaveBeenCalled();
+    });
+
+    it("keeps « Créer » disabled when no parent candidate exists", async () => {
+      const user = userEvent.setup();
+      render(
+        <NewItemButton {...dialogProps()} items={[]} initialType="tache" initialParentId="opened-epic" />,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche");
+      expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
+    });
   });
 });

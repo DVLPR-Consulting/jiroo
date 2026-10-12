@@ -47,6 +47,7 @@ type CreateItemActionInput = {
   kind?: ItemKind;
   sprintId?: string | null;
   fixVersionIds?: string[];
+  estimatePoints?: number | null;
 };
 
 type UpdateItemActionInput = {

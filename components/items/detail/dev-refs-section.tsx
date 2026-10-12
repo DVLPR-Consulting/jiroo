@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { X, GitFork, GitPullRequest, GitCommitHorizontal, GitBranch, Link } from "lucide-react";
+import { X, GitFork, GitPullRequest, GitCommitHorizontal, GitBranch, GitPullRequestArrow, Link } from "lucide-react";
 import { parseGithubRef } from "@/lib/items/github-ref";
 import { addRefAction, removeRefAction } from "@/app/actions/refs";
 import { toast } from "@/lib/toast";
@@ -47,6 +47,12 @@ export function DevRefsSection({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [url, setUrl] = useState("");
+  // The URL form stays behind « Lier une PR ou un commit » until asked for.
+  const [formOpen, setFormOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (formOpen) inputRef.current?.focus();
+  }, [formOpen]);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -60,6 +66,7 @@ export function DevRefsSection({
       if (res.ok) {
         toast.success("Lien ajouté.");
         setUrl("");
+        setFormOpen(false);
         router.refresh();
       } else {
         toast.error(res.error);
@@ -81,6 +88,12 @@ export function DevRefsSection({
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") handleAdd();
+    if (e.key === "Escape") {
+      // Close the form, not the drawer.
+      e.preventDefault();
+      setUrl("");
+      setFormOpen(false);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -91,7 +104,9 @@ export function DevRefsSection({
     <div className="flex flex-col gap-3">
       {/* Existing refs list */}
       {refs.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Aucun lien de développement.</p>
+        canLink ? null : (
+          <p className="text-xs text-muted-foreground">Aucun lien de développement.</p>
+        )
       ) : (
         <div className="flex flex-col gap-1">
           {refs.map((ref) => {
@@ -130,9 +145,21 @@ export function DevRefsSection({
         </div>
       )}
 
+      {canLink && !formOpen && (
+        <button
+          type="button"
+          onClick={() => setFormOpen(true)}
+          className="flex h-9 items-center gap-2.5 rounded-[var(--radius)] px-2 text-left text-[13.5px] text-foreground hover:bg-[var(--muted)]"
+        >
+          <GitPullRequestArrow className="size-4 flex-none" aria-hidden />
+          Lier une PR ou un commit
+        </button>
+      )}
+
       {/* Add control */}
-      {canLink && <div className="flex flex-col gap-1.5">
+      {canLink && formOpen && <div data-local-escape className="flex flex-col gap-1.5">
         <input
+          ref={inputRef}
           type="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}

@@ -109,4 +109,24 @@ describe("HelpPage", () => {
     expect(tickets).not.toHaveTextContent("Ajouter une description");
     expect(tickets).not.toHaveTextContent("Éditer");
   });
+
+  it("documents the item drawer and the create screen (JIR-73)", () => {
+    render(<HelpPage />);
+    const tickets = document.querySelector("section#tickets") as HTMLElement;
+    for (const label of [
+      "Item précédent (K)",
+      "Item suivant (J)",
+      "Copier le lien",
+      "Plus d’actions",
+      "Historique",
+      "Plus récents",
+      "Lier un item",
+      "Copier le nom de branche",
+      "Créer un autre",
+      "M’assigner",
+    ]) {
+      expect(within(tickets).getAllByText(`« ${label} »`).length, label).toBeGreaterThan(0);
+    }
+    expect(tickets).not.toHaveTextContent("Onglet Commentaires");
+  });
 });
