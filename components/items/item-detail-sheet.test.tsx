@@ -507,6 +507,25 @@ describe("ItemDetailSheet", () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
+    it("fetches afresh when the deep-linked item is reopened after closing", async () => {
+      const { fetchMock, answer } = stubFetch();
+      const user = userEvent.setup();
+      await act(async () => {
+        render(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      });
+      const dialog = await screen.findByRole("dialog", { name: "CASS-4 — Titre" });
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      await user.click(within(dialog).getByRole("button", { name: "Fermer" }));
+      await waitFor(() =>
+        expect(historyPush).toHaveBeenLastCalledWith(null, "", "/b/CASS?view=backlog"));
+      // The server tree still holds the page-load detail: it is not reused.
+      await openRow();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await answer(jsonResponse(itemData("CASS-4")));
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+    });
+
     it("renders nothing without an item in the URL", () => {
       render(page(null, [["view", "backlog"]]));
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

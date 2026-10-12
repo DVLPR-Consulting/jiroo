@@ -178,6 +178,37 @@ function useClientItemDetail(
 }
 
 /**
+ * The server's detail while it is current: from the server render until the
+ * user leaves that item (close or switch, which renders nothing on the
+ * server). Reopening it then fetches afresh rather than showing data as old
+ * as the last server render; the next server render brings a new promise.
+ */
+function useCurrentServerDetail(
+  requestedKey: string | null,
+  itemKey: string | null,
+  detail: Promise<ItemDetailData | null> | null | undefined,
+): Promise<ItemDetailData | null> | null {
+  const [seen, setSeen] = useState<{
+    requestedKey: string | null;
+    detail: typeof detail;
+    stale: typeof detail;
+  }>({ requestedKey, detail, stale: null });
+  let stale = seen.stale;
+  if (seen.requestedKey !== requestedKey || seen.detail !== detail) {
+    const leftServerItem =
+      detail != null
+      && seen.detail === detail
+      && seen.requestedKey === itemKey
+      && requestedKey !== itemKey;
+    if (leftServerItem) stale = detail;
+    setSeen({ requestedKey, detail, stale });
+  }
+  return requestedKey !== null && requestedKey === itemKey && detail && detail !== stale
+    ? detail
+    : null;
+}
+
+/**
  * Mounts the item drawer as soon as `?item=` is requested, not when the detail
  * arrives: the frame and a skeleton slide in on click, and the detail replaces
  * the skeleton inside the same dialog once its promise resolves.
@@ -201,9 +232,7 @@ export function ItemDetailDrawer({
   detail?: Promise<ItemDetailData | null> | null;
 }) {
   const requestedKey = useRequestedItemKey();
-  const serverDetail = requestedKey !== null && requestedKey === itemKey && detail
-    ? detail
-    : null;
+  const serverDetail = useCurrentServerDetail(requestedKey, itemKey, detail);
   const clientDetail = useClientItemDetail(
     backlogKey,
     serverDetail ? null : requestedKey,
