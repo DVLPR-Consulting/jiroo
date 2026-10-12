@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   loadItemDetailData: vi.fn(),
   itemListProps: vi.fn(),
   itemTreeProps: vi.fn(),
+  viewActionsProps: vi.fn(),
   listItemFixVersionPairs: vi.fn(),
   listItemLabelPairs: vi.fn(),
   listItemsWithAncestors: vi.fn(),
@@ -128,7 +129,12 @@ vi.mock("@/components/shell/filter-bar", () => ({
     return null;
   },
 }));
-vi.mock("@/components/shell/view-actions", () => ({ ViewActions: () => null }));
+vi.mock("@/components/shell/view-actions", () => ({
+  ViewActions: (props: unknown) => {
+    mocks.viewActionsProps(props);
+    return null;
+  },
+}));
 vi.mock("@/components/items/new-item-dialog", () => ({ NewItemButton: () => null }));
 vi.mock("@/components/shell/create-item-trigger", () => ({ TopbarCreateItem: () => null }));
 vi.mock("@/components/statuses/status-manager-dialog", () => ({
@@ -955,5 +961,151 @@ describe("BacklogViewContent read boundary", () => {
 
     expect(mocks.getPreviousSprintsVelocityContext).not.toHaveBeenCalled();
     expect(mocks.getActiveSprintStartCommitment).not.toHaveBeenCalled();
+  });
+
+  describe("Sprint facet (JIR-81)", () => {
+    const S1 = "11111111-1111-4111-8111-111111111111";
+    const S2 = "22222222-2222-4222-8222-222222222222";
+    const FOREIGN = "33333333-3333-4333-8333-333333333333";
+    const ended = new Date("2026-08-14T00:00:00.000Z");
+    const row = (id: string, key: string, type: "tache" | "soustache", parentId: string | null) => ({
+      id,
+      backlogId: "backlog-1",
+      key,
+      sequence: Number(key.split("-")[1]),
+      type,
+      kind: "story",
+      title: key,
+      description: null,
+      statusId: "status-1",
+      priority: 2,
+      estimatePoints: null,
+      assigneeId: null,
+      reporterId: null,
+      parentId,
+      path: parentId ? `root.${parentId}.${id}` : `root.${id}`,
+      depth: parentId ? 1 : 0,
+      dueDate: null,
+      rank: "a",
+      deletedAt: null,
+      createdAt: new Date("2026-08-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    const membership = (
+      itemId: string,
+      sprintId: string,
+      leftAt: Date | null,
+      outcome: string | null,
+    ) => ({
+      id: `${itemId}-${sprintId}-${outcome ?? "current"}`,
+      sprintId,
+      itemId,
+      joinedAt: new Date("2026-08-01T00:00:00.000Z"),
+      joinedBy: "viewer-1",
+      estimateAtJoin: null,
+      estimateAtStart: null,
+      leftAt,
+      outcome,
+      destinationSprintId: outcome === "carried_to_sprint" ? S2 : null,
+    });
+
+    beforeEach(() => {
+      mocks.getBacklogByKeyForUser.mockResolvedValue({
+        id: "backlog-1",
+        key: "DEMO",
+        name: "Demo",
+        color: "#2563eb",
+        archivedAt: null,
+      });
+      mocks.getBacklogCapabilities.mockResolvedValue({
+        createItems: false,
+        editItems: false,
+        transitionItems: false,
+        scheduleItems: false,
+        assignItems: false,
+        manageSprints: false,
+        manageWorkflow: false,
+        manageMembers: false,
+        bulkChangeItems: false,
+      });
+      mocks.listItems.mockResolvedValue([
+        row("done-1", "DEMO-1", "tache", null),
+        row("carried-1", "DEMO-2", "tache", null),
+        row("removed-1", "DEMO-3", "tache", null),
+        row("sub-1", "DEMO-4", "soustache", "carried-1"),
+        row("loose-1", "DEMO-5", "tache", null),
+      ]);
+      mocks.listSprintsForBacklog.mockResolvedValue({
+        sprints: [
+          { id: S1, name: "Sprint 1", state: "completed", completedAt: ended },
+          { id: S2, name: "Sprint 2", state: "active", completedAt: null },
+        ],
+        memberships: [
+          membership("done-1", S1, ended, "completed"),
+          membership("carried-1", S1, ended, "carried_to_sprint"),
+          membership("carried-1", S2, null, null),
+          membership("removed-1", S1, ended, "removed"),
+        ],
+      });
+    });
+
+    const listedIds = () => {
+      const props = mocks.itemListProps.mock.calls[0]?.[0] as {
+        groups: Array<{ items: Array<{ id: string }> }>;
+      };
+      return props.groups.flatMap((group) => group.items.map((item) => item.id));
+    };
+
+    it("lists a completed sprint's items in Liste, carried-over ones and their sous-tâches included", async () => {
+      render(
+        await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view: "list", sprint: `${S1},${FOREIGN},bogus` }),
+        }),
+      );
+
+      expect(listedIds()).toEqual(["done-1", "carried-1", "sub-1"]);
+      expect(mocks.filterBarProps).toHaveBeenCalledWith(expect.objectContaining({
+        sprints: [
+          { id: S2, name: "Sprint 2", state: "active" },
+          { id: S1, name: "Sprint 1", state: "completed" },
+        ],
+        state: expect.objectContaining({
+          filters: expect.objectContaining({ sprintIds: [S1] }),
+        }),
+      }));
+    });
+
+    it("lists items that never belonged to a sprint under « Aucun sprint »", async () => {
+      render(
+        await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view: "list", sprint: "none" }),
+        }),
+      );
+
+      expect(listedIds()).toEqual(["removed-1", "loose-1"]);
+    });
+
+    it("ignores the facet on the Board, which is laid out by sprint, but keeps it for saved views", async () => {
+      render(
+        await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view: "board", sprint: S1 }),
+        }),
+      );
+
+      expect(mocks.filterBarProps).toHaveBeenCalledWith(expect.objectContaining({
+        sprints: undefined,
+        state: expect.objectContaining({
+          filters: expect.objectContaining({ sprintIds: [] }),
+        }),
+      }));
+      // FilterBar renders ViewActions, mocked away: read the actions prop.
+      const barProps = mocks.filterBarProps.mock.calls[0]?.[0] as {
+        actions: { props: { filters: { sprintIds: string[] } } };
+      };
+      expect(barProps.actions.props.filters.sprintIds).toEqual([S1]);
+    });
   });
 });

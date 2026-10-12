@@ -1,6 +1,6 @@
 import { isFiltersActive, type Filters, type ViewState } from "@/lib/items/filter";
 
-export type FilterOption = { value: string; label: string };
+export type FilterOption = { value: string; label: string; group?: string };
 
 /**
  * Facets kept behind « + Filtre » (JIR-74); Assigné, Type, Statut and Parent
@@ -10,19 +10,25 @@ export const SECONDARY_FILTERS = [
   { key: "priorities", label: "Priorité" },
   { key: "labels", label: "Label" },
   { key: "releaseIds", label: "Version" },
+  { key: "sprintIds", label: "Sprint" },
   { key: "kind", label: "Nature" },
 ] as const satisfies readonly { key: keyof Filters; label: string }[];
 
 export type SecondaryFilter = (typeof SECONDARY_FILTERS)[number];
 export type SecondaryFilterKey = SecondaryFilter["key"];
 
-export function splitSecondaryFilters(filters: Filters): {
+/** `hidden` facets are not offered by the current view (Sprint off Liste/Arbre). */
+export function splitSecondaryFilters(
+  filters: Filters,
+  hidden: readonly SecondaryFilterKey[] = [],
+): {
   active: SecondaryFilter[];
   available: SecondaryFilter[];
 } {
   const active: SecondaryFilter[] = [];
   const available: SecondaryFilter[] = [];
   for (const filter of SECONDARY_FILTERS) {
+    if (hidden.includes(filter.key)) continue;
     (filters[filter.key].length > 0 ? active : available).push(filter);
   }
   return { active, available };
