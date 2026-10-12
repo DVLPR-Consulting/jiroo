@@ -58,7 +58,11 @@ import {
   type ViewUrlEntry,
 } from "@/lib/items/view-url-params";
 import { buildSprintSections } from "@/lib/items/sprint-planning";
-import { sprintIdsByItem, withKnownSprintIds } from "@/lib/items/sprint-filter";
+import {
+  orderSprintsForFilter,
+  sprintIdsByItem,
+  withKnownSprintIds,
+} from "@/lib/items/sprint-filter";
 import { pointsByStatusCategory } from "@/lib/items/status-points";
 import { listSprintsForBacklog } from "@/lib/services/sprints";
 import {
@@ -627,6 +631,15 @@ export async function BacklogViewContent({
           title: item.title,
           type: item.type,
         }))}
+        sprints={
+          sprintFilterEnabled
+            ? orderSprintsForFilter(sprintSnapshot.sprints).map(({ id, name, state }) => ({
+                id,
+                name,
+                state,
+              }))
+            : undefined
+        }
         resultCount={resultCount}
         actions={
           <ViewActions

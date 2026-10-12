@@ -1106,6 +1106,10 @@ describe("BacklogViewContent read boundary", () => {
 
       expect(listedIds()).toEqual(["done-1", "carried-1", "sub-1"]);
       expect(mocks.filterBarProps).toHaveBeenCalledWith(expect.objectContaining({
+        sprints: [
+          { id: S2, name: "Sprint 2", state: "active" },
+          { id: S1, name: "Sprint 1", state: "completed" },
+        ],
         state: expect.objectContaining({
           filters: expect.objectContaining({ sprintIds: [S1] }),
         }),
@@ -1132,6 +1136,7 @@ describe("BacklogViewContent read boundary", () => {
       );
 
       expect(mocks.filterBarProps).toHaveBeenCalledWith(expect.objectContaining({
+        sprints: undefined,
         state: expect.objectContaining({
           filters: expect.objectContaining({ sprintIds: [] }),
         }),

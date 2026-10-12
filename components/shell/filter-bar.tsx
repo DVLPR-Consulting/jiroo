@@ -13,6 +13,7 @@ import {
   type SecondaryFilterKey,
 } from "@/lib/items/filter-chips";
 import { cn } from "@/lib/utils";
+import { NO_SPRINT, type SprintFilterState } from "@/lib/items/sprint-filter";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import {
   parseViewState,
@@ -42,6 +43,13 @@ type ReleaseOpt = {
   archived: boolean;
 };
 type HierarchyOpt = { id: string; key: string; title: string; type: string };
+type SprintOpt = { id: string; name: string; state: SprintFilterState };
+
+const SPRINT_GROUP_LABELS: Record<SprintFilterState, string> = {
+  active: "Actif",
+  planned: "Planifiés",
+  completed: "Terminés",
+};
 
 function hueFor(value: string): LabelHue {
   let hash = 0;
@@ -58,6 +66,7 @@ export function FilterBar({
   labels,
   releases,
   hierarchy,
+  sprints,
   resultCount,
   actions,
 }: {
@@ -67,6 +76,11 @@ export function FilterBar({
   labels: LabelOpt[];
   releases: ReleaseOpt[];
   hierarchy: HierarchyOpt[];
+  /**
+   * The backlog's sprints, completed ones included, in facet order (JIR-81).
+   * Left out by the views that do not offer the Sprint facet (Board, Backlog).
+   */
+  sprints?: SprintOpt[];
   resultCount: number;
   /** Saved-view actions, shown before the result count. */
   actions?: React.ReactNode;
@@ -91,7 +105,7 @@ export function FilterBar({
       ...current,
       filters: { ...current.filters, ...patch(current.filters) },
     }));
-  const toggleIn = <K extends "types" | "statusIds" | "assignees" | "underIds" | "labels" | "releaseIds">(
+  const toggleIn = <K extends "types" | "statusIds" | "assignees" | "underIds" | "labels" | "releaseIds" | "sprintIds">(
     key: K,
     value: string,
   ) =>
@@ -102,10 +116,12 @@ export function FilterBar({
   // What the bar shows follows the same local URL authority (the server
   // props lag behind until the response), with unknown versions ignored.
   const knownReleaseIds = new Set(releases.map((release) => release.id));
+  const knownSprintIds = new Set([NO_SPRINT, ...(sprints ?? []).map((sprint) => sprint.id)]);
   const urlFilters = parseViewState(viewUrl.getParams()).filters;
   const filters: Filters = {
     ...urlFilters,
     releaseIds: urlFilters.releaseIds.filter((id) => knownReleaseIds.has(id)),
+    sprintIds: sprints ? urlFilters.sprintIds.filter((id) => knownSprintIds.has(id)) : [],
   };
 
   // Free-text field is controlled locally and debounced; URL-driven changes
@@ -150,6 +166,14 @@ export function FilterBar({
     value: release.id,
     label: release.name,
   }));
+  const sprintOpts: Option[] = [
+    { value: NO_SPRINT, label: "Aucun sprint" },
+    ...(sprints ?? []).map((sprint) => ({
+      value: sprint.id,
+      label: sprint.name,
+      group: SPRINT_GROUP_LABELS[sprint.state],
+    })),
+  ];
   const kindOpts: Option[] = ITEM_KINDS.map((k) => ({
     value: k,
     label: ITEM_KIND_LABELS[k],
@@ -163,12 +187,14 @@ export function FilterBar({
     priorities: prioOpts,
     labels: labelOpts,
     releaseIds: releaseOpts,
+    sprintIds: sprintOpts,
     kind: kindOpts,
   };
   const selectedByKey: Record<SecondaryFilterKey, string[]> = {
     priorities: filters.priorities.map(String),
     labels: filters.labels,
     releaseIds: filters.releaseIds,
+    sprintIds: filters.sprintIds,
     kind: filters.kind,
   };
   const setSecondary = (key: SecondaryFilterKey, values: string[]) => {
@@ -189,7 +215,7 @@ export function FilterBar({
       toggleIn(key, value);
     }
   };
-  const secondary = splitSecondaryFilters(filters);
+  const secondary = splitSecondaryFilters(filters, sprints ? [] : ["sprintIds"]);
 
   return (
     <div
@@ -328,7 +354,8 @@ export function FilterBar({
 }
 
 /**
- * « + Filtre » (JIR-74): Priorité, Label, Version and Nature, one step to
+ * « + Filtre » (JIR-74): Priorité, Label, Version, Sprint (JIR-81, Liste and
+ * Arbre only) and Nature, one step to
  * pick the facet, one to pick its values. Once a value is picked the facet
  * shows on the bar as a chip.
  */

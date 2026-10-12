@@ -21,12 +21,28 @@ const none: Filters = {
 };
 
 describe("filter chips", () => {
-  it("puts Priorité, Label, Version and Nature behind « + Filtre », in that order", () => {
+  it("puts Priorité, Label, Version, Sprint and Nature behind « + Filtre », in that order", () => {
     expect(SECONDARY_FILTERS.map((filter) => filter.label)).toEqual([
       "Priorité",
       "Label",
       "Version",
+      "Sprint",
       "Nature",
+    ]);
+  });
+
+  it("leaves out the facets the view does not offer", () => {
+    const { active, available } = splitSecondaryFilters(
+      { ...none, sprintIds: ["s1"] },
+      ["sprintIds"],
+    );
+
+    expect(active).toEqual([]);
+    expect(available.map((filter) => filter.key)).toEqual([
+      "priorities",
+      "labels",
+      "releaseIds",
+      "kind",
     ]);
   });
 
@@ -38,14 +54,14 @@ describe("filter chips", () => {
     });
 
     expect(active.map((filter) => filter.key)).toEqual(["priorities", "kind"]);
-    expect(available.map((filter) => filter.key)).toEqual(["labels", "releaseIds"]);
+    expect(available.map((filter) => filter.key)).toEqual(["labels", "releaseIds", "sprintIds"]);
   });
 
   it("offers every secondary filter when none is active", () => {
     const { active, available } = splitSecondaryFilters(none);
 
     expect(active).toEqual([]);
-    expect(available).toHaveLength(4);
+    expect(available).toHaveLength(5);
   });
 
   it("names a chip value by its first selection and counts the others", () => {
