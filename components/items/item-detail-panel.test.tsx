@@ -1139,7 +1139,7 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
 
     await user.click(within(children).getByRole("button", { name: "+ Créer une tâche" }));
     const dialog = await screen.findByRole("dialog", { name: /Nouvel item/ });
-    expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveValue("tache");
+    expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Tâche");
   });
 
   it("creates a child under the opened item even when the view's filter left it out", async () => {
@@ -1162,10 +1162,7 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
     await user.click(screen.getByRole("button", { name: "Créer une tâche" }));
     const dialog = await screen.findByRole("dialog", { name: /Nouvel item/ });
     const parent = within(dialog).getByRole("combobox", { name: /Parent/ });
-    expect(parent).toHaveValue(detail.id);
-    expect(within(parent).getByRole("option", { selected: true })).toHaveTextContent(
-      `${detail.key} — ${detail.title}`,
-    );
+    expect(parent).toHaveTextContent(`${detail.key} — ${detail.title}`);
     await user.type(within(dialog).getByRole("textbox", { name: /Titre/ }), "Tâche filtrée");
     await user.click(within(dialog).getByRole("button", { name: /^Créer$/ }));
 

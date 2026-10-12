@@ -80,7 +80,7 @@ describe("InlineCreateItem « Plus d’options »", () => {
     );
     await waitFor(() => expect(title).toHaveValue(""));
     expect(screen.getByRole("dialog", { name: "Nouvelle tâche — Sprint 2" })).toBeVisible();
-    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveValue(epic.id);
+    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveTextContent(`${epic.key} — ${epic.title}`);
 
     await user.type(title, "Deuxième");
     await user.click(within(dialog).getByRole("button", { name: "Créer" }));

@@ -15,6 +15,7 @@ import { createItem, updateItem } from "../lib/services/items";
 import { startSprint } from "../lib/services/sprint-lifecycle";
 import { createSprint } from "../lib/services/sprints";
 import { createInlineItem, sprintMenuAction } from "./backlog-helpers";
+import { chooseOption } from "./select-helpers";
 import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
 
 const ACTIVE_SPRINT = "Audit Sprint actif 2026-08-05";
@@ -344,7 +345,7 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
     page.getByRole("heading", { name: `Nouvelle tâche — ${ACTIVE_SPRINT}` }),
   ).toBeVisible();
   await page.getByRole("textbox", { name: "Titre" }).fill(TASK_BOARD);
-  await page.getByLabel("Parent").selectOption({ index: 1 });
+  await chooseOption(page, /Parent/, { index: 0 });
   timings.push(
     `[timing] create from board ${await businessPost(page, () =>
       page.getByRole("button", { name: /Créer$/ }).click())}ms`,

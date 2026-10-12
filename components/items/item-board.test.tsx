@@ -399,7 +399,7 @@ describe("ItemBoard", () => {
     expect(screen.getByRole("button", { name: "Créer dans Prêt" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Créer dans En cours" }));
 
-    expect(screen.getByRole("combobox", { name: "Statut" })).toHaveValue("doing");
+    expect(screen.getByRole("combobox", { name: "Statut" })).toHaveTextContent("En cours");
   });
 
   it("maps UUID status metadata to canonical column-header icons", () => {
