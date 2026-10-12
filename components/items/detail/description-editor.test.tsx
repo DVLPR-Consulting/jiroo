@@ -50,12 +50,37 @@ async function editor() {
   return textbox;
 }
 
+/**
+ * Types plain text one key at a time. ProseMirror in jsdom occasionally
+ * drops a key typed by user-event (more often under load, e.g. a full
+ * suite): a key that changed nothing is typed again.
+ */
+async function typeText(
+  user: ReturnType<typeof userEvent.setup>,
+  textbox: HTMLElement,
+  text: string,
+) {
+  for (const char of text) {
+    const key = char === "{" || char === "[" ? char + char : char;
+    for (let attempt = 1; ; attempt += 1) {
+      const before = textbox.textContent;
+      await user.keyboard(key);
+      try {
+        await waitFor(() => expect(textbox.textContent).not.toBe(before), { timeout: 500 });
+        break;
+      } catch (error) {
+        if (attempt === 3) throw error;
+      }
+    }
+  }
+}
+
 /** Replaces the whole text (jsdom cannot move the caret with Ctrl+End). */
 async function retype(user: ReturnType<typeof userEvent.setup>, text: string) {
   const textbox = await editor();
   await user.click(textbox);
   await user.keyboard("{Control>}a{/Control}");
-  await user.keyboard(text);
+  await typeText(user, textbox, text);
   return textbox;
 }
 
@@ -438,7 +463,7 @@ describe("DescriptionEditor (Notion-like page)", () => {
     const { user } = renderDescription(null);
     const textbox = await editor();
     await user.click(textbox);
-    await user.keyboard("/tit");
+    await typeText(user, textbox, "/tit");
     const menu = await screen.findByRole("listbox", { name: "Insérer un bloc" });
     expect(within(menu).getAllByRole("option").map((option) => option.textContent)).toEqual([
       "Titre 1#",
@@ -447,7 +472,7 @@ describe("DescriptionEditor (Notion-like page)", () => {
     ]);
     expect(textbox).toHaveAttribute("aria-controls", menu.id);
     await user.click(within(menu).getByRole("option", { name: /Titre 1/ }));
-    await user.keyboard("Contexte");
+    await typeText(user, textbox, "Contexte");
     expect(within(textbox).getByRole("heading", { level: 1, name: "Contexte" })).toBeVisible();
     expect(screen.queryByRole("listbox")).toBeNull();
   });
