@@ -23,14 +23,15 @@ export function BacklogStarButton({
 }) {
   const [pending, startTransition] = useTransition();
   const [shownStarred, setShownStarred] = useOptimistic(starred);
-  const label = shownStarred ? "Retirer des favoris" : "Ajouter aux favoris";
+  // Stable accessible name; the state is carried by aria-pressed, the action by the tooltip.
+  const tooltip = shownStarred ? "Retirer des favoris" : "Ajouter aux favoris";
 
   return (
     <button
       type="button"
       aria-pressed={shownStarred}
-      aria-label={`${label} : ${backlogName}`}
-      title={label}
+      aria-label={`Favori : ${backlogName}`}
+      title={tooltip}
       aria-busy={pending || undefined}
       data-starred={shownStarred ? "" : undefined}
       onClick={() => {

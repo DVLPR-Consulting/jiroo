@@ -89,15 +89,15 @@ describe("BacklogOverview", () => {
     );
   });
 
-  it("exposes the favourite toggle state", () => {
+  it("exposes the favourite toggle state with a stable name", () => {
     render(<BacklogOverview rows={rows} />);
 
-    expect(
-      screen.getByRole("button", { name: "Retirer des favoris : Pôle pénal" }),
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      screen.getByRole("button", { name: "Ajouter aux favoris : Pôle civil" }),
-    ).toHaveAttribute("aria-pressed", "false");
+    const starred = screen.getByRole("button", { name: "Favori : Pôle pénal" });
+    expect(starred).toHaveAttribute("aria-pressed", "true");
+    expect(starred).toHaveAttribute("title", "Retirer des favoris");
+    const unstarred = screen.getByRole("button", { name: "Favori : Pôle civil" });
+    expect(unstarred).toHaveAttribute("aria-pressed", "false");
+    expect(unstarred).toHaveAttribute("title", "Ajouter aux favoris");
   });
 
   it("stars a backlog at once through the action", async () => {
@@ -110,11 +110,11 @@ describe("BacklogOverview", () => {
     );
     render(<BacklogOverview rows={rows} />);
 
-    await user.click(screen.getByRole("button", { name: "Ajouter aux favoris : Pôle civil" }));
+    await user.click(screen.getByRole("button", { name: "Favori : Pôle civil" }));
 
     expect(mocks.setBacklogStarAction).toHaveBeenCalledWith({ backlogId: "b1", starred: true });
     expect(
-      screen.getByRole("button", { name: "Retirer des favoris : Pôle civil" }),
+      screen.getByRole("button", { name: "Favori : Pôle civil" }),
     ).toHaveAttribute("aria-pressed", "true");
     await act(async () => resolve({ ok: true, starred: true }));
   });
@@ -127,11 +127,11 @@ describe("BacklogOverview", () => {
     });
     render(<BacklogOverview rows={rows} />);
 
-    await user.click(screen.getByRole("button", { name: "Retirer des favoris : Pôle pénal" }));
+    await user.click(screen.getByRole("button", { name: "Favori : Pôle pénal" }));
 
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Retirer des favoris : Pôle pénal" }),
+        screen.getByRole("button", { name: "Favori : Pôle pénal" }),
       ).toHaveAttribute("aria-pressed", "true"),
     );
     expect(getSnapshot().map((toast) => toast.message)).toEqual([

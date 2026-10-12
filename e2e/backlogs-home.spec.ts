@@ -62,18 +62,18 @@ test("liste les backlogs, garde un favori en tête après rechargement et ouvre 
   await expect(cass.getByText("CASS", { exact: true })).toBeVisible();
   await expect(cell(page, "CASS", "open-items")).toHaveText(/^\d+/);
 
-  const star = page.getByRole("button", { name: "Ajouter aux favoris : Laboratoire isolé" });
+  const star = page.getByRole("button", { name: "Favori : Laboratoire isolé" });
   await expect(star).toHaveAttribute("aria-pressed", "false");
   await star.click();
   await expect(
-    page.getByRole("button", { name: "Retirer des favoris : Laboratoire isolé" }),
+    page.getByRole("button", { name: "Favori : Laboratoire isolé" }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(rowNames(page)).toHaveText(["Laboratoire isolé", "Cour de cassation"]);
 
   await page.reload();
   await expect(rowNames(page)).toHaveText(["Laboratoire isolé", "Cour de cassation"]);
   await expect(
-    page.getByRole("button", { name: "Retirer des favoris : Laboratoire isolé" }),
+    page.getByRole("button", { name: "Favori : Laboratoire isolé" }),
   ).toHaveAttribute("aria-pressed", "true");
   await page.screenshot({
     path: testInfo.outputPath("jir82-home-desktop-1440.png"),
@@ -132,7 +132,7 @@ test("reste lisible sans débordement à 390 par 844", async ({ page }, testInfo
     caret: "initial",
   });
 
-  await page.getByRole("button", { name: "Ajouter aux favoris : Laboratoire isolé" }).click();
+  await page.getByRole("button", { name: "Favori : Laboratoire isolé" }).click();
   await expect(rowNames(page)).toHaveText(["Laboratoire isolé", "Cour de cassation"]);
   await page.getByRole("link", { name: "Laboratoire isolé" }).click();
   await expect(page).toHaveURL(/\/b\/LABS$/);
