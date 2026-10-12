@@ -166,6 +166,26 @@ describe("release without an active user", () => {
     }
   });
 
+  it("drops a released draft once its resumed save succeeds", async () => {
+    vi.useFakeTimers();
+    try {
+      const save = vi.fn().mockResolvedValue({ ok: true });
+      const entry = acquireDraft("alice", "k", () =>
+        createAutosaveScheduler<string>({ initial: "A", delay: 900, save }) as never,
+      );
+      retainDraft(entry);
+      entry.scheduler.change("B");
+      setActiveDraftUser(null);
+      releaseDraft(entry);
+      setActiveDraftUser("alice");
+      await vi.advanceTimersByTimeAsync(900);
+      expect(save).toHaveBeenCalledExactlyOnceWith("B");
+      expect(isDraftKept(entry)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("starts no next save after the request in flight when the session ends", async () => {
     let resolve!: (result: { ok: true }) => void;
     const save = vi

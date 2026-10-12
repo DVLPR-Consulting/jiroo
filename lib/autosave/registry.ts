@@ -74,8 +74,19 @@ export function acquireDraft(
     owner: user,
     scheduler,
     mounted: 0,
-    unsubscribe: scheduler.subscribe(notify),
+    unsubscribe: () => {},
   };
+  entry.unsubscribe = scheduler.subscribe((snapshot) => {
+    // A save that settles once the editor is gone (e.g. resumed after the
+    // session came back) drops the entry, like the release flush does.
+    if (entry.mounted === 0 && !snapshot.pending && snapshot.status === "saved") {
+      if (entries.get(id) === entry) {
+        entry.unsubscribe();
+        entries.delete(id);
+      }
+    }
+    notify();
+  });
   entries.set(id, entry);
   notify();
   return entry;
