@@ -304,6 +304,7 @@ export function FilterBar({
                 assignees: [],
                 labels: [],
                 releaseIds: [],
+                sprintIds: [],
                 kind: [],
                 underIds: [],
               },

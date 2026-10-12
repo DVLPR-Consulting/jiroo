@@ -62,7 +62,7 @@ const filters: Filters = {
   priorities: [],
   assignees: [],
   labels: [],
-  releaseIds: [],
+  releaseIds: [], sprintIds: [],
   kind: [],
   underIds: [],
 };

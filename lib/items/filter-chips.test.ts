@@ -15,7 +15,7 @@ const none: Filters = {
   priorities: [],
   assignees: [],
   labels: [],
-  releaseIds: [],
+  releaseIds: [], sprintIds: [],
   kind: [],
   underIds: [],
 };
