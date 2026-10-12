@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createItemAction, softDeleteItemAction } from "@/app/actions/items";
 import { TypeIcon } from "@/components/icons/type-icon";
+import { SelectField } from "@/components/ui/select";
 import {
   NewItemButton,
   type NewItemButtonProps,
@@ -47,7 +48,7 @@ export function InlineCreateItem({
   const [pending, startTransition] = useTransition();
   const openerRef = useRef<HTMLButtonElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
-  const parentRef = useRef<HTMLSelectElement>(null);
+  const parentRef = useRef<HTMLButtonElement>(null);
   // Set once the full dialog created at least one item: closing it then also
   // closes this form; a cancelled dialog returns to the inline draft.
   const createdFromDialog = useRef(false);
@@ -160,26 +161,23 @@ export function InlineCreateItem({
         className="h-8 min-w-0 flex-1 basis-48 rounded-[var(--radius)] border border-[var(--border-strong)] bg-transparent px-2.5 text-sm outline-none focus-visible:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]/40"
       />
       {parents.length > 0 ? (
-        <select
-          ref={parentRef}
+        <SelectField
+          triggerRef={parentRef}
           value={selectedParent}
-          onChange={(event) => {
-            onParentChange(event.target.value);
+          onValueChange={(next) => {
+            onParentChange(next);
             if (error) setError(null);
           }}
           aria-label="Epic parent"
+          placeholder="Epic parent…"
           disabled={pending}
-          className="h-8 max-w-56 min-w-0 rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2 text-sm text-foreground outline-none focus-visible:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]/40"
-        >
-          <option value="" disabled>
-            Epic parent…
-          </option>
-          {parents.map((parent) => (
-            <option key={parent.id} value={parent.id}>
-              {parent.key} — {parent.title}
-            </option>
-          ))}
-        </select>
+          className="w-56 max-w-full"
+          options={parents.map((parent) => ({
+            value: parent.id,
+            label: `${parent.key} — ${parent.title}`,
+            icon: <TypeIcon type="epic" size={14} />,
+          }))}
+        />
       ) : (
         <p className="text-xs text-muted-foreground">
           Aucun epic disponible — créez-en un d’abord.

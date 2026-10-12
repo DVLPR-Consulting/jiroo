@@ -159,6 +159,8 @@ export type SelectFieldProps<V extends string = string> = {
   "aria-label"?: string
   "aria-describedby"?: string
   className?: string
+  /** The trigger button (e.g. to focus it after a validation error). */
+  triggerRef?: React.Ref<HTMLButtonElement>
 }
 
 /**
@@ -177,6 +179,7 @@ function SelectField<V extends string = string>({
   "aria-label": ariaLabel,
   "aria-describedby": ariaDescribedBy,
   className,
+  triggerRef,
 }: SelectFieldProps<V>) {
   const toRadix = (v: string) => (v === "" ? EMPTY_OPTION_VALUE : v)
   const selected = options.some((option) => option.value === value) ? toRadix(value) : ""
@@ -190,6 +193,7 @@ function SelectField<V extends string = string>({
       required={required}
     >
       <SelectTrigger
+        ref={triggerRef}
         id={id}
         aria-label={ariaLabel}
         aria-describedby={ariaDescribedBy}
