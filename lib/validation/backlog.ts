@@ -18,7 +18,15 @@ export const updateBacklogSchema = z.object({
   key: backlogKey,
   name: z.string().trim().min(1).max(80),
   color: hex,
+  // Backlog lead (JIR-82): a user id, null for none; omitted = unchanged.
+  leadUserId: z.string().trim().min(1).max(255).nullable().optional(),
+});
+
+export const setBacklogStarSchema = z.object({
+  backlogId: z.uuid(),
+  starred: z.boolean(),
 });
 
 export type CreateBacklogInput = z.infer<typeof createBacklogSchema>;
 export type UpdateBacklogInput = z.infer<typeof updateBacklogSchema>;
+export type SetBacklogStarInput = z.infer<typeof setBacklogStarSchema>;

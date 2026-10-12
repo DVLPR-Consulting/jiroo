@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   requireBacklogPermissionById: vi.fn(),
   requirePermission: vi.fn(),
   revalidatePath: vi.fn(),
+  setBacklogStar: vi.fn(),
   updateBacklog: vi.fn(),
 }));
 
@@ -22,14 +23,17 @@ vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/services/backlogs", () => ({
   archiveBacklog: mocks.archiveBacklog,
   createBacklog: mocks.createBacklog,
+  setBacklogStar: mocks.setBacklogStar,
   updateBacklog: mocks.updateBacklog,
 }));
 
 import {
   archiveBacklogAction,
   createBacklogAction,
+  setBacklogStarAction,
   updateBacklogAction,
 } from "@/app/actions/backlogs";
+import { ZodError } from "zod";
 
 describe("backlog action permissions", () => {
   beforeEach(() => {
@@ -150,5 +154,79 @@ describe("updateBacklogAction", () => {
       }),
     ).resolves.toEqual({ ok: false, error: "Cette clé est déjà utilisée." });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateBacklogAction lead", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getSession.mockResolvedValue({
+      user: { id: "admin-1", role: "admin", twoFactorEnabled: true },
+    });
+  });
+
+  it("forwards the lead to the service", async () => {
+    mocks.updateBacklog.mockResolvedValue({
+      previousKey: "WEB",
+      backlog: { id: "backlog-1", key: "WEB", name: "Site", color: "#2b6cb0" },
+    });
+    const input = { id: "backlog-1", key: "WEB", name: "Site", color: "#2b6cb0", leadUserId: "user-2" };
+
+    await expect(updateBacklogAction(input)).resolves.toEqual({ ok: true });
+    expect(mocks.updateBacklog).toHaveBeenCalledWith(input, "admin-1");
+  });
+
+  it("reports an unknown lead", async () => {
+    mocks.updateBacklog.mockRejectedValue(new Error("Responsable introuvable."));
+
+    await expect(
+      updateBacklogAction({ id: "backlog-1", key: "WEB", name: "Site", color: "#2b6cb0", leadUserId: "x" }),
+    ).resolves.toEqual({ ok: false, error: "Responsable introuvable." });
+  });
+});
+
+describe("setBacklogStarAction", () => {
+  const input = { backlogId: "39cbd39a-7c97-4f0d-848d-199ed2c93ad4", starred: true };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getSession.mockResolvedValue({
+      user: { id: "user-1", role: "contributor", twoFactorEnabled: true },
+    });
+    mocks.setBacklogStar.mockResolvedValue({ starred: true });
+  });
+
+  it("stars for the session user and refreshes every page's shell", async () => {
+    await expect(setBacklogStarAction(input)).resolves.toEqual({ ok: true, starred: true });
+    expect(mocks.setBacklogStar).toHaveBeenCalledWith(input, "user-1");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/", "layout");
+    expect(mocks.requireBacklogPermissionById).not.toHaveBeenCalled();
+  });
+
+  it("refuses without a session", async () => {
+    mocks.getSession.mockResolvedValue(null);
+    await expect(setBacklogStarAction(input)).rejects.toThrow("Forbidden");
+    expect(mocks.setBacklogStar).not.toHaveBeenCalled();
+  });
+
+  it("maps an inaccessible backlog to not found", async () => {
+    mocks.setBacklogStar.mockRejectedValue(
+      Object.assign(new Error("La ressource demandée est introuvable."), {
+        name: "ResourceNotFoundError",
+      }),
+    );
+    await expect(setBacklogStarAction(input)).resolves.toEqual({
+      ok: false,
+      error: "La ressource demandée est introuvable.",
+    });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("maps invalid input", async () => {
+    mocks.setBacklogStar.mockRejectedValue(new ZodError([]));
+    await expect(setBacklogStarAction(input)).resolves.toEqual({
+      ok: false,
+      error: "Requête invalide.",
+    });
   });
 });
