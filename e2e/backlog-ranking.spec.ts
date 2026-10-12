@@ -40,7 +40,7 @@ test("classe à la souris, restaure au clavier et conserve chaque ordre", async 
   });
 
   await page.goto("/b/CASS?view=backlog");
-  await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
   const handles = page.getByRole("button", { name: /^Déplacer CASS-/ });
   expect(await handles.count()).toBeGreaterThan(1);
 
@@ -89,7 +89,7 @@ test("classe à la souris, restaure au clavier et conserve chaque ordre", async 
   );
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
   await expect
     .poll(async () => rows.evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
     .toEqual(optimisticOrder);

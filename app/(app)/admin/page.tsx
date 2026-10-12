@@ -10,6 +10,7 @@ import {
   listProjectRoles,
 } from "@/lib/services/authorization-admin";
 import { AdminTabs, type AdminTab } from "@/components/admin/admin-tabs";
+import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
 
 const ADMIN_TABS = ["backlogs", "users", "groups", "roles", "schemes"] as const;
 
@@ -100,6 +101,7 @@ export default async function AdminPage({
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-8">
       <div className="space-y-1">
+        <ShellBreadcrumb />
         <h1 className="t-h1">Administration</h1>
         <p className="text-sm text-muted-foreground">
           Gestion des backlogs, des identités et des schémas d’accès.

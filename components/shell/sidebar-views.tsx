@@ -1,9 +1,9 @@
 "use client";
 
-import { useParams, useSearchParams } from "next/navigation";
-import { Bookmark, User, Users } from "lucide-react";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
+import { Plus, User, Users } from "lucide-react";
 import { NavLink } from "@/components/shell/nav-link";
-import { EmptyState } from "@/components/ui/empty-state";
+import { requestSaveView } from "@/components/shell/save-view-event";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import {
   partitionViews,
@@ -50,6 +50,7 @@ export function SidebarViews({
 }) {
   const params = useParams<{ key?: string }>();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   // Derive the active backlog from the route param.
   const activeKey = typeof params.key === "string" ? params.key.toUpperCase() : undefined;
@@ -68,56 +69,57 @@ export function SidebarViews({
   };
 
   const activeViewId = searchParams.get("v");
+  // Only the item views mount the view actions that own the save dialog.
+  const onItemViews =
+    pathname.replace(/\/$/, "").toUpperCase() ===
+    `/B/${encodeURIComponent(activeBacklog.key)}`.toUpperCase();
 
   return (
     <>
-      {/* Personal views */}
-      <div className="t-meta flex items-center gap-1.5 px-2 pt-3 pb-1 text-muted-foreground">
-        <User className="size-3" />
-        Vues perso
-      </div>
-      <div className="flex flex-col gap-0.5">
-        {personal.length === 0 ? (
-          <EmptyState
-            className="px-2 py-3 [&_h2]:text-sm [&_p]:text-xs"
-            icon={<Bookmark className="size-4" />}
-            title="Aucune vue personnelle"
-            description="Enregistrez vos filtres pour les retrouver ici."
-          />
-        ) : (
-          personal.map((v) => (
-            <ViewLink
-              key={v.id}
-              view={v}
-              isActive={v.id === activeViewId}
-            />
-          ))
-        )}
-      </div>
+      {personal.length > 0 && (
+        <ViewGroup icon={<User className="size-3" />} title="Vues perso">
+          {personal.map((v) => (
+            <ViewLink key={v.id} view={v} isActive={v.id === activeViewId} />
+          ))}
+        </ViewGroup>
+      )}
+      {shared.length > 0 && (
+        <ViewGroup icon={<Users className="size-3" />} title="Vues partagées">
+          {shared.map((v) => (
+            <ViewLink key={v.id} view={v} isActive={v.id === activeViewId} />
+          ))}
+        </ViewGroup>
+      )}
+      {onItemViews && (
+        <button
+          type="button"
+          onClick={requestSaveView}
+          className="flex items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        >
+          <Plus className="size-4" aria-hidden="true" />
+          Enregistrer une vue
+        </button>
+      )}
+    </>
+  );
+}
 
-      {/* Shared views */}
-      <div className="t-meta flex items-center gap-1.5 px-2 pt-3 pb-1 text-muted-foreground">
-        <Users className="size-3" />
-        Vues partagées
+function ViewGroup({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      <div className="t-meta flex items-center gap-1.5 px-2 pt-2 pb-1 text-muted-foreground">
+        {icon}
+        {title}
       </div>
-      <div className="flex flex-col gap-0.5">
-        {shared.length === 0 ? (
-          <EmptyState
-            className="px-2 py-3 [&_h2]:text-sm [&_p]:text-xs"
-            icon={<Users className="size-4" />}
-            title="Aucune vue partagée"
-            description="Les vues partagées avec l’équipe apparaîtront ici."
-          />
-        ) : (
-          shared.map((v) => (
-            <ViewLink
-              key={v.id}
-              view={v}
-              isActive={v.id === activeViewId}
-            />
-          ))
-        )}
-      </div>
+      <div className="flex flex-col gap-0.5">{children}</div>
     </>
   );
 }

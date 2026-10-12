@@ -1,8 +1,12 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import HelpPage from "@/app/(app)/aide/page";
 import { GUIDE_SECTIONS } from "@/components/help/guide-sections";
 import { SHORTCUTS, shortcutText } from "@/lib/shortcuts/registry";
+
+vi.mock("@/components/shell/shell-breadcrumb", () => ({
+  ShellBreadcrumb: () => <nav aria-label="Fil d’Ariane" />,
+}));
 
 describe("HelpPage", () => {
   it("renders the guide title and every section heading", () => {

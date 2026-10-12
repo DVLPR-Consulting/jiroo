@@ -82,7 +82,7 @@ async function waitForBusinessPost(page: Page, action: () => Promise<void>) {
 test("sélectionne une plage et applique les quatre actions groupées", async ({ page }) => {
   const capture = observe(page);
   await page.goto("/b/CASS?view=backlog");
-  await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
 
   const rowCheckboxes = page.getByRole("checkbox", { name: /^Sélectionner CASS-/ });
   expect(await rowCheckboxes.count()).toBeGreaterThan(1);
@@ -193,7 +193,7 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
   }
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
   const navigation = await page.evaluate(() => {
     const entry = performance.getEntriesByType("navigation")[0] as
       | PerformanceNavigationTiming
@@ -223,7 +223,7 @@ test("le lecteur ne reçoit aucun contrôle de planification", async ({ browser 
   const page = await context.newPage();
   const capture = observe(page);
   await page.goto("/b/CASS?view=backlog");
-  await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
 
   await expect(page.getByRole("button", { name: /^Déplacer CASS-/ })).toHaveCount(0);
   await expect(page.getByRole("checkbox")).toHaveCount(0);
@@ -308,7 +308,7 @@ test("distingue 5, zéro et non estimé puis restaure la valeur", async ({ page 
 test("désactive le classement avec tri ou groupement et conserve le mode Backlog", async ({ page }) => {
   const capture = observe(page);
   await page.goto("/b/CASS?view=backlog&sort=priority%3Aasc");
-  await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Déplacer CASS-/ })).toHaveCount(0);
   await expect(
     page.getByText("Effacez le tri ou le groupement pour modifier l’ordre manuel."),
@@ -338,7 +338,7 @@ test("isole la sélection de la Liste et la réinitialise au changement de vue",
   expect(new URL(page.url()).searchParams.get("item")).toBeNull();
 
   await page.getByRole("link", { name: "Backlog", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Actions groupées" })).toHaveCount(0);
   expect(capture.consoleErrors).toEqual([]);
   expect(capture.requestFailures).toEqual([]);
@@ -491,7 +491,7 @@ test("garde le Backlog et les en-têtes de la Liste lisibles à 390 par 844", as
   const capture = observe(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/b/CASS?view=backlog");
-  await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
   await expectBacklogRowsFit(page);
 
   await page.goto("/b/CASS?view=list");

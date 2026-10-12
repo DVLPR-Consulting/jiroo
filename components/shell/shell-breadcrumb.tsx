@@ -1,24 +1,34 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { deriveShellContext } from "@/lib/items/shell";
-import { cn } from "@/lib/utils";
+import {
+  useShellData,
+  type ShellBacklogRef,
+  type ShellViewRef,
+} from "@/components/shell/shell-data";
+import { deriveBreadcrumb } from "@/lib/items/shell";
 
-type BreadcrumbBacklog = { id: string; key: string; name: string };
-type BreadcrumbView = { id: string; name: string; backlogId: string | null };
-
+/**
+ * The page header's trail (JIR-74): `Projet / Vue`, then the active saved
+ * view. The project leads back to the backlog home, as Jira's breadcrumb leads
+ * back to the project (JIR-72). Segments wrap rather than truncate on a phone.
+ */
 export function ShellBreadcrumb({
-  backlogs,
-  views,
+  backlogs: backlogsProp,
+  views: viewsProp,
 }: {
-  backlogs: BreadcrumbBacklog[];
-  views: BreadcrumbView[];
-}) {
+  backlogs?: ShellBacklogRef[];
+  views?: ShellViewRef[];
+} = {}) {
+  const shell = useShellData();
+  const backlogs = backlogsProp ?? shell.backlogs;
+  const views = viewsProp ?? shell.views;
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const backlogKeys = new Map(backlogs.map((backlog) => [backlog.id, backlog.key]));
-  const context = deriveShellContext({
+  const segments = deriveBreadcrumb({
     pathname,
     search: new URLSearchParams(searchParams.toString()),
     backlogs,
@@ -27,76 +37,45 @@ export function ShellBreadcrumb({
       return backlogKey ? [{ id: view.id, name: view.name, backlogKey }] : [];
     }),
   });
+  const last = segments.length - 1;
 
-  const contextBacklog = context.activeBacklogKey
-    ? backlogs.find(
-        (backlog) => backlog.key.toUpperCase() === context.activeBacklogKey?.toUpperCase(),
-      )
-    : undefined;
-  const primary = context.mode
-    ? `${context.section} · ${context.mode}`
-    : contextBacklog?.name ?? context.section;
-  const detail = context.mode
-    ? context.viewTitle
-    : contextBacklog && context.section !== contextBacklog.name
-      ? context.section
-      : undefined;
-  const accessibleText = detail ? `${primary} / ${detail}` : primary;
-  // Outside the backlog views (help, administration, releases…) the backlog
-  // segment leads back to the backlog home, as Jira's breadcrumb leads back
-  // to the project (JIR-72).
-  const parentHref =
-    contextBacklog && detail && !context.mode ? `/b/${contextBacklog.key}` : undefined;
-  const parentClassName = cn("truncate font-medium", detail && "hidden md:inline");
-
-  // Below the shell's mobile breakpoint (the sidebar becomes a drawer), the
-  // parent segment yields so the current page stays readable (JIR-63). The
-  // full trail remains in the accessible text and the hover title.
   return (
     <nav aria-label="Fil d’Ariane" className="min-w-0" data-slot="shell-breadcrumb">
-      {parentHref ? (
-        <span className="flex min-w-0 items-center gap-2 text-sm" title={accessibleText}>
-          <Link
-            href={parentHref}
-            className={cn(parentClassName, "rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-ring")}
-            data-slot="shell-breadcrumb-parent"
-          >
-            {primary}
-          </Link>
-          <span aria-hidden="true" className="hidden text-muted-foreground md:inline">/</span>
-          <span
-            aria-current="page"
-            className="truncate font-medium text-foreground md:font-normal md:text-muted-foreground"
-            data-slot="shell-breadcrumb-current"
-          >
-            {detail}
-          </span>
-        </span>
-      ) : (
-        <>
-          <span className="sr-only">{accessibleText}</span>
-          <span
-            aria-hidden="true"
-            className="flex min-w-0 items-center gap-2 text-sm"
-            title={accessibleText}
-          >
-            <span className={parentClassName} data-slot="shell-breadcrumb-parent">
-              {primary}
-            </span>
-            {detail && (
-              <>
-                <span className="hidden text-muted-foreground md:inline">/</span>
-                <span
-                  className="truncate font-medium text-foreground md:font-normal md:text-muted-foreground"
-                  data-slot="shell-breadcrumb-current"
-                >
-                  {detail}
-                </span>
-              </>
+      <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-muted-foreground">
+        {segments.map((segment, index) => (
+          <Fragment key={`${index}:${segment.label}`}>
+            {index > 0 && (
+              <li aria-hidden="true" className="select-none">
+                /
+              </li>
             )}
-          </span>
-        </>
-      )}
+            <li className="min-w-0 break-words">
+              {segment.href ? (
+                <Link
+                  href={segment.href}
+                  className="rounded-sm text-foreground/80 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                  data-slot={index === 0 ? "shell-breadcrumb-parent" : undefined}
+                >
+                  {segment.label}
+                </Link>
+              ) : (
+                <span
+                  aria-current={index === last ? "page" : undefined}
+                  data-slot={
+                    index === last
+                      ? "shell-breadcrumb-current"
+                      : index === 0
+                        ? "shell-breadcrumb-parent"
+                        : undefined
+                  }
+                >
+                  {segment.label}
+                </span>
+              )}
+            </li>
+          </Fragment>
+        ))}
+      </ol>
     </nav>
   );
 }

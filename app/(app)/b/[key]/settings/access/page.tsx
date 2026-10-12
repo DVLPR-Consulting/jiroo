@@ -10,6 +10,7 @@ import {
   readBacklogAccess,
 } from "@/lib/services/authorization-admin";
 import { listAdminUsers } from "@/lib/services/users";
+import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
 
 export default async function AccessPage({ params }: { params: Promise<{ key: string }> }) {
   const session = await requireAppPageSession();
@@ -43,5 +44,5 @@ export default async function AccessPage({ params }: { params: Promise<{ key: st
   const groups = rawGroups.map(({ id, name }) => ({ id, name }));
   const schemes = rawSchemes.map(({ id, name, version, usageCount }) => ({ id, name, version, usageCount }));
 
-  return <div className="mx-auto max-w-4xl space-y-6 p-8"><div><h1 className="t-h1">Accès — {access.backlog.name}</h1><p className="text-sm text-muted-foreground">Utilisateurs, groupes, rôles et schéma de permissions.</p></div><AccessAdmin access={access} users={users} groups={groups} schemes={schemes} canManageMembers={memberDecision.allowed} canAdministerBacklog={administerDecision.allowed} canAdministerJiroo={jirooDecision.allowed} canBrowseUsers={browseUsersDecision.allowed} />{administerDecision.allowed && browseUsersDecision.allowed && <PermissionHelper users={users} backlogs={[access.backlog]} />}</div>;
+  return <div className="mx-auto max-w-4xl space-y-6 p-8"><div className="space-y-1"><ShellBreadcrumb /><h1 className="t-h1">Accès — {access.backlog.name}</h1><p className="text-sm text-muted-foreground">Utilisateurs, groupes, rôles et schéma de permissions.</p></div><AccessAdmin access={access} users={users} groups={groups} schemes={schemes} canManageMembers={memberDecision.allowed} canAdministerBacklog={administerDecision.allowed} canAdministerJiroo={jirooDecision.allowed} canBrowseUsers={browseUsersDecision.allowed} />{administerDecision.allowed && browseUsersDecision.allowed && <PermissionHelper users={users} backlogs={[access.backlog]} />}</div>;
 }

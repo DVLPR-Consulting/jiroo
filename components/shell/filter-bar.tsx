@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
-import { FilterMenu, type Option } from "@/components/shell/filter-menu";
+import { useEffect, useId, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Plus, UserRound, X } from "lucide-react";
+import { FilterMenu, FilterOptions, type Option } from "@/components/shell/filter-menu";
+import { InitialsAvatar } from "@/components/jiroo/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  chipValue,
+  splitSecondaryFilters,
+  toggleValue,
+  type SecondaryFilter,
+  type SecondaryFilterKey,
+} from "@/lib/items/filter-chips";
+import { cn } from "@/lib/utils";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import {
   parseViewState,
@@ -17,7 +27,9 @@ import {
   ITEM_TYPE_LABELS,
   ITEM_TYPES,
   PRIORITIES,
+  LABEL_HUES,
   PRIORITY_LABELS,
+  type LabelHue,
 } from "@/lib/design/constants";
 
 type StatusOpt = { id: string; name: string };
@@ -31,10 +43,12 @@ type ReleaseOpt = {
 };
 type HierarchyOpt = { id: string; key: string; title: string; type: string };
 
-function activeLabel(options: Option[], selected: string[]): string | undefined {
-  return selected.length > 0
-    ? options.find((option) => option.value === selected[0])?.label
-    : undefined;
+function hueFor(value: string): LabelHue {
+  let hash = 0;
+  for (let index = 0; index < value.length; index++) {
+    hash = (hash * 31 + value.charCodeAt(index)) | 0;
+  }
+  return LABEL_HUES[Math.abs(hash) % LABEL_HUES.length]!;
 }
 
 export function FilterBar({
@@ -45,6 +59,7 @@ export function FilterBar({
   releases,
   hierarchy,
   resultCount,
+  actions,
 }: {
   state: ViewState;
   statuses: StatusOpt[];
@@ -53,8 +68,11 @@ export function FilterBar({
   releases: ReleaseOpt[];
   hierarchy: HierarchyOpt[];
   resultCount: number;
+  /** Saved-view actions, shown before the result count. */
+  actions?: React.ReactNode;
 }) {
   const viewUrl = useViewUrlState();
+  const searchId = useId();
 
   const push = (update: (current: ViewState) => ViewState) =>
     viewUrl.replace((params) => {
@@ -66,6 +84,29 @@ export function FilterBar({
       ...current,
       filters: { ...current.filters, ...patch },
     }));
+  // Toggles are computed from the params current at write time, so clicks
+  // made before the server answers accumulate instead of overwriting.
+  const updateFilters = (patch: (current: Filters) => Partial<Filters>) =>
+    push((current) => ({
+      ...current,
+      filters: { ...current.filters, ...patch(current.filters) },
+    }));
+  const toggleIn = <K extends "types" | "statusIds" | "assignees" | "underIds" | "labels" | "releaseIds">(
+    key: K,
+    value: string,
+  ) =>
+    updateFilters((current) => ({
+      [key]: toggleValue(current[key] as string[], value),
+    }));
+
+  // What the bar shows follows the same local URL authority (the server
+  // props lag behind until the response), with unknown versions ignored.
+  const knownReleaseIds = new Set(releases.map((release) => release.id));
+  const urlFilters = parseViewState(viewUrl.getParams()).filters;
+  const filters: Filters = {
+    ...urlFilters,
+    releaseIds: urlFilters.releaseIds.filter((id) => knownReleaseIds.has(id)),
+  };
 
   // Free-text field is controlled locally and debounced; URL-driven changes
   // (reset, browser Back) flow back in by syncing during render when the prop moves.
@@ -117,11 +158,49 @@ export function FilterBar({
     .filter((item) => item.type === "composant" || item.type === "epic")
     .map((item) => ({ value: item.id, label: `${item.key} — ${item.title}` }));
 
-  const active = isFiltersActive(state.filters);
+  const active = isFiltersActive(filters);
+  const optionsByKey: Record<SecondaryFilterKey, Option[]> = {
+    priorities: prioOpts,
+    labels: labelOpts,
+    releaseIds: releaseOpts,
+    kind: kindOpts,
+  };
+  const selectedByKey: Record<SecondaryFilterKey, string[]> = {
+    priorities: filters.priorities.map(String),
+    labels: filters.labels,
+    releaseIds: filters.releaseIds,
+    kind: filters.kind,
+  };
+  const setSecondary = (key: SecondaryFilterKey, values: string[]) => {
+    if (key === "priorities") setFilters({ priorities: values.map(Number) });
+    else if (key === "kind") setFilters({ kind: values as typeof filters.kind });
+    else setFilters({ [key]: values });
+  };
+  const toggleSecondary = (key: SecondaryFilterKey, value: string) => {
+    if (key === "priorities") {
+      updateFilters((current) => ({
+        priorities: toggleValue(current.priorities.map(String), value).map(Number),
+      }));
+    } else if (key === "kind") {
+      updateFilters((current) => ({
+        kind: toggleValue(current.kind, value) as typeof current.kind,
+      }));
+    } else {
+      toggleIn(key, value);
+    }
+  };
+  const secondary = splitSecondaryFilters(filters);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
+    <div
+      className="flex flex-wrap items-center gap-2 border-b border-border px-4 pb-3 sm:px-6"
+      data-slot="filter-bar"
+    >
+      <label className="sr-only" htmlFor={searchId}>
+        Filtrer les items
+      </label>
       <input
+        id={searchId}
         type="search"
         value={text}
         placeholder="Filtrer…"
@@ -129,72 +208,85 @@ export function FilterBar({
           setText(e.target.value);
           scheduleQ(e.target.value);
         }}
-        className="h-7 w-44 rounded-[var(--radius-sm)] border border-border bg-[var(--surface)] px-2 text-xs"
+        className="h-8 w-44 min-w-0 rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 text-[13px] placeholder:text-muted-foreground sm:w-52"
       />
+      <div role="group" aria-label="Filtrer par assigné" className="flex flex-wrap items-center">
+        {assigneeOpts.map((option, index) => {
+          const pressed = filters.assignees.includes(option.value);
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={pressed}
+              aria-label={option.label}
+              title={option.label}
+              onClick={() => toggleIn("assignees", option.value)}
+              className={cn(
+                "relative inline-flex size-8 items-center justify-center rounded-full outline-none transition-transform hover:z-10 hover:-translate-y-0.5 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+                index > 0 && "-ml-1.5",
+                pressed && "z-10 ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--background)]",
+              )}
+            >
+              {option.value === "none" ? (
+                <span
+                  aria-hidden="true"
+                  className="inline-flex size-7 items-center justify-center rounded-full border-[1.5px] border-[var(--surface)] bg-[var(--muted)] text-muted-foreground"
+                >
+                  <UserRound className="size-3.5" />
+                </span>
+              ) : (
+                <span aria-hidden="true" className="inline-flex">
+                  <InitialsAvatar name={option.label} hue={hueFor(option.value)} size={28} />
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <span aria-hidden="true" className="hidden h-5 w-px bg-border sm:block" />
       <FilterMenu
         label="Type"
         options={typeOpts}
-        selected={state.filters.types}
-        onChange={(v) => setFilters({ types: v as typeof state.filters.types })}
-        activeLabel={activeLabel(typeOpts, state.filters.types)}
+        selected={filters.types}
+        onToggle={(value) => toggleIn("types", value)}
+        activeLabel={chipValue(typeOpts, filters.types)}
         onClear={() => setFilters({ types: [] })}
       />
       <FilterMenu
         label="Statut"
         options={statusOpts}
-        selected={state.filters.statusIds}
-        onChange={(v) => setFilters({ statusIds: v })}
-        activeLabel={activeLabel(statusOpts, state.filters.statusIds)}
+        selected={filters.statusIds}
+        onToggle={(value) => toggleIn("statusIds", value)}
+        activeLabel={chipValue(statusOpts, filters.statusIds)}
         onClear={() => setFilters({ statusIds: [] })}
       />
       <FilterMenu
-        label="Priorité"
-        options={prioOpts}
-        selected={state.filters.priorities.map(String)}
-        onChange={(v) => setFilters({ priorities: v.map(Number) })}
-        activeLabel={activeLabel(prioOpts, state.filters.priorities.map(String))}
-        onClear={() => setFilters({ priorities: [] })}
-      />
-      <FilterMenu
-        label="Label"
-        options={labelOpts}
-        selected={state.filters.labels}
-        onChange={(v) => setFilters({ labels: v })}
-        activeLabel={activeLabel(labelOpts, state.filters.labels)}
-        onClear={() => setFilters({ labels: [] })}
-      />
-      <FilterMenu
-        label="Version"
-        options={releaseOpts}
-        selected={state.filters.releaseIds}
-        onChange={(v) => setFilters({ releaseIds: v })}
-        activeLabel={activeLabel(releaseOpts, state.filters.releaseIds)}
-        onClear={() => setFilters({ releaseIds: [] })}
-      />
-      <FilterMenu
-        label="Assigné"
-        options={assigneeOpts}
-        selected={state.filters.assignees}
-        onChange={(v) => setFilters({ assignees: v })}
-        activeLabel={activeLabel(assigneeOpts, state.filters.assignees)}
-        onClear={() => setFilters({ assignees: [] })}
-      />
-      <FilterMenu
-        label="Nature"
-        options={kindOpts}
-        selected={state.filters.kind}
-        onChange={(v) => setFilters({ kind: v as typeof state.filters.kind })}
-        activeLabel={activeLabel(kindOpts, state.filters.kind)}
-        onClear={() => setFilters({ kind: [] })}
-      />
-      <FilterMenu
-        label="Sous"
+        label="Parent"
         options={hierarchyOpts}
-        selected={state.filters.underIds}
-        onChange={(v) => setFilters({ underIds: v })}
-        activeLabel={activeLabel(hierarchyOpts, state.filters.underIds)}
+        selected={filters.underIds}
+        onToggle={(value) => toggleIn("underIds", value)}
+        activeLabel={chipValue(hierarchyOpts, filters.underIds)}
         onClear={() => setFilters({ underIds: [] })}
       />
+      {secondary.active.map((filter) => (
+        <FilterMenu
+          key={filter.key}
+          label={filter.label}
+          options={optionsByKey[filter.key]}
+          selected={selectedByKey[filter.key]}
+          onToggle={(value) => toggleSecondary(filter.key, value)}
+          activeLabel={chipValue(optionsByKey[filter.key], selectedByKey[filter.key])}
+          onClear={() => setSecondary(filter.key, [])}
+        />
+      ))}
+      {secondary.available.length > 0 && (
+        <AddFilterMenu
+          filters={secondary.available}
+          optionsByKey={optionsByKey}
+          selectedByKey={selectedByKey}
+          onToggle={toggleSecondary}
+        />
+      )}
 
       {active && (
         <button
@@ -217,14 +309,128 @@ export function FilterBar({
               },
             }));
           }}
-          className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+          className="inline-flex h-8 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-[13px] text-muted-foreground hover:text-foreground"
         >
-          <X className="size-3.5" /> Réinitialiser
+          <X className="size-3.5" aria-hidden="true" /> Réinitialiser
         </button>
       )}
-      <span className="ml-auto text-xs text-muted-foreground">
-        {resultCount} résultat{resultCount > 1 ? "s" : ""}
-      </span>
+      <div className="ml-auto flex items-center gap-3">
+        {/* A lone child: an element passed from a server component must not
+            sit in a keyed list next to the count. */}
+        {actions ? <div className="flex items-center">{actions}</div> : null}
+        <span className="text-[13px] text-muted-foreground" role="status">
+          {resultCount} résultat{resultCount > 1 ? "s" : ""}
+        </span>
+      </div>
     </div>
+  );
+}
+
+/**
+ * « + Filtre » (JIR-74): Priorité, Label, Version and Nature, one step to
+ * pick the facet, one to pick its values. Once a value is picked the facet
+ * shows on the bar as a chip.
+ */
+function AddFilterMenu({
+  filters,
+  optionsByKey,
+  selectedByKey,
+  onToggle,
+}: {
+  filters: SecondaryFilter[];
+  optionsByKey: Record<SecondaryFilterKey, Option[]>;
+  selectedByKey: Record<SecondaryFilterKey, string[]>;
+  onToggle: (key: SecondaryFilterKey, value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState<SecondaryFilter | null>(null);
+  const [returnKey, setReturnKey] = useState<SecondaryFilterKey | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const moveFocus = useRef(false);
+
+  // Each screen swap unmounts the focused button: hand focus to the new
+  // screen (first value or the way back; the category left, else the first
+  // one), so keyboard users stay in the panel and page shortcuts stay off.
+  useEffect(() => {
+    if (!moveFocus.current) return;
+    moveFocus.current = false;
+    const root = contentRef.current;
+    if (!root) return;
+    const target = current
+      ? (root.querySelector<HTMLElement>('input[type="checkbox"]')
+        ?? root.querySelector<HTMLElement>("[data-filter-back]"))
+      : (root.querySelector<HTMLElement>(`[data-filter-key="${returnKey}"]`)
+        ?? root.querySelector<HTMLElement>("[data-filter-key]"));
+    target?.focus();
+  }, [current, returnKey]);
+
+  function enter(filter: SecondaryFilter) {
+    moveFocus.current = true;
+    setCurrent(filter);
+  }
+
+  function back() {
+    moveFocus.current = true;
+    setReturnKey(current?.key ?? null);
+    setCurrent(null);
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setCurrent(null);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border border-dashed border-[var(--border-strong)] px-2.5 text-[13px] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground"
+        >
+          <Plus className="size-3.5" aria-hidden="true" />
+          Filtre
+        </button>
+      </PopoverTrigger>
+      <PopoverContent ref={contentRef} align="start" className="w-56 p-1">
+        {current ? (
+          <div role="group" aria-label={`Filtre ${current.label}`}>
+            <button
+              type="button"
+              data-filter-back=""
+              onClick={back}
+              className="flex w-full items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-xs font-medium text-muted-foreground hover:bg-[var(--muted)]"
+            >
+              <ChevronLeft className="size-3.5" aria-hidden="true" />
+              Filtres
+            </button>
+            <p className="px-2 pb-1 text-sm font-medium" aria-hidden="true">
+              {current.label}
+            </p>
+            <FilterOptions
+              options={optionsByKey[current.key]}
+              selected={selectedByKey[current.key]}
+              onToggle={(value) => onToggle(current.key, value)}
+            />
+          </div>
+        ) : (
+          <ul aria-label="Ajouter un filtre">
+            {filters.map((filter) => (
+              <li key={filter.key}>
+                <button
+                  type="button"
+                  data-filter-key={filter.key}
+                  onClick={() => enter(filter)}
+                  className="flex w-full items-center justify-between rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-sm hover:bg-[var(--muted)]"
+                >
+                  {filter.label}
+                  <ChevronRight className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
   resolveReleasePublicationId: vi.fn(),
 }));
 
+vi.mock("@/components/shell/shell-breadcrumb", () => ({
+  ShellBreadcrumb: () => <nav aria-label="Fil d’Ariane" />,
+}));
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 vi.mock("@/lib/auth/session", () => ({ requireAppPageSession: mocks.requireSession }));
@@ -201,19 +204,13 @@ describe("release detail route", () => {
     })).rejects.toThrow("not-found");
   });
 
-  it("keeps the backlog view tabs with Releases as the current page", async () => {
+  it("leads the release detail with the breadcrumb", async () => {
     render(await ReleaseDetailPage({
       params: Promise.resolve({ key: "cass", releaseId }),
       searchParams: Promise.resolve({}),
     }));
 
-    const nav = screen.getByRole("navigation", { name: "Vues du backlog" });
-    expect(within(nav).getByRole("link", { name: "Releases" }))
-      .toHaveAttribute("aria-current", "page");
-    expect(within(nav).getByRole("link", { name: "Backlog" }))
-      .toHaveAttribute("href", "/b/CASS?view=backlog");
-    expect(within(nav).getByRole("link", { name: "Rapports" }))
-      .not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("navigation", { name: "Fil d’Ariane" })).toBeInTheDocument();
     expect(screen.getByText("Détail version")).toBeInTheDocument();
   });
 

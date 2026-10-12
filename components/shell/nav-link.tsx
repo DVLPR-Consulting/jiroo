@@ -42,7 +42,7 @@ export function NavLink({
       className={cn(
         "flex items-center gap-2 rounded-[var(--radius)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]",
         collapsed && "justify-center px-0",
-        active && "bg-[var(--accent-subtle)] font-medium",
+        active && "bg-[var(--accent-subtle)] font-medium text-[var(--accent-subtle-fg)]",
       )}
     >
       {children}

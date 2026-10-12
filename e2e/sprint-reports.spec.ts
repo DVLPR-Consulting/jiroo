@@ -814,8 +814,8 @@ audited(2, "distingue les états vides, planifiés, actifs non estimés et legac
   await page.reload();
   await expect(page.getByText("Tous les éléments actuels de ce sprint sont non estimés.")).toBeVisible();
 
-  // JIR-55: the backlog view tabs stay available on Reports, Rapports current.
-  const reportsTabs = page.getByRole("navigation", { name: "Vues du backlog" });
+  // JIR-55 / JIR-74: the sidebar project views stay available on Reports, Rapports current.
+  const reportsTabs = page.getByRole("navigation", { name: "Vues du projet" });
   await expect(reportsTabs.getByRole("link", { name: "Rapports" }))
     .toHaveAttribute("aria-current", "page");
   await reportsTabs.getByRole("link", { name: "Backlog" }).click();

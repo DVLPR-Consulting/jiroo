@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewActions } from "@/components/shell/view-actions";
+import { requestSaveView } from "@/components/shell/save-view-event";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 import type { Filters, ViewState } from "@/lib/items/filter";
 
@@ -257,5 +258,43 @@ describe("ViewActions URL navigation", () => {
     });
     expect(mocks.push).not.toHaveBeenCalled();
     expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("opens the save-as dialog when the sidebar requests a saved view", () => {
+    renderActions({ activeView: null, dirty: false });
+
+    expect(screen.queryByRole("button", { name: "Confirmer create" })).not.toBeInTheDocument();
+    act(() => requestSaveView());
+    expect(screen.getByRole("button", { name: "Confirmer create" })).toBeInTheDocument();
+  });
+
+  it("hides its button until there is something to save but keeps the save dialog reachable", () => {
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "list"]]}>
+        <ViewActions
+          backlogKey="DEMO"
+          backlogId="backlog-1"
+          activeView={null}
+          isOwner
+          dirty={false}
+          displayMode="list"
+          filters={filters}
+          group={null}
+          sort={null}
+          showTrigger={false}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    expect(screen.queryByRole("button", { name: /Enregistrer la vue/ })).not.toBeInTheDocument();
+    act(() => requestSaveView());
+    expect(screen.getByRole("button", { name: "Confirmer create" })).toBeInTheDocument();
+  });
+
+  it("opens the save-as dialog for a sidebar request made before it mounted", () => {
+    requestSaveView();
+    renderActions({ activeView: null, dirty: false });
+
+    expect(screen.getByRole("button", { name: "Confirmer create" })).toBeInTheDocument();
   });
 });

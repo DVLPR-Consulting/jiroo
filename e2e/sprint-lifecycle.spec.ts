@@ -287,7 +287,7 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
     "href",
     "/b/CASS?q=audit&view=backlog",
   );
-  await expect(page.getByRole("button", { name: "Nouvel item" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Créer", exact: true })).toHaveCount(0);
   await writeAuditScreenshot(
     NO_ACTIVE_SCREENSHOT,
     (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
@@ -963,7 +963,7 @@ test("laisse le lecteur consulter la planification et le Board sans aucun contr�
     await viewer.goto("/b/CASS?view=board");
     await expect(viewer.getByRole("heading", { name: ACTIVE_SPRINT })).toBeVisible();
     await expect(viewer.getByText(TASK_CARRIED, { exact: true })).toBeVisible();
-    await expect(viewer.getByRole("button", { name: "Nouvel item" })).toHaveCount(0);
+    await expect(viewer.getByRole("button", { name: "Créer", exact: true })).toHaveCount(0);
     await expect(viewer.getByRole("button", { name: /^Créer dans / })).toHaveCount(0);
     await expect(viewer.getByRole("button", { name: /^Déplacer CASS-/ })).toHaveCount(0);
     await writeAuditScreenshot(

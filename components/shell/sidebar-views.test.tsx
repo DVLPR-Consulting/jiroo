@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { SidebarViews, type SidebarViewRow } from "@/components/shell/sidebar-views";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
+import { OPEN_SAVE_VIEW_EVENT } from "@/components/shell/save-view-event";
 import type { ViewState } from "@/lib/items/filter";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
@@ -158,7 +159,9 @@ describe("SidebarViews URL authority", () => {
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
-  it("explains empty personal and shared saved-view collections", () => {
+  it("replaces empty saved-view collections with one save line", () => {
+    const listener = vi.fn();
+    window.addEventListener(OPEN_SAVE_VIEW_EVENT, listener);
     render(
       <ViewUrlStateProvider initialEntries={[["view", "board"]]}>
         <SidebarViews
@@ -171,9 +174,18 @@ describe("SidebarViews URL authority", () => {
       </ViewUrlStateProvider>,
     );
 
-    expect(screen.getByText("Aucune vue personnelle")).toBeInTheDocument();
-    expect(screen.getByText("Enregistrez vos filtres pour les retrouver ici.")).toBeInTheDocument();
-    expect(screen.getByText("Aucune vue partagée")).toBeInTheDocument();
-    expect(screen.getByText("Les vues partagées avec l’équipe apparaîtront ici.")).toBeInTheDocument();
+    expect(screen.queryByText("Vues perso")).not.toBeInTheDocument();
+    expect(screen.queryByText("Vues partagées")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer une vue" }));
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener(OPEN_SAVE_VIEW_EVENT, listener);
+  });
+
+  it("lists only the non-empty saved-view groups", () => {
+    renderSubject();
+
+    expect(screen.getByText("Vues perso")).toBeInTheDocument();
+    expect(screen.queryByText("Vues partagées")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enregistrer une vue" })).toBeInTheDocument();
   });
 });

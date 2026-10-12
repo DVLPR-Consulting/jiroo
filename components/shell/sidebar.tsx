@@ -2,7 +2,19 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Layers, Settings, Trash2, User } from "lucide-react";
+import {
+  ChartColumn,
+  Layers,
+  List,
+  ListTree,
+  Rows3,
+  Settings,
+  SquareKanban,
+  Tag,
+  Trash2,
+  User,
+  type LucideIcon,
+} from "lucide-react";
 import { BacklogSelector } from "@/components/shell/backlog-selector";
 import { NavLink } from "@/components/shell/nav-link";
 import { useSidebarState } from "@/components/shell/sidebar-state";
@@ -10,12 +22,27 @@ import { SidebarViews } from "@/components/shell/sidebar-views";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import { UserCard } from "@/components/shell/user-card";
 import type { SidebarViewRow } from "@/components/shell/sidebar-views";
-import { deriveShellContext } from "@/lib/items/shell";
+import {
+  activeProjectView,
+  deriveShellContext,
+  PROJECT_VIEWS,
+  projectViewHref,
+  type ProjectViewId,
+} from "@/lib/items/shell";
 import { clearActiveBacklogViewParams } from "@/lib/items/views";
 import type { ShellCounts } from "@/lib/services/shell";
 import { cn } from "@/lib/utils";
 
 type Backlog = { id: string; key: string; name: string; color: string };
+
+const PROJECT_VIEW_ICONS: Record<ProjectViewId, LucideIcon> = {
+  backlog: Rows3,
+  board: SquareKanban,
+  list: List,
+  tree: ListTree,
+  releases: Tag,
+  reports: ChartColumn,
+};
 
 export function Sidebar({
   backlogs,
@@ -58,6 +85,12 @@ export function Sidebar({
     : context.allItemsHref;
 
   const homeHref = context.activeBacklogKey ? `/b/${context.activeBacklogKey}` : "/";
+  const activeBacklog = activeKey
+    ? backlogs.find((backlog) => backlog.key.toUpperCase() === activeKey)
+    : undefined;
+  const activeView = activeBacklog
+    ? activeProjectView(pathname, new URLSearchParams(searchParams.toString()), activeBacklog.key)
+    : null;
 
   return (
     <div
@@ -101,7 +134,51 @@ export function Sidebar({
         activeKey={context.activeBacklogKey}
       />
 
-      <div className="mt-2 flex flex-col gap-0.5">
+      {activeBacklog && (
+        <nav aria-label="Vues du projet" className="mt-2 flex flex-col gap-0.5">
+          {PROJECT_VIEWS.map((view) => {
+            const Icon = PROJECT_VIEW_ICONS[view.id];
+            const itemView = view.kind === "item";
+            return (
+              <NavLink
+                key={view.id}
+                href={
+                  itemView && onActiveBacklogRoute
+                    ? viewUrl.href((params) => params.set("view", view.id))
+                    : projectViewHref(activeBacklog.key, view.id)
+                }
+                active={activeView === view.id}
+                ariaLabel={collapsed ? view.label : undefined}
+                collapsed={collapsed}
+                title={collapsed ? view.label : undefined}
+                onNavigate={
+                  itemView && onActiveBacklogRoute
+                    ? (event) => {
+                        event.preventDefault();
+                        viewUrl.push((latest) => latest.set("view", view.id));
+                      }
+                    : undefined
+                }
+              >
+                <Icon className="size-4" aria-hidden="true" />
+                <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
+                  {view.label}
+                </span>
+              </NavLink>
+            );
+          })}
+        </nav>
+      )}
+
+      <div className="mt-2 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
+        <div
+          className={cn(
+            "t-meta px-2 pb-1 font-medium uppercase tracking-wide text-muted-foreground",
+            collapsed && "sr-only",
+          )}
+        >
+          Filtres
+        </div>
         <NavLink
           href={allItemsHref}
           active={context.activeNav === "all"}
@@ -142,17 +219,14 @@ export function Sidebar({
           </span>
           <Count value={counts.mine} collapsed={collapsed} />
         </NavLink>
-      </div>
-
-      {!collapsed && (
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        {!collapsed && (
           <SidebarViews
             views={views}
             userId={userId}
             backlogs={backlogs}
           />
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="mt-auto flex flex-col gap-1">
         <NavLink

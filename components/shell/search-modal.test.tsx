@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SHORTCUTS_ENABLED_STORAGE_KEY } from "@/lib/shortcuts/preferences";
 import { SearchModal } from "@/components/shell/search-modal";
 import { FilterBar } from "@/components/shell/filter-bar";
 import {
@@ -135,7 +136,7 @@ function renderSubject({
 
 async function revealResult(result: SearchResult = demoResult) {
   mocks.searchAction.mockResolvedValueOnce({ ok: true, results: [result] });
-  fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+  fireEvent.click(screen.getByRole("button", { name: "Rechercher un item" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Rechercher" }), {
     target: { value: result.key },
   });
@@ -181,7 +182,7 @@ describe("SearchModal item navigation", () => {
     });
 
     renderSubject();
-    fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rechercher un item" }));
     await act(async () => {});
 
     expect(mocks.recentItemsAction).toHaveBeenCalledWith([
@@ -209,6 +210,26 @@ describe("SearchModal item navigation", () => {
     });
 
     expect(option.querySelector(".item-key mark")).toHaveTextContent("CASS-39");
+  });
+
+  it("shows an always-visible field with the registry search key", () => {
+    renderSubject();
+
+    const field = screen.getByRole("button", { name: "Rechercher un item" });
+    expect(field).toHaveTextContent("Rechercher un item…");
+    expect(field.querySelector("kbd")).toHaveTextContent("/");
+    fireEvent.click(field);
+    expect(screen.getByRole("dialog", { name: "Rechercher un item" })).toBeInTheDocument();
+  });
+
+  it("hints ⌘/Ctrl + K when single-key shortcuts are off", () => {
+    localStorage.setItem(SHORTCUTS_ENABLED_STORAGE_KEY, "false");
+    renderSubject();
+
+    const keys = [...screen.getByRole("button", { name: "Rechercher un item" })
+      .querySelectorAll("kbd")].map((kbd) => kbd.textContent);
+    expect(keys).toEqual(["⌘/Ctrl", "K"]);
+    localStorage.removeItem(SHORTCUTS_ENABLED_STORAGE_KEY);
   });
 
   it("opens and closes the palette with Command/Ctrl+K", () => {
@@ -255,7 +276,7 @@ describe("SearchModal item navigation", () => {
     mocks.searchAction.mockResolvedValueOnce({ ok: true, results: [demoResult] });
 
     renderSubject();
-    fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rechercher un item" }));
     await act(async () => {});
 
     const input = screen.getByRole("textbox", { name: "Rechercher" });
@@ -281,7 +302,7 @@ describe("SearchModal item navigation", () => {
     mocks.searchAction.mockReturnValueOnce(pendingSearch.promise);
 
     renderSubject();
-    fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rechercher un item" }));
     await act(async () => {});
     expect(screen.getByRole("option", { name: /DEMO-2/ })).toBeInTheDocument();
 
@@ -311,7 +332,7 @@ describe("SearchModal item navigation", () => {
       .mockReturnValueOnce(pendingSecondA.promise);
 
     renderSubject();
-    fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rechercher un item" }));
     const input = screen.getByRole("textbox", { name: "Rechercher" });
 
     fireEvent.change(input, { target: { value: "A" } });
@@ -345,7 +366,7 @@ describe("SearchModal item navigation", () => {
     const setItem = vi.spyOn(Storage.prototype, "setItem");
 
     renderSubject();
-    fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rechercher un item" }));
     await act(async () => {});
     setItem.mockClear();
     fireEvent.keyDown(screen.getByRole("textbox", { name: "Rechercher" }), {
@@ -392,7 +413,7 @@ describe("SearchModal item navigation", () => {
       { scroll: false },
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Rechercher" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rechercher un item" }));
     expect(screen.getByRole("textbox", { name: "Rechercher" })).toHaveValue("");
   });
 

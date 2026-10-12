@@ -49,7 +49,7 @@ export const SHORTCUTS = [
   // Général
   { id: "help", kind: "sequence", group: "global", sequence: ["?"], label: "Afficher les raccourcis clavier", jira: "?" },
   { id: "search", kind: "sequence", group: "global", sequence: ["/"], label: "Rechercher un ticket", jira: "/" },
-  { id: "create", kind: "sequence", group: "global", sequence: ["c"], label: "Nouvel item (dans une vue de backlog)", jira: "c" },
+  { id: "create", kind: "sequence", group: "global", sequence: ["c"], label: "Créer un item (dans une vue de backlog)", jira: "c" },
   { id: "toggleSidebar", kind: "sequence", group: "global", sequence: ["["], label: "Masquer ou afficher la barre latérale", jira: "[" },
 
   // Aller à
@@ -101,6 +101,10 @@ export function isSequenceShortcut(
 
 export const SEQUENCE_SHORTCUTS: readonly (SequenceShortcut & { id: SequenceShortcutId })[] =
   SHORTCUTS.filter(isSequenceShortcut) as (SequenceShortcut & { id: SequenceShortcutId })[];
+
+export function shortcutById(id: ShortcutId): ShortcutDefinition {
+  return SHORTCUTS.find((shortcut) => shortcut.id === id)!;
+}
 
 export function shortcutsInGroup(group: ShortcutGroupId): readonly ShortcutDefinition[] {
   return SHORTCUTS.filter((shortcut) => shortcut.group === group);

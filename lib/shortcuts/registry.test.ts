@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  shortcutById,
   SEQUENCE_SHORTCUTS,
   SHORTCUT_GROUPS,
   SHORTCUTS,
@@ -79,5 +80,12 @@ describe("shortcut registry", () => {
     expect(shortcutText(byId("go.backlog"))).toBe("G puis B");
     expect(shortcutText(byId("list.open"))).toBe("O ou Entrée");
     expect(shortcutText(byId("searchCombo"))).toBe("⌘/Ctrl + K");
+  });
+});
+
+describe("shortcutById", () => {
+  it("returns the registry entry for an id", () => {
+    expect(shortcutById("search")).toMatchObject({ kind: "sequence", sequence: ["/"] });
+    expect(shortcutById("searchCombo")).toMatchObject({ kind: "combo", combo: ["⌘/Ctrl", "K"] });
   });
 });

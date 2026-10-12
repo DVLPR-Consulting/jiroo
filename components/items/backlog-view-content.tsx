@@ -36,9 +36,11 @@ import {
 import { PRIORITY_LABELS } from "@/lib/design/constants";
 import { requireAppPageSession } from "@/lib/auth/session";
 import { getViewByIdForUser } from "@/lib/services/views";
+import { hasSavableViewState } from "@/lib/items/filter-chips";
 import { columnsToViewState, isViewDirty, type DisplayMode } from "@/lib/items/views";
-import { ViewBar } from "@/components/shell/view-bar";
-import { GroupControl } from "@/components/shell/group-control";
+import { PageHeader } from "@/components/shell/page-header";
+import { PROJECT_VIEWS } from "@/lib/items/shell";
+import { DisplayMenu } from "@/components/shell/display-menu";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewActions } from "@/components/shell/view-actions";
 import { ItemList } from "@/components/items/item-list";
@@ -48,7 +50,7 @@ import { ItemTree } from "@/components/items/item-tree";
 import { ItemDetailContent } from "@/components/items/item-detail-content";
 import { ItemDetailDrawer } from "@/components/items/item-detail-sheet";
 import { DetailPanelSkeleton } from "@/components/items/view-skeletons";
-import { NewItemButton } from "@/components/items/new-item-dialog";
+import { TopbarCreateItem } from "@/components/shell/create-item-trigger";
 import { StatusManagerDialog } from "@/components/statuses/status-manager-dialog";
 import {
   firstSearchParam,
@@ -568,16 +570,48 @@ export async function BacklogViewContent({
 
   return (
     <div className="flex h-full flex-col">
-      <ViewBar
-        view={view}
-        backlogKey={backlog.key}
-        groupControlSlot={
-          <GroupControl
-            view={view as DisplayMode}
-            state={viewState}
-          />
+      <PageHeader
+        title={PROJECT_VIEWS.find((candidate) => candidate.id === view)?.label}
+        actions={
+          <>
+            {view === "board" && productCapabilities.workflow.manage ? (
+              <StatusManagerDialog
+                key={statusList.map((status) => `${status.id}:${status.order}:${status.name}:${status.category}:${status.itemCount}`).join("|")}
+                backlogId={backlog.id}
+                backlogKey={backlog.key}
+                statuses={statusList}
+                capabilities={productCapabilities.workflow}
+              />
+            ) : null}
+            <DisplayMenu view={view as DisplayMode} state={viewState} />
+          </>
         }
-        viewActionsSlot={
+      />
+      {capabilities.createItems && (
+        view !== "board" || (activeSprint !== null && capabilities.scheduleItems)
+      ) ? (
+        <TopbarCreateItem
+          backlogKey={backlog.key}
+          {...createDialogProps}
+          {...(view === "board" && activeSprint
+            ? { sprintId: activeSprint.id, contextLabel: activeSprint.name }
+            : {})}
+        />
+      ) : null}
+      <FilterBar
+        state={viewState}
+        statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}
+        users={referencedUsers}
+        labels={backlogLabelRows.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
+        releases={releaseFilterOptions}
+        hierarchy={items.map((item) => ({
+          id: item.id,
+          key: item.key,
+          title: item.title,
+          type: item.type,
+        }))}
+        resultCount={resultCount}
+        actions={
           <ViewActions
             backlogKey={key}
             backlogId={backlog.id}
@@ -592,43 +626,9 @@ export async function BacklogViewContent({
             filters={viewState.filters}
             group={viewState.group}
             sort={viewState.sort}
+            showTrigger={activeViewRow !== null || hasSavableViewState(viewState)}
           />
         }
-        workflowSlot={view === "board" && productCapabilities.workflow.manage ? (
-          <StatusManagerDialog
-            key={statusList.map((status) => `${status.id}:${status.order}:${status.name}:${status.category}:${status.itemCount}`).join("|")}
-            backlogId={backlog.id}
-            backlogKey={backlog.key}
-            statuses={statusList}
-            capabilities={productCapabilities.workflow}
-          />
-        ) : null}
-        newItemSlot={capabilities.createItems && (
-          view !== "board" || (activeSprint !== null && capabilities.scheduleItems)
-        ) ? (
-          <NewItemButton
-            backlogKey={backlog.key}
-            {...createDialogProps}
-            {...(view === "board" && activeSprint
-              ? { sprintId: activeSprint.id, contextLabel: activeSprint.name }
-              : {})}
-            enableShortcut
-          />
-        ) : null}
-      />
-      <FilterBar
-        state={viewState}
-        statuses={statusList.map((s) => ({ id: s.id, name: s.name }))}
-        users={referencedUsers}
-        labels={backlogLabelRows.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
-        releases={releaseFilterOptions}
-        hierarchy={items.map((item) => ({
-          id: item.id,
-          key: item.key,
-          title: item.title,
-          type: item.type,
-        }))}
-        resultCount={resultCount}
       />
       {view === "backlog" && (
         <ItemBacklog

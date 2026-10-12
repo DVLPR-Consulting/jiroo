@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { ReleaseList } from "@/components/releases/release-list";
-import { BacklogNavBar } from "@/components/shell/view-tabs";
+import { PageHeader } from "@/components/shell/page-header";
 import {
   getBacklogCapabilities,
 } from "@/lib/auth/accessible-backlogs";
@@ -43,14 +43,12 @@ export default async function ReleasesPage({
 
   return (
     <>
-      <BacklogNavBar active="releases" backlogKey={backlog.key} />
-      <div className="mx-auto max-w-6xl space-y-6 p-6 lg:p-8">
-        <header>
-          <h1 className="t-h1">Releases — {backlog.name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Planifiez les livraisons et suivez leur progression.
-          </p>
-        </header>
+      <PageHeader
+        className="mx-auto w-full max-w-6xl"
+        title="Releases"
+        description="Planifiez les livraisons et suivez leur progression."
+      />
+      <div className="mx-auto max-w-6xl space-y-6 px-4 pb-6 sm:px-6 lg:pb-8">
         <ReleaseList
           actor={{ id: session.user.id, name: session.user.name }}
           backlog={{ id: backlog.id, key: backlog.key, name: backlog.name }}
