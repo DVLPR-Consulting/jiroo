@@ -180,7 +180,8 @@ export function HelpGuide() {
           purpose="Réduire la vue aux tickets qui vous intéressent."
           steps={[
             <>Tapez dans <Ui>Filtrer…</Ui>, ou cliquez sur un avatar pour ne voir que les tickets de cette personne (l’icône <Ui>Non assigné</Ui> pour les tickets sans assigné) ; un avatar enfoncé est un filtre actif, cliquez à nouveau pour le retirer.</>,
-            <>Ouvrez <Ui>Type</Ui>, <Ui>Statut</Ui> ou <Ui>Parent</Ui> (descendants d’un Composant ou d’une Epic). Les autres filtres, <Ui>Priorité</Ui>, <Ui>Label</Ui>, <Ui>Version</Ui> et <Ui>Nature</Ui>, sont derrière <Ui>+ Filtre</Ui>.</>,
+            <>Ouvrez <Ui>Type</Ui>, <Ui>Statut</Ui> ou <Ui>Parent</Ui> (descendants d’un Composant ou d’une Epic). Les autres filtres, <Ui>Priorité</Ui>, <Ui>Label</Ui>, <Ui>Version</Ui>, <Ui>Sprint</Ui> et <Ui>Nature</Ui>, sont derrière <Ui>+ Filtre</Ui>.</>,
+            <>Dans la <Ui>Liste</Ui> et l’<Ui>Arbre</Ui>, <Ui>Sprint</Ui> propose le sprint actif, les sprints planifiés et les sprints terminés (les plus récents d’abord), plus <Ui>Aucun sprint</Ui>. Un ticket reporté d’un sprint au suivant reste trouvable sous chacun d’eux ; un ticket retiré d’un sprint avant sa fin n’en fait plus partie. Les sous-tâches suivent leur tâche.</>,
             <>Un filtre actif s’affiche en pastille avec sa valeur (ex. <Ui>Statut : En cours</Ui>) ; sa croix le retire, <Ui>Réinitialiser</Ui> efface tous les filtres.</>,
             <>Regroupez avec le menu <Ui>Affichage</Ui> à droite du titre → <Ui>Grouper par</Ui> (Statut, Priorité, Assigné, Composant ; pas sur l’Arbre).</>,
           ]}
@@ -397,7 +398,12 @@ export function HelpGuide() {
             <>Confirmez avec le bouton <Ui>Terminer le sprint</Ui> de la fenêtre.</>,
           ]}
         >
-          <GuideNote>Les sous-tâches doivent être terminées avant la fin du sprint. Un sprint ne se supprime pas.</GuideNote>
+          <GuideNote>
+            Les sous-tâches doivent être terminées avant la fin du sprint. Un sprint ne se supprime pas.
+            Un sprint terminé disparaît du Backlog et du Board ; pour retrouver ses tickets, ouvrez
+            {" "}<Ui>Rapports</Ui> → <Ui>Rapport de sprint</Ui>, ou filtrez la <Ui>Liste</Ui> ou l’<Ui>Arbre</Ui>
+            {" "}avec <Ui>+ Filtre</Ui> → <Ui>Sprint</Ui>.
+          </GuideNote>
         </GuideTopic>
       </GuideSection>
 

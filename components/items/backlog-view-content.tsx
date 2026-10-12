@@ -58,6 +58,11 @@ import {
   type ViewUrlEntry,
 } from "@/lib/items/view-url-params";
 import { buildSprintSections } from "@/lib/items/sprint-planning";
+import {
+  orderSprintsForFilter,
+  sprintIdsByItem,
+  withKnownSprintIds,
+} from "@/lib/items/sprint-filter";
 import { pointsByStatusCategory } from "@/lib/items/status-points";
 import { listSprintsForBacklog } from "@/lib/services/sprints";
 import {
@@ -73,6 +78,7 @@ const VIEW_STATE_PARAM_KEYS = [
   "assignee",
   "label",
   "version",
+  "sprint",
   "kind",
   "under",
   "group",
@@ -174,12 +180,27 @@ export async function BacklogViewContent({
       ? getActiveSprintStartCommitment(backlog.id)
       : Promise.resolve(null),
   ]);
+  // The Sprint facet (JIR-81) is Jira's issue-search Sprint filter: it belongs
+  // to Liste and Arbre. Board and Backlog are laid out by sprint already (and
+  // hide completed sprints by design), so they ignore it.
+  const sprintFilterEnabled = view === "list" || view === "tree";
+  const knownSprintIds = new Set(sprintSnapshot.sprints.map((sprint) => sprint.id));
   const viewState = {
     ...requestedViewState,
-    filters: withKnownReleaseIds(
-      requestedViewState.filters,
-      new Set(releaseSummaries.map((release) => release.id)),
+    filters: withKnownSprintIds(
+      withKnownReleaseIds(
+        requestedViewState.filters,
+        new Set(releaseSummaries.map((release) => release.id)),
+      ),
+      sprintFilterEnabled ? knownSprintIds : null,
     ),
+  };
+  // Saving from Board or Backlog keeps the (hidden) Sprint facet of the URL,
+  // as the dirty check compares the requested state: an update made there
+  // must not erase a saved view's sprint filter.
+  const savableFilters = {
+    ...viewState.filters,
+    sprintIds: withKnownSprintIds(requestedViewState.filters, knownSprintIds).sprintIds,
   };
   // Only unknown versions were requested: show every item, not an empty list.
   const releaseFilteredItems =
@@ -236,6 +257,7 @@ export async function BacklogViewContent({
   );
 
   const statusOrderById = new Map(statusRows.map((status) => [status.id, status.order]));
+  const sprintIdsByItemId = sprintIdsByItem(sprintSnapshot.memberships, items);
   const filterRows: FilterItem[] = enrichHierarchy(items.map((i) => ({
     id: i.id,
     key: i.key,
@@ -254,6 +276,7 @@ export async function BacklogViewContent({
     rank: i.rank,
     labelIds: (labelsByItem.get(i.id) ?? []).map((l) => l.id),
     fixVersionIds: fixVersionIdsByItem.get(i.id) ?? [],
+    sprintIds: sprintIdsByItemId.get(i.id) ?? [],
     kind: i.kind,
     statusOrder: statusOrderById.get(i.statusId) ?? 0,
   })));
@@ -614,6 +637,15 @@ export async function BacklogViewContent({
           title: item.title,
           type: item.type,
         }))}
+        sprints={
+          sprintFilterEnabled
+            ? orderSprintsForFilter(sprintSnapshot.sprints).map(({ id, name, state }) => ({
+                id,
+                name,
+                state,
+              }))
+            : undefined
+        }
         resultCount={resultCount}
         actions={
           <ViewActions
@@ -627,7 +659,7 @@ export async function BacklogViewContent({
             isOwner={isOwner}
             dirty={dirty}
             displayMode={view as DisplayMode}
-            filters={viewState.filters}
+            filters={savableFilters}
             group={viewState.group}
             sort={viewState.sort}
             showTrigger={activeViewRow !== null || hasSavableViewState(viewState)}

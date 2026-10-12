@@ -110,7 +110,7 @@ const emptyState: ViewState = {
     priorities: [],
     assignees: [],
     labels: [],
-    releaseIds: [],
+    releaseIds: [], sprintIds: [],
     kind: [],
     underIds: [],
   },
@@ -158,7 +158,17 @@ function AdvanceTimersInLayout({
   return children;
 }
 
-function renderBar(state: ViewState = emptyState) {
+const sprintOptions = [
+  { id: "sprint-active", name: "Sprint 4", state: "active" as const },
+  { id: "sprint-next", name: "Sprint 5", state: "planned" as const },
+  { id: "sprint-recent", name: "Sprint 3", state: "completed" as const },
+  { id: "sprint-old", name: "Sprint 1", state: "completed" as const },
+];
+
+function renderBar(
+  state: ViewState = emptyState,
+  { sprints }: { sprints?: typeof sprintOptions } = {},
+) {
   // The URL is the bar's authority: the server state is written into it.
   const params = new URLSearchParams([["view", "board"], ["item", "DEMO-1"]]);
   writeViewState(params, state);
@@ -176,6 +186,7 @@ function renderBar(state: ViewState = emptyState) {
           { id: "epic-1", key: "DEMO-2", title: "Refonte", type: "epic" },
           { id: "task-1", key: "DEMO-3", title: "Invisible", type: "tache" },
         ]}
+        sprints={sprints}
         resultCount={4}
       />
     </ViewUrlStateProvider>,
@@ -259,6 +270,87 @@ describe("FilterBar", () => {
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual(["Label", "Version"]);
+  });
+
+  it("offers « Sprint » behind « + Filtre » with « Aucun sprint » and the sprints grouped by state", async () => {
+    const user = userEvent.setup();
+    renderBar(emptyState, { sprints: sprintOptions });
+
+    await user.click(screen.getByRole("button", { name: "Filtre" }));
+    expect(
+      within(screen.getByRole("list", { name: "Ajouter un filtre" }))
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Priorité", "Label", "Version", "Sprint", "Nature"]);
+    await user.click(screen.getByRole("button", { name: "Sprint" }));
+
+    const facet = screen.getByRole("group", { name: "Filtre Sprint" });
+    expect(within(facet).getAllByRole("checkbox").map((box) => box.closest("label")?.textContent))
+      .toEqual(["Aucun sprint", "Sprint 4", "Sprint 5", "Sprint 3", "Sprint 1"]);
+    expect(
+      within(within(facet).getByRole("group", { name: "Terminés" }))
+        .getAllByRole("checkbox")
+        .map((box) => box.closest("label")?.textContent),
+    ).toEqual(["Sprint 3", "Sprint 1"]);
+    expect(within(facet).getByRole("group", { name: "Actif" })).toBeInTheDocument();
+    expect(within(facet).getByRole("group", { name: "Planifiés" })).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Sprint 1"));
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith(
+        "/b/DEMO?view=board&item=DEMO-1&sprint=sprint-old",
+        { scroll: false },
+      ),
+    );
+  });
+
+  it("shows a selected completed sprint as a chip by name, cleared by its ×", async () => {
+    const user = userEvent.setup();
+    renderBar(
+      { ...emptyState, filters: { ...emptyState.filters, sprintIds: ["sprint-old", "none"] } },
+      { sprints: sprintOptions },
+    );
+
+    expect(screen.getByRole("button", { name: "Sprint : Sprint 1 +1" })).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "Effacer le filtre Sprint" }));
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith("/b/DEMO?view=board&item=DEMO-1", {
+        scroll: false,
+      }),
+    );
+  });
+
+  it("clears the sprint filter with « Réinitialiser »", async () => {
+    const user = userEvent.setup();
+    renderBar(
+      { ...emptyState, filters: { ...emptyState.filters, sprintIds: ["sprint-recent"] } },
+      { sprints: sprintOptions },
+    );
+
+    await user.click(screen.getByRole("button", { name: "Réinitialiser" }));
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith("/b/DEMO?view=board&item=DEMO-1", {
+        scroll: false,
+      }),
+    );
+  });
+
+  it("ignores a sprint the backlog does not have, and the facet in views without it", () => {
+    const { unmount } = renderBar(
+      { ...emptyState, filters: { ...emptyState.filters, sprintIds: ["foreign-sprint"] } },
+      { sprints: sprintOptions },
+    );
+    expect(screen.queryByRole("button", { name: /^Sprint :/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Réinitialiser" })).not.toBeInTheDocument();
+    unmount();
+
+    renderBar({ ...emptyState, filters: { ...emptyState.filters, sprintIds: ["sprint-old"] } });
+    expect(screen.queryByRole("button", { name: /^Sprint :/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Réinitialiser" })).not.toBeInTheDocument();
   });
 
   it("labels the free-text filter field", () => {

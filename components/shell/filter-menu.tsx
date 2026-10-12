@@ -3,7 +3,8 @@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChevronDown, X } from "lucide-react";
 
-export type Option = { value: string; label: string };
+/** `group` titles a run of consecutive options (the Sprint facet's states). */
+export type Option = { value: string; label: string; group?: string };
 
 export function FilterMenu({
   label,
@@ -81,22 +82,44 @@ export function FilterOptions({
   if (options.length === 0) {
     return <p className="px-2 py-1.5 text-sm text-muted-foreground">Aucune valeur.</p>;
   }
+  const renderOption = (o: Option) => (
+    <label
+      key={o.value}
+      className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
+    >
+      <input
+        type="checkbox"
+        checked={selected.includes(o.value)}
+        onChange={() => onToggle(o.value)}
+        className="size-3.5"
+      />
+      {o.label}
+    </label>
+  );
+  // Ungrouped options stay flat; a titled run becomes a labelled group.
+  const runs: Array<{ group?: string; options: Option[] }> = [];
+  for (const option of options) {
+    const last = runs.at(-1);
+    if (last && last.group === option.group) last.options.push(option);
+    else runs.push({ group: option.group, options: [option] });
+  }
   return (
     <div className="max-h-72 overflow-y-auto">
-      {options.map((o) => (
-        <label
-          key={o.value}
-          className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
-        >
-          <input
-            type="checkbox"
-            checked={selected.includes(o.value)}
-            onChange={() => onToggle(o.value)}
-            className="size-3.5"
-          />
-          {o.label}
-        </label>
-      ))}
+      {runs.map((run, index) =>
+        run.group === undefined ? (
+          run.options.map(renderOption)
+        ) : (
+          <div key={`${run.group}-${index}`} role="group" aria-label={run.group}>
+            <p
+              aria-hidden="true"
+              className="px-2 pb-0.5 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+            >
+              {run.group}
+            </p>
+            {run.options.map(renderOption)}
+          </div>
+        ),
+      )}
     </div>
   );
 }

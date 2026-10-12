@@ -133,6 +133,11 @@ export function columnsToViewState(row: {
     ? (rawFilters.releaseIds as unknown[]).filter((id): id is string => typeof id === "string")
     : [];
 
+  // Saved before the Sprint facet (JIR-81): no sprint filter.
+  const sprintIds: string[] = Array.isArray(rawFilters.sprintIds)
+    ? (rawFilters.sprintIds as unknown[]).filter((id): id is string => typeof id === "string")
+    : [];
+
   // Defensive default for `kind`: legacy saved views may not have this key.
   const kind: ItemKind[] = Array.isArray(rawFilters.kind)
     ? (rawFilters.kind as unknown[]).filter(
@@ -155,6 +160,7 @@ export function columnsToViewState(row: {
       assignees,
       labels,
       releaseIds,
+      sprintIds,
       kind,
       underIds,
       ...(showFixVersions ? { showFixVersions: true } : {}),
@@ -205,6 +211,7 @@ export function isViewDirty(
   if (!sameSet(vs.filters.assignees, cs.filters.assignees)) return true;
   if (!sameSet(vs.filters.labels, cs.filters.labels)) return true;
   if (!sameSet(vs.filters.releaseIds, cs.filters.releaseIds)) return true;
+  if (!sameSet(vs.filters.sprintIds, cs.filters.sprintIds)) return true;
   if (!sameSet(vs.filters.kind, cs.filters.kind)) return true;
   if (!sameSet(vs.filters.underIds, cs.filters.underIds)) return true;
   if (Boolean(vs.filters.showFixVersions) !== Boolean(cs.filters.showFixVersions)) return true;
@@ -234,6 +241,7 @@ const ACTIVE_BACKLOG_VIEW_PARAM_KEYS = [
   "assignee",
   "label",
   "version",
+  "sprint",
   "kind",
   "under",
   "group",
@@ -290,6 +298,9 @@ const filtersSchema = z.object({
   assignees: z.array(z.string()).default([]),
   labels: z.array(z.string()).default([]),
   releaseIds: z.array(z.string()).default([]),
+  // Bounds the payload only: far above any backlog's sprint count, so every
+  // selection the Sprint filter allows (all sprints + « Aucun ») can be saved.
+  sprintIds: z.array(z.union([z.literal("none"), z.uuid()])).max(1000).default([]),
   kind: z.array(z.enum(ITEM_KINDS)).default([]),
   underIds: z.array(z.string()).default([]),
   showFixVersions: z.boolean().optional(),

@@ -129,4 +129,16 @@ describe("HelpPage", () => {
     }
     expect(tickets).not.toHaveTextContent("Onglet Commentaires");
   });
+
+  it("documents the Sprint filter and where completed sprints go (JIR-81)", () => {
+    render(<HelpPage />);
+    const views = document.querySelector("section#vues") as HTMLElement;
+    expect(views).toHaveTextContent("« Version », « Sprint » et « Nature », sont derrière « + Filtre »");
+    expect(views).toHaveTextContent("sprints terminés");
+    expect(views).toHaveTextContent("« Aucun sprint »");
+    const sprints = document.querySelector("section#sprints") as HTMLElement;
+    expect(sprints).toHaveTextContent("Un sprint terminé disparaît du Backlog et du Board");
+    expect(sprints).toHaveTextContent("« Rapports » → « Rapport de sprint »");
+    expect(sprints).toHaveTextContent("« + Filtre » → « Sprint »");
+  });
 });
