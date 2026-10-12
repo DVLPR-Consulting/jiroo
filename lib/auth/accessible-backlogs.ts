@@ -2,7 +2,10 @@ import "server-only";
 
 import { and, asc, eq, exists, isNull, or, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { checkPermissions } from "@/lib/auth/authorization";
+import {
+  checkPermissions,
+  type AuthorizationDecision,
+} from "@/lib/auth/authorization";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
@@ -171,8 +174,23 @@ export async function getBacklogCapabilities(
   userId: string,
   backlogId: string,
 ): Promise<BacklogCapabilities | null> {
-  // One batched resolution per scope instead of a checkPermission per
-  // capability (each about five sequential queries).
+  return (await resolveBacklogAccess(userId, backlogId)).capabilities;
+}
+
+/**
+ * The backlog capabilities, plus the decisions on further global
+ * permissions resolved in the same global batch (e.g. browse_users). One
+ * batched resolution per scope instead of a checkPermission per capability
+ * (each about five sequential queries).
+ */
+export async function resolveBacklogAccess(
+  userId: string,
+  backlogId: string,
+  globalPermissions: readonly string[] = [],
+): Promise<{
+  capabilities: BacklogCapabilities | null;
+  globalDecisions: Map<string, AuthorizationDecision>;
+}> {
   const [backlogDecisions, globalDecisions] = await Promise.all([
     checkPermissions({
       actorId: userId,
@@ -181,21 +199,26 @@ export async function getBacklogCapabilities(
     }),
     checkPermissions({
       actorId: userId,
-      permissions: ["bulk_change_items"],
+      permissions: ["bulk_change_items", ...globalPermissions],
       scope: { type: "global" },
     }),
   ]);
-  if (!backlogDecisions.get("browse_backlog")?.allowed) return null;
+  if (!backlogDecisions.get("browse_backlog")?.allowed) {
+    return { capabilities: null, globalDecisions };
+  }
 
   return {
-    ...Object.fromEntries(
-      Object.entries(CAPABILITY_PERMISSIONS).map(([capability, permission]) => [
-        capability,
-        backlogDecisions.get(permission)?.allowed === true,
-      ]),
-    ),
-    bulkChangeItems: globalDecisions.get("bulk_change_items")?.allowed === true,
-  } as BacklogCapabilities;
+    capabilities: {
+      ...Object.fromEntries(
+        Object.entries(CAPABILITY_PERMISSIONS).map(([capability, permission]) => [
+          capability,
+          backlogDecisions.get(permission)?.allowed === true,
+        ]),
+      ),
+      bulkChangeItems: globalDecisions.get("bulk_change_items")?.allowed === true,
+    } as BacklogCapabilities,
+    globalDecisions,
+  };
 }
 
 export async function listAccessibleBacklogIds(userId: string): Promise<string[]> {

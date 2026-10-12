@@ -1,10 +1,7 @@
 import "server-only";
 import { asc, eq } from "drizzle-orm";
-import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
-import {
-  checkPermissions,
-  listAssignableUsersForBacklog,
-} from "@/lib/auth/authorization";
+import { resolveBacklogAccess } from "@/lib/auth/accessible-backlogs";
+import { listAssignableUsersForBacklog } from "@/lib/auth/authorization";
 import { projectBacklogCapabilities } from "@/lib/auth/capabilities";
 import { db } from "@/lib/db";
 import { statuses } from "@/lib/db/schema/domain";
@@ -51,7 +48,7 @@ export async function loadItemDetailData({
   // The backlog query already enforced browse access; the reads below run
   // alongside the capability checks and are discarded unless browse holds.
   const [
-    capabilities,
+    access,
     detail,
     backlogItems,
     statusRows,
@@ -59,9 +56,9 @@ export async function loadItemDetailData({
     sprintSnapshot,
     releaseSummaries,
     fixVersionPairs,
-    globalDecisions,
   ] = await Promise.all([
-    getBacklogCapabilities(userId, backlog.id),
+    // browse_users joins the capabilities' global batch.
+    resolveBacklogAccess(userId, backlog.id, ["browse_users"]),
     getItemByKeyForBacklog(itemKey, backlog.id),
     listItems(backlog.id),
     db
@@ -73,14 +70,10 @@ export async function loadItemDetailData({
     listSprintsForBacklog(backlog.id),
     listReleaseSummaries(backlog.id, { includeArchived: true }),
     listItemFixVersionPairs(backlog.id),
-    checkPermissions({
-      actorId: userId,
-      permissions: ["browse_users"],
-      scope: { type: "global" },
-    }),
   ]);
+  const { capabilities } = access;
   if (!capabilities) return null;
-  const canBrowseUsers = globalDecisions.get("browse_users")?.allowed === true;
+  const canBrowseUsers = access.globalDecisions.get("browse_users")?.allowed === true;
   // The drawer is already open: explain the miss instead of an empty panel.
   if (!detail) return { kind: "not-found", itemKey };
 

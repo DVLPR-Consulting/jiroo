@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  checkPermissions: vi.fn(),
   getBacklogByKeyForUser: vi.fn(),
-  getBacklogCapabilities: vi.fn(),
+  resolveBacklogAccess: vi.fn(),
   getItemByKeyForBacklog: vi.fn(),
   getItemLabelIds: vi.fn(),
   listActivities: vi.fn(),
@@ -35,10 +34,9 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 vi.mock("@/lib/auth/accessible-backlogs", () => ({
-  getBacklogCapabilities: mocks.getBacklogCapabilities,
+  resolveBacklogAccess: mocks.resolveBacklogAccess,
 }));
 vi.mock("@/lib/auth/authorization", () => ({
-  checkPermissions: mocks.checkPermissions,
   listAssignableUsersForBacklog: mocks.listAssignableUsersForBacklog,
 }));
 vi.mock("@/lib/services/backlogs", () => ({
@@ -114,8 +112,15 @@ const detail = row("item-detail", "DEMO-2", {
 });
 const child = row("item-child", "DEMO-3", { type: "soustache", parentId: detail.id });
 
+let canBrowseUsers = true;
 function browseUsers(allowed: boolean) {
-  mocks.checkPermissions.mockResolvedValue(new Map([["browse_users", { allowed }]]));
+  canBrowseUsers = allowed;
+}
+function grantCapabilities(capabilities: typeof CAPABILITIES | null) {
+  mocks.resolveBacklogAccess.mockImplementation(async () => ({
+    capabilities,
+    globalDecisions: new Map([["browse_users", { allowed: canBrowseUsers }]]),
+  }));
 }
 
 function load(itemKey = detail.key) {
@@ -129,7 +134,8 @@ describe("loadItemDetailData", () => {
       { id: "status-1", name: "À faire", color: "#999", category: "todo", order: 0, backlogId: "backlog-1" },
     ];
     mocks.getBacklogByKeyForUser.mockResolvedValue(BACKLOG);
-    mocks.getBacklogCapabilities.mockResolvedValue(CAPABILITIES);
+    canBrowseUsers = true;
+    grantCapabilities(CAPABILITIES);
     mocks.getItemByKeyForBacklog.mockResolvedValue(detail);
     mocks.listItems.mockResolvedValue([parent, detail, child]);
     mocks.listLabelsForBacklog.mockResolvedValue([
@@ -178,7 +184,7 @@ describe("loadItemDetailData", () => {
     await expect(load()).resolves.toBeNull();
 
     expect(mocks.getBacklogByKeyForUser).toHaveBeenCalledWith("demo", "viewer-1");
-    expect(mocks.getBacklogCapabilities).not.toHaveBeenCalled();
+    expect(mocks.resolveBacklogAccess).not.toHaveBeenCalled();
     expect(mocks.getItemByKeyForBacklog).not.toHaveBeenCalled();
   });
 
@@ -190,11 +196,11 @@ describe("loadItemDetailData", () => {
   });
 
   it("returns null without item details when browse_backlog is denied", async () => {
-    mocks.getBacklogCapabilities.mockResolvedValue(null);
+    grantCapabilities(null);
 
     await expect(load()).resolves.toBeNull();
 
-    expect(mocks.getBacklogCapabilities).toHaveBeenCalledWith("viewer-1", "backlog-1");
+    expect(mocks.resolveBacklogAccess).toHaveBeenCalledWith("viewer-1", "backlog-1", ["browse_users"]);
     expect(mocks.listActivities).not.toHaveBeenCalled();
     expect(mocks.listComments).not.toHaveBeenCalled();
   });
@@ -266,11 +272,8 @@ describe("loadItemDetailData", () => {
     const data = await load();
     if (data?.kind !== "item") throw new Error("expected an item");
 
-    expect(mocks.checkPermissions).toHaveBeenCalledWith({
-      actorId: "viewer-1",
-      permissions: ["browse_users"],
-      scope: { type: "global" },
-    });
+    // browse_users is resolved with the capabilities' global batch.
+    expect(mocks.resolveBacklogAccess).toHaveBeenCalledWith("viewer-1", "backlog-1", ["browse_users"]);
     // The whole directory already names everyone: no extra lookup.
     expect(mocks.listUsersByIds).not.toHaveBeenCalled();
     expect(data.panel.users).toEqual([
@@ -329,7 +332,7 @@ describe("loadItemDetailData", () => {
       },
     }));
 
-    mocks.getBacklogCapabilities.mockResolvedValue({ ...CAPABILITIES, createItems: false });
+    grantCapabilities({ ...CAPABILITIES, createItems: false });
     const denied = await load();
     if (denied?.kind !== "item") throw new Error("expected an item");
     expect(denied.panel.createDialog).toBeUndefined();
