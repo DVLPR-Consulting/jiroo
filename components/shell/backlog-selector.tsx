@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Star } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,8 @@ import {
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import { clearActiveBacklogViewParams } from "@/lib/items/views";
 
-type Backlog = { id: string; key: string; name: string; color: string };
+/** Listed as given: the server puts favourites first (JIR-82). */
+type Backlog = { id: string; key: string; name: string; color: string; starred?: boolean };
 
 export function BacklogSelector({
   backlogs,
@@ -101,6 +102,13 @@ export function BacklogSelector({
                 {b.key}
               </span>
               <span className="truncate">{b.name}</span>
+              {b.starred && (
+                <Star
+                  role="img"
+                  aria-label="Favori"
+                  className="size-3.5 shrink-0 fill-[var(--warning)] text-[var(--warning)]"
+                />
+              )}
               {isActive && <Check className="ml-auto size-4 shrink-0" />}
             </DropdownMenuItem>
           );

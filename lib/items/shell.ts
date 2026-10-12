@@ -1,5 +1,5 @@
 export type ShellMode = "Backlog" | "Board" | "Liste" | "Arbre";
-export type ShellNav = "all" | "mine" | "trash" | "admin" | null;
+export type ShellNav = "backlogs" | "all" | "mine" | "trash" | "admin" | null;
 
 export type ShellContext = {
   activeBacklogKey?: string;
@@ -35,6 +35,8 @@ export function deriveShellContext({
   const firstKey = firstBacklog?.key.toUpperCase();
   const allItemsHref = firstKey ? `/b/${firstKey}` : "/";
   const specialRoute = {
+    // The home page lists every backlog (JIR-82, Jira's Projects page).
+    "/": { section: "Backlogs", activeNav: "backlogs" as const },
     "/mine": { section: "Mes items", activeNav: "mine" as const },
     "/trash": { section: "Corbeille", activeNav: "trash" as const },
     "/admin": { section: "Administration", activeNav: "admin" as const },
@@ -159,6 +161,8 @@ export function deriveBreadcrumb(input: {
   views: ShellView[];
 }): BreadcrumbSegment[] {
   const context = deriveShellContext(input);
+  // The home page sits above every project: no project segment.
+  if (context.activeNav === "backlogs") return [{ label: context.section }];
   const backlog = context.activeBacklogKey
     ? input.backlogs.find(
         (candidate) => candidate.key.toUpperCase() === context.activeBacklogKey,
