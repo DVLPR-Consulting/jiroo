@@ -8,8 +8,8 @@ const mocks = vi.hoisted(() => ({
   getBacklogCapabilities: vi.fn(),
   itemBacklogProps: vi.fn(),
   itemBoardProps: vi.fn(),
-  itemDetailProps: vi.fn(),
-  itemDetailSheetKey: vi.fn(),
+  itemDetailDrawerProps: vi.fn(),
+  loadItemDetailData: vi.fn(),
   itemListProps: vi.fn(),
   itemTreeProps: vi.fn(),
   listItemFixVersionPairs: vi.fn(),
@@ -92,16 +92,13 @@ vi.mock("@/components/items/item-board", () => ({
     return null;
   },
 }));
-vi.mock("@/components/items/item-detail-content", () => ({
-  ItemDetailContent: (props: unknown) => {
-    mocks.itemDetailProps(props);
-    return null;
-  },
+vi.mock("@/lib/services/item-detail", () => ({
+  loadItemDetailData: mocks.loadItemDetailData,
 }));
 vi.mock("@/components/items/item-detail-sheet", () => ({
-  ItemDetailDrawer: ({ itemKey, children }: { itemKey: string | null; children: React.ReactNode }) => {
-    mocks.itemDetailSheetKey(itemKey);
-    return children;
+  ItemDetailDrawer: (props: unknown) => {
+    mocks.itemDetailDrawerProps(props);
+    return null;
   },
 }));
 vi.mock("@/components/items/item-list", () => ({
@@ -274,7 +271,9 @@ describe("BacklogViewContent read boundary", () => {
     cleanup();
   });
 
-  it("passes exact detail capabilities without using edit as a substitute", async () => {
+  it("hands the drawer the detail loaded for the requested item", async () => {
+    const detailPromise = Promise.resolve(null);
+    mocks.loadItemDetailData.mockReturnValue(detailPromise);
     mocks.getBacklogByKeyForUser.mockResolvedValue({
       id: "backlog-1",
       key: "DEMO",
@@ -301,15 +300,17 @@ describe("BacklogViewContent read boundary", () => {
       }),
     );
 
-    expect(mocks.itemDetailProps).toHaveBeenCalledWith(
-      expect.objectContaining({
-        canEditItems: false,
-        canTransitionItems: true,
-        canAssignItems: true,
-      }),
-    );
-    // The drawer frame opens with the URL; only its body streams in.
-    expect(mocks.itemDetailSheetKey).toHaveBeenCalledWith("DEMO-1");
+    // The drawer frame opens with the URL; its detail, loaded on its own,
+    // streams in (lib/services/item-detail owns the detail capabilities).
+    expect(mocks.loadItemDetailData).toHaveBeenCalledWith({
+      userId: "viewer-1",
+      backlogKey: "DEMO",
+      itemKey: "DEMO-1",
+    });
+    expect(mocks.itemDetailDrawerProps).toHaveBeenCalledWith({
+      itemKey: "DEMO-1",
+      detail: detailPromise,
+    });
   });
 
   it("projects safe permission booleans into focused product capability props", async () => {
@@ -350,15 +351,6 @@ describe("BacklogViewContent read boundary", () => {
       itemCapabilities: expect.objectContaining({ edit: false, delete: true }),
       planningCapabilities: expect.objectContaining({ rank: true, manageSprints: false }),
       bulkCapabilities: { edit: false, transition: false, assign: false, schedule: true },
-    }));
-    expect(mocks.itemDetailProps).toHaveBeenCalledWith(expect.objectContaining({
-      itemCapabilities: expect.objectContaining({
-        edit: false,
-        delete: true,
-        addComments: true,
-        link: true,
-      }),
-      planningCapabilities: expect.objectContaining({ rank: true }),
     }));
   });
 
@@ -410,13 +402,6 @@ describe("BacklogViewContent read boundary", () => {
     expect(mocks.itemListProps).toHaveBeenCalledWith(
       expect.objectContaining({ users: [] }),
     );
-    expect(mocks.itemDetailProps).toHaveBeenCalledWith(
-      expect.objectContaining({
-        users: [{ id: "referenced-1", name: "Referenced User" }],
-        assigneeCandidates: [],
-        reporterCandidates: [],
-      }),
-    );
   });
 
   it("projects only assignable directory users into assignment pickers", async () => {
@@ -467,15 +452,6 @@ describe("BacklogViewContent read boundary", () => {
     expect(mocks.itemListProps).toHaveBeenCalledWith(
       expect.objectContaining({
         users: [{ id: "assignable-1", name: "Assignable User" }],
-      }),
-    );
-    expect(mocks.itemDetailProps).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assigneeCandidates: [{ id: "assignable-1", name: "Assignable User" }],
-        reporterCandidates: [
-          { id: "blocked-1", name: "Blocked User" },
-          { id: "assignable-1", name: "Assignable User" },
-        ],
       }),
     );
   });
@@ -574,24 +550,12 @@ describe("BacklogViewContent read boundary", () => {
       item("item-2", "DEMO-2", "b"),
       item("item-3", "DEMO-3", "c", "status-2"),
     ];
-    const detailParent = {
-      ...item("item-parent", "DEMO-8", "d"),
-      type: "epic",
-    };
-    const detailItem = {
-      ...item("item-detail", "DEMO-9", "d0"),
-      parentId: detailParent.id,
-      path: "root.itemparent.itemdetail",
-      depth: 1,
-    };
-    mocks.listItems
-      .mockResolvedValueOnce(filteredItems)
-      .mockResolvedValueOnce([detailParent, detailItem]);
+    mocks.listItems.mockResolvedValueOnce(filteredItems);
     mocks.listItemsWithAncestors.mockResolvedValue(filteredItems);
     mocks.listItemFixVersionPairs.mockResolvedValue([
       { itemId: "item-2", releaseId: "release-selected", name: "2026.09" },
       { itemId: "item-3", releaseId: "release-selected", name: "2026.09" },
-      { itemId: detailItem.id, releaseId: "release-active", name: "2026.10" },
+      { itemId: "item-detail", releaseId: "release-active", name: "2026.10" },
     ]);
     mocks.listReleaseSummaries.mockResolvedValue([
       { id: "release-active", name: "2026.10", released: false, archived: false },
@@ -608,7 +572,7 @@ describe("BacklogViewContent read boundary", () => {
           version: "release-selected",
           status: "status-1",
           fvcol: "1",
-          item: detailItem.key,
+          item: "DEMO-9",
         }),
       }),
     );
@@ -616,7 +580,8 @@ describe("BacklogViewContent read boundary", () => {
     expect(mocks.listItems).toHaveBeenCalledWith("backlog-1", {
       releaseIds: ["release-selected"],
     });
-    expect(mocks.listItems).toHaveBeenCalledWith("backlog-1");
+    // The drawer loads its own whole-backlog items (lib/services/item-detail).
+    expect(mocks.listItems).toHaveBeenCalledOnce();
     expect(mocks.listItemFixVersionPairs).toHaveBeenCalledOnce();
     expect(mocks.listItemFixVersionPairs).toHaveBeenCalledWith("backlog-1");
     expect(mocks.listReleaseSummaries).toHaveBeenCalledOnce();
@@ -665,18 +630,6 @@ describe("BacklogViewContent read boundary", () => {
       assignItems: false,
       bulkAssignItems: false,
     });
-    expect(mocks.itemDetailProps).toHaveBeenCalledWith(expect.objectContaining({
-      items: [detailParent, detailItem],
-      fixVersions: [
-        { id: "release-active", name: "2026.10", released: false, archived: false },
-      ],
-      releaseOptions: assignableReleases,
-      releaseCapabilities: {
-        manage: false,
-        assignItems: false,
-        bulkAssignItems: false,
-      },
-    }));
   });
 
   it("keeps unmatched ancestors for hierarchy facets and dimmed tree context", async () => {

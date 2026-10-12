@@ -14,8 +14,22 @@ import {
   ViewUrlStateProvider,
 } from "@/components/shell/view-url-state";
 import { DialogTitle } from "@/components/ui/dialog";
+import type { ItemDetailData } from "@/lib/items/item-detail-data";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+
+vi.mock("@/components/items/item-detail-panel", () => ({
+  ItemDetailPanel: ({ detail }: { detail: { key: string; title: string } }) => (
+    <DialogTitle>{detail.key} — {detail.title}</DialogTitle>
+  ),
+}));
+
+function itemData(key: string): ItemDetailData {
+  return {
+    kind: "item",
+    panel: { detail: { id: `id-${key}`, key, title: "Titre" } },
+  } as unknown as ItemDetailData;
+}
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/b/CASS",
@@ -262,13 +276,17 @@ describe("ItemDetailSheet", () => {
       );
     }
 
-    function page(serverItemKey: string | null, entries: [string, string][]) {
+    function page(
+      serverItemKey: string | null,
+      entries: [string, string][],
+      detail: Promise<ItemDetailData | null> | null = serverItemKey
+        ? Promise.resolve(itemData(serverItemKey))
+        : null,
+    ) {
       return (
         <ViewUrlStateProvider initialEntries={entries}>
           <OpenRow itemKey="CASS-4" />
-          <ItemDetailDrawer itemKey={serverItemKey}>
-            {serverItemKey ? <DialogTitle>{serverItemKey} — Titre</DialogTitle> : null}
-          </ItemDetailDrawer>
+          <ItemDetailDrawer itemKey={serverItemKey} detail={detail} />
         </ViewUrlStateProvider>
       );
     }
@@ -290,9 +308,11 @@ describe("ItemDetailSheet", () => {
       expect(screen.getByRole("status", { name: "Chargement du panneau de détail" }))
         .toBeInTheDocument();
 
-      // The server body then fills the same drawer.
-      rendered.rerender(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
-      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBe(loading);
+      // The server detail then fills the same drawer.
+      await act(async () => {
+        rendered.rerender(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      });
+      expect(await screen.findByRole("dialog", { name: "CASS-4 — Titre" })).toBe(loading);
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
 
@@ -308,15 +328,31 @@ describe("ItemDetailSheet", () => {
       await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/b/CASS?view=backlog"));
 
       // The server's answer for the cancelled request arrives afterwards.
-      rendered.rerender(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      await act(async () => {
+        rendered.rerender(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      });
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       // Only one close button in the skeleton, none duplicated.
       expect(screen.queryAllByRole("button", { name: "Fermer" })).toHaveLength(0);
     });
 
-    it("renders the server body directly when the page loads with ?item=", () => {
-      render(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
-      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+    it("renders the server detail when the page loads with ?item=", async () => {
+      await act(async () => {
+        render(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      });
+      expect(await screen.findByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+    });
+
+    it("explains a key the server could not resolve", async () => {
+      await act(async () => {
+        render(page(
+          "CASS-404",
+          [["view", "backlog"], ["item", "CASS-404"]],
+          Promise.resolve({ kind: "not-found", itemKey: "CASS-404" }),
+        ));
+      });
+      expect(await screen.findByRole("dialog", { name: "Item CASS-404 introuvable" }))
+        .toBeVisible();
     });
 
     it("renders nothing without an item in the URL", () => {

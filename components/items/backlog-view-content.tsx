@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -47,9 +46,7 @@ import { ItemList } from "@/components/items/item-list";
 import { ItemBacklog } from "@/components/items/item-backlog";
 import { ItemBoard } from "@/components/items/item-board";
 import { ItemTree } from "@/components/items/item-tree";
-import { ItemDetailContent } from "@/components/items/item-detail-content";
 import { ItemDetailDrawer } from "@/components/items/item-detail-sheet";
-import { DetailPanelSkeleton } from "@/components/items/view-skeletons";
 import { TopbarCreateItem } from "@/components/shell/create-item-trigger";
 import { StatusManagerDialog } from "@/components/statuses/status-manager-dialog";
 import {
@@ -60,6 +57,7 @@ import {
 import { buildSprintSections } from "@/lib/items/sprint-planning";
 import { pointsByStatusCategory } from "@/lib/items/status-points";
 import { listSprintsForBacklog } from "@/lib/services/sprints";
+import { loadItemDetailData } from "@/lib/services/item-detail";
 import {
   getActiveSprintStartCommitment,
   getPreviousSprintsVelocityContext,
@@ -188,14 +186,9 @@ export async function BacklogViewContent({
       : requestedReleaseItems;
   const releaseMatchedIds = new Set(releaseFilteredItems.map((item) => item.id));
   const releaseFilterActive = viewState.filters.releaseIds.length > 0;
-  const [items, detailItems] = await Promise.all([
-    releaseFilterActive
-      ? listItemsWithAncestors(backlog.id, [...releaseMatchedIds])
-      : Promise.resolve(releaseFilteredItems),
-    itemKey && releaseFilterActive
-      ? listItems(backlog.id)
-      : Promise.resolve(releaseFilteredItems),
-  ]);
+  const items = releaseFilterActive
+    ? await listItemsWithAncestors(backlog.id, [...releaseMatchedIds])
+    : releaseFilteredItems;
 
   // Set of item ids that are blocked by an unfinished item — used to drive the badge.
   const blockedSet = new Set(blockedIds);
@@ -268,9 +261,6 @@ export async function BacklogViewContent({
       .map((r) => r.id),
   );
   const isMatch = (id: string) => !filtersOn || matchedIds.has(id);
-  const detailItem = itemKey
-    ? detailItems.find((item) => item.key === itemKey)
-    : undefined;
 
   // List view: sort then group the filtered rows.
   const listRows = filterRows.filter((r) => isMatch(r.id));
@@ -752,56 +742,13 @@ export async function BacklogViewContent({
         />
       )}
       {/* Always rendered: the drawer opens on click with a skeleton (client
-          side) and this body fills it once the server answers, so the panel
-          slides in once instead of waiting for the whole view to re-render. */}
-      <ItemDetailDrawer itemKey={itemKey ?? null}>
-        {itemKey && (
-          <Suspense fallback={<DetailPanelSkeleton />}>
-            <ItemDetailContent
-              itemKey={itemKey}
-              backlog={backlog}
-              currentUserId={userId}
-              labels={backlogLabelRows}
-              users={displayUsers}
-              assigneeCandidates={assigneeCandidates}
-              reporterCandidates={directoryUsers}
-              statuses={statusList}
-              items={detailItems}
-              sprints={sprintSnapshot.sprints
-                .filter((sprint) => sprint.state !== "completed")
-                .map((sprint) => ({ id: sprint.id, name: sprint.name }))}
-              sprintId={
-                sprintSnapshot.memberships.find(
-                  (membership) =>
-                    membership.itemId === detailItem?.id &&
-                    membership.leftAt === null,
-                )?.sprintId ?? null
-              }
-              canEditItems={capabilities.editItems}
-              canTransitionItems={capabilities.transitionItems}
-              canAssignItems={capabilities.assignItems}
-              itemCapabilities={productCapabilities.items}
-              planningCapabilities={productCapabilities.planning}
-              fixVersions={fixVersionsByItem.get(
-                detailItem?.id ?? "",
-              ) ?? []}
-              releaseOptions={assignableReleaseOptions}
-              releaseCapabilities={productCapabilities.releases}
-              // The drawer may show an item the view's filter left out: its
-              // child creation picks parents among the whole backlog.
-              createDialog={capabilities.createItems ? {
-                ...createDialogProps,
-                items: detailItems.map((item) => ({
-                  id: item.id,
-                  key: item.key,
-                  type: item.type,
-                  title: item.title,
-                })),
-              } : undefined}
-            />
-          </Suspense>
-        )}
-      </ItemDetailDrawer>
+          side); the detail, loaded on its own, streams into it. */}
+      <ItemDetailDrawer
+        itemKey={itemKey ?? null}
+        detail={itemKey
+          ? loadItemDetailData({ userId, backlogKey: backlog.key, itemKey })
+          : null}
+      />
     </div>
   );
 }

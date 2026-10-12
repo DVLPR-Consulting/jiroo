@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, use, useEffect, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { ItemKey } from "@/components/jiroo/item-key";
-import { useViewUrlState } from "@/components/shell/view-url-state";
+import {
+  useRequestedItemKey,
+  useViewUrlState,
+} from "@/components/shell/view-url-state";
+import { ItemDetailPanel } from "@/components/items/item-detail-panel";
+import { RecentItemTracker } from "@/components/items/recent-item-tracker";
 import { DetailPanelSkeleton } from "@/components/items/view-skeletons";
+import type { ItemDetailData } from "@/lib/items/item-detail-data";
 import {
   Dialog,
   DialogClose,
@@ -124,31 +130,49 @@ export function ItemDetailSheet({
 }
 
 /**
- * Mounts the item drawer as soon as `?item=` is requested, not when the server
- * answers. Opening an item re-renders the whole backlog view on the server
- * (every view query runs again), so waiting for that round trip left the click
- * without feedback for a second or more against a remote database. The frame
- * and a skeleton now slide in on click; the server body (`children`, rendered
- * for `itemKey`) replaces the skeleton inside the same dialog once it arrives.
+ * Mounts the item drawer as soon as `?item=` is requested, not when the detail
+ * arrives: the frame and a skeleton slide in on click, and the detail replaces
+ * the skeleton inside the same dialog once its promise resolves.
  */
 export function ItemDetailDrawer({
   itemKey,
-  children,
+  detail,
 }: {
-  /** The item the server rendered `children` for, or null when none. */
+  /** The item the server loaded `detail` for, or null when none. */
   itemKey: string | null;
-  children?: ReactNode;
+  /** The server's detail for `itemKey` (null: inaccessible backlog). */
+  detail?: Promise<ItemDetailData | null> | null;
 }) {
-  const viewUrl = useViewUrlState();
-  // The latest requested URL, including a push still waiting for the server.
-  const requestedKey = new URLSearchParams(
-    viewUrl.href(() => {}).split("?")[1] ?? "",
-  ).get("item");
+  const requestedKey = useRequestedItemKey();
   if (!requestedKey) return null;
   return (
     <ItemDetailSheet itemKey={requestedKey}>
-      {requestedKey === itemKey ? children : <DetailPanelSkeleton />}
+      {requestedKey === itemKey && detail ? (
+        <Suspense key={requestedKey} fallback={<DetailPanelSkeleton />}>
+          <ItemDetailBody itemKey={requestedKey} detail={detail} />
+        </Suspense>
+      ) : (
+        <DetailPanelSkeleton />
+      )}
     </ItemDetailSheet>
+  );
+}
+
+/** The drawer content once its detail promise resolves. */
+function ItemDetailBody({
+  itemKey,
+  detail,
+}: {
+  itemKey: string;
+  detail: Promise<ItemDetailData | null>;
+}) {
+  const data = use(detail);
+  if (data?.kind !== "item") return <ItemDetailNotFound itemKey={itemKey} />;
+  return (
+    <>
+      <RecentItemTracker itemKey={data.panel.detail.key} />
+      <ItemDetailPanel key={data.panel.detail.id} {...data.panel} />
+    </>
   );
 }
 

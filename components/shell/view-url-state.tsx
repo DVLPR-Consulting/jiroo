@@ -249,3 +249,8 @@ export function useViewUrlState(): ViewUrlState {
   }
   return state;
 }
+
+/** The item the drawer should show: `?item=` of the latest requested URL. */
+export function useRequestedItemKey(): string | null {
+  return useViewUrlState().getParams().get("item");
+}
