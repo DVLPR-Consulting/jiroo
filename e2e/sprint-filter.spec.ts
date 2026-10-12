@@ -1,10 +1,10 @@
 import "dotenv/config";
 
 import { expect, test } from "@playwright/test";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
-import { backlogs, items, statuses } from "../lib/db/schema/domain";
+import { backlogs, items, sprints, statuses } from "../lib/db/schema/domain";
 import { createItem, updateItem } from "../lib/services/items";
 import { completeSprint, startSprint } from "../lib/services/sprint-lifecycle";
 import { createSprint, updateSprint } from "../lib/services/sprints";
@@ -12,7 +12,8 @@ import { createSprint, updateSprint } from "../lib/services/sprints";
 /**
  * JIR-81: the « Sprint » filter finds the items of a completed sprint in the
  * Liste, the carried-over ones included (Jira's `Sprint = "<name>"`).
- * Runs on LABS so the CASS sprint scenarios keep their own active sprint.
+ * Runs on LABS so the CASS sprint scenarios keep their own active sprint,
+ * and leaves LABS without sprints for the report scenarios.
  */
 const CLOSED_SPRINT = "Filtre Sprint terminé";
 const NEXT_SPRINT = "Filtre Sprint suivant";
@@ -94,14 +95,23 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   if (!fixture) return;
-  // Completed sprints are history and stay; the scenario's tickets go,
-  // children before their parents.
+  // Later specs expect LABS without active or completed sprints. Sprint
+  // history is append-only: like the sprint lifecycle spec, truncate it, then
+  // remove the scenario's tickets (children first, which drops their sprint
+  // memberships) and its sprints.
+  await db.execute(sql.raw(
+    "TRUNCATE TABLE sprint_report_items, sprint_report_snapshots, sprint_events RESTART IDENTITY CASCADE",
+  ));
   for (const titles of [[TASK_DONE, TASK_CARRIED, TASK_LOOSE], [EPIC], [COMPONENT]]) {
     await db.delete(items).where(and(
       eq(items.backlogId, fixture.backlogId),
       inArray(items.title, titles),
     ));
   }
+  await db.delete(sprints).where(and(
+    eq(sprints.backlogId, fixture.backlogId),
+    inArray(sprints.name, [CLOSED_SPRINT, NEXT_SPRINT]),
+  ));
 });
 
 test("filtre la Liste par un sprint terminé, ticket reporté compris, et le garde au rechargement", async ({ page }, testInfo) => {
