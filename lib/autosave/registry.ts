@@ -38,7 +38,8 @@ function drop(key: string, entry: DraftEntry) {
 /**
  * Sets the signed-in user. Changing to another user kills every draft that
  * is not theirs before anything else; `null` (signed out, login page) keeps
- * the drafts for the unload warning but flushes none.
+ * the drafts for the unload warning but suspends them, so none is sent until
+ * their owner is active again.
  */
 export function setActiveDraftUser(user: string | null) {
   if (user === activeUser) return;
@@ -46,6 +47,10 @@ export function setActiveDraftUser(user: string | null) {
     for (const [key, entry] of entries) if (entry.owner !== user) drop(key, entry);
   }
   activeUser = user;
+  for (const entry of entries.values()) {
+    if (user === null) entry.scheduler.suspend();
+    else entry.scheduler.resume();
+  }
   notify();
 }
 
@@ -89,8 +94,8 @@ export function retainDraft(entry: DraftEntry) {
 /**
  * The editor unmounted. Another signed-in user: the draft is killed. No
  * active user (session ended, or a transient cleanup such as Strict Mode's
- * effect replay): it is kept as is, neither sent nor dropped, and stays
- * guarded. Its owner: it is flushed, then dropped once unmounted and settled.
+ * effect replay): it is kept, suspended since the session went inactive
+ * (nothing is sent, not even an armed debounce), and stays guarded. Its owner: it is flushed, then dropped once unmounted and settled.
  */
 export function releaseDraft(entry: DraftEntry) {
   entry.mounted -= 1;

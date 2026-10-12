@@ -291,4 +291,47 @@ describe("createAutosaveScheduler", () => {
     expect(save).toHaveBeenCalledTimes(1);
     expect(last()).toBe(before);
   });
+
+  it("suspend holds the armed debounce, changes and flushes until resume", async () => {
+    const { scheduler, save, calls, last } = setup();
+    scheduler.change("a");
+    scheduler.suspend();
+    scheduler.change("ab");
+    await scheduler.flush();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(save).not.toHaveBeenCalled();
+    expect(last()).toMatchObject({ pending: true });
+
+    scheduler.resume();
+    await vi.advanceTimersByTimeAsync(800);
+    expect(save).toHaveBeenCalledExactlyOnceWith("ab");
+    calls[0]!.reply.resolve({ ok: true });
+    await settle();
+    expect(last()).toMatchObject({ status: "saved", pending: false });
+  });
+
+  it("suspend lets the request in flight finish but starts no next one", async () => {
+    const { scheduler, save, calls, last } = setup();
+    scheduler.change("a");
+    void scheduler.flush();
+    scheduler.change("ab");
+    scheduler.suspend();
+    calls[0]!.reply.resolve({ ok: true });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(last()).toMatchObject({ pending: true });
+  });
+
+  it("resume does not retry a failed save by itself", async () => {
+    const { scheduler, save, calls, last } = setup();
+    scheduler.change("a");
+    void scheduler.flush();
+    calls[0]!.reply.resolve({ ok: false, error: "Session expirée." });
+    await settle();
+    scheduler.suspend();
+    scheduler.resume();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(last()).toMatchObject({ status: "error", pending: true });
+  });
 });
