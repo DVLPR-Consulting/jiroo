@@ -23,6 +23,8 @@ type ViewUrlState = {
   push: (mutate: ParamsMutation, options?: NavigationOptions) => void;
   replace: (mutate: ParamsMutation, options?: NavigationOptions) => void;
   getExternalRevision: () => number;
+  /** A copy of the current params: latest local writes, else the URL. */
+  getParams: () => URLSearchParams;
   revision: number;
 };
 
@@ -206,10 +208,11 @@ export function ViewUrlStateProvider({
   );
 
   const getExternalRevision = useCallback(() => externalRevision.current, []);
+  const getParams = useCallback(() => new URLSearchParams(latestParams.current), []);
 
   const value = useMemo(
-    () => ({ href, push, replace, getExternalRevision, revision: authorityVersion }),
-    [authorityVersion, getExternalRevision, href, push, replace],
+    () => ({ href, push, replace, getExternalRevision, getParams, revision: authorityVersion }),
+    [authorityVersion, getExternalRevision, getParams, href, push, replace],
   );
 
   return (

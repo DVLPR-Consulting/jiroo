@@ -10,7 +10,7 @@ import { DensityProvider } from "@/components/theme/density-provider";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 import { Sidebar } from "@/components/shell/sidebar";
 import { SidebarStateProvider } from "@/components/shell/sidebar-state";
-import type { ViewState } from "@/lib/items/filter";
+import { writeViewState, type ViewState } from "@/lib/items/filter";
 import type { LinkWithOther } from "@/lib/services/links";
 
 const mocks = vi.hoisted(() => ({
@@ -155,14 +155,10 @@ function AdvanceTimersInLayout({
 }
 
 function renderBar(state: ViewState = emptyState) {
-  const currentParams = {
-    view: "board",
-    item: "DEMO-1",
-    ...(state.filters.types.length > 0 ? { type: state.filters.types.join(",") } : {}),
-    ...(state.filters.releaseIds.length > 0
-      ? { version: state.filters.releaseIds.join(",") }
-      : {}),
-  };
+  // The URL is the bar's authority: the server state is written into it.
+  const params = new URLSearchParams([["view", "board"], ["item", "DEMO-1"]]);
+  writeViewState(params, state);
+  const currentParams = Object.fromEntries(params.entries());
   return render(
     <ViewUrlStateProvider initialEntries={paramEntries(currentParams)}>
       <FilterBar
@@ -270,6 +266,79 @@ describe("FilterBar", () => {
     );
   });
 
+  it("accumulates successive avatar toggles from the URL while the server response is held", () => {
+    const people = [
+      { id: "alice", name: "Alice Martin" },
+      { id: "bob", name: "Bob Durand" },
+    ];
+    const bar = (entries: [string, string][]) => (
+      <ViewUrlStateProvider initialEntries={entries}>
+        <FilterBar
+          state={emptyState}
+          statuses={[]}
+          users={people}
+          labels={[]}
+          releases={[]}
+          hierarchy={[]}
+          resultCount={1}
+        />
+      </ViewUrlStateProvider>
+    );
+    const { rerender } = render(bar([["view", "board"]]));
+    const group = () => screen.getByRole("group", { name: "Filtrer par assigné" });
+    const avatar = (name: string) => within(group()).getByRole("button", { name });
+
+    fireEvent.click(avatar("Alice Martin"));
+    expect(avatar("Alice Martin")).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(avatar("Bob Durand"));
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      "/b/DEMO?view=board&assignee=alice%2Cbob",
+      { scroll: false },
+    );
+    expect(avatar("Alice Martin")).toHaveAttribute("aria-pressed", "true");
+    expect(avatar("Bob Durand")).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(avatar("Bob Durand"));
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      "/b/DEMO?view=board&assignee=alice",
+      { scroll: false },
+    );
+    expect(avatar("Bob Durand")).toHaveAttribute("aria-pressed", "false");
+
+    // A late response for an earlier click does not undo the latest one.
+    rerender(bar([["view", "board"], ["assignee", "alice,bob"]]));
+    expect(avatar("Alice Martin")).toHaveAttribute("aria-pressed", "true");
+    expect(avatar("Bob Durand")).toHaveAttribute("aria-pressed", "false");
+
+    // Back navigation is authoritative.
+    window.history.replaceState(null, "", "/b/DEMO?view=board&assignee=bob");
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    expect(avatar("Alice Martin")).toHaveAttribute("aria-pressed", "false");
+    expect(avatar("Bob Durand")).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(avatar("Alice Martin"));
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      "/b/DEMO?view=board&assignee=bob%2Calice",
+      { scroll: false },
+    );
+  });
+
+  it("accumulates successive facet selections from the URL while the server response is held", async () => {
+    const user = userEvent.setup();
+    renderBar();
+
+    await user.click(screen.getByRole("button", { name: "Type" }));
+    await user.click(screen.getByRole("checkbox", { name: "Epic" }));
+    expect(screen.getByRole("checkbox", { name: "Epic" })).toBeChecked();
+    await user.click(screen.getByRole("checkbox", { name: "Tâche" }));
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenLastCalledWith(
+        "/b/DEMO?view=board&item=DEMO-1&type=epic%2Ctache",
+        { scroll: false },
+      ),
+    );
+  });
+
   it("allows the filter controls to wrap instead of overflowing narrow content", () => {
     const { container } = renderBar();
 
@@ -366,12 +435,13 @@ describe("FilterBar", () => {
     );
     act(() => window.dispatchEvent(new PopStateEvent("popstate")));
 
-    await addFilter(user, "Version");
+    // The URL version is active: its chip opens the values.
+    await user.click(screen.getByRole("button", { name: "Version : 2026.09" }));
     await user.click(screen.getByLabelText("2026.10"));
 
     await waitFor(() =>
       expect(mocks.replace).toHaveBeenCalledWith(
-        "/b/DEMO?view=board&version=release-active&tag=history",
+        "/b/DEMO?view=board&version=release-archived%2Crelease-active&tag=history",
         { scroll: false },
       ),
     );

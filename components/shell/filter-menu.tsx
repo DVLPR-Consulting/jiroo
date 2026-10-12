@@ -9,24 +9,18 @@ export function FilterMenu({
   label,
   options,
   selected,
-  onChange,
+  onToggle,
   activeLabel,
   onClear,
 }: {
   label: string;
   options: Option[];
   selected: string[];
-  onChange: (next: string[]) => void;
+  /** Adds or removes one value; the caller applies it to the latest URL. */
+  onToggle: (value: string) => void;
   activeLabel?: string;
   onClear?: () => void;
 }) {
-  const toggle = (value: string) => {
-    onChange(
-      selected.includes(value)
-        ? selected.filter((v) => v !== value)
-        : [...selected, value],
-    );
-  };
   const count = selected.length;
   const active = count > 0;
   return (
@@ -54,7 +48,7 @@ export function FilterMenu({
           </button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-56 p-1">
-          <FilterOptions options={options} selected={selected} onToggle={toggle} />
+          <FilterOptions options={options} selected={selected} onToggle={onToggle} />
         </PopoverContent>
       </Popover>
       {active && onClear && (

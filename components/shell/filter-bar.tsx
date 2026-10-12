@@ -84,6 +84,29 @@ export function FilterBar({
       ...current,
       filters: { ...current.filters, ...patch },
     }));
+  // Toggles are computed from the params current at write time, so clicks
+  // made before the server answers accumulate instead of overwriting.
+  const updateFilters = (patch: (current: Filters) => Partial<Filters>) =>
+    push((current) => ({
+      ...current,
+      filters: { ...current.filters, ...patch(current.filters) },
+    }));
+  const toggleIn = <K extends "types" | "statusIds" | "assignees" | "underIds" | "labels" | "releaseIds">(
+    key: K,
+    value: string,
+  ) =>
+    updateFilters((current) => ({
+      [key]: toggleValue(current[key] as string[], value),
+    }));
+
+  // What the bar shows follows the same local URL authority (the server
+  // props lag behind until the response), with unknown versions ignored.
+  const knownReleaseIds = new Set(releases.map((release) => release.id));
+  const urlFilters = parseViewState(viewUrl.getParams()).filters;
+  const filters: Filters = {
+    ...urlFilters,
+    releaseIds: urlFilters.releaseIds.filter((id) => knownReleaseIds.has(id)),
+  };
 
   // Free-text field is controlled locally and debounced; URL-driven changes
   // (reset, browser Back) flow back in by syncing during render when the prop moves.
@@ -135,7 +158,7 @@ export function FilterBar({
     .filter((item) => item.type === "composant" || item.type === "epic")
     .map((item) => ({ value: item.id, label: `${item.key} — ${item.title}` }));
 
-  const active = isFiltersActive(state.filters);
+  const active = isFiltersActive(filters);
   const optionsByKey: Record<SecondaryFilterKey, Option[]> = {
     priorities: prioOpts,
     labels: labelOpts,
@@ -143,17 +166,30 @@ export function FilterBar({
     kind: kindOpts,
   };
   const selectedByKey: Record<SecondaryFilterKey, string[]> = {
-    priorities: state.filters.priorities.map(String),
-    labels: state.filters.labels,
-    releaseIds: state.filters.releaseIds,
-    kind: state.filters.kind,
+    priorities: filters.priorities.map(String),
+    labels: filters.labels,
+    releaseIds: filters.releaseIds,
+    kind: filters.kind,
   };
   const setSecondary = (key: SecondaryFilterKey, values: string[]) => {
     if (key === "priorities") setFilters({ priorities: values.map(Number) });
-    else if (key === "kind") setFilters({ kind: values as typeof state.filters.kind });
+    else if (key === "kind") setFilters({ kind: values as typeof filters.kind });
     else setFilters({ [key]: values });
   };
-  const secondary = splitSecondaryFilters(state.filters);
+  const toggleSecondary = (key: SecondaryFilterKey, value: string) => {
+    if (key === "priorities") {
+      updateFilters((current) => ({
+        priorities: toggleValue(current.priorities.map(String), value).map(Number),
+      }));
+    } else if (key === "kind") {
+      updateFilters((current) => ({
+        kind: toggleValue(current.kind, value) as typeof current.kind,
+      }));
+    } else {
+      toggleIn(key, value);
+    }
+  };
+  const secondary = splitSecondaryFilters(filters);
 
   return (
     <div
@@ -176,7 +212,7 @@ export function FilterBar({
       />
       <div role="group" aria-label="Filtrer par assigné" className="flex flex-wrap items-center">
         {assigneeOpts.map((option, index) => {
-          const pressed = state.filters.assignees.includes(option.value);
+          const pressed = filters.assignees.includes(option.value);
           return (
             <button
               key={option.value}
@@ -184,9 +220,7 @@ export function FilterBar({
               aria-pressed={pressed}
               aria-label={option.label}
               title={option.label}
-              onClick={() =>
-                setFilters({ assignees: toggleValue(state.filters.assignees, option.value) })
-              }
+              onClick={() => toggleIn("assignees", option.value)}
               className={cn(
                 "relative inline-flex size-8 items-center justify-center rounded-full outline-none transition-transform hover:z-10 hover:-translate-y-0.5 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
                 index > 0 && "-ml-1.5",
@@ -213,25 +247,25 @@ export function FilterBar({
       <FilterMenu
         label="Type"
         options={typeOpts}
-        selected={state.filters.types}
-        onChange={(v) => setFilters({ types: v as typeof state.filters.types })}
-        activeLabel={chipValue(typeOpts, state.filters.types)}
+        selected={filters.types}
+        onToggle={(value) => toggleIn("types", value)}
+        activeLabel={chipValue(typeOpts, filters.types)}
         onClear={() => setFilters({ types: [] })}
       />
       <FilterMenu
         label="Statut"
         options={statusOpts}
-        selected={state.filters.statusIds}
-        onChange={(v) => setFilters({ statusIds: v })}
-        activeLabel={chipValue(statusOpts, state.filters.statusIds)}
+        selected={filters.statusIds}
+        onToggle={(value) => toggleIn("statusIds", value)}
+        activeLabel={chipValue(statusOpts, filters.statusIds)}
         onClear={() => setFilters({ statusIds: [] })}
       />
       <FilterMenu
         label="Parent"
         options={hierarchyOpts}
-        selected={state.filters.underIds}
-        onChange={(v) => setFilters({ underIds: v })}
-        activeLabel={chipValue(hierarchyOpts, state.filters.underIds)}
+        selected={filters.underIds}
+        onToggle={(value) => toggleIn("underIds", value)}
+        activeLabel={chipValue(hierarchyOpts, filters.underIds)}
         onClear={() => setFilters({ underIds: [] })}
       />
       {secondary.active.map((filter) => (
@@ -240,7 +274,7 @@ export function FilterBar({
           label={filter.label}
           options={optionsByKey[filter.key]}
           selected={selectedByKey[filter.key]}
-          onChange={(v) => setSecondary(filter.key, v)}
+          onToggle={(value) => toggleSecondary(filter.key, value)}
           activeLabel={chipValue(optionsByKey[filter.key], selectedByKey[filter.key])}
           onClear={() => setSecondary(filter.key, [])}
         />
@@ -250,7 +284,7 @@ export function FilterBar({
           filters={secondary.available}
           optionsByKey={optionsByKey}
           selectedByKey={selectedByKey}
-          onChange={setSecondary}
+          onToggle={toggleSecondary}
         />
       )}
 
@@ -301,12 +335,12 @@ function AddFilterMenu({
   filters,
   optionsByKey,
   selectedByKey,
-  onChange,
+  onToggle,
 }: {
   filters: SecondaryFilter[];
   optionsByKey: Record<SecondaryFilterKey, Option[]>;
   selectedByKey: Record<SecondaryFilterKey, string[]>;
-  onChange: (key: SecondaryFilterKey, values: string[]) => void;
+  onToggle: (key: SecondaryFilterKey, value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState<SecondaryFilter | null>(null);
@@ -342,9 +376,7 @@ function AddFilterMenu({
             <FilterOptions
               options={optionsByKey[current.key]}
               selected={selectedByKey[current.key]}
-              onToggle={(value) =>
-                onChange(current.key, toggleValue(selectedByKey[current.key], value))
-              }
+              onToggle={(value) => onToggle(current.key, value)}
             />
           </div>
         ) : (
