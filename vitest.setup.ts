@@ -13,3 +13,12 @@ if (typeof Range !== "undefined") {
 if (typeof document !== "undefined") {
   document.elementFromPoint ??= () => null;
 }
+
+// Radix Select tracks the pointer and scrolls the selected option into view;
+// jsdom implements neither pointer capture nor scrollIntoView.
+if (typeof Element !== "undefined") {
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.setPointerCapture ??= () => {};
+  Element.prototype.releasePointerCapture ??= () => {};
+  Element.prototype.scrollIntoView ??= () => {};
+}

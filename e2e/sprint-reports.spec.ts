@@ -26,6 +26,7 @@ import { getBurndownReport } from "../lib/services/sprint-burndown";
 import { getSprintReport } from "../lib/services/sprint-reports";
 import { createSprint, moveItemToSprint, updateSprint } from "../lib/services/sprints";
 import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
+import { chooseOption } from "./select-helpers";
 
 const AUTH = {
   admin: ".playwright/.auth/platform-admin.json",
@@ -1068,7 +1069,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
 
   await page.goto("/b/CASS?view=backlog");
   await page.getByRole("button", { name: "Terminer le sprint Sprint UI vers Backlog" }).click();
-  await page.getByLabel("Destination des tâches incomplètes").selectOption({ label: "Backlog" });
+  await chooseOption(page, "Destination des tâches incomplètes", "Backlog");
   await businessPost(page, () =>
     page.getByRole("button", { name: "Terminer le sprint", exact: true }).click());
   await page.goto(`/b/CASS/reports?report=sprint&sprint=${uiActive.id}`);
@@ -1085,8 +1086,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   await begin(fixtures.context, uiToPlanned.id, "Sprint UI vers planifié");
   await page.goto("/b/CASS?view=backlog");
   await page.getByRole("button", { name: "Terminer le sprint Sprint UI vers planifié" }).click();
-  await page.getByLabel("Destination des tâches incomplètes")
-    .selectOption({ label: "Sprint UI Destination" });
+  await chooseOption(page, "Destination des tâches incomplètes", "Sprint UI Destination");
   await businessPost(page, () =>
     page.getByRole("button", { name: "Terminer le sprint", exact: true }).click());
   await expect(page.getByRole("heading", { name: "Sprint UI Destination" })).toBeVisible();
@@ -1365,7 +1365,7 @@ audited(9, "fige le point final à la clôture et ignore les mutations ultérieu
   const context = fixtures.context;
   await auditedGoto(page, capture, "admin", "/b/CASS?view=backlog");
   await page.getByRole("button", { name: `Terminer le sprint ${BURNDOWN.sprintName}` }).click();
-  await page.getByLabel("Destination des tâches incomplètes").selectOption({ label: "Backlog" });
+  await chooseOption(page, "Destination des tâches incomplètes", "Backlog");
   await businessPost(page, () => page.getByRole("button", { name: "Terminer le sprint", exact: true }).click());
   burndown.steps.push({ itemKey: null, cause: "Clôture du sprint", deltaPoints: 0 });
 

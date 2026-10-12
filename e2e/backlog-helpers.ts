@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { chooseOption } from "./select-helpers";
 
 /**
  * JIR-75: « + Créer un item » at the bottom of a Backlog section. Opens the
@@ -12,10 +13,11 @@ export async function createInlineItem(page: Page, sectionLabel: string, title: 
   }
   await expect(field).toBeFocused();
   await field.fill(title);
-  const parent = page
-    .getByRole("form", { name: `Créer un item dans ${sectionLabel}` })
-    .getByRole("combobox", { name: "Epic parent" });
-  if ((await parent.inputValue()) === "") await parent.selectOption({ index: 1 });
+  const form = page.getByRole("form", { name: `Créer un item dans ${sectionLabel}` });
+  const parent = form.getByRole("combobox", { name: "Epic parent" });
+  if ((await parent.textContent())?.includes("Epic parent…")) {
+    await chooseOption(form, "Epic parent", { index: 0 });
+  }
   await field.press("Enter");
 }
 

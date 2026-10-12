@@ -153,7 +153,7 @@ export async function BacklogViewContent({
       .select()
       .from(statuses)
       .where(eq(statuses.backlogId, backlog.id))
-      .orderBy(asc(statuses.order)),
+      .orderBy(asc(statuses.order), asc(statuses.id)),
     db
       .select({
         statusId: itemRowsTable.statusId,
@@ -340,7 +340,11 @@ export async function BacklogViewContent({
       type: item.type,
       title: item.title,
     })),
-    statuses: statusRows.map((status) => ({ id: status.id, name: status.name })),
+    statuses: statusRows.map((status) => ({
+      id: status.id,
+      name: status.name,
+      category: status.category,
+    })),
     releaseOptions: assignableReleaseOptions,
     // Jira's Create screen: the fields the user may already set at creation.
     fieldOptions: {

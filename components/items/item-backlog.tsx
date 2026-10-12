@@ -1231,8 +1231,9 @@ function SprintItemBacklog({
             const incompleteItems = section.items.filter(
               (item) => statuses.find((status) => status.id === item.statusId)?.category !== "done",
             );
-            const canCreateInSection =
-              canCreateItems && (section.kind === "backlog" || canScheduleItems);
+            // Inline creation makes a task under an epic, which needs the
+            // scheduling right in every section (sprint or backlog).
+            const canCreateInSection = canCreateItems && canScheduleItems;
             const metricsFor = (rows: BacklogItem[]) =>
               calculateSprintMetrics(
                 rows.map((item) => ({ ...item, done: false })),
