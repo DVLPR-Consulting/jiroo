@@ -2,7 +2,6 @@
 
 import { useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
 import { updateItemAction } from "@/app/actions/items";
 import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import { ITEM_TITLE_MAX } from "@/lib/validation/item";
@@ -27,6 +26,7 @@ export function EditableTitle({
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const counterId = useId();
+  const hintId = useId();
   const errorId = useId();
 
   function start() {
@@ -68,7 +68,7 @@ export function EditableTitle({
           aria-invalid={Boolean(error)}
           aria-describedby={`${counterId}${error ? ` ${errorId}` : ""}`}
           maxLength={ITEM_TITLE_MAX}
-          className="w-full rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-1 text-[22px] font-semibold text-foreground outline-none focus:border-[var(--ring)]"
+          className="w-full rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-1 text-[26px] leading-tight font-semibold tracking-[-0.01em] text-foreground outline-none focus:border-[var(--ring)]"
           value={value}
           onChange={(e) => {
             setValue(e.target.value);
@@ -101,20 +101,27 @@ export function EditableTitle({
       </div>
     );
   }
-  if (readOnly) return <h2 className="t-h1 px-1">{title}</h2>;
+  const headingClass = "m-0 text-[26px] leading-[1.25] font-semibold tracking-[-0.01em] text-foreground";
+  if (readOnly) return <h1 className={`${headingClass} px-2`}>{title}</h1>;
+  // Click the title to rename it (Jira): no pencil, a hover frame shows it is editable.
   return (
-    <div className="group flex items-start gap-1">
-      <h2 className="t-h1 min-w-0 flex-1 rounded px-1">{title}</h2>
-      <button
-        type="button"
-        aria-label={`Renommer ${itemKey}`}
-        onClick={start}
-        className="mt-0.5 rounded p-1.5 text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-      >
-        <Pencil className="size-4" aria-hidden="true" />
-      </button>
+    <div>
+      <h1 className={headingClass}>
+        <button
+          type="button"
+          aria-describedby={hintId}
+          title="Cliquer pour renommer"
+          onClick={start}
+          className="-mx-0 w-full cursor-text rounded-[var(--radius)] border border-transparent px-2 py-0.5 text-left outline-none hover:border-[var(--border-strong)] hover:bg-[var(--muted)] focus-visible:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]/30"
+        >
+          {title}
+        </button>
+      </h1>
+      <span id={hintId} className="sr-only">
+        Renommer {itemKey}
+      </span>
       {error && (
-        <p className="t-sm mt-1 px-1" style={{ color: "var(--danger)" }}>
+        <p className="t-sm mt-1 px-2" style={{ color: "var(--danger)" }}>
           {error}
         </p>
       )}

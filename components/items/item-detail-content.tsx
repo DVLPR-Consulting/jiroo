@@ -1,4 +1,7 @@
-import { ItemDetailPanel } from "@/components/items/item-detail-panel";
+import {
+  ItemDetailPanel,
+  type DetailCreateDialog,
+} from "@/components/items/item-detail-panel";
 import { ItemDetailNotFound } from "@/components/items/item-detail-sheet";
 import { RecentItemTracker } from "@/components/items/recent-item-tracker";
 import type { ItemType } from "@/lib/design/constants";
@@ -54,6 +57,7 @@ export async function ItemDetailContent({
   fixVersions = [],
   releaseOptions = [],
   releaseCapabilities,
+  createDialog,
 }: {
   itemKey: string;
   backlog: Backlog;
@@ -74,6 +78,8 @@ export async function ItemDetailContent({
   fixVersions?: FixVersionOption[];
   releaseOptions?: FixVersionOption[];
   releaseCapabilities?: ReleaseCapabilities;
+  /** « Nouvel item » data, to create a child from the drawer. */
+  createDialog?: DetailCreateDialog;
 }) {
   const detail = await getItemByKeyForBacklog(itemKey, backlog.id);
   // The drawer is already open: explain the miss instead of an empty panel.
@@ -105,8 +111,18 @@ export async function ItemDetailContent({
     ? items.find((item) => item.id === detail.parentId)
     : undefined;
   const parent = parentItem
-    ? { key: parentItem.key, title: parentItem.title }
+    ? { key: parentItem.key, title: parentItem.title, type: parentItem.type as ItemType }
     : undefined;
+  // The view's items are ordered depth, rank, key: children keep their rank.
+  const childItems = items
+    .filter((item) => item.parentId === detail.id)
+    .map((item) => ({
+      id: item.id,
+      key: item.key,
+      title: item.title,
+      type: item.type as ItemType,
+      statusId: item.statusId,
+    }));
 
   return (
     <>
@@ -128,6 +144,8 @@ export async function ItemDetailContent({
         candidates={candidates}
         refs={refs}
         parent={parent}
+        childItems={childItems}
+        createDialog={createDialog}
         sprints={sprints}
         sprintId={sprintId}
         canEditItems={canEditItems}

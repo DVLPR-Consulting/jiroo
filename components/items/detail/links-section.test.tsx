@@ -54,4 +54,36 @@ describe("LinksSection", () => {
     await user.tab();
     expect(remove).toHaveFocus();
   });
+
+  it("keeps the add form behind « + Lier un item » and closes it again", async () => {
+    const user = userEvent.setup();
+    render(
+      <LinksSection itemId="item-1" backlogKey="CASS" links={[]} candidates={[]} />,
+    );
+
+    expect(screen.queryByRole("textbox", { name: "Rechercher un item à lier" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /\+ Lier un item/ }));
+    expect(screen.getByRole("combobox", { name: "Type de relation" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Rechercher un item à lier" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(screen.queryByRole("textbox", { name: "Rechercher un item à lier" })).not.toBeInTheDocument();
+  });
+
+  it("opens the form on request from the drawer's « Lier un item » action", () => {
+    const { rerender } = render(
+      <LinksSection itemId="item-1" backlogKey="CASS" links={[]} candidates={[]} openRequest={0} />,
+    );
+    rerender(
+      <LinksSection itemId="item-1" backlogKey="CASS" links={[]} candidates={[]} openRequest={1} />,
+    );
+    expect(screen.getByRole("textbox", { name: "Rechercher un item à lier" })).toHaveFocus();
+  });
+
+  it("shows nothing to add for a viewer without the link right", () => {
+    render(
+      <LinksSection itemId="item-1" backlogKey="CASS" links={[]} candidates={[]} canLink={false} />,
+    );
+    expect(screen.getByText("Aucun item lié.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Lier un item/ })).not.toBeInTheDocument();
+  });
 });

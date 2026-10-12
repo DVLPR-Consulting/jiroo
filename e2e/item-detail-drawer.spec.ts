@@ -204,7 +204,7 @@ test.describe("panneau de détail", () => {
     expect(box.width).toBeGreaterThanOrEqual(320);
     expect(box.x + box.width).toBeLessThanOrEqual(drawerBox.x + drawerBox.width + 1);
     await expect(properties).toHaveCSS("padding-right", "20px");
-    await expect(page.getByTestId("item-detail-main")).toHaveCSS("padding-left", "20px");
+    await expect(page.getByTestId("item-detail-main")).toHaveCSS("padding-left", "32px");
     // No field spills over the column's right padding.
     const overflow = await properties.evaluate((column) => {
       const limit = column.getBoundingClientRect().right - 20 + 0.5;
@@ -261,8 +261,8 @@ test.describe("panneau de détail", () => {
 
       const properties = page.getByTestId("item-detail-properties");
       // The last property section and the metadata under it are reachable.
-      await expect(properties.getByText("Développement", { exact: true })).toBeAttached();
-      const columnEnd = properties.getByText(/^Maj le /);
+      await expect(properties.getByRole("button", { name: "Développement" })).toBeAttached();
+      const columnEnd = properties.getByText(/^Mis à jour le /);
       await columnEnd.scrollIntoViewIfNeeded();
       await expect(columnEnd).toBeInViewport();
       // The properties column is its own scroll container; when it overflows,
@@ -298,7 +298,7 @@ test.describe("panneau de détail", () => {
       await properties.evaluate((column) => column.scrollHeight > column.clientHeight),
     ).toBe(true);
 
-    const columnEnd = properties.getByText(/^Maj le /);
+    const columnEnd = properties.getByText(/^Mis à jour le /);
     await columnEnd.scrollIntoViewIfNeeded();
     await expect(columnEnd).toBeInViewport();
     expect(await properties.evaluate((column) => column.scrollTop)).toBeGreaterThan(0);
