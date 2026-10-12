@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   itemDetailSheetKey: vi.fn(),
   itemListProps: vi.fn(),
   itemTreeProps: vi.fn(),
+  viewActionsProps: vi.fn(),
   listItemFixVersionPairs: vi.fn(),
   listItemLabelPairs: vi.fn(),
   listItemsWithAncestors: vi.fn(),
@@ -131,7 +132,12 @@ vi.mock("@/components/shell/filter-bar", () => ({
     return null;
   },
 }));
-vi.mock("@/components/shell/view-actions", () => ({ ViewActions: () => null }));
+vi.mock("@/components/shell/view-actions", () => ({
+  ViewActions: (props: unknown) => {
+    mocks.viewActionsProps(props);
+    return null;
+  },
+}));
 vi.mock("@/components/items/new-item-dialog", () => ({ NewItemButton: () => null }));
 vi.mock("@/components/shell/create-item-trigger", () => ({ TopbarCreateItem: () => null }));
 vi.mock("@/components/statuses/status-manager-dialog", () => ({
@@ -1127,7 +1133,7 @@ describe("BacklogViewContent read boundary", () => {
       expect(listedIds()).toEqual(["removed-1", "loose-1"]);
     });
 
-    it("ignores the facet on the Board, which is laid out by sprint", async () => {
+    it("ignores the facet on the Board, which is laid out by sprint, but keeps it for saved views", async () => {
       render(
         await BacklogViewContent({
           paramsPromise: Promise.resolve({ key: "DEMO" }),
@@ -1141,6 +1147,11 @@ describe("BacklogViewContent read boundary", () => {
           filters: expect.objectContaining({ sprintIds: [] }),
         }),
       }));
+      // FilterBar renders ViewActions, mocked away: read the actions prop.
+      const barProps = mocks.filterBarProps.mock.calls[0]?.[0] as {
+        actions: { props: { filters: { sprintIds: string[] } } };
+      };
+      expect(barProps.actions.props.filters.sprintIds).toEqual([S1]);
     });
   });
 });

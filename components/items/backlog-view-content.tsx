@@ -184,6 +184,7 @@ export async function BacklogViewContent({
   // to Liste and Arbre. Board and Backlog are laid out by sprint already (and
   // hide completed sprints by design), so they ignore it.
   const sprintFilterEnabled = view === "list" || view === "tree";
+  const knownSprintIds = new Set(sprintSnapshot.sprints.map((sprint) => sprint.id));
   const viewState = {
     ...requestedViewState,
     filters: withKnownSprintIds(
@@ -191,10 +192,15 @@ export async function BacklogViewContent({
         requestedViewState.filters,
         new Set(releaseSummaries.map((release) => release.id)),
       ),
-      sprintFilterEnabled
-        ? new Set(sprintSnapshot.sprints.map((sprint) => sprint.id))
-        : null,
+      sprintFilterEnabled ? knownSprintIds : null,
     ),
+  };
+  // Saving from Board or Backlog keeps the (hidden) Sprint facet of the URL,
+  // as the dirty check compares the requested state: an update made there
+  // must not erase a saved view's sprint filter.
+  const savableFilters = {
+    ...viewState.filters,
+    sprintIds: withKnownSprintIds(requestedViewState.filters, knownSprintIds).sprintIds,
   };
   // Only unknown versions were requested: show every item, not an empty list.
   const releaseFilteredItems =
@@ -653,7 +659,7 @@ export async function BacklogViewContent({
             isOwner={isOwner}
             dirty={dirty}
             displayMode={view as DisplayMode}
-            filters={viewState.filters}
+            filters={savableFilters}
             group={viewState.group}
             sort={viewState.sort}
             showTrigger={activeViewRow !== null || hasSavableViewState(viewState)}
