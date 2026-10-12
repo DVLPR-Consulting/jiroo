@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Bookmark, ChevronDown } from "lucide-react";
 import {
@@ -27,6 +27,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  acknowledgeSaveView,
+  OPEN_SAVE_VIEW_EVENT,
+  takePendingSaveView,
+} from "@/components/shell/save-view-event";
 import { ViewSaveDialog } from "@/components/shell/view-save-dialog";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import type { DisplayMode } from "@/lib/items/views";
@@ -50,6 +55,12 @@ export type ViewActionsProps = {
   filters: Filters;
   group: GroupKey | null;
   sort: { field: SortField; dir: SortDir } | null;
+  /**
+   * Whether the menu button shows (JIR-74: once the view differs from the
+   * defaults or a saved view is active). The dialogs stay mounted so the
+   * sidebar's « + Enregistrer une vue » can still open them.
+   */
+  showTrigger?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -119,6 +130,7 @@ export function ViewActions({
   filters,
   group,
   sort,
+  showTrigger = true,
 }: ViewActionsProps) {
   const router = useRouter();
   const viewUrl = useViewUrlState();
@@ -134,6 +146,19 @@ export function ViewActions({
   const [renameError, setRenameError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
+
+  // The sidebar's « + Enregistrer une vue » line opens the save-as dialog.
+  useEffect(() => {
+    function handleOpenSaveView() {
+      acknowledgeSaveView();
+      setSaveAsError(null);
+      setSaveAsOpen(true);
+    }
+    // A click made while this page was still loading.
+    if (takePendingSaveView()) handleOpenSaveView();
+    window.addEventListener(OPEN_SAVE_VIEW_EVENT, handleOpenSaveView);
+    return () => window.removeEventListener(OPEN_SAVE_VIEW_EVENT, handleOpenSaveView);
+  }, []);
 
   // -------------------------------------------------------------------------
   // Action handlers
@@ -253,6 +278,7 @@ export function ViewActions({
 
   return (
     <>
+      {showTrigger && (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -353,6 +379,7 @@ export function ViewActions({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      )}
 
       {/* Save-as dialog */}
       <ViewSaveDialog

@@ -116,8 +116,15 @@ vi.mock("@/components/items/item-tree", () => ({
     return null;
   },
 }));
-vi.mock("@/components/shell/view-bar", () => ({ ViewBar: () => null }));
-vi.mock("@/components/shell/group-control", () => ({ GroupControl: () => null }));
+vi.mock("@/components/shell/page-header", () => ({
+  PageHeader: ({ title, actions }: { title?: React.ReactNode; actions?: React.ReactNode }) => (
+    <header>
+      <h1>{title}</h1>
+      {actions}
+    </header>
+  ),
+}));
+vi.mock("@/components/shell/display-menu", () => ({ DisplayMenu: () => null }));
 vi.mock("@/components/shell/filter-bar", () => ({
   FilterBar: (props: unknown) => {
     mocks.filterBarProps(props);
@@ -126,6 +133,7 @@ vi.mock("@/components/shell/filter-bar", () => ({
 }));
 vi.mock("@/components/shell/view-actions", () => ({ ViewActions: () => null }));
 vi.mock("@/components/items/new-item-dialog", () => ({ NewItemButton: () => null }));
+vi.mock("@/components/shell/create-item-trigger", () => ({ TopbarCreateItem: () => null }));
 vi.mock("@/components/statuses/status-manager-dialog", () => ({
   StatusManagerDialog: () => null,
 }));

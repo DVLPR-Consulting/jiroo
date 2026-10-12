@@ -3,6 +3,7 @@ import { checkPermission } from "@/lib/auth/authorization";
 import { listTrashedItems } from "@/lib/services/items";
 import type { TrashedItem } from "@/lib/services/items";
 import { TrashList } from "@/components/items/trash-list";
+import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
 
 // Group trashed items by backlog, preserving first-seen order (items already
 // arrive deletedAt desc, so the first occurrence of each backlogKey determines
@@ -52,8 +53,9 @@ export default async function TrashPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="border-b border-border px-6 py-4">
-        <h1 className="t-h2">Corbeille</h1>
+      <div className="space-y-1 border-b border-border px-6 py-4">
+        <ShellBreadcrumb />
+        <h1 className="t-h1">Corbeille</h1>
         <p className="t-sm text-muted-foreground">
           {items.length === 0
             ? "Aucun item supprimé."

@@ -9,24 +9,18 @@ export function FilterMenu({
   label,
   options,
   selected,
-  onChange,
+  onToggle,
   activeLabel,
   onClear,
 }: {
   label: string;
   options: Option[];
   selected: string[];
-  onChange: (next: string[]) => void;
+  /** Adds or removes one value; the caller applies it to the latest URL. */
+  onToggle: (value: string) => void;
   activeLabel?: string;
   onClear?: () => void;
 }) {
-  const toggle = (value: string) => {
-    onChange(
-      selected.includes(value)
-        ? selected.filter((v) => v !== value)
-        : [...selected, value],
-    );
-  };
   const count = selected.length;
   const active = count > 0;
   return (
@@ -38,39 +32,23 @@ export function FilterMenu({
             data-active={active}
             className={
               active
-                ? "inline-flex items-center gap-1.5 rounded-l-[var(--radius-sm)] border border-[var(--accent-subtle-fg)] bg-[var(--accent-subtle)] px-2.5 py-1 text-xs font-medium hover:bg-[var(--accent-subtle)]"
-                : "inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-dashed border-border px-2.5 py-1 text-xs font-medium hover:bg-[var(--muted)]"
+                ? "inline-flex h-8 items-center gap-1.5 rounded-l-[var(--radius-sm)] border border-[var(--accent-subtle-fg)] bg-[var(--accent-subtle)] px-2.5 text-[13px] font-medium text-[var(--accent-subtle-fg)] hover:bg-[var(--accent-subtle)]"
+                : "inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border border-border bg-[var(--surface)] px-2.5 text-[13px] hover:bg-[var(--muted)]"
             }
           >
             {active ? (
               <>
-                <span>{label}</span>
-                {activeLabel && <span className="text-[var(--accent-subtle-fg)]">{activeLabel}</span>}
-                <span className="rounded-full bg-[var(--surface)] px-1.5 text-[var(--accent-subtle-fg)]">
-                  {count}
-                </span>
+                <span className="font-normal">{label} :</span>{" "}
+                <span className="max-w-[12rem] truncate">{activeLabel ?? count}</span>
               </>
             ) : (
-              <span>+ {label}</span>
+              <span>{label}</span>
             )}
             <ChevronDown className="size-3.5" />
           </button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-56 p-1">
-          {options.map((o) => (
-            <label
-              key={o.value}
-              className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
-            >
-              <input
-                type="checkbox"
-                checked={selected.includes(o.value)}
-                onChange={() => toggle(o.value)}
-                className="size-3.5"
-              />
-              {o.label}
-            </label>
-          ))}
+          <FilterOptions options={options} selected={selected} onToggle={onToggle} />
         </PopoverContent>
       </Popover>
       {active && onClear && (
@@ -81,11 +59,44 @@ export function FilterMenu({
             event.stopPropagation();
             onClear();
           }}
-          className="inline-flex items-center rounded-r-[var(--radius-sm)] border border-l-0 border-[var(--accent-subtle-fg)] bg-[var(--accent-subtle)] px-1.5 text-[var(--accent-subtle-fg)] hover:bg-[var(--accent-subtle)]"
+          className="inline-flex h-8 items-center rounded-r-[var(--radius-sm)] border border-l-0 border-[var(--accent-subtle-fg)] bg-[var(--accent-subtle)] px-1.5 text-[var(--accent-subtle-fg)] hover:bg-[var(--accent-subtle)]"
         >
           <X className="size-3.5" />
         </button>
       )}
+    </div>
+  );
+}
+
+/** The checkbox list of one facet, shared by the bar and « + Filtre ». */
+export function FilterOptions({
+  options,
+  selected,
+  onToggle,
+}: {
+  options: Option[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}) {
+  if (options.length === 0) {
+    return <p className="px-2 py-1.5 text-sm text-muted-foreground">Aucune valeur.</p>;
+  }
+  return (
+    <div className="max-h-72 overflow-y-auto">
+      {options.map((o) => (
+        <label
+          key={o.value}
+          className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
+        >
+          <input
+            type="checkbox"
+            checked={selected.includes(o.value)}
+            onChange={() => onToggle(o.value)}
+            className="size-3.5"
+          />
+          {o.label}
+        </label>
+      ))}
     </div>
   );
 }

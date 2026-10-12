@@ -1,4 +1,4 @@
-export type ShellMode = "Board" | "Liste" | "Arbre";
+export type ShellMode = "Backlog" | "Board" | "Liste" | "Arbre";
 export type ShellNav = "all" | "mine" | "trash" | "admin" | null;
 
 export type ShellContext = {
@@ -14,6 +14,7 @@ type ShellBacklog = { key: string; name: string };
 type ShellView = { id: string; name: string; backlogKey: string };
 
 const MODE_LABELS: Record<string, ShellMode> = {
+  backlog: "Backlog",
   board: "Board",
   list: "Liste",
   tree: "Arbre",
@@ -92,4 +93,105 @@ export function deriveShellContext({
     allItemsHref,
     activeNav: null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Project views (sidebar, JIR-74)
+// ---------------------------------------------------------------------------
+
+export type ItemViewId = "backlog" | "board" | "list" | "tree";
+export type ProjectViewId = ItemViewId | "releases" | "reports";
+
+/**
+ * The project's views, in sidebar order. Item views are display modes of
+ * `/b/[key]` (`?view=`); Releases and Rapports are their own routes.
+ */
+export const PROJECT_VIEWS = [
+  { id: "backlog", label: "Backlog", kind: "item" },
+  { id: "board", label: "Board", kind: "item" },
+  { id: "list", label: "Liste", kind: "item" },
+  { id: "tree", label: "Arbre", kind: "item" },
+  { id: "releases", label: "Releases", kind: "page" },
+  { id: "reports", label: "Rapports", kind: "page" },
+] as const satisfies readonly {
+  id: ProjectViewId;
+  label: string;
+  kind: "item" | "page";
+}[];
+
+const ITEM_VIEW_IDS: readonly string[] = ["backlog", "board", "list", "tree"];
+
+/** Plain link to a project view (no URL state to keep). */
+export function projectViewHref(backlogKey: string, id: ProjectViewId): string {
+  const base = `/b/${encodeURIComponent(backlogKey)}`;
+  return ITEM_VIEW_IDS.includes(id) ? `${base}?view=${id}` : `${base}/${id}`;
+}
+
+/** The project view shown at this URL for `backlogKey`, if any (board by default). */
+export function activeProjectView(
+  pathname: string,
+  search: URLSearchParams,
+  backlogKey: string,
+): ProjectViewId | null {
+  const match = /^\/b\/([^/]+)(?:\/(releases|reports)(?:\/.*)?|\/?)$/.exec(pathname);
+  if (!match) return null;
+  if (decodeURIComponent(match[1]!).toUpperCase() !== backlogKey.toUpperCase()) return null;
+  if (match[2]) return match[2] as ProjectViewId;
+  const view = search.get("view") ?? "";
+  return ITEM_VIEW_IDS.includes(view) ? (view as ItemViewId) : "board";
+}
+
+// ---------------------------------------------------------------------------
+// Page header breadcrumb (JIR-74)
+// ---------------------------------------------------------------------------
+
+export type BreadcrumbSegment = { label: string; href?: string };
+
+/**
+ * The trail above the page title: `Projet / Vue`, then `/ Vue enregistrée`
+ * when one is active. The project leads back to its home (JIR-72); the last
+ * segment is the current page unless the page is nested below it.
+ */
+export function deriveBreadcrumb(input: {
+  pathname: string;
+  search: URLSearchParams;
+  backlogs: ShellBacklog[];
+  views: ShellView[];
+}): BreadcrumbSegment[] {
+  const context = deriveShellContext(input);
+  const backlog = context.activeBacklogKey
+    ? input.backlogs.find(
+        (candidate) => candidate.key.toUpperCase() === context.activeBacklogKey,
+      )
+    : undefined;
+  const project: BreadcrumbSegment | undefined = backlog
+    ? { label: backlog.name, href: `/b/${backlog.key.toUpperCase()}` }
+    : undefined;
+
+  if (context.mode) {
+    const savedViewId = input.search.get("v");
+    const backlogKey = context.activeBacklogKey;
+    const savedView =
+      backlogKey && savedViewId
+        ? input.views.find(
+            (view) => view.id === savedViewId && view.backlogKey.toUpperCase() === backlogKey,
+          )
+        : undefined;
+    return [
+      project ?? { label: context.section },
+      { label: context.mode },
+      ...(savedView ? [{ label: savedView.name }] : []),
+    ];
+  }
+
+  if (!project) return [{ label: context.section }];
+  if (context.section === backlog!.name) return [{ label: project.label }];
+
+  const nested = /^\/b\/[^/]+\/(releases|reports)\/.+$/.exec(input.pathname);
+  return [
+    project,
+    nested
+      ? { label: context.section, href: `${project.href}/${nested[1]}` }
+      : { label: context.section },
+  ];
 }

@@ -232,7 +232,8 @@ test.describe("fenêtre « Nouvel item »", () => {
   test("enchaîne deux tâches avec « Créer un autre » puis ouvre la dernière depuis le message", async ({ page }) => {
     const { backlog, epic } = await fixtures();
     await page.goto("/b/CASS?view=list");
-    await page.getByRole("button", { name: "Nouvel item" }).click();
+    // JIR-74: « + Créer » in the top bar opens « Nouvel item ».
+    await page.locator('[data-slot="shell-topbar"]').getByRole("button", { name: "Créer", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Nouvel item" });
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText("CASS");

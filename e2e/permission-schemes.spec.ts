@@ -243,7 +243,7 @@ audited(
     const capture = observe(page, "isolation CASS/LABS");
     captures.push(capture);
     await timed(capture, "ouverture CASS membre", () => page.goto("/b/CASS?view=backlog"));
-    await expect(page.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
     await expect(page.getByText("Cour de cassation", { exact: true }).first()).toBeVisible();
     const response = await timed(capture, "refus LABS membre", () => page.goto("/b/LABS"));
     expect(response?.status()).toBe(200);
@@ -333,7 +333,7 @@ audited(
     captures.push(capture);
     await timed(capture, "navigation backlog spécialiste", () => page.goto("/b/CASS?view=backlog"));
     await expect(page.getByRole("button", { name: "Créer un sprint" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Nouvel item" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Créer", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Colonnes" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Déplacer CASS-/ })).toHaveCount(0);
     await context.close();
@@ -358,7 +358,9 @@ audited(
     await specialist.goto("/b/CASS");
     await specialist.getByRole("link", { name: "Releases" }).click();
     await expect(specialist.getByRole("heading", {
-      name: "Releases — Cour de cassation",
+      level: 1,
+      name: "Releases",
+      exact: true,
     })).toBeVisible();
     await expect(specialist.getByRole("button", { name: "Créer une version" })).toBeVisible();
     await specialistContext.close();
@@ -397,7 +399,7 @@ audited(
     await unreadNotifications.click();
     await expect(page.getByRole("menu")).toContainText(cassItem.key);
     await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Rechercher" }).click();
+    await page.getByRole("button", { name: "Rechercher un item" }).click();
     await expect(page.getByRole("option", { name: new RegExp(cassItem.key) })).toBeVisible();
     await page.keyboard.press("Escape");
 
@@ -417,7 +419,7 @@ audited(
     await expect(notificationMenu).not.toContainText(cassItem.key);
     await expect(notificationMenu).not.toContainText("Cour de cassation");
     await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Rechercher" }).click();
+    await page.getByRole("button", { name: "Rechercher un item" }).click();
     await expect(page.getByText("Aucun item récent.")).toBeVisible();
     await page.getByRole("textbox", { name: "Rechercher" }).fill(cassItem.key);
     await expect(page.getByText("Aucun résultat.")).toBeVisible();
@@ -542,7 +544,7 @@ audited(
     const memberCapture = observe(member, "persistance second utilisateur");
     captures.push(memberCapture);
     await timed(memberCapture, "ouverture second utilisateur", () => member.goto("/b/CASS?view=backlog"));
-    await expect(member.getByRole("heading", { name: "Backlog", exact: true })).toBeVisible();
+    await expect(member.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
     await expect(member.getByRole("button", { name: "Créer un sprint" })).toBeVisible();
     await memberContext.close();
   },

@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
   listGroups: vi.fn(), listPermissionSchemes: vi.fn(), readBacklogAccess: vi.fn(), listAdminUsers: vi.fn(),
   notFound: vi.fn(), redirect: vi.fn(), requireBacklogReadPermissionByKey: vi.fn(), requireSession: vi.fn(),
 }));
+vi.mock("@/components/shell/shell-breadcrumb", () => ({
+  ShellBreadcrumb: () => <nav aria-label="Fil d’Ariane" />,
+}));
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound, redirect: mocks.redirect }));
 vi.mock("@/lib/auth/session", () => ({ requireAppPageSession: mocks.requireSession }));

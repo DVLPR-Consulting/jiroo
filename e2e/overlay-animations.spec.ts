@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 /** Opens the center "Nouvel item" dialog, checks its motion, then closes it. */
 async function checkCenterDialog(page: Page, animation: string) {
-  await page.getByRole("button", { name: "Nouvel item" }).click();
+  await page.getByRole("button", { name: "Créer", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Nouvel item" });
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveCSS("animation-name", animation);

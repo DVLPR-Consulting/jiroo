@@ -1,8 +1,9 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 /**
- * JIR-63: the shell chrome at phone width (390 × 844). The header breadcrumb
- * used to truncate both segments and the view tabs ran into the right edge.
+ * JIR-63 / JIR-74: the shell chrome at phone width (390 × 844). The
+ * breadcrumb now sits above the page title and the project views live in the
+ * sidebar, which becomes a drawer on a phone.
  */
 const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1440, height: 900 };
@@ -25,16 +26,15 @@ function breadcrumb(page: Page) {
   return page.getByRole("navigation", { name: "Fil d’Ariane" });
 }
 
-test("garde la page courante du fil d’Ariane lisible à 390 par 844", async ({ page }) => {
+test("garde le fil d’Ariane complet et lisible au-dessus du titre à 390 par 844", async ({ page }) => {
   await page.setViewportSize(PHONE);
 
   await page.goto("/b/CASS?view=list");
   const current = breadcrumb(page).locator('[data-slot="shell-breadcrumb-current"]');
-  await expect(current).toHaveText("Tous les items");
+  await expect(current).toHaveText("Liste");
   await expectNotClipped(current);
-  await expect(breadcrumb(page).locator('[data-slot="shell-breadcrumb-parent"]')).toBeHidden();
-  await expect(breadcrumb(page).locator("[title]"))
-    .toHaveAttribute("title", /· Liste \/ Tous les items$/);
+  await expectNotClipped(breadcrumb(page).locator('[data-slot="shell-breadcrumb-parent"]'));
+  await expect(page.getByRole("heading", { level: 1, name: "Liste" })).toBeVisible();
   await expectNoPageOverflow(page);
 
   await page.goto("/b/CASS/reports");
@@ -43,65 +43,50 @@ test("garde la page courante du fil d’Ariane lisible à 390 par 844", async ({
   await expectNoPageOverflow(page);
 });
 
-test("conserve le fil d’Ariane complet sur grand écran", async ({ page }) => {
+test("mène du fil d’Ariane au backlog sur grand écran", async ({ page }) => {
   await page.setViewportSize(DESKTOP);
-  await page.goto("/b/CASS?view=list");
+  await page.goto("/b/CASS/releases");
 
   const parent = breadcrumb(page).locator('[data-slot="shell-breadcrumb-parent"]');
-  await expect(parent).toHaveText(/· Liste$/);
   await expectNotClipped(parent);
-  await expectNotClipped(breadcrumb(page).locator('[data-slot="shell-breadcrumb-current"]'));
+  await parent.click();
+  await expect(page).toHaveURL(/\/b\/CASS$/);
+  await expect(breadcrumb(page).locator('[data-slot="shell-breadcrumb-current"]'))
+    .toHaveText("Board");
 });
 
-function viewTabs(page: Page) {
-  return page.getByRole("navigation", { name: "Vues du backlog" });
-}
-
-async function horizontalBox(locator: Locator) {
-  return locator.evaluate((node) => {
-    const rect = node.getBoundingClientRect();
-    return { left: rect.left, right: rect.right };
-  });
-}
-
-test("fait défiler les onglets de vue dans la marge à 390 par 844", async ({ page }) => {
+test("ouvre les vues du projet dans le tiroir de navigation à 390 par 844", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/b/CASS?view=list");
 
-  const row = viewTabs(page);
-  await expect(row).toBeVisible();
-  const rowBox = await horizontalBox(row);
-  expect(rowBox.left).toBeGreaterThanOrEqual(12);
-  expect(rowBox.right).toBeLessThanOrEqual(PHONE.width - 12);
-  expect(await row.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
-  await expectNoPageOverflow(page);
+  await expect(page.getByRole("navigation", { name: "Vues du projet" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Ouvrir la navigation" }).click();
+  const drawer = page.getByRole("dialog", { name: "Navigation principale" });
+  const views = drawer.getByRole("navigation", { name: "Vues du projet" });
+  await expect(views.getByRole("link")).toHaveCount(6);
+  await expect(views.getByRole("link", { name: "Liste" })).toHaveAttribute("aria-current", "page");
 
-  const reports = row.getByRole("link", { name: "Rapports" });
-  await reports.focus();
-  await expect(reports).toBeFocused();
-  expect(await reports.evaluate((node) => getComputedStyle(node).boxShadow)).not.toBe("none");
-  await row.evaluate((node) => { node.scrollLeft = node.scrollWidth; });
-  const reportsBox = await horizontalBox(reports);
-  expect(reportsBox.right).toBeLessThanOrEqual(rowBox.right + 1);
-  expect(reportsBox.left).toBeGreaterThanOrEqual(rowBox.left - 1);
-
-  await reports.click();
+  await views.getByRole("link", { name: "Rapports" }).click();
   await expect(page).toHaveURL(/\/b\/CASS\/reports$/);
-  const active = viewTabs(page).locator('[aria-current="page"]');
-  await expect(active).toHaveText("Rapports");
-  await expect.poll(async () => {
-    const [tab, frame] = await Promise.all([horizontalBox(active), horizontalBox(viewTabs(page))]);
-    return tab.right <= frame.right + 1 && tab.left >= frame.left - 1;
-  }).toBe(true);
+  await expect(drawer).toHaveCount(0);
   await expectNoPageOverflow(page);
 });
 
-test("garde la rangée d’onglets entière sur grand écran", async ({ page }) => {
-  await page.setViewportSize(DESKTOP);
-  await page.goto("/b/CASS?view=list");
+test("fait passer la barre du haut et les filtres à la ligne sans débordement à 390 par 844", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.goto("/b/CASS?view=backlog");
 
-  const row = viewTabs(page);
-  await expect(row).toBeVisible();
-  expect(await row.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
-  await expect(row.getByRole("link")).toHaveCount(6);
+  const topbar = page.locator('[data-slot="shell-topbar"]');
+  for (const control of [
+    topbar.getByRole("button", { name: "Ouvrir la navigation" }),
+    topbar.getByRole("button", { name: "Rechercher un item" }),
+    topbar.getByRole("button", { name: "Créer", exact: true }),
+    topbar.getByRole("button", { name: "Notifications" }),
+    topbar.getByRole("link", { name: "Aide" }),
+  ]) {
+    await expect(control).toBeInViewport({ ratio: 1 });
+  }
+  await expect(page.getByRole("button", { name: /^Affichage/ })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("button", { name: "Filtre", exact: true })).toBeVisible();
+  await expectNoPageOverflow(page);
 });

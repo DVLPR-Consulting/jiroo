@@ -6,6 +6,7 @@ import { PrioIcon } from "@/components/icons/prio-icon";
 import { StatusDot } from "@/components/icons/status-dot";
 import { ItemKey } from "@/components/jiroo/item-key";
 import type { ItemType, Priority, StatusId } from "@/lib/design/constants";
+import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
 
 // Clamp DB integer priority into the 0..4 union PrioIcon expects.
 function asPriority(value: number): Priority {
@@ -73,11 +74,14 @@ export default async function MinePage() {
 
   return (
     <div className="mx-auto max-w-3xl p-8">
-      <div className="mb-6 flex items-baseline gap-3">
-        <h1 className="t-h2 font-semibold">Mes items</h1>
-        {rows.length > 0 && (
-          <span className="t-sm text-muted-foreground">{rows.length}</span>
-        )}
+      <div className="mb-6 space-y-1">
+        <ShellBreadcrumb />
+        <div className="flex items-baseline gap-3">
+          <h1 className="t-h1">Mes items</h1>
+          {rows.length > 0 && (
+            <span className="t-sm text-muted-foreground">{rows.length}</span>
+          )}
+        </div>
       </div>
 
       {rows.length === 0 ? (

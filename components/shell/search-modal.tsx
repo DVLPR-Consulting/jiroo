@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Search } from "lucide-react";
 import { recentItemsAction, searchAction } from "@/app/actions/search";
 import type { SearchResult } from "@/lib/services/search";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +20,12 @@ import {
   recordRecentKey,
 } from "@/lib/items/recent";
 import { OPEN_SEARCH_EVENT } from "@/lib/shortcuts/navigation";
+import {
+  shortcutById,
+  shortcutKeyParts,
+  shortcutText,
+} from "@/lib/shortcuts/registry";
+import { useShortcutsEnabled } from "@/components/shortcuts/use-shortcuts-enabled";
 
 // ---------------------------------------------------------------------------
 // Highlight helper
@@ -110,6 +115,10 @@ function recordRecentItem(key: string): void {
 // ---------------------------------------------------------------------------
 
 export function SearchModal() {
+  // The hint is the registry's « / » while single-key shortcuts are on,
+  // its ⌘/Ctrl + K combination otherwise (JIR-70).
+  const shortcutsEnabled = useShortcutsEnabled();
+  const hint = shortcutById(shortcutsEnabled ? "search" : "searchCombo");
   const openBacklogItem = useBacklogItemNavigation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -270,16 +279,29 @@ export function SearchModal() {
 
   return (
     <>
-      {/* Topbar trigger button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Rechercher"
-        title="Rechercher (⌘K)"
+      {/* Topbar search field (JIR-74): always visible, opens the palette. */}
+      <button
+        type="button"
+        aria-label="Rechercher un item"
+        aria-keyshortcuts={shortcutsEnabled ? "/ Meta+K Control+K" : "Meta+K Control+K"}
+        title={`Rechercher un item (${shortcutText(hint)})`}
         onClick={() => setOpen(true)}
+        data-slot="topbar-search"
+        className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
       >
-        <Search className="size-4" />
-      </Button>
+        <Search className="size-4 shrink-0" aria-hidden="true" />
+        <span className="min-w-0 flex-1 truncate">Rechercher un item…</span>
+        <span className="hidden shrink-0 items-center gap-1 sm:inline-flex" aria-hidden="true">
+          {shortcutKeyParts(hint).keys.map((key) => (
+            <kbd
+              key={key}
+              className="rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] px-1.5 font-mono text-[11px] text-muted-foreground"
+            >
+              {key}
+            </kbd>
+          ))}
+        </span>
+      </button>
 
       <Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : handleClose())}>
         <DialogContent
