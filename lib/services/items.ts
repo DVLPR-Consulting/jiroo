@@ -238,7 +238,8 @@ async function resolveDefaultStatusId(tx: Tx, backlogId: string): Promise<string
     .select({ id: statuses.id })
     .from(statuses)
     .where(and(eq(statuses.backlogId, backlogId), eq(statuses.category, "todo")))
-    .orderBy(asc(statuses.order))
+    // Same tie-break as the status lists, so the dialog names this status.
+    .orderBy(asc(statuses.order), asc(statuses.id))
     .limit(1);
   if (!s) throw new Error("Aucun statut par défaut pour ce backlog.");
   return s.id;

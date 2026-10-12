@@ -153,7 +153,7 @@ export async function BacklogViewContent({
       .select()
       .from(statuses)
       .where(eq(statuses.backlogId, backlog.id))
-      .orderBy(asc(statuses.order)),
+      .orderBy(asc(statuses.order), asc(statuses.id)),
     db
       .select({
         statusId: itemRowsTable.statusId,
