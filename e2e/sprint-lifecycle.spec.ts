@@ -397,9 +397,7 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
   await page.goto("/b/CASS?view=backlog");
   await page.getByRole("button", { name: `Terminer le sprint ${ACTIVE_SPRINT}` }).click();
   await expect(page.getByText("1 tâche · 0 pt", { exact: true })).toBeVisible();
-  await page
-    .getByLabel("Destination des tâches incomplètes")
-    .selectOption({ label: NEXT_SPRINT });
+  await chooseOption(page, "Destination des tâches incomplètes", NEXT_SPRINT);
   timings.push(
     `[timing] complete sprint ${await businessPost(page, () =>
       page.getByRole("button", { name: "Terminer le sprint", exact: true }).click())}ms`,
@@ -809,9 +807,9 @@ test("clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ou
   await page
     .getByRole("button", { name: "Terminer le sprint Audit clôture Backlog" })
     .click();
-  await expect(page.getByLabel("Destination des tâches incomplètes")).toHaveValue(
-    "backlog",
-  );
+  await expect(
+    page.getByRole("combobox", { name: "Destination des tâches incomplètes" }),
+  ).toHaveText("Backlog");
   await businessPost(page, () =>
     page.getByRole("button", { name: "Terminer le sprint", exact: true }).click(),
   );
@@ -839,9 +837,7 @@ test("clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ou
   await page
     .getByRole("button", { name: "Terminer le sprint Audit clôture Nouveau" })
     .click();
-  await page
-    .getByLabel("Destination des tâches incomplètes")
-    .selectOption("new");
+  await chooseOption(page, "Destination des tâches incomplètes", "Nouveau sprint");
   await page
     .getByRole("textbox", { name: "Nom du nouveau sprint" })
     .fill("Audit sprint report créé");

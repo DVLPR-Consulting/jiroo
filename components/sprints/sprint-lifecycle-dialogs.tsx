@@ -17,11 +17,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select";
 import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
 import { countLabel, formatPoints, pointsLabel } from "@/lib/format/plural";
 
-const FIELD =
-  "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 const TEXTAREA =
   "min-h-20 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
@@ -290,13 +289,19 @@ export function CompleteSprintDialog({
           )}
           <div className="space-y-2">
             <Label htmlFor={`${prefix}-destination`}>Destination des tâches incomplètes</Label>
-            <select id={`${prefix}-destination`} className={FIELD} value={destination} onChange={(event) => setDestination(event.target.value)}>
-              <option value="backlog">Backlog</option>
-              {plannedSprints.map((planned) => (
-                <option key={planned.id} value={`existing:${planned.id}`}>{planned.name}</option>
-              ))}
-              <option value="new">Nouveau sprint</option>
-            </select>
+            <SelectField
+              id={`${prefix}-destination`}
+              value={destination}
+              onValueChange={setDestination}
+              options={[
+                { value: "backlog", label: "Backlog" },
+                ...plannedSprints.map((planned) => ({
+                  value: `existing:${planned.id}`,
+                  label: planned.name,
+                })),
+                { value: "new", label: "Nouveau sprint" },
+              ]}
+            />
           </div>
           {destination === "new" && (
             <div className="space-y-2">

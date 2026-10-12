@@ -312,9 +312,10 @@ describe("sprint lifecycle dialogs", () => {
     await user.click(screen.getByRole("button", { name: "Terminer le sprint Sprint paiement" }));
     const destination = screen.getByRole("combobox", { name: "Destination des tâches incomplètes" });
     expect(destination).toHaveTextContent("Backlog");
-    expect(destination).toHaveTextContent("Sprint suivant");
-    expect(destination).toHaveTextContent("Nouveau sprint");
-    await user.selectOptions(destination, "new");
+    await user.click(destination);
+    expect(screen.getByRole("option", { name: "Backlog" })).toBeVisible();
+    expect(screen.getByRole("option", { name: "Sprint suivant" })).toBeVisible();
+    await user.click(screen.getByRole("option", { name: "Nouveau sprint" }));
     await user.type(screen.getByRole("textbox", { name: "Nom du nouveau sprint" }), "Sprint report");
     await user.click(screen.getByRole("button", { name: "Terminer le sprint" }));
 
@@ -323,7 +324,7 @@ describe("sprint lifecycle dialogs", () => {
     );
     expect(screen.getByText("DEMO-42")).toBeVisible();
     expect(screen.getByText("DEMO-43")).toBeVisible();
-    expect(destination).toHaveValue("new");
+    expect(destination).toHaveTextContent("Nouveau sprint");
     expect(screen.getByRole("textbox", { name: "Nom du nouveau sprint" }))
       .toHaveValue("Sprint report");
   });
@@ -348,10 +349,8 @@ describe("sprint lifecycle dialogs", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: "Terminer le sprint Sprint paiement" }));
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Destination des tâches incomplètes" }),
-      `existing:${futureId}`,
-    );
+    await user.click(screen.getByRole("combobox", { name: "Destination des tâches incomplètes" }));
+    await user.click(screen.getByRole("option", { name: "Sprint suivant" }));
     await user.click(screen.getByRole("button", { name: "Terminer le sprint" }));
 
     await waitFor(() =>
@@ -411,11 +410,12 @@ describe("sprint lifecycle dialogs", () => {
     const destination = screen.getByRole("combobox", {
       name: "Destination des tâches incomplètes",
     });
-    await user.selectOptions(destination, `existing:${futureId}`);
+    await user.click(destination);
+    await user.click(screen.getByRole("option", { name: "Sprint suivant" }));
     await user.click(screen.getByRole("button", { name: "Terminer le sprint" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Impossible de terminer le sprint.");
-    expect(destination).toHaveValue(`existing:${futureId}`);
+    expect(destination).toHaveTextContent("Sprint suivant");
     expect(screen.getByRole("dialog")).toBeVisible();
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
