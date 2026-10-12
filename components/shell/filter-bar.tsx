@@ -355,9 +355,8 @@ export function FilterBar({
 
 /**
  * « + Filtre » (JIR-74): Priorité, Label, Version, Sprint (JIR-81, Liste and
- * Arbre only) and Nature, one step to
- * pick the facet, one to pick its values. Once a value is picked the facet
- * shows on the bar as a chip.
+ * Arbre only) and Nature, one step to pick the facet, one to pick its values.
+ * Once a value is picked the facet shows on the bar as a chip.
  */
 function AddFilterMenu({
   filters,
