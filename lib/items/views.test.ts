@@ -609,6 +609,25 @@ describe("createViewInput", () => {
     expect(createViewInput.safeParse(input(["not-a-sprint"])).success).toBe(false);
   });
 
+  it("saves any realistic sprint selection and only bounds oversized payloads", () => {
+    const ids = (count: number) =>
+      Array.from({ length: count }, (_, index) =>
+        `0d8f8a0e-5b7a-4c1e-9d2f-${index.toString(16).padStart(12, "0")}`,
+      );
+    const input = (sprintIds: string[]) => ({
+      name: "Sprint",
+      backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
+      displayMode: "list",
+      filters: { ...empty.filters, sprintIds },
+      group: null,
+      sort: null,
+      shared: false,
+    });
+    expect(createViewInput.safeParse(input([...ids(101), "none"])).success).toBe(true);
+    expect(createViewInput.safeParse(input([...ids(999), "none"])).success).toBe(true);
+    expect(createViewInput.safeParse(input(ids(1001))).success).toBe(false);
+  });
+
   it("accepts a valid input", () => {
     const result = createViewInput.safeParse({
       name: "My view",

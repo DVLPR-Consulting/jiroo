@@ -298,7 +298,9 @@ const filtersSchema = z.object({
   assignees: z.array(z.string()).default([]),
   labels: z.array(z.string()).default([]),
   releaseIds: z.array(z.string()).default([]),
-  sprintIds: z.array(z.union([z.literal("none"), z.uuid()])).max(100).default([]),
+  // Bounds the payload only: far above any backlog's sprint count, so every
+  // selection the Sprint filter allows (all sprints + « Aucun ») can be saved.
+  sprintIds: z.array(z.union([z.literal("none"), z.uuid()])).max(1000).default([]),
   kind: z.array(z.enum(ITEM_KINDS)).default([]),
   underIds: z.array(z.string()).default([]),
   showFixVersions: z.boolean().optional(),
