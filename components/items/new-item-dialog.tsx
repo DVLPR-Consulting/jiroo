@@ -83,6 +83,8 @@ export type NewItemButtonProps = {
   initialParentId?: string;
   trigger?: ReactNode;
   onCreated?: (item: { id: string; key: string }) => void;
+  /** The dialog really closed (cancel, Échap or a create without « Créer un autre »). */
+  onClosed?: () => void;
   enableShortcut?: boolean;
   sprintId?: string | null;
   contextLabel?: string;
@@ -194,6 +196,7 @@ export function NewItemButton({
   initialParentId,
   trigger,
   onCreated,
+  onClosed,
   enableShortcut = false,
   sprintId,
   contextLabel,
@@ -367,6 +370,7 @@ export function NewItemButton({
       } else {
         setOpen(false);
         reset();
+        onClosed?.();
       }
       toast.success(`${item.key} créé`, {
         secondaryAction: { label: "Ouvrir", run: () => openCreated(item.key) },
@@ -393,7 +397,10 @@ export function NewItemButton({
         // Keep the dialog open while a request is in flight (JIR-57).
         if (!o && pending) return;
         setOpen(o);
-        if (!o) reset();
+        if (!o) {
+          reset();
+          onClosed?.();
+        }
         if (o && initialTitle) setTitle(initialTitle);
         if (o && initialParentId) setParentId(initialParentId);
       }}
@@ -713,6 +720,7 @@ export function NewItemButton({
               onClick={() => {
                 setOpen(false);
                 reset();
+                onClosed?.();
               }}
             >
               Annuler

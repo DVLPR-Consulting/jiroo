@@ -48,6 +48,9 @@ export function InlineCreateItem({
   const openerRef = useRef<HTMLButtonElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const parentRef = useRef<HTMLSelectElement>(null);
+  // Set once the full dialog created at least one item: closing it then also
+  // closes this form; a cancelled dialog returns to the inline draft.
+  const createdFromDialog = useRef(false);
   const errorId = useId();
   const selectedParent = parents.some((parent) => parent.id === parentId) ? parentId : "";
 
@@ -191,7 +194,18 @@ export function InlineCreateItem({
           contextLabel={contextLabel}
           initialTitle={title}
           initialParentId={selectedParent}
-          onCreated={() => close()}
+          // A create only clears the inline draft: the dialog host must stay
+          // mounted so « Créer un autre » can keep the dialog open.
+          onCreated={() => {
+            createdFromDialog.current = true;
+            setTitle("");
+            setError(null);
+          }}
+          onClosed={() => {
+            if (!createdFromDialog.current) return;
+            createdFromDialog.current = false;
+            close();
+          }}
           trigger={
             <button
               type="button"
