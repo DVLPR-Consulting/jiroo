@@ -92,6 +92,8 @@ export function createAutosaveScheduler<T>({
   let disposed = false;
   let killed = false;
   let suspended = false;
+  /** The armed debounce comes from `resume`, not from a new change. */
+  let resumeTimer = false;
   let currentSave = save;
   /** Bumped by discard: a save started before it no longer reports errors. */
   let generation = 0;
@@ -124,6 +126,7 @@ export function createAutosaveScheduler<T>({
   const clearTimer = () => {
     if (timer !== null) clearTimeout(timer);
     timer = null;
+    resumeTimer = false;
   };
 
   async function loop() {
@@ -141,6 +144,10 @@ export function createAutosaveScheduler<T>({
       if (killed) return;
       if (!result.ok) {
         if (started !== generation) return;
+        // A failure waits for « Réessayer »: the resume debounce armed while
+        // this request was in flight must not resend it (a new change still
+        // arms its own debounce).
+        if (resumeTimer) clearTimer();
         status = "error";
         error = result.error || DEFAULT_ERROR;
         return;
@@ -232,7 +239,10 @@ export function createAutosaveScheduler<T>({
       // Armed even while a request seems in flight: its loop may already
       // have stopped on the suspension (only its cleanup is left), and a
       // live loop simply takes the latest value first.
-      if (status !== "error" && !equals(latest, saved)) arm();
+      if (status !== "error" && !equals(latest, saved)) {
+        arm();
+        resumeTimer = true;
+      }
     },
     dispose() {
       if (disposed) return inFlight ?? Promise.resolve();

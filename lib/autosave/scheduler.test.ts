@@ -334,4 +334,35 @@ describe("createAutosaveScheduler", () => {
     expect(save).toHaveBeenCalledTimes(1);
     expect(last()).toMatchObject({ status: "error", pending: true });
   });
+
+  it("does not resend a request that fails after resume armed the debounce", async () => {
+    const { scheduler, save, calls, last } = setup();
+    scheduler.change("a");
+    void scheduler.flush();
+    scheduler.suspend();
+    scheduler.resume();
+    calls[0]!.reply.resolve({ ok: false, error: "Indisponible" });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(last()).toMatchObject({ status: "error", error: "Indisponible", pending: true });
+
+    const retried = scheduler.retry();
+    expect(save).toHaveBeenCalledTimes(2);
+    calls[1]!.reply.resolve({ ok: true });
+    await retried;
+    expect(last()).toMatchObject({ status: "saved", pending: false });
+  });
+
+  it("still sends a change typed after resume when the request in flight fails", async () => {
+    const { scheduler, save, calls } = setup();
+    scheduler.change("a");
+    void scheduler.flush();
+    scheduler.suspend();
+    scheduler.resume();
+    scheduler.change("ab");
+    calls[0]!.reply.resolve({ ok: false, error: "Indisponible" });
+    await vi.advanceTimersByTimeAsync(800);
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith("ab");
+  });
 });
