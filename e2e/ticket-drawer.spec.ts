@@ -343,6 +343,7 @@ test.describe("fenêtre « Nouvel item »", () => {
     await expect(contextual).toBeVisible();
     await expect(contextual.getByRole("combobox", { name: "Type" })).toHaveCount(0);
     await expect(contextual.getByRole("group", { name: "Type" })).toHaveText("Tâche");
+    await expect(contextual.getByRole("toolbar", { name: "Mise en forme" })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("jir80-create-dialog-contextual.png"), caret: "initial" });
 
     // On a short screen the body scrolls and the footer stays in view.
