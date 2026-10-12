@@ -90,9 +90,11 @@ async function persistAudit(slug: string, captures: AuditCapture[]) {
 }
 
 async function captureReviewScreenshot(target: Page | Locator, bugId: string) {
+  // `caret: "initial"`: Playwright's caret-hiding style can race React
+  // hydration and log a caret-color mismatch as a console error.
   await writeAuditScreenshot(
     `audit/screenshots/FIXED-${bugId}.png`,
-    (path) => target.screenshot({ path }),
+    (path) => target.screenshot({ path, caret: "initial" }),
   );
 }
 
