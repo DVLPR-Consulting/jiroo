@@ -112,6 +112,105 @@ describe("release without an active user", () => {
     expect(hasUnsavedDrafts()).toBe(true);
   });
 
+  it("does not send an armed debounce once the session is inactive", async () => {
+    vi.useFakeTimers();
+    try {
+      const save = vi.fn().mockResolvedValue({ ok: true });
+      const entry = acquireDraft("alice", "k", () =>
+        createAutosaveScheduler<string>({ initial: "A", delay: 900, save }) as never,
+      );
+      retainDraft(entry);
+      entry.scheduler.change("B");
+      setActiveDraftUser(null);
+      releaseDraft(entry);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(save).not.toHaveBeenCalled();
+      expect(isDraftKept(entry)).toBe(true);
+      expect(hasUnsavedDrafts()).toBe(true);
+
+      // Its owner comes back: the kept draft is sent after the debounce.
+      setActiveDraftUser("alice");
+      await vi.advanceTimersByTimeAsync(899);
+      expect(save).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(save).toHaveBeenCalledExactlyOnceWith("B");
+      expect(hasUnsavedDrafts()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("resumes even when the owner returns before the suspended request cleaned up", async () => {
+    vi.useFakeTimers();
+    try {
+      let resolve!: (result: { ok: true }) => void;
+      const reply = new Promise<{ ok: true }>((res) => (resolve = res));
+      const save = vi.fn().mockReturnValueOnce(reply).mockResolvedValue({ ok: true });
+      const entry = acquireDraft("alice", "k", () =>
+        createAutosaveScheduler<string>({ initial: "A", delay: 20, save }) as never,
+      );
+      retainDraft(entry);
+      entry.scheduler.change("B");
+      const flight = entry.scheduler.flush();
+      entry.scheduler.change("C");
+      setActiveDraftUser(null);
+      // Runs after the loop stopped on the suspension, before its cleanup.
+      void reply.then(() => setActiveDraftUser("alice"));
+      resolve({ ok: true });
+      await flight;
+      await vi.advanceTimersByTimeAsync(80);
+      expect(save).toHaveBeenLastCalledWith("C");
+      expect(hasUnsavedDrafts()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("drops a released draft once its resumed save succeeds", async () => {
+    vi.useFakeTimers();
+    try {
+      const save = vi.fn().mockResolvedValue({ ok: true });
+      const entry = acquireDraft("alice", "k", () =>
+        createAutosaveScheduler<string>({ initial: "A", delay: 900, save }) as never,
+      );
+      retainDraft(entry);
+      entry.scheduler.change("B");
+      setActiveDraftUser(null);
+      releaseDraft(entry);
+      setActiveDraftUser("alice");
+      await vi.advanceTimersByTimeAsync(900);
+      expect(save).toHaveBeenCalledExactlyOnceWith("B");
+      expect(isDraftKept(entry)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("starts no next save after the request in flight when the session ends", async () => {
+    let resolve!: (result: { ok: true }) => void;
+    const save = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise((res) => (resolve = res)))
+      .mockResolvedValue({ ok: true });
+    const entry = acquireDraft("alice", "k", () =>
+      createAutosaveScheduler<string>({ initial: "A", delay: 900, save }) as never,
+    );
+    retainDraft(entry);
+    entry.scheduler.change("B");
+    void entry.scheduler.flush();
+    entry.scheduler.change("C");
+    setActiveDraftUser(null);
+    resolve({ ok: true });
+    await new Promise((res) => setTimeout(res, 0));
+    expect(save).toHaveBeenCalledExactlyOnceWith("B");
+    expect(hasUnsavedDrafts()).toBe(true);
+
+    setActiveDraftUser("alice");
+    await flushAllDrafts();
+    expect(save).toHaveBeenLastCalledWith("C");
+    expect(hasUnsavedDrafts()).toBe(false);
+  });
+
   it("still kills it when another user is active", () => {
     const save = vi.fn();
     const entry = acquireDraft("alice", "k", () =>

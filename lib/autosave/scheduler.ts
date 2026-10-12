@@ -46,6 +46,14 @@ export type AutosaveScheduler<T> = {
    * nothing and triggers no further send; later calls are ignored.
    */
   kill: () => void;
+  /**
+   * Holds every new send (no active session): the debounce is cancelled, a
+   * request already sent completes but starts no next one, and changes are
+   * recorded without being sent. The draft stays pending until `resume`.
+   */
+  suspend: () => void;
+  /** Lifts `suspend`: a pending change restarts its debounce. */
+  resume: () => void;
   /** Flushes and stops: later calls and notifications are ignored. */
   dispose: () => Promise<void>;
   /** Current state; the same object until it changes (useSyncExternalStore). */
@@ -83,6 +91,9 @@ export function createAutosaveScheduler<T>({
   let inFlight: Promise<void> | null = null;
   let disposed = false;
   let killed = false;
+  let suspended = false;
+  /** The armed debounce comes from `resume`, not from a new change. */
+  let resumeTimer = false;
   let currentSave = save;
   /** Bumped by discard: a save started before it no longer reports errors. */
   let generation = 0;
@@ -115,10 +126,11 @@ export function createAutosaveScheduler<T>({
   const clearTimer = () => {
     if (timer !== null) clearTimeout(timer);
     timer = null;
+    resumeTimer = false;
   };
 
   async function loop() {
-    while (!killed && !equals(latest, saved)) {
+    while (!killed && !suspended && !equals(latest, saved)) {
       const value = latest;
       const started = generation;
       status = "saving";
@@ -132,6 +144,10 @@ export function createAutosaveScheduler<T>({
       if (killed) return;
       if (!result.ok) {
         if (started !== generation) return;
+        // A failure waits for « Réessayer »: the resume debounce armed while
+        // this request was in flight must not resend it (a new change still
+        // arms its own debounce).
+        if (resumeTimer) clearTimer();
         status = "error";
         error = result.error || DEFAULT_ERROR;
         return;
@@ -150,10 +166,19 @@ export function createAutosaveScheduler<T>({
     }
   }
 
+  function arm() {
+    clearTimer();
+    timer = setTimeout(() => {
+      timer = null;
+      void run();
+    }, delay);
+  }
+
   function run(): Promise<void> {
     clearTimer();
     // The running loop picks the latest value up when its save returns.
     if (inFlight) return inFlight;
+    if (suspended) return Promise.resolve();
     if (equals(latest, saved) && status !== "error") {
       notify();
       return Promise.resolve();
@@ -169,11 +194,8 @@ export function createAutosaveScheduler<T>({
     change(value) {
       if (disposed) return;
       latest = value;
-      clearTimer();
-      timer = setTimeout(() => {
-        timer = null;
-        void run();
-      }, delay);
+      if (suspended) clearTimer();
+      else arm();
       notify();
     },
     flush: () => (disposed ? (inFlight ?? Promise.resolve()) : run()),
@@ -205,6 +227,22 @@ export function createAutosaveScheduler<T>({
       killed = true;
       disposed = true;
       clearTimer();
+    },
+    suspend() {
+      suspended = true;
+      clearTimer();
+    },
+    resume() {
+      if (disposed || !suspended) return;
+      suspended = false;
+      // A failed save waits for « Réessayer », as before the suspension.
+      // Armed even while a request seems in flight: its loop may already
+      // have stopped on the suspension (only its cleanup is left), and a
+      // live loop simply takes the latest value first.
+      if (status !== "error" && !equals(latest, saved)) {
+        arm();
+        resumeTimer = true;
+      }
     },
     dispose() {
       if (disposed) return inFlight ?? Promise.resolve();

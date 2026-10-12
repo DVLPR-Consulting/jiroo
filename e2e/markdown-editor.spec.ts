@@ -44,6 +44,20 @@ async function openItem(page: Page, key: string) {
   return dialog;
 }
 
+/** In the page: the caret is collapsed at the end of its text block. */
+function caretAtBlockEnd() {
+  const selection = window.getSelection();
+  const node = selection?.anchorNode;
+  if (!selection?.isCollapsed || !node) return false;
+  const element = node instanceof Element ? node : node.parentElement;
+  const block = element?.closest("p, li, h1, h2, h3, h4, h5, h6");
+  if (!block) return false;
+  const rest = document.createRange();
+  rest.setStart(node, selection.anchorOffset);
+  rest.setEnd(block, block.childNodes.length);
+  return rest.toString() === "";
+}
+
 async function descriptionActivities(id: string) {
   return db.select({ oldValue: activities.oldValue, newValue: activities.newValue })
     .from(activities)
@@ -256,8 +270,13 @@ test.describe("éditeur Markdown visuel", () => {
     await article.getByRole("button", { name: "Modifier" }).click();
     const edit = article.getByRole("textbox", { name: "Modifier le commentaire" });
     await expect(edit.locator("strong")).toHaveText("correctif");
-    await edit.locator("strong").click();
-    await page.keyboard.press("End");
+    // The click can land before the editor takes its selection: retry until
+    // End really put the caret at the end of the paragraph.
+    await expect(async () => {
+      await edit.locator("strong").click();
+      await page.keyboard.press("End");
+      expect(await page.evaluate(caretAtBlockEnd)).toBe(true);
+    }).toPass();
     await page.keyboard.press("Enter");
     await article.getByRole("button", { name: "Liste à puces" }).click();
     await page.keyboard.type("à vérifier");
