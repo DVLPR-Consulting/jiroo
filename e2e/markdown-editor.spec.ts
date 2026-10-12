@@ -270,13 +270,12 @@ test.describe("éditeur Markdown visuel", () => {
     await article.getByRole("button", { name: "Modifier" }).click();
     const edit = article.getByRole("textbox", { name: "Modifier le commentaire" });
     await expect(edit.locator("strong")).toHaveText("correctif");
-    // The click can land before the editor takes its selection: retry until
-    // End really put the caret at the end of the paragraph.
-    await expect(async () => {
-      await edit.locator("strong").click();
-      await page.keyboard.press("End");
-      expect(await page.evaluate(caretAtBlockEnd)).toBe(true);
-    }).toPass();
+    // Keyboard only: after a click, ProseMirror writes its own selection back
+    // to the DOM on a timer, which could undo an End pressed right after it
+    // (Enter then split « correctif »). Move to the document end instead.
+    await edit.focus();
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+ArrowDown" : "Control+End");
+    await expect.poll(() => page.evaluate(caretAtBlockEnd)).toBe(true);
     await page.keyboard.press("Enter");
     await article.getByRole("button", { name: "Liste à puces" }).click();
     await page.keyboard.type("à vérifier");
