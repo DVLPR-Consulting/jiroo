@@ -209,7 +209,10 @@ export function InlineCreateItem({
           trigger={
             <button
               type="button"
-              className="h-8 rounded-[var(--radius)] px-2 text-xs font-medium text-muted-foreground outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+              // The draft is already being created inline: the full dialog
+              // must not be able to send it a second time.
+              disabled={pending}
+              className="h-8 rounded-[var(--radius)] px-2 text-xs font-medium text-muted-foreground outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Plus d’options
             </button>

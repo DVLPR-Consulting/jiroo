@@ -134,4 +134,28 @@ describe("InlineCreateItem « Plus d’options »", () => {
       .toHaveValue("Brouillon");
     expect(mocks.createItemAction).not.toHaveBeenCalled();
   });
+
+  it("locks « Plus d’options » while an inline create is pending", async () => {
+    const user = userEvent.setup();
+    let settle: (value: unknown) => void = () => undefined;
+    mocks.createItemAction.mockReturnValueOnce(new Promise((resolve) => { settle = resolve; }));
+    render(<Harness />);
+
+    await user.click(screen.getByRole("button", { name: "Créer un item dans Sprint 2" }));
+    const field = screen.getByRole("textbox", { name: "Titre du nouvel item dans Sprint 2" });
+    await user.type(field, "Même titre{Enter}");
+
+    const more = screen.getByRole("button", { name: "Plus d’options" });
+    await waitFor(() => expect(more).toBeDisabled());
+    expect(field).toHaveFocus();
+    await user.click(more);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(mocks.createItemAction).toHaveBeenCalledTimes(1);
+
+    settle(created("DEMO-10"));
+    await waitFor(() => expect(more).toBeEnabled());
+    expect(field).toHaveValue("");
+    expect(field).toHaveFocus();
+    expect(mocks.createItemAction).toHaveBeenCalledTimes(1);
+  });
 });
