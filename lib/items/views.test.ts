@@ -22,7 +22,7 @@ import type { ViewState } from "./filter";
 // ---------------------------------------------------------------------------
 
 const empty: ViewState = {
-  filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+  filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
   group: null,
   sort: null,
 };
@@ -35,7 +35,7 @@ const full: ViewState = {
     priorities: [0, 2],
     assignees: ["u1", "none"],
     labels: [],
-    releaseIds: ["v2", "v1"],
+    releaseIds: ["v2", "v1"], sprintIds: [],
     kind: [], underIds: [],
   },
   group: "priority",
@@ -91,7 +91,7 @@ describe("viewStateToColumns", () => {
 
   it("preserves priority 0 in filters (regression guard)", () => {
     const state: ViewState = {
-      filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
     };
@@ -206,7 +206,7 @@ describe("columnsToViewState", () => {
       priorities: [],
       assignees: [],
       labels: [],
-      releaseIds: [],
+      releaseIds: [], sprintIds: [],
       kind: [], underIds: [],
     });
   });
@@ -249,6 +249,25 @@ describe("columnsToViewState", () => {
     ).toEqual([]);
   });
 
+  it("restores sprint filters defensively and defaults pre-JIR-81 views to none", () => {
+    expect(
+      columnsToViewState({
+        displayMode: "list",
+        groupBy: null,
+        filters: { sprintIds: ["s2", 7, "none"] },
+        sort: "manual",
+      }).state.filters.sprintIds,
+    ).toEqual(["s2", "none"]);
+    expect(
+      columnsToViewState({
+        displayMode: "list",
+        groupBy: null,
+        filters: {},
+        sort: "manual",
+      }).state.filters.sprintIds,
+    ).toEqual([]);
+  });
+
   it("drops invalid types and priorities defensively", () => {
     const { state } = columnsToViewState({
       displayMode: "board",
@@ -269,7 +288,7 @@ describe("columnsToViewState", () => {
   it("preserves priority 0 in round-trip (regression guard)", () => {
     const cols = viewStateToColumns(
       {
-        filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+        filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
         group: null,
         sort: null,
       },
@@ -389,6 +408,17 @@ describe("isViewDirty", () => {
     expect(isViewDirty(saved, { state: changed, displayMode: "list" })).toBe(true);
   });
 
+  it("compares saved sprint filters as an order-insensitive set", () => {
+    const withSprints = (sprintIds: string[]): ViewState => ({
+      ...full,
+      filters: { ...full.filters, sprintIds },
+    });
+    const savedWithSprints = { state: withSprints(["s1", "none"]), displayMode: "list" as const };
+
+    expect(isViewDirty(savedWithSprints, { state: withSprints(["none", "s1"]), displayMode: "list" })).toBe(false);
+    expect(isViewDirty(savedWithSprints, { state: withSprints(["s1"]), displayMode: "list" })).toBe(true);
+  });
+
   it("detects a length difference in statusIds", () => {
     const current: ViewState = {
       ...full,
@@ -407,7 +437,7 @@ describe("isViewDirty", () => {
 
   it("preserves priority 0 comparison correctly (regression guard)", () => {
     const withZero: ViewState = {
-      filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
     };
@@ -487,7 +517,7 @@ describe("buildViewUrl", () => {
     const prioView = {
       id: "v2",
       state: {
-        filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+        filters: { q: "", types: [], statusIds: [], priorities: [0], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
         group: null,
         sort: null,
       } satisfies ViewState,
@@ -508,7 +538,7 @@ describe("buildViewUrl", () => {
 describe("saved-view URL mutations", () => {
   const staleParams = () =>
     new URLSearchParams(
-      "q=old&type=epic&status=old&prio=4&assignee=old&label=old&version=old" +
+      "q=old&type=epic&status=old&prio=4&assignee=old&label=old&version=old&sprint=old" +
         "&kind=bug&under=old&group=status&sort=title%3Adesc" +
         "&view=tree&v=view-old&item=DEMO-1&tag=a&tag=b",
     );
@@ -561,12 +591,49 @@ describe("createViewInput", () => {
     if (result.success) expect(result.data.filters.releaseIds).toEqual(["v2", "v1"]);
   });
 
+  it("keeps sprint ids and « Aucun sprint » in saved-view input, rejecting malformed ids", () => {
+    const input = (sprintIds: string[]) => ({
+      name: "Sprint",
+      backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
+      displayMode: "list",
+      filters: { ...empty.filters, sprintIds },
+      group: null,
+      sort: null,
+      shared: false,
+    });
+    const valid = createViewInput.safeParse(input(["0d8f8a0e-5b7a-4c1e-9d2f-3a4b5c6d7e8f", "none"]));
+    expect(valid.success).toBe(true);
+    if (valid.success) {
+      expect(valid.data.filters.sprintIds).toEqual(["0d8f8a0e-5b7a-4c1e-9d2f-3a4b5c6d7e8f", "none"]);
+    }
+    expect(createViewInput.safeParse(input(["not-a-sprint"])).success).toBe(false);
+  });
+
+  it("saves any realistic sprint selection and only bounds oversized payloads", () => {
+    const ids = (count: number) =>
+      Array.from({ length: count }, (_, index) =>
+        `0d8f8a0e-5b7a-4c1e-9d2f-${index.toString(16).padStart(12, "0")}`,
+      );
+    const input = (sprintIds: string[]) => ({
+      name: "Sprint",
+      backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
+      displayMode: "list",
+      filters: { ...empty.filters, sprintIds },
+      group: null,
+      sort: null,
+      shared: false,
+    });
+    expect(createViewInput.safeParse(input([...ids(101), "none"])).success).toBe(true);
+    expect(createViewInput.safeParse(input([...ids(999), "none"])).success).toBe(true);
+    expect(createViewInput.safeParse(input(ids(1001))).success).toBe(false);
+  });
+
   it("accepts a valid input", () => {
     const result = createViewInput.safeParse({
       name: "My view",
       backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -578,7 +645,7 @@ describe("createViewInput", () => {
     const result = createViewInput.safeParse({
       name: "",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -590,7 +657,7 @@ describe("createViewInput", () => {
     const result = createViewInput.safeParse({
       name: "a".repeat(81),
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -603,7 +670,7 @@ describe("createViewInput", () => {
       name: "  My view  ",
       backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -616,7 +683,7 @@ describe("createViewInput", () => {
     const result = createViewInput.safeParse({
       name: "ok",
       displayMode: "kanban",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -630,7 +697,7 @@ describe("createViewInput", () => {
         name: "ok",
         backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
         displayMode: mode,
-        filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+        filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
         group: null,
         sort: null,
         shared: false,
@@ -644,7 +711,7 @@ describe("createViewInput", () => {
       name: "ok",
       backlogId: "5764b39c-d013-4db6-ba82-48183cb28954",
       displayMode: "list",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
       group: "priority",
       sort: { field: "key", dir: "asc" },
       shared: true,
@@ -656,7 +723,7 @@ describe("createViewInput", () => {
     const result = createViewInput.safeParse({
       name: "ok",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -669,7 +736,7 @@ describe("createViewInput", () => {
       name: "ok",
       backlogId: "not-a-uuid",
       displayMode: "board",
-      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], kind: [], underIds: [] },
+      filters: { q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
       group: null,
       sort: null,
       shared: false,
@@ -681,7 +748,7 @@ describe("createViewInput", () => {
 describe("updateViewStateInput", () => {
   const validState = {
     displayMode: "list",
-    filters: { q: "bug", types: ["tache"], statusIds: ["s1"], priorities: [2], assignees: ["u1"], labels: [], releaseIds: [], kind: [], underIds: [] },
+    filters: { q: "bug", types: ["tache"], statusIds: ["s1"], priorities: [2], assignees: ["u1"], labels: [], releaseIds: [], sprintIds: [], kind: [], underIds: [] },
     group: "priority",
     sort: { field: "key", dir: "asc" },
   };

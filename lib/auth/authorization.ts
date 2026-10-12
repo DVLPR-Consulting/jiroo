@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { and, eq, exists, isNull, or, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   evaluatePermission,
   type GrantMatch,
@@ -140,6 +140,17 @@ type LoadMatchesInput = {
 };
 
 async function loadGrantMatches(input: LoadMatchesInput): Promise<GrantMatch[]> {
+  const byPermission = await loadGrantMatchesByPermission({
+    ...input,
+    permissions: [input.permission],
+  });
+  return byPermission.get(input.permission) ?? [];
+}
+
+/** The grant matches of several permissions in one query, per permission. */
+async function loadGrantMatchesByPermission(
+  input: Omit<LoadMatchesInput, "permission"> & { permissions: PermissionKey[] },
+): Promise<Map<PermissionKey, GrantMatch[]>> {
   const principalCondition =
     input.scope.type === "global"
       ? or(
@@ -178,6 +189,7 @@ async function loadGrantMatches(input: LoadMatchesInput): Promise<GrantMatch[]> 
 
   const rows = await db
     .select({
+      permissionKey: permissionGrants.permissionKey,
       principalType: permissionGrants.principalType,
       userId: permissionGrants.userId,
       groupId: permissionGrants.groupId,
@@ -188,9 +200,13 @@ async function loadGrantMatches(input: LoadMatchesInput): Promise<GrantMatch[]> 
     .from(permissionGrants)
     .leftJoin(userGroups, eq(permissionGrants.groupId, userGroups.id))
     .leftJoin(projectRoles, eq(permissionGrants.projectRoleId, projectRoles.id))
-    .where(and(scopeCondition, eq(permissionGrants.permissionKey, input.permission), principalCondition));
+    .where(and(
+      scopeCondition,
+      inArray(permissionGrants.permissionKey, input.permissions),
+      principalCondition,
+    ));
 
-  const matches = new Map<string, GrantMatch>();
+  const matchesByPermission = new Map<PermissionKey, Map<string, GrantMatch>>();
   for (const row of rows) {
     let match: GrantMatch | null = null;
     if (row.principalType === "user" && row.userId) {
@@ -215,10 +231,17 @@ async function loadGrantMatches(input: LoadMatchesInput): Promise<GrantMatch[]> 
       };
     }
 
-    if (match) matches.set(`${match.type}:${match.id}`, match);
+    if (match) {
+      const permission = row.permissionKey as PermissionKey;
+      const matches = matchesByPermission.get(permission) ?? new Map<string, GrantMatch>();
+      matches.set(`${match.type}:${match.id}`, match);
+      matchesByPermission.set(permission, matches);
+    }
   }
 
-  return [...matches.values()];
+  return new Map(
+    [...matchesByPermission].map(([permission, matches]) => [permission, [...matches.values()]]),
+  );
 }
 
 function deniedUnknown(input: CheckPermissionInput): AuthorizationDecision {
@@ -314,6 +337,87 @@ export async function checkPermission(
     hasBrowse,
     matches,
   });
+}
+
+export type CheckPermissionsInput = {
+  actorId: string;
+  permissions: readonly string[];
+  scope: PermissionScope;
+};
+
+/**
+ * `checkPermission` for several permissions of one actor and scope: the same
+ * decisions, but the actor, the backlog's scheme, the administrator status
+ * and every grant match (browse included) are loaded once, in two rounds of
+ * queries instead of about five queries per permission.
+ */
+export async function checkPermissions(
+  input: CheckPermissionsInput,
+): Promise<Map<string, AuthorizationDecision>> {
+  const decisions = new Map<string, AuthorizationDecision>();
+  const known: PermissionKey[] = [];
+  for (const permission of new Set(input.permissions)) {
+    const single = { actorId: input.actorId, permission, scope: input.scope };
+    const key = knownPermission(single);
+    if (key) known.push(key);
+    else decisions.set(permission, deniedUnknown(single));
+  }
+  const denyKnown = () => {
+    for (const permission of known) {
+      decisions.set(
+        permission,
+        deniedUnknown({ actorId: input.actorId, permission, scope: input.scope }),
+      );
+    }
+    return decisions;
+  };
+  if (known.length === 0) return decisions;
+
+  const [actor, context] = await Promise.all([
+    loadActor(input.actorId),
+    input.scope.type === "backlog"
+      ? loadBacklogAuthorizationContext(input.scope.backlogId)
+      : Promise.resolve(null),
+  ]);
+  if (!actor) return denyKnown();
+  if (input.scope.type === "backlog" && !context) return denyKnown();
+  const permissionSchemeId = context?.permissionSchemeId ?? undefined;
+
+  const unmatchable = input.scope.type === "backlog" && !permissionSchemeId;
+  const matchedPermissions: PermissionKey[] = unmatchable
+    ? []
+    : input.scope.type === "backlog" && !known.includes("browse_backlog")
+      ? [...known, "browse_backlog"]
+      : known;
+  const [platformAdministrator, matchesByPermission] = await Promise.all([
+    isPlatformAdministrator(actor),
+    matchedPermissions.length > 0
+      ? loadGrantMatchesByPermission({
+          actor,
+          permissions: matchedPermissions,
+          scope: input.scope,
+          permissionSchemeId,
+        })
+      : Promise.resolve(new Map<PermissionKey, GrantMatch[]>()),
+  ]);
+  const hasBrowseGrant = (matchesByPermission.get("browse_backlog")?.length ?? 0) > 0;
+
+  for (const permission of known) {
+    const hasBrowse =
+      input.scope.type === "global" || permission === "browse_backlog"
+        ? true
+        : !permissionSchemeId
+          ? false
+          : hasBrowseGrant;
+    decisions.set(permission, evaluatePermission({
+      permission,
+      scope: input.scope,
+      platformAdministrator,
+      hasBrowse,
+      matches: matchesByPermission.get(permission) ?? [],
+    }));
+  }
+  return decisions;
 }
 
 export type AssignableUserIdentity = { id: string; name: string };

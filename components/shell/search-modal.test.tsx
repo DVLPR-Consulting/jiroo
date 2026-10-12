@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { currentHref } from "@/test/history";
 import { SHORTCUTS_ENABLED_STORAGE_KEY } from "@/lib/shortcuts/preferences";
 import { SearchModal } from "@/components/shell/search-modal";
 import { FilterBar } from "@/components/shell/filter-bar";
@@ -43,7 +44,7 @@ const emptyState: ViewState = {
     priorities: [],
     assignees: [],
     labels: [],
-    releaseIds: [],
+    releaseIds: [], sprintIds: [],
     kind: [],
     underIds: [],
   },
@@ -364,6 +365,7 @@ describe("SearchModal item navigation", () => {
       results: [recentResult],
     });
     const setItem = vi.spyOn(Storage.prototype, "setItem");
+    const pushState = vi.spyOn(window.history, "pushState");
 
     renderSubject();
     fireEvent.click(screen.getByRole("button", { name: "Rechercher un item" }));
@@ -380,13 +382,16 @@ describe("SearchModal item navigation", () => {
       "jiroo-recent-items",
       JSON.stringify(["DEMO-2", "DEMO-1"]),
     );
+    // Same backlog: the drawer opens through the History API.
     expect(setItem.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.push.mock.invocationCallOrder[0]!,
+      pushState.mock.invocationCallOrder[0]!,
     );
-    expect(mocks.push).toHaveBeenCalledWith(
+    expect(currentHref()).toBe(
       "/b/DEMO?view=board&v=saved&group=component&type=tache&tag=a&tag=b&item=DEMO-2",
     );
+    expect(mocks.push).not.toHaveBeenCalled();
     setItem.mockRestore();
+    pushState.mockRestore();
   });
 
   afterEach(() => {
@@ -402,9 +407,10 @@ describe("SearchModal item navigation", () => {
 
     fireEvent.click(await revealResult());
 
-    expect(mocks.push).toHaveBeenLastCalledWith(
+    expect(currentHref()).toBe(
       "/b/DEMO?view=board&v=saved&group=component&type=tache&tag=a&tag=b&item=DEMO-1",
     );
+    expect(mocks.push).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await act(async () => vi.advanceTimersByTime(150));
@@ -424,10 +430,10 @@ describe("SearchModal item navigation", () => {
 
     fireEvent.click(await revealResult());
 
-    expect(mocks.push).toHaveBeenLastCalledWith(
+    expect(currentHref()).toBe(
       "/b/DEMO?view=board&v=saved&group=component&type=tache&tag=a&tag=b&item=DEMO-1",
     );
-    expect(mocks.push).toHaveBeenCalledTimes(3);
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it.each([

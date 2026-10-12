@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NewItemButton } from "@/components/items/new-item-dialog";
 import { KeyboardShortcutsProvider } from "@/components/shortcuts/keyboard-shortcuts-provider";
@@ -51,6 +51,12 @@ const releaseOptions = [
   },
 ];
 
+/** Picks `option` in the dialog's Radix select named `name`. */
+async function choose(user: UserEvent, name: string | RegExp, option: string) {
+  await user.click(screen.getByRole("combobox", { name }));
+  await user.click(screen.getByRole("option", { name: option }));
+}
+
 /** « c » goes through the app-wide shortcut layer, as in the real shell. */
 function renderWithShortcuts(ui: React.ReactElement) {
   const result = render(<KeyboardShortcutsProvider>{ui}</KeyboardShortcutsProvider>);
@@ -95,7 +101,7 @@ describe("NewItemButton", () => {
     await user.click(screen.getByRole("button", { name: "Plus d’options" }));
     expect(screen.getByRole("heading", { name: "Nouvelle tâche — Sprint 2" })).toBeVisible();
     expect(screen.getByRole("textbox", { name: /Titre/ })).toHaveValue("Écran de vérification");
-    expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveValue("epic-id");
+    expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveTextContent("DEMO-9 — Connexion");
   });
 
   it("opens from a custom trigger with the supplied initial status", async () => {
@@ -110,7 +116,7 @@ describe("NewItemButton", () => {
 
     await user.click(screen.getByRole("button", { name: "Ajouter dans la colonne" }));
 
-    expect(screen.getByRole("combobox", { name: "Statut" })).toHaveValue("doing-id");
+    expect(screen.getByRole("combobox", { name: "Statut" })).toHaveTextContent("En cours");
   });
 
   it("submits the supplied status and reports the created item", async () => {
@@ -237,8 +243,9 @@ describe("NewItemButton", () => {
     await user.click(screen.getByRole("button", { name: "Nouvel item" }));
     expect(screen.getByRole("heading", { name: "Nouvelle tâche — Sprint paiement" }))
       .toBeVisible();
-    expect(screen.getByRole("combobox", { name: "Type" })).toHaveValue("tache");
-    await user.selectOptions(screen.getByRole("combobox", { name: /Parent/ }), "epic-id");
+    expect(screen.queryByRole("combobox", { name: "Type" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Type" })).toHaveTextContent("Tâche");
+    await choose(user, /Parent/, "DEMO-2 — Paiement");
     await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Paiement invité");
     await user.click(screen.getByRole("button", { name: /Créer$/ }));
 
@@ -267,6 +274,7 @@ describe("NewItemButton", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    await user.click(screen.getByRole("combobox", { name: "Type" }));
 
     expect(screen.getByRole("option", { name: "Composant" })).toBeVisible();
     expect(screen.queryByRole("option", { name: "Epic" })).not.toBeInTheDocument();
@@ -279,13 +287,13 @@ describe("NewItemButton", () => {
     render(<NewItemButton {...dialogProps()} initialStatusId="doing-id" />);
 
     await user.click(screen.getByRole("button", { name: "Nouvel item" }));
-    await user.selectOptions(screen.getByRole("combobox", { name: "Statut" }), "ready-id");
-    expect(screen.getByRole("combobox", { name: "Statut" })).toHaveValue("ready-id");
+    await choose(user, "Statut", "Prêt");
+    expect(screen.getByRole("combobox", { name: "Statut" })).toHaveTextContent("Prêt");
 
     await user.click(screen.getByRole("button", { name: "Close" }));
     await user.click(screen.getByRole("button", { name: "Nouvel item" }));
 
-    expect(screen.getByRole("combobox", { name: "Statut" })).toHaveValue("doing-id");
+    expect(screen.getByRole("combobox", { name: "Statut" })).toHaveTextContent("En cours");
   });
 
   it("opens with C only when the shortcut is enabled", () => {
@@ -472,14 +480,15 @@ describe("NewItemButton", () => {
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       const dialog = screen.getByRole("dialog", { name: "Nouvel item" });
       expect(dialog).toHaveTextContent("DEMO");
-      expect(screen.getByRole("combobox", { name: "Type" })).toHaveValue("tache");
-      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveValue("epic-id");
+      expect(screen.getByRole("combobox", { name: "Type" })).toHaveTextContent("Tâche");
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveTextContent("DEMO-2 — Paiement");
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche complète");
+      expect(screen.getByRole("combobox", { name: "Assigné" })).toHaveTextContent("Non assigné");
       await user.click(screen.getByRole("button", { name: "M’assigner" }));
-      expect(screen.getByRole("combobox", { name: "Assigné" })).toHaveValue("me");
+      expect(screen.getByRole("combobox", { name: "Assigné" })).toHaveTextContent("Marie Lemaire");
       expect(screen.queryByRole("button", { name: "M’assigner" })).not.toBeInTheDocument();
       await user.type(screen.getByRole("spinbutton", { name: "Points" }), "3.5");
-      await user.selectOptions(screen.getByRole("combobox", { name: "Sprint" }), "Sprint 4");
+      await choose(user, "Sprint", "Sprint 4");
       await user.click(screen.getByRole("button", { name: "Labels" }));
       await user.click(screen.getByRole("menuitemcheckbox", { name: "front" }));
       await user.keyboard("{Escape}");
@@ -523,8 +532,8 @@ describe("NewItemButton", () => {
 
       await waitFor(() => expect(screen.getByRole("textbox", { name: /Titre/ })).toHaveValue(""));
       expect(screen.getByRole("dialog", { name: "Nouvel item" })).toBeVisible();
-      expect(screen.getByRole("combobox", { name: "Type" })).toHaveValue("tache");
-      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveValue("epic-id");
+      expect(screen.getByRole("combobox", { name: "Type" })).toHaveTextContent("Tâche");
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveTextContent("DEMO-2 — Paiement");
       expect(screen.getByRole("textbox", { name: /Titre/ })).toHaveFocus();
     });
 
@@ -567,7 +576,7 @@ describe("NewItemButton", () => {
         />,
       );
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
-      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveValue("");
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveTextContent("Choisir un epic…");
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche");
       expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
       expect(mocks.createItemAction).not.toHaveBeenCalled();
@@ -581,6 +590,115 @@ describe("NewItemButton", () => {
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche");
       expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
+    });
+  });
+
+  describe("select fields (JIR-80)", () => {
+    it("chooses type, priority, nature and template through the selects, icons included", async () => {
+      const user = userEvent.setup();
+      mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: { id: "i", key: "DEMO-9" } });
+      render(
+        <NewItemButton
+          {...dialogProps()}
+          items={[{ id: "component-id", key: "DEMO-1", type: "composant", title: "Plateforme" }]}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+
+      const type = screen.getByRole("combobox", { name: "Type" });
+      expect(type).toHaveTextContent("Composant");
+      expect(type.querySelector('svg[aria-label="Composant"]')).toBeInTheDocument();
+      await choose(user, "Type", "Epic");
+      expect(type).toHaveTextContent("Epic");
+      await choose(user, /Parent/, "DEMO-1 — Plateforme");
+
+      const priority = screen.getByRole("combobox", { name: "Priorité" });
+      expect(priority).toHaveTextContent("Aucune");
+      await choose(user, "Priorité", "Haute");
+      expect(priority).toHaveTextContent("Haute");
+      await choose(user, "Nature", "Bug");
+      await choose(user, "Modèle", "Aucun");
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Epic choisie");
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+      await waitFor(() =>
+        expect(mocks.createItemAction).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "epic",
+            parentId: "component-id",
+            priority: 3,
+            kind: "bug",
+            statusId: undefined,
+          }),
+        ),
+      );
+    });
+
+    it("names the status a create without a pick lands in, and still sends none", async () => {
+      const user = userEvent.setup();
+      mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: { id: "i", key: "DEMO-9" } });
+      render(
+        <NewItemButton
+          {...dialogProps()}
+          statuses={[
+            { id: "doing-id", name: "En cours", category: "in_progress" },
+            { id: "todo-id", name: "À faire", category: "todo" },
+          ]}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+
+      expect(screen.getByRole("combobox", { name: "Statut" })).toHaveTextContent("À faire");
+      expect(screen.queryByText("(par défaut)")).not.toBeInTheDocument();
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Statut par défaut");
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+      await waitFor(() =>
+        expect(mocks.createItemAction).toHaveBeenCalledWith(
+          expect.objectContaining({ statusId: undefined }),
+        ),
+      );
+    });
+
+    it("shows a sprint task as a fixed « Tâche » even without the scheduling right", async () => {
+      const user = userEvent.setup();
+      render(
+        <NewItemButton
+          {...dialogProps()}
+          items={[{ id: "epic-id", key: "DEMO-2", type: "epic", title: "Paiement" }]}
+          sprintId={null}
+          contextLabel="Sprint 2"
+          canScheduleItems={false}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+
+      expect(screen.getByRole("group", { name: "Type" })).toHaveTextContent("Tâche");
+      expect(screen.queryByText("Composant")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^Créer$/ })).toHaveAccessibleName("Créer");
+      expect(screen.getByText(/il faut le droit de planifier/)).toBeVisible();
+    });
+
+    it("keeps « M’assigner » beside the Assigné field", async () => {
+      const user = userEvent.setup();
+      render(
+        <NewItemButton
+          {...dialogProps()}
+          fieldOptions={{ users: [{ id: "me", name: "Marie Lemaire" }], canAssign: true, currentUserId: "me" }}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+
+      const assignee = screen.getByRole("combobox", { name: "Assigné" });
+      expect(assignee.parentElement).toContainElement(screen.getByRole("button", { name: "M’assigner" }));
+    });
+
+    it("renders the due date as a French date field", async () => {
+      const user = userEvent.setup();
+      render(<NewItemButton {...dialogProps()} />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+
+      expect(screen.getByLabelText("Échéance")).toHaveAttribute("lang", "fr");
     });
   });
 });

@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField, type SelectFieldOption } from "@/components/ui/select";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { LabelPill } from "@/components/items/label-pill";
@@ -55,7 +56,11 @@ import {
 } from "@/components/items/fix-version-picker";
 
 type Item = { id: string; key: string; type: ItemType; title: string };
-type Status = { id: string; name: string };
+/**
+ * `category` lets the dialog name the status a create without `statusId`
+ * lands in (the backlog's first « todo » status, in board order).
+ */
+type Status = { id: string; name: string; category?: string };
 
 /**
  * Extra fields of the « Nouvel item » dialog (Jira's Create screen). Each one
@@ -106,9 +111,28 @@ export type NewItemDialogData = Pick<
 
 const EMPTY_FIELD_OPTIONS: NewItemFieldOptions = {};
 
-// Shared field styling — matches Input's token-based look so native selects fit in.
-const FIELD =
-  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:bg-input/30";
+const TEMPLATE_OPTIONS: SelectFieldOption[] = [
+  { value: "", label: "Aucun" },
+  ...ITEM_TEMPLATES.map((template) => ({ value: template.id, label: template.name })),
+];
+const PRIORITY_OPTIONS: SelectFieldOption<`${Priority}`>[] = PRIORITIES.map((priority) => ({
+  value: `${priority}`,
+  label: PRIORITY_LABELS[priority],
+  icon: <PrioIcon priority={priority} />,
+}));
+const KIND_OPTIONS: SelectFieldOption<ItemKind>[] = ITEM_KINDS.map((kind) => ({
+  value: kind,
+  label: ITEM_KIND_LABELS[kind],
+}));
+
+/**
+ * The status the server gives a create without `statusId`: the first
+ * « todo » status in board order (`statuses` arrive in that order). Without
+ * categories, the first status stands in.
+ */
+function defaultStatusOf(statuses: Status[]): Status | undefined {
+  return statuses.find((status) => status.category === undefined || status.category === "todo");
+}
 
 /** One « libellé : champ » row of the field section (the drawer's Détails style). */
 function FieldRow({
@@ -123,13 +147,13 @@ function FieldRow({
   return (
     <>
       {htmlFor ? (
-        <Label htmlFor={htmlFor} className="py-1.5 font-normal text-muted-foreground">
+        <Label htmlFor={htmlFor} className="font-normal text-muted-foreground sm:py-2">
           {label}
         </Label>
       ) : (
-        <span className="py-1.5 text-sm text-muted-foreground">{label}</span>
+        <span className="text-sm text-muted-foreground sm:py-2">{label}</span>
       )}
-      <div className="flex min-w-0 flex-col gap-1">{children}</div>
+      <div className="flex min-h-8 min-w-0 items-center gap-2">{children}</div>
     </>
   );
 }
@@ -153,7 +177,7 @@ function LabelsPicker({
           type="button"
           aria-label="Labels"
           disabled={disabled}
-          className="flex min-h-8 w-full flex-wrap items-center gap-1.5 rounded-lg border border-input px-2.5 py-1 text-left text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+          className="flex min-h-8 w-full flex-wrap items-center gap-1.5 rounded-lg border border-input bg-transparent px-2.5 py-1 text-left text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30 dark:hover:bg-input/50"
         >
           {selected.length > 0 ? (
             selected.map((label) => <LabelPill key={label.id} name={label.name} color={label.color} />)
@@ -246,10 +270,18 @@ export function NewItemButton({
       }),
   );
 
-  const requiredParentType = allowedParentType(type);
   const availableItemTypes = canScheduleItems
     ? ITEM_TYPES
     : ITEM_TYPES.filter((candidate) => allowedParentType(candidate) === null);
+  // What is shown is what is sent: a sprint-contextual create is always a
+  // task, and a type the user may not create falls back to the first one
+  // offered instead of hiding behind another label.
+  const effectiveType: ItemType = contextualTask
+    ? "tache"
+    : availableItemTypes.includes(type)
+      ? type
+      : availableItemTypes[0]!;
+  const requiredParentType = allowedParentType(effectiveType);
   const parentOptions = useMemo(
     () => (requiredParentType ? items.filter((i) => i.type === requiredParentType) : []),
     [items, requiredParentType],
@@ -264,7 +296,9 @@ export function NewItemButton({
     assigneeId !== fieldOptions.currentUserId;
   const plannableSprints = canScheduleItems ? (fieldOptions.sprints ?? []) : [];
   const backlogLabels = fieldOptions.labels ?? [];
-  const isTask = type === "tache";
+  const isTask = effectiveType === "tache";
+  const defaultStatus = defaultStatusOf(statuses);
+  const typeLabelId = useId();
 
   /** Clears the draft; « Créer un autre » keeps everything but the text. */
   function resetText() {
@@ -337,7 +371,7 @@ export function NewItemButton({
       const result = await createItemAction({
         backlogKey,
         backlogId,
-        type,
+        type: effectiveType,
         kind,
         parentId: requiredParentType ? selectedParentId || null : null,
         title: title.trim(),
@@ -430,70 +464,78 @@ export function NewItemButton({
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="item-type">Type</Label>
-                <div className="flex items-center gap-2">
-                  <TypeIcon type={type} />
-                  <select
-                    id="item-type"
-                    className={FIELD}
-                    value={type}
-                    disabled={contextualTask}
-                    onChange={(e) => handleTypeChange(e.target.value as ItemType)}
-                  >
-                    {availableItemTypes.map((t) => (
-                      <option key={t} value={t}>
-                        {ITEM_TYPE_LABELS[t]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {contextualTask ? (
+                  <>
+                    <span id={typeLabelId} className="block text-sm leading-none font-medium">
+                      Type
+                    </span>
+                    {/* A sprint-contextual create is a task: shown, not chosen. */}
+                    <div
+                      role="group"
+                      aria-labelledby={typeLabelId}
+                      className="flex h-8 items-center gap-2 text-sm"
+                    >
+                      <TypeIcon type="tache" />
+                      {ITEM_TYPE_LABELS.tache}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Label htmlFor="item-type">Type</Label>
+                    <SelectField
+                      id="item-type"
+                      value={effectiveType}
+                      onValueChange={handleTypeChange}
+                      options={availableItemTypes.map((t) => ({
+                        value: t,
+                        label: ITEM_TYPE_LABELS[t],
+                        icon: <TypeIcon type={t} />,
+                      }))}
+                    />
+                  </>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="item-template">Modèle</Label>
-                <select
+                <SelectField
                   id="item-template"
-                  className={FIELD}
                   value={templateId}
-                  onChange={(e) => handleTemplateChange(e.target.value)}
-                >
-                  <option value="">Aucun</option>
-                  {ITEM_TEMPLATES.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={handleTemplateChange}
+                  options={TEMPLATE_OPTIONS}
+                />
               </div>
             </div>
 
-            {canScheduleItems && parentRequired && (
+            {parentRequired && canScheduleItems && (
               <div className="space-y-2">
                 <Label htmlFor="item-parent">
                   Parent <span className="text-[var(--danger)]" aria-hidden>*</span>
                 </Label>
-                <select
+                <SelectField
                   id="item-parent"
-                  className={FIELD}
                   value={selectedParentId}
                   required
-                  onChange={(e) => setParentId(e.target.value)}
-                >
-                  <option value="" disabled>
-                    Choisir un {ITEM_TYPE_LABELS[requiredParentType].toLowerCase()}…
-                  </option>
-                  {parentOptions.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.key} — {p.title}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setParentId}
+                  placeholder={`Choisir un ${ITEM_TYPE_LABELS[requiredParentType].toLowerCase()}…`}
+                  options={parentOptions.map((p) => ({
+                    value: p.id,
+                    label: `${p.key} — ${p.title}`,
+                    icon: <TypeIcon type={p.type} />,
+                  }))}
+                />
                 {parentOptions.length === 0 && (
                   <p className="t-sm text-muted-foreground">
                     Aucun {ITEM_TYPE_LABELS[requiredParentType].toLowerCase()} disponible — créez-en un d&apos;abord.
                   </p>
                 )}
               </div>
+            )}
+            {parentRequired && !canScheduleItems && (
+              <p className="t-sm text-muted-foreground">
+                Une {ITEM_TYPE_LABELS[effectiveType].toLowerCase()} se rattache à un{" "}
+                {ITEM_TYPE_LABELS[requiredParentType].toLowerCase()} : il faut le droit de planifier.
+              </p>
             )}
 
             <div className="space-y-2">
@@ -549,43 +591,34 @@ export function NewItemButton({
               className="rounded-[var(--radius-md)] border border-border bg-[var(--surface-2)]"
             >
               <h3 className="border-b border-border px-3.5 py-2.5 text-sm font-semibold">Détails</h3>
-              <div className="grid grid-cols-1 gap-x-3 gap-y-1.5 p-3.5 sm:grid-cols-[104px_minmax(0,1fr)]">
+              <div className="grid grid-cols-1 items-center gap-x-3 gap-y-1.5 p-3.5 sm:grid-cols-[104px_minmax(0,1fr)]">
                 <FieldRow label="Statut" htmlFor="item-status">
-                  <select
+                  {/* No pick sends no statusId: the trigger names the status the server will use. */}
+                  <SelectField
                     id="item-status"
-                    className={FIELD}
-                    value={statusId}
-                    onChange={(e) => setStatusId(e.target.value)}
-                  >
-                    <option value="">(par défaut)</option>
-                    {statuses.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
+                    value={statusId || defaultStatus?.id || ""}
+                    onValueChange={setStatusId}
+                    placeholder="Statut par défaut"
+                    options={statuses.map((s) => ({ value: s.id, label: s.name }))}
+                  />
                 </FieldRow>
 
                 {assignableUsers.length > 0 && (
                   <FieldRow label="Assigné" htmlFor="item-assignee">
-                    <select
+                    <SelectField
                       id="item-assignee"
-                      className={FIELD}
                       value={assigneeId}
-                      onChange={(e) => setAssigneeId(e.target.value)}
-                    >
-                      <option value="">Non assigné</option>
-                      {assignableUsers.map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.name}
-                        </option>
-                      ))}
-                    </select>
+                      onValueChange={setAssigneeId}
+                      options={[
+                        { value: "", label: "Non assigné" },
+                        ...assignableUsers.map((user) => ({ value: user.id, label: user.name })),
+                      ]}
+                    />
                     {canAssignToMe && (
                       <button
                         type="button"
                         onClick={() => setAssigneeId(fieldOptions.currentUserId!)}
-                        className="self-start text-[12.5px] text-[var(--primary)] hover:text-[var(--primary-hover)] hover:underline"
+                        className="shrink-0 rounded-sm text-[12.5px] whitespace-nowrap text-[var(--primary)] outline-none hover:text-[var(--primary-hover)] hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
                       >
                         M’assigner
                       </button>
@@ -594,26 +627,17 @@ export function NewItemButton({
                 )}
 
                 <FieldRow label="Priorité" htmlFor="item-priority">
-                  <div className="flex items-center gap-2">
-                    <PrioIcon priority={priority} />
-                    <select
-                      id="item-priority"
-                      className={FIELD}
-                      value={priority}
-                      onChange={(e) => setPriority(Number(e.target.value) as Priority)}
-                    >
-                      {PRIORITIES.map((p) => (
-                        <option key={p} value={p}>
-                          {PRIORITY_LABELS[p]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <SelectField
+                    id="item-priority"
+                    value={`${priority}`}
+                    onValueChange={(next) => setPriority(Number(next) as Priority)}
+                    options={PRIORITY_OPTIONS}
+                  />
                 </FieldRow>
 
                 {isTask && (
                   <FieldRow label="Points" htmlFor="item-points">
-                    <input
+                    <Input
                       id="item-points"
                       type="number"
                       min={0}
@@ -621,7 +645,6 @@ export function NewItemButton({
                       step={0.01}
                       inputMode="decimal"
                       placeholder="Non estimé"
-                      className={FIELD}
                       value={points}
                       onChange={(e) => setPoints(e.target.value)}
                     />
@@ -630,40 +653,30 @@ export function NewItemButton({
 
                 {isTask && contextualTask && (
                   <FieldRow label="Sprint">
-                    <span className="py-1.5 text-sm">{contextLabel}</span>
+                    <span className="text-sm">{contextLabel}</span>
                   </FieldRow>
                 )}
                 {isTask && !contextualTask && plannableSprints.length > 0 && (
                   <FieldRow label="Sprint" htmlFor="item-sprint">
-                    <select
+                    <SelectField
                       id="item-sprint"
-                      className={FIELD}
                       value={plannedSprintId}
-                      onChange={(e) => setPlannedSprintId(e.target.value)}
-                    >
-                      <option value="">Backlog</option>
-                      {plannableSprints.map((sprint) => (
-                        <option key={sprint.id} value={sprint.id}>
-                          {sprint.name}
-                        </option>
-                      ))}
-                    </select>
+                      onValueChange={setPlannedSprintId}
+                      options={[
+                        { value: "", label: "Backlog" },
+                        ...plannableSprints.map((sprint) => ({ value: sprint.id, label: sprint.name })),
+                      ]}
+                    />
                   </FieldRow>
                 )}
 
                 <FieldRow label="Nature" htmlFor="item-kind">
-                  <select
+                  <SelectField
                     id="item-kind"
-                    className={FIELD}
                     value={kind}
-                    onChange={(e) => setKind(e.target.value as ItemKind)}
-                  >
-                    {ITEM_KINDS.map((k) => (
-                      <option key={k} value={k}>
-                        {ITEM_KIND_LABELS[k]}
-                      </option>
-                    ))}
-                  </select>
+                    onValueChange={setKind}
+                    options={KIND_OPTIONS}
+                  />
                 </FieldRow>
 
                 {backlogLabels.length > 0 && (
@@ -684,15 +697,18 @@ export function NewItemButton({
                       options={releaseOptions}
                       disabled={pending}
                       onChange={setFixVersionIds}
+                      field
                     />
                   </FieldRow>
                 ) : null}
 
                 <FieldRow label="Échéance" htmlFor="item-due-date">
-                  <input
+                  {/* Native picker, in French like the page (dd/mm/yyyy → jj/mm/aaaa). */}
+                  <Input
                     id="item-due-date"
                     type="date"
-                    className={FIELD}
+                    lang="fr"
+                    className="dark:[color-scheme:dark]"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
                   />
@@ -726,7 +742,7 @@ export function NewItemButton({
               Annuler
             </Button>
             <Button type="submit" disabled={submitDisabled} aria-label="Créer">
-              <TypeIcon type={type} size={14} />
+              <TypeIcon type={effectiveType} size={14} />
               Créer
             </Button>
           </DialogFooter>

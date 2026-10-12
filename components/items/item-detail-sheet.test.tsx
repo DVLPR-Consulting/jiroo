@@ -1,7 +1,7 @@
 import { Suspense, use, useEffect } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import {
   ITEM_DETAIL_SHEET_EXIT_MS,
   ItemDetailDrawer,
@@ -13,9 +13,40 @@ import {
   useViewUrlState,
   ViewUrlStateProvider,
 } from "@/components/shell/view-url-state";
-import { DialogTitle } from "@/components/ui/dialog";
+import { DialogClose, DialogTitle } from "@/components/ui/dialog";
+import { stringifyDatedJson } from "@/lib/serialization/dated-json";
+import type { ItemDetailData } from "@/lib/items/item-detail-data";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+// Opening and closing the drawer only change `item`: the URL is updated
+// through the History API, never the router (ViewUrlStateProvider).
+let historyPush: MockInstance<History["pushState"]>;
+
+type PanelProbeProps = { detail: { key: string; title: string; createdAt?: Date } };
+const panelProps: PanelProbeProps[] = [];
+let panelMounts = 0;
+
+vi.mock("@/components/items/item-detail-panel", () => ({
+  ItemDetailPanel: function PanelProbe(props: PanelProbeProps) {
+    panelProps.push(props);
+    useEffect(() => {
+      panelMounts += 1;
+    }, []);
+    return (
+      <>
+        <DialogTitle>{props.detail.key} — {props.detail.title}</DialogTitle>
+        <DialogClose>Fermer</DialogClose>
+      </>
+    );
+  },
+}));
+
+function itemData(key: string): ItemDetailData {
+  return {
+    kind: "item",
+    panel: { detail: { id: `id-${key}`, key, title: "Titre" } },
+  } as unknown as ItemDetailData;
+}
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/b/CASS",
@@ -39,10 +70,13 @@ describe("ItemDetailSheet", () => {
   beforeEach(() => {
     mocks.push.mockReset();
     window.history.replaceState({}, "", "/b/CASS?view=backlog&item=CASS-4");
+    historyPush = vi.spyOn(window.history, "pushState");
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    historyPush.mockRestore();
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("slides the drawer from the right on Radix data-state, with no motion when reduced", () => {
@@ -115,9 +149,9 @@ describe("ItemDetailSheet", () => {
 
     await user.keyboard("{Escape}");
 
-    expect(mocks.push).not.toHaveBeenCalled();
-    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=backlog"));
-    expect(mocks.push).toHaveBeenCalledTimes(1);
+    expect(historyPush).not.toHaveBeenCalled();
+    await waitFor(() => expect(historyPush).toHaveBeenCalledWith(null, "", "/b/CASS?view=backlog"));
+    expect(historyPush).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the drawer open when Escape belongs to a widget inside it", async () => {
@@ -133,7 +167,7 @@ describe("ItemDetailSheet", () => {
     await user.click(screen.getByRole("textbox", { name: "Adresse du lien" }));
     await user.keyboard("{Escape}");
     await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(mocks.push).not.toHaveBeenCalled();
+    expect(historyPush).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeVisible();
   });
 
@@ -152,7 +186,7 @@ describe("ItemDetailSheet", () => {
 
     await user.keyboard("{Escape}");
 
-    expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=backlog");
+    expect(historyPush).toHaveBeenCalledWith(null, "", "/b/CASS?view=backlog");
   });
 
   it("explains a key that no longer resolves inside the open drawer", async () => {
@@ -162,7 +196,7 @@ describe("ItemDetailSheet", () => {
     expect(screen.getByRole("dialog", { name: "Item CASS-404 introuvable" }))
       .toHaveTextContent("Cet item est introuvable ou a été supprimé.");
     await user.click(screen.getByRole("button", { name: "Fermer" }));
-    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=backlog"));
+    await waitFor(() => expect(historyPush).toHaveBeenCalledWith(null, "", "/b/CASS?view=backlog"));
   });
 
   describe("deferred close under interruptions", () => {
@@ -208,11 +242,11 @@ describe("ItemDetailSheet", () => {
 
       act(() => vi.advanceTimersByTime(ITEM_DETAIL_SHEET_EXIT_MS - 1));
       expect(ITEM_DETAIL_SHEET_EXIT_MS).toBe(220);
-      expect(mocks.push).not.toHaveBeenCalled();
+      expect(historyPush).not.toHaveBeenCalled();
 
       act(() => vi.advanceTimersByTime(1));
-      expect(mocks.push).toHaveBeenCalledTimes(1);
-      expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=backlog");
+      expect(historyPush).toHaveBeenCalledTimes(1);
+      expect(historyPush).toHaveBeenCalledWith(null, "", "/b/CASS?view=backlog");
     });
 
     it("never navigates after being unmounted during the exit slide", () => {
@@ -223,7 +257,7 @@ describe("ItemDetailSheet", () => {
       rendered.unmount();
       act(() => vi.advanceTimersByTime(1000));
 
-      expect(mocks.push).not.toHaveBeenCalled();
+      expect(historyPush).not.toHaveBeenCalled();
     });
 
     it("does not let A's deferred close dismiss B opened during the delay", () => {
@@ -235,7 +269,7 @@ describe("ItemDetailSheet", () => {
       rendered.rerender(tree("CASS-5"));
       act(() => vi.advanceTimersByTime(1000));
 
-      expect(mocks.push).not.toHaveBeenCalled();
+      expect(historyPush).not.toHaveBeenCalled();
       expect(screen.getByRole("dialog", { name: "CASS-5 — Titre" })).toBeVisible();
     });
 
@@ -247,8 +281,8 @@ describe("ItemDetailSheet", () => {
         vi.advanceTimersByTime(ITEM_DETAIL_SHEET_EXIT_MS);
       });
 
-      expect(mocks.push).toHaveBeenCalledTimes(1);
-      expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=backlog&sort=key");
+      expect(historyPush).toHaveBeenCalledTimes(1);
+      expect(historyPush).toHaveBeenCalledWith(null, "", "/b/CASS?view=backlog&sort=key");
     });
   });
 
@@ -262,13 +296,17 @@ describe("ItemDetailSheet", () => {
       );
     }
 
-    function page(serverItemKey: string | null, entries: [string, string][]) {
+    function page(
+      serverItemKey: string | null,
+      entries: [string, string][],
+      detail: Promise<ItemDetailData | null> | null = serverItemKey
+        ? Promise.resolve(itemData(serverItemKey))
+        : null,
+    ) {
       return (
         <ViewUrlStateProvider initialEntries={entries}>
           <OpenRow itemKey="CASS-4" />
-          <ItemDetailDrawer itemKey={serverItemKey}>
-            {serverItemKey ? <DialogTitle>{serverItemKey} — Titre</DialogTitle> : null}
-          </ItemDetailDrawer>
+          <ItemDetailDrawer backlogKey="CASS" itemKey={serverItemKey} detail={detail} />
         </ViewUrlStateProvider>
       );
     }
@@ -285,14 +323,16 @@ describe("ItemDetailSheet", () => {
       await user.click(screen.getByRole("button", { name: "Ouvrir CASS-4" }));
 
       // The server has not re-rendered the view yet: the drawer is already open.
-      expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=backlog&item=CASS-4");
+      expect(historyPush).toHaveBeenCalledWith(null, "", "/b/CASS?view=backlog&item=CASS-4");
       const loading = screen.getByRole("dialog", { name: "Chargement du panneau de détail" });
       expect(screen.getByRole("status", { name: "Chargement du panneau de détail" }))
         .toBeInTheDocument();
 
-      // The server body then fills the same drawer.
-      rendered.rerender(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
-      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBe(loading);
+      // The server detail then fills the same drawer.
+      await act(async () => {
+        rendered.rerender(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      });
+      expect(await screen.findByRole("dialog", { name: "CASS-4 — Titre" })).toBe(loading);
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
 
@@ -305,17 +345,184 @@ describe("ItemDetailSheet", () => {
       // A touch user on a full-screen drawer must be able to cancel the load.
       await user.click(within(loading).getByRole("button", { name: "Fermer" }));
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-      await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/b/CASS?view=backlog"));
+      await waitFor(() => expect(historyPush).toHaveBeenLastCalledWith(null, "", "/b/CASS?view=backlog"));
 
       // The server's answer for the cancelled request arrives afterwards.
-      rendered.rerender(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      await act(async () => {
+        rendered.rerender(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      });
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       // Only one close button in the skeleton, none duplicated.
       expect(screen.queryAllByRole("button", { name: "Fermer" })).toHaveLength(0);
     });
 
-    it("renders the server body directly when the page loads with ?item=", () => {
-      render(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+    it("renders the server detail when the page loads with ?item=", async () => {
+      await act(async () => {
+        render(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      });
+      expect(await screen.findByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+    });
+
+    it("explains a key the server could not resolve", async () => {
+      await act(async () => {
+        render(page(
+          "CASS-404",
+          [["view", "backlog"], ["item", "CASS-404"]],
+          Promise.resolve({ kind: "not-found", itemKey: "CASS-404" }),
+        ));
+      });
+      expect(await screen.findByRole("dialog", { name: "Item CASS-404 introuvable" }))
+        .toBeVisible();
+    });
+
+    function jsonResponse(data: unknown) {
+      return new Response(stringifyDatedJson(data), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    /**
+     * A fetch stub whose answers the test releases inside act(): React only
+     * retries a suspended boundary for data resolved within an act scope.
+     */
+    function stubFetch() {
+      const pending: Array<(answer: Response | Error) => void> = [];
+      const fetchMock = vi.fn(() => new Promise<Response>((resolve, reject) => {
+        pending.push((answer) => (answer instanceof Error ? reject(answer) : resolve(answer)));
+      }));
+      vi.stubGlobal("fetch", fetchMock);
+      const answer = async (response: Response | Error) => {
+        await act(async () => {
+          pending.shift()?.(response);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+      };
+      return { fetchMock, answer };
+    }
+
+    /** Clicks the row inside an awaited act, so React retries the suspension. */
+    async function openRow() {
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Ouvrir CASS-4" }));
+      });
+    }
+
+    it("fetches the detail of an item opened from the view, without a server navigation", async () => {
+      const { fetchMock, answer } = stubFetch();
+      render(page(null, [["view", "backlog"]]));
+
+      await openRow();
+
+      expect(historyPush).toHaveBeenCalledWith(null, "", "/b/CASS?view=backlog&item=CASS-4");
+      expect(screen.getByRole("status", { name: "Chargement du panneau de détail" }))
+        .toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/backlogs/CASS/items/CASS-4",
+        expect.objectContaining({ cache: "no-store" }),
+      );
+
+      await answer(jsonResponse({
+        kind: "item",
+        panel: {
+          detail: {
+            id: "id-CASS-4",
+            key: "CASS-4",
+            title: "Titre",
+            createdAt: new Date("2026-10-01T08:00:00.000Z"),
+          },
+        },
+      }));
+
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+      // Dates survive the JSON hop, as in the server-rendered props.
+      expect(panelProps.at(-1)?.detail.createdAt).toEqual(new Date("2026-10-01T08:00:00.000Z"));
+    });
+
+    it.each([
+      ["a 404", () => new Response(null, { status: 404 }), "Item CASS-4 introuvable"],
+      ["a server error", () => new Response(null, { status: 500 }), "Item CASS-4 indisponible"],
+      ["a network failure", () => new TypeError("offline"), "Item CASS-4 indisponible"],
+    ])("explains %s inside the open drawer", async (_case, response, name) => {
+      const { answer } = stubFetch();
+      render(page(null, [["view", "backlog"]]));
+
+      await openRow();
+      await answer(response());
+
+      expect(screen.getByRole("dialog", { name })).toBeVisible();
+    });
+
+    it("uses the server detail of the requested item instead of fetching", async () => {
+      const { fetchMock } = stubFetch();
+      await act(async () => {
+        render(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      });
+
+      expect(await screen.findByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("refreshes the open panel in place when the server renders the same item", async () => {
+      const { answer } = stubFetch();
+      const rendered = render(page(null, [["view", "backlog"]]));
+      await openRow();
+      await answer(jsonResponse(itemData("CASS-4")));
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+      const mountsBefore = panelMounts;
+
+      // A mutation refreshes the route: the server now renders CASS-4.
+      const refreshed = itemData("CASS-4");
+      (refreshed as { panel: { detail: { title: string } } }).panel.detail.title = "Titre modifié";
+      await act(async () => {
+        rendered.rerender(page(
+          "CASS-4",
+          [["view", "backlog"], ["item", "CASS-4"]],
+          Promise.resolve(refreshed),
+        ));
+      });
+
+      expect(await screen.findByRole("dialog", { name: "CASS-4 — Titre modifié" })).toBeVisible();
+      // Same panel instance: local state (editors, scroll) survives the refresh.
+      expect(panelMounts).toBe(mountsBefore);
+    });
+
+    it("fetches afresh when an item is reopened after closing", async () => {
+      const { fetchMock, answer } = stubFetch();
+      const user = userEvent.setup();
+      render(page(null, [["view", "backlog"]]));
+
+      await openRow();
+      await answer(jsonResponse(itemData("CASS-4")));
+      const dialog = screen.getByRole("dialog", { name: "CASS-4 — Titre" });
+      await user.click(within(dialog).getByRole("button", { name: "Fermer" }));
+      await waitFor(() =>
+        expect(historyPush).toHaveBeenLastCalledWith(null, "", "/b/CASS?view=backlog"));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      await openRow();
+      await answer(jsonResponse(itemData("CASS-4")));
+
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("fetches afresh when the deep-linked item is reopened after closing", async () => {
+      const { fetchMock, answer } = stubFetch();
+      const user = userEvent.setup();
+      await act(async () => {
+        render(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      });
+      const dialog = await screen.findByRole("dialog", { name: "CASS-4 — Titre" });
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      await user.click(within(dialog).getByRole("button", { name: "Fermer" }));
+      await waitFor(() =>
+        expect(historyPush).toHaveBeenLastCalledWith(null, "", "/b/CASS?view=backlog"));
+      // The server tree still holds the page-load detail: it is not reused.
+      await openRow();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await answer(jsonResponse(itemData("CASS-4")));
       expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
     });
 

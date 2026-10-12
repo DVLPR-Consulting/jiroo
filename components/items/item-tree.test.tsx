@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { currentHref } from "@/test/history";
 import { ItemTree } from "@/components/items/item-tree";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
@@ -191,8 +192,8 @@ describe("ItemTree", () => {
     expect(row.querySelector("[draggable]")).toBeNull();
 
     await user.click(screen.getByText("Frontend"));
-    expect(mocks.push).toHaveBeenCalledOnce();
-    expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=tree&q=auth&item=DEMO-1");
+    expect(currentHref()).toBe("/b/DEMO?view=tree&q=auth&item=DEMO-1");
+    expect(mocks.push).not.toHaveBeenCalled();
     expect(row).toHaveAttribute("draggable", "true");
 
     const dataTransfer = {
@@ -223,7 +224,7 @@ describe("ItemTree", () => {
     const row = screen.getByRole("button", { name: "DEMO-1 — Authentication" });
     expect(row).toHaveAttribute("draggable", "false");
     await user.click(screen.getByText("Authentication"));
-    expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=tree&item=DEMO-1");
+    expect(currentHref()).toBe("/b/DEMO?view=tree&item=DEMO-1");
   });
 
   it("separates hierarchy scheduling from item creation", () => {

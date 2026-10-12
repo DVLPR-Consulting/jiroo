@@ -8,10 +8,11 @@ const mocks = vi.hoisted(() => ({
   getBacklogCapabilities: vi.fn(),
   itemBacklogProps: vi.fn(),
   itemBoardProps: vi.fn(),
-  itemDetailProps: vi.fn(),
-  itemDetailSheetKey: vi.fn(),
+  itemDetailDrawerProps: vi.fn(),
+  loadItemDetailData: vi.fn(),
   itemListProps: vi.fn(),
   itemTreeProps: vi.fn(),
+  viewActionsProps: vi.fn(),
   listItemFixVersionPairs: vi.fn(),
   listItemLabelPairs: vi.fn(),
   listItemsWithAncestors: vi.fn(),
@@ -92,16 +93,13 @@ vi.mock("@/components/items/item-board", () => ({
     return null;
   },
 }));
-vi.mock("@/components/items/item-detail-content", () => ({
-  ItemDetailContent: (props: unknown) => {
-    mocks.itemDetailProps(props);
-    return null;
-  },
+vi.mock("@/lib/services/item-detail", () => ({
+  loadItemDetailData: mocks.loadItemDetailData,
 }));
 vi.mock("@/components/items/item-detail-sheet", () => ({
-  ItemDetailDrawer: ({ itemKey, children }: { itemKey: string | null; children: React.ReactNode }) => {
-    mocks.itemDetailSheetKey(itemKey);
-    return children;
+  ItemDetailDrawer: (props: unknown) => {
+    mocks.itemDetailDrawerProps(props);
+    return null;
   },
 }));
 vi.mock("@/components/items/item-list", () => ({
@@ -131,7 +129,12 @@ vi.mock("@/components/shell/filter-bar", () => ({
     return null;
   },
 }));
-vi.mock("@/components/shell/view-actions", () => ({ ViewActions: () => null }));
+vi.mock("@/components/shell/view-actions", () => ({
+  ViewActions: (props: unknown) => {
+    mocks.viewActionsProps(props);
+    return null;
+  },
+}));
 vi.mock("@/components/items/new-item-dialog", () => ({ NewItemButton: () => null }));
 vi.mock("@/components/shell/create-item-trigger", () => ({ TopbarCreateItem: () => null }));
 vi.mock("@/components/statuses/status-manager-dialog", () => ({
@@ -274,7 +277,9 @@ describe("BacklogViewContent read boundary", () => {
     cleanup();
   });
 
-  it("passes exact detail capabilities without using edit as a substitute", async () => {
+  it("hands the drawer the detail loaded for the requested item", async () => {
+    const detailPromise = Promise.resolve(null);
+    mocks.loadItemDetailData.mockReturnValue(detailPromise);
     mocks.getBacklogByKeyForUser.mockResolvedValue({
       id: "backlog-1",
       key: "DEMO",
@@ -301,15 +306,18 @@ describe("BacklogViewContent read boundary", () => {
       }),
     );
 
-    expect(mocks.itemDetailProps).toHaveBeenCalledWith(
-      expect.objectContaining({
-        canEditItems: false,
-        canTransitionItems: true,
-        canAssignItems: true,
-      }),
-    );
-    // The drawer frame opens with the URL; only its body streams in.
-    expect(mocks.itemDetailSheetKey).toHaveBeenCalledWith("DEMO-1");
+    // The drawer frame opens with the URL; its detail, loaded on its own,
+    // streams in (lib/services/item-detail owns the detail capabilities).
+    expect(mocks.loadItemDetailData).toHaveBeenCalledWith({
+      userId: "viewer-1",
+      backlogKey: "DEMO",
+      itemKey: "DEMO-1",
+    });
+    expect(mocks.itemDetailDrawerProps).toHaveBeenCalledWith({
+      backlogKey: "DEMO",
+      itemKey: "DEMO-1",
+      detail: detailPromise,
+    });
   });
 
   it("projects safe permission booleans into focused product capability props", async () => {
@@ -350,15 +358,6 @@ describe("BacklogViewContent read boundary", () => {
       itemCapabilities: expect.objectContaining({ edit: false, delete: true }),
       planningCapabilities: expect.objectContaining({ rank: true, manageSprints: false }),
       bulkCapabilities: { edit: false, transition: false, assign: false, schedule: true },
-    }));
-    expect(mocks.itemDetailProps).toHaveBeenCalledWith(expect.objectContaining({
-      itemCapabilities: expect.objectContaining({
-        edit: false,
-        delete: true,
-        addComments: true,
-        link: true,
-      }),
-      planningCapabilities: expect.objectContaining({ rank: true }),
     }));
   });
 
@@ -410,13 +409,6 @@ describe("BacklogViewContent read boundary", () => {
     expect(mocks.itemListProps).toHaveBeenCalledWith(
       expect.objectContaining({ users: [] }),
     );
-    expect(mocks.itemDetailProps).toHaveBeenCalledWith(
-      expect.objectContaining({
-        users: [{ id: "referenced-1", name: "Referenced User" }],
-        assigneeCandidates: [],
-        reporterCandidates: [],
-      }),
-    );
   });
 
   it("projects only assignable directory users into assignment pickers", async () => {
@@ -467,15 +459,6 @@ describe("BacklogViewContent read boundary", () => {
     expect(mocks.itemListProps).toHaveBeenCalledWith(
       expect.objectContaining({
         users: [{ id: "assignable-1", name: "Assignable User" }],
-      }),
-    );
-    expect(mocks.itemDetailProps).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assigneeCandidates: [{ id: "assignable-1", name: "Assignable User" }],
-        reporterCandidates: [
-          { id: "blocked-1", name: "Blocked User" },
-          { id: "assignable-1", name: "Assignable User" },
-        ],
       }),
     );
   });
@@ -574,24 +557,12 @@ describe("BacklogViewContent read boundary", () => {
       item("item-2", "DEMO-2", "b"),
       item("item-3", "DEMO-3", "c", "status-2"),
     ];
-    const detailParent = {
-      ...item("item-parent", "DEMO-8", "d"),
-      type: "epic",
-    };
-    const detailItem = {
-      ...item("item-detail", "DEMO-9", "d0"),
-      parentId: detailParent.id,
-      path: "root.itemparent.itemdetail",
-      depth: 1,
-    };
-    mocks.listItems
-      .mockResolvedValueOnce(filteredItems)
-      .mockResolvedValueOnce([detailParent, detailItem]);
+    mocks.listItems.mockResolvedValueOnce(filteredItems);
     mocks.listItemsWithAncestors.mockResolvedValue(filteredItems);
     mocks.listItemFixVersionPairs.mockResolvedValue([
       { itemId: "item-2", releaseId: "release-selected", name: "2026.09" },
       { itemId: "item-3", releaseId: "release-selected", name: "2026.09" },
-      { itemId: detailItem.id, releaseId: "release-active", name: "2026.10" },
+      { itemId: "item-detail", releaseId: "release-active", name: "2026.10" },
     ]);
     mocks.listReleaseSummaries.mockResolvedValue([
       { id: "release-active", name: "2026.10", released: false, archived: false },
@@ -608,7 +579,7 @@ describe("BacklogViewContent read boundary", () => {
           version: "release-selected",
           status: "status-1",
           fvcol: "1",
-          item: detailItem.key,
+          item: "DEMO-9",
         }),
       }),
     );
@@ -616,7 +587,8 @@ describe("BacklogViewContent read boundary", () => {
     expect(mocks.listItems).toHaveBeenCalledWith("backlog-1", {
       releaseIds: ["release-selected"],
     });
-    expect(mocks.listItems).toHaveBeenCalledWith("backlog-1");
+    // The drawer loads its own whole-backlog items (lib/services/item-detail).
+    expect(mocks.listItems).toHaveBeenCalledOnce();
     expect(mocks.listItemFixVersionPairs).toHaveBeenCalledOnce();
     expect(mocks.listItemFixVersionPairs).toHaveBeenCalledWith("backlog-1");
     expect(mocks.listReleaseSummaries).toHaveBeenCalledOnce();
@@ -665,18 +637,6 @@ describe("BacklogViewContent read boundary", () => {
       assignItems: false,
       bulkAssignItems: false,
     });
-    expect(mocks.itemDetailProps).toHaveBeenCalledWith(expect.objectContaining({
-      items: [detailParent, detailItem],
-      fixVersions: [
-        { id: "release-active", name: "2026.10", released: false, archived: false },
-      ],
-      releaseOptions: assignableReleases,
-      releaseCapabilities: {
-        manage: false,
-        assignItems: false,
-        bulkAssignItems: false,
-      },
-    }));
   });
 
   it("keeps unmatched ancestors for hierarchy facets and dimmed tree context", async () => {
@@ -1001,5 +961,151 @@ describe("BacklogViewContent read boundary", () => {
 
     expect(mocks.getPreviousSprintsVelocityContext).not.toHaveBeenCalled();
     expect(mocks.getActiveSprintStartCommitment).not.toHaveBeenCalled();
+  });
+
+  describe("Sprint facet (JIR-81)", () => {
+    const S1 = "11111111-1111-4111-8111-111111111111";
+    const S2 = "22222222-2222-4222-8222-222222222222";
+    const FOREIGN = "33333333-3333-4333-8333-333333333333";
+    const ended = new Date("2026-08-14T00:00:00.000Z");
+    const row = (id: string, key: string, type: "tache" | "soustache", parentId: string | null) => ({
+      id,
+      backlogId: "backlog-1",
+      key,
+      sequence: Number(key.split("-")[1]),
+      type,
+      kind: "story",
+      title: key,
+      description: null,
+      statusId: "status-1",
+      priority: 2,
+      estimatePoints: null,
+      assigneeId: null,
+      reporterId: null,
+      parentId,
+      path: parentId ? `root.${parentId}.${id}` : `root.${id}`,
+      depth: parentId ? 1 : 0,
+      dueDate: null,
+      rank: "a",
+      deletedAt: null,
+      createdAt: new Date("2026-08-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    const membership = (
+      itemId: string,
+      sprintId: string,
+      leftAt: Date | null,
+      outcome: string | null,
+    ) => ({
+      id: `${itemId}-${sprintId}-${outcome ?? "current"}`,
+      sprintId,
+      itemId,
+      joinedAt: new Date("2026-08-01T00:00:00.000Z"),
+      joinedBy: "viewer-1",
+      estimateAtJoin: null,
+      estimateAtStart: null,
+      leftAt,
+      outcome,
+      destinationSprintId: outcome === "carried_to_sprint" ? S2 : null,
+    });
+
+    beforeEach(() => {
+      mocks.getBacklogByKeyForUser.mockResolvedValue({
+        id: "backlog-1",
+        key: "DEMO",
+        name: "Demo",
+        color: "#2563eb",
+        archivedAt: null,
+      });
+      mocks.getBacklogCapabilities.mockResolvedValue({
+        createItems: false,
+        editItems: false,
+        transitionItems: false,
+        scheduleItems: false,
+        assignItems: false,
+        manageSprints: false,
+        manageWorkflow: false,
+        manageMembers: false,
+        bulkChangeItems: false,
+      });
+      mocks.listItems.mockResolvedValue([
+        row("done-1", "DEMO-1", "tache", null),
+        row("carried-1", "DEMO-2", "tache", null),
+        row("removed-1", "DEMO-3", "tache", null),
+        row("sub-1", "DEMO-4", "soustache", "carried-1"),
+        row("loose-1", "DEMO-5", "tache", null),
+      ]);
+      mocks.listSprintsForBacklog.mockResolvedValue({
+        sprints: [
+          { id: S1, name: "Sprint 1", state: "completed", completedAt: ended },
+          { id: S2, name: "Sprint 2", state: "active", completedAt: null },
+        ],
+        memberships: [
+          membership("done-1", S1, ended, "completed"),
+          membership("carried-1", S1, ended, "carried_to_sprint"),
+          membership("carried-1", S2, null, null),
+          membership("removed-1", S1, ended, "removed"),
+        ],
+      });
+    });
+
+    const listedIds = () => {
+      const props = mocks.itemListProps.mock.calls[0]?.[0] as {
+        groups: Array<{ items: Array<{ id: string }> }>;
+      };
+      return props.groups.flatMap((group) => group.items.map((item) => item.id));
+    };
+
+    it("lists a completed sprint's items in Liste, carried-over ones and their sous-tâches included", async () => {
+      render(
+        await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view: "list", sprint: `${S1},${FOREIGN},bogus` }),
+        }),
+      );
+
+      expect(listedIds()).toEqual(["done-1", "carried-1", "sub-1"]);
+      expect(mocks.filterBarProps).toHaveBeenCalledWith(expect.objectContaining({
+        sprints: [
+          { id: S2, name: "Sprint 2", state: "active" },
+          { id: S1, name: "Sprint 1", state: "completed" },
+        ],
+        state: expect.objectContaining({
+          filters: expect.objectContaining({ sprintIds: [S1] }),
+        }),
+      }));
+    });
+
+    it("lists items that never belonged to a sprint under « Aucun sprint »", async () => {
+      render(
+        await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view: "list", sprint: "none" }),
+        }),
+      );
+
+      expect(listedIds()).toEqual(["removed-1", "loose-1"]);
+    });
+
+    it("ignores the facet on the Board, which is laid out by sprint, but keeps it for saved views", async () => {
+      render(
+        await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view: "board", sprint: S1 }),
+        }),
+      );
+
+      expect(mocks.filterBarProps).toHaveBeenCalledWith(expect.objectContaining({
+        sprints: undefined,
+        state: expect.objectContaining({
+          filters: expect.objectContaining({ sprintIds: [] }),
+        }),
+      }));
+      // FilterBar renders ViewActions, mocked away: read the actions prop.
+      const barProps = mocks.filterBarProps.mock.calls[0]?.[0] as {
+        actions: { props: { filters: { sprintIds: string[] } } };
+      };
+      expect(barProps.actions.props.filters.sprintIds).toEqual([S1]);
+    });
   });
 });

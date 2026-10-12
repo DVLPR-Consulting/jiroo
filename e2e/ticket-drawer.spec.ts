@@ -5,6 +5,7 @@ import { user } from "../lib/db/schema/auth";
 import { backlogs, items, releases, statuses } from "../lib/db/schema";
 import { itemBranchName } from "../lib/items/branch-name";
 import { createItem } from "../lib/services/items";
+import { chooseOption } from "./select-helpers";
 
 // JIR-73: the item drawer laid out like Jira's work item view, and the
 // « Nouvel item » dialog styled as Jira's create screen.
@@ -238,8 +239,8 @@ test.describe("fenêtre « Nouvel item »", () => {
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText("CASS");
 
-    await dialog.getByRole("combobox", { name: "Type" }).selectOption({ label: "Tâche" });
-    await dialog.getByLabel("Parent").selectOption(epic.id);
+    await chooseOption(dialog, "Type", "Tâche");
+    await chooseOption(dialog, /Parent/, new RegExp(`^${epic.key} — `));
     await dialog.getByRole("textbox", { name: "Titre" }).fill(`JIR-73 première ${RUN_ID}`);
     await dialog.getByRole("textbox", { name: "Description" }).click();
     await page.keyboard.type("Décrite à la création");
@@ -252,8 +253,8 @@ test.describe("fenêtre « Nouvel item »", () => {
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("textbox", { name: "Titre" })).toHaveValue("");
     await expect(dialog.getByRole("textbox", { name: "Titre" })).toBeFocused();
-    await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveValue("tache");
-    await expect(dialog.getByLabel("Parent")).toHaveValue(epic.id);
+    await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText("Tâche");
+    await expect(dialog.getByRole("combobox", { name: /Parent/ })).toContainText(epic.key);
 
     await dialog.getByRole("textbox", { name: "Titre" }).fill(`JIR-73 seconde ${RUN_ID}`);
     await dialog.getByRole("checkbox", { name: "Créer un autre" }).uncheck();
@@ -292,8 +293,7 @@ test.describe("fenêtre « Nouvel item »", () => {
 
     await dialog.getByRole("button", { name: "Créer une tâche", exact: true }).click();
     const create = page.getByRole("dialog", { name: "Nouvel item" });
-    await expect(create.getByLabel("Parent")).toHaveValue(epic.id);
-    await expect(create.getByLabel("Parent").locator("option:checked")).toContainText(epic.key);
+    await expect(create.getByRole("combobox", { name: /Parent/ })).toContainText(epic.key);
     await create.getByRole("textbox", { name: "Titre" }).fill(`JIR-73 hors filtre ${RUN_ID}`);
     await create.getByRole("button", { name: "Créer", exact: true }).click();
     await expect(create).toHaveCount(0);
@@ -303,5 +303,61 @@ test.describe("fenêtre « Nouvel item »", () => {
         .where(eq(items.title, `JIR-73 hors filtre ${RUN_ID}`));
       return row?.parentId;
     }).toBe(epic.id);
+  });
+
+
+  test("affiche des listes homogènes, le statut par défaut et une tâche de section au type fixe (JIR-80)", async ({ page }, testInfo) => {
+    const { epic } = await fixtures();
+    await page.goto("/b/CASS?view=list");
+    await page.locator('[data-slot="shell-topbar"]').getByRole("button", { name: "Créer", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Nouvel item" });
+    await expect(dialog).toBeVisible();
+
+    // Shared selects: the type icon sits inside the trigger, the status names the default one.
+    const type = dialog.getByRole("combobox", { name: "Type" });
+    await expect(type).toHaveText("Composant");
+    await expect(type.locator('svg[aria-label="Composant"]')).toBeVisible();
+    await expect(dialog.getByRole("combobox", { name: "Statut" })).toHaveText("À faire");
+    await expect(dialog.getByText("(par défaut)")).toHaveCount(0);
+    await expect(dialog.getByLabel("Échéance")).toHaveAttribute("lang", "fr");
+    await chooseOption(dialog, "Priorité", "Haute");
+    await expect(dialog.getByRole("combobox", { name: "Priorité" })).toHaveText("Haute");
+    await page.screenshot({ path: testInfo.outputPath("jir80-create-dialog.png"), caret: "initial" });
+    await type.click();
+    await expect(page.getByRole("option", { name: "Epic", exact: true })).toBeVisible();
+    await expect(page.getByRole("listbox")).toHaveCSS("opacity", "1");
+    await page.screenshot({ path: testInfo.outputPath("jir80-create-dialog-type-open.png"), caret: "initial" });
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+
+    // « Plus d’options » from the Backlog section: a task, shown as such.
+    await page.goto("/b/CASS?view=backlog");
+    const inlineTitle = page.getByRole("textbox", { name: "Titre du nouvel item dans Backlog" });
+    if (!(await inlineTitle.isVisible())) {
+      await page.getByRole("button", { name: "Créer un item dans Backlog" }).click();
+    }
+    await inlineTitle.fill(`JIR-80 section ${RUN_ID}`);
+    await page.getByRole("button", { name: "Plus d’options" }).click();
+    const contextual = page.getByRole("dialog", { name: "Nouvelle tâche — Backlog" });
+    await expect(contextual).toBeVisible();
+    await expect(contextual.getByRole("combobox", { name: "Type" })).toHaveCount(0);
+    await expect(contextual.getByRole("group", { name: "Type" })).toHaveText("Tâche");
+    await expect(contextual.getByRole("toolbar", { name: "Mise en forme" })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("jir80-create-dialog-contextual.png"), caret: "initial" });
+
+    // On a short screen the body scrolls and the footer stays in view.
+    await page.setViewportSize({ width: 1280, height: 560 });
+    await expect(contextual.getByRole("button", { name: "Créer", exact: true })).toBeInViewport();
+    await expect(contextual.getByRole("checkbox", { name: "Créer un autre" })).toBeInViewport();
+    await page.screenshot({ path: testInfo.outputPath("jir80-create-dialog-short.png"), caret: "initial" });
+    await chooseOption(contextual, /Parent/, new RegExp(`^${epic.key} — `));
+    await contextual.getByRole("button", { name: "Créer", exact: true }).click();
+    await expect(contextual).toHaveCount(0);
+    await expect.poll(async () => {
+      const [row] = await db.select({ type: items.type, parentId: items.parentId }).from(items)
+        .where(eq(items.title, `JIR-80 section ${RUN_ID}`));
+      return row;
+    }).toEqual({ type: "tache", parentId: epic.id });
   });
 });

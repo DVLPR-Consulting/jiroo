@@ -12,6 +12,7 @@ export type Filters = {
   assignees: string[]; // user ids; the literal "none" = unassigned
   labels: string[]; // label ids
   releaseIds: string[]; // Fix version release ids
+  sprintIds: string[]; // sprint ids (completed ones included); the literal "none" = no sprint
   kind: ItemKind[]; // bug | feature — orthogonal to the hierarchy type
   underIds: string[]; // item ids whose descendants should be included
   showFixVersions?: boolean; // optional list-column preference, persisted with saved views
@@ -75,6 +76,7 @@ export function parseViewState(sp: URLSearchParams): ViewState {
       assignees: csv(sp, "assignee"),
       labels: csv(sp, "label"),
       releaseIds: csv(sp, "version"),
+      sprintIds: csv(sp, "sprint"),
       kind,
       underIds: csv(sp, "under"),
       ...(sp.get("fvcol") === "1" ? { showFixVersions: true } : {}),
@@ -97,6 +99,7 @@ export function writeViewState(sp: URLSearchParams, state: ViewState): void {
   setOrDelete("assignee", filters.assignees.join(","));
   setOrDelete("label", filters.labels.join(","));
   setOrDelete("version", filters.releaseIds.join(","));
+  setOrDelete("sprint", filters.sprintIds.join(","));
   setOrDelete("kind", filters.kind.join(","));
   setOrDelete("under", filters.underIds.join(","));
   setOrDelete("fvcol", filters.showFixVersions ? "1" : "");
@@ -123,6 +126,8 @@ export type FilterItem = {
   rank: string;
   labelIds: string[];
   fixVersionIds: string[];
+  /** Sprints the item belongs or belonged to (see `sprintIdsByItem`). */
+  sprintIds: string[];
   ancestorIds: string[];
   componentId: string | null;
   statusOrder: number;
@@ -174,6 +179,7 @@ export function isFiltersActive(f: Filters): boolean {
     f.assignees.length > 0 ||
     f.labels.length > 0 ||
     f.releaseIds.length > 0 ||
+    f.sprintIds.length > 0 ||
     f.kind.length > 0 ||
     f.underIds.length > 0
   );
@@ -200,6 +206,13 @@ export function matchItem(it: FilterItem, f: Filters): boolean {
   // OR within the Version facet; all facets remain ANDed by their early returns.
   if (f.releaseIds.length) {
     if (!it.fixVersionIds.some((id) => f.releaseIds.includes(id))) return false;
+  }
+  // OR within the Sprint facet, "none" standing for Jira's `Sprint is EMPTY`.
+  if (f.sprintIds.length) {
+    const hit =
+      it.sprintIds.some((id) => f.sprintIds.includes(id)) ||
+      (it.sprintIds.length === 0 && f.sprintIds.includes("none"));
+    if (!hit) return false;
   }
   // OR within the kind facet: item passes if its kind is one of the selected kinds.
   if (f.kind.length && !f.kind.includes(it.kind)) return false;

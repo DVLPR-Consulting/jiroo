@@ -5,6 +5,7 @@ import { and, eq, inArray, or } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   checkPermission,
+  checkPermissions,
   explainPermission,
   listAssignableUsersForBacklog,
   PermissionDeniedError,
@@ -515,5 +516,49 @@ describeDb("server-only authorization resolver", () => {
         scope: { type: "backlog", backlogId: randomUUID() },
       }),
     ).rejects.toBeInstanceOf(ResourceNotFoundError);
+  });
+
+  it("resolves a batch of permissions exactly like one checkPermission each", async () => {
+    const sortReasons = <T extends { reasons: unknown[] }>(decision: T) => ({
+      ...decision,
+      reasons: [...decision.reasons].sort((left, right) =>
+        JSON.stringify(left).localeCompare(JSON.stringify(right))),
+    });
+    const backlogPermissions = [
+      "browse_backlog",
+      "manage_releases",
+      "assignable_user",
+      "edit_items",
+      "manage_workflows",
+      "create_backlogs", // a global permission: unknown in a backlog scope
+      "not_a_permission",
+    ];
+    const globalPermissions = [
+      "create_backlogs",
+      "browse_users",
+      "bulk_change_items",
+      "browse_backlog", // a backlog permission: unknown in the global scope
+    ];
+    const scopes = [
+      ...[backlogAId, backlogBId, backlogCId, unconfiguredBacklogId, randomUUID()].map(
+        (backlogId) => ({
+          scope: { type: "backlog" as const, backlogId },
+          permissions: backlogPermissions,
+        }),
+      ),
+      { scope: { type: "global" as const }, permissions: globalPermissions },
+    ];
+
+    for (const actorId of [...Object.values(ids), `auth-missing-${fixtureId}`]) {
+      for (const { scope, permissions } of scopes) {
+        const batch = await checkPermissions({ actorId, permissions, scope });
+        expect([...batch.keys()].sort()).toEqual([...permissions].sort());
+        for (const permission of permissions) {
+          const single = await checkPermission({ actorId, permission, scope });
+          expect(sortReasons(batch.get(permission)!), `${actorId} ${permission} ${JSON.stringify(scope)}`)
+            .toEqual(sortReasons(single));
+        }
+      }
+    }
   });
 });

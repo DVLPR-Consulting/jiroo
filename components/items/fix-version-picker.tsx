@@ -21,6 +21,8 @@ export type FixVersionPickerProps = {
   options: FixVersionOption[];
   disabled?: boolean;
   onChange: (value: string[]) => void;
+  /** Full-width trigger styled like the form fields (creation dialog). */
+  field?: boolean;
 };
 
 function optionLabel(option: FixVersionOption): string {
@@ -64,6 +66,7 @@ export function FixVersionPicker({
   options,
   disabled = false,
   onChange,
+  field = false,
 }: FixVersionPickerProps) {
   const [expanded, setExpanded] = useState(false);
   const optionById = new Map(options.map((option) => [option.id, option]));
@@ -79,7 +82,7 @@ export function FixVersionPicker({
   }
 
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+    <div className={field ? "flex w-full min-w-0 flex-col gap-1.5" : "flex min-w-0 flex-wrap items-center gap-1.5"}>
       {selected.length > 0 ? (
         <span
           role="list"
@@ -129,10 +132,17 @@ export function FixVersionPicker({
             type="button"
             disabled={disabled}
             aria-label="Versions"
-            className="inline-flex min-h-8 items-center gap-1 rounded border border-border bg-[var(--surface)] px-2 py-1 text-sm outline-none hover:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-50"
+            className={
+              field
+                ? "flex h-8 w-full items-center justify-between gap-1 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30"
+                : "inline-flex min-h-8 items-center gap-1 rounded border border-border bg-[var(--surface)] px-2 py-1 text-sm outline-none hover:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-50"
+            }
           >
             {selected.length === 0 ? "Aucune version" : "Versions"}
-            <ChevronDown aria-hidden className="size-3.5" />
+            <ChevronDown
+              aria-hidden
+              className={field ? "size-3.5 text-muted-foreground" : "size-3.5"}
+            />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-64">

@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { currentHref } from "@/test/history";
 import { ItemBoard } from "@/components/items/item-board";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
@@ -399,7 +400,7 @@ describe("ItemBoard", () => {
     expect(screen.getByRole("button", { name: "Créer dans Prêt" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Créer dans En cours" }));
 
-    expect(screen.getByRole("combobox", { name: "Statut" })).toHaveValue("doing");
+    expect(screen.getByRole("combobox", { name: "Statut" })).toHaveTextContent("En cours");
   });
 
   it("maps UUID status metadata to canonical column-header icons", () => {
@@ -688,7 +689,9 @@ describe("ItemBoard", () => {
     openCard.focus();
     await user.keyboard("[Enter]");
 
-    expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?item=DEMO-1");
+    // Opening the drawer only updates the URL through the History API.
+    expect(currentHref()).toBe("/b/DEMO?item=DEMO-1");
+    expect(mocks.push).not.toHaveBeenCalled();
     expect(moveItemAction).not.toHaveBeenCalled();
 
     mocks.push.mockClear();

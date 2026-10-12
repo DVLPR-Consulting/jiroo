@@ -242,7 +242,7 @@ describe("Sidebar", () => {
                 priorities: [],
                 assignees: [],
                 labels: [],
-                releaseIds: [],
+                releaseIds: [], sprintIds: [],
                 kind: [],
                 underIds: [],
               },

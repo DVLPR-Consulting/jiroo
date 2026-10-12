@@ -197,7 +197,8 @@ export function HelpGuide() {
           purpose="Réduire la vue aux tickets qui vous intéressent."
           steps={[
             <>Tapez dans <Ui>Filtrer…</Ui>, ou cliquez sur un avatar pour ne voir que les tickets de cette personne (l’icône <Ui>Non assigné</Ui> pour les tickets sans assigné) ; un avatar enfoncé est un filtre actif, cliquez à nouveau pour le retirer.</>,
-            <>Ouvrez <Ui>Type</Ui>, <Ui>Statut</Ui> ou <Ui>Parent</Ui> (descendants d’un Composant ou d’une Epic). Les autres filtres, <Ui>Priorité</Ui>, <Ui>Label</Ui>, <Ui>Version</Ui> et <Ui>Nature</Ui>, sont derrière <Ui>+ Filtre</Ui>.</>,
+            <>Ouvrez <Ui>Type</Ui>, <Ui>Statut</Ui> ou <Ui>Parent</Ui> (descendants d’un Composant ou d’une Epic). Les autres filtres, <Ui>Priorité</Ui>, <Ui>Label</Ui>, <Ui>Version</Ui>, <Ui>Sprint</Ui> et <Ui>Nature</Ui>, sont derrière <Ui>+ Filtre</Ui>.</>,
+            <>Dans la <Ui>Liste</Ui> et l’<Ui>Arbre</Ui>, <Ui>Sprint</Ui> propose le sprint actif, les sprints planifiés et les sprints terminés (les plus récents d’abord), plus <Ui>Aucun sprint</Ui>. Un ticket reporté d’un sprint au suivant reste trouvable sous chacun d’eux ; un ticket retiré d’un sprint avant sa fin n’en fait plus partie. Les sous-tâches suivent leur tâche.</>,
             <>Un filtre actif s’affiche en pastille avec sa valeur (ex. <Ui>Statut : En cours</Ui>) ; sa croix le retire, <Ui>Réinitialiser</Ui> efface tous les filtres.</>,
             <>Regroupez avec le menu <Ui>Affichage</Ui> à droite du titre → <Ui>Grouper par</Ui> (Statut, Priorité, Assigné, Composant ; pas sur l’Arbre).</>,
           ]}
@@ -236,7 +237,7 @@ export function HelpGuide() {
           steps={[
             <>Dans une vue du backlog, cliquez sur <Ui>+ Créer</Ui> dans la barre du haut, à côté du champ de recherche (ou touche <Key>C</Key>) : la fenêtre <Ui>Nouvel item</Ui> s’ouvre. Dans le Backlog, utilisez aussi <Ui>Créer un item</Ui> en bas d’une section (voir ci-dessous). Depuis le détail d’un ticket, <Ui>+ Créer une tâche</Ui> (ou une sous-tâche, un epic) préremplit le type et le parent.</>,
             <>Choisissez le <Ui>Type</Ui> (et un <Ui>Modèle</Ui> si besoin), puis, sauf pour un Composant, le <Ui>Parent</Ui> obligatoire ; saisissez le <Ui>Titre</Ui> et la <Ui>Description</Ui> dans l’éditeur mis en forme.</>,
-            <>Dans <Ui>Détails</Ui>, ajustez <Ui>Statut</Ui>, <Ui>Assigné</Ui> (ou <Ui>M’assigner</Ui>), <Ui>Priorité</Ui>, <Ui>Points</Ui> et <Ui>Sprint</Ui> (tâches), <Ui>Nature</Ui>, <Ui>Labels</Ui>, <Ui>Fix versions</Ui>, <Ui>Échéance</Ui>, puis <Ui>Créer</Ui>.</>,
+            <>Dans <Ui>Détails</Ui>, ajustez <Ui>Statut</Ui> (il affiche le statut que recevra le ticket, le premier statut « À faire » par défaut), <Ui>Assigné</Ui> (ou <Ui>M’assigner</Ui>, à droite du champ), <Ui>Priorité</Ui>, <Ui>Points</Ui> et <Ui>Sprint</Ui> (tâches), <Ui>Nature</Ui>, <Ui>Labels</Ui>, <Ui>Fix versions</Ui>, <Ui>Échéance</Ui>, puis <Ui>Créer</Ui>.</>,
             <>Cochez <Ui>Créer un autre</Ui> pour enchaîner : la fenêtre reste ouverte avec le même type, le même parent et le même sprint ; seuls le titre et la description sont vidés.</>,
           ]}
         >
@@ -256,7 +257,11 @@ export function HelpGuide() {
         >
           <GuideNote>
             <Ui>Plus d’options</Ui> ouvre la fenêtre de création complète (modèle, statut, priorité, nature, Fix
-            versions) pour la même section.
+            versions) pour la même section ; le type y est fixé à <Ui>Tâche</Ui>.
+          </GuideNote>
+          <GuideNote>
+            <Ui>Créer un item</Ui> n’apparaît que si votre rôle permet de planifier : la tâche est rattachée à
+            un epic. Sinon, utilisez <Ui>+ Créer</Ui> en haut de l’écran pour les autres types.
           </GuideNote>
         </GuideTopic>
 
@@ -410,7 +415,12 @@ export function HelpGuide() {
             <>Confirmez avec le bouton <Ui>Terminer le sprint</Ui> de la fenêtre.</>,
           ]}
         >
-          <GuideNote>Les sous-tâches doivent être terminées avant la fin du sprint. Un sprint ne se supprime pas.</GuideNote>
+          <GuideNote>
+            Les sous-tâches doivent être terminées avant la fin du sprint. Un sprint ne se supprime pas.
+            Un sprint terminé disparaît du Backlog et du Board ; pour retrouver ses tickets, ouvrez
+            {" "}<Ui>Rapports</Ui> → <Ui>Rapport de sprint</Ui>, ou filtrez la <Ui>Liste</Ui> ou l’<Ui>Arbre</Ui>
+            {" "}avec <Ui>+ Filtre</Ui> → <Ui>Sprint</Ui>.
+          </GuideNote>
         </GuideTopic>
       </GuideSection>
 

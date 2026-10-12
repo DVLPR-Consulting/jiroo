@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -47,9 +46,7 @@ import { ItemList } from "@/components/items/item-list";
 import { ItemBacklog } from "@/components/items/item-backlog";
 import { ItemBoard } from "@/components/items/item-board";
 import { ItemTree } from "@/components/items/item-tree";
-import { ItemDetailContent } from "@/components/items/item-detail-content";
 import { ItemDetailDrawer } from "@/components/items/item-detail-sheet";
-import { DetailPanelSkeleton } from "@/components/items/view-skeletons";
 import { TopbarCreateItem } from "@/components/shell/create-item-trigger";
 import { StatusManagerDialog } from "@/components/statuses/status-manager-dialog";
 import {
@@ -58,8 +55,14 @@ import {
   type ViewUrlEntry,
 } from "@/lib/items/view-url-params";
 import { buildSprintSections } from "@/lib/items/sprint-planning";
+import {
+  orderSprintsForFilter,
+  sprintIdsByItem,
+  withKnownSprintIds,
+} from "@/lib/items/sprint-filter";
 import { pointsByStatusCategory } from "@/lib/items/status-points";
 import { listSprintsForBacklog } from "@/lib/services/sprints";
+import { loadItemDetailData } from "@/lib/services/item-detail";
 import {
   getActiveSprintStartCommitment,
   getPreviousSprintsVelocityContext,
@@ -73,6 +76,7 @@ const VIEW_STATE_PARAM_KEYS = [
   "assignee",
   "label",
   "version",
+  "sprint",
   "kind",
   "under",
   "group",
@@ -153,7 +157,7 @@ export async function BacklogViewContent({
       .select()
       .from(statuses)
       .where(eq(statuses.backlogId, backlog.id))
-      .orderBy(asc(statuses.order)),
+      .orderBy(asc(statuses.order), asc(statuses.id)),
     db
       .select({
         statusId: itemRowsTable.statusId,
@@ -174,12 +178,27 @@ export async function BacklogViewContent({
       ? getActiveSprintStartCommitment(backlog.id)
       : Promise.resolve(null),
   ]);
+  // The Sprint facet (JIR-81) is Jira's issue-search Sprint filter: it belongs
+  // to Liste and Arbre. Board and Backlog are laid out by sprint already (and
+  // hide completed sprints by design), so they ignore it.
+  const sprintFilterEnabled = view === "list" || view === "tree";
+  const knownSprintIds = new Set(sprintSnapshot.sprints.map((sprint) => sprint.id));
   const viewState = {
     ...requestedViewState,
-    filters: withKnownReleaseIds(
-      requestedViewState.filters,
-      new Set(releaseSummaries.map((release) => release.id)),
+    filters: withKnownSprintIds(
+      withKnownReleaseIds(
+        requestedViewState.filters,
+        new Set(releaseSummaries.map((release) => release.id)),
+      ),
+      sprintFilterEnabled ? knownSprintIds : null,
     ),
+  };
+  // Saving from Board or Backlog keeps the (hidden) Sprint facet of the URL,
+  // as the dirty check compares the requested state: an update made there
+  // must not erase a saved view's sprint filter.
+  const savableFilters = {
+    ...viewState.filters,
+    sprintIds: withKnownSprintIds(requestedViewState.filters, knownSprintIds).sprintIds,
   };
   // Only unknown versions were requested: show every item, not an empty list.
   const releaseFilteredItems =
@@ -188,14 +207,9 @@ export async function BacklogViewContent({
       : requestedReleaseItems;
   const releaseMatchedIds = new Set(releaseFilteredItems.map((item) => item.id));
   const releaseFilterActive = viewState.filters.releaseIds.length > 0;
-  const [items, detailItems] = await Promise.all([
-    releaseFilterActive
-      ? listItemsWithAncestors(backlog.id, [...releaseMatchedIds])
-      : Promise.resolve(releaseFilteredItems),
-    itemKey && releaseFilterActive
-      ? listItems(backlog.id)
-      : Promise.resolve(releaseFilteredItems),
-  ]);
+  const items = releaseFilterActive
+    ? await listItemsWithAncestors(backlog.id, [...releaseMatchedIds])
+    : releaseFilteredItems;
 
   // Set of item ids that are blocked by an unfinished item — used to drive the badge.
   const blockedSet = new Set(blockedIds);
@@ -236,6 +250,7 @@ export async function BacklogViewContent({
   );
 
   const statusOrderById = new Map(statusRows.map((status) => [status.id, status.order]));
+  const sprintIdsByItemId = sprintIdsByItem(sprintSnapshot.memberships, items);
   const filterRows: FilterItem[] = enrichHierarchy(items.map((i) => ({
     id: i.id,
     key: i.key,
@@ -254,6 +269,7 @@ export async function BacklogViewContent({
     rank: i.rank,
     labelIds: (labelsByItem.get(i.id) ?? []).map((l) => l.id),
     fixVersionIds: fixVersionIdsByItem.get(i.id) ?? [],
+    sprintIds: sprintIdsByItemId.get(i.id) ?? [],
     kind: i.kind,
     statusOrder: statusOrderById.get(i.statusId) ?? 0,
   })));
@@ -268,9 +284,6 @@ export async function BacklogViewContent({
       .map((r) => r.id),
   );
   const isMatch = (id: string) => !filtersOn || matchedIds.has(id);
-  const detailItem = itemKey
-    ? detailItems.find((item) => item.key === itemKey)
-    : undefined;
 
   // List view: sort then group the filtered rows.
   const listRows = filterRows.filter((r) => isMatch(r.id));
@@ -340,7 +353,11 @@ export async function BacklogViewContent({
       type: item.type,
       title: item.title,
     })),
-    statuses: statusRows.map((status) => ({ id: status.id, name: status.name })),
+    statuses: statusRows.map((status) => ({
+      id: status.id,
+      name: status.name,
+      category: status.category,
+    })),
     releaseOptions: assignableReleaseOptions,
     // Jira's Create screen: the fields the user may already set at creation.
     fieldOptions: {
@@ -610,6 +627,15 @@ export async function BacklogViewContent({
           title: item.title,
           type: item.type,
         }))}
+        sprints={
+          sprintFilterEnabled
+            ? orderSprintsForFilter(sprintSnapshot.sprints).map(({ id, name, state }) => ({
+                id,
+                name,
+                state,
+              }))
+            : undefined
+        }
         resultCount={resultCount}
         actions={
           <ViewActions
@@ -623,7 +649,7 @@ export async function BacklogViewContent({
             isOwner={isOwner}
             dirty={dirty}
             displayMode={view as DisplayMode}
-            filters={viewState.filters}
+            filters={savableFilters}
             group={viewState.group}
             sort={viewState.sort}
             showTrigger={activeViewRow !== null || hasSavableViewState(viewState)}
@@ -642,7 +668,6 @@ export async function BacklogViewContent({
           users={assigneeCandidates}
           backlogKey={key}
           backlogId={backlog.id}
-          selectedKey={itemKey}
           filtersActive={filtersOn}
           hasItems={hasBacklogItems}
           clearFiltersHref={clearFiltersHref}
@@ -681,7 +706,6 @@ export async function BacklogViewContent({
           users={assigneeCandidates}
           backlogId={backlog.id}
           backlogKey={key}
-          selectedKey={itemKey}
           currentSort={viewState.sort}
           filtersActive={filtersOn}
           hasItems={items.length > 0}
@@ -732,7 +756,6 @@ export async function BacklogViewContent({
         <ItemTree
           backlogKey={key}
           items={treeData}
-          selectedKey={itemKey}
           statuses={statusList}
           contextIds={[...contextIds]}
           reparentItemAction={reparentItemAction}
@@ -748,56 +771,14 @@ export async function BacklogViewContent({
         />
       )}
       {/* Always rendered: the drawer opens on click with a skeleton (client
-          side) and this body fills it once the server answers, so the panel
-          slides in once instead of waiting for the whole view to re-render. */}
-      <ItemDetailDrawer itemKey={itemKey ?? null}>
-        {itemKey && (
-          <Suspense fallback={<DetailPanelSkeleton />}>
-            <ItemDetailContent
-              itemKey={itemKey}
-              backlog={backlog}
-              currentUserId={userId}
-              labels={backlogLabelRows}
-              users={displayUsers}
-              assigneeCandidates={assigneeCandidates}
-              reporterCandidates={directoryUsers}
-              statuses={statusList}
-              items={detailItems}
-              sprints={sprintSnapshot.sprints
-                .filter((sprint) => sprint.state !== "completed")
-                .map((sprint) => ({ id: sprint.id, name: sprint.name }))}
-              sprintId={
-                sprintSnapshot.memberships.find(
-                  (membership) =>
-                    membership.itemId === detailItem?.id &&
-                    membership.leftAt === null,
-                )?.sprintId ?? null
-              }
-              canEditItems={capabilities.editItems}
-              canTransitionItems={capabilities.transitionItems}
-              canAssignItems={capabilities.assignItems}
-              itemCapabilities={productCapabilities.items}
-              planningCapabilities={productCapabilities.planning}
-              fixVersions={fixVersionsByItem.get(
-                detailItem?.id ?? "",
-              ) ?? []}
-              releaseOptions={assignableReleaseOptions}
-              releaseCapabilities={productCapabilities.releases}
-              // The drawer may show an item the view's filter left out: its
-              // child creation picks parents among the whole backlog.
-              createDialog={capabilities.createItems ? {
-                ...createDialogProps,
-                items: detailItems.map((item) => ({
-                  id: item.id,
-                  key: item.key,
-                  type: item.type,
-                  title: item.title,
-                })),
-              } : undefined}
-            />
-          </Suspense>
-        )}
-      </ItemDetailDrawer>
+          side); the detail, loaded on its own, streams into it. */}
+      <ItemDetailDrawer
+        backlogKey={backlog.key}
+        itemKey={itemKey ?? null}
+        detail={itemKey
+          ? loadItemDetailData({ userId, backlogKey: backlog.key, itemKey })
+          : null}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { currentHref } from "@/test/history";
 import { ItemList } from "@/components/items/item-list";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
@@ -120,7 +121,6 @@ function listProps(): React.ComponentProps<typeof ItemList> {
     users,
     backlogId: "backlog-id",
     backlogKey: "DEMO",
-    selectedKey: undefined,
     currentSort: null,
   };
 }
@@ -315,9 +315,8 @@ describe("ItemList", () => {
     renderList();
 
     await user.click(screen.getByText("Authentication"));
-    expect(mocks.push).toHaveBeenCalledWith(
-      "/b/DEMO?view=list&item=DEMO-1&v=saved-view&q=auth",
-    );
+    expect(currentHref()).toBe("/b/DEMO?view=list&item=DEMO-1&v=saved-view&q=auth");
+    expect(mocks.push).not.toHaveBeenCalled();
 
     mocks.push.mockClear();
     const row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
@@ -378,9 +377,8 @@ describe("ItemList", () => {
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
 
     await user.click(within(row).getByText("Authentication"));
-    expect(mocks.push).toHaveBeenCalledWith(
-      "/b/DEMO?view=list&item=DEMO-1&v=saved-view&q=auth",
-    );
+    expect(currentHref()).toBe("/b/DEMO?view=list&item=DEMO-1&v=saved-view&q=auth");
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("requires edit plus transition or assign for inline update editors", () => {

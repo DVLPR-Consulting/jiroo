@@ -1,34 +1,40 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  checkPermission: vi.fn(),
+  checkPermissions: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth/authorization", () => ({
-  checkPermission: mocks.checkPermission,
+  checkPermissions: mocks.checkPermissions,
 }));
 vi.mock("@/lib/db", () => ({ db: {} }));
 
-import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
+import { getBacklogCapabilities, resolveBacklogAccess } from "@/lib/auth/accessible-backlogs";
+
+function allow(allowed: string[]) {
+  return async ({ permissions }: { permissions: string[] }) =>
+    new Map(permissions.map((permission) => [
+      permission,
+      { allowed: allowed.includes(permission) },
+    ]));
+}
 
 describe("getBacklogCapabilities", () => {
   beforeEach(() => {
-    mocks.checkPermission.mockReset();
+    mocks.checkPermissions.mockReset();
   });
 
   it("returns only effective product booleans without exposing grants", async () => {
-    mocks.checkPermission.mockImplementation(async ({ permission }) => ({
-      allowed: [
-        "browse_backlog",
-        "edit_items",
-        "delete_items",
-        "add_comments",
-        "link_items",
-        "manage_releases",
-        "bulk_change_items",
-      ].includes(permission),
-    }));
+    mocks.checkPermissions.mockImplementation(allow([
+      "browse_backlog",
+      "edit_items",
+      "delete_items",
+      "add_comments",
+      "link_items",
+      "manage_releases",
+      "bulk_change_items",
+    ]));
 
     await expect(
       getBacklogCapabilities("actor-1", "backlog-1"),
@@ -51,15 +57,53 @@ describe("getBacklogCapabilities", () => {
       manageReleases: true,
       bulkChangeItems: true,
     });
-    expect(mocks.checkPermission).toHaveBeenCalledWith({
+    // One batch per scope rather than one resolution per capability.
+    expect(mocks.checkPermissions).toHaveBeenCalledTimes(2);
+    expect(mocks.checkPermissions).toHaveBeenCalledWith({
       actorId: "actor-1",
-      permission: "manage_releases",
+      permissions: expect.arrayContaining(["browse_backlog", "manage_releases", "edit_items"]),
       scope: { type: "backlog", backlogId: "backlog-1" },
     });
-    expect(mocks.checkPermission).toHaveBeenCalledWith({
+    expect(mocks.checkPermissions).toHaveBeenCalledWith({
       actorId: "actor-1",
-      permission: "bulk_change_items",
+      permissions: ["bulk_change_items"],
       scope: { type: "global" },
     });
+  });
+
+  it("returns null when browse_backlog is denied, whatever the other grants", async () => {
+    mocks.checkPermissions.mockImplementation(allow(["edit_items", "bulk_change_items"]));
+
+    await expect(getBacklogCapabilities("actor-1", "backlog-1")).resolves.toBeNull();
+  });
+});
+
+describe("resolveBacklogAccess", () => {
+  beforeEach(() => {
+    mocks.checkPermissions.mockReset();
+  });
+
+  it("resolves extra global permissions in the capabilities' global batch", async () => {
+    mocks.checkPermissions.mockImplementation(allow(["browse_backlog", "browse_users"]));
+
+    const access = await resolveBacklogAccess("actor-1", "backlog-1", ["browse_users"]);
+
+    expect(mocks.checkPermissions).toHaveBeenCalledTimes(2);
+    expect(mocks.checkPermissions).toHaveBeenCalledWith({
+      actorId: "actor-1",
+      permissions: ["bulk_change_items", "browse_users"],
+      scope: { type: "global" },
+    });
+    expect(access.capabilities).toEqual(expect.objectContaining({ bulkChangeItems: false }));
+    expect(access.globalDecisions.get("browse_users")?.allowed).toBe(true);
+  });
+
+  it("still answers the global decisions when the backlog is not browsable", async () => {
+    mocks.checkPermissions.mockImplementation(allow(["browse_users"]));
+
+    const access = await resolveBacklogAccess("actor-1", "backlog-1", ["browse_users"]);
+
+    expect(access.capabilities).toBeNull();
+    expect(access.globalDecisions.get("browse_users")?.allowed).toBe(true);
   });
 });

@@ -22,6 +22,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/shell/view-url-state", () => ({
   useViewUrlState: () => ({ push: mocks.push }),
   useOptionalViewUrlState: () => ({ push: mocks.push }),
+  useRequestedItemKey: () => null,
 }));
 
 vi.mock("@/app/actions/items", () => ({
@@ -538,7 +539,7 @@ describe("ItemBacklog", () => {
     const field = screen.getByRole("textbox", { name: "Titre du nouvel item dans Sprint futur" });
     expect(field).toHaveFocus();
     // The only epic is pre-selected as the required parent.
-    expect(screen.getByRole("combobox", { name: "Epic parent" })).toHaveValue(epicId);
+    expect(screen.getByRole("combobox", { name: "Epic parent" })).toHaveTextContent("DEMO-9 — Connexion sécurisée");
     await user.type(field, "  Écran de vérification  {Enter}");
 
     await waitFor(() =>
@@ -778,10 +779,12 @@ describe("ItemBacklog", () => {
     ).not.toBeInTheDocument();
     scheduler.unmount();
 
+    // Inline creation makes a task under an epic: without the scheduling
+    // right it could only fail, so no section offers it.
     const creator = render(<ItemBacklog {...sprintProps()} {...denied} canCreateItems />);
     expect(
-      screen.getByRole("button", { name: "Créer un item dans Backlog" }),
-    ).toBeVisible();
+      screen.queryByRole("button", { name: "Créer un item dans Backlog" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Créer un item dans Sprint actif" }),
     ).not.toBeInTheDocument();
