@@ -38,7 +38,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { useViewUrlState } from "@/components/shell/view-url-state";
+import {
+  useRequestedItemKey,
+  useViewUrlState,
+} from "@/components/shell/view-url-state";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
 import type { SortDir, SortField } from "@/lib/items/filter";
 import type {
@@ -316,7 +319,6 @@ export function ItemList({
   users,
   backlogId,
   backlogKey,
-  selectedKey,
   currentSort,
   filtersActive = false,
   hasItems,
@@ -339,7 +341,6 @@ export function ItemList({
   users: UserOption[];
   backlogId: string;
   backlogKey: string;
-  selectedKey?: string;
   currentSort: CurrentSort;
   filtersActive?: boolean;
   hasItems?: boolean;
@@ -365,6 +366,8 @@ export function ItemList({
     : legacyCanBulkChangeItems;
   const router = useRouter();
   const viewUrl = useViewUrlState();
+  // The open item follows the URL, which changes without a server render.
+  const selectedKey = useRequestedItemKey() ?? undefined;
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const [selection, setSelection] = useState(emptySelection);
   const [selectionScope, setSelectionScope] = useState<string | null>(null);

@@ -49,7 +49,10 @@ import {
   StartSprintDialog,
 } from "@/components/sprints/sprint-lifecycle-dialogs";
 import { SprintSectionHeader } from "@/components/sprints/sprint-section-header";
-import { useViewUrlState } from "@/components/shell/view-url-state";
+import {
+  useRequestedItemKey,
+  useViewUrlState,
+} from "@/components/shell/view-url-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import type {
   BulkItemCapabilities,
@@ -1407,6 +1410,8 @@ function SprintItemBacklog({
 }
 
 export function ItemBacklog(props: LegacyBacklogProps | SprintBacklogProps) {
-  if ("sections" in props) return <SprintItemBacklog {...props} />;
-  return <LegacyItemBacklog {...props} />;
+  // The open item follows the URL, which changes without a server render.
+  const selectedKey = useRequestedItemKey() ?? undefined;
+  if ("sections" in props) return <SprintItemBacklog {...props} selectedKey={selectedKey} />;
+  return <LegacyItemBacklog {...props} selectedKey={selectedKey} />;
 }

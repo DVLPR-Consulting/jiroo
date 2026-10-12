@@ -115,19 +115,15 @@ test.describe("panneau de détail", () => {
     await expect(row).toBeVisible();
     const key = (await row.getAttribute("aria-label"))?.split(" — ")[0];
     if (!key) throw new Error("Ligne de liste introuvable.");
-    // Opening an item re-renders the whole view on the server: hold that
-    // response back, as a slow remote database does.
+    // Hold the drawer's detail back, as a slow remote database does.
     let release!: () => void;
     const held = new Promise<void>((done) => {
       release = done;
     });
-    await page.route(
-      (url) => url.searchParams.get("item") === key,
-      async (route) => {
-        await held;
-        await route.continue();
-      },
-    );
+    await page.route(`**/api/backlogs/CASS/items/${key}`, async (route) => {
+      await held;
+      await route.continue();
+    });
 
     await row.getByText(key, { exact: true }).click();
 
@@ -137,10 +133,11 @@ test.describe("panneau de détail", () => {
       .toBeVisible();
     const loading = await dialog.elementHandle();
 
+    // The URL follows the click at once, without waiting for any server.
+    await expect(page).toHaveURL(new RegExp(`[?&]item=${key}(&|$)`));
     release();
     await expect(page.getByRole("dialog", { name: new RegExp(`^${key} —`) })).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`[?&]item=${key}(&|$)`));
-    // The server body filled the drawer opened on click; it was not replaced.
+    // The fetched detail filled the drawer opened on click; it was not replaced.
     expect(await loading?.evaluate((element) => element.isConnected)).toBe(true);
   });
 
@@ -321,3 +318,184 @@ test.describe("panneau de détail", () => {
   });
 });
 
+
+/**
+ * Server renders of the backlog view after load: RSC requests for /b/CASS
+ * (navigations and refreshes), not link prefetches. Opening, switching and
+ * closing an item must not cause any (JIR-78).
+ */
+function recordViewRenders(page: Page) {
+  const renders: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    const headers = request.headers();
+    if (
+      url.pathname === "/b/CASS"
+      && (headers.rsc === "1" || url.searchParams.has("_rsc"))
+      && !headers["next-router-prefetch"]
+    ) {
+      renders.push(url.search);
+    }
+  });
+  return renders;
+}
+
+function recordDetailFetches(page: Page) {
+  const fetches: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/backlogs/CASS/items/")) fetches.push(url.pathname);
+  });
+  return fetches;
+}
+
+async function listKeys(page: Page, url: string) {
+  await page.goto(url);
+  const rows = page.locator("main [data-shortcut-item]");
+  await expect(rows.nth(1)).toBeVisible();
+  // Let hydration and the view's own requests settle before recording.
+  await page.waitForLoadState("networkidle");
+  return rows.evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("data-shortcut-item")!),
+  );
+}
+
+function drawerFor(page: Page, key: string) {
+  return page.getByRole("dialog", { name: new RegExp(`^${key} —`) });
+}
+
+test.describe("panneau de détail sans re-rendu de la vue (JIR-78)", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("ouvre, enchaîne avec J, suit l’historique et se ferme sans re-rendre la vue", async ({
+    page,
+  }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") consoleErrors.push(message.text());
+    });
+    const keys = await listKeys(page, "/b/CASS?view=list");
+    const [first, second] = keys as [string, string];
+    const viewRenders = recordViewRenders(page);
+    const detailFetches = recordDetailFetches(page);
+
+    await page.locator(`main [data-shortcut-item="${first}"]`).getByText(first, { exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`[?&]item=${first}(&|$)`));
+    await expect(drawerFor(page, first).getByTestId("item-detail-main")).toBeVisible();
+    // The open row is highlighted from the URL, without a server render.
+    await expect(page.locator(`main tr[data-shortcut-item="${first}"]`))
+      .toHaveClass(/bg-\[var\(--accent-subtle\)\]/);
+
+    await drawerFor(page, first).getByRole("button", { name: "Copier le lien" }).focus();
+    await page.keyboard.press("j");
+    await expect(page).toHaveURL(new RegExp(`[?&]item=${second}(&|$)`));
+    await expect(drawerFor(page, second).getByTestId("item-detail-main")).toBeVisible();
+
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`[?&]item=${first}(&|$)`));
+    await expect(drawerFor(page, first).getByTestId("item-detail-main")).toBeVisible();
+    await page.goForward();
+    await expect(page).toHaveURL(new RegExp(`[?&]item=${second}(&|$)`));
+    await expect(drawerFor(page, second).getByTestId("item-detail-main")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page).not.toHaveURL(/[?&]item=/);
+    await expect(page.locator(`main tr[data-shortcut-item="${second}"]`))
+      .not.toHaveClass(/bg-\[var\(--accent-subtle\)\]/);
+    await page.goBack();
+    await expect(drawerFor(page, second).getByTestId("item-detail-main")).toBeVisible();
+
+    expect(viewRenders).toEqual([]);
+    expect(detailFetches.length).toBeGreaterThanOrEqual(4);
+    expect(consoleErrors).toEqual([]);
+  });
+
+  test("rafraîchit le panneau ouvert au clic et la vue après un renommage", async ({ page }) => {
+    const item = await fixtureTask("JIR-78 renommage", "Corps");
+    await page.goto(`/b/CASS?view=list&q=${encodeURIComponent(item.title)}`);
+    const row = page.locator(`main tr[data-shortcut-item="${item.key}"]`);
+    await expect(row).toBeVisible();
+    await page.waitForLoadState("networkidle");
+
+    await row.getByText(item.key, { exact: true }).click();
+    const dialog = drawerFor(page, item.key);
+    await expect(dialog.getByTestId("item-detail-main")).toBeVisible();
+
+    const renamed = `${item.title} renommé`;
+    await dialog.getByRole("button", { name: item.title }).click();
+    const input = dialog.getByRole("textbox", { name: "Titre de l’item" });
+    await input.fill(renamed);
+    await input.press("Enter");
+
+    // The drawer shows the server's new title and history; the view row too.
+    await expect(dialog.getByRole("heading", { name: renamed, exact: true })).toBeVisible();
+    await expect(dialog.getByRole("tabpanel")).toContainText("a renommé l’item");
+    await expect(row).toHaveAttribute("aria-label", `${item.key} — ${renamed}`);
+    await expect(page).toHaveURL(new RegExp(`[?&]item=${item.key}(&|$)`));
+  });
+
+  test("enregistre la description en cours de frappe en passant à l’item suivant", async ({
+    page,
+  }) => {
+    const prefix = `JIR-78 brouillon ${process.env.JIROO_E2E_RUN_ID ?? Date.now()}`;
+    const created = [
+      await fixtureTask(`${prefix} A`, "Brouillon"),
+      await fixtureTask(`${prefix} B`, "Brouillon"),
+    ];
+    const [fromKey, toKey] = await listKeys(
+      page,
+      `/b/CASS?view=list&q=${encodeURIComponent(prefix)}`,
+    ) as [string, string];
+    const from = created.find((item) => item.key === fromKey)!;
+
+    await page.locator(`main tr[data-shortcut-item="${fromKey}"]`)
+      .getByText(fromKey, { exact: true }).click();
+    const dialog = drawerFor(page, fromKey);
+    const editor = dialog.getByRole("textbox", { name: "Description" });
+    await editor.getByText("Brouillon").click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" gardé");
+    // Switched before the autosave pause ends.
+    await dialog.getByRole("button", { name: "Item suivant (J)" }).click();
+    await expect(drawerFor(page, toKey).getByTestId("item-detail-main")).toBeVisible();
+
+    await expect.poll(async () => {
+      const [row] = await db.select({ description: items.description }).from(items)
+        .where(eq(items.id, from.id));
+      return row?.description;
+    }).toBe("Brouillon gardé");
+  });
+
+  test("n’expose le détail qu’aux lecteurs du backlog", async ({ browser, playwright }) => {
+    const anonymous = await playwright.request.newContext({
+      baseURL: test.info().project.use.baseURL,
+      storageState: { cookies: [], origins: [] },
+    });
+    expect((await anonymous.get("/api/backlogs/CASS/items/CASS-9001")).status()).toBe(401);
+    await anonymous.dispose();
+
+    const reader = await browser.newContext({ storageState: ".playwright/.auth/reader.json" });
+    try {
+      const readable = await reader.request.get("/api/backlogs/CASS/items/CASS-9001");
+      expect(readable.status()).toBe(200);
+      expect(readable.headers()["cache-control"]).toBe("private, no-store");
+      const body = await readable.json() as {
+        kind: string;
+        panel: { detail: { key: string }; itemCapabilities: { edit: boolean } };
+      };
+      expect(body.kind).toBe("item");
+      expect(body.panel.detail.key).toBe("CASS-9001");
+      expect(body.panel.itemCapabilities.edit).toBe(false);
+
+      // LABS exists but is not browsable by the reader: same answer as unknown.
+      const hidden = await reader.request.get("/api/backlogs/LABS/items/LABS-9001");
+      const unknown = await reader.request.get("/api/backlogs/ZZZZ/items/ZZZZ-1");
+      expect(hidden.status()).toBe(404);
+      expect(unknown.status()).toBe(404);
+      expect(await hidden.text()).toBe("");
+    } finally {
+      await reader.close();
+    }
+  });
+});

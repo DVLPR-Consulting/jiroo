@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { currentHref } from "@/test/history";
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
 import { resetAutosaveRegistry } from "@/lib/autosave/use-autosave";
-import { ItemDetailContent } from "@/components/items/item-detail-content";
 import { ItemDetailSheet } from "@/components/items/item-detail-sheet";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 import { KeyboardShortcutsProvider } from "@/components/shortcuts/keyboard-shortcuts-provider";
@@ -19,13 +19,6 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   updateItemAction: vi.fn(),
-  getItemByKeyForBacklog: vi.fn(),
-  getItemLabelIds: vi.fn(),
-  listActivities: vi.fn(),
-  listComments: vi.fn(),
-  listLinksForItem: vi.fn(),
-  listRefsForItem: vi.fn(),
-  listUsersByIds: vi.fn(),
   moveSprintItemAction: vi.fn(),
   reparentItemAction: vi.fn(),
 }));
@@ -78,24 +71,9 @@ vi.mock("@/lib/toast", () => ({
   },
 }));
 
-vi.mock("@/lib/services/items", () => ({
-  getItemByKeyForBacklog: mocks.getItemByKeyForBacklog,
-  getItemLabelIds: mocks.getItemLabelIds,
-  listActivities: mocks.listActivities,
-  listUsersByIds: mocks.listUsersByIds,
-}));
 
-vi.mock("@/lib/services/comments", () => ({
-  listComments: mocks.listComments,
-}));
 
-vi.mock("@/lib/services/links", () => ({
-  listLinksForItem: mocks.listLinksForItem,
-}));
 
-vi.mock("@/lib/services/refs", () => ({
-  listRefsForItem: mocks.listRefsForItem,
-}));
 
 const detail: Parameters<typeof ItemDetailPanel>[0]["detail"] = {
   id: "22222222-2222-4222-9222-222222222222",
@@ -343,9 +321,9 @@ describe("ItemDetailPanel header", () => {
     await user.keyboard("{Escape}");
 
     expect(dialog).not.toBeInTheDocument();
-    await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=board"),
-    );
+    // Closing only drops `item` from the URL, through the History API.
+    await waitFor(() => expect(currentHref()).toBe("/b/CASS?view=board"));
+    expect(mocks.push).not.toHaveBeenCalled();
     expect(returnTarget).toHaveFocus();
     rendered.unmount();
     returnTarget.remove();
@@ -883,67 +861,6 @@ describe("ItemDetailPanel header", () => {
   });
 });
 
-describe("ItemDetailContent parent resolution", () => {
-  it("derives the parent breadcrumb from the items already loaded by the view", async () => {
-    mocks.getItemByKeyForBacklog.mockResolvedValueOnce(detail);
-    mocks.getItemLabelIds.mockResolvedValueOnce([]);
-    mocks.listActivities.mockResolvedValueOnce([]);
-    mocks.listComments.mockResolvedValueOnce([]);
-    mocks.listLinksForItem.mockResolvedValueOnce([]);
-    mocks.listRefsForItem.mockResolvedValueOnce([]);
-    mocks.listUsersByIds.mockResolvedValueOnce(baseProps.users);
-    const parent = {
-      ...detail,
-      id: detail.parentId!,
-      key: "PARENT-1",
-      type: "composant" as const,
-      title: "Composant parent",
-      parentId: null,
-      path: "root.33333333333343338333333333333333",
-      depth: 0,
-    };
-    const content = await ItemDetailContent({
-      itemKey: detail.key,
-      backlog: {
-        id: detail.backlogId,
-        key: "CASS",
-        name: "Caisse",
-        color: "#475569",
-        archivedAt: null,
-      },
-      users: baseProps.users,
-      assigneeCandidates: baseProps.assigneeCandidates,
-      reporterCandidates: baseProps.reporterCandidates,
-      statuses: [
-        {
-          id: detail.statusId,
-          name: "À faire",
-          color: "#9aa0a6",
-          category: "todo",
-          order: 0,
-        },
-      ],
-      labels: [],
-      items: [parent, detail],
-      currentUserId: "better-auth-marie",
-    });
-
-    render(
-      <DetailHarness initialEntries={[["item", detail.key]]}>
-        {content}
-      </DetailHarness>,
-    );
-
-    expect(mocks.getItemByKeyForBacklog).toHaveBeenCalledWith(
-      detail.key,
-      detail.backlogId,
-    );
-    expect(screen.getByRole("navigation", { name: "Fil d’Ariane" })).toHaveTextContent(
-      /^PARENT-1\s*\/\s*CASS-2$/,
-    );
-  });
-});
-
 describe("ItemDetailPanel keyboard shortcuts", () => {
   beforeEach(() => {
     mocks.updateItemAction.mockReset();
@@ -1287,13 +1204,14 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
     renderInList(["CASS-1", detail.key, "CASS-9"]);
 
     await user.click(screen.getByRole("button", { name: "Item suivant (J)" }));
-    await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/b/CASS?view=board&item=CASS-9"));
+    await waitFor(() => expect(currentHref()).toBe("/b/CASS?view=board&item=CASS-9"));
     await user.click(screen.getByRole("button", { name: "Item précédent (K)" }));
-    await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/b/CASS?view=board&item=CASS-1"));
+    await waitFor(() => expect(currentHref()).toBe("/b/CASS?view=board&item=CASS-1"));
 
-    mocks.push.mockReset();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "j" });
-    await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/b/CASS?view=board&item=CASS-9"));
+    await waitFor(() => expect(currentHref()).toBe("/b/CASS?view=board&item=CASS-9"));
+    // Switching items never goes through a server navigation.
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("disables the end of the list and hides the arrows without a list", () => {

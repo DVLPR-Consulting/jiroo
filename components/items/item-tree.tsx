@@ -15,7 +15,10 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { LABEL_HUES, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
 import { StatusDot as CanonicalStatusDot } from "@/components/icons/status-dot";
-import { useViewUrlState } from "@/components/shell/view-url-state";
+import {
+  useRequestedItemKey,
+  useViewUrlState,
+} from "@/components/shell/view-url-state";
 import type {
   moveItemAction as MoveItemAction,
   reparentItemAction as ReparentItemAction,
@@ -139,7 +142,6 @@ function StatusDotLocal({
 type ItemTreeProps = {
   backlogKey: string;
   items: TreeItem[];
-  selectedKey?: string;
   statuses: StatusOption[];
   contextIds?: string[];
   reparentItemAction: typeof ReparentItemAction;
@@ -157,7 +159,6 @@ type ItemTreeProps = {
 export function ItemTree({
   backlogKey,
   items,
-  selectedKey,
   statuses,
   contextIds = [],
   reparentItemAction,
@@ -174,6 +175,8 @@ export function ItemTree({
   const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
   const canScheduleItems = planningCapabilities?.reparent ?? legacyCanScheduleItems;
   const viewUrl = useViewUrlState();
+  // The open item follows the URL, which changes without a server render.
+  const selectedKey = useRequestedItemKey() ?? undefined;
   const [treeItems, setTreeItems] = useState<TreeItem[]>(() => seed(items));
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dragId, setDragId] = useState<string | null>(null);

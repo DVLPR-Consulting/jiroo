@@ -2,6 +2,7 @@ import { useLayoutEffect, type ReactNode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { currentHref } from "@/test/history";
 import { FilterBar } from "@/components/shell/filter-bar";
 import {
   KeyboardShortcutsProvider,
@@ -967,7 +968,9 @@ describe("FilterBar", () => {
     fireEvent.click(screen.getByText("Authentication"));
     await act(async () => vi.advanceTimersByTime(300));
 
-    expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=list&item=DEMO-1");
+    // The item opened through the History API; the query then followed.
+    expect(currentHref()).toBe("/b/DEMO?view=list&item=DEMO-1");
+    expect(mocks.push).not.toHaveBeenCalled();
     expect(mocks.replace).toHaveBeenLastCalledWith(
       "/b/DEMO?view=list&item=DEMO-1&q=auth",
       { scroll: false },
@@ -1012,9 +1015,8 @@ describe("FilterBar", () => {
     fireEvent.click(relatedLink);
     await act(async () => vi.advanceTimersByTime(300));
 
-    expect(mocks.push).toHaveBeenCalledWith(
-      "/b/DEMO?view=list&item=DEMO-2&v=saved-view&group=priority",
-    );
+    expect(currentHref()).toBe("/b/DEMO?view=list&item=DEMO-2&v=saved-view&group=priority");
+    expect(mocks.push).not.toHaveBeenCalled();
     expect(mocks.replace).toHaveBeenLastCalledWith(
       "/b/DEMO?view=list&item=DEMO-2&v=saved-view&group=priority&q=auth",
       { scroll: false },
