@@ -3,6 +3,10 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FilterBar } from "@/components/shell/filter-bar";
+import {
+  KeyboardShortcutsProvider,
+  useShortcutHandler,
+} from "@/components/shortcuts/keyboard-shortcuts-provider";
 import { ItemList } from "@/components/items/item-list";
 import { LinksSection } from "@/components/items/detail/links-section";
 import { DisplayMenu } from "@/components/shell/display-menu";
@@ -337,6 +341,66 @@ describe("FilterBar", () => {
         { scroll: false },
       ),
     );
+  });
+
+  it("keeps keyboard focus inside « + Filtre » across its screens, away from page shortcuts", async () => {
+    const user = userEvent.setup();
+    const search = vi.fn();
+    const create = vi.fn();
+    function PageShortcuts() {
+      useShortcutHandler("search", search);
+      useShortcutHandler("create", create);
+      return null;
+    }
+    render(
+      <KeyboardShortcutsProvider>
+        <PageShortcuts />
+        <ViewUrlStateProvider initialEntries={[["view", "board"]]}>
+          <FilterBar
+            state={emptyState}
+            statuses={[]}
+            users={[]}
+            labels={[]}
+            releases={releaseOptions}
+            hierarchy={[]}
+            resultCount={1}
+          />
+        </ViewUrlStateProvider>
+      </KeyboardShortcutsProvider>,
+    );
+
+    screen.getByRole("button", { name: "Filtre" }).focus();
+    await user.keyboard("{Enter}");
+
+    // A category without values: focus lands on the way back, then returns
+    // to that category.
+    const label = await screen.findByRole("button", { name: "Label" });
+    label.focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "Filtres" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "Label" })).toHaveFocus();
+
+    // A category with values: focus lands on the first one, Space selects it.
+    screen.getByRole("button", { name: "Nature" }).focus();
+    await user.keyboard("{Enter}");
+    const feature = screen.getByRole("checkbox", { name: "Fonctionnalité" });
+    expect(feature).toHaveFocus();
+    await user.keyboard(" ");
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenLastCalledWith("/b/DEMO?view=board&kind=feature", {
+        scroll: false,
+      }),
+    );
+    expect(document.activeElement).not.toBe(document.body);
+    await user.keyboard("/c");
+    expect(search).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+
+    // Nature is now a chip on the bar: back lands on the first category left.
+    screen.getByRole("button", { name: "Filtres" }).focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "Priorité" })).toHaveFocus();
   });
 
   it("allows the filter controls to wrap instead of overflowing narrow content", () => {

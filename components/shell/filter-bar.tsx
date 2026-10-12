@@ -344,6 +344,36 @@ function AddFilterMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState<SecondaryFilter | null>(null);
+  const [returnKey, setReturnKey] = useState<SecondaryFilterKey | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const moveFocus = useRef(false);
+
+  // Each screen swap unmounts the focused button: hand focus to the new
+  // screen (first value or the way back; the category left, else the first
+  // one), so keyboard users stay in the panel and page shortcuts stay off.
+  useEffect(() => {
+    if (!moveFocus.current) return;
+    moveFocus.current = false;
+    const root = contentRef.current;
+    if (!root) return;
+    const target = current
+      ? (root.querySelector<HTMLElement>('input[type="checkbox"]')
+        ?? root.querySelector<HTMLElement>("[data-filter-back]"))
+      : (root.querySelector<HTMLElement>(`[data-filter-key="${returnKey}"]`)
+        ?? root.querySelector<HTMLElement>("[data-filter-key]"));
+    target?.focus();
+  }, [current, returnKey]);
+
+  function enter(filter: SecondaryFilter) {
+    moveFocus.current = true;
+    setCurrent(filter);
+  }
+
+  function back() {
+    moveFocus.current = true;
+    setReturnKey(current?.key ?? null);
+    setCurrent(null);
+  }
 
   return (
     <Popover
@@ -362,17 +392,21 @@ function AddFilterMenu({
           Filtre
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-56 p-1">
+      <PopoverContent ref={contentRef} align="start" className="w-56 p-1">
         {current ? (
           <div role="group" aria-label={`Filtre ${current.label}`}>
             <button
               type="button"
-              onClick={() => setCurrent(null)}
+              data-filter-back=""
+              onClick={back}
               className="flex w-full items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-xs font-medium text-muted-foreground hover:bg-[var(--muted)]"
             >
               <ChevronLeft className="size-3.5" aria-hidden="true" />
-              {current.label}
+              Filtres
             </button>
+            <p className="px-2 pb-1 text-sm font-medium" aria-hidden="true">
+              {current.label}
+            </p>
             <FilterOptions
               options={optionsByKey[current.key]}
               selected={selectedByKey[current.key]}
@@ -385,7 +419,8 @@ function AddFilterMenu({
               <li key={filter.key}>
                 <button
                   type="button"
-                  onClick={() => setCurrent(filter)}
+                  data-filter-key={filter.key}
+                  onClick={() => enter(filter)}
                   className="flex w-full items-center justify-between rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-sm hover:bg-[var(--muted)]"
                 >
                   {filter.label}
