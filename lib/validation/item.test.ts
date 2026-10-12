@@ -5,6 +5,18 @@ const BID = "11111111-1111-4111-8111-111111111111";
 const PID = "22222222-2222-4222-9222-222222222222";
 
 describe("createItemSchema", () => {
+  it("accepts points on a task only", () => {
+    expect(
+      createItemSchema.safeParse({ ...base, type: "tache", parentId: PID, estimatePoints: 2.5 }).success,
+    ).toBe(true);
+    const epic = createItemSchema.safeParse({ ...base, type: "epic", parentId: PID, estimatePoints: 2 });
+    expect(epic.success).toBe(false);
+    expect(epic.error?.issues[0]?.message).toBe("Seules les tâches peuvent être estimées.");
+    expect(
+      createItemSchema.safeParse({ ...base, type: "tache", parentId: PID, estimatePoints: 2.555 }).success,
+    ).toBe(false);
+  });
+
   const base = { backlogId: BID, title: "Tâche" };
   it("accepts a composant at the root (no parent)", () => {
     expect(createItemSchema.safeParse({ ...base, type: "composant", parentId: null }).success).toBe(true);

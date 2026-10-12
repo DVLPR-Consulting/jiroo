@@ -344,6 +344,33 @@ describe("KeyboardShortcutsProvider", () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
+  it("sends j / k inside the item drawer to the drawer's next / previous item", () => {
+    const listNext = vi.fn();
+    const itemNext = vi.fn();
+    const itemPrevious = vi.fn();
+    render(
+      <KeyboardShortcutsProvider>
+        <Bind id="list.next" handler={listNext} />
+        <Bind id="item.next" handler={itemNext} />
+        <Bind id="item.previous" handler={itemPrevious} />
+        <div role="dialog" data-shortcut-scope="item">
+          <button type="button">Dans le tiroir</button>
+        </div>
+      </KeyboardShortcutsProvider>,
+    );
+    const inDrawer = screen.getByRole("button", { name: "Dans le tiroir" });
+
+    press("j", inDrawer);
+    press("k", inDrawer);
+    expect(itemNext).toHaveBeenCalledTimes(1);
+    expect(itemPrevious).toHaveBeenCalledTimes(1);
+    expect(listNext).not.toHaveBeenCalled();
+
+    press("j");
+    expect(listNext).toHaveBeenCalledTimes(1);
+    expect(itemNext).toHaveBeenCalledTimes(1);
+  });
+
   it("does nothing once single-key shortcuts are turned off, and can turn them back on", async () => {
     const user = userEvent.setup();
     const handler = vi.fn();

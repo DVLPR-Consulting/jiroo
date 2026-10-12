@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  adjacentItemKey,
   moveShortcutFocus,
   openCurrentShortcutItem,
+  shortcutItemKeys,
   shortcutItems,
 } from "@/lib/shortcuts/list-navigation";
 
@@ -58,5 +60,18 @@ describe("list navigation", () => {
     document.activeElement!.addEventListener("click", onClick);
     expect(openCurrentShortcutItem()).toBe(true);
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists the visible item keys in display order", () => {
+    expect(shortcutItemKeys(setup())).toEqual(["CASS-1", "CASS-2", "CASS-4"]);
+  });
+
+  it("resolves the previous and next key without wrapping", () => {
+    const keys = ["CASS-1", "CASS-2", "CASS-4"];
+    expect(adjacentItemKey(keys, "CASS-2", 1)).toBe("CASS-4");
+    expect(adjacentItemKey(keys, "CASS-2", -1)).toBe("CASS-1");
+    expect(adjacentItemKey(keys, "CASS-1", -1)).toBeNull();
+    expect(adjacentItemKey(keys, "CASS-4", 1)).toBeNull();
+    expect(adjacentItemKey(keys, "CASS-9", 1)).toBeNull();
   });
 });

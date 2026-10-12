@@ -312,18 +312,6 @@ export async function BacklogViewContent({
   const statusMap = Object.fromEntries(
     statusRows.map((s) => [s.id, { name: s.name, color: s.color }]),
   );
-  const createDialogProps = {
-    backlogId: backlog.id,
-    canScheduleItems: capabilities.scheduleItems,
-    items: items.map((item) => ({
-      id: item.id,
-      key: item.key,
-      type: item.type,
-      title: item.title,
-    })),
-    statuses: statusRows.map((status) => ({ id: status.id, name: status.name })),
-    releaseOptions: assignableReleaseOptions,
-  };
 
   const referencedUserIds = items.flatMap((item) =>
     [item.assigneeId, item.reporterId].filter((id): id is string => id !== null),
@@ -341,6 +329,28 @@ export async function BacklogViewContent({
       : Promise.resolve([]),
     listLabelsForBacklog(backlog.id),
   ]);
+  const createDialogProps = {
+    backlogId: backlog.id,
+    canScheduleItems: capabilities.scheduleItems,
+    items: items.map((item) => ({
+      id: item.id,
+      key: item.key,
+      type: item.type,
+      title: item.title,
+    })),
+    statuses: statusRows.map((status) => ({ id: status.id, name: status.name })),
+    releaseOptions: assignableReleaseOptions,
+    // Jira's Create screen: the fields the user may already set at creation.
+    fieldOptions: {
+      users: assigneeCandidates,
+      canAssign: capabilities.assignItems,
+      currentUserId: userId,
+      sprints: sprintSnapshot.sprints
+        .filter((sprint) => sprint.state !== "completed")
+        .map((sprint) => ({ id: sprint.id, name: sprint.name })),
+      labels: backlogLabelRows.map(({ id, name, color }) => ({ id, name, color })),
+    },
+  };
   const directoryUsers = rawDirectoryUsers.map(({ id, name }) => ({ id, name }));
   const displayUsers = [...new Map(
     [...referencedUsers, ...directoryUsers].map((candidate) => [candidate.id, candidate]),
@@ -773,6 +783,17 @@ export async function BacklogViewContent({
               ) ?? []}
               releaseOptions={assignableReleaseOptions}
               releaseCapabilities={productCapabilities.releases}
+              // The drawer may show an item the view's filter left out: its
+              // child creation picks parents among the whole backlog.
+              createDialog={capabilities.createItems ? {
+                ...createDialogProps,
+                items: detailItems.map((item) => ({
+                  id: item.id,
+                  key: item.key,
+                  type: item.type,
+                  title: item.title,
+                })),
+              } : undefined}
             />
           </Suspense>
         )}

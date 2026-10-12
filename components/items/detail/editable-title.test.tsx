@@ -33,8 +33,8 @@ describe("EditableTitle", () => {
       />,
     );
 
-    const rename = screen.getByRole("button", { name: "Renommer DEMO-1" });
-    expect(screen.getByRole("heading", { level: 2, name: "Titre initial" })).toBeVisible();
+    const rename = screen.getByRole("button", { name: "Titre initial", description: "Renommer DEMO-1" });
+    expect(screen.getByRole("heading", { level: 1, name: "Titre initial" })).toBeVisible();
     rename.focus();
     await user.keyboard("{Enter}");
 
@@ -57,7 +57,7 @@ describe("EditableTitle", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Renommer DEMO-1" }));
+    await user.click(screen.getByRole("button", { name: "Titre initial", description: "Renommer DEMO-1" }));
     const input = screen.getByRole("textbox", { name: "Titre de l’item" });
     expect(input).toHaveAttribute("maxlength", "200");
     await user.clear(input);

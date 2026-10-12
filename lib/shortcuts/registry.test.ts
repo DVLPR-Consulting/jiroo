@@ -3,6 +3,7 @@ import {
   SEQUENCE_SHORTCUTS,
   SHORTCUT_GROUPS,
   SHORTCUTS,
+  sequenceShortcutForContext,
   shortcutsInGroup,
   shortcutText,
 } from "@/lib/shortcuts/registry";
@@ -18,9 +19,24 @@ describe("shortcut registry", () => {
       for (const b of SEQUENCE_SHORTCUTS) {
         if (a === b) continue;
         const prefix = a.sequence.every((key, index) => b.sequence[index] === key);
-        expect(prefix, `${a.id} shadows ${b.id}`).toBe(false);
+        // The same keys may serve the page's lists and the item drawer: the
+        // two contexts never overlap.
+        const sameKeysOtherContext =
+          a.sequence.length === b.sequence.length &&
+          [a.group, b.group].sort().join() === "item,list";
+        expect(prefix && !sameKeysOtherContext, `${a.id} shadows ${b.id}`).toBe(false);
       }
     }
+  });
+
+  it("resolves j / k to the list on the page and to the item drawer inside it", () => {
+    expect(sequenceShortcutForContext("list.next", "page")).toBe("list.next");
+    expect(sequenceShortcutForContext("list.next", "item")).toBe("item.next");
+    expect(sequenceShortcutForContext("list.previous", "item")).toBe("item.previous");
+    expect(sequenceShortcutForContext("list.open", "item")).toBeNull();
+    expect(sequenceShortcutForContext("item.comment", "page")).toBeNull();
+    expect(sequenceShortcutForContext("item.comment", "item")).toBe("item.comment");
+    expect(sequenceShortcutForContext("go.board", "item")).toBe("go.board");
   });
 
   it("only uses single printable characters in sequences", () => {
@@ -53,6 +69,8 @@ describe("shortcut registry", () => {
       "item.comment": "m",
       "item.assign": "a",
       "item.assignToMe": "i",
+      "item.next": "j",
+      "item.previous": "k",
     });
   });
 
