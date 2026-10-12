@@ -697,6 +697,7 @@ export function NewItemButton({
                       options={releaseOptions}
                       disabled={pending}
                       onChange={setFixVersionIds}
+                      field
                     />
                   </FieldRow>
                 ) : null}
