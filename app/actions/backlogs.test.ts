@@ -173,7 +173,28 @@ describe("updateBacklogAction lead", () => {
     const input = { id: "backlog-1", key: "WEB", name: "Site", color: "#2b6cb0", leadUserId: "user-2" };
 
     await expect(updateBacklogAction(input)).resolves.toEqual({ ok: true });
+    expect(mocks.requirePermission).toHaveBeenCalledWith({
+      actorId: "admin-1",
+      permission: "browse_users",
+      scope: { type: "global" },
+    });
     expect(mocks.updateBacklog).toHaveBeenCalledWith(input, "admin-1");
+  });
+
+  it("requires browse_users to change the lead", async () => {
+    mocks.requirePermission.mockRejectedValueOnce(
+      permissionDeniedError("browse_users", { type: "global" }),
+    );
+
+    const result = await updateBacklogAction({
+      id: "backlog-1",
+      key: "WEB",
+      name: "Site",
+      color: "#2b6cb0",
+      leadUserId: null,
+    });
+    expect(result.ok).toBe(false);
+    expect(mocks.updateBacklog).not.toHaveBeenCalled();
   });
 
   it("reports an unknown lead", async () => {

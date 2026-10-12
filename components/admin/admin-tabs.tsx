@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { BacklogAdmin, type Backlog } from "@/components/admin/backlog-admin";
+import {
+  BacklogAdmin,
+  type Backlog,
+  type BacklogLeadOption,
+} from "@/components/admin/backlog-admin";
 import { GroupAdmin, type GroupAdminProps } from "@/components/admin/group-admin";
 import {
   PermissionSchemeAdmin,
@@ -16,7 +20,7 @@ import { UserAdmin, type UserAdminDto } from "@/components/admin/user-admin";
 export type AdminTab = "backlogs" | "users" | "groups" | "roles" | "schemes";
 
 export type AdminTabData =
-  | { tab: "backlogs"; backlogs: Backlog[] }
+  | { tab: "backlogs"; backlogs: Backlog[]; leadOptions?: BacklogLeadOption[] }
   | { tab: "users"; users: UserAdminDto[]; currentUserId: string; canRecoverAccounts: boolean }
   | ({ tab: "groups" } & GroupAdminProps)
   | ({ tab: "roles" } & ProjectRoleAdminProps)
@@ -83,7 +87,9 @@ export function AdminTabs({
         id={`admin-panel-${activeTab}`}
         aria-labelledby={`admin-tab-${activeTab}`}
       >
-        {data.tab === "backlogs" && <BacklogAdmin backlogs={data.backlogs} />}
+        {data.tab === "backlogs" && (
+          <BacklogAdmin backlogs={data.backlogs} leadOptions={data.leadOptions} />
+        )}
         {data.tab === "users" && (
           <UserAdmin
             users={data.users}

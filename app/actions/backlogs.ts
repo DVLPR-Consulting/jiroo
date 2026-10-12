@@ -60,6 +60,14 @@ export async function updateBacklogAction(input: {
       backlogId: input.id,
       permission: "administer_backlog",
     });
+    // Picking a lead reads the user directory, as the lead picker does.
+    if (input.leadUserId !== undefined) {
+      await requirePermission({
+        actorId,
+        permission: "browse_users",
+        scope: { type: "global" },
+      });
+    }
     const result = await updateBacklog(input, actorId);
     if (!result) return { ok: false as const, error: "Modification impossible." };
 

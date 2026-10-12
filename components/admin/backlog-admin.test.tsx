@@ -167,4 +167,52 @@ describe("BacklogAdmin", () => {
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
     expect(mocks.archiveBacklogAction).toHaveBeenCalledTimes(2);
   });
+
+  it("edits the backlog lead when candidates are offered (JIR-82)", async () => {
+    const user = userEvent.setup();
+    mocks.updateBacklogAction.mockResolvedValue({ ok: true });
+    render(
+      <BacklogAdmin
+        backlogs={[{ ...backlog, leadUserId: "u1" }]}
+        leadOptions={[
+          { id: "u1", name: "Ada Lovelace" },
+          { id: "u2", name: "Grace Hopper" },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    const dialog = await screen.findByRole("dialog");
+    const lead = within(dialog).getByRole("combobox", { name: "Responsable" });
+    expect(lead).toHaveValue("u1");
+    await user.selectOptions(lead, "u2");
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() =>
+      expect(mocks.updateBacklogAction).toHaveBeenLastCalledWith({
+        id: "backlog-1",
+        key: "WEB",
+        name: "Site web",
+        color: "#7c3030",
+        leadUserId: "u2",
+      }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    const reopened = await screen.findByRole("dialog");
+    await user.selectOptions(within(reopened).getByRole("combobox", { name: "Responsable" }), "");
+    await user.click(within(reopened).getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() =>
+      expect(mocks.updateBacklogAction).toHaveBeenLastCalledWith(
+        expect.objectContaining({ leadUserId: null }),
+      ),
+    );
+  });
+
+  it("hides the lead field without candidates", async () => {
+    const user = userEvent.setup();
+    render(<BacklogAdmin backlogs={[backlog]} />);
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByRole("combobox", { name: "Responsable" })).not.toBeInTheDocument();
+  });
 });
