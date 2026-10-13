@@ -66,6 +66,14 @@ describe("bulkUpdateItemsSchema", () => {
     }
   });
 
+  it("rejects bulk estimates a few billionths away from a cent instead of rounding them", () => {
+    for (const value of [0.000000009, 0.290000001, 1.230000001, 999.980000001]) {
+      expect(
+        bulkUpdateItemsSchema.safeParse(input({ field: "estimatePoints", value })).success,
+      ).toBe(false);
+    }
+  });
+
   it("rejects duplicate fix version ids", () => {
     expect(
       bulkUpdateItemsSchema.safeParse(

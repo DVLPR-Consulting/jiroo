@@ -49,6 +49,25 @@ describe("sprint validation", () => {
     }
   });
 
+  it("rejects capacities a few billionths away from a cent instead of rounding them", () => {
+    for (const capacityPoints of [0.000000009, 0.290000001, 1.230000001, 999.980000001]) {
+      expect(
+        updateSprintSchema.safeParse({ id: sprintId, backlogId, capacityPoints }).success,
+      ).toBe(false);
+      expect(
+        startSprintSchema.safeParse({
+          id: sprintId,
+          backlogId,
+          name: "Sprint 1",
+          startAt: "2026-08-12T09:00:00.000Z",
+          endAt: "2026-08-26T09:00:00.000Z",
+          goal: null,
+          capacityPoints,
+        }).success,
+      ).toBe(false);
+    }
+  });
+
   it("rejects a sprint ending before it starts", () => {
     expect(
       startSprintSchema.safeParse({

@@ -114,6 +114,20 @@ describe("updateItemSchema", () => {
       expect(updateItemSchema.safeParse({ id: BID, estimatePoints }).success).toBe(false);
     }
   });
+  it("rejects story points a few billionths away from a cent instead of rounding them", () => {
+    for (const estimatePoints of [0.000000009, 0.290000001, 1.230000001, 999.980000001]) {
+      expect(updateItemSchema.safeParse({ id: BID, estimatePoints }).success).toBe(false);
+      expect(
+        createItemSchema.safeParse({
+          backlogId: BID,
+          title: "Tâche",
+          type: "tache",
+          parentId: PID,
+          estimatePoints,
+        }).success,
+      ).toBe(false);
+    }
+  });
   it("leaves story points untouched when omitted", () => {
     expect(updateItemSchema.parse({ id: BID })).not.toHaveProperty("estimatePoints");
   });

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ITEM_KINDS, ITEM_TYPES } from "@/lib/design/constants";
-import { hasAtMostTwoDecimals, roundToCents } from "@/lib/validation/points";
+import { hasAtMostTwoDecimals } from "@/lib/validation/points";
 
 export const ITEM_TITLE_MAX = 200;
 export const ITEM_DESCRIPTION_MAX = 20_000;
@@ -29,7 +29,6 @@ export const estimatePointsSchema = z
   .refine(hasAtMostTwoDecimals, {
     message: "L’estimation accepte au maximum deux décimales.",
   })
-  .transform(roundToCents)
   .nullable();
 // Map ''/null → null so an empty "no due date" field doesn't coerce to Invalid Date.
 const dueDate = z

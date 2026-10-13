@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { hasAtMostTwoDecimals, roundToCents } from "@/lib/validation/points";
+import { hasAtMostTwoDecimals } from "@/lib/validation/points";
 
 const id = z.uuid("Identifiant invalide.");
 const sprintName = z
@@ -22,7 +22,6 @@ export const capacityPointsSchema = z
   .refine(hasAtMostTwoDecimals, {
     message: "La capacité accepte au maximum deux décimales.",
   })
-  .transform(roundToCents)
   .nullable();
 
 const itemIds = z
