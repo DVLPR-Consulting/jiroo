@@ -119,6 +119,34 @@ describe("parseGithubWebhook", () => {
   });
 });
 
+describe("commits of a large push", () => {
+  it("keeps every commit, a key beyond the 100th included", () => {
+    const commits = Array.from({ length: 150 }, (_, index) => ({
+      id: index.toString(16).padStart(40, "0"),
+      message: index === 120 ? "CASS-12 late commit" : `chore ${index}`,
+      timestamp: "2026-10-13T09:15:00Z",
+      author: { name: "Alex Martin" },
+    }));
+    const payload = { ...githubPush, commits };
+    expect(JSON.stringify(payload).length).toBeLessThan(1024 * 1024);
+    const parsed = parseGithubWebhook("push", payload, NOW);
+    const refs = parsed.type === "references" ? parsed.refs.filter((ref) => ref.kind === "commit") : [];
+    expect(refs).toHaveLength(150);
+    expect(refs[120]!.texts).toEqual(["CASS-12 late commit"]);
+  });
+
+  it("looks for keys in the whole first line but stores 500 characters", () => {
+    const firstLine = `${"x".repeat(600)} CASS-12`;
+    const parsed = parseGitlabWebhook("Push Hook", {
+      ...gitlabPush,
+      commits: [{ ...gitlabPush.commits[0], message: `${firstLine}\nbody CASS-99` }],
+    }, NOW);
+    const commit = parsed.type === "references" ? parsed.refs.find((ref) => ref.kind === "commit") : undefined;
+    expect(commit!.title).toHaveLength(500);
+    expect(commit!.texts).toEqual([firstLine]);
+  });
+});
+
 describe("githubPullRequestState", () => {
   it("follows opened → closed → reopened → merged", () => {
     expect(githubPullRequestState({ state: "open", merged: false })).toBe("open");

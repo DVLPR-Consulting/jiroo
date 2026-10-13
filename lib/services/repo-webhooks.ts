@@ -27,6 +27,14 @@ const DELIVERY_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 /** A failing connection's last error is rewritten at most this often. */
 const ERROR_THROTTLE_MS = 60 * 1000;
 const MAX_ERROR_LENGTH = 300;
+/** Rows per upsert and keys per lookup: well under PostgreSQL's 65,535 parameters. */
+const BATCH_SIZE = 500;
+
+function chunks<T>(values: T[], size = BATCH_SIZE): T[][] {
+  const result: T[][] = [];
+  for (let index = 0; index < values.length; index += size) result.push(values.slice(index, index + size));
+  return result;
+}
 
 export type WebhookConnection = {
   id: string;
@@ -198,22 +206,24 @@ export async function ingestWebhookReferences(input: {
     }
 
     const keys = [...new Set(input.refs.flatMap((ref) => extractItemKeys(ref.texts, connection.backlogKey)))];
-    const liveItems = keys.length === 0
-      ? []
-      : await tx
-          .select({ id: items.id, key: items.key })
-          .from(items)
-          .where(and(
-            eq(items.backlogId, connection.backlogId),
-            inArray(items.key, keys),
-            isNull(items.deletedAt),
-          ));
+    const liveItems: { id: string; key: string }[] = [];
+    for (const batch of chunks(keys)) {
+      liveItems.push(...await tx
+        .select({ id: items.id, key: items.key })
+        .from(items)
+        .where(and(
+          eq(items.backlogId, connection.backlogId),
+          inArray(items.key, batch),
+          isNull(items.deletedAt),
+        )));
+    }
     const rows = refRows(connection, input.refs, new Map(liveItems.map((item) => [item.key, item.id])));
 
-    if (rows.length > 0) {
+    // Every reference of the delivery, in bounded batches of one transaction.
+    for (const batch of chunks(rows)) {
       await tx
         .insert(itemRefs)
-        .values(rows)
+        .values(batch)
         .onConflictDoUpdate({
           target: [itemRefs.itemId, itemRefs.kind, itemRefs.provider, itemRefs.externalId],
           set: {

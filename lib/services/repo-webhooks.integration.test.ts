@@ -185,6 +185,22 @@ describeDb("repository webhook ingestion (JIR-95)", () => {
     ]);
   });
 
+  it("links every commit of a large push, beyond one upsert batch", async () => {
+    const { second } = fixture.items;
+    const commits: DevRefCandidate[] = Array.from({ length: 620 }, (_, index) => ({
+      kind: "commit",
+      id: `${index.toString(16).padStart(8, "0")}${"b".repeat(32)}`,
+      title: `${second.key} change ${index}`,
+      authorName: null,
+      state: null,
+      occurredAt: new Date("2026-10-13T09:00:00Z"),
+      texts: [`${second.key} change ${index}`],
+    }));
+    expect(await ingestWebhookReferences({ connection, deliveryId: "large-push", refs: commits })).toEqual({ duplicate: false, linked: 620 });
+    const linked = (await listRefsForItem(second.id)).filter((ref) => ref.kind === "commit" && ref.title?.includes("change"));
+    expect(linked).toHaveLength(620);
+  });
+
   it("reserves requests atomically per connection and window", async () => {
     const window = new Date("2030-01-01T10:00:30.000Z");
     let used = 0;

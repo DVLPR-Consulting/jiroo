@@ -37,8 +37,8 @@ export class WebhookPayloadError extends Error {
 
 const MAX_TITLE = 500;
 const MAX_AUTHOR = 200;
-/** GitHub and GitLab already cap a push payload at 20 commits. */
-const MAX_COMMITS = 100;
+// Every commit of an accepted push is kept (GitHub sends up to 2,048): the
+// 1 MB body limit is the only bound.
 
 const text = z.string();
 const optionalText = z.string().nullish();
@@ -52,9 +52,14 @@ function displayName(value: string | null | undefined): string | null {
   return trimmed ? clip(trimmed, MAX_AUTHOR) : null;
 }
 
-/** First line of a commit message, the only part Jiroo keeps. */
+/** First line of a commit message, the only part Jiroo reads. */
+function commitFirstLine(message: string): string {
+  return (message.split(/\r?\n/, 1)[0] ?? "").trim();
+}
+
+/** The first line as stored and shown: capped at 500 characters. */
 export function commitTitle(message: string): string {
-  return clip((message.split(/\r?\n/, 1)[0] ?? "").trim(), MAX_TITLE);
+  return clip(commitFirstLine(message), MAX_TITLE);
 }
 
 /** Parses ISO and GitLab's `2026-10-12 12:20:00 UTC` dates; falls back to `now`. */
@@ -101,18 +106,16 @@ function commitCandidates(
   commits: z.infer<typeof commitSchema>[],
   now: Date,
 ): DevRefCandidate[] {
-  return commits.slice(0, MAX_COMMITS).map((commit) => {
-    const title = commitTitle(commit.message);
-    return {
-      kind: "commit",
-      id: commit.id.toLowerCase(),
-      title,
-      authorName: displayName(commit.author?.name),
-      state: null,
-      occurredAt: parseDate(commit.timestamp, now),
-      texts: [title],
-    };
-  });
+  return commits.map((commit) => ({
+    kind: "commit",
+    id: commit.id.toLowerCase(),
+    title: commitTitle(commit.message),
+    authorName: displayName(commit.author?.name),
+    state: null,
+    occurredAt: parseDate(commit.timestamp, now),
+    // Keys are looked for in the whole first line, not only the stored part.
+    texts: [commitFirstLine(commit.message)],
+  }));
 }
 
 function parseOrThrow<T extends z.ZodType>(schema: T, payload: unknown): z.infer<T> {
