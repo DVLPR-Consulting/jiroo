@@ -41,6 +41,21 @@ describe("normalizeRepositoryPath", () => {
   });
 });
 
+describe("a self-hosted GitLab under a sub-path", () => {
+  it("drops the instance prefix from a pasted repository URL, not from a typed path", () => {
+    const base = { backlogId: BACKLOG_ID, provider: "gitlab", instanceUrl: "https://forge.example.invalid/gitlab" };
+    for (const repositoryPath of [
+      "https://forge.example.invalid/gitlab/group/api.git",
+      "https://forge.example.invalid/GitLab/group/api/-/merge_requests/3",
+      "group/api",
+    ]) {
+      expect(createRepoConnectionInput.parse({ ...base, repositoryPath }).repositoryPath, repositoryPath).toBe("group/api");
+    }
+    // A project really named « gitlab/… » typed as a path stays as typed.
+    expect(createRepoConnectionInput.parse({ ...base, repositoryPath: "gitlab/group/api" }).repositoryPath).toBe("gitlab/group/api");
+  });
+});
+
 describe("normalizeInstanceUrl", () => {
   it("pins GitHub to github.com", () => {
     expect(normalizeInstanceUrl("github", "https://evil.example")).toBe("https://github.com");

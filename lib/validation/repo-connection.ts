@@ -36,15 +36,27 @@ export function normalizeInstanceUrl(
 
 /**
  * `owner/repo` (GitHub) or `group/subgroup/project` (GitLab), lower-cased.
- * A pasted repository URL or clone address is accepted. Null when invalid.
+ * A pasted repository URL or clone address is accepted; a URL on a GitLab
+ * served under a sub-path (`instanceUrl`) loses that prefix. Null when invalid.
  */
-export function normalizeRepositoryPath(provider: RepoProviderInput, raw: string): string | null {
+export function normalizeRepositoryPath(
+  provider: RepoProviderInput,
+  raw: string,
+  instanceUrl?: string,
+): string | null {
   let value = raw.trim();
   const scp = /^[^@/\s]+@[^:/\s]+:(.+)$/.exec(value);
   if (scp) value = scp[1]!;
   else if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) {
     try {
-      value = new URL(value).pathname;
+      const url = new URL(value);
+      value = url.pathname;
+      const instance = instanceUrl ? new URL(instanceUrl) : null;
+      const prefix = instance?.pathname.replace(/\/+$/, "") ?? "";
+      if (instance && prefix && url.host === instance.host
+        && value.toLowerCase().startsWith(`${prefix.toLowerCase()}/`)) {
+        value = value.slice(prefix.length);
+      }
     } catch {
       return null;
     }
@@ -70,7 +82,8 @@ export const createRepoConnectionInput = z
     instanceUrl: z.string().max(500).optional(),
   })
   .transform((input, ctx) => {
-    const repositoryPath = normalizeRepositoryPath(input.provider, input.repositoryPath);
+    const instanceUrl = normalizeInstanceUrl(input.provider, input.instanceUrl);
+    const repositoryPath = normalizeRepositoryPath(input.provider, input.repositoryPath, instanceUrl ?? undefined);
     if (!repositoryPath) {
       ctx.addIssue({
         code: "custom",
@@ -81,7 +94,6 @@ export const createRepoConnectionInput = z
       });
       return z.NEVER;
     }
-    const instanceUrl = normalizeInstanceUrl(input.provider, input.instanceUrl);
     if (!instanceUrl) {
       ctx.addIssue({ code: "custom", path: ["instanceUrl"], message: "URL d’instance invalide." });
       return z.NEVER;
