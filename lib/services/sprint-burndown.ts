@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
@@ -266,7 +266,10 @@ async function readLedger(
 }
 
 /** The membership was added after the sprint started (it has an item_added event). */
-function addedAfterStartSql(backlogId: string, sprintId: string | AnyColumn): SQL {
+function addedAfterStartSql(
+  backlogId: string | AnyColumn,
+  sprintId: string | AnyColumn,
+): SQL {
   return sql`exists (
     select 1 from sprint_events added_event
     where added_event.backlog_id = ${backlogId}
@@ -277,7 +280,10 @@ function addedAfterStartSql(backlogId: string, sprintId: string | AnyColumn): SQ
 }
 
 /** Memberships closed during planning never took part in the sprint. */
-function participatedInSprintSql(backlogId: string, sprintId: string | AnyColumn): SQL {
+function participatedInSprintSql(
+  backlogId: string | AnyColumn,
+  sprintId: string | AnyColumn,
+): SQL {
   return sql`(
     ${sprintItems.leftAt} is null
     or ${sprintItems.estimateAtStart} is not null
@@ -454,21 +460,18 @@ async function readSource(
 }
 
 /**
- * Commitment frozen when the backlog's active sprint started, using the same
+ * Aggregates of the active sprint's start commitment, using the same
  * initial-membership rule as the active burndown (participated, not added after
- * start). Null points when the burndown would be legacy (missing start facts).
- * One aggregate query; null when the backlog has no active sprint.
+ * start). To select from `sprints` left-joined to `sprint_items`, grouped by
+ * sprint; correlated on the row's backlog so it serves one or many backlogs.
  */
-export async function getActiveSprintStartCommitment(
-  backlogId: string,
-): Promise<ActiveSprintStartCommitment | null> {
+function startCommitmentColumns() {
   const initial = sql`(
     ${sprintItems.id} is not null
-    and ${participatedInSprintSql(backlogId, sprints.id)}
-    and not ${addedAfterStartSql(backlogId, sprints.id)}
+    and ${participatedInSprintSql(sprints.backlogId, sprints.id)}
+    and not ${addedAfterStartSql(sprints.backlogId, sprints.id)}
   )`;
-  const [row] = await db.select({
-    sprintId: sprints.id,
+  return {
     commitmentPoints: sql<number>`coalesce(
       sum(${sprintItems.estimateAtStart}) filter (where ${initial}),
       0
@@ -477,12 +480,26 @@ export async function getActiveSprintStartCommitment(
       coalesce(bool_or(${sprintItems.doneAtStart} is null) filter (where ${initial}), false)
       or exists (
         select 1 from sprint_events legacy_event
-        where legacy_event.backlog_id = ${backlogId}
+        where legacy_event.backlog_id = ${sprints.backlogId}
           and legacy_event.sprint_id = ${sprints.id}
           and legacy_event.event_type = 'item_added'
           and legacy_event.next_done is null
       )
     )`,
+  };
+}
+
+/**
+ * Commitment frozen when the backlog's active sprint started. Null points when
+ * the burndown would be legacy (missing start facts). One aggregate query;
+ * null when the backlog has no active sprint.
+ */
+export async function getActiveSprintStartCommitment(
+  backlogId: string,
+): Promise<ActiveSprintStartCommitment | null> {
+  const [row] = await db.select({
+    sprintId: sprints.id,
+    ...startCommitmentColumns(),
   }).from(sprints).leftJoin(
     sprintItems,
     eq(sprintItems.sprintId, sprints.id),
@@ -495,6 +512,63 @@ export async function getActiveSprintStartCommitment(
     sprintId: row.sprintId,
     commitmentPoints: row.missingStartFacts ? null : Number(row.commitmentPoints),
   };
+}
+
+export type ActiveSprintProgress = {
+  backlogId: string;
+  id: string;
+  name: string;
+  /** Done tasks currently in the sprint, as the Backlog section header counts them. */
+  completedPoints: number;
+  /** Start commitment (Jira's velocity "Commitment"); null when unavailable. */
+  commitmentPoints: number | null;
+};
+
+/**
+ * Progress of the active sprint of each given backlog, in one aggregate query
+ * (JIR-82 home page). Completed points follow the Backlog view: current,
+ * non-deleted task memberships whose status is in the done category.
+ */
+export async function listActiveSprintProgress(
+  backlogIds: string[],
+): Promise<ActiveSprintProgress[]> {
+  if (backlogIds.length === 0) return [];
+  const rows = await db.select({
+    backlogId: sprints.backlogId,
+    id: sprints.id,
+    name: sprints.name,
+    completedPoints: sql<number>`coalesce((
+      select sum(done_item.estimate_points)
+      from sprint_items current_membership
+      join items done_item
+        on done_item.id = current_membership.item_id
+        and done_item.backlog_id = ${sprints.backlogId}
+      join statuses done_status on done_status.id = done_item.status_id
+      where current_membership.sprint_id = ${sprints.id}
+        and current_membership.left_at is null
+        and done_item.deleted_at is null
+        and done_item.type = 'tache'
+        and done_status.category = 'done'
+    ), 0)::double precision`,
+    ...startCommitmentColumns(),
+  }).from(sprints).leftJoin(
+    sprintItems,
+    eq(sprintItems.sprintId, sprints.id),
+  ).where(and(
+    inArray(sprints.backlogId, backlogIds),
+    eq(sprints.state, "active"),
+  )).groupBy(sprints.id);
+  return rows.map((row) => ({
+    backlogId: row.backlogId,
+    id: row.id,
+    name: row.name,
+    completedPoints: roundPoints(Number(row.completedPoints)),
+    commitmentPoints: row.missingStartFacts ? null : roundPoints(Number(row.commitmentPoints)),
+  }));
+}
+
+function roundPoints(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 export { getPreviousSprintsVelocityContext };

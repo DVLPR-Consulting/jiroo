@@ -130,6 +130,19 @@ describe("HelpPage", () => {
     expect(tickets).not.toHaveTextContent("Onglet Commentaires");
   });
 
+  it("documents the backlogs home, favourites and the backlog lead (JIR-82)", () => {
+    render(<HelpPage />);
+    const organisation = document.querySelector("section#organisation") as HTMLElement;
+    const topic = within(organisation)
+      .getByRole("heading", { level: 3, name: "Retrouver ses backlogs" })
+      .closest("article, div, section") as HTMLElement;
+    for (const label of ["Tous les backlogs", "Aucun sprint actif", "Ajouter aux favoris", "Retirer des favoris"]) {
+      expect(topic).toHaveTextContent(`« ${label} »`);
+    }
+    const rights = document.querySelector("section#droits") as HTMLElement;
+    expect(rights).toHaveTextContent("« Responsable »");
+  });
+
   it("documents the Sprint filter and where completed sprints go (JIR-81)", () => {
     render(<HelpPage />);
     const views = document.querySelector("section#vues") as HTMLElement;

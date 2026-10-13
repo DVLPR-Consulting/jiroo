@@ -7,9 +7,10 @@ const mocks = vi.hoisted(() => ({
   listGroups: vi.fn(),
   listGlobalPermissionGrants: vi.fn(),
   listAdminUsers: vi.fn(),
-  listBacklogsForUser: vi.fn(),
+  listAdminBacklogsForUser: vi.fn(),
   listPermissionSchemes: vi.fn(),
   listProjectRoles: vi.fn(),
+  listUsers: vi.fn(),
   redirect: vi.fn(),
   requireAppPageSession: vi.fn(),
 }));
@@ -26,9 +27,10 @@ vi.mock("@/lib/auth/authorization", () => ({
   checkPermission: mocks.checkPermission,
 }));
 vi.mock("@/lib/services/backlogs", () => ({
-  listBacklogsForUser: mocks.listBacklogsForUser,
+  listAdminBacklogsForUser: mocks.listAdminBacklogsForUser,
 }));
 vi.mock("@/lib/services/users", () => ({ listAdminUsers: mocks.listAdminUsers }));
+vi.mock("@/lib/services/items", () => ({ listUsers: mocks.listUsers }));
 vi.mock("@/lib/services/authorization-admin", () => ({
   listGroups: mocks.listGroups,
   listGlobalPermissionGrants: mocks.listGlobalPermissionGrants,
@@ -50,8 +52,9 @@ describe("AdminPage read authorization", () => {
     mocks.requireAppPageSession.mockResolvedValue({
       user: { id: "platform-admin-1", role: "contributor" },
     });
-    mocks.listBacklogsForUser.mockResolvedValue([]);
+    mocks.listAdminBacklogsForUser.mockResolvedValue([]);
     mocks.listAdminUsers.mockResolvedValue([]);
+    mocks.listUsers.mockResolvedValue([]);
     mocks.listGroups.mockResolvedValue([]);
     mocks.listGlobalPermissionGrants.mockResolvedValue([]);
     mocks.listPermissionSchemes.mockResolvedValue([]);
@@ -74,7 +77,7 @@ describe("AdminPage read authorization", () => {
       scope: { type: "global" },
     });
     expect(mocks.listProjectRoles).toHaveBeenCalledOnce();
-    expect(mocks.listBacklogsForUser).not.toHaveBeenCalled();
+    expect(mocks.listAdminBacklogsForUser).not.toHaveBeenCalled();
     expect(mocks.listAdminUsers).not.toHaveBeenCalled();
     expect(mocks.listGroups).not.toHaveBeenCalled();
     expect(mocks.listPermissionSchemes).not.toHaveBeenCalled();
@@ -86,7 +89,7 @@ describe("AdminPage read authorization", () => {
     await expect(
       AdminPage({ searchParams: Promise.resolve({ tab: "groups" }) }),
     ).rejects.toThrow("redirect:/");
-    expect(mocks.listBacklogsForUser).not.toHaveBeenCalled();
+    expect(mocks.listAdminBacklogsForUser).not.toHaveBeenCalled();
     expect(mocks.listAdminUsers).not.toHaveBeenCalled();
   });
 
@@ -176,4 +179,42 @@ describe("AdminPage read authorization", () => {
       );
     },
   );
+
+  it("offers backlog lead candidates, sorted, only with browse_users (JIR-82)", async () => {
+    mocks.checkPermission.mockResolvedValue({ allowed: true });
+    mocks.listUsers.mockResolvedValue([
+      { id: "u2", name: "Zoé" },
+      { id: "u1", name: "Émile" },
+    ]);
+
+    render(await AdminPage({ searchParams: Promise.resolve({}) }));
+
+    expect(mocks.listAdminBacklogsForUser).toHaveBeenCalledWith("platform-admin-1");
+    expect(mocks.adminTabsProps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          tab: "backlogs",
+          leadOptions: [
+            { id: "u1", name: "Émile" },
+            { id: "u2", name: "Zoé" },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("hides backlog lead candidates without browse_users (JIR-82)", async () => {
+    mocks.checkPermission.mockImplementation(async ({ permission }) => ({
+      allowed: permission !== "browse_users",
+    }));
+
+    render(await AdminPage({ searchParams: Promise.resolve({}) }));
+
+    expect(mocks.listUsers).not.toHaveBeenCalled();
+    expect(mocks.adminTabsProps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ tab: "backlogs", leadOptions: undefined }),
+      }),
+    );
+  });
 });

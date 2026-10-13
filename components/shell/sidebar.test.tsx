@@ -96,6 +96,14 @@ describe("Sidebar", () => {
     );
   });
 
+  it("links every backlog's home, inactive off the home page (JIR-82)", () => {
+    renderSidebar();
+
+    const home = screen.getByRole("link", { name: "Tous les backlogs" });
+    expect(home).toHaveAttribute("href", "/");
+    expect(home).not.toHaveAttribute("aria-current");
+  });
+
   it("shows filtered trash to every member without exposing administration", () => {
     render(
       <SidebarStateProvider>

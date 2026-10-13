@@ -5,7 +5,13 @@ import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
 import { requirePermission } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
-import { archiveBacklog, createBacklog, updateBacklog } from "@/lib/services/backlogs";
+import { ZodError } from "zod";
+import {
+  archiveBacklog,
+  createBacklog,
+  setBacklogStar,
+  updateBacklog,
+} from "@/lib/services/backlogs";
 
 async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
@@ -44,6 +50,8 @@ export async function updateBacklogAction(input: {
   key: string;
   name: string;
   color: string;
+  /** Backlog lead (JIR-82): null for none, omitted to keep it. */
+  leadUserId?: string | null;
 }) {
   const actorId = await authenticatedActorId();
   try {
@@ -52,6 +60,14 @@ export async function updateBacklogAction(input: {
       backlogId: input.id,
       permission: "administer_backlog",
     });
+    // Picking a lead reads the user directory, as the lead picker does.
+    if (input.leadUserId !== undefined) {
+      await requirePermission({
+        actorId,
+        permission: "browse_users",
+        scope: { type: "global" },
+      });
+    }
     const result = await updateBacklog(input, actorId);
     if (!result) return { ok: false as const, error: "Modification impossible." };
 
@@ -73,7 +89,9 @@ export async function updateBacklogAction(input: {
       ok: false as const,
       error: isUniqueViolation(error)
         ? "Cette clé est déjà utilisée."
-        : "Modification impossible.",
+        : error instanceof Error && error.message === "Responsable introuvable."
+          ? "Responsable introuvable."
+          : "Modification impossible.",
     };
   }
 }
@@ -93,5 +111,24 @@ export async function archiveBacklogAction(id: string) {
     const authorizationError = mapActionAuthorizationError(error);
     if (authorizationError) return authorizationError;
     throw error;
+  }
+}
+
+/**
+ * Stars or unstars a backlog for the signed-in user (JIR-82). No permission
+ * beyond browsing the backlog, checked by the service; idempotent.
+ */
+export async function setBacklogStarAction(input: { backlogId: string; starred: boolean }) {
+  const actorId = await authenticatedActorId();
+  try {
+    const result = await setBacklogStar(input, actorId);
+    // Favourites reorder the home page and the sidebar selector of every page.
+    revalidatePath("/", "layout");
+    return { ok: true as const, starred: result.starred };
+  } catch (error) {
+    const authorizationError = mapActionAuthorizationError(error);
+    if (authorizationError) return authorizationError;
+    if (error instanceof ZodError) return { ok: false as const, error: "Requête invalide." };
+    return { ok: false as const, error: "Favori non enregistré. Réessayez." };
   }
 }

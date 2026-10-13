@@ -132,6 +132,21 @@ describe("deriveShellContext", () => {
     });
   });
 
+  it("marks the home page as the backlogs list (JIR-82)", () => {
+    expect(
+      deriveShellContext({
+        pathname: "/",
+        search: new URLSearchParams(),
+        backlogs: [],
+        views: [],
+      }),
+    ).toEqual({
+      section: "Backlogs",
+      allItemsHref: "/",
+      activeNav: "backlogs",
+    });
+  });
+
   it("matches special routes exactly instead of by prefix", () => {
     expect(
       deriveShellContext({
@@ -261,6 +276,10 @@ describe("deriveBreadcrumb (page header)", () => {
     expect(crumbs(pathname)).toEqual([{ label: project, href }, { label: current }]);
   });
 
+  it("shows the home page alone, above every project (JIR-82)", () => {
+    expect(crumbs("/")).toEqual([{ label: "Backlogs" }]);
+  });
+
   it("links the section of a page nested under it", () => {
     expect(crumbs("/b/PEN/releases/r-1")).toEqual([
       { label: "Pôle pénal", href: "/b/PEN" },
@@ -273,7 +292,7 @@ describe("deriveBreadcrumb (page header)", () => {
   });
 
   it("keeps a lone segment without any backlog", () => {
-    expect(crumbs("/", "", [])).toEqual([{ label: "Jiroo" }]);
+    expect(crumbs("/", "", [])).toEqual([{ label: "Backlogs" }]);
     expect(crumbs("/admin", "", [])).toEqual([{ label: "Administration" }]);
   });
 });

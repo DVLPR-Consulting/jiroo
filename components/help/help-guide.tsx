@@ -91,6 +91,23 @@ export function HelpGuide() {
         </GuideTopic>
 
         <GuideTopic
+          title="Retrouver ses backlogs"
+          purpose="Voir d’un coup d’œil tous les backlogs auxquels vous avez accès et garder vos favoris à portée de main."
+          steps={[
+            <>Ouvrez l’accueil avec <Ui>Tous les backlogs</Ui>, sous le sélecteur de backlog de la barre latérale.</>,
+            <>Chaque ligne affiche le nom et la clé du backlog, le nombre d’items ouverts (statut hors catégorie Terminé), le sprint actif avec ses points terminés sur les points engagés au démarrage (ou <Ui>Aucun sprint actif</Ui>) et le responsable.</>,
+            <>Cliquez sur une ligne pour ouvrir le backlog.</>,
+            <>Cliquez sur l’étoile (infobulle <Ui>Ajouter aux favoris</Ui>) pour placer un backlog en tête de liste ; cliquez à nouveau (<Ui>Retirer des favoris</Ui>) pour l’enlever. Pour les lecteurs d’écran, le bouton s’appelle « Favori » suivi du nom du backlog et indique s’il est activé.</>,
+          ]}
+        >
+          <GuideNote>
+            Les favoris sont personnels. Ils apparaissent d’abord sur l’accueil et dans le sélecteur de backlog,
+            marqués d’une étoile ; les autres backlogs suivent par ordre alphabétique. Les backlogs archivés n’y
+            figurent pas.
+          </GuideNote>
+        </GuideTopic>
+
+        <GuideTopic
           title="Hiérarchie"
           purpose="Ranger le travail du plus large au plus précis : Composant → Epic → Tâche → Sous-tâche."
         >
@@ -555,6 +572,7 @@ export function HelpGuide() {
             <><Ui>Utilisateurs</Ui> : <Ui>Nouvel utilisateur</Ui> ; menu « … » → <Ui>Réinitialiser le mot de passe</Ui> ou <Ui>Réinitialiser la double authentification</Ui>.</>,
             <><Ui>Groupes</Ui> : créer, renommer, ajouter ou retirer des membres ; attribuer les permissions globales.</>,
             <><Ui>Backlogs</Ui> : <Ui>Nouveau backlog</Ui>, <Ui>Modifier</Ui>, <Ui>Archiver</Ui>, et <Ui>Accès</Ui> pour affecter personnes et groupes aux rôles.</>,
+            <><Ui>Backlogs</Ui> → <Ui>Modifier</Ui> → <Ui>Responsable</Ui> : choisissez la personne affichée comme responsable sur l’accueil, ou <Ui>Aucun</Ui>. Ce champ ne donne aucun droit ; il n’apparaît qu’avec la permission de parcourir les utilisateurs.</>,
             <><Ui>Rôles de projet</Ui> et <Ui>Schémas de permissions</Ui> : réglages fins des accès.</>,
           ]}
         >

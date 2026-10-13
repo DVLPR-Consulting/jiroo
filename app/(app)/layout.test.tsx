@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   checkPermission: vi.fn(),
   headers: vi.fn(),
   redirect: vi.fn(),
-  listBacklogsForUser: vi.fn(),
+  listBacklogsWithStarsForUser: vi.fn(),
   listVisibleViews: vi.fn(),
   unreadCount: vi.fn(),
   listRecentNotifications: vi.fn(),
@@ -27,7 +27,7 @@ vi.mock("@/lib/auth/authorization", () => ({
   checkPermission: mocks.checkPermission,
 }));
 vi.mock("@/lib/services/backlogs", () => ({
-  listBacklogsForUser: mocks.listBacklogsForUser,
+  listBacklogsWithStarsForUser: mocks.listBacklogsWithStarsForUser,
 }));
 vi.mock("@/lib/services/views", () => ({ listVisibleViews: mocks.listVisibleViews }));
 vi.mock("@/lib/services/notifications", () => ({
@@ -76,7 +76,7 @@ describe("AppLayout 2FA access guard", () => {
     mocks.redirect.mockImplementation((destination: string) => {
       throw new Error(`redirect:${destination}`);
     });
-    mocks.listBacklogsForUser.mockResolvedValue([]);
+    mocks.listBacklogsWithStarsForUser.mockResolvedValue([]);
     mocks.listVisibleViews.mockResolvedValue([]);
     mocks.unreadCount.mockResolvedValue(0);
     mocks.listRecentNotifications.mockResolvedValue([]);
@@ -89,7 +89,7 @@ describe("AppLayout 2FA access guard", () => {
 
     await expect(AppLayout({ children: null })).rejects.toThrow("redirect:/2fa/enroll");
     expect(mocks.redirect).toHaveBeenCalledWith("/2fa/enroll");
-    expect(mocks.listBacklogsForUser).not.toHaveBeenCalled();
+    expect(mocks.listBacklogsWithStarsForUser).not.toHaveBeenCalled();
   });
 
   it("loads the shell for a fully enrolled session", async () => {
@@ -97,7 +97,7 @@ describe("AppLayout 2FA access guard", () => {
 
     render(await AppLayout({ children: null }));
     expect(mocks.redirect).not.toHaveBeenCalled();
-    expect(mocks.listBacklogsForUser).toHaveBeenCalledWith("user-1");
+    expect(mocks.listBacklogsWithStarsForUser).toHaveBeenCalledWith("user-1");
     expect(mocks.checkPermission).toHaveBeenCalledWith(expect.objectContaining({ actorId: "user-1", permission: "administer_jiroo" }));
     expect(mocks.sidebar).toHaveBeenCalledWith(
       expect.objectContaining({ canAdminister: true }),
@@ -114,7 +114,7 @@ describe("AppLayout 2FA access guard", () => {
     vi.clearAllMocks();
     mocks.headers.mockResolvedValue(new Headers());
     mocks.authGetSession.mockResolvedValue(authSession(true));
-    mocks.listBacklogsForUser.mockResolvedValue([]); mocks.listVisibleViews.mockResolvedValue([]); mocks.unreadCount.mockResolvedValue(0); mocks.listRecentNotifications.mockResolvedValue([]); mocks.getShellCounts.mockResolvedValue({});
+    mocks.listBacklogsWithStarsForUser.mockResolvedValue([]); mocks.listVisibleViews.mockResolvedValue([]); mocks.unreadCount.mockResolvedValue(0); mocks.listRecentNotifications.mockResolvedValue([]); mocks.getShellCounts.mockResolvedValue({});
     mocks.checkPermission.mockResolvedValue({ allowed: false });
     render(await AppLayout({ children: null }));
     expect(mocks.sidebar).toHaveBeenLastCalledWith(expect.objectContaining({ canAdminister: false }), undefined);

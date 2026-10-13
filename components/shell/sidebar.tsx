@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   ChartColumn,
+  FolderKanban,
   Layers,
   List,
   ListTree,
@@ -33,7 +34,7 @@ import { clearActiveBacklogViewParams } from "@/lib/items/views";
 import type { ShellCounts } from "@/lib/services/shell";
 import { cn } from "@/lib/utils";
 
-type Backlog = { id: string; key: string; name: string; color: string };
+type Backlog = { id: string; key: string; name: string; color: string; starred?: boolean };
 
 const PROJECT_VIEW_ICONS: Record<ProjectViewId, LucideIcon> = {
   backlog: Rows3,
@@ -133,6 +134,19 @@ export function Sidebar({
         collapsed={collapsed}
         activeKey={context.activeBacklogKey}
       />
+      {/* Jira's « Projects » page: every backlog, favourites first (JIR-82). */}
+      <NavLink
+        href="/"
+        active={context.activeNav === "backlogs"}
+        ariaLabel={collapsed ? "Tous les backlogs" : undefined}
+        collapsed={collapsed}
+        title={collapsed ? "Tous les backlogs" : undefined}
+      >
+        <FolderKanban className="size-4" aria-hidden="true" />
+        <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
+          Tous les backlogs
+        </span>
+      </NavLink>
 
       {activeBacklog && (
         <nav aria-label="Vues du projet" className="mt-2 flex flex-col gap-0.5">

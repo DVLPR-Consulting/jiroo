@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { checkPermission } from "@/lib/auth/authorization";
 import { requireAppPageSession } from "@/lib/auth/session";
-import { listBacklogsForUser } from "@/lib/services/backlogs";
+import { listAdminBacklogsForUser } from "@/lib/services/backlogs";
+import { listUsers } from "@/lib/services/items";
 import { listAdminUsers } from "@/lib/services/users";
 import {
   listGroups,
@@ -42,7 +43,7 @@ export default async function AdminPage({
     scope: { type: "global" },
   });
   if (!decision.allowed) redirect("/");
-  const browseUsersDecision = ["users", "groups", "schemes"].includes(activeTab)
+  const browseUsersDecision = ["backlogs", "users", "groups", "schemes"].includes(activeTab)
     ? await checkPermission({
         actorId: session.user.id,
         permission: "browse_users",
@@ -52,10 +53,21 @@ export default async function AdminPage({
   if (activeTab === "users" && !browseUsersDecision.allowed) redirect("/");
 
   const data = activeTab === "backlogs"
-    ? {
-        tab: "backlogs" as const,
-        backlogs: await listBacklogsForUser(session.user.id, { includeArchived: true }),
-      }
+    ? await (async () => {
+        // The lead picker lists users only with « Parcourir les utilisateurs »,
+        // like the release driver picker (JIR-82).
+        const [backlogs, users] = await Promise.all([
+          listAdminBacklogsForUser(session.user.id),
+          browseUsersDecision.allowed ? listUsers() : Promise.resolve(null),
+        ]);
+        return {
+          tab: "backlogs" as const,
+          backlogs,
+          leadOptions: users
+            ?.map(({ id, name }) => ({ id, name }))
+            .sort((left, right) => left.name.localeCompare(right.name, "fr")),
+        };
+      })()
     : activeTab === "users"
       ? await (async () => {
           const [rawUsers, recoveryDecision] = await Promise.all([

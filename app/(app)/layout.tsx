@@ -1,6 +1,6 @@
 import { requireAppPageSession } from "@/lib/auth/session";
 import { checkPermission } from "@/lib/auth/authorization";
-import { listBacklogsForUser } from "@/lib/services/backlogs";
+import { listBacklogsWithStarsForUser } from "@/lib/services/backlogs";
 import { listVisibleViews } from "@/lib/services/views";
 import { unreadCount, listRecentNotifications } from "@/lib/services/notifications";
 import { getShellCounts } from "@/lib/services/shell";
@@ -13,7 +13,8 @@ import { ShellDataProvider } from "@/components/shell/shell-data";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAppPageSession();
   const [backlogs, views, notifCount, notifications, counts, adminDecisions] = await Promise.all([
-    listBacklogsForUser(session.user.id),
+    // Favourites first, as in the selector (JIR-82).
+    listBacklogsWithStarsForUser(session.user.id),
     listVisibleViews(session.user.id),
     unreadCount(session.user.id),
     listRecentNotifications(session.user.id),

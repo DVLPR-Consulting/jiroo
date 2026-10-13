@@ -409,6 +409,11 @@ audited(
     const confirmation = admin.getByRole("dialog", { name: "Modifier un schéma partagé" });
     await expect(confirmation).toBeVisible();
     await confirmation.getByRole("button", { name: "Confirmer la modification" }).click();
+    // The matrix is hidden behind the confirmation: wait for the action to settle
+    // before reloading as the user (JIR-82: / no longer redirects, so a reload
+    // racing the removal would still see the backlog).
+    await expect(confirmation).toBeHidden();
+    await expect(admin.getByText("Sans accès E2E", { exact: true })).toHaveCount(0);
     await expect(removeBrowse).toHaveCount(0);
 
     await timed(capture, "rechargement après retrait browse", () => page.goto("/"));

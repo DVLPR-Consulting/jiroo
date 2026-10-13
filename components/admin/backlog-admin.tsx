@@ -28,7 +28,13 @@ export type Backlog = {
   name: string;
   color: string;
   archivedAt: Date | string | null;
+  leadUserId?: string | null;
 };
+
+export type BacklogLeadOption = { id: string; name: string };
+
+const SELECT =
+  "h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 const DEFAULT_COLOR = "#7c3030";
 const PRESET_COLORS = [
@@ -71,6 +77,8 @@ function BacklogDialog({
   initialKey = "",
   initialName = "",
   initialColor = DEFAULT_COLOR,
+  initialLeadUserId = null,
+  leadOptions,
   keyEditable = true,
   onSubmit,
   pending,
@@ -80,9 +88,12 @@ function BacklogDialog({
   initialKey?: string;
   initialName?: string;
   initialColor?: string;
+  initialLeadUserId?: string | null;
+  /** Users offered as backlog lead; the field is hidden without them. */
+  leadOptions?: BacklogLeadOption[];
   keyEditable?: boolean;
   onSubmit: (
-    values: { key: string; name: string; color: string },
+    values: { key: string; name: string; color: string; leadUserId?: string | null },
     close: () => void,
     setError: (msg: string | null) => void,
   ) => void;
@@ -92,6 +103,7 @@ function BacklogDialog({
   const [key, setKey] = useState(initialKey);
   const [name, setName] = useState(initialName);
   const [color, setColor] = useState(initialColor);
+  const [leadUserId, setLeadUserId] = useState(initialLeadUserId ?? "");
   const [error, setError] = useState<string | null>(null);
   const [confirmKeyChange, setConfirmKeyChange] = useState(false);
 
@@ -99,6 +111,7 @@ function BacklogDialog({
     setKey(initialKey);
     setName(initialName);
     setColor(initialColor);
+    setLeadUserId(initialLeadUserId ?? "");
     setError(null);
     setConfirmKeyChange(false);
   }
@@ -135,7 +148,12 @@ function BacklogDialog({
               return;
             }
             onSubmit(
-              { key: normalizedKey, name: name.trim(), color },
+              {
+                key: normalizedKey,
+                name: name.trim(),
+                color,
+                ...(leadOptions ? { leadUserId: leadUserId || null } : {}),
+              },
               () => setOpen(false),
               setError,
             );
@@ -169,6 +187,27 @@ function BacklogDialog({
             <Label>Couleur</Label>
             <ColorPicker value={color} onChange={setColor} />
           </div>
+          {leadOptions && (
+            <div className="space-y-2">
+              <Label htmlFor="backlog-lead">Responsable</Label>
+              <select
+                id="backlog-lead"
+                className={SELECT}
+                value={leadUserId}
+                onChange={(e) => setLeadUserId(e.target.value)}
+              >
+                <option value="">Aucun</option>
+                {leadOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+              <p className="t-sm text-muted-foreground">
+                Affiché sur la page d’accueil ; ne donne aucun droit.
+              </p>
+            </div>
+          )}
           {confirmKeyChange && (
             <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               La clé et toutes les clés d’items seront renommées. Les anciens liens ne fonctionneront
@@ -187,7 +226,14 @@ function BacklogDialog({
   );
 }
 
-export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
+export function BacklogAdmin({
+  backlogs,
+  leadOptions,
+}: {
+  backlogs: Backlog[];
+  /** Users who can lead a backlog; absent without the « Parcourir les utilisateurs » permission. */
+  leadOptions?: BacklogLeadOption[];
+}) {
   const [pending, startTransition] = useTransition();
   const [archiveError, setArchiveError] = useState<string | null>(null);
 
@@ -266,6 +312,8 @@ export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
                       initialKey={b.key}
                       initialName={b.name}
                       initialColor={b.color}
+                      initialLeadUserId={b.leadUserId ?? null}
+                      leadOptions={leadOptions}
                       trigger={
                         <Button variant="ghost" size="sm" disabled={pending}>
                           Modifier
@@ -275,12 +323,7 @@ export function BacklogAdmin({ backlogs }: { backlogs: Backlog[] }) {
                         startTransition(async () => {
                           let result: Awaited<ReturnType<typeof updateBacklogAction>>;
                           try {
-                            result = await updateBacklogAction({
-                              id: b.id,
-                              key: values.key,
-                              name: values.name,
-                              color: values.color,
-                            });
+                            result = await updateBacklogAction({ id: b.id, ...values });
                           } catch {
                             setError("Mise à jour impossible.");
                             return;

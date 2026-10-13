@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createBacklogSchema, updateBacklogSchema } from "@/lib/validation/backlog";
+import {
+  createBacklogSchema,
+  setBacklogStarSchema,
+  updateBacklogSchema,
+} from "@/lib/validation/backlog";
 
 describe("createBacklogSchema", () => {
   it("accepts a valid backlog", () => {
@@ -36,5 +40,39 @@ describe("updateBacklogSchema", () => {
 
   it("rejects keys containing digits", () => {
     expect(updateBacklogSchema.safeParse({ ...valid, key: "P3N" }).success).toBe(false);
+  });
+});
+
+describe("updateBacklogSchema lead", () => {
+  const base = {
+    id: "39cbd39a-7c97-4f0d-848d-199ed2c93ad4",
+    key: "CASS",
+    name: "Cour de cassation",
+    color: "#7c3030",
+  };
+
+  it("keeps the lead optional, nullable or a user id", () => {
+    expect(updateBacklogSchema.parse(base).leadUserId).toBeUndefined();
+    expect(updateBacklogSchema.parse({ ...base, leadUserId: null }).leadUserId).toBeNull();
+    expect(updateBacklogSchema.parse({ ...base, leadUserId: "user-1" }).leadUserId).toBe("user-1");
+    expect(updateBacklogSchema.safeParse({ ...base, leadUserId: "" }).success).toBe(false);
+  });
+});
+
+describe("setBacklogStarSchema", () => {
+  it("requires a backlog uuid and a boolean", () => {
+    expect(
+      setBacklogStarSchema.safeParse({
+        backlogId: "39cbd39a-7c97-4f0d-848d-199ed2c93ad4",
+        starred: true,
+      }).success,
+    ).toBe(true);
+    expect(setBacklogStarSchema.safeParse({ backlogId: "x", starred: true }).success).toBe(false);
+    expect(
+      setBacklogStarSchema.safeParse({
+        backlogId: "39cbd39a-7c97-4f0d-848d-199ed2c93ad4",
+        starred: "oui",
+      }).success,
+    ).toBe(false);
   });
 });

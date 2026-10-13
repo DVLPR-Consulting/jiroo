@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BacklogSelector } from "@/components/shell/backlog-selector";
@@ -76,5 +76,26 @@ describe("BacklogSelector URL authority", () => {
     await user.click(screen.getByRole("menuitem", { name: /CASS.*Pôle civil/ }));
 
     expect(mocks.push).toHaveBeenCalledWith("/b/CASS");
+  });
+
+  it("lists backlogs in the given order and marks favourites (JIR-82)", async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewUrlStateProvider initialEntries={[]}>
+        <BacklogSelector
+          backlogs={[
+            { ...backlogs[1]!, starred: true },
+            { ...backlogs[0]!, starred: false },
+          ]}
+          activeKey="CASS"
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Backlog CASS/ }));
+    const items = screen.getAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual(["DEMODémo", "CASSPôle civil"]);
+    expect(within(items[0]!).getByRole("img", { name: "Favori" })).toBeInTheDocument();
+    expect(within(items[1]!).queryByRole("img", { name: "Favori" })).not.toBeInTheDocument();
   });
 });

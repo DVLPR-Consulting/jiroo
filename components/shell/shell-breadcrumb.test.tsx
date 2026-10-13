@@ -91,7 +91,7 @@ describe("ShellBreadcrumb", () => {
     route.search = "";
     render(<ShellBreadcrumb backlogs={[]} views={[]} />);
 
-    expect(trail()).toEqual(["Jiroo"]);
+    expect(trail()).toEqual(["Backlogs"]);
   });
 
   it("reads backlogs and views from the shell when not given", () => {

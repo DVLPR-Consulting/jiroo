@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   authGetSession: vi.fn(),
   headers: vi.fn(),
   redirect: vi.fn(),
-  listBacklogsForUser: vi.fn(),
+  listBacklogOverviewForUser: vi.fn(),
 }));
 
 vi.mock("next/headers", () => ({
@@ -15,8 +15,11 @@ vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: mocks.authGetSession } },
 }));
+vi.mock("@/components/backlogs/backlog-overview", () => ({
+  BacklogOverview: () => null,
+}));
 vi.mock("@/lib/services/backlogs", () => ({
-  listBacklogsForUser: mocks.listBacklogsForUser,
+  listBacklogOverviewForUser: mocks.listBacklogOverviewForUser,
 }));
 
 import AppIndex from "@/app/(app)/page";
@@ -28,7 +31,7 @@ describe("AppIndex 2FA access guard", () => {
     mocks.redirect.mockImplementation((destination: string) => {
       throw new Error(`redirect:${destination}`);
     });
-    mocks.listBacklogsForUser.mockResolvedValue([]);
+    mocks.listBacklogOverviewForUser.mockResolvedValue([]);
   });
 
   it("refuses a pending-enrollment session before reading app data", async () => {
@@ -57,7 +60,7 @@ describe("AppIndex 2FA access guard", () => {
     });
 
     await expect(AppIndex()).rejects.toThrow("redirect:/2fa/enroll");
-    expect(mocks.listBacklogsForUser).not.toHaveBeenCalled();
+    expect(mocks.listBacklogOverviewForUser).not.toHaveBeenCalled();
   });
 
   it("loads only backlogs accessible to the authenticated server identity", async () => {
@@ -86,6 +89,38 @@ describe("AppIndex 2FA access guard", () => {
     });
 
     await expect(AppIndex()).resolves.toBeTruthy();
-    expect(mocks.listBacklogsForUser).toHaveBeenCalledWith("user-1");
+    expect(mocks.listBacklogOverviewForUser).toHaveBeenCalledWith("user-1");
+  });
+
+  it("lists backlogs instead of redirecting to the first one (JIR-82)", async () => {
+    mocks.authGetSession.mockResolvedValue({
+      session: {
+        id: "session-1",
+        token: "token-1",
+        userId: "user-1",
+        expiresAt: new Date("2026-08-05T00:00:00Z"),
+        createdAt: new Date("2026-08-04T00:00:00Z"),
+        updatedAt: new Date("2026-08-04T00:00:00Z"),
+        ipAddress: null,
+        userAgent: null,
+      },
+      user: {
+        id: "user-1",
+        name: "Marie Martin",
+        email: "marie@example.test",
+        emailVerified: true,
+        image: null,
+        createdAt: new Date("2026-08-04T00:00:00Z"),
+        updatedAt: new Date("2026-08-04T00:00:00Z"),
+        role: "contributor",
+        twoFactorEnabled: true,
+      },
+    });
+    const rows = [{ id: "b1", key: "CASS", name: "Pôle civil" }];
+    mocks.listBacklogOverviewForUser.mockResolvedValue(rows);
+
+    const element = await AppIndex();
+    expect(mocks.redirect).not.toHaveBeenCalled();
+    expect(element.props).toEqual({ rows });
   });
 });
