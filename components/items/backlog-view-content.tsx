@@ -15,6 +15,7 @@ import {
   listItemsWithAncestors,
   listLabelsForBacklog,
   listLiveItemTypes,
+  listLiveParentCandidates,
   listUsers,
   listUsersByIds,
 } from "@/lib/services/items";
@@ -213,11 +214,14 @@ export async function BacklogViewContent({
     ? await listItemsWithAncestors(backlog.id, [...releaseMatchedIds])
     : releaseFilteredItems;
 
-  // The first-steps guide (JIR-88) reads the live backlog, never the Version-
-  // filtered rows: a version without items must not pass for a new backlog.
-  const liveItemTypes = releaseFilterActive
-    ? await listLiveItemTypes(backlog.id)
-    : items.map((item) => item.type);
+  // The first-steps guide (JIR-88) and creation (JIR-92) read the live
+  // backlog, never the Version-filtered rows: a version without items must not
+  // pass for a new backlog, nor hide the parents a new item can go under.
+  // Only the Version filter narrows the rows loaded here; the other filters
+  // are applied to them below, so without it no extra read is needed.
+  const [liveItemTypes, parentCandidates] = releaseFilterActive
+    ? await Promise.all([listLiveItemTypes(backlog.id), listLiveParentCandidates(backlog.id)])
+    : [items.map((item) => item.type), items];
   const startStep = hierarchyStartStep(liveItemTypes.map((type) => ({ type })));
   const backlogHasItems = liveItemTypes.length > 0;
 
@@ -357,15 +361,12 @@ export async function BacklogViewContent({
   const createDialogProps = {
     backlogId: backlog.id,
     canScheduleItems: capabilities.scheduleItems,
-    items: items.map((item) => ({
+    items: parentCandidates.map((item) => ({
       id: item.id,
       key: item.key,
       type: item.type,
       title: item.title,
     })),
-    // `items` follows the Version filter: the live types tell the dialog a
-    // hidden parent from one the backlog does not have yet (JIR-91).
-    backlogItemTypes: [...new Set(liveItemTypes)],
     statuses: statusRows.map((status) => ({
       id: status.id,
       name: status.name,

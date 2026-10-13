@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   listItemsWithAncestors: vi.fn(),
   listItems: vi.fn(),
   listLiveItemTypes: vi.fn(),
+  listLiveParentCandidates: vi.fn(),
+  createItemAction: vi.fn(),
   listLabelsForBacklog: vi.fn(),
   renderRealViews: { current: false },
   listAssignableUsersForBacklog: vi.fn(),
@@ -61,6 +63,7 @@ vi.mock("@/lib/services/items", () => ({
   listItemsWithAncestors: mocks.listItemsWithAncestors,
   listItems: mocks.listItems,
   listLiveItemTypes: mocks.listLiveItemTypes,
+  listLiveParentCandidates: mocks.listLiveParentCandidates,
   listLabelsForBacklog: mocks.listLabelsForBacklog,
   listUsers: mocks.listUsers,
   listUsersByIds: mocks.listUsersByIds,
@@ -88,7 +91,7 @@ vi.mock("@/app/actions/items", () => ({
   moveItemAction: vi.fn(),
   reparentItemAction: vi.fn(),
   rankBacklogItemAction: vi.fn(),
-  createItemAction: vi.fn(),
+  createItemAction: mocks.createItemAction,
   softDeleteItemAction: vi.fn(),
   bulkUpdateItemsAction: vi.fn(),
   updateItemAction: vi.fn(),
@@ -164,7 +167,17 @@ vi.mock("@/components/items/new-item-dialog", async (importOriginal) => {
       mocks.renderRealViews.current ? <actual.NewItemButton {...props} /> : null,
   };
 });
-vi.mock("@/components/shell/create-item-trigger", () => ({ TopbarCreateItem: () => null }));
+// « + Créer » renders its real dialog in place (no top bar slot here).
+vi.mock("@/components/shell/create-item-trigger", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/shell/create-item-trigger")>();
+  const { NewItemButton } = await import("@/components/items/new-item-dialog");
+  return {
+    TopbarCreateItem: (props: React.ComponentProps<typeof actual.TopbarCreateItem>) =>
+      mocks.renderRealViews.current
+        ? <NewItemButton {...props} trigger={<actual.CreateItemTrigger />} />
+        : null,
+  };
+});
 vi.mock("@/components/statuses/status-manager-dialog", () => ({
   StatusManagerDialog: () => null,
 }));
@@ -182,6 +195,7 @@ describe("BacklogViewContent read boundary", () => {
     mocks.renderRealViews.current = false;
     mocks.listItems.mockResolvedValue([]);
     mocks.listLiveItemTypes.mockResolvedValue([]);
+    mocks.listLiveParentCandidates.mockResolvedValue([]);
     mocks.listItemsWithAncestors.mockResolvedValue([]);
     mocks.listItemFixVersionPairs.mockResolvedValue([]);
     mocks.listItemLabelPairs.mockResolvedValue([]);
@@ -927,6 +941,9 @@ describe("BacklogViewContent read boundary", () => {
         options?.releaseIds?.length ? [] : hierarchy,
       );
       mocks.listLiveItemTypes.mockResolvedValue(["composant", "epic"]);
+      mocks.listLiveParentCandidates.mockResolvedValue(
+        hierarchy.map(({ id, key, type, title }) => ({ id, key, type, title })),
+      );
       mocks.listReleaseSummaries.mockResolvedValue([
         { id: "release-empty", name: "2026.11", released: false, archived: false },
       ]);
@@ -983,6 +1000,9 @@ describe("BacklogViewContent read boundary", () => {
         options?.releaseIds?.length ? [] : [liveRow("comp", "composant")],
       );
       mocks.listLiveItemTypes.mockResolvedValue(["composant"]);
+      mocks.listLiveParentCandidates.mockResolvedValue([
+        { id: "comp", key: "DEMO-comp", type: "composant", title: "comp" },
+      ]);
       const page = await BacklogViewContent({
         paramsPromise: Promise.resolve({ key: "DEMO" }),
         searchParamsPromise: Promise.resolve({ view: "backlog", version: "release-empty" }),
@@ -1018,7 +1038,7 @@ describe("BacklogViewContent read boundary", () => {
       expect(within(dialog).getByRole("button", { name: "Créer" })).toBeEnabled();
     });
 
-    it("hands « Nouvel item » the live item types, which the Version filter does not narrow (JIR-91)", async () => {
+    it("hands creation the live parents, which the Version filter does not narrow (JIR-92)", async () => {
       render(
         await BacklogViewContent({
           paramsPromise: Promise.resolve({ key: "DEMO" }),
@@ -1026,14 +1046,79 @@ describe("BacklogViewContent read boundary", () => {
         }),
       );
 
-      expect(mocks.itemListProps).toHaveBeenCalledWith(
+      expect(mocks.listLiveParentCandidates).toHaveBeenCalledWith("backlog-1");
+      const [props] = mocks.itemListProps.mock.calls.at(-1)!;
+      expect(props.createDialogProps.items).toEqual([
+        { id: "comp", key: "DEMO-comp", type: "composant", title: "comp" },
+        { id: "epic", key: "DEMO-epic", type: "epic", title: "epic" },
+      ]);
+      expect(props.createDialogProps).not.toHaveProperty("backlogItemTypes");
+    });
+
+    it("creates a Tâche inline under the hidden Epic in the Backlog view (JIR-92)", async () => {
+      const user = userEvent.setup();
+      mocks.renderRealViews.current = true;
+      mocks.createItemAction.mockResolvedValue({ ok: true, item: { id: "new", key: "DEMO-3" } });
+      const page = await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "backlog", version: "release-empty" }),
+      });
+      render(
+        <ViewUrlStateProvider initialEntries={[["view", "backlog"], ["version", "release-empty"]]}>
+          {page}
+        </ViewUrlStateProvider>,
+      );
+
+      const backlog = screen.getByRole("region", { name: "Backlog" });
+      await user.click(within(backlog).getByRole("button", { name: "Créer un item dans Backlog" }));
+      // The only Epic stands in as the parent; no stale « no epic » copy.
+      expect(within(backlog).getByRole("combobox", { name: "Epic parent" })).toHaveTextContent(
+        "DEMO-epic — epic",
+      );
+      expect(within(backlog).queryByText(/Aucun epic disponible|Aucune Epic/)).not.toBeInTheDocument();
+      await user.type(
+        within(backlog).getByRole("textbox", { name: "Titre du nouvel item dans Backlog" }),
+        "Relance automatique{Enter}",
+      );
+
+      expect(mocks.createItemAction).toHaveBeenCalledWith(
         expect.objectContaining({
-          createDialogProps: expect.objectContaining({
-            items: [],
-            backlogItemTypes: ["composant", "epic"],
-          }),
+          backlogKey: "DEMO",
+          type: "tache",
+          parentId: "epic",
+          title: "Relance automatique",
         }),
       );
+    });
+
+    it("offers the hidden Epic and Composant as parents in « Nouvel item » (JIR-92)", async () => {
+      const user = userEvent.setup();
+      mocks.renderRealViews.current = true;
+      const page = await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "backlog", version: "release-empty" }),
+      });
+      render(
+        <ViewUrlStateProvider initialEntries={[["view", "backlog"], ["version", "release-empty"]]}>
+          {page}
+        </ViewUrlStateProvider>,
+      );
+
+      await user.click(screen.getByRole("button", { name: "Créer" }));
+      const dialog = screen.getByRole("dialog", { name: "Nouvel item" });
+      await user.click(within(dialog).getByRole("combobox", { name: "Type" }));
+      await user.click(screen.getByRole("option", { name: "Tâche" }));
+      await user.click(within(dialog).getByRole("combobox", { name: /Parent/ }));
+      expect(screen.getByRole("option", { name: "DEMO-epic — epic" })).toBeVisible();
+      await user.keyboard("{Escape}");
+
+      await user.click(within(dialog).getByRole("combobox", { name: "Type" }));
+      await user.click(screen.getByRole("option", { name: "Epic" }));
+      const parent = within(dialog).getByRole("combobox", { name: /Parent/ });
+      expect(parent).not.toHaveAccessibleDescription();
+      await user.click(parent);
+      expect(screen.getByRole("option", { name: "DEMO-comp — comp" })).toBeVisible();
+      expect(within(dialog).queryByText(/le filtre de la vue peut masquer/)).not.toBeInTheDocument();
     });
 
     it("reads the step from the unfiltered rows without a Version filter", async () => {
@@ -1046,6 +1131,8 @@ describe("BacklogViewContent read boundary", () => {
       );
 
       expect(mocks.listLiveItemTypes).not.toHaveBeenCalled();
+      // Without a row-narrowing filter, creation reuses the loaded rows.
+      expect(mocks.listLiveParentCandidates).not.toHaveBeenCalled();
       expect(mocks.itemListProps).toHaveBeenCalledWith(
         expect.objectContaining({ startStep: "epic", hasItems: true }),
       );

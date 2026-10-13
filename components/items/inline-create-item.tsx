@@ -39,7 +39,7 @@ export function InlineCreateItem({
   parents: ParentOption[];
   parentId: string;
   onParentChange: (parentId: string) => void;
-  dialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "backlogItemTypes">;
+  dialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions">;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);

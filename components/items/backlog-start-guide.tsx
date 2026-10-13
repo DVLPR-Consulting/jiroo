@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 /** The dialog data a start-step button needs (the view's « Nouvel item » data). */
 export type StartStepDialogProps = Pick<
   NewItemButtonProps,
-  "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "backlogItemTypes"
+  "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions"
 >;
 
 const STEP_COPY: Record<
@@ -249,9 +249,9 @@ export function InlineStartStep({
 }
 
 /**
- * The same place under active filters: the filtered view does not list the
- * parents the missing level needs, so it points to the unfiltered view
- * instead of offering a dialog that could not be completed.
+ * The same place under active filters: the hierarchy is set up from the
+ * unfiltered view, where the new Composant or Epic shows (a filter such as a
+ * Version would hide it), so it points there instead of opening the dialog.
  */
 export function FilteredStartStep({
   step,

@@ -250,8 +250,10 @@ export function HelpGuide() {
             l’étape manquante ; sous des filtres actifs, il propose <Ui>Effacer les filtres</Ui> pour y accéder.
             Créer une Epic demande le droit de planifier ; sans le droit nécessaire, les vues
             indiquent seulement <Ui>Ce backlog est vide</Ui> ou <Ui>Aucune Epic pour l’instant</Ui>. Sous un filtre
-            Version, la fenêtre <Ui>Nouvel item</Ui> ne propose que les parents affichés : si le filtre les masque,
-            elle le signale au lieu d’inviter à en créer un ; effacez le filtre pour les retrouver.
+            Version, <Ui>Nouvel item</Ui> et <Ui>Créer un item</Ui> proposent tous les parents du backlog, même
+            ceux que le filtre masque. Un ticket créé sans cette version n’apparaît pas dans la vue filtrée : le
+            message « CASS-7 créé » le confirme ; effacez le filtre (ou ajoutez la version dans
+            {" "}<Ui>Fix versions</Ui>) pour le voir.
           </GuideNote>
         </GuideTopic>
 

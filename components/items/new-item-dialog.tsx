@@ -81,6 +81,10 @@ export type NewItemFieldOptions = {
 export type NewItemButtonProps = {
   backlogId: string;
   backlogKey: string;
+  /**
+   * The parent candidates: the backlog's live items, whatever the view
+   * filters (a Version-filtered view loads them apart, JIR-92).
+   */
   items: Item[];
   statuses: Status[];
   initialStatusId?: string;
@@ -102,19 +106,12 @@ export type NewItemButtonProps = {
    * `initialParentId` is re-applied on every opening too.
    */
   initialTitle?: string;
-  /**
-   * The item types of the whole live backlog (JIR-91). `items` may be
-   * narrowed by a view filter (e.g. a Version): this tells a parent level the
-   * filter hides from one the backlog does not have yet. Defaults to the
-   * types of `items`.
-   */
-  backlogItemTypes?: ItemType[];
 };
 
 /** The dialog data a view hands down to its « Nouvel item » buttons. */
 export type NewItemDialogData = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "backlogItemTypes"
+  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions"
 >;
 
 const EMPTY_FIELD_OPTIONS: NewItemFieldOptions = {};
@@ -249,7 +246,6 @@ export function NewItemButton({
   releaseOptions = [],
   fieldOptions = EMPTY_FIELD_OPTIONS,
   initialTitle,
-  backlogItemTypes,
 }: NewItemButtonProps) {
   const router = useRouter();
   const viewUrl = useOptionalViewUrlState();
@@ -315,17 +311,13 @@ export function NewItemButton({
   // Only a listed parent counts: the select, the validation and the payload
   // always agree, even if a prefilled parent is not among the candidates.
   const selectedParentId = parentOptions.some((option) => option.id === parentId) ? parentId : "";
-  // No candidate for the required parent (JIR-91): either the backlog has
-  // none of that level yet, or the view's filter hides them (`items` follows
-  // a Version filter). Only the first case offers to create the parent: this
-  // same draft switches to the parent's type, keeping its title and
-  // description. A sprint-contextual create stays a task, so it only explains.
-  const parentTypeInBacklog =
-    requiredParentType !== null &&
-    (backlogItemTypes ?? items.map((item) => item.type)).includes(requiredParentType);
+  // No candidate for the required parent (JIR-91): the backlog has none of
+  // that level yet, so the dialog offers to create it: this same draft
+  // switches to the parent's type, keeping its title and description. A
+  // sprint-contextual create stays a task, so it only explains.
   const canSwitchToParentType =
     requiredParentType !== null &&
-    !parentTypeInBacklog &&
+    parentOptions.length === 0 &&
     !contextualTask &&
     availableItemTypes.includes(requiredParentType);
   const assignableUsers = fieldOptions.canAssign ? (fieldOptions.users ?? []) : [];
@@ -585,9 +577,7 @@ export function NewItemButton({
                 {parentOptions.length === 0 && (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     <p id={parentHintId} className="t-sm min-w-0 flex-1 basis-56 text-muted-foreground">
-                      {parentTypeInBacklog
-                        ? `${noTypeName(requiredParentType)} parmi les items affichés : le filtre de la vue peut masquer les parents possibles.`
-                        : `${noTypeName(requiredParentType)} dans ce backlog : ${aTypeName(effectiveType)} se rattache toujours à ${aTypeName(requiredParentType)}.`}
+                      {`${noTypeName(requiredParentType)} dans ce backlog : ${aTypeName(effectiveType)} se rattache toujours à ${aTypeName(requiredParentType)}.`}
                     </p>
                     {canSwitchToParentType && (
                       <Button type="button" variant="outline" size="sm" onClick={switchToParentType}>

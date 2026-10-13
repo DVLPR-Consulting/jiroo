@@ -83,19 +83,21 @@ test("« + Créer » une Epic sans Composant propose de créer le Composant d’
     .where(and(eq(items.backlogId, backlog!.id), eq(items.title, COMPOSANT)));
   expect(composant).toEqual({ type: "composant", description: expect.stringContaining(DESCRIPTION) });
 
-  // 3. Under a Version filter that hides the Composant, the dialog does not
-  // claim there is none (JIR-92 stays a known limit).
+  // 3. Under a Version filter that hides the Composant, it stays a parent
+  // choice (JIR-92): no « missing parent » hint, no « Créer un Composant ».
   const [release] = await db.insert(releases)
     .values({ backlogId: backlog!.id, name: "Version vide", createdBy: await adminId() })
     .returning({ id: releases.id });
   await page.goto(`/b/${KEY}?view=list&version=${release!.id}`);
   await createButton.click();
   await chooseOption(dialog, "Type", "Epic");
-  await expect(parent).toHaveAccessibleDescription(
-    "Aucun Composant parmi les items affichés : le filtre de la vue peut masquer les parents possibles.",
-  );
+  await expect(parent).not.toHaveAttribute("aria-describedby");
   await expect(dialog.getByRole("button", { name: "Créer un Composant" })).toHaveCount(0);
+  await parent.click();
+  await expect(page.getByRole("option", { name: new RegExp(`${COMPOSANT}$`) })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("jir91-3-filtre-version.png") });
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("listbox")).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
 
