@@ -1481,6 +1481,13 @@ audited(25, "génère les notes depuis l’état courant, publiée ou non", asyn
   await expect(section("Fonctionnalités")).toHaveText(`${feature.key} — R2-S25 fonctionnalité`);
   await expect(section("Corrections")).toHaveText(`${bug.key} — R2-S25 correction`);
   await expect(notes).toContainText("Publiée le 20 août 2026.");
+  // The preview styles headings like the editor (JIR-68).
+  const fontSize = (heading: ReturnType<typeof notes.getByRole>) =>
+    heading.evaluate((el) => getComputedStyle(el).fontSize);
+  const previewHeading = page.getByRole("region", { name: "Aperçu" })
+    .getByRole("heading", { level: 2, name: "Fonctionnalités" });
+  expect(await fontSize(previewHeading)).toBe("17px");
+  expect(await fontSize(notes.getByRole("heading", { level: 2, name: "Fonctionnalités" }))).toBe("17px");
 
   await updateItem({ id: feature.id, title: "R2-S25 fonctionnalité renommée" }, actorId, "e2e-s25-rename");
   await page.reload();

@@ -288,4 +288,31 @@ test.describe("éditeur Markdown visuel", () => {
       return row?.body;
     }).toBe(`Merci @${item.adminName} pour le **correctif**\n\n- à vérifier`);
   });
+
+  test("affiche les titres d’un commentaire enregistré comme dans l’éditeur", async ({ page }, testInfo) => {
+    const item = await fixtureItem("JIR-68 titres");
+    const dialog = await openItem(page, item.key);
+    await dialog.getByRole("tab", { name: "Commentaires" }).click();
+
+    const composer = dialog.getByRole("textbox", { name: "Nouveau commentaire" });
+    await composer.click();
+    await page.keyboard.type("## Contexte");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Détail");
+    const typed = composer.getByRole("heading", { level: 2, name: "Contexte" });
+    const editorSize = await typed.evaluate((el) => getComputedStyle(el).fontSize);
+    await page.keyboard.press("ControlOrMeta+Enter");
+
+    // Saved, the heading keeps the editor's size instead of body text (JIR-68).
+    const article = dialog.getByRole("article", { name: `Commentaire de ${item.adminName}` });
+    const heading = article.getByRole("heading", { level: 2, name: "Contexte" });
+    await expect(heading).toBeVisible();
+    const style = await heading.evaluate((el) => {
+      const computed = getComputedStyle(el);
+      return { fontSize: computed.fontSize, fontWeight: computed.fontWeight };
+    });
+    expect(style).toEqual({ fontSize: "17px", fontWeight: "600" });
+    expect(editorSize).toBe("17px");
+    await article.screenshot({ path: testInfo.outputPath("comment-heading.png") });
+  });
 });

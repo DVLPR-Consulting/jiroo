@@ -6,6 +6,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
+import { MARKDOWN_PROSE } from "@/components/markdown/prose";
+import { cn } from "@/lib/utils";
 import type { ReleaseNotesOptions } from "@/lib/validation/release";
 
 function escapeHtml(value: string) {
@@ -179,7 +181,7 @@ export function ReleaseNotesEditor({
           </h2>
           <div
             ref={previewRef}
-            className="rounded-lg border p-4 text-sm leading-relaxed text-foreground [&_a]:text-[var(--primary)] [&_a]:underline [&_code]:rounded [&_code]:bg-[var(--muted)] [&_code]:px-1 [&_h1]:t-h1 [&_h2]:mt-4 [&_h2]:t-h2 [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+            className={cn("rounded-lg border p-4", MARKDOWN_PROSE)}
           >
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
           </div>
