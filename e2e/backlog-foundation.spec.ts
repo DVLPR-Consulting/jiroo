@@ -330,7 +330,7 @@ test("désactive le classement avec tri ou groupement et conserve le mode Backlo
 test("isole la sélection de la Liste et la réinitialise au changement de vue", async ({ page }) => {
   const capture = observe(page);
   await page.goto("/b/CASS?view=list");
-  await expect(page.getByRole("table", { name: "Liste des items" })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Liste des items" })).toBeVisible();
   const checkboxes = page.getByRole("checkbox", { name: /^Sélectionner CASS-/ });
   expect(await checkboxes.count()).toBeGreaterThan(1);
   await checkboxes.first().click();
@@ -417,30 +417,29 @@ test("restaure le classement et conserve la sélection après deux échecs rése
 });
 
 /**
- * JIR-42 / JIR-93: at 390 px the Liste header strip keeps its sort headers
- * side by side on each line (it wraps instead of overflowing), unclipped,
- * with a readable title header; its rows fit like the Backlog's.
+ * JIR-42 / JIR-93: at 390 px the Liste's « Trier la liste » strip wraps its
+ * sort buttons instead of overflowing, each one unclipped; its rows fit like
+ * the Backlog's. It is a sort control, not column headers.
  */
-async function expectReadableListHeader(page: Page) {
-  const table = page.getByRole("table", { name: "Liste des items" });
-  const boxes = await table.getByRole("columnheader").evaluateAll((cells) =>
-    cells
-      .map((cell) => {
-        const rect = cell.getBoundingClientRect();
-        return {
-          text: cell.textContent?.trim() ?? "",
-          top: rect.top,
-          left: rect.left,
-          right: rect.right,
-          visible: rect.width > 0,
-          clipped: cell.scrollWidth > cell.clientWidth + 1,
-        };
-      })
-      .filter((box) => box.visible),
+async function expectReadableListSort(page: Page) {
+  await expect(page.getByRole("columnheader")).toHaveCount(0);
+  const sort = page.getByRole("group", { name: "Trier la liste" });
+  const boxes = await sort.getByRole("button").evaluateAll((buttons) =>
+    buttons.map((button) => {
+      const rect = button.getBoundingClientRect();
+      return {
+        text: button.textContent?.trim() ?? "",
+        top: rect.top,
+        left: rect.left,
+        right: rect.right,
+        clipped: button.scrollWidth > button.clientWidth + 1,
+      };
+    }),
   );
+  expect(boxes.map((box) => box.text)).toEqual(["Clé", "Titre", "Échéance", "Priorité", "Statut"]);
   const width = page.viewportSize()!.width;
-  for (let column = 1; column < boxes.length; column += 1) {
-    const [previous, current] = [boxes[column - 1]!, boxes[column]!];
+  for (let index = 1; index < boxes.length; index += 1) {
+    const [previous, current] = [boxes[index - 1]!, boxes[index]!];
     if (Math.abs(current.top - previous.top) > 2) continue;
     expect(current.left, `${current.text} chevauche ${previous.text}`)
       .toBeGreaterThanOrEqual(previous.right - 1);
@@ -449,9 +448,6 @@ async function expectReadableListHeader(page: Page) {
     expect(box.right, `${box.text} dépasse l’écran`).toBeLessThanOrEqual(width + 1);
   }
   expect(boxes.filter((box) => box.clipped).map((box) => box.text)).toEqual([]);
-  const title = boxes.find((box) => box.text.startsWith("Titre"));
-  expect(title).toBeDefined();
-  expect(title!.right - title!.left).toBeGreaterThanOrEqual(190);
 }
 
 /**
@@ -460,9 +456,9 @@ async function expectReadableListHeader(page: Page) {
  */
 async function expectBacklogRowsFit(
   page: Page,
-  { titleRoom = false }: { titleRoom?: boolean } = {},
+  { titleRoom = false, role = "row" }: { titleRoom?: boolean; role?: "row" | "listitem" } = {},
 ) {
-  const rows = page.locator("[role=row][aria-label]");
+  const rows = page.locator(`[role=${role}][aria-label]`);
   expect(await rows.count()).toBeGreaterThan(0);
   const layout = await rows.evaluateAll((elements, measureRoom) =>
     elements.map((row) => {
@@ -506,9 +502,9 @@ test("garde le Backlog et les en-têtes de la Liste lisibles à 390 par 844", as
   await expectBacklogRowsFit(page);
 
   await page.goto("/b/CASS?view=list");
-  await expect(page.getByRole("table", { name: "Liste des items" })).toBeVisible();
-  await expectReadableListHeader(page);
-  await expectBacklogRowsFit(page, { titleRoom: true });
+  await expect(page.getByRole("list", { name: "Liste des items" })).toBeVisible();
+  await expectReadableListSort(page);
+  await expectBacklogRowsFit(page, { titleRoom: true, role: "listitem" });
   const pageOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );

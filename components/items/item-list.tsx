@@ -87,8 +87,14 @@ export type ListItem = {
 type Group = { key: string; label: string; items: ListItem[] };
 type CurrentSort = { field: SortField; dir: SortDir } | null;
 
-const HEADER_CELL_CLASS =
-  "flex shrink-0 items-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
+/** The Liste sort fields, in the strip's order (the same `sort=` as before). */
+const SORT_OPTIONS: Array<{ field: SortField; label: string }> = [
+  { field: "key", label: "Clé" },
+  { field: "title", label: "Titre" },
+  { field: "dueDate", label: "Échéance" },
+  { field: "priority", label: "Priorité" },
+  { field: "status", label: "Statut" },
+];
 
 /** The optional pills of a Liste row, chosen with « Colonnes » (JIR-93). */
 const OPTIONAL_COLUMNS = [
@@ -99,48 +105,48 @@ const OPTIONAL_COLUMNS = [
 
 type OptionalColumns = { labels: boolean; dueDate: boolean; fixVersions: boolean };
 
-function SortIcon({ field, currentSort }: { field: SortField; currentSort: CurrentSort }) {
-  if (currentSort?.field !== field) return <ChevronsUpDown aria-hidden size={12} />;
-  return currentSort.dir === "asc" ? (
-    <ArrowUp aria-hidden size={12} />
-  ) : (
-    <ArrowDown aria-hidden size={12} />
-  );
-}
-
-function SortableHeader({
-  children,
+/**
+ * One sort field of « Trier la liste »: a toggle button, pressed for the
+ * active field, whose name states the direction (JIR-93). The rows are not
+ * a table, so there are no column headers to sort.
+ */
+function SortButton({
   field,
+  label,
   currentSort,
   onSort,
-  className = "",
 }: {
-  children: string;
   field: SortField;
+  label: string;
   currentSort: CurrentSort;
   onSort: (field: SortField) => void;
-  className?: string;
 }) {
-  const ariaSort =
-    currentSort?.field === field
-      ? currentSort.dir === "asc"
-        ? "ascending"
-        : "descending"
-      : "none";
+  const active = currentSort?.field === field ? currentSort.dir : null;
+  const name =
+    active === null
+      ? `Trier par ${label}`
+      : `Trier par ${label}, ${active === "asc" ? "croissant" : "décroissant"}`;
 
   return (
-    <div role="columnheader" aria-sort={ariaSort} className={`${HEADER_CELL_CLASS} ${className}`}>
-      <button
-        type="button"
-        className={`inline-flex min-h-7 items-center gap-1 rounded px-1 uppercase outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
-          ariaSort === "none" ? "" : "text-foreground"
-        }`}
-        onClick={() => onSort(field)}
-      >
-        {children}
-        <SortIcon field={field} currentSort={currentSort} />
-      </button>
-    </div>
+    <button
+      type="button"
+      aria-pressed={active !== null}
+      aria-label={name}
+      title={name}
+      onClick={() => onSort(field)}
+      className={`inline-flex min-h-7 items-center gap-1 rounded px-1.5 text-xs outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
+        active === null ? "text-muted-foreground" : "bg-[var(--muted)] font-medium text-foreground"
+      }`}
+    >
+      {label}
+      {active === null ? (
+        <ChevronsUpDown aria-hidden size={12} className="opacity-60" />
+      ) : active === "asc" ? (
+        <ArrowUp aria-hidden size={12} />
+      ) : (
+        <ArrowDown aria-hidden size={12} />
+      )}
+    </button>
   );
 }
 
@@ -213,6 +219,7 @@ function ListRow({
 
   return (
     <ItemRow
+      as="li"
       item={{
         ...item,
         // Only tasks are estimated; the other levels keep an empty slot.
@@ -372,6 +379,21 @@ export function ItemList({
     fixVersions: showFixVersions,
   };
 
+  function renderRow(item: ListItem) {
+    return (
+      <ListRow
+        key={item.id}
+        item={item}
+        editing={editing}
+        columns={columns}
+        selectedKey={selectedKey}
+        canSelectItems={canSelectItems}
+        bulkSelected={selection.selectedIds.has(item.id)}
+        onToggleSelection={toggleSelection}
+      />
+    );
+  }
+
   function sortBy(field: SortField) {
     const direction: SortDir =
       currentSort?.field === field && currentSort.dir === "asc" ? "desc" : "asc";
@@ -449,120 +471,79 @@ export function ItemList({
         className="min-h-0 flex-1 overflow-auto"
         onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
       >
-        <div role="table" aria-label="Liste des items">
+        {/* Selection and « Trier la liste »: a strip, not column headers. */}
+        <div className="sticky top-0 z-20 flex min-h-9 flex-wrap items-center gap-x-2.5 gap-y-1 border-b border-border bg-[var(--surface-2)] py-1 pl-2 pr-3 sm:pr-3.5">
+          {canSelectItems ? (
+            <input
+              ref={(node) => {
+                if (node) node.indeterminate = partlySelected;
+              }}
+              type="checkbox"
+              checked={allSelected}
+              onChange={() =>
+                setSelection(allSelected ? emptySelection() : selectAllVisible(visibleIds))
+              }
+              aria-label="Sélectionner tous les items visibles"
+              className="mx-1 size-4 shrink-0 cursor-pointer accent-[var(--primary)]"
+            />
+          ) : null}
           <div
-            role="rowgroup"
-            className="sticky top-0 z-20 border-b border-border bg-[var(--surface-2)]"
+            role="group"
+            aria-label="Trier la liste"
+            className="flex flex-wrap items-center gap-x-1 gap-y-0.5"
           >
-            <div
-              role="row"
-              className="flex min-h-8 flex-wrap items-center gap-x-2.5 gap-y-0.5 py-0.5 pl-2 pr-3 sm:pr-3.5"
-            >
-              {canSelectItems ? (
-                <div role="columnheader" className={HEADER_CELL_CLASS}>
-                  <input
-                    ref={(node) => {
-                      if (node) node.indeterminate = partlySelected;
-                    }}
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={() =>
-                      setSelection(
-                        allSelected ? emptySelection() : selectAllVisible(visibleIds),
-                      )
-                    }
-                    aria-label="Sélectionner tous les items visibles"
-                    className="mx-1 size-4 cursor-pointer accent-[var(--primary)]"
-                  />
-                </div>
-              ) : null}
-              <SortableHeader
-                field="key"
+            <span aria-hidden className="mr-0.5 text-xs text-muted-foreground">
+              Trier :
+            </span>
+            {SORT_OPTIONS.map((option) => (
+              <SortButton
+                key={option.field}
+                field={option.field}
+                label={option.label}
                 currentSort={currentSort}
                 onSort={sortBy}
-                className="-ml-1 min-w-[5.5rem]"
-              >
-                Clé
-              </SortableHeader>
-              <SortableHeader
-                field="title"
-                currentSort={currentSort}
-                onSort={sortBy}
-                className="min-w-0 flex-1"
-              >
-                Titre
-              </SortableHeader>
-              <div className="ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5">
-                <SortableHeader field="dueDate" currentSort={currentSort} onSort={sortBy}>
-                  Échéance
-                </SortableHeader>
-                <SortableHeader field="priority" currentSort={currentSort} onSort={sortBy}>
-                  Priorité
-                </SortableHeader>
-                <SortableHeader
-                  field="status"
-                  currentSort={currentSort}
-                  onSort={sortBy}
-                  className="w-28"
-                >
-                  Statut
-                </SortableHeader>
-                <div
-                  role="columnheader"
-                  className={`${HEADER_CELL_CLASS} hidden w-8 justify-center sm:flex`}
-                  title="Points"
-                >
-                  <span aria-hidden>Pts</span>
-                  <span className="sr-only">Points</span>
-                </div>
-                <div role="columnheader" className={`${HEADER_CELL_CLASS} hidden w-[26px] sm:flex`}>
-                  <span className="sr-only">Assigné</span>
-                </div>
-              </div>
-            </div>
+              />
+            ))}
           </div>
-          {groups.map((group) => {
-            const collapsed = grouped && collapsedGroups.has(group.key);
-            return (
-              <div role="rowgroup" key={group.key || "ungrouped"}>
-                {grouped ? (
-                  <div role="row" className="border-b border-border bg-[var(--surface-2)]">
-                    <div role="rowheader" className="px-3 py-1.5">
-                      <button
-                        type="button"
-                        aria-expanded={!collapsed}
-                        onClick={() => toggleGroup(group.key)}
-                        className="flex w-full items-center gap-1.5 rounded text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-                      >
-                        <ChevronRight
-                          aria-hidden
-                          size={13}
-                          className="transition-transform"
-                          style={{ transform: collapsed ? "rotate(0deg)" : "rotate(90deg)" }}
-                        />
-                        <span>{group.label}</span>
-                        <span className="item-key ml-1">{group.items.length}</span>
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-                {!collapsed &&
-                  group.items.map((item) => (
-                    <ListRow
-                      key={item.id}
-                      item={item}
-                      editing={editing}
-                      columns={columns}
-                      selectedKey={selectedKey}
-                      canSelectItems={canSelectItems}
-                      bulkSelected={selection.selectedIds.has(item.id)}
-                      onToggleSelection={toggleSelection}
-                    />
-                  ))}
-              </div>
-            );
-          })}
         </div>
+        {grouped ? (
+          <div role="region" aria-label="Liste des items">
+            {groups.map((group) => {
+              const collapsed = collapsedGroups.has(group.key);
+              return (
+                <div key={group.key || "ungrouped"}>
+                  <div className="border-b border-border bg-[var(--surface-2)] px-3 py-1.5">
+                    <button
+                      type="button"
+                      aria-expanded={!collapsed}
+                      onClick={() => toggleGroup(group.key)}
+                      className="flex w-full items-center gap-1.5 rounded text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                    >
+                      <ChevronRight
+                        aria-hidden
+                        size={13}
+                        className="transition-transform"
+                        style={{ transform: collapsed ? "rotate(0deg)" : "rotate(90deg)" }}
+                      />
+                      <span>{group.label}</span>
+                      <span className="item-key ml-1">{group.items.length}</span>
+                    </button>
+                  </div>
+                  {collapsed ? null : (
+                    <div role="list" aria-label={group.label}>
+                      {group.items.map(renderRow)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          // Rows are list items, as tickets are listed elsewhere (no fake table).
+          <div role="list" aria-label="Liste des items">
+            {groups.flatMap((group) => group.items).map(renderRow)}
+          </div>
+        )}
         {canSelectItems && selectedItems.length > 0 ? (
           <BulkItemToolbar
             backlogId={backlogId}

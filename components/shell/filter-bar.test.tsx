@@ -1402,7 +1402,7 @@ describe("FilterBar", () => {
     );
 
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "auth" } });
-    fireEvent.click(screen.getByRole("button", { name: "Titre" }));
+    fireEvent.click(screen.getByRole("button", { name: "Trier par Titre" }));
     await act(async () => vi.advanceTimersByTime(300));
 
     expect(mocks.replace).toHaveBeenLastCalledWith(

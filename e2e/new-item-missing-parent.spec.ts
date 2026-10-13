@@ -76,7 +76,7 @@ test("« + Créer » une Epic sans Composant propose de créer le Composant d’
   await page.screenshot({ path: testInfo.outputPath("jir91-2-bascule-composant.png") });
   await submit.click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("row", { name: new RegExp(`${COMPOSANT}$`) })).toBeVisible();
+  await expect(page.getByRole("listitem", { name: new RegExp(`${COMPOSANT}$`) })).toBeVisible();
 
   const [backlog] = await db.select({ id: backlogs.id }).from(backlogs).where(eq(backlogs.key, KEY));
   const [composant] = await db.select({ type: items.type, description: items.description }).from(items)
@@ -111,5 +111,5 @@ test("« + Créer » une Epic sans Composant propose de créer le Composant d’
   await page.screenshot({ path: testInfo.outputPath("jir91-4-epic-avec-composant.png") });
   await dialog.getByRole("button", { name: "Créer", exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("row", { name: new RegExp(`${EPIC}$`) })).toBeVisible();
+  await expect(page.getByRole("listitem", { name: new RegExp(`${EPIC}$`) })).toBeVisible();
 });
