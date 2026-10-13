@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useId,
   useLayoutEffect,
   useMemo,
@@ -239,6 +240,32 @@ export function createdHiddenMessage(key: string): string {
   return `${key} créé — masqué par les filtres de la vue.`;
 }
 
+/**
+ * The view's filters as they are now, for a create's success message read
+ * after the awaited request (JIR-92): the user may change the filters while
+ * it runs. `undefined` once the creating component left the view.
+ */
+export function useCurrentViewFilters(viewFilters: Filters | undefined) {
+  const latest = useRef<{ filters: Filters | undefined; mounted: boolean }>({
+    filters: viewFilters,
+    mounted: false,
+  });
+  useLayoutEffect(() => {
+    latest.current.filters = viewFilters;
+  });
+  useLayoutEffect(() => {
+    const current = latest.current;
+    current.mounted = true;
+    return () => {
+      current.mounted = false;
+    };
+  }, []);
+  return useCallback(
+    () => (latest.current.mounted ? latest.current.filters : undefined),
+    [],
+  );
+}
+
 /** « Ouvrir » of a create's success message: shows the item in the drawer. */
 export function useOpenCreatedItem() {
   const router = useRouter();
@@ -276,6 +303,7 @@ export function NewItemButton({
 }: NewItemButtonProps) {
   const router = useRouter();
   const openCreated = useOpenCreatedItem();
+  const currentViewFilters = useCurrentViewFilters(viewFilters);
   const contextualTask = contextLabel !== undefined;
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -444,6 +472,9 @@ export function NewItemButton({
     setError(null);
     setTitleError(null);
     const sprintForTask = contextualTask ? undefined : plannedSprintId;
+    // What the request sends, kept for the success message: the draft may
+    // change while it runs (« Créer un autre » keeps the dialog open).
+    const sent = { labelIds, fixVersionIds, sprintIds: createdSprintIds() };
     startTransition(async () => {
       const result = await createItemAction({
         backlogKey,
@@ -473,10 +504,8 @@ export function NewItemButton({
         return;
       }
       const item = result.item;
-      const hidden = isHiddenByFilters(
-        { ...item, labelIds, fixVersionIds, sprintIds: createdSprintIds() },
-        viewFilters,
-      );
+      // Checked against the filters of now, not of the submit.
+      const hidden = isHiddenByFilters({ ...item, ...sent }, currentViewFilters());
       onCreated?.(item);
       if (createAnother) {
         // Jira's « Create another »: same type, parent, sprint and fields.

@@ -240,6 +240,50 @@ describe("InlineCreateItem under the view's filters (JIR-92)", () => {
     expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=backlog&item=DEMO-10");
   });
 
+  async function messageAfterChange(
+    before: typeof filters | undefined,
+    after: typeof filters | undefined,
+  ) {
+    const user = userEvent.setup();
+    let resolve!: (value: unknown) => void;
+    mocks.createItemAction.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+    const inline = (viewFilters: typeof filters | undefined) => (
+      <InlineCreateItem
+        backlogId="44444444-4444-4444-8444-444444444444"
+        backlogKey="DEMO"
+        sprintId={null}
+        contextLabel="Backlog"
+        parents={[epic]}
+        parentId={epic.id}
+        onParentChange={() => {}}
+        dialogProps={{ items: [{ ...epic, type: "epic" }], statuses, viewFilters }}
+      />
+    );
+    const { rerender } = render(inline(before));
+    await user.click(screen.getByRole("button", { name: "Créer un item dans Backlog" }));
+    await user.type(screen.getByRole("textbox", { name: "Titre du nouvel item dans Backlog" }), "Relance{Enter}");
+    await waitFor(() => expect(mocks.createItemAction).toHaveBeenCalled());
+    rerender(inline(after));
+    resolve({
+      ok: true,
+      item: {
+        id: "new-id", key: "DEMO-10", type: "tache", kind: "feature", title: "Relance",
+        statusId: statuses[0]!.id, priority: 0, assigneeId: null, path: "root.a.b.c",
+      },
+    });
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    return mocks.toastSuccess.mock.calls[0]![0];
+  }
+
+  it("reads the filters of now once the create resolves (JIR-92 R2)", async () => {
+    expect(await messageAfterChange(filters, undefined)).toBe("DEMO-10 créé.");
+  });
+
+  it("says « masqué » for a Version filter set while the create ran", async () => {
+    expect(await messageAfterChange(undefined, filters))
+      .toBe("DEMO-10 créé — masqué par les filtres de la vue.");
+  });
+
   it("keeps the plain message without filters", async () => {
     const [message, options] = await createInline();
     expect(message).toBe("DEMO-10 créé.");

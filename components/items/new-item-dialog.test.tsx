@@ -705,6 +705,74 @@ describe("NewItemButton", () => {
         expect(mocks.toastSuccess.mock.calls[0]![0]).toBe("DEMO-9 créé — masqué par les filtres de la vue.");
       });
 
+      describe("filters changed while the create runs (JIR-92 R2)", () => {
+        const versionV = releaseOptions[0]!.id;
+        const versionW = releaseOptions[1]!.id;
+        const onVersion = (id: string) => ({ ...versionFilter, releaseIds: [id] });
+
+        /**
+         * Submits with `before`, re-renders the view with `after` while the
+         * action is pending, then resolves it: returns the success message.
+         */
+        async function messageAfterChange(
+          before: typeof versionFilter | undefined,
+          after: typeof versionFilter | undefined,
+          sentVersion?: "2026.09",
+        ) {
+          const user = userEvent.setup();
+          let resolve!: (value: unknown) => void;
+          mocks.createItemAction.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+          const { rerender } = render(<NewItemButton {...dialogProps()} viewFilters={before} />);
+          await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+          await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Nouveau");
+          if (sentVersion) {
+            await user.click(screen.getByRole("button", { name: "Versions" }));
+            await user.click(screen.getByRole("menuitemcheckbox", { name: /^2026\.09/ }));
+            await user.keyboard("{Escape}");
+          }
+          await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+          await waitFor(() => expect(mocks.createItemAction).toHaveBeenCalled());
+          rerender(<NewItemButton {...dialogProps()} viewFilters={after} />);
+          resolve({ ok: true, item: createdRow("Nouveau") });
+          await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+          return mocks.toastSuccess.mock.calls[0]![0];
+        }
+
+        it("shows the plain message once the Version filter is cleared", async () => {
+          expect(await messageAfterChange(onVersion(versionV), undefined)).toBe("DEMO-9 créé");
+        });
+
+        it("still says « masqué » when the new Version does not match either", async () => {
+          expect(await messageAfterChange(onVersion(versionV), onVersion(versionW)))
+            .toBe("DEMO-9 créé — masqué par les filtres de la vue.");
+        });
+
+        it("shows the plain message when the new Version matches what was sent", async () => {
+          expect(await messageAfterChange(onVersion(versionV), onVersion(versionW), "2026.09"))
+            .toBe("DEMO-9 créé");
+        });
+
+        it("falls back to the plain message once the dialog left the view", async () => {
+          const user = userEvent.setup();
+          let resolve!: (value: unknown) => void;
+          mocks.createItemAction.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+          const { unmount } = render(<NewItemButton {...dialogProps()} viewFilters={onVersion(versionV)} />);
+          await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+          await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Nouveau");
+          await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+          await waitFor(() => expect(mocks.createItemAction).toHaveBeenCalled());
+          unmount();
+          resolve({ ok: true, item: createdRow("Nouveau") });
+          await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+          expect(mocks.toastSuccess.mock.calls[0]![0]).toBe("DEMO-9 créé");
+        });
+
+        it("says « masqué » for a filter set during the wait", async () => {
+          expect(await messageAfterChange(undefined, onVersion(versionV)))
+            .toBe("DEMO-9 créé — masqué par les filtres de la vue.");
+        });
+      });
+
       it("keeps the plain message when the item gets the filtered Version", async () => {
         const user = userEvent.setup();
         mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: createdRow("Versionné") });

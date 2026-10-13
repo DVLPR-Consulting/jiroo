@@ -9,6 +9,7 @@ import { SelectField } from "@/components/ui/select";
 import {
   NewItemButton,
   createdHiddenMessage,
+  useCurrentViewFilters,
   useOpenCreatedItem,
   type NewItemButtonProps,
 } from "@/components/items/new-item-dialog";
@@ -46,6 +47,7 @@ export function InlineCreateItem({
 }) {
   const router = useRouter();
   const openCreated = useOpenCreatedItem();
+  const currentViewFilters = useCurrentViewFilters(dialogProps?.viewFilters);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +81,7 @@ export function InlineCreateItem({
       return;
     }
     setError(null);
+    const sentSprintIds = sprintId ? [sprintId] : [];
     startTransition(async () => {
       try {
         const result = await createItemAction({
@@ -100,11 +103,11 @@ export function InlineCreateItem({
         // Like Jira, the field stays open for the next item.
         setTitle("");
         titleRef.current?.focus();
-        // Left out by the view's filters (e.g. no filtered Version): say so,
-        // and offer to open it like the full dialog does (JIR-92).
+        // Left out by the view's filters of now (e.g. no filtered Version):
+        // say so, and offer to open it like the full dialog does (JIR-92).
         const hidden = isHiddenByFilters(
-          { ...item, sprintIds: sprintId ? [sprintId] : [] },
-          dialogProps?.viewFilters,
+          { ...item, sprintIds: sentSprintIds },
+          currentViewFilters(),
         );
         toast.success(hidden ? createdHiddenMessage(item.key) : `${item.key} créé.`, {
           ...(hidden
