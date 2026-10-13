@@ -11,13 +11,17 @@ const classes = vi.hoisted(() => ({
 
 const mocks = vi.hoisted(() => ({
   accessProps: vi.fn(),
+  breadcrumbProps: vi.fn(),
   checkPermission: vi.fn(),
   helperProps: vi.fn(),
   listGroups: vi.fn(), listPermissionSchemes: vi.fn(), readBacklogAccess: vi.fn(), listAdminUsers: vi.fn(),
   notFound: vi.fn(), redirect: vi.fn(), requireBacklogReadPermissionByKey: vi.fn(), requireSession: vi.fn(),
 }));
 vi.mock("@/components/shell/shell-breadcrumb", () => ({
-  ShellBreadcrumb: () => <nav aria-label="Fil d’Ariane" />,
+  ShellBreadcrumb: (props: unknown) => {
+    mocks.breadcrumbProps(props);
+    return <nav aria-label="Fil d’Ariane" />;
+  },
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound, redirect: mocks.redirect }));
@@ -82,6 +86,23 @@ describe("backlog access settings route", () => {
 
     expect(screen.queryByRole("main")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Accès — Démo" })).toBeVisible();
+  });
+
+  it("relie le fil d’Ariane à l’administration avec create_backlogs (JIR-85)", async () => {
+    mocks.checkPermission.mockImplementation(async ({ permission }: { permission: string }) => ({
+      allowed: ["manage_members", "create_backlogs"].includes(permission),
+    }));
+    render(await AccessPage({ params: Promise.resolve({ key: "DEMO" }) }));
+
+    expect(mocks.checkPermission).toHaveBeenCalledWith({ actorId: "u1", permission: "create_backlogs", scope: { type: "global" } });
+    expect(mocks.breadcrumbProps).toHaveBeenCalledWith({ canOpenAdmin: true });
+  });
+
+  it("laisse l’administration en texte sans create_backlogs", async () => {
+    mocks.checkPermission.mockImplementation(async ({ permission }: { permission: string }) => ({ allowed: permission === "manage_members" }));
+    render(await AccessPage({ params: Promise.resolve({ key: "DEMO" }) }));
+
+    expect(mocks.breadcrumbProps).toHaveBeenCalledWith({ canOpenAdmin: false });
   });
 
   it("refuse avant les lectures sans l’une des deux permissions", async () => {

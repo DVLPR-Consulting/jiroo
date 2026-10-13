@@ -572,6 +572,7 @@ export function HelpGuide() {
             <><Ui>Utilisateurs</Ui> : <Ui>Nouvel utilisateur</Ui> ; menu « … » → <Ui>Réinitialiser le mot de passe</Ui> ou <Ui>Réinitialiser la double authentification</Ui>.</>,
             <><Ui>Groupes</Ui> : créer, renommer, ajouter ou retirer des membres ; attribuer les permissions globales.</>,
             <><Ui>Backlogs</Ui> : <Ui>Nouveau backlog</Ui>, <Ui>Modifier</Ui>, <Ui>Archiver</Ui>, et <Ui>Accès</Ui> pour affecter personnes et groupes aux rôles.</>,
+            <><Ui>Backlogs</Ui> → <Ui>Accès</Ui> : la barre latérale et le fil d’Ariane (<Ui>Administration</Ui> / <Ui>Backlogs</Ui> / nom du backlog / <Ui>Accès</Ui>) suivent le backlog affiché. En <Ui>Mode Simple</Ui>, choisissez le rôle de chaque personne ou groupe, ajoutez-en, ou cliquez <Ui>Retirer</Ui> sur sa ligne. Le dernier administrateur effectif du backlog ne peut être ni retiré ni changé de rôle.</>,
             <><Ui>Backlogs</Ui> → <Ui>Modifier</Ui> → <Ui>Responsable</Ui> : choisissez la personne affichée comme responsable sur l’accueil, ou <Ui>Aucun</Ui>. Ce champ ne donne aucun droit ; il n’apparaît qu’avec la permission de parcourir les utilisateurs.</>,
             <><Ui>Rôles de projet</Ui> et <Ui>Schémas de permissions</Ui> : réglages fins des accès.</>,
           ]}
