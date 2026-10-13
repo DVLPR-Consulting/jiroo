@@ -102,6 +102,8 @@ async function resetBrowserDatabase(input: {
         "user"
       RESTART IDENTITY CASCADE
     `);
+    // Generated keys must stay below the seeded fixture keys (9001+).
+    await client.query("ALTER SEQUENCE item_key_seq RESTART WITH 1");
   } finally {
     client.release();
   }

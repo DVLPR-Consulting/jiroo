@@ -17,6 +17,7 @@ import {
   userGroups,
 } from "../lib/db/schema/domain";
 import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
+import { keyPattern } from "./key-helpers";
 
 const AUTH = {
   admin: ".playwright/.auth/platform-admin.json",
@@ -399,10 +400,10 @@ audited(
     const unreadNotifications = page.getByRole("button", { name: "Notifications (1 non lues)" });
     await expect(unreadNotifications).toBeVisible();
     await unreadNotifications.click();
-    await expect(page.getByRole("menu")).toContainText(cassItem.key);
+    await expect(page.getByRole("menu")).toContainText(keyPattern(cassItem.key));
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Rechercher un item" }).click();
-    await expect(page.getByRole("option", { name: new RegExp(cassItem.key) })).toBeVisible();
+    await expect(page.getByRole("option", { name: keyPattern(cassItem.key) })).toBeVisible();
     await page.keyboard.press("Escape");
 
     await timed(adminCapture, "retrait browse via UI", () => removeBrowse.click());
@@ -423,7 +424,7 @@ audited(
     await emptyNotifications.click();
     const notificationMenu = page.getByRole("menu");
     await expect(notificationMenu).toContainText("Aucune notification.");
-    await expect(notificationMenu).not.toContainText(cassItem.key);
+    await expect(notificationMenu).not.toContainText(keyPattern(cassItem.key));
     await expect(notificationMenu).not.toContainText("Cour de cassation");
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Rechercher un item" }).click();
