@@ -433,6 +433,8 @@ describe("ItemList", () => {
     );
     const ascending = screen.getByRole("button", { name: `Trier par ${label}, croissant` });
     expect(ascending).toHaveAttribute("aria-pressed", "true");
+    // The name carries the direction once; no description repeats it.
+    expect(ascending).toHaveAccessibleDescription("");
     for (const other of screen.getAllByRole("button", { name: /^Trier par / })) {
       if (other !== ascending) expect(other).toHaveAttribute("aria-pressed", "false");
     }
