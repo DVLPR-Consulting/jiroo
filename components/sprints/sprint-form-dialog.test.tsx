@@ -185,6 +185,29 @@ describe("sprint form dialogs", () => {
     expect(mocks.refresh).toHaveBeenCalledOnce();
   });
 
+  it("saves a two-decimal capacity rejected by float rounding before JIR-90", async () => {
+    const user = userEvent.setup();
+    mocks.updateSprintAction.mockResolvedValueOnce({ ok: true, sprint });
+    render(
+      <EditSprintDialog
+        backlogId="11111111-1111-4111-8111-111111111111"
+        backlogKey="DEMO"
+        sprint={sprint}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Modifier Sprint paiement" }));
+    const capacity = screen.getByRole("spinbutton", { name: "Capacité (points)" });
+    await user.clear(capacity);
+    await user.type(capacity, "0.29");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await waitFor(() => expect(mocks.updateSprintAction).toHaveBeenCalledOnce());
+    expect(mocks.updateSprintAction).toHaveBeenCalledWith(
+      expect.objectContaining({ capacityPoints: 0.29 }),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("opens with the sprint's current values after its props change", async () => {
     const user = userEvent.setup();
     const props = {
