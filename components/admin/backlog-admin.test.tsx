@@ -63,6 +63,10 @@ describe("BacklogAdmin", () => {
   it("relie chaque backlog à ses réglages d’accès", () => {
     render(<BacklogAdmin backlogs={[backlog]} />);
     expect(screen.getByRole("link", { name: "Gérer les accès de Site web" })).toHaveAttribute("href", "/b/WEB/settings/access");
+    expect(screen.getByRole("link", { name: "Connecter des dépôts à Site web" })).toHaveAttribute(
+      "href",
+      "/b/WEB/settings/development",
+    );
   });
 
   it("keeps the edit dialog open and displays an action error", async () => {

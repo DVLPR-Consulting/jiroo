@@ -22,7 +22,9 @@ const MODE_LABELS: Record<string, ShellMode> = {
   tree: "Arbre",
 };
 
-const ACCESS_ROUTE = /^\/b\/([^/]+)\/settings\/access\/?$/;
+// A backlog's settings pages: « Accès » (JIR-85) and « Développement » (JIR-95).
+const SETTINGS_ROUTE = /^\/b\/([^/]+)\/settings\/(access|development)\/?$/;
+const SETTINGS_SECTIONS = { access: "Accès", development: "Développement" } as const;
 
 /**
  * Where « Tous les items » leads: the backlog's Liste, without filters
@@ -78,17 +80,17 @@ export function deriveShellContext({
     };
   }
 
-  // A backlog's access settings belong to that backlog (JIR-85), like Jira's
+  // A backlog's settings belong to that backlog (JIR-85), like Jira's
   // project settings: the sidebar follows the URL, not the first backlog.
-  const accessMatch = ACCESS_ROUTE.exec(pathname);
-  if (accessMatch) {
-    const requestedKey = decodeURIComponent(accessMatch[1]!).toUpperCase();
+  const settingsMatch = SETTINGS_ROUTE.exec(pathname);
+  if (settingsMatch) {
+    const requestedKey = decodeURIComponent(settingsMatch[1]!).toUpperCase();
     const backlog = backlogs.find(
       (candidate) => candidate.key.toUpperCase() === requestedKey,
     );
     return {
       ...(backlog ? { activeBacklogKey: requestedKey } : {}),
-      section: "Accès",
+      section: SETTINGS_SECTIONS[settingsMatch[2] as keyof typeof SETTINGS_SECTIONS],
       allItemsHref: backlog ? allItemsHrefFor(requestedKey) : allItemsHref,
       activeNav: null,
     };
@@ -214,7 +216,7 @@ export function deriveBreadcrumb(input: {
 
   // Reached from Administration → Backlogs (JIR-85): the trail leads back
   // there, then to the project. Pages the viewer cannot open stay as text.
-  const access = ACCESS_ROUTE.exec(input.pathname);
+  const access = SETTINGS_ROUTE.exec(input.pathname);
   if (access) {
     const canOpenAdmin = input.canOpenAdmin === true;
     return [

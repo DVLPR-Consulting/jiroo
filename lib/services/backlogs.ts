@@ -199,6 +199,19 @@ export async function getBacklogByKeyForUser(key: string, userId: string) {
   return b ?? null;
 }
 
+/**
+ * Name and key of a backlog the caller has already authorized (settings
+ * pages): no visibility filter, so a platform administrator's bypass holds.
+ */
+export async function getBacklogSummary(id: string) {
+  const [backlog] = await db
+    .select({ id: backlogs.id, key: backlogs.key, name: backlogs.name })
+    .from(backlogs)
+    .where(eq(backlogs.id, id))
+    .limit(1);
+  return backlog ?? null;
+}
+
 export async function createBacklog(input: unknown, creatorId: string) {
   const data = createBacklogSchema.parse(input);
   return db.transaction(async (tx) => {

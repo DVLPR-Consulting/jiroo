@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { AccessAdmin } from "@/components/admin/access-admin";
+import { BacklogSettingsNav } from "@/components/admin/backlog-settings-nav";
 import { PermissionHelper } from "@/components/admin/permission-helper";
 import { requireBacklogReadPermissionByKey } from "@/lib/auth/action-authorization";
 import { checkPermission, ResourceNotFoundError } from "@/lib/auth/authorization";
@@ -46,5 +47,5 @@ export default async function AccessPage({ params }: { params: Promise<{ key: st
   const groups = rawGroups.map(({ id, name }) => ({ id, name }));
   const schemes = rawSchemes.map(({ id, name, version, usageCount }) => ({ id, name, version, usageCount }));
 
-  return <div className="mx-auto max-w-4xl space-y-6 p-8"><div className="space-y-1"><ShellBreadcrumb canOpenAdmin={createBacklogsDecision.allowed} /><h1 className="t-h1">Accès — {access.backlog.name}</h1><p className="text-sm text-muted-foreground">Utilisateurs, groupes, rôles et schéma de permissions.</p></div><AccessAdmin access={access} users={users} groups={groups} schemes={schemes} canManageMembers={memberDecision.allowed} canAdministerBacklog={administerDecision.allowed} canAdministerJiroo={jirooDecision.allowed} canBrowseUsers={browseUsersDecision.allowed} />{administerDecision.allowed && browseUsersDecision.allowed && <PermissionHelper users={users} backlogs={[access.backlog]} />}</div>;
+  return <div className="mx-auto max-w-4xl space-y-6 p-8"><div className="space-y-1"><ShellBreadcrumb canOpenAdmin={createBacklogsDecision.allowed} /><h1 className="t-h1">Accès — {access.backlog.name}</h1><p className="text-sm text-muted-foreground">Utilisateurs, groupes, rôles et schéma de permissions.</p></div><BacklogSettingsNav backlogKey={resource.backlogKey} current="access" canAdministerBacklog={administerDecision.allowed} /><AccessAdmin access={access} users={users} groups={groups} schemes={schemes} canManageMembers={memberDecision.allowed} canAdministerBacklog={administerDecision.allowed} canAdministerJiroo={jirooDecision.allowed} canBrowseUsers={browseUsersDecision.allowed} />{administerDecision.allowed && browseUsersDecision.allowed && <PermissionHelper users={users} backlogs={[access.backlog]} />}</div>;
 }
