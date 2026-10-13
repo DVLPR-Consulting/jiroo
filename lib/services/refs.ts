@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { itemRefs, items } from "@/lib/db/schema/domain";
 import { addRefInput, parseGithubRef } from "@/lib/items/github-ref";
@@ -17,6 +17,7 @@ export type RefRow = {
   authorName: string | null;
   state: typeof itemRefs.$inferSelect.state;
   occurredAt: Date | null;
+  connectionId: string | null;
 };
 
 /**
@@ -36,6 +37,7 @@ export async function listRefsForItem(itemId: string): Promise<RefRow[]> {
       authorName: itemRefs.authorName,
       state: itemRefs.state,
       occurredAt: itemRefs.occurredAt,
+      connectionId: itemRefs.connectionId,
     })
     .from(itemRefs)
     .where(eq(itemRefs.itemId, itemId))
@@ -93,10 +95,12 @@ export async function addRef(
 // ---------------------------------------------------------------------------
 
 /**
- * Removes a manual GitHub link by id. Idempotent — no error if already gone.
- * References detected from a repository are not removable: the next webhook
- * would bring them back.
+ * Removes a manual GitHub link, or a reference whose repository connection
+ * was deleted. Idempotent — no error if already gone. References of a live
+ * connection are not removable: its next webhook would bring them back.
  */
 export async function removeRef(id: string): Promise<void> {
-  await db.delete(itemRefs).where(and(eq(itemRefs.id, id), isNull(itemRefs.provider)));
+  await db
+    .delete(itemRefs)
+    .where(and(eq(itemRefs.id, id), or(isNull(itemRefs.provider), isNull(itemRefs.connectionId))));
 }

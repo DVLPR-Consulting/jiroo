@@ -263,5 +263,10 @@ test.describe("connexion de dépôts GitHub / GitLab (JIR-95)", () => {
     expect(afterDelete.status()).toBe(401);
     panel = await openDevelopmentPanel(page, key);
     await expect(panel.getByRole("group", { name: "Pull requests" }).getByText("Fusionnée")).toBeVisible();
+    // Orphaned by the deletion, the reference can now be removed by hand.
+    // Revealed on hover or focus, like the manual links' button.
+    await panel.getByRole("button", { name: `Supprimer le lien ${key} Webhooks` }).focus();
+    await page.keyboard.press("Enter");
+    await expect(panel.getByRole("group", { name: "Pull requests" })).toHaveCount(0);
   });
 });

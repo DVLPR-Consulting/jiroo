@@ -13,6 +13,8 @@ export type DevRef = {
   authorName?: string | null;
   state?: "open" | "merged" | "closed" | null;
   occurredAt?: Date | string | null;
+  /** Null once the repository connection is deleted: the reference may then be removed. */
+  connectionId?: string | null;
 };
 
 export type GroupedDevRefs = {

@@ -380,7 +380,7 @@ export function HelpGuide() {
           ]}
         >
           <GuideNote>
-            Jiroo ne fait que recevoir les webhooks : aucun jeton d’accès, aucune requête vers GitHub ou GitLab. Seuls la clé du backlog connecté et les tickets non supprimés sont reconnus ; seule la première ligne des messages de commit est conservée, sans adresse e-mail ni contenu de code. L’historique antérieur à la connexion n’est pas importé, et les références restent sur les tickets après suppression de la connexion.
+            Jiroo ne fait que recevoir les webhooks : aucun jeton d’accès, aucune requête vers GitHub ou GitLab. Seuls la clé du backlog connecté et les tickets non supprimés sont reconnus ; seule la première ligne des messages de commit est conservée, sans adresse e-mail ni contenu de code. L’historique antérieur à la connexion n’est pas importé, et les références restent sur les tickets après suppression de la connexion ; elles peuvent alors être retirées une à une.
           </GuideNote>
         </GuideTopic>
 

@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { itemRefs, repoConnections } from "@/lib/db/schema/domain";
 import type { DevRefCandidate } from "@/lib/repo-webhooks/events";
 import { addRef, listRefsForItem, removeRef } from "@/lib/services/refs";
-import { createRepoConnection, setRepoConnectionEnabled } from "@/lib/services/repo-connections";
+import { createRepoConnection, deleteRepoConnection, setRepoConnectionEnabled } from "@/lib/services/repo-connections";
 import {
   countRecentDeliveries,
   findWebhookConnection,
@@ -132,6 +132,28 @@ describeDb("repository webhook ingestion (JIR-95)", () => {
     const remaining = (await listRefsForItem(second.id)).map((ref) => ref.id);
     expect(remaining).toContain(detected!.id);
     expect(remaining).not.toContain(manual.id);
+  });
+
+  it("lets the references of a deleted connection be removed", async () => {
+    const { first } = fixture.items;
+    const other = await createRepoConnection({
+      backlogId: fixture.backlogA.id,
+      provider: "github",
+      repositoryPath: "example-org/orphaned",
+    }, fixture.users.admin);
+    const otherConnection = (await findWebhookConnection(other.connection.id, "github"))!;
+    await ingestWebhookReferences({
+      connection: otherConnection,
+      deliveryId: "orphan-1",
+      refs: [{ kind: "branch", id: first.key, title: first.key, authorName: null, state: null, occurredAt: new Date(), texts: [first.key] }],
+    });
+    const [orphan] = (await listRefsForItem(first.id)).filter((ref) => ref.connectionId === other.connection.id);
+    await removeRef(orphan!.id);
+    expect((await listRefsForItem(first.id)).map((ref) => ref.id)).toContain(orphan!.id);
+
+    await deleteRepoConnection({ connectionId: other.connection.id }, fixture.users.admin);
+    await removeRef(orphan!.id);
+    expect((await listRefsForItem(first.id)).map((ref) => ref.id)).not.toContain(orphan!.id);
   });
 
   it("counts pings and ignored events against the delivery budget", async () => {

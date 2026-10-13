@@ -262,6 +262,7 @@ describe("HelpPage", () => {
     }
     expect(topic).toHaveTextContent("le secret n’est affiché qu’une fois");
     expect(topic).toHaveTextContent("aucun jeton d’accès, aucune requête vers GitHub ou GitLab");
+    expect(topic).toHaveTextContent("elles peuvent alors être retirées une à une");
     expect(tickets).not.toHaveTextContent("aucune synchronisation automatique");
     const rights = document.querySelector("section#droits") as HTMLElement;
     expect(rights).toHaveTextContent("« Développement » pour connecter des dépôts GitHub ou GitLab");

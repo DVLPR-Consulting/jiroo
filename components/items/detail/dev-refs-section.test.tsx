@@ -142,4 +142,41 @@ describe("DevRefsSection", () => {
     expect(screen.getAllByRole("button", { name: /^Supprimer le lien/ })).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Supprimer le lien PR #9 · acme/api" })).toBeInTheDocument();
   });
+
+  it("lets a reference be removed once its connection is deleted (JIR-95)", async () => {
+    const user = userEvent.setup();
+    const { removeRefAction } = await import("@/app/actions/refs");
+    vi.mocked(removeRefAction).mockResolvedValue({ ok: true });
+    render(
+      <DevRefsSection
+        itemId="item-1"
+        backlogKey="CASS"
+        refs={[
+          {
+            id: "orphan",
+            url: "https://github.com/acme/api/pull/42",
+            kind: "pr",
+            createdAt: "2026-10-13T08:00:00.000Z",
+            provider: "github",
+            title: "Login form",
+            state: "merged",
+            connectionId: null,
+          },
+          {
+            id: "live",
+            url: "https://github.com/acme/api/pull/43",
+            kind: "pr",
+            createdAt: "2026-10-13T08:00:00.000Z",
+            provider: "github",
+            title: "Logout form",
+            state: "open",
+            connectionId: "connection-1",
+          },
+        ]}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Supprimer le lien Logout form" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Supprimer le lien Login form" }));
+    expect(removeRefAction).toHaveBeenCalledWith({ backlogKey: "CASS", id: "orphan" });
+  });
 });

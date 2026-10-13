@@ -72,9 +72,18 @@ function RefMeta({ refData }: { refData: DevRef }) {
   ) : null;
 }
 
-function DetectedRef({ refData, icon, label }: { refData: DevRef; icon: React.ReactNode; label: React.ReactNode }) {
+type RemoveRef = { label: (ref: DevRef) => string; onRemove: (id: string) => void; pending: boolean };
+
+function DetectedRef({ refData, icon, label, remove }: {
+  refData: DevRef;
+  icon: React.ReactNode;
+  label: React.ReactNode;
+  remove?: RemoveRef;
+}) {
+  // A reference outlives its deleted connection; it can then be removed.
+  const removable = remove && refData.connectionId === null;
   return (
-    <li className="rounded px-1 py-0.5 hover:bg-[var(--muted)]">
+    <li className="group rounded px-1 py-0.5 hover:bg-[var(--muted)]">
       <div className="flex min-w-0 items-center gap-1.5">
         {refData.provider && <ForgeIcon provider={refData.provider} className="text-muted-foreground" />}
         <a
@@ -92,6 +101,17 @@ function DetectedRef({ refData, icon, label }: { refData: DevRef; icon: React.Re
             {REF_STATE_LABELS[refData.state]}
           </span>
         )}
+        {removable && (
+          <button
+            type="button"
+            aria-label={`Supprimer le lien ${remove.label(refData)}`}
+            disabled={remove.pending}
+            onClick={() => remove.onRemove(refData.id)}
+            className="pointer-events-none inline-flex size-5 flex-none items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-[var(--muted)] hover:text-foreground group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 disabled:opacity-40"
+          >
+            <X className="size-3" />
+          </button>
+        )}
       </div>
       <RefMeta refData={refData} />
     </li>
@@ -99,7 +119,7 @@ function DetectedRef({ refData, icon, label }: { refData: DevRef; icon: React.Re
 }
 
 /** References detected from connected repositories (JIR-95), grouped like Jira. */
-function DetectedRefs({ refs }: { refs: DevRef[] }) {
+function DetectedRefs({ refs, remove }: { refs: DevRef[]; remove?: RemoveRef }) {
   const [showAllCommits, setShowAllCommits] = useState(false);
   const { pullRequests, branches, commits } = groupDevRefs(refs);
   const iconClass = "size-3.5 flex-none text-muted-foreground";
@@ -116,6 +136,7 @@ function DetectedRefs({ refs }: { refs: DevRef[] }) {
             <DetectedRef
               key={ref.id}
               refData={ref}
+              remove={remove}
               icon={<GitPullRequest className={iconClass} aria-hidden />}
               label={<><span className="text-muted-foreground">{pullRequestNumber(ref)}</span> {ref.title}</>}
             />
@@ -128,6 +149,7 @@ function DetectedRefs({ refs }: { refs: DevRef[] }) {
             <DetectedRef
               key={ref.id}
               refData={ref}
+              remove={remove}
               icon={<GitBranch className={iconClass} aria-hidden />}
               label={<span className="font-mono text-[11.5px]">{ref.title}</span>}
             />
@@ -140,6 +162,7 @@ function DetectedRefs({ refs }: { refs: DevRef[] }) {
             <DetectedRef
               key={ref.id}
               refData={ref}
+              remove={remove}
               icon={<GitCommitHorizontal className={iconClass} aria-hidden />}
               label={<><span className="font-mono text-[11.5px] text-muted-foreground">{shortCommitSha(ref.url)}</span> {ref.title}</>}
             />
@@ -237,7 +260,16 @@ export function DevRefsSection({
   return (
     <div className="flex flex-col gap-3">
       {/* References detected from connected repositories (JIR-95) */}
-      {refs.length > manualRefs.length && <DetectedRefs refs={refs} />}
+      {refs.length > manualRefs.length && (
+        <DetectedRefs
+          refs={refs}
+          remove={canLink ? {
+            label: (ref) => ref.title ?? ref.url,
+            onRemove: handleRemove,
+            pending,
+          } : undefined}
+        />
+      )}
 
       {/* Links added by hand */}
       {refs.length === 0 ? (
