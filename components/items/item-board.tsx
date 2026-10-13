@@ -443,7 +443,7 @@ function Column({
   return (
     <div
       role="group"
-      aria-label={`${status.name}, ${countLabel(cards.length, "ticket", "tickets")}`}
+      aria-label={`${status.name}, ${countLabel(cards.length, "item", "items")}`}
       className="flex w-[296px] flex-none flex-col rounded-[var(--radius-lg)] border border-border bg-[var(--surface-2)]"
     >
       <div className="flex items-center gap-2 px-3 py-2.5">

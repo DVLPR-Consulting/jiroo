@@ -245,8 +245,8 @@ describe("ItemBoard", () => {
     );
     const columns = screen.getAllByRole("group");
     expect(columns.map((column) => column.getAttribute("aria-label"))).toEqual([
-      "Prêt, 0 ticket",
-      "En cours, 0 ticket",
+      "Prêt, 0 item",
+      "En cours, 0 item",
     ]);
     for (const column of columns) expect(column).toHaveTextContent(/0$/);
     expect(screen.queryByText("Aucun item")).not.toBeInTheDocument();
@@ -270,7 +270,7 @@ describe("ItemBoard", () => {
       />,
     );
 
-    expect(screen.getByRole("group", { name: "Prêt, 0 ticket" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "Prêt, 0 item" })).toBeVisible();
     expect(document.querySelector("[id^='DndLiveRegion']")).toBeNull();
     expect(screen.queryByText(/Pour sélectionner une carte/)).not.toBeInTheDocument();
   });
@@ -295,7 +295,7 @@ describe("ItemBoard", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Aucun sprint actif" })).toBeVisible();
-    expect(screen.getByRole("group", { name: "Prêt, 0 ticket" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "Prêt, 0 item" })).toBeVisible();
     expect(screen.queryByText("Aucun résultat")).not.toBeInTheDocument();
   });
 
@@ -321,8 +321,8 @@ describe("ItemBoard", () => {
 
     expect(screen.getByRole("heading", { name: "Sprint paiement" })).toBeVisible();
     expect(screen.getAllByRole("group").map((column) => column.getAttribute("aria-label"))).toEqual([
-      "Prêt, 0 ticket",
-      "En cours, 0 ticket",
+      "Prêt, 0 item",
+      "En cours, 0 item",
     ]);
     expect(screen.getByRole("button", { name: "Créer dans Prêt" })).toBeVisible();
     expect(screen.queryByText("Aucun item")).not.toBeInTheDocument();
@@ -359,9 +359,26 @@ describe("ItemBoard", () => {
   it("labels each column with its status and card count", () => {
     renderEditableCard();
 
-    expect(screen.getByRole("group", { name: "Prêt, 1 ticket" })).toHaveTextContent(
+    expect(screen.getByRole("group", { name: "Prêt, 1 item" })).toHaveTextContent(
       "Authentication",
     );
+  });
+
+  it("pluralises the column label from two cards", () => {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[editableCard, { ...editableCard, id: "task-b", key: "DEMO-2", rank: "b" }]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+      />,
+    );
+
+    expect(screen.getByRole("group", { name: "Prêt, 2 items" })).toBeVisible();
   });
 
   it("offers item creation when the board has no rows", async () => {

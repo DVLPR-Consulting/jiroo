@@ -42,10 +42,10 @@ test("affiche les colonnes vides et inertes sous le bandeau sans sprint actif", 
     "/b/CASS?view=backlog",
   );
 
-  const columns = page.getByRole("group", { name: /, 0 ticket$/ });
+  const columns = page.getByRole("group", { name: /, 0 item$/ });
   await expect(columns).toHaveCount(statusNames.length);
   for (const [index, name] of statusNames.entries()) {
-    await expect(columns.nth(index)).toHaveAccessibleName(`${name}, 0 ticket`);
+    await expect(columns.nth(index)).toHaveAccessibleName(`${name}, 0 item`);
     await expect(columns.nth(index)).toContainText(name);
   }
 
