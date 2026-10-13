@@ -1160,6 +1160,13 @@ describe("ItemBacklog first steps (JIR-88)", () => {
     );
   });
 
+  it("keeps « Créer un item » when filters narrow the parent candidates", () => {
+    render(<ItemBacklog {...newBacklogProps([], { filtersActive: true })} />);
+
+    expect(screen.getByRole("button", { name: "Créer un item dans Backlog" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Nouveau Composant/ })).not.toBeInTheDocument();
+  });
+
   it("keeps the Composant button for a creator who may not schedule", () => {
     const { unmount } = render(
       <ItemBacklog

@@ -1389,7 +1389,9 @@ function SprintItemBacklog({
                     </p>
                   )
                 ) : null}
-                {sectionExpanded && canCreateInSection && startStep && createDialogProps ? (
+                {/* Filtered parent candidates are not the whole backlog: the
+                    replacement only speaks for an unfiltered view. */}
+                {sectionExpanded && canCreateInSection && startStep && !filtersActive && createDialogProps ? (
                   <div className={section.items.length > 0 ? "border-t border-border" : undefined}>
                     <InlineStartStep
                       step={startStep}
