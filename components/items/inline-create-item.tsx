@@ -179,8 +179,10 @@ export function InlineCreateItem({
           }))}
         />
       ) : (
+        // The Backlog shows its « Nouvelle Epic » step instead while the
+        // backlog has no Epic (JIR-88); this only covers a caller without it.
         <p className="text-xs text-muted-foreground">
-          Aucun epic disponible — créez-en un d’abord.
+          Aucune Epic dans ce backlog : une Tâche se rattache toujours à une Epic.
         </p>
       )}
       {dialogProps ? (

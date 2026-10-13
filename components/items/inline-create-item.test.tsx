@@ -159,3 +159,26 @@ describe("InlineCreateItem « Plus d’options »", () => {
     expect(mocks.createItemAction).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("InlineCreateItem without an Epic", () => {
+  it("states the missing Epic with the hierarchy wording (JIR-92)", async () => {
+    const user = userEvent.setup();
+    render(
+      <InlineCreateItem
+        backlogId="44444444-4444-4444-8444-444444444444"
+        backlogKey="DEMO"
+        sprintId={null}
+        contextLabel="Backlog"
+        parents={[]}
+        parentId=""
+        onParentChange={() => {}}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Créer un item dans Backlog" }));
+
+    expect(
+      screen.getByText("Aucune Epic dans ce backlog : une Tâche se rattache toujours à une Epic."),
+    ).toBeVisible();
+    expect(screen.queryByText(/Aucun epic disponible/)).not.toBeInTheDocument();
+  });
+});
