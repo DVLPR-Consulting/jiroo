@@ -575,7 +575,7 @@ export function NewItemButton({
                   required
                   aria-describedby={parentOptions.length === 0 ? parentHintId : undefined}
                   onValueChange={setParentId}
-                  placeholder={`Choisir un ${ITEM_TYPE_LABELS[requiredParentType].toLowerCase()}…`}
+                  placeholder={`Choisir ${aTypeName(requiredParentType).toLowerCase()}…`}
                   options={parentOptions.map((p) => ({
                     value: p.id,
                     label: `${p.key} — ${p.title}`,

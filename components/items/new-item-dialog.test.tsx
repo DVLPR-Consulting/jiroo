@@ -577,7 +577,7 @@ describe("NewItemButton", () => {
         />,
       );
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
-      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveTextContent("Choisir un epic…");
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveTextContent("Choisir une epic…");
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche");
       expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
       expect(mocks.createItemAction).not.toHaveBeenCalled();
