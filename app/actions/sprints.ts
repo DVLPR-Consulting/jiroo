@@ -22,7 +22,7 @@ import {
   reorderSprint,
   updateSprint,
 } from "@/lib/services/sprints";
-import { mapZodActionError } from "@/lib/validation/action-error";
+import { mapSprintZodActionError } from "@/lib/validation/action-error";
 import {
   completeSprintSchema,
   type AssignSprintItemsInput,
@@ -99,7 +99,7 @@ function safeError(
 ): { error: string; fieldErrors?: Record<string, string[]> } {
   const authorizationError = mapActionAuthorizationError(error);
   if (authorizationError) return { error: authorizationError.error };
-  const validation = mapZodActionError(error);
+  const validation = mapSprintZodActionError(error);
   if (validation) return validation;
   const message = error instanceof Error ? error.message : "";
   return { error: known.has(message) ? message : fallback };
