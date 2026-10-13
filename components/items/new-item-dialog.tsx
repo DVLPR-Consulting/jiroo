@@ -2,6 +2,7 @@
 
 import {
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -276,6 +277,8 @@ export function NewItemButton({
   const [titleError, setTitleError] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const typeTriggerRef = useRef<HTMLButtonElement>(null);
+  // Set by « Créer un Composant »: focus the Type field once the new type is committed.
+  const focusTypeAfterCommit = useRef(false);
   const parentHintId = useId();
   const titleCounterId = useId();
   const titleErrorId = useId();
@@ -392,9 +395,18 @@ export function NewItemButton({
   function switchToParentType() {
     if (!requiredParentType) return;
     handleTypeChange(requiredParentType);
-    // The button goes away with the parent field: land on the type just set.
-    typeTriggerRef.current?.focus();
+    // The button goes away with the parent field: land on the type just set,
+    // after the commit so the field already names it when it gets focus.
+    focusTypeAfterCommit.current = true;
   }
+
+  // Runs after each commit; the type change above always re-renders.
+  useLayoutEffect(() => {
+    if (!focusTypeAfterCommit.current) return;
+    focusTypeAfterCommit.current = false;
+    const trigger = typeTriggerRef.current;
+    if (trigger?.isConnected) trigger.focus();
+  });
 
   function openCreated(key: string) {
     if (viewUrl) {

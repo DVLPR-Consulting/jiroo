@@ -729,11 +729,17 @@ describe("NewItemButton", () => {
       await choose(user, "Modèle", template.name);
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Espace usagers");
 
+      // What the Type field says at the moment it receives focus.
+      const typeAtFocus: string[] = [];
+      screen.getByRole("combobox", { name: "Type" }).addEventListener("focus", (event) => {
+        typeAtFocus.push((event.currentTarget as HTMLElement).textContent ?? "");
+      });
       await user.click(screen.getByRole("button", { name: "Créer un Composant" }));
 
       const type = screen.getByRole("combobox", { name: "Type" });
       expect(type).toHaveTextContent("Composant");
       expect(type).toHaveFocus();
+      expect(typeAtFocus).toEqual(["Composant"]);
       expect(screen.queryByRole("combobox", { name: /Parent/ })).not.toBeInTheDocument();
       expect(screen.getByRole("textbox", { name: /Titre/ })).toHaveValue("Espace usagers");
       await user.click(screen.getByRole("button", { name: /^Créer$/ }));
