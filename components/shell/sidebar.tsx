@@ -30,7 +30,7 @@ import {
   projectViewHref,
   type ProjectViewId,
 } from "@/lib/items/shell";
-import { clearActiveBacklogViewParams } from "@/lib/items/views";
+import { showAllBacklogItemsParams } from "@/lib/items/views";
 import type { ShellCounts } from "@/lib/services/shell";
 import { cn } from "@/lib/utils";
 
@@ -82,7 +82,7 @@ export function Sidebar({
   const onActiveBacklogRoute =
     activeKey !== undefined && pathname.toUpperCase() === `/B/${activeKey}`;
   const allItemsHref = onActiveBacklogRoute
-    ? viewUrl.href(clearActiveBacklogViewParams)
+    ? viewUrl.href(showAllBacklogItemsParams)
     : context.allItemsHref;
 
   const homeHref = context.activeBacklogKey ? `/b/${context.activeBacklogKey}` : "/";
@@ -203,7 +203,7 @@ export function Sidebar({
             onActiveBacklogRoute
               ? (event) => {
                   event.preventDefault();
-                  viewUrl.push(clearActiveBacklogViewParams, {
+                  viewUrl.push(showAllBacklogItemsParams, {
                     authoritative: true,
                   });
                 }

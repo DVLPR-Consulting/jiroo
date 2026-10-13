@@ -1,3 +1,5 @@
+import { isFiltersActive, parseViewState } from "@/lib/items/filter";
+
 export type ShellMode = "Backlog" | "Board" | "Liste" | "Arbre";
 export type ShellNav = "backlogs" | "all" | "mine" | "trash" | "admin" | null;
 
@@ -22,6 +24,14 @@ const MODE_LABELS: Record<string, ShellMode> = {
 
 const ACCESS_ROUTE = /^\/b\/([^/]+)\/settings\/access\/?$/;
 
+/**
+ * Where « Tous les items » leads: the backlog's Liste, without filters
+ * (JIR-94) — like Jira's "All work", every ticket of the project.
+ */
+function allItemsHrefFor(backlogKey: string): string {
+  return `/b/${backlogKey}?view=list`;
+}
+
 export function deriveShellContext({
   pathname,
   search,
@@ -35,7 +45,7 @@ export function deriveShellContext({
 }): ShellContext {
   const firstBacklog = backlogs[0];
   const firstKey = firstBacklog?.key.toUpperCase();
-  const allItemsHref = firstKey ? `/b/${firstKey}` : "/";
+  const allItemsHref = firstKey ? allItemsHrefFor(firstKey) : "/";
   const specialRoute = {
     // The home page lists every backlog (JIR-82, Jira's Projects page).
     "/": { section: "Backlogs", activeNav: "backlogs" as const },
@@ -63,7 +73,7 @@ export function deriveShellContext({
     return {
       ...(backlog ? { activeBacklogKey: requestedKey } : {}),
       section: feature === "releases" ? "Releases" : "Rapports",
-      allItemsHref: backlog ? `/b/${requestedKey}` : allItemsHref,
+      allItemsHref: backlog ? allItemsHrefFor(requestedKey) : allItemsHref,
       activeNav: null,
     };
   }
@@ -79,7 +89,7 @@ export function deriveShellContext({
     return {
       ...(backlog ? { activeBacklogKey: requestedKey } : {}),
       section: "Accès",
-      allItemsHref: backlog ? `/b/${requestedKey}` : allItemsHref,
+      allItemsHref: backlog ? allItemsHrefFor(requestedKey) : allItemsHref,
       activeNav: null,
     };
   }
@@ -102,8 +112,14 @@ export function deriveShellContext({
       section: backlog?.name ?? requestedKey,
       mode,
       viewTitle: savedView?.name ?? "Tous les items",
-      allItemsHref: backlog ? `/b/${requestedKey}` : allItemsHref,
-      activeNav: backlog && !savedView ? "all" : null,
+      allItemsHref: backlog ? allItemsHrefFor(requestedKey) : allItemsHref,
+      // « Tous les items » is Jira's "All work": the backlog's unfiltered
+      // Liste (JIR-94). Board, Backlog, Arbre, a saved view or any active
+      // filter are something else, so the link is not current there.
+      activeNav:
+        backlog && !savedView && mode === "Liste" && !isFiltersActive(parseViewState(search).filters)
+          ? "all"
+          : null,
     };
   }
 

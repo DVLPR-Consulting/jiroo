@@ -32,12 +32,12 @@ describe("deriveShellContext", () => {
       section: "Pôle civil",
       mode: "Liste",
       viewTitle: "Mes urgences",
-      allItemsHref: "/b/CASS",
+      allItemsHref: "/b/CASS?view=list",
       activeNav: null,
     });
   });
 
-  it("uses board and Tous les items when a backlog URL has no view parameters", () => {
+  it("opens on the board without marking Tous les items current (JIR-94)", () => {
     expect(
       deriveShellContext({
         pathname: "/b/CASS",
@@ -50,8 +50,8 @@ describe("deriveShellContext", () => {
       section: "Pôle civil",
       mode: "Board",
       viewTitle: "Tous les items",
-      allItemsHref: "/b/CASS",
-      activeNav: "all",
+      allItemsHref: "/b/CASS?view=list",
+      activeNav: null,
     });
   });
 
@@ -59,12 +59,12 @@ describe("deriveShellContext", () => {
     expect(
       deriveShellContext({
         pathname: "/b/CASS",
-        search: new URLSearchParams("view=tree&v=view-2"),
+        search: new URLSearchParams("view=list&v=view-2"),
         backlogs,
         views,
       }),
     ).toMatchObject({
-      mode: "Arbre",
+      mode: "Liste",
       viewTitle: "Tous les items",
       activeNav: "all",
     });
@@ -81,7 +81,7 @@ describe("deriveShellContext", () => {
     ).toEqual({
       activeBacklogKey: "CASS",
       section: "Mes items",
-      allItemsHref: "/b/CASS",
+      allItemsHref: "/b/CASS?view=list",
       activeNav: "mine",
     });
   });
@@ -98,7 +98,7 @@ describe("deriveShellContext", () => {
         backlogs,
         views,
       }),
-    ).toMatchObject({ section, activeNav, allItemsHref: "/b/CASS" });
+    ).toMatchObject({ section, activeNav, allItemsHref: "/b/CASS?view=list" });
   });
 
   it("does not activate an archived or stale backlog route", () => {
@@ -113,7 +113,7 @@ describe("deriveShellContext", () => {
       section: "OLD",
       mode: "Arbre",
       viewTitle: "Tous les items",
-      allItemsHref: "/b/CASS",
+      allItemsHref: "/b/CASS?view=list",
       activeNav: null,
     });
   });
@@ -172,9 +172,66 @@ describe("deriveShellContext", () => {
     })).toEqual({
       activeBacklogKey: "PEN",
       section,
-      allItemsHref: "/b/PEN",
+      allItemsHref: "/b/PEN?view=list",
       activeNav: null,
     });
+  });
+});
+
+describe("deriveShellContext — Tous les items (JIR-94)", () => {
+  const navAt = (search: string) =>
+    deriveShellContext({
+      pathname: "/b/CASS",
+      search: new URLSearchParams(search),
+      backlogs,
+      views,
+    }).activeNav;
+
+  it("leads to the backlog's unfiltered Liste", () => {
+    expect(
+      deriveShellContext({
+        pathname: "/b/cass",
+        search: new URLSearchParams("view=board&q=bug"),
+        backlogs,
+        views,
+      }).allItemsHref,
+    ).toBe("/b/CASS?view=list");
+  });
+
+  it("is current on the unfiltered Liste only", () => {
+    expect(navAt("view=list")).toBe("all");
+    // Sort, group, the Fix versions column or an open item keep every ticket.
+    expect(navAt("view=list&sort=key:asc&group=status&fvcol=1&item=CASS-1")).toBe("all");
+  });
+
+  it.each(["", "view=board", "view=backlog", "view=tree", "view=unknown"])(
+    "is not current on another view (%s)",
+    (search) => {
+      expect(navAt(search)).toBeNull();
+    },
+  );
+
+  it.each([
+    "q=bug",
+    "type=tache",
+    "status=s1",
+    "prio=1",
+    "assignee=none",
+    "label=l1",
+    "version=r1",
+    "sprint=none",
+    "kind=bug",
+    "under=i1",
+  ])("is not current on a Liste filtered by %s", (filter) => {
+    expect(navAt(`view=list&${filter}`)).toBeNull();
+  });
+
+  it("is not current on a saved view of the backlog", () => {
+    expect(navAt("view=list&v=view-1")).toBeNull();
+  });
+
+  it("ignores a blank search, which filters nothing", () => {
+    expect(navAt("view=list&q=%20%20")).toBe("all");
   });
 });
 
@@ -188,7 +245,7 @@ describe("deriveShellContext — backlog access page (JIR-85)", () => {
     })).toEqual({
       activeBacklogKey: "PEN",
       section: "Accès",
-      allItemsHref: "/b/PEN",
+      allItemsHref: "/b/PEN?view=list",
       activeNav: null,
     });
   });
@@ -199,7 +256,7 @@ describe("deriveShellContext — backlog access page (JIR-85)", () => {
       search: new URLSearchParams(),
       backlogs,
       views,
-    })).toEqual({ section: "Accès", allItemsHref: "/b/CASS", activeNav: null });
+    })).toEqual({ section: "Accès", allItemsHref: "/b/CASS?view=list", activeNav: null });
   });
 });
 
