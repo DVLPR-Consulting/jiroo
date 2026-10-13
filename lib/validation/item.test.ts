@@ -102,9 +102,30 @@ describe("updateItemSchema", () => {
       );
     }
   });
+  it("accepts two-decimal story points whose float product is not an integer (JIR-90)", () => {
+    for (const estimatePoints of [0.29, 1.15, 4.35, 8.2, 0.57, 2.01, 999.99]) {
+      expect(updateItemSchema.parse({ id: BID, estimatePoints }).estimatePoints).toBe(
+        estimatePoints,
+      );
+    }
+  });
   it("rejects negative, over-precision and oversized story points", () => {
-    for (const estimatePoints of [-1, 1.001, 1000, Number.NaN]) {
+    for (const estimatePoints of [-1, 1.001, 1.234, 0.299, 1000, 999.991, Number.NaN]) {
       expect(updateItemSchema.safeParse({ id: BID, estimatePoints }).success).toBe(false);
+    }
+  });
+  it("rejects story points a few billionths away from a cent instead of rounding them", () => {
+    for (const estimatePoints of [0.000000009, 0.290000001, 1.230000001, 999.980000001]) {
+      expect(updateItemSchema.safeParse({ id: BID, estimatePoints }).success).toBe(false);
+      expect(
+        createItemSchema.safeParse({
+          backlogId: BID,
+          title: "Tâche",
+          type: "tache",
+          parentId: PID,
+          estimatePoints,
+        }).success,
+      ).toBe(false);
     }
   });
   it("leaves story points untouched when omitted", () => {

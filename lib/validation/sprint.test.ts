@@ -20,11 +20,50 @@ describe("sprint validation", () => {
     }
   });
 
+  it("accepts two-decimal capacities whose float product is not an integer (JIR-90)", () => {
+    // 0.29 * 100 === 28.999999999999996 in IEEE 754 floating point.
+    for (const capacityPoints of [0.29, 1.15, 4.35, 8.2, 0.57, 2.01, 999.99]) {
+      expect(
+        updateSprintSchema.parse({ id: sprintId, backlogId, capacityPoints }),
+      ).toMatchObject({ capacityPoints });
+      expect(
+        startSprintSchema.safeParse({
+          id: sprintId,
+          backlogId,
+          name: "Sprint 1",
+          startAt: "2026-08-12T09:00:00.000Z",
+          endAt: "2026-08-26T09:00:00.000Z",
+          goal: null,
+          capacityPoints,
+        }).success,
+      ).toBe(true);
+    }
+  });
+
   it("rejects negative, over-precise, and oversized capacity", () => {
-    for (const capacityPoints of [-1, 1.001, 1000, Number.NaN]) {
+    for (const capacityPoints of [-1, 1.001, 1.234, 0.299, 1000, 999.991, Number.NaN]) {
       expect(
         updateSprintSchema.safeParse({ id: sprintId, backlogId, capacityPoints })
           .success,
+      ).toBe(false);
+    }
+  });
+
+  it("rejects capacities a few billionths away from a cent instead of rounding them", () => {
+    for (const capacityPoints of [0.000000009, 0.290000001, 1.230000001, 999.980000001]) {
+      expect(
+        updateSprintSchema.safeParse({ id: sprintId, backlogId, capacityPoints }).success,
+      ).toBe(false);
+      expect(
+        startSprintSchema.safeParse({
+          id: sprintId,
+          backlogId,
+          name: "Sprint 1",
+          startAt: "2026-08-12T09:00:00.000Z",
+          endAt: "2026-08-26T09:00:00.000Z",
+          goal: null,
+          capacityPoints,
+        }).success,
       ).toBe(false);
     }
   });

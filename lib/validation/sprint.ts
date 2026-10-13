@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hasAtMostTwoDecimals } from "@/lib/validation/points";
 
 const id = z.uuid("Identifiant invalide.");
 const sprintName = z
@@ -18,7 +19,7 @@ export const capacityPointsSchema = z
   .finite("Capacité invalide.")
   .min(0, "La capacité doit être positive.")
   .max(999.99, "La capacité ne peut pas dépasser 999,99 points.")
-  .refine((value) => Number.isInteger(value * 100), {
+  .refine(hasAtMostTwoDecimals, {
     message: "La capacité accepte au maximum deux décimales.",
   })
   .nullable();
