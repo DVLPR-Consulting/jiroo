@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ITEM_KINDS, ITEM_TYPES } from "@/lib/design/constants";
+import { hasAtMostTwoDecimals } from "@/lib/validation/points";
 
 export const ITEM_TITLE_MAX = 200;
 export const ITEM_DESCRIPTION_MAX = 20_000;
@@ -25,7 +26,7 @@ export const estimatePointsSchema = z
   .finite("Estimation invalide.")
   .min(0, "L’estimation doit être positive.")
   .max(999.99, "L’estimation ne peut pas dépasser 999,99 points.")
-  .refine((value) => Number.isInteger(value * 100), {
+  .refine(hasAtMostTwoDecimals, {
     message: "L’estimation accepte au maximum deux décimales.",
   })
   .nullable();

@@ -601,6 +601,24 @@ describe("sprint actions", () => {
     });
   });
 
+  it("saves a two-decimal capacity through the real schema (JIR-90)", async () => {
+    mocks.updateSprint.mockImplementationOnce(async (input) => updateSprintSchema.parse(input));
+
+    await expect(updateSprintAction({
+      backlogKey: "DEMO",
+      id: sprintId,
+      backlogId,
+      capacityPoints: 0.29,
+    })).resolves.toEqual({
+      ok: true,
+      sprint: { id: sprintId, backlogId, capacityPoints: 0.29 },
+    });
+    expect(mocks.updateSprint).toHaveBeenCalledWith(
+      { id: sprintId, backlogId, capacityPoints: 0.29 },
+      "writer-1",
+    );
+  });
+
   it("returns blocker keys and hides unknown completion failures", async () => {
     const payload = {
       backlogKey: "DEMO",

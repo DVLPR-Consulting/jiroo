@@ -225,6 +225,34 @@ describe("BulkItemToolbar", () => {
     });
   });
 
+  it("applies a two-decimal estimate refused by float rounding before JIR-90", async () => {
+    const user = userEvent.setup();
+    mocks.bulkUpdateItemsAction.mockResolvedValue({
+      ok: true,
+      changedCount: 2,
+      unchangedCount: 0,
+    });
+    render(<BulkItemToolbar {...props()} />);
+
+    await user.type(screen.getByRole("spinbutton", { name: "Estimation groupée" }), "0.29");
+    const apply = screen.getByRole("button", { name: "Appliquer l’estimation" });
+    expect(apply).toBeEnabled();
+    await user.click(apply);
+    await waitFor(() => expect(mocks.bulkUpdateItemsAction).toHaveBeenCalledOnce());
+    expect(mocks.bulkUpdateItemsAction.mock.calls[0]?.[0].patch).toEqual({
+      field: "estimatePoints",
+      value: 0.29,
+    });
+  });
+
+  it("keeps the estimate button disabled for more than two decimals", async () => {
+    const user = userEvent.setup();
+    render(<BulkItemToolbar {...props()} />);
+
+    await user.type(screen.getByRole("spinbutton", { name: "Estimation groupée" }), "1.234");
+    expect(screen.getByRole("button", { name: "Appliquer l’estimation" })).toBeDisabled();
+  });
+
   it("moves sorted selected tasks to Backlog, active, or planned sprints", async () => {
     const user = userEvent.setup();
     mocks.bulkUpdateItemsAction.mockResolvedValue({

@@ -429,6 +429,24 @@ describe("sprint lifecycle dialogs", () => {
       expect(mocks.startSprintAction).not.toHaveBeenCalled();
     });
 
+    it.each(["0.29", "1.15", "4.35"])(
+      "accepts the two-decimal capacity %s and sends it to the server (JIR-90)",
+      async (value) => {
+        const user = userEvent.setup();
+        mocks.startSprintAction.mockResolvedValueOnce(started);
+        render(<StartSprintDialog {...base} />);
+        await user.click(screen.getByRole("button", { name: "Démarrer le sprint Sprint paiement" }));
+        setField("Capacité (points)", value);
+        await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
+
+        await waitFor(() =>
+          expect(mocks.startSprintAction).toHaveBeenCalledWith(
+            expect.objectContaining({ capacityPoints: Number(value) }),
+          ),
+        );
+      },
+    );
+
     it("shows the server's real validation errors under the end and capacity fields", async () => {
       const user = userEvent.setup();
       // The server rejects what the dialog sent once tampered: the real schema
