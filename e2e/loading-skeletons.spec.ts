@@ -14,6 +14,8 @@ async function whileBacklogsLocked(run: () => Promise<void>) {
   const client = await databasePool.connect();
   try {
     await client.query("BEGIN");
+    // Fail fast instead of waiting on a reader outside the scenario.
+    await client.query("SET LOCAL lock_timeout = '5s'");
     await client.query("LOCK TABLE backlogs IN ACCESS EXCLUSIVE MODE");
     await run();
   } finally {
