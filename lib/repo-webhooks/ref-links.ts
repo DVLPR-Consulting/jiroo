@@ -34,11 +34,17 @@ export function buildRefUrl({ provider, instanceUrl, repositoryPath, kind, id }:
   }
 }
 
-/** Repository-scoped identity stored in `item_refs.external_id`. */
+/**
+ * Repository-scoped identity stored in `item_refs.external_id`: the whole
+ * instance (host and sub-path, so two GitLab instances under one host stay
+ * apart), the repository and the reference. It depends only on where the
+ * repository lives, so reconnecting the same repository keeps it.
+ */
 export function externalRefId({
   instanceUrl,
   repositoryPath,
   id,
 }: Pick<RefLocation, "instanceUrl" | "repositoryPath" | "id">): string {
-  return `${new URL(instanceUrl).host}/${repositoryPath}#${id}`;
+  const instance = new URL(instanceUrl);
+  return `${instance.host}${instance.pathname.replace(/\/+$/, "")}/${repositoryPath}#${id}`;
 }

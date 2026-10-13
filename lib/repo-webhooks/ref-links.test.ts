@@ -45,4 +45,14 @@ describe("externalRefId", () => {
       "github.com/acme/api#42",
     );
   });
+
+  it("keeps two GitLab instances under one host apart", () => {
+    const location = { repositoryPath: "group/api", id: "7" };
+    expect(externalRefId({ ...location, instanceUrl: "https://forge.example.invalid/instance-a" })).toBe(
+      "forge.example.invalid/instance-a/group/api#7",
+    );
+    expect(externalRefId({ ...location, instanceUrl: "https://forge.example.invalid/instance-b" })).toBe(
+      "forge.example.invalid/instance-b/group/api#7",
+    );
+  });
 });

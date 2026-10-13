@@ -155,6 +155,36 @@ describeDb("repository webhook ingestion (JIR-95)", () => {
     expect((await listRefsForItem(first.id)).map((ref) => ref.id)).not.toContain(orphan!.id);
   });
 
+  it("keeps the same merge request of two GitLab instances under one host apart", async () => {
+    const { first } = fixture.items;
+    const connect = async (instance: string) => {
+      const created = await createRepoConnection({
+        backlogId: fixture.backlogA.id,
+        provider: "gitlab",
+        repositoryPath: "group/api",
+        instanceUrl: `https://forge.example.invalid/${instance}`,
+      }, fixture.users.admin);
+      return (await findWebhookConnection(created.connection.id, "gitlab"))!;
+    };
+    const instanceA = await connect("instance-a");
+    const instanceB = await connect("instance-b");
+    const mr = (title: string): DevRefCandidate => ({ kind: "pr", id: "7", title, authorName: null, state: "open", occurredAt: new Date("2026-10-13T08:00:00Z"), texts: [first.key] });
+    await ingestWebhookReferences({ connection: instanceA, deliveryId: "a-7", refs: [mr("From A")] });
+    await ingestWebhookReferences({ connection: instanceB, deliveryId: "b-7", refs: [mr("From B")] });
+
+    const gitlabRefs = async () => (await listRefsForItem(first.id)).filter((ref) => ref.provider === "gitlab");
+    expect((await gitlabRefs()).map((ref) => [ref.title, ref.url, ref.connectionId]).sort()).toEqual([
+      ["From A", "https://forge.example.invalid/instance-a/group/api/-/merge_requests/7", instanceA.id],
+      ["From B", "https://forge.example.invalid/instance-b/group/api/-/merge_requests/7", instanceB.id],
+    ]);
+
+    await deleteRepoConnection({ connectionId: instanceA.id }, fixture.users.admin);
+    expect((await gitlabRefs()).map((ref) => [ref.title, ref.connectionId]).sort()).toEqual([
+      ["From A", null],
+      ["From B", instanceB.id],
+    ]);
+  });
+
   it("reserves requests atomically per connection and window", async () => {
     const window = new Date("2030-01-01T10:00:30.000Z");
     let used = 0;
