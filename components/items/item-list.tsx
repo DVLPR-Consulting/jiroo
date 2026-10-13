@@ -132,7 +132,6 @@ function SortButton({
       type="button"
       aria-pressed={active !== null}
       aria-label={name}
-      title={name}
       onClick={() => onSort(field)}
       className={`inline-flex min-h-7 items-center gap-1 rounded px-1.5 text-xs outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
         active === null ? "text-muted-foreground" : "bg-[var(--muted)] font-medium text-foreground"
