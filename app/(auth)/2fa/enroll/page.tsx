@@ -4,12 +4,14 @@ import QRCode from "qrcode";
 import { authClient } from "@/lib/auth/client";
 import { AuthCard } from "@/components/auth/auth-card";
 import { OtpInput } from "@/components/auth/otp-input";
+import { RecoveryCodesPanel } from "@/components/auth/recovery-codes-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { accountFromTotpUri } from "@/lib/auth/recovery-codes-file";
 import { loadPage } from "@/lib/navigation/load-page";
 
-type Setup = { qr: string; secret: string; backupCodes: string[] };
+type Setup = { qr: string; secret: string; account: string | null; backupCodes: string[] };
 
 export default function EnrollPage() {
   const [password, setPassword] = useState("");
@@ -35,7 +37,7 @@ export default function EnrollPage() {
       const totpURI = data.totpURI;
       const secret = /secret=([^&]+)/.exec(totpURI ?? "")?.[1] ?? "";
       const qr = await QRCode.toDataURL(totpURI);
-      setSetup({ qr, secret, backupCodes: data.backupCodes });
+      setSetup({ qr, secret, account: accountFromTotpUri(totpURI), backupCodes: data.backupCodes });
     } catch {
       setError("Impossible de générer le QR code. Réessayez.");
     }
@@ -90,14 +92,7 @@ export default function EnrollPage() {
           Clé manuelle : <span className="item-key select-all">{setup.secret}</span>
         </p>
 
-        <div className="rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--accent-subtle)] p-3">
-          <p className="t-meta mb-2">Codes de récupération — conservez-les</p>
-          <div className="grid grid-cols-2 gap-1.5">
-            {setup.backupCodes.map((c) => (
-              <span key={c} className="item-key">{c}</span>
-            ))}
-          </div>
-        </div>
+        <RecoveryCodesPanel codes={setup.backupCodes} account={setup.account} />
 
         <label className="flex items-center gap-2 t-sm">
           <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} />
