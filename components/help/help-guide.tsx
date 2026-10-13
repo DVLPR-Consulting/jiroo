@@ -377,7 +377,7 @@ export function HelpGuide() {
           purpose="Préparer une période de travail de l’équipe."
           steps={[
             <>Vue <Ui>Backlog</Ui> → <Ui>Créer un sprint</Ui>, dans l’en-tête de la section Backlog : il est créé aussitôt (Sprint 1, Sprint 2…).</>,
-            <>Dans l’en-tête du sprint, menu <Ui>⋯</Ui> → <Ui>Modifier</Ui> (ou lien <Ui>Ajouter des dates et un objectif</Ui>) pour changer <Ui>Nom</Ui>, <Ui>Objectif</Ui>, <Ui>Début prévu</Ui>, <Ui>Fin prévue</Ui> et <Ui>Capacité (points)</Ui>.</>,
+            <>Dans l’en-tête du sprint, menu <Ui>⋯</Ui> → <Ui>Modifier</Ui> (ou lien <Ui>Ajouter des dates et un objectif</Ui>) pour changer <Ui>Nom</Ui>, <Ui>Objectif</Ui>, <Ui>Début prévu</Ui>, <Ui>Fin prévue</Ui> et <Ui>Capacité (points)</Ui>. Une date suffit : l’heure est facultative (9 h pour le début, 18 h pour la fin par défaut).</>,
             <>Menu <Ui>⋯</Ui> → <Ui>Monter</Ui> ou <Ui>Descendre</Ui> pour réordonner les sprints planifiés.</>,
           ]}
         />
@@ -402,7 +402,7 @@ export function HelpGuide() {
           purpose="Lancer le sprint et suivre son avancement au quotidien."
           steps={[
             <>Sur un sprint planifié, cliquez sur <Ui>Démarrer le sprint</Ui>.</>,
-            <>Vérifiez <Ui>Nom</Ui>, <Ui>Début</Ui> et <Ui>Fin</Ui> (obligatoires), puis <Ui>Confirmer le démarrage</Ui>.</>,
+            <>Vérifiez <Ui>Nom</Ui>, <Ui>Début</Ui> et <Ui>Fin</Ui> (obligatoires), puis <Ui>Confirmer le démarrage</Ui>. Sans dates prévues, le début est proposé à maintenant et la fin deux semaines plus tard ; l’heure reste facultative.</>,
             <>Le <Ui>Board</Ui> affiche alors le sprint actif : déplacez les cartes de colonne en colonne.</>,
           ]}
         >

@@ -1,10 +1,12 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CompleteSprintDialog,
   StartSprintDialog,
 } from "@/components/sprints/sprint-lifecycle-dialogs";
+import { mapSprintZodActionError } from "@/lib/validation/action-error";
+import { startSprintSchema } from "@/lib/validation/sprint";
 
 const mocks = vi.hoisted(() => ({
   completeSprintAction: vi.fn(),
@@ -52,6 +54,42 @@ const base = {
   sprint,
   metrics,
 };
+
+// Dates are entered in the browser's time zone, Europe/Paris for the team.
+const previousTimeZone = process.env.TZ;
+beforeAll(() => {
+  process.env.TZ = "Europe/Paris";
+});
+afterAll(() => {
+  if (previousTimeZone === undefined) delete process.env.TZ;
+  else process.env.TZ = previousTimeZone;
+});
+
+const undated = { ...sprint, plannedStartAt: null, plannedEndAt: null };
+const started = {
+  ok: true,
+  sprintId: sprint.id,
+  committedItemCount: 3,
+  committedPoints: 13,
+  unestimatedCount: 1,
+};
+
+function setField(label: string, value: string) {
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+}
+
+/** Records the field's error state at the moment it receives focus. */
+function captureOnFocus(element: HTMLElement) {
+  const seen: Array<{ invalid: string | null; description: string }> = [];
+  element.addEventListener("focus", () => {
+    const ids = element.getAttribute("aria-describedby")?.split(" ") ?? [];
+    seen.push({
+      invalid: element.getAttribute("aria-invalid"),
+      description: ids.map((id) => document.getElementById(id)?.textContent ?? "").join(" "),
+    });
+  });
+  return seen;
+}
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -259,8 +297,10 @@ describe("sprint lifecycle dialogs", () => {
     expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("Recette 1");
     expect(screen.getByRole("textbox", { name: "Objectif" }))
       .toHaveValue("Sprint de test 1 semaine");
-    expect(screen.getByLabelText("Début")).toHaveValue("2026-09-01T09:30");
-    expect(screen.getByLabelText("Fin")).toHaveValue("2026-09-08T17:00");
+    expect(screen.getByLabelText("Début")).toHaveValue("2026-09-01");
+    expect(screen.getByLabelText("Heure de début")).toHaveValue("09:30");
+    expect(screen.getByLabelText("Fin")).toHaveValue("2026-09-08");
+    expect(screen.getByLabelText("Heure de fin")).toHaveValue("17:00");
     expect(screen.getByRole("spinbutton", { name: "Capacité (points)" })).toHaveValue(15);
     await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
 
@@ -276,6 +316,148 @@ describe("sprint lifecycle dialogs", () => {
         capacityPoints: 15,
       }),
     );
+  });
+
+  describe("dates (JIR-87)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("prefills a sprint without dates with now and two weeks later, like Jira", async () => {
+      // Only Date is faked so user-event timers keep running.
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-20T08:12:34.000Z"));
+      const user = userEvent.setup();
+      mocks.startSprintAction.mockResolvedValueOnce(started);
+      render(<StartSprintDialog {...base} sprint={undated} />);
+
+      await user.click(screen.getByRole("button", { name: "Démarrer le sprint Sprint paiement" }));
+      expect(screen.getByRole("dialog").querySelector("form")).toHaveAttribute("novalidate");
+      expect(screen.getByLabelText("Début")).toHaveValue("2026-10-20");
+      expect(screen.getByLabelText("Heure de début")).toHaveValue("10:12");
+      expect(screen.getByLabelText("Fin")).toHaveValue("2026-11-03");
+      expect(screen.getByLabelText("Heure de fin")).toHaveValue("10:12");
+      await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
+
+      await waitFor(() =>
+        expect(mocks.startSprintAction).toHaveBeenCalledWith(
+          expect.objectContaining({
+            startAt: "2026-10-20T08:12:00.000Z",
+            // 10:12 wall-clock after summer time ended: UTC+1.
+            endAt: "2026-11-03T09:12:00.000Z",
+          }),
+        ),
+      );
+    });
+
+    it("starts with dates entered without a time at 09:00 and 18:00 Paris time", async () => {
+      const user = userEvent.setup();
+      mocks.startSprintAction.mockResolvedValueOnce(started);
+      render(<StartSprintDialog {...base} sprint={undated} />);
+      await user.click(screen.getByRole("button", { name: "Démarrer le sprint Sprint paiement" }));
+      setField("Début", "2026-10-25");
+      setField("Heure de début", "");
+      setField("Fin", "2026-11-06");
+      setField("Heure de fin", "");
+      await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
+
+      await waitFor(() =>
+        expect(mocks.startSprintAction).toHaveBeenCalledWith(
+          expect.objectContaining({
+            startAt: "2026-10-25T08:00:00.000Z",
+            endAt: "2026-11-06T17:00:00.000Z",
+          }),
+        ),
+      );
+    });
+
+    it("explains a missing start date under the field instead of disabling the button", async () => {
+      const user = userEvent.setup();
+      render(<StartSprintDialog {...base} />);
+      await user.click(screen.getByRole("button", { name: "Démarrer le sprint Sprint paiement" }));
+      setField("Début", "");
+      setField("Heure de début", "");
+      const confirm = screen.getByRole("button", { name: "Confirmer le démarrage" });
+      expect(confirm).toBeEnabled();
+      await user.click(confirm);
+
+      const startDate = screen.getByLabelText("Début");
+      expect(startDate).toHaveAttribute("aria-invalid", "true");
+      expect(startDate).toHaveAccessibleDescription(
+        expect.stringContaining("La date de début est requise."),
+      );
+      expect(mocks.startSprintAction).not.toHaveBeenCalled();
+    });
+
+    it("rejects an end before the start with a clear message", async () => {
+      const user = userEvent.setup();
+      render(<StartSprintDialog {...base} />);
+      await user.click(screen.getByRole("button", { name: "Démarrer le sprint Sprint paiement" }));
+      setField("Début", "2026-10-15");
+      setField("Fin", "2026-10-14");
+      const focused = captureOnFocus(screen.getByLabelText("Fin"));
+      await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
+
+      const endDate = screen.getByLabelText("Fin");
+      expect(endDate).toHaveAttribute("aria-invalid", "true");
+      expect(endDate).toHaveAccessibleDescription(
+        expect.stringContaining("La date de fin doit être postérieure à la date de début."),
+      );
+      expect(endDate).toHaveFocus();
+      // The error is already rendered when focus lands on the field.
+      expect(focused).toEqual([
+        { invalid: "true", description: expect.stringContaining("La date de fin doit être postérieure à la date de début.") },
+      ]);
+      expect(mocks.startSprintAction).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["1000", "La capacité ne peut pas dépasser 999,99 points."],
+      ["-1", "La capacité doit être positive."],
+      ["1.234", "La capacité accepte au maximum deux décimales."],
+    ])("explains an invalid capacity %s under the field before calling the server", async (value, message) => {
+      const user = userEvent.setup();
+      render(<StartSprintDialog {...base} />);
+      await user.click(screen.getByRole("button", { name: "Démarrer le sprint Sprint paiement" }));
+      setField("Capacité (points)", value);
+      await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
+
+      const capacity = screen.getByRole("spinbutton", { name: "Capacité (points)" });
+      expect(capacity).toHaveAttribute("aria-invalid", "true");
+      expect(capacity).toHaveAccessibleDescription(message);
+      expect(capacity).toHaveFocus();
+      expect(mocks.startSprintAction).not.toHaveBeenCalled();
+    });
+
+    it("shows the server's real validation errors under the end and capacity fields", async () => {
+      const user = userEvent.setup();
+      // The server rejects what the dialog sent once tampered: the real schema
+      // and the real action mapper produce the response.
+      mocks.startSprintAction.mockImplementationOnce(async (input) => {
+        const parsed = startSprintSchema.safeParse({
+          ...input,
+          endAt: input.startAt,
+          capacityPoints: 1.234,
+        });
+        if (parsed.success) throw new Error("Expected validation failure");
+        return { ok: false, ...mapSprintZodActionError(parsed.error) };
+      });
+      render(<StartSprintDialog {...base} />);
+      await user.click(screen.getByRole("button", { name: "Démarrer le sprint Sprint paiement" }));
+      const focused = captureOnFocus(screen.getByLabelText("Fin"));
+      await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
+
+      const endDate = screen.getByLabelText("Fin");
+      await waitFor(() => expect(endDate).toHaveFocus());
+      expect(focused).toEqual([
+        { invalid: "true", description: expect.stringContaining("La date de fin doit être postérieure à la date de début.") },
+      ]);
+      expect(endDate).toHaveAttribute("aria-invalid", "true");
+      const capacity = screen.getByRole("spinbutton", { name: "Capacité (points)" });
+      expect(capacity).toHaveAttribute("aria-invalid", "true");
+      expect(capacity).toHaveAccessibleDescription("La capacité accepte au maximum deux décimales.");
+      expect(mocks.push).not.toHaveBeenCalled();
+    });
   });
 
   it("keeps start edits made while open when the sprint props refresh", async () => {
