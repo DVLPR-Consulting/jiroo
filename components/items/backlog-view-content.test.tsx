@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   itemDetailDrawerProps: vi.fn(),
   loadItemDetailData: vi.fn(),
   itemListProps: vi.fn(),
+  listColumnsMenuProps: vi.fn(),
   itemTreeProps: vi.fn(),
   viewActionsProps: vi.fn(),
   listItemFixVersionPairs: vi.fn(),
@@ -127,6 +128,10 @@ vi.mock("@/components/items/item-list", async (importOriginal) => {
     ItemList: (props: React.ComponentProps<typeof actual.ItemList>) => {
       mocks.itemListProps(props);
       return mocks.renderRealViews.current ? <actual.ItemList {...props} /> : null;
+    },
+    ListColumnsMenu: (props: React.ComponentProps<typeof actual.ListColumnsMenu>) => {
+      mocks.listColumnsMenuProps(props);
+      return null;
     },
   };
 });
@@ -679,6 +684,11 @@ describe("BacklogViewContent read boundary", () => {
     }));
     expect(listProps.releaseOptions).toEqual(assignableReleases);
     expect(listProps.showFixVersions).toBe(true);
+    expect(mocks.listColumnsMenuProps).toHaveBeenCalledWith({
+      showLabels: false,
+      showDueDate: false,
+      showFixVersions: true,
+    });
     expect(listProps.releaseCapabilities).toEqual({
       manage: false,
       assignItems: false,
@@ -1383,6 +1393,16 @@ describe("BacklogViewContent read boundary", () => {
       );
 
       expect(listedIds()).toEqual(["done-1", "carried-1", "sub-1"]);
+      // The flat Liste names each parent in a pill (JIR-93).
+      const listed = (mocks.itemListProps.mock.calls[0]?.[0] as {
+        groups: Array<{ items: Array<{ id: string; parent?: unknown }> }>;
+      }).groups.flatMap((group) => group.items);
+      expect(listed.find((item) => item.id === "sub-1")?.parent).toEqual({
+        key: "DEMO-2",
+        title: "DEMO-2",
+        type: "tache",
+      });
+      expect(listed.find((item) => item.id === "done-1")?.parent).toBeNull();
       expect(mocks.filterBarProps).toHaveBeenCalledWith(expect.objectContaining({
         sprints: [
           { id: S2, name: "Sprint 2", state: "active" },

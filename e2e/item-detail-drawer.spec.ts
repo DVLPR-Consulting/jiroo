@@ -111,7 +111,7 @@ test.describe("panneau de détail", () => {
     page,
   }) => {
     await page.goto("/b/CASS?view=list");
-    const row = page.locator("tbody tr[aria-label^='CASS-']").first();
+    const row = page.getByRole("table", { name: "Liste des items" }).locator("[role=row][aria-label^='CASS-']").first();
     await expect(row).toBeVisible();
     const key = (await row.getAttribute("aria-label"))?.split(" — ")[0];
     if (!key) throw new Error("Ligne de liste introuvable.");
@@ -383,7 +383,7 @@ test.describe("panneau de détail sans re-rendu de la vue (JIR-78)", () => {
     await expect(page).toHaveURL(new RegExp(`[?&]item=${first}(&|$)`));
     await expect(drawerFor(page, first).getByTestId("item-detail-main")).toBeVisible();
     // The open row is highlighted from the URL, without a server render.
-    await expect(page.locator(`main tr[data-shortcut-item="${first}"]`))
+    await expect(page.locator(`main [role=row][data-shortcut-item="${first}"]`))
       .toHaveClass(/bg-\[var\(--accent-subtle\)\]/);
 
     await drawerFor(page, first).getByRole("button", { name: "Copier le lien" }).focus();
@@ -401,7 +401,7 @@ test.describe("panneau de détail sans re-rendu de la vue (JIR-78)", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page).not.toHaveURL(/[?&]item=/);
-    await expect(page.locator(`main tr[data-shortcut-item="${second}"]`))
+    await expect(page.locator(`main [role=row][data-shortcut-item="${second}"]`))
       .not.toHaveClass(/bg-\[var\(--accent-subtle\)\]/);
     await page.goBack();
     await expect(drawerFor(page, second).getByTestId("item-detail-main")).toBeVisible();
@@ -414,7 +414,7 @@ test.describe("panneau de détail sans re-rendu de la vue (JIR-78)", () => {
   test("rafraîchit le panneau ouvert au clic et la vue après un renommage", async ({ page }) => {
     const item = await fixtureTask("JIR-78 renommage", "Corps");
     await page.goto(`/b/CASS?view=list&q=${encodeURIComponent(item.title)}`);
-    const row = page.locator(`main tr[data-shortcut-item="${item.key}"]`);
+    const row = page.locator(`main [role=row][data-shortcut-item="${item.key}"]`);
     await expect(row).toBeVisible();
     await page.waitForLoadState("networkidle");
 
@@ -449,7 +449,7 @@ test.describe("panneau de détail sans re-rendu de la vue (JIR-78)", () => {
     ) as [string, string];
     const from = created.find((item) => item.key === fromKey)!;
 
-    await page.locator(`main tr[data-shortcut-item="${fromKey}"]`)
+    await page.locator(`main [role=row][data-shortcut-item="${fromKey}"]`)
       .getByText(fromKey, { exact: true }).click();
     const dialog = drawerFor(page, fromKey);
     const editor = dialog.getByRole("textbox", { name: "Description" });

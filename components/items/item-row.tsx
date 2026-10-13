@@ -301,7 +301,11 @@ export function ItemRow({
         ) : priority !== 0 ? (
           <InlinePriority itemId={item.id} backlogKey="" priority={priority} readOnly />
         ) : null}
-        {fixVersions.length > 0 ? <FixVersionChips versions={fixVersions} /> : null}
+        {fixVersions.length > 0 ? (
+          <span role="group" aria-label="Fix versions" className="inline-flex min-w-0">
+            <FixVersionChips versions={fixVersions} />
+          </span>
+        ) : null}
         {editing && item.statusId !== undefined ? (
           <span className="inline-flex w-28 min-w-0 justify-start">
             <InlineStatus

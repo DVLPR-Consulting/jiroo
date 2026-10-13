@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type KeyboardEvent } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -8,24 +8,17 @@ import {
   ArrowUp,
   ChevronsUpDown,
   ChevronRight,
+  Columns3,
   Inbox,
   SearchX,
 } from "lucide-react";
-import { KindIcon } from "@/components/icons/kind-icon";
-import { TypeIcon } from "@/components/icons/type-icon";
-import { ItemKey } from "@/components/jiroo/item-key";
 import { BulkItemToolbar } from "@/components/items/bulk-item-toolbar";
+import { type FixVersionOption } from "@/components/items/fix-version-picker";
 import {
-  InlineAssignee,
-  InlineEstimate,
-  InlinePriority,
-  InlineStatus,
-} from "@/components/items/inline-item-field";
-import { LabelPill } from "@/components/items/label-pill";
-import {
-  FixVersionChips,
-  type FixVersionOption,
-} from "@/components/items/fix-version-picker";
+  ItemRow,
+  RowSelectCheckbox,
+  type ItemRowEditing,
+} from "@/components/items/item-row";
 import {
   NewItemButton,
   type NewItemButtonProps,
@@ -55,7 +48,6 @@ import {
   selectAllVisible,
   toggleItemSelection,
 } from "@/lib/items/selection";
-import { fixedTableMinWidth, LIST_COLUMNS, SELECTION_COLUMN } from "@/lib/items/table-layout";
 import type { HierarchyStartStep } from "@/lib/tree/hierarchy";
 import { ViewStartGuide } from "@/components/items/backlog-start-guide";
 
@@ -88,27 +80,24 @@ export type ListItem = {
   ancestorIds: string[];
   componentId: string | null;
   fixVersions?: FixVersionOption[];
+  /** The direct parent, shown as a pill: the Liste is flat (JIR-93). */
+  parent?: { key: string; title: string; type: ItemType } | null;
 };
 
 type Group = { key: string; label: string; items: ListItem[] };
 type CurrentSort = { field: SortField; dir: SortDir } | null;
 
-const HEADER_CLASS =
-  "border-b border-border bg-[var(--surface-2)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
+const HEADER_CELL_CLASS =
+  "flex shrink-0 items-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
 
-const CELL_CLASS = "border-b border-border px-3 py-1.5 text-sm";
+/** The optional pills of a Liste row, chosen with « Colonnes » (JIR-93). */
+const OPTIONAL_COLUMNS = [
+  { param: "lblcol", label: "Labels" },
+  { param: "duecol", label: "Échéance" },
+  { param: "fvcol", label: "Fix versions" },
+] as const;
 
-const dueDateFormatter = new Intl.DateTimeFormat("fr-FR", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-
-function formatDueDate(value: string | null): string {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : dueDateFormatter.format(date);
-}
+type OptionalColumns = { labels: boolean; dueDate: boolean; fixVersions: boolean };
 
 function SortIcon({ field, currentSort }: { field: SortField; currentSort: CurrentSort }) {
   if (currentSort?.field !== field) return <ChevronsUpDown aria-hidden size={12} />;
@@ -124,11 +113,13 @@ function SortableHeader({
   field,
   currentSort,
   onSort,
+  className = "",
 }: {
   children: string;
   field: SortField;
   currentSort: CurrentSort;
   onSort: (field: SortField) => void;
+  className?: string;
 }) {
   const ariaSort =
     currentSort?.field === field
@@ -138,179 +129,111 @@ function SortableHeader({
       : "none";
 
   return (
-    <th scope="col" aria-sort={ariaSort} className={HEADER_CLASS}>
+    <div role="columnheader" aria-sort={ariaSort} className={`${HEADER_CELL_CLASS} ${className}`}>
       <button
         type="button"
-        className="inline-flex items-center gap-1 rounded outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        className={`inline-flex min-h-7 items-center gap-1 rounded px-1 uppercase outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
+          ariaSort === "none" ? "" : "text-foreground"
+        }`}
         onClick={() => onSort(field)}
       >
         {children}
         <SortIcon field={field} currentSort={currentSort} />
       </button>
-    </th>
+    </div>
   );
 }
 
-function ItemRow({
-  item,
-  grouped,
-  statuses,
-  users,
-  backlogKey,
-  selectedKey,
-  canSelectItems,
-  canEditItems,
-  canTransitionItems,
-  canAssignItems,
-  bulkSelected,
-  onToggleSelection,
-  showFixVersions,
+/**
+ * « Colonnes » of the Liste: the optional fields its rows show as pills,
+ * kept in the URL (and saved views) like the rest of the view state.
+ */
+export function ListColumnsMenu({
+  showLabels = false,
+  showDueDate = false,
+  showFixVersions = false,
 }: {
-  item: ListItem;
-  grouped: boolean;
-  statuses: StatusOption[];
-  users: UserOption[];
-  backlogKey: string;
-  selectedKey?: string;
-  canSelectItems: boolean;
-  canEditItems: boolean;
-  canTransitionItems: boolean;
-  canAssignItems: boolean;
-  bulkSelected: boolean;
-  onToggleSelection: (id: string, extendRange: boolean) => void;
-  showFixVersions: boolean;
+  showLabels?: boolean;
+  showDueDate?: boolean;
+  showFixVersions?: boolean;
 }) {
   const viewUrl = useViewUrlState();
-  const isSelected = item.key === selectedKey;
-
-  function openItem() {
-    viewUrl.push((params) => params.set("item", item.key));
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLTableRowElement>) {
-    if (event.target !== event.currentTarget) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      openItem();
-    }
-  }
+  const checked: Record<(typeof OPTIONAL_COLUMNS)[number]["param"], boolean> = {
+    lblcol: showLabels,
+    duecol: showDueDate,
+    fvcol: showFixVersions,
+  };
 
   return (
-    <tr
-      tabIndex={0}
-      data-shortcut-item={item.key}
-      aria-label={`${item.key} — ${item.title}`}
-      onClick={openItem}
-      onKeyDown={handleKeyDown}
-      className={`cursor-pointer transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)] ${
-        isSelected || bulkSelected ? "bg-[var(--accent-subtle)]" : ""
-      }`}
-      style={{ height: "var(--row-h)" }}
-    >
-      {canSelectItems ? (
-        <td
-          className={`${CELL_CLASS} px-2 text-center`}
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <input
-            type="checkbox"
-            checked={bulkSelected}
-            onChange={() => undefined}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleSelection(item.id, event.shiftKey);
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="sm" aria-label="Configurer les colonnes">
+          <Columns3 className="size-4" aria-hidden />
+          Colonnes
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {OPTIONAL_COLUMNS.map((column) => (
+          <DropdownMenuCheckboxItem
+            key={column.param}
+            checked={checked[column.param]}
+            onCheckedChange={(next) => {
+              viewUrl.replace((params) => {
+                if (next) params.set(column.param, "1");
+                else params.delete(column.param);
+              }, { scroll: false });
             }}
-            aria-label={`Sélectionner ${item.key}`}
-            className="size-4 cursor-pointer accent-[var(--primary)]"
+          >
+            {column.label}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ListRow({
+  item,
+  editing,
+  columns,
+  selectedKey,
+  canSelectItems,
+  bulkSelected,
+  onToggleSelection,
+}: {
+  item: ListItem;
+  editing: ItemRowEditing;
+  columns: OptionalColumns;
+  selectedKey?: string;
+  canSelectItems: boolean;
+  bulkSelected: boolean;
+  onToggleSelection: (id: string, extendRange: boolean) => void;
+}) {
+  const viewUrl = useViewUrlState();
+
+  return (
+    <ItemRow
+      item={{
+        ...item,
+        // Only tasks are estimated; the other levels keep an empty slot.
+        estimatePoints: item.type === "tache" ? item.estimatePoints : undefined,
+        labels: columns.labels ? item.labels : undefined,
+        dueDate: columns.dueDate ? item.dueDate : undefined,
+        fixVersions: columns.fixVersions ? item.fixVersions : undefined,
+      }}
+      editing={editing}
+      onOpen={() => viewUrl.push((params) => params.set("item", item.key))}
+      selected={item.key === selectedKey || bulkSelected}
+      leading={
+        canSelectItems ? (
+          <RowSelectCheckbox
+            itemKey={item.key}
+            checked={bulkSelected}
+            onToggle={(extendRange) => onToggleSelection(item.id, extendRange)}
           />
-        </td>
-      ) : null}
-      <td className={`${CELL_CLASS} whitespace-nowrap`}>
-        <span className="inline-flex items-center gap-1.5">
-          <TypeIcon type={item.type} />
-          <ItemKey value={item.key} />
-        </span>
-      </td>
-      <td className={`${CELL_CLASS} min-w-0`}>
-        <span
-          className="flex min-w-0 items-center gap-1.5"
-          style={{ paddingLeft: grouped ? undefined : item.depth * 16 }}
-        >
-          <KindIcon kind={item.kind} />
-          <span className="truncate font-medium">{item.title}</span>
-          {item.blocked && (
-            <span
-              className="inline-flex flex-none items-center rounded px-1.5 py-0.5 text-[11px] font-medium"
-              style={{
-                color: "var(--danger)",
-                background: "color-mix(in oklch, var(--danger) 14%, transparent)",
-              }}
-            >
-              bloqué
-            </span>
-          )}
-        </span>
-      </td>
-      <td className={CELL_CLASS} onClick={(event) => event.stopPropagation()}>
-        <InlineStatus
-          itemId={item.id}
-          backlogKey={backlogKey}
-          statusId={item.statusId}
-          statuses={statuses}
-          readOnly={!canEditItems || !canTransitionItems}
-        />
-      </td>
-      <td className={CELL_CLASS} onClick={(event) => event.stopPropagation()}>
-        <InlinePriority
-          itemId={item.id}
-          backlogKey={backlogKey}
-          priority={item.priority}
-          readOnly={!canEditItems}
-        />
-      </td>
-      <td className={CELL_CLASS} onClick={(event) => event.stopPropagation()}>
-        {item.type === "tache" ? (
-          <InlineEstimate
-            itemId={item.id}
-            backlogKey={backlogKey}
-            estimatePoints={item.estimatePoints}
-            readOnly={!canEditItems}
-          />
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </td>
-      <td className={CELL_CLASS}>
-        {item.labels.length > 0 ? (
-          <span className="flex min-w-0 flex-wrap gap-1">
-            {item.labels.map((label) => (
-              <LabelPill key={label.id} name={label.name} color={label.color} />
-            ))}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </td>
-      <td className={`${CELL_CLASS} whitespace-nowrap text-xs text-muted-foreground`}>
-        {formatDueDate(item.dueDate)}
-      </td>
-      <td className={CELL_CLASS} onClick={(event) => event.stopPropagation()}>
-        <InlineAssignee
-          itemId={item.id}
-          backlogKey={backlogKey}
-          assigneeId={item.assigneeId}
-          assigneeName={item.assigneeName}
-          users={users}
-          readOnly={!canEditItems || !canAssignItems}
-        />
-      </td>
-      {showFixVersions ? (
-        <td className={CELL_CLASS}>
-          <FixVersionChips versions={item.fixVersions ?? []} />
-        </td>
-      ) : null}
-    </tr>
+        ) : undefined
+      }
+    />
   );
 }
 
@@ -336,7 +259,9 @@ export function ItemList({
   bulkCapabilities,
   releaseOptions = [],
   releaseCapabilities,
-  showFixVersions = true,
+  showFixVersions = false,
+  showLabels = false,
+  showDueDate = false,
 }: {
   groups: Group[];
   grouped: boolean;
@@ -364,6 +289,8 @@ export function ItemList({
   releaseOptions?: FixVersionOption[];
   releaseCapabilities?: ReleaseCapabilities;
   showFixVersions?: boolean;
+  showLabels?: boolean;
+  showDueDate?: boolean;
 }) {
   const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
   const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
@@ -430,6 +357,20 @@ export function ItemList({
       setSelection(emptySelection());
     }
   }
+
+  const editing: ItemRowEditing = {
+    backlogKey,
+    statuses,
+    users,
+    canEdit: canEditItems,
+    canTransition: canTransitionItems,
+    canAssign: canAssignItems,
+  };
+  const columns: OptionalColumns = {
+    labels: showLabels,
+    dueDate: showDueDate,
+    fixVersions: showFixVersions,
+  };
 
   function sortBy(field: SortField) {
     const direction: SortDir =
@@ -508,55 +449,17 @@ export function ItemList({
         className="min-h-0 flex-1 overflow-auto"
         onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
       >
-        <div className="sticky left-0 flex justify-end border-b border-border bg-[var(--surface-1)] p-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="sm" aria-label="Configurer les colonnes">
-                Colonnes
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuCheckboxItem
-                checked={showFixVersions}
-                onCheckedChange={(checked) => {
-                  viewUrl.replace((params) => {
-                    if (checked) params.set("fvcol", "1");
-                    else params.delete("fvcol");
-                  }, { scroll: false });
-                }}
-              >
-                Fix versions
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <table
-          className="w-full table-fixed border-separate border-spacing-0"
-          style={{
-            minWidth: fixedTableMinWidth([
-              ...(canSelectItems ? [SELECTION_COLUMN] : []),
-              ...Object.values(LIST_COLUMNS).filter(
-                (column) => showFixVersions || column !== LIST_COLUMNS.fixVersions,
-              ),
-            ]),
-          }}
-        >
-          <colgroup>
-            {canSelectItems ? <col className={SELECTION_COLUMN.className} /> : null}
-            <col className={LIST_COLUMNS.key.className} />
-            <col />
-            <col className={LIST_COLUMNS.status.className} />
-            <col className={LIST_COLUMNS.priority.className} />
-            <col className={LIST_COLUMNS.points.className} />
-            <col className={LIST_COLUMNS.labels.className} />
-            <col className={LIST_COLUMNS.dueDate.className} />
-            <col className={LIST_COLUMNS.assignee.className} />
-            {showFixVersions ? <col className={LIST_COLUMNS.fixVersions.className} /> : null}
-          </colgroup>
-          <thead className="sticky top-0 z-20">
-            <tr>
+        <div role="table" aria-label="Liste des items">
+          <div
+            role="rowgroup"
+            className="sticky top-0 z-20 border-b border-border bg-[var(--surface-2)]"
+          >
+            <div
+              role="row"
+              className="flex min-h-8 flex-wrap items-center gap-x-2.5 gap-y-0.5 py-0.5 pl-2 pr-3 sm:pr-3.5"
+            >
               {canSelectItems ? (
-                <th scope="col" className={`${HEADER_CLASS} px-2 text-center`}>
+                <div role="columnheader" className={HEADER_CELL_CLASS}>
                   <input
                     ref={(node) => {
                       if (node) node.indeterminate = partlySelected;
@@ -569,42 +472,62 @@ export function ItemList({
                       )
                     }
                     aria-label="Sélectionner tous les items visibles"
-                    className="size-4 cursor-pointer accent-[var(--primary)]"
+                    className="mx-1 size-4 cursor-pointer accent-[var(--primary)]"
                   />
-                </th>
+                </div>
               ) : null}
-              <SortableHeader field="key" currentSort={currentSort} onSort={sortBy}>
+              <SortableHeader
+                field="key"
+                currentSort={currentSort}
+                onSort={sortBy}
+                className="-ml-1 min-w-[5.5rem]"
+              >
                 Clé
               </SortableHeader>
-              <SortableHeader field="title" currentSort={currentSort} onSort={sortBy}>
+              <SortableHeader
+                field="title"
+                currentSort={currentSort}
+                onSort={sortBy}
+                className="min-w-0 flex-1"
+              >
                 Titre
               </SortableHeader>
-              <SortableHeader field="status" currentSort={currentSort} onSort={sortBy}>
-                Statut
-              </SortableHeader>
-              <SortableHeader field="priority" currentSort={currentSort} onSort={sortBy}>
-                Prio
-              </SortableHeader>
-              <th scope="col" className={HEADER_CLASS}>Points</th>
-              <th scope="col" className={HEADER_CLASS}>Labels</th>
-              <SortableHeader field="dueDate" currentSort={currentSort} onSort={sortBy}>
-                Échéance
-              </SortableHeader>
-              <th scope="col" className={HEADER_CLASS}>Assigné</th>
-              {showFixVersions ? <th scope="col" className={HEADER_CLASS}>Fix versions</th> : null}
-            </tr>
-          </thead>
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5">
+                <SortableHeader field="dueDate" currentSort={currentSort} onSort={sortBy}>
+                  Échéance
+                </SortableHeader>
+                <SortableHeader field="priority" currentSort={currentSort} onSort={sortBy}>
+                  Priorité
+                </SortableHeader>
+                <SortableHeader
+                  field="status"
+                  currentSort={currentSort}
+                  onSort={sortBy}
+                  className="w-28"
+                >
+                  Statut
+                </SortableHeader>
+                <div
+                  role="columnheader"
+                  className={`${HEADER_CELL_CLASS} hidden w-8 justify-center sm:flex`}
+                  title="Points"
+                >
+                  <span aria-hidden>Pts</span>
+                  <span className="sr-only">Points</span>
+                </div>
+                <div role="columnheader" className={`${HEADER_CELL_CLASS} hidden w-[26px] sm:flex`}>
+                  <span className="sr-only">Assigné</span>
+                </div>
+              </div>
+            </div>
+          </div>
           {groups.map((group) => {
             const collapsed = grouped && collapsedGroups.has(group.key);
             return (
-              <tbody key={group.key || "ungrouped"}>
-                {grouped && (
-                  <tr>
-                    <th
-                      scope="rowgroup"
-                      colSpan={8 + (canSelectItems ? 1 : 0) + (showFixVersions ? 1 : 0)}
-                      className="sticky top-8 z-10 border-b border-border bg-[var(--surface-2)] px-3 py-1.5 text-left"
-                    >
+              <div role="rowgroup" key={group.key || "ungrouped"}>
+                {grouped ? (
+                  <div role="row" className="border-b border-border bg-[var(--surface-2)]">
+                    <div role="rowheader" className="px-3 py-1.5">
                       <button
                         type="button"
                         aria-expanded={!collapsed}
@@ -620,32 +543,26 @@ export function ItemList({
                         <span>{group.label}</span>
                         <span className="item-key ml-1">{group.items.length}</span>
                       </button>
-                    </th>
-                  </tr>
-                )}
+                    </div>
+                  </div>
+                ) : null}
                 {!collapsed &&
                   group.items.map((item) => (
-                    <ItemRow
+                    <ListRow
                       key={item.id}
                       item={item}
-                      grouped={grouped}
-                      statuses={statuses}
-                      users={users}
-                      backlogKey={backlogKey}
+                      editing={editing}
+                      columns={columns}
                       selectedKey={selectedKey}
                       canSelectItems={canSelectItems}
-                      canEditItems={canEditItems}
-                      canTransitionItems={canTransitionItems}
-                      canAssignItems={canAssignItems}
                       bulkSelected={selection.selectedIds.has(item.id)}
                       onToggleSelection={toggleSelection}
-                      showFixVersions={showFixVersions}
                     />
                   ))}
-              </tbody>
+              </div>
             );
           })}
-        </table>
+        </div>
         {canSelectItems && selectedItems.length > 0 ? (
           <BulkItemToolbar
             backlogId={backlogId}

@@ -368,12 +368,14 @@ async function expectListFixVersions(
   expectedNames: string[],
 ) {
   const row = page.getByRole("row", { name: `${item.key} — ${item.title}`, exact: true });
-  const cell = row.getByRole("cell").last();
+  // Fix versions are row chips (JIR-93), absent when the item has none.
+  const chips = row.getByRole("group", { name: "Fix versions" });
   if (expectedNames.length === 0) {
-    await expect(cell).toHaveText("—");
+    await expect(row).toBeVisible();
+    await expect(chips).toHaveCount(0);
     return;
   }
-  for (const name of expectedNames) await expect(cell).toContainText(name);
+  for (const name of expectedNames) await expect(chips).toContainText(name);
 }
 
 async function publishFromDialog(

@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { currentHref } from "@/test/history";
-import { ItemList } from "@/components/items/item-list";
+import { ItemList, ListColumnsMenu } from "@/components/items/item-list";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
 const mocks = vi.hoisted(() => ({
@@ -142,7 +142,7 @@ describe("ItemList", () => {
     mocks.updateItemAction.mockReset();
   });
 
-  it("renders Fix versions after Assigné with two compact chips and a remainder", () => {
+  it("shows Fix versions as two compact row chips and a remainder when the column is on", () => {
     const versions = [
       { id: "release-1", name: "2026.10", released: false, archived: false },
       { id: "release-2", name: "2026.09", released: true, archived: false },
@@ -158,8 +158,6 @@ describe("ItemList", () => {
       }],
     });
 
-    const headers = screen.getAllByRole("columnheader").map((header) => header.textContent?.trim());
-    expect(headers.indexOf("Fix versions")).toBe(headers.indexOf("Assigné") + 1);
     const row = screen.getByRole("row", { name: /DEMO-1 — Authentication/ });
     expect(within(row).getByText("2026.10")).toBeVisible();
     expect(within(row).getByText("2026.09")).toBeVisible();
@@ -167,19 +165,83 @@ describe("ItemList", () => {
     expect(within(row).queryByText("Legacy")).not.toBeInTheDocument();
   });
 
-  it("keeps the Fix versions column URL-configurable", async () => {
+  it("keeps the optional columns URL-configurable from « Colonnes »", async () => {
     const user = userEvent.setup();
-    renderList({ ...listProps(), showFixVersions: false });
+    const { unmount } = render(
+      <ViewUrlStateProvider initialEntries={Object.entries(initialUrlParams)}>
+        <ListColumnsMenu />
+      </ViewUrlStateProvider>,
+    );
 
-    expect(screen.queryByRole("columnheader", { name: "Fix versions" }))
-      .not.toBeInTheDocument();
+    for (const [label, param] of [
+      ["Labels", "lblcol=1"],
+      ["Échéance", "duecol=1"],
+      ["Fix versions", "fvcol=1"],
+    ] as const) {
+      await user.click(screen.getByRole("button", { name: "Configurer les colonnes" }));
+      const option = screen.getByRole("menuitemcheckbox", { name: label });
+      expect(option).not.toBeChecked();
+      await user.click(option);
+      expect(mocks.replace).toHaveBeenLastCalledWith(
+        expect.stringContaining(param),
+        { scroll: false },
+      );
+    }
+    unmount();
+
+    render(
+      <ViewUrlStateProvider
+        initialEntries={Object.entries({ ...initialUrlParams, lblcol: "1" })}
+      >
+        <ListColumnsMenu showLabels />
+      </ViewUrlStateProvider>,
+    );
     await user.click(screen.getByRole("button", { name: "Configurer les colonnes" }));
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "Fix versions" }));
-
-    expect(mocks.replace).toHaveBeenCalledWith(
-      expect.stringContaining("fvcol=1"),
+    const labels = screen.getByRole("menuitemcheckbox", { name: "Labels" });
+    expect(labels).toBeChecked();
+    await user.click(labels);
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      expect.not.stringContaining("lblcol"),
       { scroll: false },
     );
+  });
+
+  it("shows labels and the due date as row pills only when their columns are on", () => {
+    const { unmount } = renderList();
+    let row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    expect(within(row).queryByText("Urgent")).not.toBeInTheDocument();
+    expect(within(row).queryByTitle("Échéance")).not.toBeInTheDocument();
+    unmount();
+
+    renderList({ ...listProps(), showLabels: true, showDueDate: true });
+    row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    expect(within(row).getByText("Urgent")).toBeVisible();
+    expect(within(row).getByTitle("Échéance")).toHaveTextContent("12 août 2026");
+  });
+
+  it("renders a flat list with each parent as a pill", () => {
+    renderList({
+      ...listProps(),
+      groups: [{
+        key: "",
+        label: "",
+        items: [
+          item("item-3", "DEMO-3", "Sous-tâche", {
+            type: "soustache",
+            depth: 3,
+            parent: { key: "DEMO-1", title: "Authentication", type: "tache" },
+          }),
+        ],
+      }],
+    });
+
+    const row = screen.getByRole("row", { name: "DEMO-3 — Sous-tâche" });
+    expect(within(row).getByTitle("DEMO-1 — Authentication")).toHaveTextContent("Authentication");
+    // No hierarchy indentation (that is the Arbre), and no estimate below a task.
+    expect(row.querySelector("[style*='padding-left']")).toBeNull();
+    expect(within(row).queryByRole("button", { name: /^Estimation/ })).not.toBeInTheDocument();
+    // No drag handle outside the Backlog.
+    expect(within(row).queryByRole("button", { name: /^Déplacer/ })).not.toBeInTheDocument();
   });
 
   it("enables selection for release-only bulk assignment", async () => {
@@ -316,25 +378,58 @@ describe("ItemList", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("renders the dense list as a semantic table with sticky column headers", () => {
+  it("renders Backlog rows under a sticky header strip of sortable fields", () => {
     renderList();
 
-    expect(screen.getByRole("table")).toBeInTheDocument();
-    for (const heading of ["Clé", "Titre", "Statut", "Prio", "Points", "Labels", "Échéance", "Assigné"]) {
-      expect(screen.getByRole("columnheader", { name: heading })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Liste des items" })).toBeInTheDocument();
+    for (const heading of ["Clé", "Titre", "Échéance", "Priorité", "Statut"]) {
+      expect(screen.getByRole("columnheader", { name: heading })).toHaveAttribute(
+        "aria-sort",
+        "none",
+      );
     }
-    expect(screen.getByRole("columnheader", { name: "Clé" }).closest("thead")).toHaveClass("sticky");
+    expect(screen.getByRole("columnheader", { name: "Clé" }).closest("[role='rowgroup']"))
+      .toHaveClass("sticky");
     expect(screen.getAllByRole("img", { name: "À faire" })[0]).toBeVisible();
+    // Rows wrap instead of flooring a table width: no horizontal page scroll.
+    expect(screen.getByRole("table").getAttribute("style")).toBeNull();
   });
 
-  it("floors the table width so the title column stays readable on narrow screens", () => {
-    const { unmount } = renderList({ ...listProps(), showFixVersions: false });
-    // 2.5rem selection + 59rem fixed columns + 12rem title floor.
-    expect(screen.getByRole("table")).toHaveStyle({ minWidth: "73.5rem" });
-    unmount();
+  it.each([
+    ["Clé", "key"],
+    ["Titre", "title"],
+    ["Échéance", "dueDate"],
+    ["Priorité", "priority"],
+    ["Statut", "status"],
+  ] as const)("sorts by %s through the URL and reflects it with aria-sort", async (label, field) => {
+    const user = userEvent.setup();
+    const props = listProps();
+    const { rerender } = renderList(props);
 
-    renderList({ ...listProps(), showFixVersions: true });
-    expect(screen.getByRole("table")).toHaveStyle({ minWidth: "84.5rem" });
+    await user.click(screen.getByRole("button", { name: label }));
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      expect.stringContaining(`sort=${field}%3Aasc`),
+      { scroll: false },
+    );
+
+    rerender(
+      <ViewUrlStateProvider
+        initialEntries={Object.entries({ ...initialUrlParams, sort: `${field}:asc` })}
+      >
+        <ItemList {...props} currentSort={{ field, dir: "asc" }} />
+      </ViewUrlStateProvider>,
+    );
+    expect(screen.getByRole("columnheader", { name: label })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+    // Keyboard: the header is a native button.
+    screen.getByRole("button", { name: label }).focus();
+    await user.keyboard("{Enter}");
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      expect.stringContaining(`sort=${field}%3Adesc`),
+      { scroll: false },
+    );
   });
 
   it("toggles title sorting while preserving unrelated URL parameters", async () => {
@@ -427,8 +522,7 @@ describe("ItemList", () => {
     expect(within(row).queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
     expect(within(row).getByText("À faire")).toBeVisible();
-    expect(within(row).getByText("Marie Lemaire")).toBeVisible();
-    expect(within(row).getByText("Urgent")).toBeVisible();
+    expect(within(row).getByRole("img", { name: "Marie Lemaire" })).toBeVisible();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
 
     await user.click(within(row).getByText("Authentication"));
