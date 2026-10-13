@@ -20,6 +20,8 @@ const MODE_LABELS: Record<string, ShellMode> = {
   tree: "Arbre",
 };
 
+const ACCESS_ROUTE = /^\/b\/([^/]+)\/settings\/access\/?$/;
+
 export function deriveShellContext({
   pathname,
   search,
@@ -61,6 +63,22 @@ export function deriveShellContext({
     return {
       ...(backlog ? { activeBacklogKey: requestedKey } : {}),
       section: feature === "releases" ? "Releases" : "Rapports",
+      allItemsHref: backlog ? `/b/${requestedKey}` : allItemsHref,
+      activeNav: null,
+    };
+  }
+
+  // A backlog's access settings belong to that backlog (JIR-85), like Jira's
+  // project settings: the sidebar follows the URL, not the first backlog.
+  const accessMatch = ACCESS_ROUTE.exec(pathname);
+  if (accessMatch) {
+    const requestedKey = decodeURIComponent(accessMatch[1]!).toUpperCase();
+    const backlog = backlogs.find(
+      (candidate) => candidate.key.toUpperCase() === requestedKey,
+    );
+    return {
+      ...(backlog ? { activeBacklogKey: requestedKey } : {}),
+      section: "Accès",
       allItemsHref: backlog ? `/b/${requestedKey}` : allItemsHref,
       activeNav: null,
     };
@@ -123,6 +141,11 @@ export const PROJECT_VIEWS = [
 
 const ITEM_VIEW_IDS: readonly string[] = ["backlog", "board", "list", "tree"];
 
+/** The item view a `?view=` value asks for: Board when absent or unknown. */
+export function itemViewFromParam(value: string | null | undefined): ItemViewId {
+  return value && ITEM_VIEW_IDS.includes(value) ? (value as ItemViewId) : "board";
+}
+
 /** Plain link to a project view (no URL state to keep). */
 export function projectViewHref(backlogKey: string, id: ProjectViewId): string {
   const base = `/b/${encodeURIComponent(backlogKey)}`;
@@ -139,8 +162,7 @@ export function activeProjectView(
   if (!match) return null;
   if (decodeURIComponent(match[1]!).toUpperCase() !== backlogKey.toUpperCase()) return null;
   if (match[2]) return match[2] as ProjectViewId;
-  const view = search.get("view") ?? "";
-  return ITEM_VIEW_IDS.includes(view) ? (view as ItemViewId) : "board";
+  return itemViewFromParam(search.get("view"));
 }
 
 // ---------------------------------------------------------------------------
@@ -159,6 +181,8 @@ export function deriveBreadcrumb(input: {
   search: URLSearchParams;
   backlogs: ShellBacklog[];
   views: ShellView[];
+  /** Whether the viewer may open Administration → Backlogs (`create_backlogs`); off by default. */
+  canOpenAdmin?: boolean;
 }): BreadcrumbSegment[] {
   const context = deriveShellContext(input);
   // The home page sits above every project: no project segment.
@@ -171,6 +195,19 @@ export function deriveBreadcrumb(input: {
   const project: BreadcrumbSegment | undefined = backlog
     ? { label: backlog.name, href: `/b/${backlog.key.toUpperCase()}` }
     : undefined;
+
+  // Reached from Administration → Backlogs (JIR-85): the trail leads back
+  // there, then to the project. Pages the viewer cannot open stay as text.
+  const access = ACCESS_ROUTE.exec(input.pathname);
+  if (access) {
+    const canOpenAdmin = input.canOpenAdmin === true;
+    return [
+      canOpenAdmin ? { label: "Administration", href: "/admin" } : { label: "Administration" },
+      canOpenAdmin ? { label: "Backlogs", href: "/admin?tab=backlogs" } : { label: "Backlogs" },
+      project ?? { label: decodeURIComponent(access[1]!).toUpperCase() },
+      { label: context.section },
+    ];
+  }
 
   if (context.mode) {
     const savedViewId = input.search.get("v");
