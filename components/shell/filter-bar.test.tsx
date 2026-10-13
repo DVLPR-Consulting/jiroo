@@ -525,6 +525,56 @@ describe("FilterBar", () => {
     expect(screen.getByRole("button", { name: /^Nature :/ })).toHaveFocus();
   });
 
+  it("keeps « + Filtre » open on further values of a category that just became active", async () => {
+    const user = userEvent.setup();
+    renderBar({
+      ...emptyState,
+      filters: { ...emptyState.filters, labels: ["urgent"], releaseIds: ["release-active"] },
+    });
+
+    screen.getByRole("button", { name: "Filtre" }).focus();
+    await user.keyboard("{Enter}");
+    (await screen.findByRole("button", { name: "Priorité" })).focus();
+    await user.keyboard("{Enter}");
+    await user.keyboard(" ");
+    // Priorité is now a chip; Nature is the only category left.
+    await screen.findByRole("button", { name: /^Priorité :/ });
+
+    const high = screen.getByRole("checkbox", { name: "Haute" });
+    high.focus();
+    await user.keyboard(" ");
+    await waitFor(() => expect(high).toBeChecked());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(high).toHaveFocus();
+    expect(screen.getByRole("group", { name: "Filtre Priorité" })).toBeInTheDocument();
+  });
+
+  it("leaves no pending focus hand-off behind after a value is unchecked", async () => {
+    const user = userEvent.setup();
+    renderBar({
+      ...emptyState,
+      filters: { ...emptyState.filters, labels: ["urgent"], releaseIds: ["release-active"] },
+    });
+
+    await addFilter(user, "Priorité");
+    const high = screen.getByRole("checkbox", { name: "Haute" });
+    await user.click(high);
+    await waitFor(() => expect(high).toBeChecked());
+    await user.click(high);
+    await waitFor(() => expect(high).not.toBeChecked());
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Réinitialiser" }));
+
+    const search = screen.getByRole("searchbox", { name: "Filtrer les items" });
+    search.focus();
+    window.history.replaceState(null, "", "/b/DEMO?view=board&prio=3");
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+
+    await screen.findByRole("button", { name: /^Priorité :/ });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(search).toHaveFocus();
+  });
+
   it("allows the filter controls to wrap instead of overflowing narrow content", () => {
     const { container } = renderBar();
 

@@ -217,21 +217,22 @@ export function FilterBar({
   };
   const secondary = splitSecondaryFilters(filters, sprints ? [] : ["sprintIds"]);
 
-  // Picking a value in the last category left removes « + Filtre » with its
-  // panel and the focused checkbox (JIR-79): hand focus to the new chip once
-  // the URL write renders it, so keyboard users keep their place.
+  // Picking the first value of the last category left removes « + Filtre »
+  // with its panel and the focused checkbox (JIR-79): once the URL write
+  // renders the new chip, hand it the focus — only if focus was lost, so a
+  // later render can never pull it away from elsewhere.
   const barRef = useRef<HTMLDivElement>(null);
   const focusChip = useRef<SecondaryFilterKey | null>(null);
   useEffect(() => {
     const key = focusChip.current;
-    if (!key) return;
-    const chip = barRef.current?.querySelector<HTMLElement>(`[data-filter-chip="${key}"]`);
-    if (!chip) return;
+    if (!key || secondary.available.some((filter) => filter.key === key)) return;
     focusChip.current = null;
-    chip.focus();
+    if (document.activeElement && document.activeElement !== document.body) return;
+    barRef.current?.querySelector<HTMLElement>(`[data-filter-chip="${key}"]`)?.focus();
   });
   const addSecondary = (key: SecondaryFilterKey, value: string) => {
-    if (secondary.available.length === 1) focusChip.current = key;
+    const [last, ...others] = secondary.available;
+    focusChip.current = last?.key === key && others.length === 0 ? key : null;
     toggleSecondary(key, value);
   };
 
