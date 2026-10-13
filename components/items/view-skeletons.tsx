@@ -1,16 +1,13 @@
 import type { ComponentType } from "react";
 import { X } from "lucide-react";
 import { DialogClose, DialogTitle } from "@/components/ui/dialog";
-import { PageHeaderSkeleton } from "@/components/skeletons/page-skeletons";
+import { ItemRowsSkeleton, PageHeaderSkeleton } from "@/components/skeletons/page-skeletons";
 import { Skeleton, SkeletonRegion } from "@/components/ui/skeleton";
 import type { ItemViewId } from "@/lib/items/shell";
 
 const BOARD_COLUMNS = 4;
 const LIST_ROWS = 8;
 const TREE_DEPTHS = [0, 1, 2, 2, 1, 2, 0, 1];
-// Selection column, then `LIST_COLUMNS` (lib/items/table-layout.ts) in order.
-const LIST_GRID =
-  "grid grid-cols-[2.5rem_8rem_minmax(14rem,1fr)_10rem_4rem_6rem_12rem_8rem_11rem] items-center";
 
 const VIEW_LABELS: Record<ItemViewId, string> = {
   backlog: "Chargement du backlog",
@@ -74,39 +71,20 @@ function BoardBody() {
   );
 }
 
+/** The Liste (JIR-93): its sort header strip above shared item rows. */
 function ListBody() {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      {/* « Colonnes » sits above the table. */}
-      <div className="flex justify-end border-b border-border p-2">
-        <Skeleton className="h-8 w-24" />
+      <div className="flex h-8 items-center gap-2.5 border-b border-border bg-[var(--surface-2)] pl-2 pr-3 sm:pr-3.5">
+        <Skeleton className="mx-1 size-4 bg-[var(--border)]" />
+        <Skeleton className="h-2.5 w-10 bg-[var(--border)]" />
+        <Skeleton className="ml-12 h-2.5 w-12 bg-[var(--border)]" />
+        <span className="flex-1" />
+        <Skeleton className="hidden h-2.5 w-16 bg-[var(--border)] sm:block" />
+        <Skeleton className="hidden h-2.5 w-14 bg-[var(--border)] sm:block" />
+        <Skeleton className="h-2.5 w-14 bg-[var(--border)]" />
       </div>
-      <div className="min-w-[82rem]">
-        <div className={`${LIST_GRID} h-8 gap-3 border-b border-border bg-[var(--surface-2)] px-3`}>
-          <span />
-          {Array.from({ length: 8 }, (_, index) => (
-            <Skeleton key={index} className="h-2.5 w-14 bg-[var(--border)]" />
-          ))}
-        </div>
-        {Array.from({ length: LIST_ROWS }, (_, index) => (
-          <div
-            key={index}
-            data-slot="list-skeleton-row"
-            className={`${LIST_GRID} gap-3 border-b border-border px-3`}
-            style={{ height: "var(--row-h)" }}
-          >
-            <Skeleton className="mx-auto size-4" />
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className={index % 2 === 0 ? "h-3 w-4/5" : "h-3 w-3/5"} />
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="h-3 w-6" />
-            <Skeleton className="h-3 w-8" />
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-3 w-24" />
-          </div>
-        ))}
-      </div>
+      <ItemRowsSkeleton rows={LIST_ROWS} selectable avatar slot="list-skeleton-row" />
     </div>
   );
 }
@@ -188,7 +166,8 @@ function BacklogViewSkeleton({ view }: { view: ItemViewId }) {
         titleClassName="w-24"
         actions={
           <>
-            {view === "board" ? <Skeleton className="h-8 w-24" /> : null}
+            {/* Board: « Colonnes » (statuses); Liste: « Colonnes » (row fields). */}
+            {view === "board" || view === "list" ? <Skeleton className="h-8 w-24" /> : null}
             <Skeleton className="h-8 w-44" />
           </>
         }

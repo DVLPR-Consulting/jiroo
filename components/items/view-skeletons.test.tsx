@@ -37,6 +37,15 @@ describe("view skeletons", () => {
     expectHiddenBars(container);
   });
 
+  it("shapes the Liste as shared item rows that wrap instead of a wide table (JIR-93)", () => {
+    const { container } = render(<BacklogViewSkeleton view="list" />);
+    const rows = container.querySelectorAll('[data-slot="list-skeleton-row"]');
+
+    expect(rows[0]).toHaveStyle({ height: "var(--row-h)" });
+    expect(rows[0]).toHaveClass("flex");
+    expect(container.querySelector("[class*='min-w-[']")).toBeNull();
+  });
+
   it("keeps the page header and the filter bar above every view", () => {
     const { container } = render(<BacklogViewSkeleton view="list" />);
     const region = container.firstElementChild!;
