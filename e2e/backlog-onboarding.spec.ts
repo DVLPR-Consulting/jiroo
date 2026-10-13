@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
-import { backlogs, items } from "../lib/db/schema/domain";
+import { backlogs, items, releases } from "../lib/db/schema/domain";
 import { createBacklog } from "../lib/services/backlogs";
 
 /**
@@ -23,17 +23,24 @@ async function removeBacklog() {
   const ids = rows.map((row) => row.id);
   if (ids.length === 0) return;
   await db.delete(items).where(inArray(items.backlogId, ids));
+  await db.delete(releases).where(inArray(releases.backlogId, ids));
   await db.delete(backlogs).where(inArray(backlogs.id, ids));
 }
 
-test.beforeAll(async () => {
-  await removeBacklog();
+async function adminId() {
   const [admin] = await db.select({ id: user.id }).from(user)
     .where(eq(user.email, "platform-admin@jiroo.local"));
   if (!admin) throw new Error("Compte administrateur Playwright introuvable.");
-  await createBacklog({ key: KEY, name: "Premiers pas E2E", color: "#0f766e" }, admin.id);
-});
+  return admin.id;
+}
 
+/** A fresh ONBO backlog, through the backlog service (statuses and access included). */
+async function recreateBacklog() {
+  await removeBacklog();
+  return createBacklog({ key: KEY, name: "Premiers pas E2E", color: "#0f766e" }, await adminId());
+}
+
+test.beforeAll(recreateBacklog);
 test.afterAll(removeBacklog);
 
 async function createFromDialog(page: Page, type: string, title: string, parent?: string) {
@@ -81,13 +88,25 @@ test("guide un nouveau backlog : Composant, puis Epic, puis Tâche", async ({ pa
   await field.press("Enter");
   await expect(backlog.getByRole("row", { name: new RegExp(`${TASK}$`) })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("jir88-3-backlog-tache.png") });
+
+  // 4. A version without items is an empty result, not a new backlog. The row
+  // is inserted directly: the release service writes append-only events that
+  // would keep the fixture backlog from being removed.
+  const [backlogRow] = await db.select({ id: backlogs.id }).from(backlogs).where(eq(backlogs.key, KEY));
+  const [release] = await db.insert(releases)
+    .values({ backlogId: backlogRow!.id, name: "Version vide", createdBy: await adminId() })
+    .returning({ id: releases.id });
+  for (const view of ["list", "tree"]) {
+    await page.goto(`/b/${KEY}?view=${view}&version=${release!.id}`);
+    await expect(page.getByRole("heading", { name: "Aucun résultat" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Effacer les filtres" })).toBeVisible();
+    await expect(page.getByText(/Commencez par créer un Composant/)).toHaveCount(0);
+  }
+  await page.screenshot({ path: testInfo.outputPath("jir88-6-version-vide.png") });
 });
 
 test("remplace « Créer un item » par l’étape manquante dans le Backlog", async ({ page }, testInfo) => {
-  await removeBacklog();
-  const [admin] = await db.select({ id: user.id }).from(user)
-    .where(eq(user.email, "platform-admin@jiroo.local"));
-  await createBacklog({ key: KEY, name: "Premiers pas E2E", color: "#0f766e" }, admin!.id);
+  await recreateBacklog();
   await page.setViewportSize({ width: 1440, height: 900 });
 
   await page.goto(`/b/${KEY}?view=backlog`);
