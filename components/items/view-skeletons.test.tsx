@@ -44,6 +44,9 @@ describe("view skeletons", () => {
     expect(rows[0]).toHaveStyle({ height: "var(--row-h)" });
     expect(rows[0]).toHaveClass("flex");
     expect(container.querySelector("[class*='min-w-[']")).toBeNull();
+    // A left-aligned « Trier : … » strip: five sort buttons, no column headers.
+    const sort = container.querySelector('[data-slot="list-skeleton-sort"]')!;
+    expect(sort.querySelectorAll('[data-slot="skeleton"].h-5')).toHaveLength(5);
   });
 
   it("keeps the page header and the filter bar above every view", () => {

@@ -71,18 +71,21 @@ function BoardBody() {
   );
 }
 
-/** The Liste (JIR-93): its sort header strip above shared item rows. */
+/** The Liste (JIR-93): the « Trier : … » strip above shared item rows. */
 function ListBody() {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <div className="flex h-8 items-center gap-2.5 border-b border-border bg-[var(--surface-2)] pl-2 pr-3 sm:pr-3.5">
+      <div
+        data-slot="list-skeleton-sort"
+        className="flex min-h-9 items-center gap-2.5 border-b border-border bg-[var(--surface-2)] pl-2 pr-3 sm:pr-3.5"
+      >
         <Skeleton className="mx-1 size-4 bg-[var(--border)]" />
-        <Skeleton className="h-2.5 w-10 bg-[var(--border)]" />
-        <Skeleton className="ml-12 h-2.5 w-12 bg-[var(--border)]" />
-        <span className="flex-1" />
-        <Skeleton className="hidden h-2.5 w-16 bg-[var(--border)] sm:block" />
-        <Skeleton className="hidden h-2.5 w-14 bg-[var(--border)] sm:block" />
-        <Skeleton className="h-2.5 w-14 bg-[var(--border)]" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-2.5 w-9 bg-[var(--border)]" />
+          {["w-8", "w-9", "w-14", "w-12", "w-11"].map((width, index) => (
+            <Skeleton key={index} className={`h-5 ${width} bg-[var(--border)]`} />
+          ))}
+        </div>
       </div>
       <ItemRowsSkeleton rows={LIST_ROWS} selectable avatar slot="list-skeleton-row" />
     </div>
