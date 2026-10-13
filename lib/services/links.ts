@@ -21,6 +21,7 @@ export type LinkWithOther = {
     statusId: string;
     statusName: string;
     statusColor: string;
+    statusCategory: typeof statuses.$inferSelect.category;
   };
 };
 
@@ -48,6 +49,7 @@ export async function listLinksForItem(itemId: string): Promise<LinkWithOther[]>
       otherStatusId: items.statusId,
       otherStatusName: statuses.name,
       otherStatusColor: statuses.color,
+      otherStatusCategory: statuses.category,
     })
     .from(itemLinks)
     .innerJoin(items, eq(items.id, itemLinks.targetId))
@@ -68,6 +70,7 @@ export async function listLinksForItem(itemId: string): Promise<LinkWithOther[]>
       otherStatusId: items.statusId,
       otherStatusName: statuses.name,
       otherStatusColor: statuses.color,
+      otherStatusCategory: statuses.category,
     })
     .from(itemLinks)
     .innerJoin(items, eq(items.id, itemLinks.sourceId))
@@ -91,6 +94,7 @@ export async function listLinksForItem(itemId: string): Promise<LinkWithOther[]>
       statusId: row.otherStatusId,
       statusName: row.otherStatusName,
       statusColor: row.otherStatusColor,
+      statusCategory: row.otherStatusCategory,
     },
   }));
 }

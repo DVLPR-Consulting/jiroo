@@ -138,6 +138,7 @@ const relatedItemLinks: LinkWithOther[] = [
       statusId: "ready",
       statusName: "Prêt",
       statusColor: "#999",
+      statusCategory: "todo",
     },
   },
 ];

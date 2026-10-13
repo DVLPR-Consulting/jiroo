@@ -14,6 +14,8 @@ vi.mock("@/components/shell/view-url-state", () => ({
   }),
 }));
 
+vi.mock("@/app/actions/items", () => ({ updateItemAction: vi.fn() }));
+
 vi.mock("@/app/actions/links", () => ({
   addLinkAction: vi.fn(),
   removeLinkAction: vi.fn(),
@@ -40,6 +42,7 @@ describe("LinksSection", () => {
               statusId: "todo",
               statusName: "À faire",
               statusColor: "#999999",
+              statusCategory: "todo",
             },
           },
         ]}
@@ -48,6 +51,11 @@ describe("LinksSection", () => {
     );
 
     const link = screen.getByRole("link", { name: /CASS-58/ });
+    // The Backlog row (JIR-93), its status read-only after the identity.
+    const row = screen.getByRole("listitem");
+    expect(row).toContainElement(link);
+    expect(row).toHaveTextContent("À faire");
+    expect(screen.getByRole("img", { name: "À faire" })).toBeInTheDocument();
     const remove = screen.getByRole("button", { name: "Supprimer le lien vers CASS-58" });
     expect(remove).not.toHaveClass("hidden");
     link.focus();

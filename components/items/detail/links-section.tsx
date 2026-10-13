@@ -2,17 +2,15 @@
 
 import { useEffect, useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { X } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
-import { StatusDot } from "@/components/icons/status-dot";
-import { ItemKey } from "@/components/jiroo/item-key";
+import { ItemRow } from "@/components/items/item-row";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import { LINK_TYPES, LINK_TYPE_META, groupLinksForDisplay } from "@/lib/items/links";
 import { addLinkAction, removeLinkAction } from "@/app/actions/links";
 import { toast } from "@/lib/toast";
 import type { LinkWithOther } from "@/lib/services/links";
-import type { ItemType, StatusId } from "@/lib/design/constants";
+import type { ItemType } from "@/lib/design/constants";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -160,43 +158,40 @@ export function LinksSection({
           <span className="text-xs font-medium text-muted-foreground">
             {group.label}
           </span>
-          {group.items.map((link) => (
-            <div
-              key={link.id}
-              className="group flex items-center gap-1.5 rounded px-1 py-0.5 hover:bg-[var(--muted)]"
-            >
-              {/* Status dot */}
-              <StatusDot status={link.other.statusId as StatusId} />
-              {/* TypeIcon + key + title — whole row links to the item */}
-              <Link
+          {/* The Backlog row (JIR-93), with the removal at its end. */}
+          <ul className="overflow-hidden rounded-[var(--radius-md)] border border-border">
+            {group.items.map((link) => (
+              <ItemRow
+                key={link.id}
+                as="li"
                 href={viewUrl.href((params) => params.set("item", link.other.key))}
                 onNavigate={(event) => {
                   event.preventDefault();
                   viewUrl.push((params) => params.set("item", link.other.key));
                 }}
-                className="flex min-w-0 flex-1 items-center gap-1 text-sm hover:underline"
-              >
-                <TypeIcon type={link.other.type} size={13} />
-                <ItemKey value={link.other.key} />
-                <span className="truncate text-foreground">{link.other.title}</span>
-              </Link>
-              <span className="flex-none text-xs text-muted-foreground">
-                {link.other.statusName}
-              </span>
-              {/* Remove button */}
-              {canLink && (
-                <button
-                  type="button"
-                  aria-label={`Supprimer le lien vers ${link.other.key}`}
-                  disabled={pending}
-                  onClick={() => handleRemove(link.id)}
-                  className="pointer-events-none inline-flex size-5 flex-none items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-[var(--muted)] hover:text-foreground group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 disabled:opacity-40"
-                >
-                  <X className="size-3" />
-                </button>
-              )}
-            </div>
-          ))}
+                item={{
+                  id: link.other.id,
+                  key: link.other.key,
+                  title: link.other.title,
+                  type: link.other.type,
+                  status: { name: link.other.statusName, category: link.other.statusCategory },
+                }}
+                trailing={
+                  canLink ? (
+                    <button
+                      type="button"
+                      aria-label={`Supprimer le lien vers ${link.other.key}`}
+                      disabled={pending}
+                      onClick={() => handleRemove(link.id)}
+                      className="pointer-events-none inline-flex size-5 flex-none items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-[var(--muted)] hover:text-foreground group-hover/row:pointer-events-auto group-hover/row:opacity-100 group-focus-within/row:pointer-events-auto group-focus-within/row:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 disabled:opacity-40"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  ) : undefined
+                }
+              />
+            ))}
+          </ul>
         </div>
       ))}
 
