@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NewItemButton } from "@/components/items/new-item-dialog";
+import { ITEM_TEMPLATES } from "@/lib/items/templates";
 import { KeyboardShortcutsProvider } from "@/components/shortcuts/keyboard-shortcuts-provider";
 
 const mocks = vi.hoisted(() => ({
@@ -699,6 +700,121 @@ describe("NewItemButton", () => {
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
 
       expect(screen.getByLabelText("Échéance")).toHaveAttribute("lang", "fr");
+    });
+  });
+
+  describe("missing parent (JIR-91)", () => {
+    it("offers « Créer un Composant » for an Epic in a backlog without Composant", async () => {
+      const user = userEvent.setup();
+      render(<NewItemButton {...dialogProps()} items={[]} backlogItemTypes={[]} />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await choose(user, "Type", "Epic");
+
+      const parent = screen.getByRole("combobox", { name: /Parent/ });
+      expect(parent).toHaveAccessibleDescription(
+        "Aucun Composant dans ce backlog : une Epic se rattache toujours à un Composant.",
+      );
+      expect(screen.getByRole("button", { name: "Créer un Composant" })).toBeVisible();
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Connexion");
+      expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
+    });
+
+    it("switches the same draft to a Composant, keeping its title and description", async () => {
+      const user = userEvent.setup();
+      const template = ITEM_TEMPLATES[0]!;
+      mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: { id: "i", key: "DEMO-1" } });
+      render(<NewItemButton {...dialogProps()} items={[]} backlogItemTypes={[]} />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await choose(user, "Type", "Epic");
+      await choose(user, "Modèle", template.name);
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Espace usagers");
+
+      await user.click(screen.getByRole("button", { name: "Créer un Composant" }));
+
+      const type = screen.getByRole("combobox", { name: "Type" });
+      expect(type).toHaveTextContent("Composant");
+      expect(type).toHaveFocus();
+      expect(screen.queryByRole("combobox", { name: /Parent/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: /Titre/ })).toHaveValue("Espace usagers");
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+      await waitFor(() =>
+        expect(mocks.createItemAction).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "composant",
+            parentId: null,
+            title: "Espace usagers",
+            description: template.description,
+          }),
+        ),
+      );
+    });
+
+    it("follows the hierarchy: « Créer une Epic » for a Tâche, « Créer une Tâche » for a Sous-tâche", async () => {
+      const user = userEvent.setup();
+      const composant = { id: "component-id", key: "DEMO-1", type: "composant" as const, title: "Plateforme" };
+      const { unmount } = render(
+        <NewItemButton {...dialogProps()} items={[composant]} initialType="tache" />,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAccessibleDescription(
+        "Aucune Epic dans ce backlog : une Tâche se rattache toujours à une Epic.",
+      );
+      await user.click(screen.getByRole("button", { name: "Créer une Epic" }));
+      expect(screen.getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
+      // The Epic finds its Composant: the parent field is a normal choice again.
+      expect(screen.getByRole("combobox", { name: /Parent/ })).not.toHaveAccessibleDescription();
+      unmount();
+
+      render(<NewItemButton {...dialogProps()} items={[composant]} initialType="soustache" />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await user.click(screen.getByRole("button", { name: "Créer une Tâche" }));
+      expect(screen.getByRole("combobox", { name: "Type" })).toHaveTextContent("Tâche");
+      expect(screen.getByRole("button", { name: "Créer une Epic" })).toBeVisible();
+    });
+
+    it("does not claim the parent is missing when the view's filter hides it", async () => {
+      const user = userEvent.setup();
+      render(
+        <NewItemButton
+          {...dialogProps()}
+          items={[]}
+          backlogItemTypes={["composant", "epic"]}
+          initialType="epic"
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAccessibleDescription(
+        "Aucun Composant parmi les items affichés : le filtre de la vue peut masquer les parents possibles.",
+      );
+      expect(screen.queryByRole("button", { name: "Créer un Composant" })).not.toBeInTheDocument();
+    });
+
+    it("only explains in a sprint-contextual create, which must stay a task", async () => {
+      const user = userEvent.setup();
+      render(
+        <NewItemButton {...dialogProps()} items={[]} backlogItemTypes={[]} sprintId={null} contextLabel="Sprint 2" />,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAccessibleDescription(
+        "Aucune Epic dans ce backlog : une Tâche se rattache toujours à une Epic.",
+      );
+      expect(screen.queryByRole("button", { name: /^Créer une/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("group", { name: "Type" })).toHaveTextContent("Tâche");
+    });
+
+    it("never offers an Epic, nor its missing parent, without the scheduling right", async () => {
+      const user = userEvent.setup();
+      render(
+        <NewItemButton {...dialogProps()} items={[]} backlogItemTypes={[]} initialType="epic" canScheduleItems={false} />,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+
+      expect(screen.getByRole("combobox", { name: "Type" })).toHaveTextContent("Composant");
+      expect(screen.queryByRole("combobox", { name: /Parent/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^Créer une?/ })).not.toBeInTheDocument();
     });
   });
 });
