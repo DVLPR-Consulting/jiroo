@@ -175,6 +175,8 @@ describe("POST /api/webhooks/{github,gitlab}/[connectionId]", () => {
     expect(ignored.status).toBe(202);
     await expect(ignored.json()).resolves.toEqual({ ok: true, ignored: true });
     expect(mocks.recordWebhookEvent).toHaveBeenCalledTimes(2);
+    // Recorded as deliveries, so they count against the budget.
+    expect(mocks.recordWebhookEvent).toHaveBeenCalledWith(CONNECTION_ID, "delivery-1");
     expect(mocks.ingestWebhookReferences).not.toHaveBeenCalled();
   });
 
@@ -202,6 +204,22 @@ describe("POST /api/webhooks/{github,gitlab}/[connectionId]", () => {
     expect((await githubRequest(null, { body: "not json" })).status).toBe(400);
     expect((await githubRequest({ action: "opened" })).status).toBe(400);
     expect(mocks.ingestWebhookReferences).not.toHaveBeenCalled();
+  });
+
+  it("records a delivery without id under a digest of its body", async () => {
+    const raw = JSON.stringify(githubPrOpened);
+    const request = new Request(`http://localhost/api/webhooks/github/${CONNECTION_ID}`, {
+      method: "POST",
+      headers: {
+        "x-github-event": "pull_request",
+        "x-hub-signature-256": signGithubPayload(new TextEncoder().encode(raw), SECRET),
+      },
+      body: raw,
+    });
+    await githubPost(request, { params: Promise.resolve({ connectionId: CONNECTION_ID }) });
+    expect(mocks.ingestWebhookReferences).toHaveBeenCalledWith(expect.objectContaining({
+      deliveryId: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+    }));
   });
 
   it("limits the deliveries of a connection", async () => {

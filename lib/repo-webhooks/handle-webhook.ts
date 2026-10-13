@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import { deploymentSecretBoxKey, openSecret } from "@/lib/crypto/secret-box";
 import {
   parseGithubWebhook,
@@ -74,9 +75,15 @@ function verify(provider: RepoProvider, request: Request, body: Uint8Array, secr
     : verifyGitlabToken(request.headers.get("x-gitlab-token"), secret);
 }
 
-function deliveryId(provider: RepoProvider, request: Request): string | null {
+/**
+ * The forge's delivery id, or a digest of the body when there is none: every
+ * authenticated delivery is recorded, so it counts against the budget and an
+ * identical replay is applied once.
+ */
+function deliveryId(provider: RepoProvider, request: Request, body: Uint8Array): string {
   const value = request.headers.get(provider === "github" ? "x-github-delivery" : "x-gitlab-event-uuid");
-  return value && DELIVERY_ID.test(value) ? value : null;
+  if (value && DELIVERY_ID.test(value)) return value;
+  return `sha256:${createHash("sha256").update(body).digest("hex")}`;
 }
 
 function parse(provider: RepoProvider, request: Request, payload: unknown): ParsedWebhook {
@@ -142,12 +149,13 @@ export async function handleRepoWebhook(
       return json(400, { error: "invalid_payload" });
     }
 
+    const delivery = deliveryId(provider, request, body);
     if (parsed.type === "ping") {
-      await recordWebhookEvent(connection.id);
+      await recordWebhookEvent(connection.id, delivery);
       return json(200, { ok: true });
     }
     if (parsed.type === "ignored") {
-      await recordWebhookEvent(connection.id);
+      await recordWebhookEvent(connection.id, delivery);
       return json(202, { ok: true, ignored: true });
     }
     if (parsed.repositoryPath !== connection.repositoryPath) {
@@ -160,7 +168,7 @@ export async function handleRepoWebhook(
 
     const result = await ingestWebhookReferences({
       connection,
-      deliveryId: deliveryId(provider, request),
+      deliveryId: delivery,
       refs: parsed.refs,
     });
     return json(200, result.duplicate ? { ok: true, duplicate: true } : { ok: true, linked: result.linked });

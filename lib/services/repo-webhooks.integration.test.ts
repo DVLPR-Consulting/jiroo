@@ -8,9 +8,11 @@ import type { DevRefCandidate } from "@/lib/repo-webhooks/events";
 import { addRef, listRefsForItem, removeRef } from "@/lib/services/refs";
 import { createRepoConnection, setRepoConnectionEnabled } from "@/lib/services/repo-connections";
 import {
+  countRecentDeliveries,
   findWebhookConnection,
   ingestWebhookReferences,
   recordWebhookError,
+  recordWebhookEvent,
   type WebhookConnection,
 } from "@/lib/services/repo-webhooks";
 import {
@@ -130,6 +132,14 @@ describeDb("repository webhook ingestion (JIR-95)", () => {
     const remaining = (await listRefsForItem(second.id)).map((ref) => ref.id);
     expect(remaining).toContain(detected!.id);
     expect(remaining).not.toContain(manual.id);
+  });
+
+  it("counts pings and ignored events against the delivery budget", async () => {
+    const before = await countRecentDeliveries(connection.id, 60_000);
+    await recordWebhookEvent(connection.id, "ping-1");
+    await recordWebhookEvent(connection.id, "ping-1");
+    await recordWebhookEvent(connection.id, "ignored-1");
+    expect(await countRecentDeliveries(connection.id, 60_000)).toBe(before + 2);
   });
 
   it("throttles the recorded error of a failing connection", async () => {

@@ -97,12 +97,21 @@ export async function recordWebhookError(connectionId: string, message: string):
     ));
 }
 
-/** An authenticated delivery that linked nothing (ping, ignored event). */
-export async function recordWebhookEvent(connectionId: string): Promise<void> {
-  await db
-    .update(repoConnections)
-    .set({ lastEventAt: new Date(), lastError: null, lastErrorAt: null })
-    .where(eq(repoConnections.id, connectionId));
+/**
+ * An authenticated delivery that links nothing (ping, ignored event): still
+ * recorded, so it counts against the connection's budget.
+ */
+export async function recordWebhookEvent(connectionId: string, deliveryId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(repoWebhookDeliveries)
+      .values({ connectionId, deliveryId })
+      .onConflictDoNothing();
+    await tx
+      .update(repoConnections)
+      .set({ lastEventAt: new Date(), lastError: null, lastErrorAt: null })
+      .where(eq(repoConnections.id, connectionId));
+  });
 }
 
 type RefRow = typeof itemRefs.$inferInsert & { occurredAt: Date };
