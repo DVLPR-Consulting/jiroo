@@ -79,3 +79,22 @@ test("trie la Liste par l’en-tête et affiche les colonnes choisies en pastill
   await expect(page).toHaveURL(new RegExp(`[?&]item=${high.key}(&|$)`));
   await expect(page.getByRole("dialog", { name: new RegExp(high.key) })).toBeVisible();
 });
+
+test("montre Mes items en lignes du Backlog qui ouvrent l’item", async ({ page }) => {
+  const { actorId } = await context();
+  const mine = await task(`JIR-93 mes items ${RUN}`, {
+    assigneeId: actorId,
+    kind: "bug",
+    estimatePoints: 3,
+    priority: 3,
+  });
+
+  await page.goto("/mine");
+  const row = page.getByRole("listitem").filter({ hasText: mine.title });
+  await expect(row.getByText("Bug")).toBeVisible();
+  await expect(row.getByText("À faire")).toBeVisible();
+  await expect(row.getByTitle("Points")).toHaveText(/3/);
+  await row.getByRole("link", { name: new RegExp(mine.key) }).click();
+  await expect(page).toHaveURL(new RegExp(`/b/CASS\\?item=${mine.key}$`));
+  await expect(page.getByRole("dialog", { name: new RegExp(`^${mine.key} —`) })).toBeVisible();
+});

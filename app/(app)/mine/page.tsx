@@ -1,44 +1,27 @@
-import Link from "next/link";
 import { requireAppPageSession } from "@/lib/auth/session";
 import { listItemsAssignedTo } from "@/lib/services/items";
-import { TypeIcon } from "@/components/icons/type-icon";
-import { PrioIcon } from "@/components/icons/prio-icon";
-import { StatusDot } from "@/components/icons/status-dot";
-import { ItemKey } from "@/components/jiroo/item-key";
-import type { ItemType, Priority, StatusId } from "@/lib/design/constants";
+import { ItemRow } from "@/components/items/item-row";
 import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
-
-// Clamp DB integer priority into the 0..4 union PrioIcon expects.
-function asPriority(value: number): Priority {
-  return Math.min(4, Math.max(0, value)) as Priority;
-}
 
 type Row = Awaited<ReturnType<typeof listItemsAssignedTo>>[number];
 
-function StatusPill({ statusId, name }: { statusId: string; name: string }) {
+/** The Backlog row (JIR-93), read-only; every item here is the viewer's. */
+function MineRow({ row }: { row: Row }) {
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
-      <StatusDot status={statusId as StatusId} />
-      {name}
-    </span>
-  );
-}
-
-function ItemRow({ row }: { row: Row }) {
-  const href = `/b/${row.backlogKey}?item=${row.key}`;
-  return (
-    <li className="border-b border-border">
-      <Link
-        href={href}
-        className="flex items-center gap-2.5 py-2 px-4 transition-colors hover:bg-muted/50"
-      >
-        <TypeIcon type={row.type as ItemType} />
-        <ItemKey value={row.key} />
-        <span className="min-w-0 flex-1 truncate text-sm">{row.title}</span>
-        <StatusPill statusId={row.statusId} name={row.statusName} />
-        <PrioIcon priority={asPriority(row.priority)} />
-      </Link>
-    </li>
+    <ItemRow
+      as="li"
+      href={`/b/${row.backlogKey}?item=${row.key}`}
+      item={{
+        id: row.id,
+        key: row.key,
+        title: row.title,
+        type: row.type,
+        kind: row.kind,
+        status: { name: row.statusName, category: row.statusCategory },
+        priority: row.priority,
+        estimatePoints: row.type === "tache" ? row.estimatePoints : undefined,
+      }}
+    />
   );
 }
 
@@ -104,9 +87,9 @@ export default async function MinePage() {
                 <span className="t-meta text-muted-foreground">{items.length}</span>
               </div>
 
-              <ul className="rounded-md border border-border bg-background">
+              <ul className="overflow-hidden rounded-md border border-border bg-background">
                 {items.map((row) => (
-                  <ItemRow key={row.id} row={row} />
+                  <MineRow key={row.id} row={row} />
                 ))}
               </ul>
             </section>
