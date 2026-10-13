@@ -93,6 +93,19 @@ describe("HelpPage", () => {
     expect(topic).toHaveTextContent("une Tâche se rattache toujours à une Epic");
   });
 
+  it("explains how « Nouvel item » creates a missing parent first (JIR-91)", () => {
+    render(<HelpPage />);
+    const tickets = document.querySelector("section#tickets") as HTMLElement;
+    const topic = within(tickets)
+      .getByRole("heading", { level: 3, name: "Démarrer dans un nouveau backlog" })
+      .closest("div") as HTMLElement;
+    for (const label of ["Créer un Composant", "Créer une Epic", "Créer une Tâche", "Parent"]) {
+      expect(topic).toHaveTextContent(`« ${label} »`);
+    }
+    expect(topic).toHaveTextContent("en gardant le titre et la description saisis");
+    expect(topic).toHaveTextContent("si le filtre les masque");
+  });
+
   it("documents the rich-text editor (JIR-66)", () => {
     render(<HelpPage />);
     const tickets = document.querySelector("section#tickets") as HTMLElement;

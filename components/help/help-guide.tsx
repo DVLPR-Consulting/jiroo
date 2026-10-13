@@ -241,6 +241,7 @@ export function HelpGuide() {
             <>Créez d’abord un Composant (un domaine ou un produit). Dans un backlog vide, les vues Backlog, Liste et Arbre affichent <Ui>Commencez par créer un Composant (un domaine ou un produit)</Ui> : cliquez sur <Ui>Nouveau Composant</Ui> (ou sur <Ui>+ Créer</Ui>, type <Ui>Composant</Ui>), saisissez le <Ui>Titre</Ui>, puis <Ui>Créer</Ui>.</>,
             <>Créez ensuite une Epic dans ce Composant. Le message devient <Ui>Créez une Epic dans un Composant</Ui> : cliquez sur <Ui>Nouvelle Epic</Ui>. La fenêtre <Ui>Nouvel item</Ui> s’ouvre avec le type <Ui>Epic</Ui> ; s’il n’y a qu’un Composant, il est déjà choisi comme <Ui>Parent</Ui>.</>,
             <>Ajoutez enfin vos tâches. Dans le Backlog, <Ui>Créer un item</Ui> revient en bas des sections, avec la première Epic proposée comme <Ui>Epic parent</Ui> ; ailleurs, utilisez <Ui>+ Créer</Ui> avec le type <Ui>Tâche</Ui>.</>,
+            <>Vous avez commencé par <Ui>+ Créer</Ui> (ou <Key>C</Key>) avec le type <Ui>Epic</Ui> alors qu’aucun Composant n’existe ? Sous <Ui>Parent</Ui>, cliquez sur <Ui>Créer un Composant</Ui> : la même fenêtre passe au type <Ui>Composant</Ui> en gardant le titre et la description saisis. Créez-le, puis rouvrez <Ui>+ Créer</Ui> pour votre Epic : le Composant est proposé comme <Ui>Parent</Ui>. De même, <Ui>Créer une Epic</Ui> pour une Tâche et <Ui>Créer une Tâche</Ui> pour une Sous-tâche.</>,
           ]}
         >
           <GuideNote>
@@ -248,7 +249,9 @@ export function HelpGuide() {
             Composant. Tant qu’aucune Epic n’existe, le Backlog remplace <Ui>Créer un item</Ui> par le bouton de
             l’étape manquante ; sous des filtres actifs, il propose <Ui>Effacer les filtres</Ui> pour y accéder.
             Créer une Epic demande le droit de planifier ; sans le droit nécessaire, les vues
-            indiquent seulement <Ui>Ce backlog est vide</Ui> ou <Ui>Aucune Epic pour l’instant</Ui>.
+            indiquent seulement <Ui>Ce backlog est vide</Ui> ou <Ui>Aucune Epic pour l’instant</Ui>. Sous un filtre
+            Version, la fenêtre <Ui>Nouvel item</Ui> ne propose que les parents affichés : si le filtre les masque,
+            elle le signale au lieu d’inviter à en créer un ; effacez le filtre pour les retrouver.
           </GuideNote>
         </GuideTopic>
 
@@ -257,7 +260,7 @@ export function HelpGuide() {
           purpose="Ajouter un Composant, une Epic, une Tâche ou une Sous-tâche."
           steps={[
             <>Dans une vue du backlog, cliquez sur <Ui>+ Créer</Ui> dans la barre du haut, à côté du champ de recherche (ou touche <Key>C</Key>) : la fenêtre <Ui>Nouvel item</Ui> s’ouvre. Dans le Backlog, utilisez aussi <Ui>Créer un item</Ui> en bas d’une section (voir ci-dessous). Depuis le détail d’un ticket, <Ui>+ Créer une tâche</Ui> (ou une sous-tâche, un epic) préremplit le type et le parent.</>,
-            <>Choisissez le <Ui>Type</Ui> (et un <Ui>Modèle</Ui> si besoin), puis, sauf pour un Composant, le <Ui>Parent</Ui> obligatoire ; saisissez le <Ui>Titre</Ui> et la <Ui>Description</Ui> dans l’éditeur mis en forme.</>,
+            <>Choisissez le <Ui>Type</Ui> (et un <Ui>Modèle</Ui> si besoin), puis, sauf pour un Composant, le <Ui>Parent</Ui> obligatoire ; saisissez le <Ui>Titre</Ui> et la <Ui>Description</Ui> dans l’éditeur mis en forme. Si le backlog n’a encore aucun parent possible, le champ <Ui>Parent</Ui> propose de le créer d’abord (voir « Démarrer dans un nouveau backlog »).</>,
             <>Dans <Ui>Détails</Ui>, ajustez <Ui>Statut</Ui> (il affiche le statut que recevra le ticket, le premier statut « À faire » par défaut), <Ui>Assigné</Ui> (ou <Ui>M’assigner</Ui>, à droite du champ), <Ui>Priorité</Ui>, <Ui>Points</Ui> et <Ui>Sprint</Ui> (tâches), <Ui>Nature</Ui>, <Ui>Labels</Ui>, <Ui>Fix versions</Ui>, <Ui>Échéance</Ui>, puis <Ui>Créer</Ui>.</>,
             <>Cochez <Ui>Créer un autre</Ui> pour enchaîner : la fenêtre reste ouverte avec le même type, le même parent et le même sprint ; seuls le titre et la description sont vidés.</>,
           ]}
