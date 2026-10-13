@@ -6,6 +6,7 @@ import {
   buildViewUrl,
   applySavedViewParams,
   clearActiveBacklogViewParams,
+  showAllBacklogItemsParams,
   createViewInput,
   updateViewStateInput,
   renameViewInput,
@@ -568,6 +569,15 @@ describe("saved-view URL mutations", () => {
 
     expect(params.toString()).toBe("tag=a&tag=b");
     expect(params.getAll("tag")).toEqual(["a", "b"]);
+  });
+
+  it("shows every item on the unfiltered Liste for « Tous les items » (JIR-94)", () => {
+    const params = staleParams();
+
+    showAllBacklogItemsParams(params);
+
+    expect(params.toString()).toBe("tag=a&tag=b&view=list");
+    expect(params.has("item")).toBe(false);
   });
 });
 

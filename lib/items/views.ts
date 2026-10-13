@@ -256,6 +256,15 @@ export function clearActiveBacklogViewParams(params: URLSearchParams): void {
   for (const key of ACTIVE_BACKLOG_VIEW_PARAM_KEYS) params.delete(key);
 }
 
+/**
+ * « Tous les items » (JIR-94): the active backlog's Liste with every view
+ * state cleared — no filter, group, sort, saved view or open item.
+ */
+export function showAllBacklogItemsParams(params: URLSearchParams): void {
+  clearActiveBacklogViewParams(params);
+  params.set("view", "list");
+}
+
 export function applySavedViewParams(
   params: URLSearchParams,
   view: { id: string; state: ViewState; displayMode: DisplayMode },
