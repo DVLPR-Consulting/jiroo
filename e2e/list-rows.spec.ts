@@ -9,6 +9,7 @@ import { changeItemFixVersions } from "../lib/services/item-fix-versions";
 import { createLabel } from "../lib/services/labels";
 import { createRelease } from "../lib/services/releases";
 import { createItem, softDeleteItem } from "../lib/services/items";
+import { keyPattern } from "./key-helpers";
 
 /**
  * JIR-93: every list display shows the Backlog row. The Liste lists its rows
@@ -104,7 +105,7 @@ test("trie la Liste depuis « Trier la liste » et affiche les colonnes choisies
 
   await highRow.getByText(high.title).click();
   await expect(page).toHaveURL(new RegExp(`[?&]item=${high.key}(&|$)`));
-  await expect(page.getByRole("dialog", { name: new RegExp(high.key) })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: keyPattern(high.key) })).toBeVisible();
 });
 
 test("montre Mes items en lignes du Backlog qui ouvrent l’item", async ({ page }) => {
@@ -121,7 +122,7 @@ test("montre Mes items en lignes du Backlog qui ouvrent l’item", async ({ page
   await expect(row.getByText("Bug")).toBeVisible();
   await expect(row.getByText("À faire")).toBeVisible();
   await expect(row.getByTitle("Points")).toHaveText(/3/);
-  await row.getByRole("link", { name: new RegExp(mine.key) }).click();
+  await row.getByRole("link", { name: keyPattern(mine.key) }).click();
   await expect(page).toHaveURL(new RegExp(`/b/CASS\\?item=${mine.key}$`));
   await expect(page.getByRole("dialog", { name: new RegExp(`^${mine.key} —`) })).toBeVisible();
 });
@@ -166,6 +167,6 @@ test("montre le périmètre d’une release en lignes du Backlog", async ({ page
   await expect(row.getByText("Bug")).toBeVisible();
   await expect(row.getByText("À faire")).toBeVisible();
   await expect(row.getByTitle("Points")).toHaveText(/5/);
-  await row.getByRole("link", { name: new RegExp(scoped.key) }).click();
+  await row.getByRole("link", { name: keyPattern(scoped.key) }).click();
   await expect(page).toHaveURL(new RegExp(`/b/CASS\\?item=${scoped.key}$`));
 });

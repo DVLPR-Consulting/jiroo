@@ -17,6 +17,7 @@ import { createSprint } from "../lib/services/sprints";
 import { createInlineItem, sprintMenuAction } from "./backlog-helpers";
 import { chooseOption } from "./select-helpers";
 import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
+import { keyPattern } from "./key-helpers";
 
 const ACTIVE_SPRINT = "Audit Sprint actif 2026-08-05";
 const NEXT_SPRINT = "Sprint 2";
@@ -359,7 +360,7 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
     .from(items)
     .where(and(eq(items.backlogId, backlog.id), eq(items.title, TASK_DONE)));
   if (!doneItem) throw new Error("Tâche à terminer introuvable.");
-  const handle = page.getByRole("button", { name: `Déplacer ${doneItem.key}` });
+  const handle = page.getByRole("button", { name: `Déplacer ${doneItem.key}`, exact: true });
   const destinationTrigger = page.getByRole("button", {
     name: `Créer dans ${doneStatus.name}`,
   });
@@ -696,9 +697,9 @@ test("restaure sélection et section après deux échecs réseau de planificatio
   const dragKey = firstKey;
   if (!firstKey || !secondKey || !dragKey) throw new Error("Clés rollback introuvables.");
 
-  await backlogSection.getByRole("checkbox", { name: `Sélectionner ${firstKey}` }).click();
+  await backlogSection.getByRole("checkbox", { name: `Sélectionner ${firstKey}`, exact: true }).click();
   await backlogSection
-    .getByRole("checkbox", { name: `Sélectionner ${secondKey}` })
+    .getByRole("checkbox", { name: `Sélectionner ${secondKey}`, exact: true })
     .click({ modifiers: ["Shift"] });
   let bulkRejected = false;
   await page.route("**/*", async (route) => {
@@ -728,7 +729,7 @@ test("restaure sélection et section après deux échecs réseau de planificatio
   await page.unroute("**/*");
   await page.getByRole("button", { name: "Effacer la sélection" }).click();
 
-  const handle = page.getByRole("button", { name: `Déplacer ${dragKey}` });
+  const handle = page.getByRole("button", { name: `Déplacer ${dragKey}`, exact: true });
   const sprintHeading = sprintSection.getByRole("heading", { name: "Sprint 1" });
   await page.getByRole("heading", { name: "Planification" }).scrollIntoViewIfNeeded();
   await expect(handle).toBeEnabled();
@@ -893,7 +894,7 @@ test("clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ou
   await expect(page.getByRole("alert")).toContainText(
     "Terminez les sous-tâches avant de clôturer le sprint.",
   );
-  await expect(page.getByRole("alert")).toContainText(openSubtask.key);
+  await expect(page.getByRole("alert")).toContainText(keyPattern(openSubtask.key));
   await expect(page.getByRole("dialog")).toBeVisible();
   const [blockedSprint] = await db
     .select({ state: sprints.state })
@@ -1023,7 +1024,7 @@ test("planifie une plage de tâches en masse et conserve la section après recha
   const sprintSection = page.locator('[data-sprint-section]').filter({
     has: page.getByRole("heading", { name: "Sprint 1" }),
   });
-  const dragHandle = page.getByRole("button", { name: `Déplacer ${thirdKey}` });
+  const dragHandle = page.getByRole("button", { name: `Déplacer ${thirdKey}`, exact: true });
   const origin = await dragHandle.boundingBox();
   const destination = await sprintSection.boundingBox();
   if (!origin || !destination) throw new Error("Géométrie de planification introuvable.");
@@ -1049,9 +1050,9 @@ test("planifie une plage de tâches en masse et conserve la section après recha
   await dragged.finished();
   await expect(sprintSection.getByText(thirdKey, { exact: true })).toBeVisible();
 
-  await page.getByRole("checkbox", { name: `Sélectionner ${firstKey}` }).click();
+  await page.getByRole("checkbox", { name: `Sélectionner ${firstKey}`, exact: true }).click();
   await page
-    .getByRole("checkbox", { name: `Sélectionner ${secondKey}` })
+    .getByRole("checkbox", { name: `Sélectionner ${secondKey}`, exact: true })
     .click({ modifiers: ["Shift"] });
   await expect(page.getByText("2 items sélectionnés")).toBeVisible();
   const elapsed = await businessPost(page, async () => {

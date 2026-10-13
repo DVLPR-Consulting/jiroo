@@ -27,6 +27,7 @@ import { getSprintReport } from "../lib/services/sprint-reports";
 import { createSprint, moveItemToSprint, updateSprint } from "../lib/services/sprints";
 import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
 import { chooseOption } from "./select-helpers";
+import { keyPattern } from "./key-helpers";
 
 const AUTH = {
   admin: ".playwright/.auth/platform-admin.json",
@@ -272,7 +273,7 @@ async function dragBoardItemToStatus(
   itemKey: string,
   statusName: string,
 ) {
-  const handle = page.getByRole("button", { name: `Déplacer ${itemKey}` });
+  const handle = page.getByRole("button", { name: `Déplacer ${itemKey}`, exact: true });
   const destinationTrigger = page.getByRole("button", { name: `Créer dans ${statusName}` });
   const destinationColumn = destinationTrigger.locator(
     "xpath=ancestor::div[contains(@class,'flex-none')][1]",
@@ -844,8 +845,8 @@ audited(2, "distingue les états vides, planifiés, actifs non estimés et legac
   await expect(mixedMeasures.getByText("Périmètre actuel", { exact: true }).locator(".."))
     .toContainText("2 éléments · 5 pts · 1 non estimé");
   const mixedSection = page.getByRole("region", { name: "Non terminés (2)" });
-  await expect(mixedSection).toContainText(activeItem.key);
-  await expect(mixedSection).toContainText(mixedUnestimated.key);
+  await expect(mixedSection).toContainText(keyPattern(activeItem.key));
+  await expect(mixedSection).toContainText(keyPattern(mixedUnestimated.key));
   await writeAuditScreenshot("audit/screenshots/reports-active-desktop.png", (path) =>
     page.screenshot({ path, fullPage: true, caret: "initial" }));
 
@@ -967,7 +968,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
 
   await auditedGoto(page, capture, "admin", "/b/CASS?view=backlog");
   for (const item of bulkItems) {
-    await page.getByRole("checkbox", { name: `Sélectionner ${item.key}` }).click();
+    await page.getByRole("checkbox", { name: `Sélectionner ${item.key}`, exact: true }).click();
   }
   await expect(page.getByText("3 items sélectionnés")).toBeVisible();
   await businessPost(page, async () => {
@@ -989,11 +990,11 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   await expect(measures.getByText("Périmètre actuel", { exact: true }).locator(".."))
     .toContainText("3 éléments · 8 pts · 0 non estimé");
   const addedSection = page.getByRole("region", { name: "Non terminés (3)" });
-  for (const item of bulkItems) await expect(addedSection).toContainText(item.key);
+  for (const item of bulkItems) await expect(addedSection).toContainText(keyPattern(item.key));
 
   await page.goto("/b/CASS?view=backlog");
   for (const item of bulkItems) {
-    await page.getByRole("checkbox", { name: `Sélectionner ${item.key}` }).click();
+    await page.getByRole("checkbox", { name: `Sélectionner ${item.key}`, exact: true }).click();
   }
   await page.getByRole("spinbutton", { name: "Estimation groupée" }).fill("4");
   await businessPost(page, () =>
@@ -1009,7 +1010,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
 
   await page.goto("/b/CASS?view=backlog");
   for (const item of [bulkTwo, bulkOne]) {
-    await page.getByRole("checkbox", { name: `Sélectionner ${item.key}` }).click();
+    await page.getByRole("checkbox", { name: `Sélectionner ${item.key}`, exact: true }).click();
   }
   await expect(page.getByText("2 items sélectionnés")).toBeVisible();
   await businessPost(page, async () => {
@@ -1024,12 +1025,12 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   await expect(measures.getByText("Périmètre actuel", { exact: true }).locator(".."))
     .toContainText("1 élément · 4 pts · 0 non estimé");
   const remainingSection = page.getByRole("region", { name: "Non terminés (1)" });
-  await expect(remainingSection).toContainText(boardItem.key);
-  await expect(remainingSection).not.toContainText(bulkTwo.key);
-  await expect(remainingSection).not.toContainText(bulkOne.key);
+  await expect(remainingSection).toContainText(keyPattern(boardItem.key));
+  await expect(remainingSection).not.toContainText(keyPattern(bulkTwo.key));
+  await expect(remainingSection).not.toContainText(keyPattern(bulkOne.key));
   const removedSection = page.getByRole("region", { name: "Retirés (2)" });
-  await expect(removedSection).toContainText(bulkTwo.key);
-  await expect(removedSection).toContainText(bulkOne.key);
+  await expect(removedSection).toContainText(keyPattern(bulkTwo.key));
+  await expect(removedSection).toContainText(keyPattern(bulkOne.key));
 
   await page.goto("/b/CASS?view=board");
   await dragBoardItemToStatus(page, boardItem.key, fixtures.context.doneName);
@@ -1039,7 +1040,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   measures = page.getByRole("region", { name: "Mesures du sprint" });
   await expect(measures.getByText("Terminés", { exact: true }).locator(".."))
     .toContainText("1 élément · 4 pts");
-  await expect(page.getByRole("region", { name: "Terminés (1)" })).toContainText(boardItem.key);
+  await expect(page.getByRole("region", { name: "Terminés (1)" })).toContainText(keyPattern(boardItem.key));
 
   await page.goto("/b/CASS?view=board");
   await dragBoardItemToStatus(page, boardItem.key, fixtures.context.todoName);
@@ -1049,7 +1050,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   measures = page.getByRole("region", { name: "Mesures du sprint" });
   await expect(measures.getByText("Terminés", { exact: true }).locator(".."))
     .toContainText("0 élément · 0 pt");
-  await expect(page.getByRole("region", { name: "Non terminés (1)" })).toContainText(boardItem.key);
+  await expect(page.getByRole("region", { name: "Non terminés (1)" })).toContainText(keyPattern(boardItem.key));
   await expectJournalOrder(journal, [
     `a ajouté ${bulkTwo.key}`,
     `a modifié ${bulkTwo.key}`,
@@ -1097,7 +1098,7 @@ audited(6, "relie bulk, Board et clôture UI au rapport", async ({ page, capture
   await expect(measures.getByText("Engagement", { exact: true }).locator(".."))
     .toContainText("1 élément · 6 pts · 0 non estimé");
   const carriedSection = page.getByRole("region", { name: "Reportés (1)" });
-  await expect(carriedSection).toContainText(carriedItem.key);
+  await expect(carriedSection).toContainText(keyPattern(carriedItem.key));
   await expect(carriedSection).toContainText("Reporté vers Sprint UI Destination");
   await expect(page.getByRole("region", { name: "Journal du sprint" }))
     .toContainText("a clôturé le sprint");
@@ -1260,7 +1261,7 @@ audited(8, "relie édition unitaire, bulk et Board au burndown, ordre par séque
 
   await auditedGoto(page, capture, "admin", "/b/CASS?view=backlog");
   for (const item of [bulkFirst, bulkSecond]) {
-    await page.getByRole("checkbox", { name: `Sélectionner ${item.key}` }).click();
+    await page.getByRole("checkbox", { name: `Sélectionner ${item.key}`, exact: true }).click();
   }
   await expect(page.getByText("2 items sélectionnés")).toBeVisible();
   await businessPost(page, async () => {

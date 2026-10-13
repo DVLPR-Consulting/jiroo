@@ -6,6 +6,7 @@ import { backlogs, items, releases, statuses } from "../lib/db/schema";
 import { itemBranchName } from "../lib/items/branch-name";
 import { createItem } from "../lib/services/items";
 import { chooseOption } from "./select-helpers";
+import { keyPattern } from "./key-helpers";
 
 // JIR-73: the item drawer laid out like Jira's work item view, and the
 // « Nouvel item » dialog styled as Jira's create screen.
@@ -73,8 +74,8 @@ test.describe("panneau de ticket façon Jira", () => {
     const dialog = await openItem(page, task.key);
 
     const breadcrumb = dialog.getByRole("navigation", { name: "Fil d’Ariane" });
-    await expect(breadcrumb.getByRole("link", { name: new RegExp(epic.key) })).toBeVisible();
-    await expect(breadcrumb).toContainText(task.key);
+    await expect(breadcrumb.getByRole("link", { name: keyPattern(epic.key) })).toBeVisible();
+    await expect(breadcrumb).toContainText(keyPattern(task.key));
     for (const name of ["Copier le lien", "Plus d’actions", "Item précédent (K)", "Item suivant (J)", "Fermer (Échap)"]) {
       await expect(dialog.getByRole("button", { name })).toBeVisible();
     }
@@ -85,7 +86,7 @@ test.describe("panneau de ticket façon Jira", () => {
     const children = dialog.getByRole("region", { name: "Sous-tâches" });
     // The shared Backlog row (JIR-93): the identity links, the status follows.
     const childRow = children.getByRole("listitem").filter({
-      has: page.getByRole("link", { name: new RegExp(child.key) }),
+      has: page.getByRole("link", { name: keyPattern(child.key) }),
     });
     await expect(childRow).toContainText("À faire");
     await expect(dialog.getByRole("region", { name: "Items liés" })).toBeVisible();
@@ -258,7 +259,7 @@ test.describe("fenêtre « Nouvel item »", () => {
     await expect(dialog.getByRole("textbox", { name: "Titre" })).toHaveValue("");
     await expect(dialog.getByRole("textbox", { name: "Titre" })).toBeFocused();
     await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText("Tâche");
-    await expect(dialog.getByRole("combobox", { name: /Parent/ })).toContainText(epic.key);
+    await expect(dialog.getByRole("combobox", { name: /Parent/ })).toContainText(keyPattern(epic.key));
 
     await dialog.getByRole("textbox", { name: "Titre" }).fill(`JIR-73 seconde ${RUN_ID}`);
     await dialog.getByRole("checkbox", { name: "Créer un autre" }).uncheck();
@@ -297,7 +298,7 @@ test.describe("fenêtre « Nouvel item »", () => {
 
     await dialog.getByRole("button", { name: "Créer une tâche", exact: true }).click();
     const create = page.getByRole("dialog", { name: "Nouvel item" });
-    await expect(create.getByRole("combobox", { name: /Parent/ })).toContainText(epic.key);
+    await expect(create.getByRole("combobox", { name: /Parent/ })).toContainText(keyPattern(epic.key));
     await create.getByRole("textbox", { name: "Titre" }).fill(`JIR-73 hors filtre ${RUN_ID}`);
     await create.getByRole("button", { name: "Créer", exact: true }).click();
     await expect(create).toHaveCount(0);
