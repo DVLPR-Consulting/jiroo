@@ -29,6 +29,7 @@ import {
   type ItemType,
 } from "@/lib/design/constants";
 import type { BulkItemPatch } from "@/lib/validation/bulk-item";
+import { estimatePointsSchema } from "@/lib/validation/item";
 import type {
   BulkItemCapabilities,
   ReleaseCapabilities,
@@ -112,12 +113,7 @@ export function BulkItemToolbar({
   const ids = selectedItems.map((item) => item.id).sort();
   const tasksOnly = selectedItems.every((item) => item.type === "tache");
   const estimate = estimateInput === "" ? null : Number(estimateInput);
-  const estimateValid =
-    estimate !== null &&
-    Number.isFinite(estimate) &&
-    estimate >= 0 &&
-    estimate <= 999.99 &&
-    Number.isInteger(estimate * 100);
+  const estimateValid = estimate !== null && estimatePointsSchema.safeParse(estimate).success;
 
   function applyPatch(patch: BulkItemPatch) {
     setMessage(null);

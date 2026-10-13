@@ -102,8 +102,15 @@ describe("updateItemSchema", () => {
       );
     }
   });
+  it("accepts two-decimal story points whose float product is not an integer (JIR-90)", () => {
+    for (const estimatePoints of [0.29, 1.15, 4.35, 8.2, 0.57, 2.01, 999.99]) {
+      expect(updateItemSchema.parse({ id: BID, estimatePoints }).estimatePoints).toBe(
+        estimatePoints,
+      );
+    }
+  });
   it("rejects negative, over-precision and oversized story points", () => {
-    for (const estimatePoints of [-1, 1.001, 1000, Number.NaN]) {
+    for (const estimatePoints of [-1, 1.001, 1.234, 0.299, 1000, 999.991, Number.NaN]) {
       expect(updateItemSchema.safeParse({ id: BID, estimatePoints }).success).toBe(false);
     }
   });

@@ -19,6 +19,8 @@ describe("bulkUpdateItemsSchema", () => {
       { field: "assigneeId", value: null },
       { field: "estimatePoints", value: 5 },
       { field: "estimatePoints", value: 0 },
+      { field: "estimatePoints", value: 0.29 },
+      { field: "estimatePoints", value: 4.35 },
       { field: "estimatePoints", value: null },
       { field: "sprintId", value: SPRINT_ID },
       { field: "sprintId", value: null },
