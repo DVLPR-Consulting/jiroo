@@ -71,6 +71,28 @@ describe("HelpPage", () => {
     expect(screen.getAllByText("Comment faire").length).toBeGreaterThan(15);
   });
 
+  it("opens the Tickets section with the first steps of a new backlog (JIR-88)", () => {
+    render(<HelpPage />);
+    const tickets = document.querySelector("section#tickets") as HTMLElement;
+    const topics = within(tickets).getAllByRole("heading", { level: 3 });
+    expect(topics[0]).toHaveTextContent("Démarrer dans un nouveau backlog");
+    const topic = topics[0]!.closest("div") as HTMLElement;
+    for (const label of [
+      "Commencez par créer un Composant (un domaine ou un produit)",
+      "Nouveau Composant",
+      "Créez une Epic dans un Composant",
+      "Nouvelle Epic",
+      "Nouvel item",
+      "Créer un item",
+      "Epic parent",
+      "Ce backlog est vide",
+      "Aucune Epic pour l’instant",
+    ]) {
+      expect(topic).toHaveTextContent(`« ${label} »`);
+    }
+    expect(topic).toHaveTextContent("une Tâche se rattache toujours à une Epic");
+  });
+
   it("documents the rich-text editor (JIR-66)", () => {
     render(<HelpPage />);
     const tickets = document.querySelector("section#tickets") as HTMLElement;

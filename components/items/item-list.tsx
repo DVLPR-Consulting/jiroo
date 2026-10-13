@@ -56,6 +56,8 @@ import {
   toggleItemSelection,
 } from "@/lib/items/selection";
 import { fixedTableMinWidth, LIST_COLUMNS, SELECTION_COLUMN } from "@/lib/items/table-layout";
+import type { HierarchyStartStep } from "@/lib/tree/hierarchy";
+import { ViewStartGuide } from "@/components/items/backlog-start-guide";
 
 type LabelChip = { id: string; name: string; color: string };
 type UserOption = { id: string; name: string };
@@ -322,6 +324,7 @@ export function ItemList({
   currentSort,
   filtersActive = false,
   hasItems,
+  startStep = null,
   clearFiltersHref,
   createDialogProps,
   canCreateItems: legacyCanCreateItems = true,
@@ -344,6 +347,11 @@ export function ItemList({
   currentSort: CurrentSort;
   filtersActive?: boolean;
   hasItems?: boolean;
+  /**
+   * The level the live, unfiltered backlog still needs before tasks
+   * (JIR-88); computed by the server, never from filtered rows.
+   */
+  startStep?: HierarchyStartStep | null;
   clearFiltersHref?: string;
   createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions">;
   canCreateItems?: boolean;
@@ -442,6 +450,19 @@ export function ItemList({
 
   if (total === 0) {
     const showNoResults = filtersActive && (hasItems ?? total > 0);
+    if (!showNoResults && startStep && createDialogProps) {
+      return (
+        <div className="grid flex-1 place-items-center p-10">
+          <ViewStartGuide
+            step={startStep}
+            backlogKey={backlogKey}
+            dialogProps={createDialogProps}
+            canCreateItems={canCreateItems}
+            variant="empty"
+          />
+        </div>
+      );
+    }
     return (
       <div className="grid flex-1 place-items-center p-10">
         <EmptyState
@@ -472,170 +493,182 @@ export function ItemList({
   }
 
   return (
-    <div
-      className="min-h-0 flex-1 overflow-auto"
-      onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
-    >
-      <div className="sticky left-0 flex justify-end border-b border-border bg-[var(--surface-1)] p-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="outline" size="sm" aria-label="Configurer les colonnes">
-              Colonnes
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuCheckboxItem
-              checked={showFixVersions}
-              onCheckedChange={(checked) => {
-                viewUrl.replace((params) => {
-                  if (checked) params.set("fvcol", "1");
-                  else params.delete("fvcol");
-                }, { scroll: false });
-              }}
-            >
-              Fix versions
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <table
-        className="w-full table-fixed border-separate border-spacing-0"
-        style={{
-          minWidth: fixedTableMinWidth([
-            ...(canSelectItems ? [SELECTION_COLUMN] : []),
-            ...Object.values(LIST_COLUMNS).filter(
-              (column) => showFixVersions || column !== LIST_COLUMNS.fixVersions,
-            ),
-          ]),
-        }}
-      >
-        <colgroup>
-          {canSelectItems ? <col className={SELECTION_COLUMN.className} /> : null}
-          <col className={LIST_COLUMNS.key.className} />
-          <col />
-          <col className={LIST_COLUMNS.status.className} />
-          <col className={LIST_COLUMNS.priority.className} />
-          <col className={LIST_COLUMNS.points.className} />
-          <col className={LIST_COLUMNS.labels.className} />
-          <col className={LIST_COLUMNS.dueDate.className} />
-          <col className={LIST_COLUMNS.assignee.className} />
-          {showFixVersions ? <col className={LIST_COLUMNS.fixVersions.className} /> : null}
-        </colgroup>
-        <thead className="sticky top-0 z-20">
-          <tr>
-            {canSelectItems ? (
-              <th scope="col" className={`${HEADER_CLASS} px-2 text-center`}>
-                <input
-                  ref={(node) => {
-                    if (node) node.indeterminate = partlySelected;
-                  }}
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={() =>
-                    setSelection(
-                      allSelected ? emptySelection() : selectAllVisible(visibleIds),
-                    )
-                  }
-                  aria-label="Sélectionner tous les items visibles"
-                  className="size-4 cursor-pointer accent-[var(--primary)]"
-                />
-              </th>
-            ) : null}
-            <SortableHeader field="key" currentSort={currentSort} onSort={sortBy}>
-              Clé
-            </SortableHeader>
-            <SortableHeader field="title" currentSort={currentSort} onSort={sortBy}>
-              Titre
-            </SortableHeader>
-            <SortableHeader field="status" currentSort={currentSort} onSort={sortBy}>
-              Statut
-            </SortableHeader>
-            <SortableHeader field="priority" currentSort={currentSort} onSort={sortBy}>
-              Prio
-            </SortableHeader>
-            <th scope="col" className={HEADER_CLASS}>Points</th>
-            <th scope="col" className={HEADER_CLASS}>Labels</th>
-            <SortableHeader field="dueDate" currentSort={currentSort} onSort={sortBy}>
-              Échéance
-            </SortableHeader>
-            <th scope="col" className={HEADER_CLASS}>Assigné</th>
-            {showFixVersions ? <th scope="col" className={HEADER_CLASS}>Fix versions</th> : null}
-          </tr>
-        </thead>
-        {groups.map((group) => {
-          const collapsed = grouped && collapsedGroups.has(group.key);
-          return (
-            <tbody key={group.key || "ungrouped"}>
-              {grouped && (
-                <tr>
-                  <th
-                    scope="rowgroup"
-                    colSpan={8 + (canSelectItems ? 1 : 0) + (showFixVersions ? 1 : 0)}
-                    className="sticky top-8 z-10 border-b border-border bg-[var(--surface-2)] px-3 py-1.5 text-left"
-                  >
-                    <button
-                      type="button"
-                      aria-expanded={!collapsed}
-                      onClick={() => toggleGroup(group.key)}
-                      className="flex w-full items-center gap-1.5 rounded text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-                    >
-                      <ChevronRight
-                        aria-hidden
-                        size={13}
-                        className="transition-transform"
-                        style={{ transform: collapsed ? "rotate(0deg)" : "rotate(90deg)" }}
-                      />
-                      <span>{group.label}</span>
-                      <span className="item-key ml-1">{group.items.length}</span>
-                    </button>
-                  </th>
-                </tr>
-              )}
-              {!collapsed &&
-                group.items.map((item) => (
-                  <ItemRow
-                    key={item.id}
-                    item={item}
-                    grouped={grouped}
-                    statuses={statuses}
-                    users={users}
-                    backlogKey={backlogKey}
-                    selectedKey={selectedKey}
-                    canSelectItems={canSelectItems}
-                    canEditItems={canEditItems}
-                    canTransitionItems={canTransitionItems}
-                    canAssignItems={canAssignItems}
-                    bulkSelected={selection.selectedIds.has(item.id)}
-                    onToggleSelection={toggleSelection}
-                    showFixVersions={showFixVersions}
-                  />
-                ))}
-            </tbody>
-          );
-        })}
-      </table>
-      {canSelectItems && selectedItems.length > 0 ? (
-        <BulkItemToolbar
-          backlogId={backlogId}
+    <>
+      {startStep && !filtersActive && createDialogProps ? (
+        <ViewStartGuide
+          step={startStep}
           backlogKey={backlogKey}
-          selectedItems={selectedItems.map((item) => ({
-            id: item.id,
-            type: item.type,
-          }))}
-          statuses={statuses}
-          users={users}
-          canEditItems={canEditItems}
-          canTransitionItems={canTransitionItems}
-          canAssignItems={canAssignItems}
-          canScheduleItems={false}
-          canBulkChangeItems={canBulkChangeItems}
-          capabilities={bulkCapabilities}
-          releaseOptions={releaseOptions}
-          releaseCapabilities={releaseCapabilities}
-          onClearSelection={() => setSelection(emptySelection())}
-          onMutationSuccess={() => router.refresh()}
+          dialogProps={createDialogProps}
+          canCreateItems={canCreateItems}
+          variant="callout"
+          className="mx-3 mt-3 flex-none sm:mx-4"
         />
       ) : null}
-    </div>
+      <div
+        className="min-h-0 flex-1 overflow-auto"
+        onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
+      >
+        <div className="sticky left-0 flex justify-end border-b border-border bg-[var(--surface-1)] p-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="sm" aria-label="Configurer les colonnes">
+                Colonnes
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuCheckboxItem
+                checked={showFixVersions}
+                onCheckedChange={(checked) => {
+                  viewUrl.replace((params) => {
+                    if (checked) params.set("fvcol", "1");
+                    else params.delete("fvcol");
+                  }, { scroll: false });
+                }}
+              >
+                Fix versions
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <table
+          className="w-full table-fixed border-separate border-spacing-0"
+          style={{
+            minWidth: fixedTableMinWidth([
+              ...(canSelectItems ? [SELECTION_COLUMN] : []),
+              ...Object.values(LIST_COLUMNS).filter(
+                (column) => showFixVersions || column !== LIST_COLUMNS.fixVersions,
+              ),
+            ]),
+          }}
+        >
+          <colgroup>
+            {canSelectItems ? <col className={SELECTION_COLUMN.className} /> : null}
+            <col className={LIST_COLUMNS.key.className} />
+            <col />
+            <col className={LIST_COLUMNS.status.className} />
+            <col className={LIST_COLUMNS.priority.className} />
+            <col className={LIST_COLUMNS.points.className} />
+            <col className={LIST_COLUMNS.labels.className} />
+            <col className={LIST_COLUMNS.dueDate.className} />
+            <col className={LIST_COLUMNS.assignee.className} />
+            {showFixVersions ? <col className={LIST_COLUMNS.fixVersions.className} /> : null}
+          </colgroup>
+          <thead className="sticky top-0 z-20">
+            <tr>
+              {canSelectItems ? (
+                <th scope="col" className={`${HEADER_CLASS} px-2 text-center`}>
+                  <input
+                    ref={(node) => {
+                      if (node) node.indeterminate = partlySelected;
+                    }}
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={() =>
+                      setSelection(
+                        allSelected ? emptySelection() : selectAllVisible(visibleIds),
+                      )
+                    }
+                    aria-label="Sélectionner tous les items visibles"
+                    className="size-4 cursor-pointer accent-[var(--primary)]"
+                  />
+                </th>
+              ) : null}
+              <SortableHeader field="key" currentSort={currentSort} onSort={sortBy}>
+                Clé
+              </SortableHeader>
+              <SortableHeader field="title" currentSort={currentSort} onSort={sortBy}>
+                Titre
+              </SortableHeader>
+              <SortableHeader field="status" currentSort={currentSort} onSort={sortBy}>
+                Statut
+              </SortableHeader>
+              <SortableHeader field="priority" currentSort={currentSort} onSort={sortBy}>
+                Prio
+              </SortableHeader>
+              <th scope="col" className={HEADER_CLASS}>Points</th>
+              <th scope="col" className={HEADER_CLASS}>Labels</th>
+              <SortableHeader field="dueDate" currentSort={currentSort} onSort={sortBy}>
+                Échéance
+              </SortableHeader>
+              <th scope="col" className={HEADER_CLASS}>Assigné</th>
+              {showFixVersions ? <th scope="col" className={HEADER_CLASS}>Fix versions</th> : null}
+            </tr>
+          </thead>
+          {groups.map((group) => {
+            const collapsed = grouped && collapsedGroups.has(group.key);
+            return (
+              <tbody key={group.key || "ungrouped"}>
+                {grouped && (
+                  <tr>
+                    <th
+                      scope="rowgroup"
+                      colSpan={8 + (canSelectItems ? 1 : 0) + (showFixVersions ? 1 : 0)}
+                      className="sticky top-8 z-10 border-b border-border bg-[var(--surface-2)] px-3 py-1.5 text-left"
+                    >
+                      <button
+                        type="button"
+                        aria-expanded={!collapsed}
+                        onClick={() => toggleGroup(group.key)}
+                        className="flex w-full items-center gap-1.5 rounded text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                      >
+                        <ChevronRight
+                          aria-hidden
+                          size={13}
+                          className="transition-transform"
+                          style={{ transform: collapsed ? "rotate(0deg)" : "rotate(90deg)" }}
+                        />
+                        <span>{group.label}</span>
+                        <span className="item-key ml-1">{group.items.length}</span>
+                      </button>
+                    </th>
+                  </tr>
+                )}
+                {!collapsed &&
+                  group.items.map((item) => (
+                    <ItemRow
+                      key={item.id}
+                      item={item}
+                      grouped={grouped}
+                      statuses={statuses}
+                      users={users}
+                      backlogKey={backlogKey}
+                      selectedKey={selectedKey}
+                      canSelectItems={canSelectItems}
+                      canEditItems={canEditItems}
+                      canTransitionItems={canTransitionItems}
+                      canAssignItems={canAssignItems}
+                      bulkSelected={selection.selectedIds.has(item.id)}
+                      onToggleSelection={toggleSelection}
+                      showFixVersions={showFixVersions}
+                    />
+                  ))}
+              </tbody>
+            );
+          })}
+        </table>
+        {canSelectItems && selectedItems.length > 0 ? (
+          <BulkItemToolbar
+            backlogId={backlogId}
+            backlogKey={backlogKey}
+            selectedItems={selectedItems.map((item) => ({
+              id: item.id,
+              type: item.type,
+            }))}
+            statuses={statuses}
+            users={users}
+            canEditItems={canEditItems}
+            canTransitionItems={canTransitionItems}
+            canAssignItems={canAssignItems}
+            canScheduleItems={false}
+            canBulkChangeItems={canBulkChangeItems}
+            capabilities={bulkCapabilities}
+            releaseOptions={releaseOptions}
+            releaseCapabilities={releaseCapabilities}
+            onClearSelection={() => setSelection(emptySelection())}
+            onMutationSuccess={() => router.refresh()}
+          />
+        ) : null}
+      </div>
+    </>
   );
 }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { allowedParentType, isValidParenting } from "@/lib/tree/hierarchy";
+import {
+  allowedParentType,
+  hierarchyStartStep,
+  isValidParenting,
+} from "@/lib/tree/hierarchy";
 
 describe("hierarchy rules", () => {
   it("maps each type to its required parent type", () => {
@@ -21,5 +25,24 @@ describe("hierarchy rules", () => {
     expect(isValidParenting("epic", null)).toBe(false);
     expect(isValidParenting("tache", "composant")).toBe(false);
     expect(isValidParenting("soustache", "epic")).toBe(false);
+  });
+});
+
+describe("hierarchyStartStep", () => {
+  it("asks for a composant first in an empty backlog", () => {
+    expect(hierarchyStartStep([])).toBe("composant");
+  });
+
+  it("asks for an epic once a composant exists", () => {
+    expect(hierarchyStartStep([{ type: "composant" }])).toBe("epic");
+  });
+
+  it("has nothing left to guide once an epic exists", () => {
+    expect(hierarchyStartStep([{ type: "composant" }, { type: "epic" }])).toBeNull();
+    expect(
+      hierarchyStartStep([{ type: "composant" }, { type: "epic" }, { type: "tache" }]),
+    ).toBeNull();
+    // Only the Epic matters to tasks, whatever else the list holds.
+    expect(hierarchyStartStep([{ type: "epic" }])).toBeNull();
   });
 });

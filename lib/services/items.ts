@@ -84,6 +84,19 @@ export function listItems(backlogId: string, options: { releaseIds?: string[] } 
     .orderBy(asc(items.depth), asc(binaryTextOrder(items.rank)), asc(items.key));
 }
 
+/**
+ * The item types the live backlog holds, whatever the view filters: what a
+ * view needs to tell a new backlog (and its missing hierarchy level) from an
+ * empty filtered result.
+ */
+export async function listLiveItemTypes(backlogId: string) {
+  const rows = await db
+    .selectDistinct({ type: items.type })
+    .from(items)
+    .where(and(eq(items.backlogId, backlogId), isNull(items.deletedAt)));
+  return rows.map((row) => row.type);
+}
+
 export function listItemsWithAncestors(backlogId: string, itemIds: string[]) {
   const uniqueItemIds = [...new Set(itemIds)];
   if (uniqueItemIds.length === 0) return Promise.resolve([]);

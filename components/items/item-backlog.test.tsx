@@ -5,6 +5,7 @@ import {
   ItemBacklog,
   type BacklogItem,
 } from "@/components/items/item-backlog";
+import { hierarchyStartStep } from "@/lib/tree/hierarchy";
 
 const mocks = vi.hoisted(() => ({
   bulkUpdateItemsAction: vi.fn(),
@@ -1046,5 +1047,194 @@ describe("ItemBacklog", () => {
       "href",
       "/b/DEMO?view=backlog",
     );
+  });
+});
+
+describe("ItemBacklog first steps (JIR-88)", () => {
+  const composant = { id: "comp-1", key: "DEMO-1", type: "composant" as const, title: "Portail" };
+  const firstEpic = { id: epicId, key: "DEMO-2", type: "epic" as const, title: "Connexion" };
+  const emptyMetrics = {
+    itemCount: 0,
+    estimatedPoints: 0,
+    completedPoints: 0,
+    remainingPoints: 0,
+    unestimatedCount: 0,
+    capacityPoints: null,
+    overCapacityPoints: 0,
+    velocityComparison: null,
+    commitmentBasis: null,
+  };
+
+  /** A new backlog: one empty planned sprint and an empty Backlog section. */
+  function newBacklogProps(
+    dialogItems: { id: string; key: string; type: "composant" | "epic"; title: string }[],
+    overrides: Partial<Extract<React.ComponentProps<typeof ItemBacklog>, { sections: unknown }>> = {},
+  ): React.ComponentProps<typeof ItemBacklog> {
+    const sprint = {
+      id: "sprint-1",
+      name: "Sprint 1",
+      goal: null,
+      state: "planned" as const,
+      rank: "a0",
+      capacityPoints: null,
+      plannedStartAt: null,
+      plannedEndAt: null,
+      startedAt: null,
+      completedAt: null,
+    };
+    return {
+      sections: [
+        { id: sprint.id, kind: "planned" as const, sprint, metrics: emptyMetrics, items: [], groups: [] },
+        { id: "backlog", kind: "backlog" as const, sprint: null, metrics: emptyMetrics, items: [], groups: [] },
+      ],
+      sprints: [sprint],
+      grouped: false,
+      statuses,
+      users,
+      backlogKey: "DEMO",
+      backlogId: "11111111-1111-4111-8111-111111111111",
+      manualOrder: true,
+      filtersActive: false,
+      hasItems: false,
+      // The server reads the live backlog; here the candidates are all of it.
+      startStep: hierarchyStartStep(dialogItems),
+      createDialogProps: {
+        items: dialogItems,
+        statuses: statuses.map(({ id, name }) => ({ id, name })),
+      },
+      canCreateItems: true,
+      canEditItems: true,
+      canTransitionItems: true,
+      canAssignItems: true,
+      canScheduleItems: true,
+      canManageSprints: true,
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    mocks.createItemAction.mockReset();
+  });
+
+  it("starts an empty backlog with a Composant in place of « Créer un item »", async () => {
+    const user = userEvent.setup();
+    render(<ItemBacklog {...newBacklogProps([])} />);
+
+    const backlog = screen.getByRole("region", { name: "Backlog" });
+    expect(
+      within(backlog).getByRole("note", {
+        name: "Commencez par créer un Composant (un domaine ou un produit)",
+      }),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Créer un item/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nouveau Composant (Sprint 1)" })).toBeVisible();
+
+    await user.click(within(backlog).getByRole("button", { name: "Nouveau Composant (Backlog)" }));
+    const dialog = screen.getByRole("dialog", { name: /Nouvel item/ });
+    expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Composant");
+  });
+
+  it("asks for an Epic under the only Composant before any task", async () => {
+    const user = userEvent.setup();
+    render(<ItemBacklog {...newBacklogProps([composant])} />);
+
+    const backlog = screen.getByRole("region", { name: "Backlog" });
+    expect(within(backlog).getByRole("note", { name: "Créez une Epic dans un Composant" })).toBeVisible();
+    expect(within(backlog).getByText("Pour créer un item, créez d’abord une Epic.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Créer un item/ })).not.toBeInTheDocument();
+
+    await user.click(within(backlog).getByRole("button", { name: "Nouvelle Epic (Backlog)" }));
+    const dialog = screen.getByRole("dialog", { name: /Nouvel item/ });
+    expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
+    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveTextContent(
+      "DEMO-1 — Portail",
+    );
+  });
+
+  it("brings back inline creation under the first Epic once it exists", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<ItemBacklog {...newBacklogProps([composant])} />);
+    rerender(<ItemBacklog {...newBacklogProps([composant, firstEpic])} />);
+
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Créer un item dans Backlog" }));
+    expect(screen.getByRole("combobox", { name: "Epic parent" })).toHaveTextContent(
+      "DEMO-2 — Connexion",
+    );
+  });
+
+  it("keeps « Créer un item » when filters hide the live backlog's Epics", () => {
+    // A Version filter can empty the candidates: the server's live step rules.
+    render(<ItemBacklog {...newBacklogProps([], { filtersActive: true, startStep: null })} />);
+
+    expect(screen.getByRole("button", { name: "Créer un item dans Backlog" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Nouveau Composant/ })).not.toBeInTheDocument();
+  });
+
+  it("points to the unfiltered view while filters hide the missing level's parents", () => {
+    // The live backlog lacks an Epic, but the filtered candidates hold no
+    // Composant: an Epic dialog could not be completed here.
+    render(
+      <ItemBacklog
+        {...newBacklogProps([], {
+          filtersActive: true,
+          startStep: "epic",
+          clearFiltersHref: "/b/DEMO?view=backlog",
+        })}
+      />,
+    );
+
+    const backlog = screen.getByRole("region", { name: "Backlog" });
+    expect(
+      within(backlog).getByText("Pour créer un item, il faut d’abord une Epic : effacez les filtres pour la créer."),
+    ).toBeVisible();
+    expect(within(backlog).getByRole("link", { name: "Effacer les filtres" })).toHaveAttribute(
+      "href",
+      "/b/DEMO?view=backlog",
+    );
+    expect(screen.queryByRole("button", { name: /Nouvelle Epic|Créer un item/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+  });
+
+  it("keeps the Composant button for a creator who may not schedule", () => {
+    const { unmount } = render(
+      <ItemBacklog
+        {...newBacklogProps([], {
+          canScheduleItems: false,
+          createDialogProps: { items: [], statuses: [], canScheduleItems: false },
+        })}
+      />,
+    );
+    const backlog = screen.getByRole("region", { name: "Backlog" });
+    expect(within(backlog).getByRole("button", { name: "Nouveau Composant" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Sprint 1\)/ })).not.toBeInTheDocument();
+    unmount();
+
+    // An Epic has a parent: without the scheduling right only the text remains.
+    render(
+      <ItemBacklog
+        {...newBacklogProps([composant], {
+          canScheduleItems: false,
+          createDialogProps: { items: [composant], statuses: [], canScheduleItems: false },
+        })}
+      />,
+    );
+    expect(screen.getByRole("note", { name: "Aucune Epic pour l’instant" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Nouvelle Epic/ })).not.toBeInTheDocument();
+  });
+
+  it("only states that the backlog is empty to a viewer", () => {
+    render(
+      <ItemBacklog
+        {...newBacklogProps([], {
+          canCreateItems: false,
+          canScheduleItems: false,
+          canManageSprints: false,
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("note", { name: "Ce backlog est vide" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Nouveau Composant/ })).not.toBeInTheDocument();
   });
 });

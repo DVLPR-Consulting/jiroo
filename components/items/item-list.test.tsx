@@ -201,13 +201,14 @@ describe("ItemList", () => {
     expect(screen.getByRole("button", { name: "Versions" })).toBeVisible();
   });
 
-  it("offers item creation when the list has no rows", async () => {
+  it("guides an empty backlog to its first Composant (JIR-88)", async () => {
     const user = userEvent.setup();
     renderList({
       ...listProps(),
       groups: [{ key: "", label: "", items: [] }],
       filtersActive: false,
       clearFiltersHref: "/b/DEMO?view=list",
+      startStep: "composant",
       createDialogProps: {
         backlogId: "backlog-id",
         items: [],
@@ -215,12 +216,63 @@ describe("ItemList", () => {
       },
     });
 
-    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeInTheDocument();
     expect(
-      screen.getByText("Créez votre premier item pour commencer à organiser ce backlog."),
+      screen.getByRole("heading", { name: "Commencez par créer un Composant (un domaine ou un produit)" }),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Aucun item" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nouveau Composant" }));
+    const dialog = screen.getByRole("dialog", { name: /Nouvel item/ });
+    expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Composant");
+  });
+
+  it("asks for an Epic above the rows while only Composants exist (JIR-88)", async () => {
+    const user = userEvent.setup();
+    const composants = [
+      { id: "comp-1", key: "DEMO-1", type: "composant" as const, title: "Portail" },
+      { id: "comp-2", key: "DEMO-2", type: "composant" as const, title: "Greffe" },
+    ];
+    renderList({
+      ...listProps(),
+      groups: [
+        {
+          key: "",
+          label: "",
+          items: composants.map((row) => item(row.id, row.key, row.title, { type: "composant" })),
+        },
+      ],
+      startStep: "epic",
+      createDialogProps: {
+        backlogId: "backlog-id",
+        items: composants,
+        statuses: [{ id: todoStatusId, name: "À faire" }],
+      },
+    });
+
+    const note = screen.getByRole("note", { name: "Créez une Epic dans un Composant" });
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    await user.click(within(note).getByRole("button", { name: "Nouvelle Epic" }));
+    const dialog = screen.getByRole("dialog", { name: /Nouvel item/ });
+    expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
+    // Two Composants: the parent is left to choose.
+    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveTextContent(
+      "Choisir un composant…",
+    );
+  });
+
+  it("only states the missing Epic to a viewer", () => {
+    renderList({
+      ...listProps(),
+      startStep: "epic",
+      createDialogProps: {
+        backlogId: "backlog-id",
+        items: [{ id: "comp-1", key: "DEMO-9", type: "composant", title: "Portail" }],
+        statuses: [{ id: todoStatusId, name: "À faire" }],
+      },
+      canCreateItems: false,
+    });
+
+    expect(screen.getByRole("note", { name: "Aucune Epic pour l’instant" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Nouvelle Epic" })).not.toBeInTheDocument();
   });
 
   it("offers a shareable filter reset when the list has no matches", () => {
@@ -248,6 +300,7 @@ describe("ItemList", () => {
       filtersActive: true,
       hasItems: false,
       clearFiltersHref: "/b/DEMO?view=list",
+      startStep: "composant",
       createDialogProps: {
         backlogId: "backlog-id",
         items: [],
@@ -255,9 +308,11 @@ describe("ItemList", () => {
       },
     });
 
-    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Commencez par créer un Composant (un domaine ou un produit)" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Effacer les filtres" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    await user.click(screen.getByRole("button", { name: "Nouveau Composant" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
@@ -501,6 +556,7 @@ describe("ItemList", () => {
     renderList({
       ...listProps(),
       groups: [{ key: "", label: "", items: [] }],
+      startStep: "composant",
       createDialogProps: {
         backlogId: "backlog-id",
         items: [],
@@ -512,7 +568,9 @@ describe("ItemList", () => {
       canAssignItems: false,
     });
 
-    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Ce backlog est vide" })).toBeVisible();
+    expect(screen.getByText("Aucun Composant n’y a encore été créé.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Nouveau Composant" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Nouvel item" })).not.toBeInTheDocument();
   });
 

@@ -235,6 +235,24 @@ export function HelpGuide() {
 
       <GuideSection id="tickets">
         <GuideTopic
+          title="Démarrer dans un nouveau backlog"
+          purpose="Savoir par où commencer quand le backlog est vide : une Tâche se rattache toujours à une Epic, elle-même rangée dans un Composant."
+          steps={[
+            <>Créez d’abord un Composant (un domaine ou un produit). Dans un backlog vide, les vues Backlog, Liste et Arbre affichent <Ui>Commencez par créer un Composant (un domaine ou un produit)</Ui> : cliquez sur <Ui>Nouveau Composant</Ui> (ou sur <Ui>+ Créer</Ui>, type <Ui>Composant</Ui>), saisissez le <Ui>Titre</Ui>, puis <Ui>Créer</Ui>.</>,
+            <>Créez ensuite une Epic dans ce Composant. Le message devient <Ui>Créez une Epic dans un Composant</Ui> : cliquez sur <Ui>Nouvelle Epic</Ui>. La fenêtre <Ui>Nouvel item</Ui> s’ouvre avec le type <Ui>Epic</Ui> ; s’il n’y a qu’un Composant, il est déjà choisi comme <Ui>Parent</Ui>.</>,
+            <>Ajoutez enfin vos tâches. Dans le Backlog, <Ui>Créer un item</Ui> revient en bas des sections, avec la première Epic proposée comme <Ui>Epic parent</Ui> ; ailleurs, utilisez <Ui>+ Créer</Ui> avec le type <Ui>Tâche</Ui>.</>,
+          ]}
+        >
+          <GuideNote>
+            Pourquoi cet ordre : la hiérarchie est fixe. Une Tâche a toujours une Epic pour parent, et une Epic un
+            Composant. Tant qu’aucune Epic n’existe, le Backlog remplace <Ui>Créer un item</Ui> par le bouton de
+            l’étape manquante ; sous des filtres actifs, il propose <Ui>Effacer les filtres</Ui> pour y accéder.
+            Créer une Epic demande le droit de planifier ; sans le droit nécessaire, les vues
+            indiquent seulement <Ui>Ce backlog est vide</Ui> ou <Ui>Aucune Epic pour l’instant</Ui>.
+          </GuideNote>
+        </GuideTopic>
+
+        <GuideTopic
           title="Créer un ticket"
           purpose="Ajouter un Composant, une Epic, une Tâche ou une Sous-tâche."
           steps={[

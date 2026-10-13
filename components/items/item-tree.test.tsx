@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { currentHref } from "@/test/history";
@@ -84,7 +84,7 @@ describe("ItemTree", () => {
     mocks.replace.mockReset();
   });
 
-  it("offers item creation when the tree has no rows", async () => {
+  it("guides an empty backlog to its first Composant (JIR-88)", async () => {
     const user = userEvent.setup();
     render(
       <ViewUrlStateProvider initialEntries={[["view", "tree"]]}>
@@ -96,6 +96,7 @@ describe("ItemTree", () => {
           moveItemAction={vi.fn()}
           filtersActive={false}
           clearFiltersHref="/b/DEMO?view=tree"
+          startStep="composant"
           createDialogProps={{
             backlogId: "backlog-id",
             items: [],
@@ -105,12 +106,74 @@ describe("ItemTree", () => {
       </ViewUrlStateProvider>,
     );
 
-    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeInTheDocument();
     expect(
-      screen.getByText("Créez votre premier item pour commencer à organiser ce backlog."),
+      screen.getByRole("heading", { name: "Commencez par créer un Composant (un domaine ou un produit)" }),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Aucun item" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nouveau Composant" }));
+    const dialog = screen.getByRole("dialog", { name: /Nouvel item/ });
+    expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Composant");
+  });
+
+  it("asks for an Epic above the tree while only Composants exist (JIR-88)", async () => {
+    const user = userEvent.setup();
+    const composant = {
+      ...item,
+      id: "comp-1",
+      key: "DEMO-1",
+      type: "composant" as const,
+      title: "Portail",
+      labels: [],
+    };
+    const dialogItems = [{ id: "comp-1", key: "DEMO-1", type: "composant" as const, title: "Portail" }];
+    const { rerender } = render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[composant]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          startStep="epic"
+          createDialogProps={{
+            backlogId: "backlog-id",
+            items: dialogItems,
+            statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
+          }}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    const note = screen.getByRole("note", { name: "Créez une Epic dans un Composant" });
+    expect(screen.getByRole("button", { name: "DEMO-1 — Portail" })).toBeVisible();
+    await user.click(within(note).getByRole("button", { name: "Nouvelle Epic" }));
+    const dialog = screen.getByRole("dialog", { name: /Nouvel item/ });
+    expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
+    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveTextContent(
+      "DEMO-1 — Portail",
+    );
+    await user.keyboard("{Escape}");
+
+    // Filtered rows are not the whole backlog: no guidance then.
+    rerender(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[composant]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          filtersActive
+          startStep="epic"
+          createDialogProps={{
+            backlogId: "backlog-id",
+            items: dialogItems,
+            statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
+          }}
+        />
+      </ViewUrlStateProvider>,
+    );
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
   });
 
   it("offers a shareable filter reset when the tree has no matches", () => {
@@ -150,6 +213,7 @@ describe("ItemTree", () => {
           filtersActive
           hasItems={false}
           clearFiltersHref="/b/DEMO?view=tree"
+          startStep="composant"
           createDialogProps={{
             backlogId: "backlog-id",
             items: [],
@@ -159,9 +223,11 @@ describe("ItemTree", () => {
       </ViewUrlStateProvider>,
     );
 
-    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Commencez par créer un Composant (un domaine ou un produit)" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Effacer les filtres" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    await user.click(screen.getByRole("button", { name: "Nouveau Composant" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
@@ -273,6 +339,7 @@ describe("ItemTree", () => {
           statuses={statuses}
           reparentItemAction={vi.fn()}
           moveItemAction={vi.fn()}
+          startStep="composant"
           createDialogProps={{
             backlogId: "backlog-id",
             items: [],
@@ -283,7 +350,8 @@ describe("ItemTree", () => {
         />
       </ViewUrlStateProvider>,
     );
-    expect(screen.getByRole("button", { name: "Nouvel item" })).toBeVisible();
+    // A Composant has no parent: the create right alone is enough.
+    expect(screen.getByRole("button", { name: "Nouveau Composant" })).toBeVisible();
   });
 
   it("does not offer creation to a viewer in an empty backlog", () => {
@@ -295,6 +363,7 @@ describe("ItemTree", () => {
           statuses={statuses}
           reparentItemAction={vi.fn()}
           moveItemAction={vi.fn()}
+          startStep="composant"
           createDialogProps={{
             backlogId: "backlog-id",
             items: [],
@@ -306,7 +375,9 @@ describe("ItemTree", () => {
       </ViewUrlStateProvider>,
     );
 
-    expect(screen.getByRole("heading", { name: "Aucun item" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Ce backlog est vide" })).toBeVisible();
+    expect(screen.getByText("Aucun Composant n’y a encore été créé.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Nouveau Composant" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Nouvel item" })).not.toBeInTheDocument();
   });
 });

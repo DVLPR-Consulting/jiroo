@@ -1,4 +1,5 @@
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -17,7 +18,9 @@ const mocks = vi.hoisted(() => ({
   listItemLabelPairs: vi.fn(),
   listItemsWithAncestors: vi.fn(),
   listItems: vi.fn(),
+  listLiveItemTypes: vi.fn(),
   listLabelsForBacklog: vi.fn(),
+  renderRealViews: { current: false },
   listAssignableUsersForBacklog: vi.fn(),
   listSprintsForBacklog: vi.fn(),
   listReleaseSummaries: vi.fn(),
@@ -35,6 +38,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({
   notFound: mocks.notFound,
+  usePathname: () => "/b/DEMO",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/lib/auth/session", () => ({
   requireAppPageSession: mocks.requireAppPageSession,
@@ -54,6 +60,7 @@ vi.mock("@/lib/services/items", () => ({
   listItemLabelPairs: mocks.listItemLabelPairs,
   listItemsWithAncestors: mocks.listItemsWithAncestors,
   listItems: mocks.listItems,
+  listLiveItemTypes: mocks.listLiveItemTypes,
   listLabelsForBacklog: mocks.listLabelsForBacklog,
   listUsers: mocks.listUsers,
   listUsersByIds: mocks.listUsersByIds,
@@ -80,13 +87,21 @@ vi.mock("@/lib/services/views", () => ({
 vi.mock("@/app/actions/items", () => ({
   moveItemAction: vi.fn(),
   reparentItemAction: vi.fn(),
+  rankBacklogItemAction: vi.fn(),
+  createItemAction: vi.fn(),
+  softDeleteItemAction: vi.fn(),
+  bulkUpdateItemsAction: vi.fn(),
+  updateItemAction: vi.fn(),
 }));
-vi.mock("@/components/items/item-backlog", () => ({
-  ItemBacklog: (props: unknown) => {
-    mocks.itemBacklogProps(props);
-    return null;
-  },
-}));
+vi.mock("@/components/items/item-backlog", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/items/item-backlog")>();
+  return {
+    ItemBacklog: (props: React.ComponentProps<typeof actual.ItemBacklog>) => {
+      mocks.itemBacklogProps(props);
+      return mocks.renderRealViews.current ? <actual.ItemBacklog {...props} /> : null;
+    },
+  };
+});
 vi.mock("@/components/items/item-board", () => ({
   ItemBoard: (props: unknown) => {
     mocks.itemBoardProps(props);
@@ -102,18 +117,25 @@ vi.mock("@/components/items/item-detail-sheet", () => ({
     return null;
   },
 }));
-vi.mock("@/components/items/item-list", () => ({
-  ItemList: (props: unknown) => {
-    mocks.itemListProps(props);
-    return null;
-  },
-}));
-vi.mock("@/components/items/item-tree", () => ({
-  ItemTree: (props: unknown) => {
-    mocks.itemTreeProps(props);
-    return null;
-  },
-}));
+// The Liste and Arbre probes can render the real views (JIR-88 regression).
+vi.mock("@/components/items/item-list", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/items/item-list")>();
+  return {
+    ItemList: (props: React.ComponentProps<typeof actual.ItemList>) => {
+      mocks.itemListProps(props);
+      return mocks.renderRealViews.current ? <actual.ItemList {...props} /> : null;
+    },
+  };
+});
+vi.mock("@/components/items/item-tree", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/items/item-tree")>();
+  return {
+    ItemTree: (props: React.ComponentProps<typeof actual.ItemTree>) => {
+      mocks.itemTreeProps(props);
+      return mocks.renderRealViews.current ? <actual.ItemTree {...props} /> : null;
+    },
+  };
+});
 vi.mock("@/components/shell/page-header", () => ({
   PageHeader: ({ title, actions }: { title?: React.ReactNode; actions?: React.ReactNode }) => (
     <header>
@@ -135,13 +157,20 @@ vi.mock("@/components/shell/view-actions", () => ({
     return null;
   },
 }));
-vi.mock("@/components/items/new-item-dialog", () => ({ NewItemButton: () => null }));
+vi.mock("@/components/items/new-item-dialog", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/items/new-item-dialog")>();
+  return {
+    NewItemButton: (props: React.ComponentProps<typeof actual.NewItemButton>) =>
+      mocks.renderRealViews.current ? <actual.NewItemButton {...props} /> : null,
+  };
+});
 vi.mock("@/components/shell/create-item-trigger", () => ({ TopbarCreateItem: () => null }));
 vi.mock("@/components/statuses/status-manager-dialog", () => ({
   StatusManagerDialog: () => null,
 }));
 
 import { BacklogViewContent } from "@/components/items/backlog-view-content";
+import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
 describe("BacklogViewContent read boundary", () => {
   beforeEach(() => {
@@ -150,7 +179,9 @@ describe("BacklogViewContent read boundary", () => {
     mocks.notFound.mockImplementation(() => {
       throw new Error("not-found");
     });
+    mocks.renderRealViews.current = false;
     mocks.listItems.mockResolvedValue([]);
+    mocks.listLiveItemTypes.mockResolvedValue([]);
     mocks.listItemsWithAncestors.mockResolvedValue([]);
     mocks.listItemFixVersionPairs.mockResolvedValue([]);
     mocks.listItemLabelPairs.mockResolvedValue([]);
@@ -842,6 +873,165 @@ describe("BacklogViewContent read boundary", () => {
         }),
       }),
     );
+  });
+
+  describe("first steps under a Version filter (JIR-88)", () => {
+    function liveRow(id: string, type: "composant" | "epic", parentPath = "root") {
+      return {
+        id,
+        backlogId: "backlog-1",
+        key: `DEMO-${id}`,
+        sequence: 1,
+        type,
+        kind: "feature",
+        title: id,
+        description: null,
+        statusId: "status-1",
+        priority: 2,
+        estimatePoints: null,
+        assigneeId: null,
+        reporterId: null,
+        parentId: null,
+        path: `${parentPath}.${id}`,
+        depth: 0,
+        dueDate: null,
+        rank: "a",
+        deletedAt: null,
+        createdAt: new Date("2026-08-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+      };
+    }
+
+    beforeEach(() => {
+      mocks.getBacklogByKeyForUser.mockResolvedValue({
+        id: "backlog-1",
+        key: "DEMO",
+        name: "Demo",
+        color: "#2563eb",
+        archivedAt: null,
+      });
+      mocks.getBacklogCapabilities.mockResolvedValue({
+        createItems: true,
+        editItems: true,
+        transitionItems: true,
+        scheduleItems: true,
+        assignItems: true,
+        manageSprints: false,
+        manageWorkflow: false,
+        manageMembers: false,
+        bulkChangeItems: false,
+      });
+      // The backlog has its hierarchy; the known version has no item yet.
+      const hierarchy = [liveRow("comp", "composant"), liveRow("epic", "epic", "root.comp")];
+      mocks.listItems.mockImplementation(async (_backlogId: string, options?: { releaseIds?: string[] }) =>
+        options?.releaseIds?.length ? [] : hierarchy,
+      );
+      mocks.listLiveItemTypes.mockResolvedValue(["composant", "epic"]);
+      mocks.listReleaseSummaries.mockResolvedValue([
+        { id: "release-empty", name: "2026.11", released: false, archived: false },
+      ]);
+    });
+
+    it.each(["list", "tree"])(
+      "shows « Aucun résultat » in the %s view, not the new-backlog guide",
+      async (view) => {
+        mocks.renderRealViews.current = true;
+        const page = await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view, version: "release-empty" }),
+        });
+        render(
+          <ViewUrlStateProvider initialEntries={[["view", view], ["version", "release-empty"]]}>
+            {page}
+          </ViewUrlStateProvider>,
+        );
+
+        expect(mocks.listLiveItemTypes).toHaveBeenCalledWith("backlog-1");
+        const probe = view === "list" ? mocks.itemListProps : mocks.itemTreeProps;
+        expect(probe).toHaveBeenCalledWith(
+          expect.objectContaining({ filtersActive: true, hasItems: true, startStep: null }),
+        );
+        expect(screen.getByRole("heading", { name: "Aucun résultat" })).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Effacer les filtres" })).toHaveAttribute(
+          "href",
+          `/b/DEMO?view=${view}`,
+        );
+        expect(screen.queryByText(/Commencez par créer un Composant/)).not.toBeInTheDocument();
+        expect(screen.queryByRole("note")).not.toBeInTheDocument();
+      },
+    );
+
+    it("hands the Backlog view the live step, not the filtered candidates'", async () => {
+      render(
+        await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view: "backlog", version: "release-empty" }),
+        }),
+      );
+
+      expect(mocks.itemBacklogProps).toHaveBeenCalledWith(
+        expect.objectContaining({ startStep: null, filtersActive: true }),
+      );
+    });
+
+    it("offers no dead-end Epic dialog in the Backlog view while the filter hides the Composant", async () => {
+      const user = userEvent.setup();
+      mocks.renderRealViews.current = true;
+      // A Composant and no Epic: the step is « epic », but the filtered
+      // candidates hold no parent for it.
+      mocks.listItems.mockImplementation(async (_backlogId: string, options?: { releaseIds?: string[] }) =>
+        options?.releaseIds?.length ? [] : [liveRow("comp", "composant")],
+      );
+      mocks.listLiveItemTypes.mockResolvedValue(["composant"]);
+      const page = await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "backlog", version: "release-empty" }),
+      });
+      render(
+        <ViewUrlStateProvider initialEntries={[["view", "backlog"], ["version", "release-empty"]]}>
+          {page}
+        </ViewUrlStateProvider>,
+      );
+
+      expect(mocks.itemBacklogProps).toHaveBeenCalledWith(
+        expect.objectContaining({ startStep: "epic", filtersActive: true }),
+      );
+      const backlog = screen.getByRole("region", { name: "Backlog" });
+      expect(screen.queryByRole("button", { name: /Nouvelle Epic/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Créer un item/ })).not.toBeInTheDocument();
+      const clear = within(backlog).getByRole("link", { name: "Effacer les filtres" });
+      expect(clear).toHaveAttribute("href", "/b/DEMO?view=backlog");
+
+      // Without the filter, the same step offers a completable Epic dialog.
+      cleanup();
+      const unfiltered = await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "backlog" }),
+      });
+      render(
+        <ViewUrlStateProvider initialEntries={[["view", "backlog"]]}>{unfiltered}</ViewUrlStateProvider>,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvelle Epic (Backlog)" }));
+      const dialog = screen.getByRole("dialog", { name: "Nouvel item" });
+      expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveTextContent("DEMO-comp — comp");
+      await user.type(within(dialog).getByRole("textbox", { name: /Titre/ }), "Dépôt en ligne");
+      expect(within(dialog).getByRole("button", { name: "Créer" })).toBeEnabled();
+    });
+
+    it("reads the step from the unfiltered rows without a Version filter", async () => {
+      mocks.listItems.mockResolvedValue([liveRow("comp", "composant")]);
+      render(
+        await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view: "list" }),
+        }),
+      );
+
+      expect(mocks.listLiveItemTypes).not.toHaveBeenCalled();
+      expect(mocks.itemListProps).toHaveBeenCalledWith(
+        expect.objectContaining({ startStep: "epic", hasItems: true }),
+      );
+    });
   });
 
   it("loads recent velocity and the active start commitment once for every sprint section", async () => {
