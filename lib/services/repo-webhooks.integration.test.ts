@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { itemRefs, repoConnections } from "@/lib/db/schema/domain";
 import type { DevRefCandidate } from "@/lib/repo-webhooks/events";
+import { addRef, listRefsForItem, removeRef } from "@/lib/services/refs";
 import { createRepoConnection, setRepoConnectionEnabled } from "@/lib/services/repo-connections";
 import {
   findWebhookConnection,
@@ -114,6 +115,21 @@ describeDb("repository webhook ingestion (JIR-95)", () => {
     expect(prRefs).toHaveLength(1);
     [ref] = prRefs;
     expect(ref).toMatchObject({ state: "merged", title: `${second.key} Login form` });
+  });
+
+  it("lists detected references next to manual links, and only lets manual links be removed", async () => {
+    const { second } = fixture.items;
+    const manual = await addRef({ itemId: second.id, url: "https://github.com/acme/api/pull/9" }, fixture.users.admin);
+    const listed = await listRefsForItem(second.id);
+    const detected = listed.find((ref) => ref.kind === "pr" && ref.provider === "github");
+    expect(detected).toMatchObject({ state: "merged", authorName: "alex-m", title: `${second.key} Login form` });
+    expect(listed.find((ref) => ref.id === manual.id)).toMatchObject({ provider: null, state: null });
+
+    await removeRef(detected!.id);
+    await removeRef(manual.id);
+    const remaining = (await listRefsForItem(second.id)).map((ref) => ref.id);
+    expect(remaining).toContain(detected!.id);
+    expect(remaining).not.toContain(manual.id);
   });
 
   it("throttles the recorded error of a failing connection", async () => {

@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X, GitFork, GitPullRequest, GitCommitHorizontal, GitBranch, GitPullRequestArrow, Link } from "lucide-react";
+import { ForgeIcon } from "@/components/icons/forge-icon";
 import { parseGithubRef } from "@/lib/items/github-ref";
+import {
+  groupDevRefs,
+  pullRequestNumber,
+  REF_STATE_LABELS,
+  refRepository,
+  shortCommitSha,
+  type DevRef,
+} from "@/lib/items/dev-refs";
 import { addRefAction, removeRefAction } from "@/app/actions/refs";
 import { toast } from "@/lib/toast";
 import type { RefKind } from "@/lib/items/github-ref";
@@ -29,6 +38,130 @@ function RefIcon({ kind }: { kind: RefKind | string }) {
   }
 }
 
+/** Commits shown before « Voir tout ». */
+export const COMMITS_SHOWN = 5;
+
+const refDateFmt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
+
+const STATE_STYLES = {
+  open: "bg-[var(--status-done-bg)] text-[var(--status-done)]",
+  merged: "bg-[var(--status-review-bg)] text-[var(--status-review)]",
+  closed: "bg-[var(--muted)] text-[var(--danger)]",
+} as const;
+
+function RefGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  const id = useId();
+  return (
+    <div role="group" aria-labelledby={id} className="flex flex-col gap-0.5">
+      <p id={id} className="px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <ul className="flex flex-col gap-0.5">{children}</ul>
+    </div>
+  );
+}
+
+function RefMeta({ refData }: { refData: DevRef }) {
+  const parts = [
+    refRepository(refData.url),
+    refData.authorName,
+    refData.occurredAt ? refDateFmt.format(new Date(refData.occurredAt)) : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? (
+    <span className="block truncate pl-[22px] text-[11px] text-muted-foreground">{parts.join(" · ")}</span>
+  ) : null;
+}
+
+function DetectedRef({ refData, icon, label }: { refData: DevRef; icon: React.ReactNode; label: React.ReactNode }) {
+  return (
+    <li className="rounded px-1 py-0.5 hover:bg-[var(--muted)]">
+      <div className="flex min-w-0 items-center gap-1.5">
+        {refData.provider && <ForgeIcon provider={refData.provider} className="text-muted-foreground" />}
+        <a
+          href={refData.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-foreground hover:underline"
+          title={refData.url}
+        >
+          {icon}
+          <span className="min-w-0 truncate">{label}</span>
+        </a>
+        {refData.state && (
+          <span className={`flex-none rounded-full px-1.5 py-px text-[10.5px] font-medium ${STATE_STYLES[refData.state]}`}>
+            {REF_STATE_LABELS[refData.state]}
+          </span>
+        )}
+      </div>
+      <RefMeta refData={refData} />
+    </li>
+  );
+}
+
+/** References detected from connected repositories (JIR-95), grouped like Jira. */
+function DetectedRefs({ refs }: { refs: DevRef[] }) {
+  const [showAllCommits, setShowAllCommits] = useState(false);
+  const { pullRequests, branches, commits } = groupDevRefs(refs);
+  const iconClass = "size-3.5 flex-none text-muted-foreground";
+  const providers = new Set(pullRequests.map((ref) => ref.provider));
+  const pullRequestLabel = providers.size === 1 && providers.has("gitlab")
+    ? "Merge requests"
+    : providers.has("gitlab") ? "Pull / merge requests" : "Pull requests";
+  const shownCommits = showAllCommits ? commits : commits.slice(0, COMMITS_SHOWN);
+  return (
+    <>
+      {pullRequests.length > 0 && (
+        <RefGroup label={pullRequestLabel}>
+          {pullRequests.map((ref) => (
+            <DetectedRef
+              key={ref.id}
+              refData={ref}
+              icon={<GitPullRequest className={iconClass} aria-hidden />}
+              label={<><span className="text-muted-foreground">{pullRequestNumber(ref)}</span> {ref.title}</>}
+            />
+          ))}
+        </RefGroup>
+      )}
+      {branches.length > 0 && (
+        <RefGroup label="Branches">
+          {branches.map((ref) => (
+            <DetectedRef
+              key={ref.id}
+              refData={ref}
+              icon={<GitBranch className={iconClass} aria-hidden />}
+              label={<span className="font-mono text-[11.5px]">{ref.title}</span>}
+            />
+          ))}
+        </RefGroup>
+      )}
+      {commits.length > 0 && (
+        <RefGroup label={`Commits (${commits.length})`}>
+          {shownCommits.map((ref) => (
+            <DetectedRef
+              key={ref.id}
+              refData={ref}
+              icon={<GitCommitHorizontal className={iconClass} aria-hidden />}
+              label={<><span className="font-mono text-[11.5px] text-muted-foreground">{shortCommitSha(ref.url)}</span> {ref.title}</>}
+            />
+          ))}
+          {commits.length > COMMITS_SHOWN && (
+            <li>
+              <button
+                type="button"
+                aria-expanded={showAllCommits}
+                onClick={() => setShowAllCommits((value) => !value)}
+                className="px-1 text-xs text-[var(--primary)] hover:underline"
+              >
+                {showAllCommits ? "Réduire" : `Voir tout (${commits.length})`}
+              </button>
+            </li>
+          )}
+        </RefGroup>
+      )}
+    </>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -41,11 +174,12 @@ export function DevRefsSection({
 }: {
   itemId: string;
   backlogKey: string;
-  refs: { id: string; url: string; kind: string; createdAt: Date | string }[];
+  refs: DevRef[];
   canLink?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const manualRefs = refs.filter((ref) => !ref.provider);
   const [url, setUrl] = useState("");
   // The URL form stays behind « Lier une PR ou un commit » until asked for.
   const [formOpen, setFormOpen] = useState(false);
@@ -102,14 +236,17 @@ export function DevRefsSection({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Existing refs list */}
+      {/* References detected from connected repositories (JIR-95) */}
+      {refs.length > manualRefs.length && <DetectedRefs refs={refs} />}
+
+      {/* Links added by hand */}
       {refs.length === 0 ? (
         canLink ? null : (
           <p className="text-xs text-muted-foreground">Aucun lien de développement.</p>
         )
-      ) : (
+      ) : manualRefs.length === 0 ? null : (
         <div className="flex flex-col gap-1">
-          {refs.map((ref) => {
+          {manualRefs.map((ref) => {
             const meta = parseGithubRef(ref.url);
             const label = meta?.label ?? ref.url;
             const kind = meta?.kind ?? "other";
