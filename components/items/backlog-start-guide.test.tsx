@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BacklogStartGuide,
+  InlineStartStep,
   StartStepButton,
   ViewStartGuide,
   canCreateStartStep,
@@ -195,5 +196,22 @@ describe("ViewStartGuide", () => {
 
     expect(screen.getByRole("note", { name: "Aucune Epic pour l’instant" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Nouvelle Epic" })).not.toBeInTheDocument();
+  });
+});
+
+describe("InlineStartStep", () => {
+  it("names the section of its button for screen readers", () => {
+    render(
+      <InlineStartStep
+        step="epic"
+        backlogId="backlog-id"
+        backlogKey="DEMO"
+        dialogProps={{ items: [composant], statuses }}
+        contextLabel="Sprint 1"
+      />,
+    );
+
+    expect(screen.getByText("Pour créer un item, créez d’abord une Epic.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Nouvelle Epic (Sprint 1)" })).toBeVisible();
   });
 });

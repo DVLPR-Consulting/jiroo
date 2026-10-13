@@ -210,3 +210,39 @@ export function ViewStartGuide({
     />
   );
 }
+
+/**
+ * Stands in for the Backlog's « Créer un item » while no Epic exists: the
+ * inline field creates a task, which could not be attached to anything.
+ */
+export function InlineStartStep({
+  step,
+  backlogId,
+  backlogKey,
+  dialogProps,
+  contextLabel,
+}: {
+  step: HierarchyStartStep;
+  backlogId: string;
+  backlogKey: string;
+  dialogProps: StartStepDialogProps;
+  contextLabel: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 sm:px-3.5">
+      <p className="min-w-0 flex-1 basis-48 text-[13.5px] text-muted-foreground">
+        {step === "composant"
+          ? "Pour créer un item, commencez par un Composant, puis une Epic."
+          : "Pour créer un item, créez d’abord une Epic."}
+      </p>
+      <StartStepButton
+        step={step}
+        backlogId={backlogId}
+        backlogKey={backlogKey}
+        dialogProps={dialogProps}
+        contextLabel={contextLabel}
+        variant="outline"
+      />
+    </div>
+  );
+}

@@ -42,6 +42,13 @@ import {
   InlineStatus,
 } from "@/components/items/inline-item-field";
 import { InlineCreateItem } from "@/components/items/inline-create-item";
+import {
+  BacklogStartGuide,
+  InlineStartStep,
+  StartStepButton,
+  canCreateStartStep,
+} from "@/components/items/backlog-start-guide";
+import { hierarchyStartStep } from "@/lib/tree/hierarchy";
 import { type NewItemButtonProps } from "@/components/items/new-item-dialog";
 import { CreateSprintButton } from "@/components/sprints/sprint-form-dialog";
 import {
@@ -893,6 +900,7 @@ function SprintItemBacklog({
   backlogKey,
   backlogId,
   selectedKey,
+  filtersActive = false,
   canCreateItems: legacyCanCreateItems = true,
   canEditItems: legacyCanEditItems = true,
   canTransitionItems: legacyCanTransitionItems = true,
@@ -947,10 +955,12 @@ function SprintItemBacklog({
         .map(({ id, key, title }) => ({ id, key, title })),
     [createDialogProps?.items],
   );
-  // Inline creation remembers the last epic used, across sections.
-  const [createParentId, setCreateParentId] = useState(() =>
-    epics.length === 1 ? epics[0]!.id : "",
-  );
+  // Inline creation remembers the last epic used, across sections; the only
+  // epic stands in until one is picked (e.g. the first one just created).
+  const [pickedParentId, setCreateParentId] = useState("");
+  const createParentId = pickedParentId || (epics.length === 1 ? epics[0]!.id : "");
+  // A new backlog says where to start: Composant, then Epic (JIR-88).
+  const startStep = createDialogProps ? hierarchyStartStep(createDialogProps.items) : null;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -1355,13 +1365,41 @@ function SprintItemBacklog({
                         Glissez des items du backlog ici pour planifier le sprint
                       </div>
                     </div>
+                  ) : startStep && !filtersActive && createDialogProps ? (
+                    <BacklogStartGuide
+                      step={startStep}
+                      canCreate={canCreateStartStep(startStep, canCreateItems, createDialogProps)}
+                      variant="callout"
+                      className="m-3 sm:m-3.5"
+                      // With the scheduling right, the button sits in place of
+                      // « Créer un item » just below.
+                      action={canCreateInSection ? null : (
+                        <StartStepButton
+                          step={startStep}
+                          backlogId={backlogId}
+                          backlogKey={backlogKey}
+                          dialogProps={createDialogProps}
+                          variant="outline"
+                        />
+                      )}
+                    />
                   ) : (
                     <p className="px-4 py-5 text-sm text-muted-foreground">
                       Aucune tâche dans cette section.
                     </p>
                   )
                 ) : null}
-                {sectionExpanded && canCreateInSection ? (
+                {sectionExpanded && canCreateInSection && startStep && createDialogProps ? (
+                  <div className={section.items.length > 0 ? "border-t border-border" : undefined}>
+                    <InlineStartStep
+                      step={startStep}
+                      backlogId={backlogId}
+                      backlogKey={backlogKey}
+                      dialogProps={createDialogProps}
+                      contextLabel={section.sprint?.name ?? "Backlog"}
+                    />
+                  </div>
+                ) : sectionExpanded && canCreateInSection ? (
                   <div className={section.items.length > 0 ? "border-t border-border" : undefined}>
                     <InlineCreateItem
                       backlogId={backlogId}
