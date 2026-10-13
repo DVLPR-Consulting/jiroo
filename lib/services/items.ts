@@ -40,6 +40,7 @@ export function listTrashedItems(userId: string) {
       id: items.id,
       key: items.key,
       type: items.type,
+      kind: items.kind,
       title: items.title,
       backlogId: backlogs.id,
       backlogKey: backlogs.key,
@@ -48,6 +49,7 @@ export function listTrashedItems(userId: string) {
       statusId: items.statusId,
       statusName: statuses.name,
       statusColor: statuses.color,
+      statusCategory: statuses.category,
       deletedAt: items.deletedAt,
     })
     .from(items)

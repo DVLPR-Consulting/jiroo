@@ -6,7 +6,7 @@ import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
 import { backlogs, items } from "../lib/db/schema/domain";
 import { createLabel } from "../lib/services/labels";
-import { createItem } from "../lib/services/items";
+import { createItem, softDeleteItem } from "../lib/services/items";
 
 /**
  * JIR-93: every list display shows the Backlog row. The Liste adds a header
@@ -97,4 +97,23 @@ test("montre Mes items en lignes du Backlog qui ouvrent l’item", async ({ page
   await row.getByRole("link", { name: new RegExp(mine.key) }).click();
   await expect(page).toHaveURL(new RegExp(`/b/CASS\\?item=${mine.key}$`));
   await expect(page.getByRole("dialog", { name: new RegExp(`^${mine.key} —`) })).toBeVisible();
+});
+
+test("restaure un item depuis sa ligne de la Corbeille", async ({ page }) => {
+  const { actorId } = await context();
+  const doomed = await task(`JIR-93 corbeille ${RUN}`, { kind: "bug" });
+  await softDeleteItem({ id: doomed.id }, actorId);
+
+  await page.goto("/trash");
+  const row = page.getByRole("listitem").filter({ hasText: doomed.title });
+  await expect(row.getByText(doomed.key, { exact: true })).toBeVisible();
+  await expect(row.getByText("Bug")).toBeVisible();
+  await expect(row.getByText("supprimé aujourd'hui")).toBeVisible();
+  await expect(row.getByRole("link")).toHaveCount(0);
+  await row.getByRole("button", { name: "Restaurer" }).click();
+  await expect(page.getByText("Item restauré.")).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: doomed.title })).toHaveCount(0);
+
+  await page.goto(`/b/CASS?view=list&q=${encodeURIComponent(doomed.title)}`);
+  await expect(page.getByRole("row", { name: `${doomed.key} — ${doomed.title}` })).toBeVisible();
 });
