@@ -93,7 +93,7 @@ type ChildItem = { id: string; key: string; title: string; type: ItemType; statu
 /** Data the « Nouvel item » dialog needs, shared with the views. */
 export type DetailCreateDialog = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions"
+  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "backlogItemTypes"
 >;
 
 /** The hierarchy one level down (lib/tree/hierarchy.ts), with Jira-like wording. */

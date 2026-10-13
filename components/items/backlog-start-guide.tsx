@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 /** The dialog data a start-step button needs (the view's « Nouvel item » data). */
 export type StartStepDialogProps = Pick<
   NewItemButtonProps,
-  "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions"
+  "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "backlogItemTypes"
 >;
 
 const STEP_COPY: Record<
