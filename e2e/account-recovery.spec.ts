@@ -1,5 +1,6 @@
 import "dotenv/config";
 
+import { readFile } from "node:fs/promises";
 import {
   expect,
   request,
@@ -66,8 +67,11 @@ async function sessionIsActive(api: APIRequestContext): Promise<boolean> {
   return Boolean(body?.session);
 }
 
-async function newAnonymousPage(browser: Browser): Promise<Page> {
-  const context = await browser.newContext({ storageState: EMPTY_STATE });
+async function newAnonymousPage(
+  browser: Browser,
+  options: { permissions?: string[] } = {},
+): Promise<Page> {
+  const context = await browser.newContext({ storageState: EMPTY_STATE, ...options });
   return context.newPage();
 }
 
@@ -163,7 +167,9 @@ test.describe("account recovery", () => {
     expect(await sessionIsActive(target.api)).toBe(false);
     expect(await db.select().from(twoFactor).where(eq(twoFactor.userId, target.id))).toHaveLength(0);
 
-    const userPage = await newAnonymousPage(browser);
+    const userPage = await newAnonymousPage(browser, {
+      permissions: ["clipboard-read", "clipboard-write"],
+    });
     await submitLogin(userPage, target.email, ORIGINAL_PASSWORD);
     await expect(userPage).toHaveURL(/\/2fa\/enroll$/u);
     // The application stays closed until enrollment completes.
@@ -177,9 +183,42 @@ test.describe("account recovery", () => {
     const newSecret = (await manualKey.textContent())?.trim() ?? "";
     expect(newSecret).not.toBe("");
     expect(newSecret).not.toBe(target.secret);
-    await userPage.getByLabel("J'ai enregistré mes codes de récupération").check();
+
+    // JIR-86: the codes can be copied and downloaded, entirely client-side.
+    const codesGroup = userPage.getByRole("group", { name: "Codes de récupération — conservez-les" });
+    const shownCodes = (await codesGroup.locator(".item-key").allTextContents()).map((c) => c.trim());
+    expect(shownCodes).toHaveLength(10);
+    await userPage.getByRole("button", { name: "Copier les codes" }).click();
+    await expect(userPage.getByRole("status")).toHaveText("Codes copiés.");
+    expect(await userPage.evaluate(() => navigator.clipboard.readText())).toBe(shownCodes.join("\n"));
+
+    const downloadEvent = userPage.waitForEvent("download");
+    await userPage.getByRole("button", { name: "Télécharger (.txt)" }).click();
+    const download = await downloadEvent;
+    expect(download.suggestedFilename()).toMatch(/^jiroo-codes-recuperation-\d{4}-\d{2}-\d{2}\.txt$/u);
+    const fileText = await readFile(await download.path(), "utf8");
+    expect(fileText).toContain(`Compte : ${target.email}\r\n`);
+    expect(fileText).toMatch(/Générés le : \d{2}\/\d{2}\/\d{4}\r\n/u);
+    expect(fileText).toContain(`${shownCodes.join("\r\n")}\r\n`);
+    await expect(userPage.getByRole("status")).toHaveText(
+      `Fichier ${download.suggestedFilename()} téléchargé.`,
+    );
+
+    // The acknowledgement is required: activating without it explains why.
+    const acknowledgement = userPage.getByLabel("J'ai enregistré mes codes de récupération");
     await typeOtp(userPage, newSecret);
-    await userPage.getByRole("button", { name: "Activer et continuer" }).click();
+    const activate = userPage.getByRole("button", { name: "Activer et continuer" });
+    await activate.click();
+    await expect(acknowledgement).toBeFocused();
+    await expect(acknowledgement).toHaveAttribute("aria-invalid", "true");
+    await expect(acknowledgement).toHaveAccessibleDescription(
+      "Cochez cette case après avoir enregistré vos codes de récupération.",
+    );
+    await expect(userPage).toHaveURL(/\/2fa\/enroll$/u);
+
+    await acknowledgement.check();
+    await expect(acknowledgement).not.toHaveAttribute("aria-invalid");
+    await activate.click();
     await expect(userPage).not.toHaveURL(/\/(login|2fa)/u);
     await expect(userPage.getByRole("button", { name: `Profil de ${target.name}` })).toBeVisible();
 

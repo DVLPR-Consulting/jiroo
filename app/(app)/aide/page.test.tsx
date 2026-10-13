@@ -82,6 +82,23 @@ describe("HelpPage", () => {
     expect(topic).toHaveTextContent("Markdown brut");
   });
 
+  it("documents saving the 2FA recovery codes (JIR-86)", () => {
+    render(<HelpPage />);
+    const start = document.querySelector("section#demarrer") as HTMLElement;
+    const topic = within(start)
+      .getByRole("heading", { level: 3, name: "Configurer la double authentification (premier login)" })
+      .closest("article, div, section") as HTMLElement;
+    for (const label of [
+      "Copier les codes",
+      "Télécharger (.txt)",
+      "J'ai enregistré mes codes de récupération",
+      "Activer et continuer",
+    ]) {
+      expect(topic).toHaveTextContent(label);
+    }
+    expect(topic).toHaveTextContent("Ne partagez ni ces codes ni la clé manuelle");
+  });
+
   it("documents the in-place description (JIR-71)", () => {
     render(<HelpPage />);
     const tickets = document.querySelector("section#tickets") as HTMLElement;
