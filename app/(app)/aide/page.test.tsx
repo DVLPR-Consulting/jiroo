@@ -160,6 +160,14 @@ describe("HelpPage", () => {
     expect(rights).toHaveTextContent("« Responsable »");
   });
 
+  it("documents the Board columns shown without an active sprint (JIR-89)", () => {
+    render(<HelpPage />);
+    const views = document.querySelector("section#vues") as HTMLElement;
+    expect(views).toHaveTextContent(
+      "Sans sprint actif, le bandeau « Aucun sprint actif » et son lien « Voir le Backlog » surmontent les colonnes, vides et sans glisser-déposer.",
+    );
+  });
+
   it("documents the Sprint filter and where completed sprints go (JIR-81)", () => {
     render(<HelpPage />);
     const views = document.querySelector("section#vues") as HTMLElement;
