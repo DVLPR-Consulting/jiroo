@@ -10,19 +10,23 @@ const PATHS = {
 
 export const FORGE_LABELS = { github: "GitHub", gitlab: "GitLab" } as const;
 
-/** GitHub or GitLab mark, named for assistive technology. */
+/** GitHub or GitLab mark, named for assistive technology unless decorative. */
 export function ForgeIcon({
   provider,
   className,
+  decorative = false,
 }: {
   provider: keyof typeof PATHS;
   className?: string;
+  /** Next to the forge's name already: hidden from assistive technology. */
+  decorative?: boolean;
 }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      role="img"
-      aria-label={FORGE_LABELS[provider]}
+      {...(decorative
+        ? { "aria-hidden": true }
+        : { role: "img", "aria-label": FORGE_LABELS[provider] })}
       className={cn("size-3.5 flex-none fill-current", className)}
     >
       <path d={PATHS[provider]} />

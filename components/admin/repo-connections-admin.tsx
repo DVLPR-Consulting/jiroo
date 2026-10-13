@@ -251,7 +251,7 @@ export function RepoConnectionsAdmin({
             return (
               <li key={connection.id} aria-label={name} className="space-y-2 px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <ForgeIcon provider={connection.provider} className="size-4" />
+                  <ForgeIcon provider={connection.provider} className="size-4" decorative />
                   <span className="min-w-0 break-all font-medium">{connection.repositoryPath}</span>
                   {host !== "github.com" && host !== "gitlab.com" && (
                     <span className="text-xs text-muted-foreground">{host}</span>
@@ -323,7 +323,7 @@ export function RepoConnectionsAdmin({
                       checked={provider === value}
                       onChange={() => setProvider(value)}
                     />
-                    <ForgeIcon provider={value} className="size-4" />
+                    <ForgeIcon provider={value} className="size-4" decorative />
                     {FORGE_LABELS[value]}
                   </label>
                 ))}
