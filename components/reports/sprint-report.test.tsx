@@ -1,6 +1,11 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { SprintReportView, type SerializableSprintReport } from "@/components/reports/sprint-report";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
+}));
+vi.mock("@/app/actions/items", () => ({ updateItemAction: vi.fn() }));
 
 const base = {
   statusLabel: "Données en cours" as const,
@@ -85,6 +90,11 @@ describe("SprintReportView", () => {
       "/b/CASS?item=CASS-42",
     );
     expect(completed).toHaveTextContent("5 → 8 pts");
+    // The Backlog row (JIR-93): status by category, points in the bubble.
+    const row = within(completed).getByRole("listitem");
+    expect(within(row).getByText("Terminé")).toBeVisible();
+    expect(within(row).getByTitle("Points")).toHaveTextContent("8 pts");
+    expect(row).not.toHaveTextContent("feature");
     expect(screen.getByRole("navigation", { name: "Pagination des éléments" })
       .querySelector('a[href*="eventPage=1"]')).not.toBeNull();
   });
