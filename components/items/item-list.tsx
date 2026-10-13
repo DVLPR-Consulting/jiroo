@@ -490,7 +490,7 @@ export function ItemList({
           <div
             role="group"
             aria-label="Trier la liste"
-            className="flex flex-wrap items-center gap-x-1 gap-y-0.5"
+            className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 gap-y-0.5"
           >
             <span aria-hidden className="mr-0.5 text-xs text-muted-foreground">
               Trier :
