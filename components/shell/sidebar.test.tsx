@@ -5,14 +5,14 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { SidebarStateProvider } from "@/components/shell/sidebar-state";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
-const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), pathname: "/b/CASS" }));
 
 // The user card's password dialog imports a Server Action module.
 vi.mock("@/app/actions/account", () => ({ changeOwnPasswordAction: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ key: "CASS" }),
-  usePathname: () => "/b/CASS",
+  usePathname: () => mocks.pathname,
   useRouter: () => ({ push: mocks.push, replace: mocks.replace, refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams("view=board"),
 }));
@@ -70,6 +70,7 @@ describe("Sidebar", () => {
     document.documentElement.dataset.sidebar = "open";
     mocks.push.mockReset();
     mocks.replace.mockReset();
+    mocks.pathname = "/b/CASS";
   });
 
   afterEach(() => {
@@ -169,6 +170,31 @@ describe("Sidebar", () => {
       "href",
       "/b/CASS/reports",
     );
+  });
+
+  it("follows the backlog of an access page, not the first backlog (JIR-85)", () => {
+    mocks.pathname = "/b/PEN/settings/access";
+    render(
+      <SidebarStateProvider>
+        <ViewUrlStateProvider initialEntries={[]}>
+          <Sidebar
+            {...props}
+            backlogs={[
+              ...props.backlogs,
+              { id: "backlog-2", key: "PEN", name: "Pôle pénal", color: "#dc2626" },
+            ]}
+          />
+        </ViewUrlStateProvider>
+      </SidebarStateProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Backlog PEN — Pôle pénal" })).toBeVisible();
+    const nav = screen.getByRole("navigation", { name: "Vues du projet" });
+    expect(within(nav).getByRole("link", { name: "Releases" })).toHaveAttribute(
+      "href",
+      "/b/PEN/releases",
+    );
+    expect(within(nav).queryByRole("link", { current: "page" })).not.toBeInTheDocument();
   });
 
   it("switches item views through the shared URL authority", () => {
