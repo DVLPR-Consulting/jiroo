@@ -44,6 +44,7 @@ import {
 import { InlineCreateItem } from "@/components/items/inline-create-item";
 import {
   BacklogStartGuide,
+  FilteredStartStep,
   InlineStartStep,
   StartStepButton,
   canCreateStartStep,
@@ -906,6 +907,7 @@ function SprintItemBacklog({
   backlogId,
   selectedKey,
   filtersActive = false,
+  clearFiltersHref,
   startStep = null,
   canCreateItems: legacyCanCreateItems = true,
   canEditItems: legacyCanEditItems = true,
@@ -1393,7 +1395,11 @@ function SprintItemBacklog({
                     </p>
                   )
                 ) : null}
-                {sectionExpanded && canCreateInSection && startStep && createDialogProps ? (
+                {sectionExpanded && canCreateInSection && startStep && filtersActive ? (
+                  <div className={section.items.length > 0 ? "border-t border-border" : undefined}>
+                    <FilteredStartStep step={startStep} clearFiltersHref={clearFiltersHref} />
+                  </div>
+                ) : sectionExpanded && canCreateInSection && startStep && createDialogProps ? (
                   <div className={section.items.length > 0 ? "border-t border-border" : undefined}>
                     <InlineStartStep
                       step={startStep}

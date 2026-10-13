@@ -1,4 +1,5 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -86,13 +87,21 @@ vi.mock("@/lib/services/views", () => ({
 vi.mock("@/app/actions/items", () => ({
   moveItemAction: vi.fn(),
   reparentItemAction: vi.fn(),
+  rankBacklogItemAction: vi.fn(),
+  createItemAction: vi.fn(),
+  softDeleteItemAction: vi.fn(),
+  bulkUpdateItemsAction: vi.fn(),
+  updateItemAction: vi.fn(),
 }));
-vi.mock("@/components/items/item-backlog", () => ({
-  ItemBacklog: (props: unknown) => {
-    mocks.itemBacklogProps(props);
-    return null;
-  },
-}));
+vi.mock("@/components/items/item-backlog", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/items/item-backlog")>();
+  return {
+    ItemBacklog: (props: React.ComponentProps<typeof actual.ItemBacklog>) => {
+      mocks.itemBacklogProps(props);
+      return mocks.renderRealViews.current ? <actual.ItemBacklog {...props} /> : null;
+    },
+  };
+});
 vi.mock("@/components/items/item-board", () => ({
   ItemBoard: (props: unknown) => {
     mocks.itemBoardProps(props);
@@ -148,7 +157,13 @@ vi.mock("@/components/shell/view-actions", () => ({
     return null;
   },
 }));
-vi.mock("@/components/items/new-item-dialog", () => ({ NewItemButton: () => null }));
+vi.mock("@/components/items/new-item-dialog", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/items/new-item-dialog")>();
+  return {
+    NewItemButton: (props: React.ComponentProps<typeof actual.NewItemButton>) =>
+      mocks.renderRealViews.current ? <actual.NewItemButton {...props} /> : null,
+  };
+});
 vi.mock("@/components/shell/create-item-trigger", () => ({ TopbarCreateItem: () => null }));
 vi.mock("@/components/statuses/status-manager-dialog", () => ({
   StatusManagerDialog: () => null,
@@ -957,6 +972,50 @@ describe("BacklogViewContent read boundary", () => {
       expect(mocks.itemBacklogProps).toHaveBeenCalledWith(
         expect.objectContaining({ startStep: null, filtersActive: true }),
       );
+    });
+
+    it("offers no dead-end Epic dialog in the Backlog view while the filter hides the Composant", async () => {
+      const user = userEvent.setup();
+      mocks.renderRealViews.current = true;
+      // A Composant and no Epic: the step is « epic », but the filtered
+      // candidates hold no parent for it.
+      mocks.listItems.mockImplementation(async (_backlogId: string, options?: { releaseIds?: string[] }) =>
+        options?.releaseIds?.length ? [] : [liveRow("comp", "composant")],
+      );
+      mocks.listLiveItemTypes.mockResolvedValue(["composant"]);
+      const page = await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "backlog", version: "release-empty" }),
+      });
+      render(
+        <ViewUrlStateProvider initialEntries={[["view", "backlog"], ["version", "release-empty"]]}>
+          {page}
+        </ViewUrlStateProvider>,
+      );
+
+      expect(mocks.itemBacklogProps).toHaveBeenCalledWith(
+        expect.objectContaining({ startStep: "epic", filtersActive: true }),
+      );
+      const backlog = screen.getByRole("region", { name: "Backlog" });
+      expect(screen.queryByRole("button", { name: /Nouvelle Epic/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Créer un item/ })).not.toBeInTheDocument();
+      const clear = within(backlog).getByRole("link", { name: "Effacer les filtres" });
+      expect(clear).toHaveAttribute("href", "/b/DEMO?view=backlog");
+
+      // Without the filter, the same step offers a completable Epic dialog.
+      cleanup();
+      const unfiltered = await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "backlog" }),
+      });
+      render(
+        <ViewUrlStateProvider initialEntries={[["view", "backlog"]]}>{unfiltered}</ViewUrlStateProvider>,
+      );
+      await user.click(screen.getByRole("button", { name: "Nouvelle Epic (Backlog)" }));
+      const dialog = screen.getByRole("dialog", { name: "Nouvel item" });
+      expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveTextContent("DEMO-comp — comp");
+      await user.type(within(dialog).getByRole("textbox", { name: /Titre/ }), "Dépôt en ligne");
+      expect(within(dialog).getByRole("button", { name: "Créer" })).toBeEnabled();
     });
 
     it("reads the step from the unfiltered rows without a Version filter", async () => {

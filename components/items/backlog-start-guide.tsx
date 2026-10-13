@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TypeIcon } from "@/components/icons/type-icon";
@@ -243,6 +244,37 @@ export function InlineStartStep({
         contextLabel={contextLabel}
         variant="outline"
       />
+    </div>
+  );
+}
+
+/**
+ * The same place under active filters: the filtered view does not list the
+ * parents the missing level needs, so it points to the unfiltered view
+ * instead of offering a dialog that could not be completed.
+ */
+export function FilteredStartStep({
+  step,
+  clearFiltersHref,
+}: {
+  step: HierarchyStartStep;
+  clearFiltersHref?: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 sm:px-3.5">
+      <p className="min-w-0 flex-1 basis-48 text-[13.5px] text-muted-foreground">
+        {step === "composant"
+          ? "Pour créer un item, il faut d’abord un Composant, puis une Epic : effacez les filtres pour commencer."
+          : "Pour créer un item, il faut d’abord une Epic : effacez les filtres pour la créer."}
+      </p>
+      {clearFiltersHref ? (
+        <Link
+          href={clearFiltersHref}
+          className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Effacer les filtres
+        </Link>
+      ) : null}
     </div>
   );
 }

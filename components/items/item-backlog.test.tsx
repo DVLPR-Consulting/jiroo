@@ -1171,6 +1171,31 @@ describe("ItemBacklog first steps (JIR-88)", () => {
     expect(screen.queryByRole("button", { name: /Nouveau Composant/ })).not.toBeInTheDocument();
   });
 
+  it("points to the unfiltered view while filters hide the missing level's parents", () => {
+    // The live backlog lacks an Epic, but the filtered candidates hold no
+    // Composant: an Epic dialog could not be completed here.
+    render(
+      <ItemBacklog
+        {...newBacklogProps([], {
+          filtersActive: true,
+          startStep: "epic",
+          clearFiltersHref: "/b/DEMO?view=backlog",
+        })}
+      />,
+    );
+
+    const backlog = screen.getByRole("region", { name: "Backlog" });
+    expect(
+      within(backlog).getByText("Pour créer un item, il faut d’abord une Epic : effacez les filtres pour la créer."),
+    ).toBeVisible();
+    expect(within(backlog).getByRole("link", { name: "Effacer les filtres" })).toHaveAttribute(
+      "href",
+      "/b/DEMO?view=backlog",
+    );
+    expect(screen.queryByRole("button", { name: /Nouvelle Epic|Créer un item/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+  });
+
   it("keeps the Composant button for a creator who may not schedule", () => {
     const { unmount } = render(
       <ItemBacklog

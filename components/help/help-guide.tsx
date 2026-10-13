@@ -243,7 +243,8 @@ export function HelpGuide() {
           <GuideNote>
             Pourquoi cet ordre : la hiérarchie est fixe. Une Tâche a toujours une Epic pour parent, et une Epic un
             Composant. Tant qu’aucune Epic n’existe, le Backlog remplace <Ui>Créer un item</Ui> par le bouton de
-            l’étape manquante. Créer une Epic demande le droit de planifier ; sans le droit nécessaire, les vues
+            l’étape manquante ; sous des filtres actifs, il propose <Ui>Effacer les filtres</Ui> pour y accéder.
+            Créer une Epic demande le droit de planifier ; sans le droit nécessaire, les vues
             indiquent seulement <Ui>Ce backlog est vide</Ui> ou <Ui>Aucune Epic pour l’instant</Ui>.
           </GuideNote>
         </GuideTopic>
