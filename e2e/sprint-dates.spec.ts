@@ -56,13 +56,6 @@ async function cleanFixture() {
   ));
 }
 
-/** `YYYY-MM-DD` of an instant in Paris, `days` calendar days later. */
-function parisDate(instant: Date, days = 0) {
-  const shifted = new Date(instant);
-  shifted.setUTCDate(shifted.getUTCDate() + days);
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(shifted);
-}
-
 function sprintPosts(page: Page) {
   const posts: string[] = [];
   page.on("request", (request) => {
@@ -112,7 +105,19 @@ test("enregistre des dates de sprint saisies sans heure et explique une fin avan
   await expect(end).toHaveAccessibleDescription(
     /La date de fin doit être postérieure à la date de début\./,
   );
+  // Focus moves to the field, as native validation did.
+  await expect(end).toBeFocused();
   await dialog.screenshot({ path: testInfo.outputPath("jir87-edit-end-before-start.png") });
+
+  // A half-cleared time reports an empty value: only badInput reveals it.
+  await end.fill("2026-10-25");
+  const startTime = dialog.getByLabel("Heure de début");
+  await startTime.focus();
+  await page.keyboard.press("Backspace");
+  expect(await startTime.evaluate((input: HTMLInputElement) => input.validity.badInput)).toBe(true);
+  await dialog.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(startTime).toHaveAccessibleDescription(/Heure incomplète ou invalide\./);
+  await expect(startTime).toBeFocused();
   expect(posts.length).toBe(postsBefore);
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
@@ -124,14 +129,30 @@ test("démarre un sprint sans dates prévues avec des dates saisies sans heure",
   const sprint = await seedSprint(STARTED_SPRINT);
   await page.goto("/b/CASS?view=backlog");
 
-  const openedAt = new Date();
-  await page.getByRole("button", { name: `Démarrer le sprint ${STARTED_SPRINT}` }).click();
+  const trigger = page.getByRole("button", { name: `Démarrer le sprint ${STARTED_SPRINT}` });
   const dialog = page.getByRole("dialog", { name: `Démarrer ${STARTED_SPRINT}` });
-  // Prefilled like Jira: now, and two weeks later.
-  await expect(dialog.getByLabel("Début", { exact: true })).toHaveValue(parisDate(openedAt));
-  await expect(dialog.getByLabel("Heure de début")).toHaveValue(/^\d{2}:\d{2}$/);
-  await expect(dialog.getByLabel("Fin", { exact: true })).toHaveValue(parisDate(openedAt, 14));
-  await dialog.screenshot({ path: testInfo.outputPath("jir87-start-prefilled.png") });
+  // Prefilled like Jira on each opening: now, and two calendar weeks later
+  // in Paris. Expected values are written out, not computed.
+  const prefills = [
+    { now: "2026-10-20T08:12:00.000Z", start: ["2026-10-20", "10:12"], end: ["2026-11-03", "10:12"] },
+    // 00:30 in Paris, before the end of summer time on 25 October.
+    { now: "2026-10-20T22:30:00.000Z", start: ["2026-10-21", "00:30"], end: ["2026-11-04", "00:30"] },
+  ];
+  for (const [index, prefill] of prefills.entries()) {
+    await page.clock.setFixedTime(new Date(prefill.now));
+    await trigger.click();
+    await expect(dialog.getByLabel("Début", { exact: true })).toHaveValue(prefill.start[0]!);
+    await expect(dialog.getByLabel("Heure de début")).toHaveValue(prefill.start[1]!);
+    await expect(dialog.getByLabel("Fin", { exact: true })).toHaveValue(prefill.end[0]!);
+    await expect(dialog.getByLabel("Heure de fin")).toHaveValue(prefill.end[1]!);
+    if (index === 0) {
+      await dialog.screenshot({ path: testInfo.outputPath("jir87-start-prefilled.png") });
+    }
+    if (index < prefills.length - 1) {
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+    }
+  }
 
   await dialog.getByLabel("Début", { exact: true }).fill("2026-10-25");
   await dialog.getByLabel("Heure de début").fill("");
