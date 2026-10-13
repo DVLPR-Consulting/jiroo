@@ -373,6 +373,9 @@ export async function BacklogViewContent({
       category: status.category,
     })),
     releaseOptions: assignableReleaseOptions,
+    // The effective filters (unknown versions dropped, Sprint facet only in
+    // Liste and Arbre): a create they leave out says so (JIR-92).
+    viewFilters: viewState.filters,
     // Jira's Create screen: the fields the user may already set at creation.
     fieldOptions: {
       users: assigneeCandidates,

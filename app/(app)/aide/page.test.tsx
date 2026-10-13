@@ -115,6 +115,7 @@ describe("HelpPage", () => {
       "Sous un filtre Version, « Nouvel item » et « Créer un item » proposent tous les parents du backlog, même ceux que le filtre masque.",
     );
     expect(topic).toHaveTextContent("Un ticket créé sans cette version n’apparaît pas dans la vue filtrée");
+    expect(topic).toHaveTextContent("« CASS-7 créé — masqué par les filtres de la vue. » le signale, avec « Ouvrir »");
     expect(topic).not.toHaveTextContent("si le filtre les masque");
   });
 

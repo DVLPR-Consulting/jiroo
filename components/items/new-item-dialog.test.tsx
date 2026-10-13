@@ -556,6 +556,59 @@ describe("NewItemButton", () => {
       expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=list&item=DEMO-9");
     });
 
+    describe("under the view's filters (JIR-92)", () => {
+      const versionFilter = {
+        q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [],
+        releaseIds: [releaseOptions[0]!.id], sprintIds: [], kind: [], underIds: [],
+      };
+      function createdRow(title: string) {
+        return {
+          id: "i",
+          key: "DEMO-9",
+          type: "composant",
+          kind: "feature",
+          title,
+          statusId: statuses[0]!.id,
+          priority: 0,
+          assigneeId: null,
+          path: "root.i",
+        };
+      }
+
+      it("says the filters hide an item created without the filtered Version", async () => {
+        const user = userEvent.setup();
+        mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: createdRow("Nouveau") });
+        window.history.replaceState({}, "", "/b/DEMO?view=list");
+        render(<NewItemButton {...dialogProps()} viewFilters={versionFilter} />);
+        await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+        await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Nouveau");
+        await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+        await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+        const [message, options] = mocks.toastSuccess.mock.calls[0]!;
+        expect(message).toBe("DEMO-9 créé — masqué par les filtres de la vue.");
+        expect(options.action.label).toBe("Annuler");
+        expect(options.secondaryAction.label).toBe("Ouvrir");
+        options.secondaryAction.run();
+        expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=list&item=DEMO-9");
+      });
+
+      it("keeps the plain message when the item gets the filtered Version", async () => {
+        const user = userEvent.setup();
+        mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: createdRow("Versionné") });
+        render(<NewItemButton {...dialogProps()} viewFilters={versionFilter} />);
+        await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+        await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Versionné");
+        await user.click(screen.getByRole("button", { name: "Versions" }));
+        await user.click(screen.getByRole("menuitemcheckbox", { name: /^2026\.10/ }));
+        await user.keyboard("{Escape}");
+        await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+        await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+        expect(mocks.toastSuccess.mock.calls[0]![0]).toBe("DEMO-9 créé");
+      });
+    });
+
     it("closes with « Annuler »", async () => {
       const user = userEvent.setup();
       render(<NewItemButton {...dialogProps()} />);

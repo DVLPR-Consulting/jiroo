@@ -8,8 +8,11 @@ import { TypeIcon } from "@/components/icons/type-icon";
 import { SelectField } from "@/components/ui/select";
 import {
   NewItemButton,
+  createdHiddenMessage,
+  useOpenCreatedItem,
   type NewItemButtonProps,
 } from "@/components/items/new-item-dialog";
+import { isHiddenByFilters } from "@/lib/items/filter";
 import { ITEM_TITLE_MAX } from "@/lib/validation/item";
 import { toast } from "@/lib/toast";
 
@@ -39,9 +42,10 @@ export function InlineCreateItem({
   parents: ParentOption[];
   parentId: string;
   onParentChange: (parentId: string) => void;
-  dialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions">;
+  dialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters">;
 }) {
   const router = useRouter();
+  const openCreated = useOpenCreatedItem();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +100,16 @@ export function InlineCreateItem({
         // Like Jira, the field stays open for the next item.
         setTitle("");
         titleRef.current?.focus();
-        toast.success(`${item.key} créé.`, {
+        // Left out by the view's filters (e.g. no filtered Version): say so,
+        // and offer to open it like the full dialog does (JIR-92).
+        const hidden = isHiddenByFilters(
+          { ...item, sprintIds: sprintId ? [sprintId] : [] },
+          dialogProps?.viewFilters,
+        );
+        toast.success(hidden ? createdHiddenMessage(item.key) : `${item.key} créé.`, {
+          ...(hidden
+            ? { secondaryAction: { label: "Ouvrir", run: () => openCreated(item.key) } }
+            : {}),
           action: {
             label: "Annuler",
             run: async () => {

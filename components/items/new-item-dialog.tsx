@@ -47,6 +47,7 @@ import {
   type Priority,
 } from "@/lib/design/constants";
 import { ITEM_TEMPLATES, getTemplate } from "@/lib/items/templates";
+import { isHiddenByFilters, type Filters } from "@/lib/items/filter";
 import { allowedParentType } from "@/lib/tree/hierarchy";
 import { toast } from "@/lib/toast";
 import { ITEM_DESCRIPTION_MAX, ITEM_TITLE_MAX } from "@/lib/validation/item";
@@ -106,12 +107,17 @@ export type NewItemButtonProps = {
    * `initialParentId` is re-applied on every opening too.
    */
   initialTitle?: string;
+  /**
+   * The filters the view applies (JIR-92): the success message says when
+   * they leave out the item just created.
+   */
+  viewFilters?: Filters;
 };
 
 /** The dialog data a view hands down to its « Nouvel item » buttons. */
 export type NewItemDialogData = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions"
+  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters"
 >;
 
 const EMPTY_FIELD_OPTIONS: NewItemFieldOptions = {};
@@ -228,6 +234,26 @@ function LabelsPicker({
   );
 }
 
+/** The success message of a create the view's filters leave out (JIR-92). */
+export function createdHiddenMessage(key: string): string {
+  return `${key} créé — masqué par les filtres de la vue.`;
+}
+
+/** « Ouvrir » of a create's success message: shows the item in the drawer. */
+export function useOpenCreatedItem() {
+  const router = useRouter();
+  const viewUrl = useOptionalViewUrlState();
+  return (key: string) => {
+    if (viewUrl) {
+      viewUrl.push((params) => params.set("item", key));
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set("item", key);
+    router.push(`${url.pathname}${url.search}`);
+  };
+}
+
 export function NewItemButton({
   backlogId,
   backlogKey,
@@ -246,9 +272,10 @@ export function NewItemButton({
   releaseOptions = [],
   fieldOptions = EMPTY_FIELD_OPTIONS,
   initialTitle,
+  viewFilters,
 }: NewItemButtonProps) {
   const router = useRouter();
-  const viewUrl = useOptionalViewUrlState();
+  const openCreated = useOpenCreatedItem();
   const contextualTask = contextLabel !== undefined;
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -400,16 +427,6 @@ export function NewItemButton({
     if (trigger?.isConnected) trigger.focus();
   });
 
-  function openCreated(key: string) {
-    if (viewUrl) {
-      viewUrl.push((params) => params.set("item", key));
-      return;
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.set("item", key);
-    router.push(`${url.pathname}${url.search}`);
-  }
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -444,6 +461,11 @@ export function NewItemButton({
         return;
       }
       const item = result.item;
+      const plannedSprint = contextualTask ? sprintId : sprintForTask;
+      const hidden = isHiddenByFilters(
+        { ...item, labelIds, fixVersionIds, sprintIds: plannedSprint ? [plannedSprint] : [] },
+        viewFilters,
+      );
       onCreated?.(item);
       if (createAnother) {
         // Jira's « Create another »: same type, parent, sprint and fields.
@@ -454,7 +476,7 @@ export function NewItemButton({
         reset();
         onClosed?.();
       }
-      toast.success(`${item.key} créé`, {
+      toast.success(hidden ? createdHiddenMessage(item.key) : `${item.key} créé`, {
         secondaryAction: { label: "Ouvrir", run: () => openCreated(item.key) },
         action: {
           label: "Annuler",

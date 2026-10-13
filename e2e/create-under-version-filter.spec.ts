@@ -77,7 +77,12 @@ test("crée une Tâche sous l’Epic masquée par un filtre Version vide", async
   await title.fill(INLINE_TASK);
   await page.screenshot({ path: testInfo.outputPath("jir92-1-inline-epic-masquee.png") });
   await title.press("Enter");
-  await expect(page.getByText(/^VFLT-\d+ créé\.$/)).toBeVisible();
+  // Created without the filtered Version: the message says the view hides it.
+  const inlineToast = page.getByRole("status").locator("div", {
+    hasText: /^VFLT-\d+ créé — masqué par les filtres de la vue\./,
+  });
+  await expect(inlineToast).toBeVisible();
+  await expect(inlineToast.getByRole("button", { name: "Annuler" })).toBeVisible();
   await expect.poll(() => createdTask(INLINE_TASK)).toEqual({
     id: expect.any(String),
     type: "tache",
@@ -91,6 +96,12 @@ test("crée une Tâche sous l’Epic masquée par un filtre Version vide", async
   await expect(backlog.getByText(INLINE_TASK, { exact: true })).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("jir92-2-inline-cree-masquee.png") });
   await title.press("Escape");
+  // « Ouvrir » shows the hidden task in the drawer.
+  await inlineToast.getByRole("button", { name: "Ouvrir" }).click();
+  await expect(page).toHaveURL(/[?&]item=VFLT-\d+/);
+  await expect(page.getByRole("heading", { level: 1, name: INLINE_TASK })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page).not.toHaveURL(/[?&]item=/);
 
   // 2. « + Créer »: the Epic and the Composant are parent choices.
   await page.getByRole("button", { name: "Créer", exact: true }).click();
@@ -110,6 +121,11 @@ test("crée une Tâche sous l’Epic masquée par un filtre Version vide", async
   await page.screenshot({ path: testInfo.outputPath("jir92-4-dialog-epic.png") });
   await dialog.getByRole("button", { name: "Créer", exact: true }).click();
   await expect(dialog).toHaveCount(0);
+  const dialogToast = page.getByRole("status").locator("div", {
+    hasText: /^VFLT-\d+ créé — masqué par les filtres de la vue\./,
+  }).last();
+  await expect(dialogToast.getByRole("button", { name: "Ouvrir" })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("jir92-5-dialog-cree-masquee.png") });
   await expect.poll(() => createdTask(DIALOG_TASK)).toEqual({
     id: expect.any(String),
     type: "tache",

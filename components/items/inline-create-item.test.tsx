@@ -8,12 +8,13 @@ const mocks = vi.hoisted(() => ({
   createItemAction: vi.fn(),
   refresh: vi.fn(),
   push: vi.fn(),
+  toastSuccess: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mocks.refresh, push: mocks.push }),
 }));
-vi.mock("@/lib/toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/lib/toast", () => ({ toast: { success: mocks.toastSuccess, error: vi.fn() } }));
 vi.mock("@/app/actions/items", () => ({
   createItemAction: mocks.createItemAction,
   softDeleteItemAction: vi.fn(),
@@ -180,5 +181,68 @@ describe("InlineCreateItem without an Epic", () => {
       screen.getByText("Aucune Epic dans ce backlog : une Tâche se rattache toujours à une Epic."),
     ).toBeVisible();
     expect(screen.queryByText(/Aucun epic disponible/)).not.toBeInTheDocument();
+  });
+});
+
+describe("InlineCreateItem under the view's filters (JIR-92)", () => {
+  const filters = {
+    q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [],
+    releaseIds: ["55555555-5555-4555-8555-555555555555"], sprintIds: [], kind: [], underIds: [],
+  };
+
+  beforeEach(() => {
+    mocks.createItemAction.mockReset();
+    mocks.toastSuccess.mockReset();
+    mocks.push.mockReset();
+  });
+
+  async function createInline(viewFilters?: typeof filters) {
+    const user = userEvent.setup();
+    mocks.createItemAction.mockResolvedValueOnce({
+      ok: true,
+      item: {
+        id: "new-id",
+        key: "DEMO-10",
+        type: "tache",
+        kind: "feature",
+        title: "Relance",
+        statusId: statuses[0]!.id,
+        priority: 0,
+        assigneeId: null,
+        path: "root.a.b.c",
+      },
+    });
+    window.history.replaceState({}, "", "/b/DEMO?view=backlog");
+    render(
+      <InlineCreateItem
+        backlogId="44444444-4444-4444-8444-444444444444"
+        backlogKey="DEMO"
+        sprintId={null}
+        contextLabel="Backlog"
+        parents={[epic]}
+        parentId={epic.id}
+        onParentChange={() => {}}
+        dialogProps={{ items: [{ ...epic, type: "epic" }], statuses, viewFilters }}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Créer un item dans Backlog" }));
+    await user.type(screen.getByRole("textbox", { name: "Titre du nouvel item dans Backlog" }), "Relance{Enter}");
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    return mocks.toastSuccess.mock.calls[0]!;
+  }
+
+  it("says the Version filter hides the new task and offers « Ouvrir »", async () => {
+    const [message, options] = await createInline(filters);
+    expect(message).toBe("DEMO-10 créé — masqué par les filtres de la vue.");
+    expect(options.action.label).toBe("Annuler");
+    expect(options.secondaryAction.label).toBe("Ouvrir");
+    options.secondaryAction.run();
+    expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=backlog&item=DEMO-10");
+  });
+
+  it("keeps the plain message without filters", async () => {
+    const [message, options] = await createInline();
+    expect(message).toBe("DEMO-10 créé.");
+    expect(options.secondaryAction).toBeUndefined();
   });
 });

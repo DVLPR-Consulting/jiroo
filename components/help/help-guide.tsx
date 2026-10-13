@@ -252,8 +252,9 @@ export function HelpGuide() {
             indiquent seulement <Ui>Ce backlog est vide</Ui> ou <Ui>Aucune Epic pour l’instant</Ui>. Sous un filtre
             Version, <Ui>Nouvel item</Ui> et <Ui>Créer un item</Ui> proposent tous les parents du backlog, même
             ceux que le filtre masque. Un ticket créé sans cette version n’apparaît pas dans la vue filtrée : le
-            message « CASS-7 créé » le confirme ; effacez le filtre (ou ajoutez la version dans
-            {" "}<Ui>Fix versions</Ui>) pour le voir.
+            message « CASS-7 créé — masqué par les filtres de la vue. » le signale, avec <Ui>Ouvrir</Ui> pour
+            l’afficher ; effacez le filtre (ou ajoutez la version dans <Ui>Fix versions</Ui>) pour le voir dans
+            la liste.
           </GuideNote>
         </GuideTopic>
 
@@ -268,7 +269,7 @@ export function HelpGuide() {
           ]}
         >
           <GuideNote>
-            Après la création, le message « CASS-7 créé » propose <Ui>Ouvrir</Ui> (affiche le ticket) et <Ui>Annuler</Ui>. Les champs absents de la fenêtre dépendent de vos droits (assignation, planification).
+            Après la création, le message « CASS-7 créé » propose <Ui>Ouvrir</Ui> (affiche le ticket) et <Ui>Annuler</Ui>. Si les filtres de la vue écartent le nouveau ticket, il devient « CASS-7 créé — masqué par les filtres de la vue. ». Les champs absents de la fenêtre dépendent de vos droits (assignation, planification).
           </GuideNote>
         </GuideTopic>
 

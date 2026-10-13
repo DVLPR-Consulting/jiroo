@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -163,6 +163,7 @@ vi.mock("@/components/shell/view-actions", () => ({
 vi.mock("@/components/items/new-item-dialog", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/items/new-item-dialog")>();
   return {
+    ...actual,
     NewItemButton: (props: React.ComponentProps<typeof actual.NewItemButton>) =>
       mocks.renderRealViews.current ? <actual.NewItemButton {...props} /> : null,
   };
@@ -1053,12 +1054,22 @@ describe("BacklogViewContent read boundary", () => {
         { id: "epic", key: "DEMO-epic", type: "epic", title: "epic" },
       ]);
       expect(props.createDialogProps).not.toHaveProperty("backlogItemTypes");
+      // The effective filters, so a create they leave out says so.
+      expect(props.createDialogProps.viewFilters).toEqual(
+        expect.objectContaining({ releaseIds: ["release-empty"] }),
+      );
     });
 
     it("creates a Tâche inline under the hidden Epic in the Backlog view (JIR-92)", async () => {
       const user = userEvent.setup();
       mocks.renderRealViews.current = true;
-      mocks.createItemAction.mockResolvedValue({ ok: true, item: { id: "new", key: "DEMO-3" } });
+      mocks.createItemAction.mockResolvedValue({
+        ok: true,
+        item: {
+          id: "new", key: "DEMO-3", type: "tache", kind: "feature", title: "Relance automatique",
+          statusId: "status-1", priority: 0, assigneeId: null, path: "root.comp.epic.new",
+        },
+      });
       const page = await BacklogViewContent({
         paramsPromise: Promise.resolve({ key: "DEMO" }),
         searchParamsPromise: Promise.resolve({ view: "backlog", version: "release-empty" }),
@@ -1089,6 +1100,13 @@ describe("BacklogViewContent read boundary", () => {
           title: "Relance automatique",
         }),
       );
+      // The field stays open for the next task, with no error.
+      await waitFor(() =>
+        expect(
+          within(backlog).getByRole("textbox", { name: "Titre du nouvel item dans Backlog" }),
+        ).toHaveValue(""),
+      );
+      expect(within(backlog).queryByRole("alert")).not.toBeInTheDocument();
     });
 
     it("offers the hidden Epic and Composant as parents in « Nouvel item » (JIR-92)", async () => {
