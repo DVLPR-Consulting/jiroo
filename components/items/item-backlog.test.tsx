@@ -5,6 +5,7 @@ import {
   ItemBacklog,
   type BacklogItem,
 } from "@/components/items/item-backlog";
+import { hierarchyStartStep } from "@/lib/tree/hierarchy";
 
 const mocks = vi.hoisted(() => ({
   bulkUpdateItemsAction: vi.fn(),
@@ -1095,6 +1096,8 @@ describe("ItemBacklog first steps (JIR-88)", () => {
       manualOrder: true,
       filtersActive: false,
       hasItems: false,
+      // The server reads the live backlog; here the candidates are all of it.
+      startStep: hierarchyStartStep(dialogItems),
       createDialogProps: {
         items: dialogItems,
         statuses: statuses.map(({ id, name }) => ({ id, name })),
@@ -1160,8 +1163,9 @@ describe("ItemBacklog first steps (JIR-88)", () => {
     );
   });
 
-  it("keeps « Créer un item » when filters narrow the parent candidates", () => {
-    render(<ItemBacklog {...newBacklogProps([], { filtersActive: true })} />);
+  it("keeps « Créer un item » when filters hide the live backlog's Epics", () => {
+    // A Version filter can empty the candidates: the server's live step rules.
+    render(<ItemBacklog {...newBacklogProps([], { filtersActive: true, startStep: null })} />);
 
     expect(screen.getByRole("button", { name: "Créer un item dans Backlog" })).toBeVisible();
     expect(screen.queryByRole("button", { name: /Nouveau Composant/ })).not.toBeInTheDocument();

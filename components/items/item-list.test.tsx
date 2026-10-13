@@ -208,6 +208,7 @@ describe("ItemList", () => {
       groups: [{ key: "", label: "", items: [] }],
       filtersActive: false,
       clearFiltersHref: "/b/DEMO?view=list",
+      startStep: "composant",
       createDialogProps: {
         backlogId: "backlog-id",
         items: [],
@@ -239,6 +240,7 @@ describe("ItemList", () => {
           items: composants.map((row) => item(row.id, row.key, row.title, { type: "composant" })),
         },
       ],
+      startStep: "epic",
       createDialogProps: {
         backlogId: "backlog-id",
         items: composants,
@@ -260,6 +262,7 @@ describe("ItemList", () => {
   it("only states the missing Epic to a viewer", () => {
     renderList({
       ...listProps(),
+      startStep: "epic",
       createDialogProps: {
         backlogId: "backlog-id",
         items: [{ id: "comp-1", key: "DEMO-9", type: "composant", title: "Portail" }],
@@ -297,6 +300,7 @@ describe("ItemList", () => {
       filtersActive: true,
       hasItems: false,
       clearFiltersHref: "/b/DEMO?view=list",
+      startStep: "composant",
       createDialogProps: {
         backlogId: "backlog-id",
         items: [],
@@ -552,6 +556,7 @@ describe("ItemList", () => {
     renderList({
       ...listProps(),
       groups: [{ key: "", label: "", items: [] }],
+      startStep: "composant",
       createDialogProps: {
         backlogId: "backlog-id",
         items: [],

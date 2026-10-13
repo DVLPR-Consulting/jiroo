@@ -96,6 +96,7 @@ describe("ItemTree", () => {
           moveItemAction={vi.fn()}
           filtersActive={false}
           clearFiltersHref="/b/DEMO?view=tree"
+          startStep="composant"
           createDialogProps={{
             backlogId: "backlog-id",
             items: [],
@@ -133,6 +134,7 @@ describe("ItemTree", () => {
           statuses={statuses}
           reparentItemAction={vi.fn()}
           moveItemAction={vi.fn()}
+          startStep="epic"
           createDialogProps={{
             backlogId: "backlog-id",
             items: dialogItems,
@@ -162,6 +164,7 @@ describe("ItemTree", () => {
           reparentItemAction={vi.fn()}
           moveItemAction={vi.fn()}
           filtersActive
+          startStep="epic"
           createDialogProps={{
             backlogId: "backlog-id",
             items: dialogItems,
@@ -210,6 +213,7 @@ describe("ItemTree", () => {
           filtersActive
           hasItems={false}
           clearFiltersHref="/b/DEMO?view=tree"
+          startStep="composant"
           createDialogProps={{
             backlogId: "backlog-id",
             items: [],
@@ -335,6 +339,7 @@ describe("ItemTree", () => {
           statuses={statuses}
           reparentItemAction={vi.fn()}
           moveItemAction={vi.fn()}
+          startStep="composant"
           createDialogProps={{
             backlogId: "backlog-id",
             items: [],
@@ -358,6 +363,7 @@ describe("ItemTree", () => {
           statuses={statuses}
           reparentItemAction={vi.fn()}
           moveItemAction={vi.fn()}
+          startStep="composant"
           createDialogProps={{
             backlogId: "backlog-id",
             items: [],

@@ -14,6 +14,7 @@ import {
   listItems,
   listItemsWithAncestors,
   listLabelsForBacklog,
+  listLiveItemTypes,
   listUsers,
   listUsersByIds,
 } from "@/lib/services/items";
@@ -33,6 +34,7 @@ import {
   type FilterItem,
 } from "@/lib/items/filter";
 import { PRIORITY_LABELS } from "@/lib/design/constants";
+import { hierarchyStartStep } from "@/lib/tree/hierarchy";
 import { requireAppPageSession } from "@/lib/auth/session";
 import { getViewByIdForUser } from "@/lib/services/views";
 import { hasSavableViewState } from "@/lib/items/filter-chips";
@@ -210,6 +212,14 @@ export async function BacklogViewContent({
   const items = releaseFilterActive
     ? await listItemsWithAncestors(backlog.id, [...releaseMatchedIds])
     : releaseFilteredItems;
+
+  // The first-steps guide (JIR-88) reads the live backlog, never the Version-
+  // filtered rows: a version without items must not pass for a new backlog.
+  const liveItemTypes = releaseFilterActive
+    ? await listLiveItemTypes(backlog.id)
+    : items.map((item) => item.type);
+  const startStep = hierarchyStartStep(liveItemTypes.map((type) => ({ type })));
+  const backlogHasItems = liveItemTypes.length > 0;
 
   // Set of item ids that are blocked by an unfinished item — used to drive the badge.
   const blockedSet = new Set(blockedIds);
@@ -670,6 +680,7 @@ export async function BacklogViewContent({
           backlogId={backlog.id}
           filtersActive={filtersOn}
           hasItems={hasBacklogItems}
+          startStep={startStep}
           clearFiltersHref={clearFiltersHref}
           canCreateItems={capabilities.createItems}
           canEditItems={capabilities.editItems}
@@ -708,7 +719,8 @@ export async function BacklogViewContent({
           backlogKey={key}
           currentSort={viewState.sort}
           filtersActive={filtersOn}
-          hasItems={items.length > 0}
+          hasItems={backlogHasItems}
+          startStep={startStep}
           clearFiltersHref={clearFiltersHref}
           createDialogProps={createDialogProps}
           canCreateItems={capabilities.createItems}
@@ -761,7 +773,8 @@ export async function BacklogViewContent({
           reparentItemAction={reparentItemAction}
           moveItemAction={moveItemAction}
           filtersActive={filtersOn}
-          hasItems={items.length > 0}
+          hasItems={backlogHasItems}
+          startStep={startStep}
           clearFiltersHref={clearFiltersHref}
           createDialogProps={createDialogProps}
           canCreateItems={capabilities.createItems}

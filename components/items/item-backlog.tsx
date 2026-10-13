@@ -48,7 +48,7 @@ import {
   StartStepButton,
   canCreateStartStep,
 } from "@/components/items/backlog-start-guide";
-import { hierarchyStartStep } from "@/lib/tree/hierarchy";
+import type { HierarchyStartStep } from "@/lib/tree/hierarchy";
 import { type NewItemButtonProps } from "@/components/items/new-item-dialog";
 import { CreateSprintButton } from "@/components/sprints/sprint-form-dialog";
 import {
@@ -858,6 +858,11 @@ type MoveSprintItemAction = (input: {
 
 type SprintBacklogProps = SharedBacklogProps & {
   sections: SprintBacklogSection[];
+  /**
+   * The level the live, unfiltered backlog still needs before tasks
+   * (JIR-88); computed by the server, never from filtered rows.
+   */
+  startStep?: HierarchyStartStep | null;
   sprints: SprintSummary[];
   recentVelocity?: RecentVelocityContext | null;
   activeSprintCommitment?: ActiveSprintStartCommitment | null;
@@ -901,6 +906,7 @@ function SprintItemBacklog({
   backlogId,
   selectedKey,
   filtersActive = false,
+  startStep = null,
   canCreateItems: legacyCanCreateItems = true,
   canEditItems: legacyCanEditItems = true,
   canTransitionItems: legacyCanTransitionItems = true,
@@ -959,8 +965,6 @@ function SprintItemBacklog({
   // epic stands in until one is picked (e.g. the first one just created).
   const [pickedParentId, setCreateParentId] = useState("");
   const createParentId = pickedParentId || (epics.length === 1 ? epics[0]!.id : "");
-  // A new backlog says where to start: Composant, then Epic (JIR-88).
-  const startStep = createDialogProps ? hierarchyStartStep(createDialogProps.items) : null;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -1389,9 +1393,7 @@ function SprintItemBacklog({
                     </p>
                   )
                 ) : null}
-                {/* Filtered parent candidates are not the whole backlog: the
-                    replacement only speaks for an unfiltered view. */}
-                {sectionExpanded && canCreateInSection && startStep && !filtersActive && createDialogProps ? (
+                {sectionExpanded && canCreateInSection && startStep && createDialogProps ? (
                   <div className={section.items.length > 0 ? "border-t border-border" : undefined}>
                     <InlineStartStep
                       step={startStep}

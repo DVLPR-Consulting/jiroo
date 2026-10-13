@@ -56,7 +56,7 @@ import {
   toggleItemSelection,
 } from "@/lib/items/selection";
 import { fixedTableMinWidth, LIST_COLUMNS, SELECTION_COLUMN } from "@/lib/items/table-layout";
-import { hierarchyStartStep } from "@/lib/tree/hierarchy";
+import type { HierarchyStartStep } from "@/lib/tree/hierarchy";
 import { ViewStartGuide } from "@/components/items/backlog-start-guide";
 
 type LabelChip = { id: string; name: string; color: string };
@@ -324,6 +324,7 @@ export function ItemList({
   currentSort,
   filtersActive = false,
   hasItems,
+  startStep = null,
   clearFiltersHref,
   createDialogProps,
   canCreateItems: legacyCanCreateItems = true,
@@ -346,6 +347,11 @@ export function ItemList({
   currentSort: CurrentSort;
   filtersActive?: boolean;
   hasItems?: boolean;
+  /**
+   * The level the live, unfiltered backlog still needs before tasks
+   * (JIR-88); computed by the server, never from filtered rows.
+   */
+  startStep?: HierarchyStartStep | null;
   clearFiltersHref?: string;
   createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions">;
   canCreateItems?: boolean;
@@ -366,8 +372,6 @@ export function ItemList({
   const canBulkChangeItems = bulkCapabilities
     ? Object.values(bulkCapabilities).some(Boolean)
     : legacyCanBulkChangeItems;
-  // A new backlog says where to start: Composant, then Epic (JIR-88).
-  const startStep = createDialogProps ? hierarchyStartStep(createDialogProps.items) : null;
   const router = useRouter();
   const viewUrl = useViewUrlState();
   // The open item follows the URL, which changes without a server render.

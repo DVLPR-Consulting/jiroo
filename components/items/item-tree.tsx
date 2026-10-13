@@ -14,7 +14,7 @@ import {
 } from "@/components/items/new-item-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ViewStartGuide } from "@/components/items/backlog-start-guide";
-import { hierarchyStartStep } from "@/lib/tree/hierarchy";
+import type { HierarchyStartStep } from "@/lib/tree/hierarchy";
 import { LABEL_HUES, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
 import { StatusDot as CanonicalStatusDot } from "@/components/icons/status-dot";
 import {
@@ -150,6 +150,11 @@ type ItemTreeProps = {
   moveItemAction: typeof MoveItemAction;
   filtersActive?: boolean;
   hasItems?: boolean;
+  /**
+   * The level the live, unfiltered backlog still needs before tasks
+   * (JIR-88); computed by the server, never from filtered rows.
+   */
+  startStep?: HierarchyStartStep | null;
   clearFiltersHref?: string;
   createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions">;
   canCreateItems?: boolean;
@@ -167,6 +172,7 @@ export function ItemTree({
   moveItemAction,
   filtersActive = false,
   hasItems,
+  startStep = null,
   clearFiltersHref,
   createDialogProps,
   canCreateItems: legacyCanCreateItems = true,
@@ -176,8 +182,6 @@ export function ItemTree({
 }: ItemTreeProps) {
   const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
   const canScheduleItems = planningCapabilities?.reparent ?? legacyCanScheduleItems;
-  // A new backlog says where to start: Composant, then Epic (JIR-88).
-  const startStep = createDialogProps ? hierarchyStartStep(createDialogProps.items) : null;
   const viewUrl = useViewUrlState();
   // The open item follows the URL, which changes without a server render.
   const selectedKey = useRequestedItemKey() ?? undefined;
