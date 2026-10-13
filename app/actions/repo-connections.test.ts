@@ -43,7 +43,7 @@ describe("repository connection actions", () => {
     vi.clearAllMocks();
     mocks.getSession.mockResolvedValue({ user: { id: "admin-1" } });
     mocks.requireBacklogPermissionById.mockResolvedValue({ backlogId: BACKLOG_ID, resourceId: BACKLOG_ID, backlogKey: "CASS" });
-    mocks.requireRepoConnectionPermission.mockResolvedValue({ backlogId: BACKLOG_ID, resourceId: CONNECTION_ID });
+    mocks.requireRepoConnectionPermission.mockResolvedValue({ backlogId: BACKLOG_ID, resourceId: CONNECTION_ID, backlogKey: "CASS" });
     mocks.createRepoConnection.mockResolvedValue({ connection: { id: CONNECTION_ID }, secret: "s3cret" });
     mocks.regenerateRepoConnectionSecret.mockResolvedValue({ connection: { id: CONNECTION_ID }, secret: "n3w" });
   });
@@ -114,6 +114,12 @@ describe("repository connection actions", () => {
     }
     expect(mocks.setRepoConnectionEnabled).toHaveBeenCalledWith({ connectionId: CONNECTION_ID, enabled: false }, "admin-1");
     expect(mocks.deleteRepoConnection).toHaveBeenCalledWith({ connectionId: CONNECTION_ID }, "admin-1");
+    // The page revalidated is the stored connection's backlog, not the client's key.
+    expect(mocks.revalidatePath.mock.calls).toEqual([
+      ["/b/CASS/settings/development"],
+      ["/b/CASS/settings/development"],
+      ["/b/CASS/settings/development"],
+    ]);
   });
 
   it("hides an unknown or malformed connection", async () => {

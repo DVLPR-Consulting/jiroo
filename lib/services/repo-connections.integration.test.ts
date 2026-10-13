@@ -143,7 +143,10 @@ describeDb("repository connections (JIR-95)", () => {
       connectionId: connection.id,
       permission: "administer_backlog",
     });
-    await expect(check(fixture.users.admin)).resolves.toMatchObject({ backlogId: fixture.backlogA.id });
+    await expect(check(fixture.users.admin)).resolves.toMatchObject({
+      backlogId: fixture.backlogA.id,
+      backlogKey: fixture.backlogA.key,
+    });
     await expect(check(fixture.users.reader)).rejects.toMatchObject({ name: "PermissionDeniedError" });
     await expect(check(fixture.users.outsider)).rejects.toMatchObject({ name: "ResourceNotFoundError" });
   });

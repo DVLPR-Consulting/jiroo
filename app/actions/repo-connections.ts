@@ -93,9 +93,9 @@ export async function regenerateRepoConnectionSecretAction(input: {
   const parsed = repoConnectionIdInput.safeParse(input);
   if (!parsed.success) return NOT_FOUND;
   try {
-    await authorizeConnection(actorId, parsed.data.connectionId);
+    const { backlogKey } = await authorizeConnection(actorId, parsed.data.connectionId);
     const { connection, secret } = await regenerateRepoConnectionSecret(parsed.data, actorId);
-    revalidateSettings(input.backlogKey);
+    revalidateSettings(backlogKey);
     return { ok: true, connection, secret };
   } catch (error) {
     return failure(error);
@@ -112,9 +112,9 @@ export async function setRepoConnectionEnabledAction(input: {
   const parsed = setRepoConnectionEnabledInput.safeParse(input);
   if (!parsed.success) return NOT_FOUND;
   try {
-    await authorizeConnection(actorId, parsed.data.connectionId);
+    const { backlogKey } = await authorizeConnection(actorId, parsed.data.connectionId);
     const connection = await setRepoConnectionEnabled(parsed.data, actorId);
-    revalidateSettings(input.backlogKey);
+    revalidateSettings(backlogKey);
     return { ok: true, connection };
   } catch (error) {
     return failure(error);
@@ -130,9 +130,9 @@ export async function deleteRepoConnectionAction(input: {
   const parsed = repoConnectionIdInput.safeParse(input);
   if (!parsed.success) return NOT_FOUND;
   try {
-    await authorizeConnection(actorId, parsed.data.connectionId);
+    const { backlogKey } = await authorizeConnection(actorId, parsed.data.connectionId);
     await deleteRepoConnection(parsed.data, actorId);
-    revalidateSettings(input.backlogKey);
+    revalidateSettings(backlogKey);
     return { ok: true };
   } catch (error) {
     return failure(error);
