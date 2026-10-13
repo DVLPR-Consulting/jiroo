@@ -3,6 +3,7 @@ import {
   activeProjectView,
   deriveBreadcrumb,
   deriveShellContext,
+  itemViewFromParam,
   PROJECT_VIEWS,
   projectViewHref,
 } from "@/lib/items/shell";
@@ -252,6 +253,19 @@ describe("project views (sidebar)", () => {
     ["/b/CASS/reports", "view=list", "reports"],
   ] as const)("activates the view of %s?%s", (pathname, search, expected) => {
     expect(activeProjectView(pathname, new URLSearchParams(search), "CASS")).toBe(expected);
+  });
+
+  it.each([
+    ["backlog", "backlog"],
+    ["board", "board"],
+    ["list", "list"],
+    ["tree", "tree"],
+    ["releases", "board"],
+    ["", "board"],
+    [null, "board"],
+    [undefined, "board"],
+  ] as const)("reads ?view=%s as the %s item view", (value, expected) => {
+    expect(itemViewFromParam(value)).toBe(expected);
   });
 
   it.each([

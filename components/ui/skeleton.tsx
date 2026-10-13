@@ -15,4 +15,33 @@ function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-export { Skeleton };
+/**
+ * The announced region around a placeholder: one busy `status` named after
+ * what is loading (« Chargement de … »); its bars stay hidden from assistive
+ * technologies. `name` tags the placeholder's shape (`data-skeleton`).
+ */
+function SkeletonRegion({
+  label,
+  name,
+  className,
+  children,
+}: {
+  label: string;
+  name: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      aria-busy="true"
+      aria-label={label}
+      className={className}
+      data-skeleton={name}
+      role="status"
+    >
+      {children}
+    </div>
+  );
+}
+
+export { Skeleton, SkeletonRegion };

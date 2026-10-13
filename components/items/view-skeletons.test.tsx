@@ -2,31 +2,49 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
-  BoardSkeleton,
+  BacklogViewSkeleton,
   DetailPanelSkeleton,
-  ListSkeleton,
 } from "@/components/items/view-skeletons";
 
-describe("view skeletons", () => {
-  it("preserves the board geometry while announcing its loading state", () => {
-    const { container } = render(<BoardSkeleton />);
+function expectHiddenBars(root: ParentNode) {
+  const bars = root.querySelectorAll('[data-slot="skeleton"]');
+  expect(bars).not.toHaveLength(0);
+  for (const bar of bars) expect(bar).toHaveAttribute("aria-hidden", "true");
+}
 
-    expect(screen.getByRole("status", { name: "Chargement du board" })).toBeInTheDocument();
-    expect(container.querySelectorAll('[data-slot="board-skeleton-column"]')).toHaveLength(4);
-    expect(container.querySelectorAll('[data-slot="skeleton"]')).not.toHaveLength(0);
-    for (const bar of container.querySelectorAll('[data-slot="skeleton"]')) {
-      expect(bar).toHaveAttribute("aria-hidden", "true");
+describe("view skeletons", () => {
+  it.each([
+    ["backlog", "Chargement du backlog", "backlog-skeleton-section", 2],
+    ["board", "Chargement du board", "board-skeleton-column", 4],
+    ["list", "Chargement de la liste", "list-skeleton-row", 8],
+    ["tree", "Chargement de l’arbre", "tree-skeleton-row", 8],
+  ] as const)("shapes the %s view and announces « %s »", (view, label, slot, count) => {
+    const { container } = render(<BacklogViewSkeleton view={view} />);
+
+    const region = screen.getByRole("status", { name: label });
+    expect(region).toHaveAttribute("aria-busy", "true");
+    expect(region).toHaveAttribute("data-skeleton", view);
+    expect(container.querySelectorAll(`[data-slot="${slot}"]`)).toHaveLength(count);
+    // Only the requested view's body: no other view's shape.
+    for (const other of [
+      "backlog-skeleton-section",
+      "board-skeleton-column",
+      "list-skeleton-row",
+      "tree-skeleton-row",
+    ].filter((candidate) => candidate !== slot)) {
+      expect(container.querySelector(`[data-slot="${other}"]`)).toBeNull();
     }
+    expectHiddenBars(container);
   });
 
-  it("preserves eight dense list rows while announcing its loading state", () => {
-    const { container } = render(<ListSkeleton />);
+  it("keeps the page header and the filter bar above every view", () => {
+    const { container } = render(<BacklogViewSkeleton view="list" />);
+    const region = container.firstElementChild!;
 
-    expect(screen.getByRole("status", { name: "Chargement de la liste" })).toBeInTheDocument();
-    expect(container.querySelectorAll('[data-slot="list-skeleton-row"]')).toHaveLength(8);
-    for (const bar of container.querySelectorAll('[data-slot="skeleton"]')) {
-      expect(bar).toHaveAttribute("aria-hidden", "true");
-    }
+    expect(region).toHaveClass("flex", "h-full", "flex-col");
+    // Header (breadcrumb, title, actions), then the filter bar, then the body.
+    expect(region.children).toHaveLength(3);
+    expect(region.children[1]).toHaveClass("border-b", "pb-3");
   });
 
   it("fills the open detail drawer with a titled, announced placeholder body", () => {

@@ -141,6 +141,11 @@ export const PROJECT_VIEWS = [
 
 const ITEM_VIEW_IDS: readonly string[] = ["backlog", "board", "list", "tree"];
 
+/** The item view a `?view=` value asks for: Board when absent or unknown. */
+export function itemViewFromParam(value: string | null | undefined): ItemViewId {
+  return value && ITEM_VIEW_IDS.includes(value) ? (value as ItemViewId) : "board";
+}
+
 /** Plain link to a project view (no URL state to keep). */
 export function projectViewHref(backlogKey: string, id: ProjectViewId): string {
   const base = `/b/${encodeURIComponent(backlogKey)}`;
@@ -157,8 +162,7 @@ export function activeProjectView(
   if (!match) return null;
   if (decodeURIComponent(match[1]!).toUpperCase() !== backlogKey.toUpperCase()) return null;
   if (match[2]) return match[2] as ProjectViewId;
-  const view = search.get("view") ?? "";
-  return ITEM_VIEW_IDS.includes(view) ? (view as ItemViewId) : "board";
+  return itemViewFromParam(search.get("view"));
 }
 
 // ---------------------------------------------------------------------------
