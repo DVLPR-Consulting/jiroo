@@ -168,7 +168,7 @@ export function HelpGuide() {
         >
           <ul className="t-body list-disc space-y-1 pl-5">
             <li><Ui>Backlog</Ui> : les tâches par sprint et la section Backlog, une ligne compacte par tâche ; glisser-déposer pour classer et planifier.</li>
-            <li><Ui>Board</Ui> : les tâches du sprint actif, une colonne par statut ; déplacer une carte change son statut.</li>
+            <li><Ui>Board</Ui> : les tâches du sprint actif, une colonne par statut ; déplacer une carte change son statut. Sans sprint actif, le bandeau <Ui>Aucun sprint actif</Ui> et son lien <Ui>Voir le Backlog</Ui> surmontent les colonnes, vides et sans glisser-déposer.</li>
             <li><Ui>Liste</Ui> : tableau de tous les tickets, colonnes triables, menu <Ui>Colonnes</Ui>.</li>
             <li><Ui>Arbre</Ui> : la hiérarchie ; glisser un ticket sous un autre parent le rattache (règles de hiérarchie).</li>
           </ul>
