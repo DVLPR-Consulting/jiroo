@@ -40,6 +40,18 @@ async function recreateBacklog() {
   return createBacklog({ key: KEY, name: "Premiers pas E2E", color: "#0f766e" }, await adminId());
 }
 
+/**
+ * A version of ONBO without items. The row is inserted directly: the release
+ * service writes append-only events that would keep the backlog from being removed.
+ */
+async function emptyRelease() {
+  const [backlog] = await db.select({ id: backlogs.id }).from(backlogs).where(eq(backlogs.key, KEY));
+  const [release] = await db.insert(releases)
+    .values({ backlogId: backlog!.id, name: "Version vide", createdBy: await adminId() })
+    .returning({ id: releases.id });
+  return release!;
+}
+
 test.beforeAll(recreateBacklog);
 test.afterAll(removeBacklog);
 
@@ -89,15 +101,10 @@ test("guide un nouveau backlog : Composant, puis Epic, puis Tâche", async ({ pa
   await expect(backlog.getByRole("row", { name: new RegExp(`${TASK}$`) })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("jir88-3-backlog-tache.png") });
 
-  // 4. A version without items is an empty result, not a new backlog. The row
-  // is inserted directly: the release service writes append-only events that
-  // would keep the fixture backlog from being removed.
-  const [backlogRow] = await db.select({ id: backlogs.id }).from(backlogs).where(eq(backlogs.key, KEY));
-  const [release] = await db.insert(releases)
-    .values({ backlogId: backlogRow!.id, name: "Version vide", createdBy: await adminId() })
-    .returning({ id: releases.id });
+  // 4. A version without items is an empty result, not a new backlog.
+  const release = await emptyRelease();
   for (const view of ["list", "tree"]) {
-    await page.goto(`/b/${KEY}?view=${view}&version=${release!.id}`);
+    await page.goto(`/b/${KEY}?view=${view}&version=${release.id}`);
     await expect(page.getByRole("heading", { name: "Aucun résultat" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Effacer les filtres" })).toBeVisible();
     await expect(page.getByText(/Commencez par créer un Composant/)).toHaveCount(0);
@@ -122,6 +129,19 @@ test("remplace « Créer un item » par l’étape manquante dans le Backlog", a
   await expect(backlog.getByRole("note", { name: "Créez une Epic dans un Composant" })).toBeVisible();
   await expect(backlog.getByText("Pour créer un item, créez d’abord une Epic.")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("jir88-5-backlog-epic.png") });
+
+  // Under a Version filter the Composant is not among the candidates: no Epic
+  // dialog that could not be completed, a way back to the unfiltered view.
+  const release = await emptyRelease();
+  await page.goto(`/b/${KEY}?view=backlog&version=${release.id}`);
+  await expect(
+    backlog.getByText("Pour créer un item, il faut d’abord une Epic : effacez les filtres pour la créer."),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /Nouvelle Epic|Créer un item/ })).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("jir88-7-backlog-version-vide.png") });
+  await backlog.getByRole("link", { name: "Effacer les filtres" }).click();
+  await expect(page).toHaveURL(new RegExp(`/b/${KEY}\\?view=backlog$`));
+
   await backlog.getByRole("button", { name: "Nouvelle Epic (Backlog)" }).click();
   await createFromDialog(page, "Epic", EPIC, COMPOSANT);
 
