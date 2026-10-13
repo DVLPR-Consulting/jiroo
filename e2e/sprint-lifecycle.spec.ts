@@ -322,8 +322,10 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
   await page
     .getByRole("textbox", { name: "Objectif" })
     .fill("Valider le cycle produit complet dans Jiroo");
-  await page.getByLabel("Début", { exact: true }).fill("2026-08-05T09:00");
-  await page.getByLabel("Fin", { exact: true }).fill("2026-08-19T18:00");
+  await page.getByLabel("Début", { exact: true }).fill("2026-08-05");
+  await page.getByLabel("Heure de début").fill("09:00");
+  await page.getByLabel("Fin", { exact: true }).fill("2026-08-19");
+  await page.getByLabel("Heure de fin").fill("18:00");
   await page.getByRole("spinbutton", { name: "Capacité (points)" }).fill("13");
   timings.push(
     `[timing] start sprint ${await businessPost(page, () =>
@@ -474,8 +476,10 @@ test("conserve le sprint planifié et explique un échec réseau au démarrage",
   );
   await expect(page.getByRole("heading", { name: "Sprint 1" })).toBeVisible();
   await page.getByRole("button", { name: "Démarrer le sprint Sprint 1" }).click();
-  await page.getByLabel("Début", { exact: true }).fill("2026-08-05T09:00");
-  await page.getByLabel("Fin", { exact: true }).fill("2026-08-19T18:00");
+  await page.getByLabel("Début", { exact: true }).fill("2026-08-05");
+  await page.getByLabel("Heure de début").fill("09:00");
+  await page.getByLabel("Fin", { exact: true }).fill("2026-08-19");
+  await page.getByLabel("Heure de fin").fill("18:00");
 
   let rejected = false;
   await page.route("**/*", async (route) => {
@@ -581,8 +585,10 @@ test("recalcule et explique un dépassement de capacité avant démarrage", asyn
 
   await page.goto("/b/CASS?view=backlog");
   await page.getByRole("button", { name: "Démarrer le sprint Sprint 1" }).click();
-  await page.getByLabel("Début", { exact: true }).fill("2026-08-05T09:00");
-  await page.getByLabel("Fin", { exact: true }).fill("2026-08-19T18:00");
+  await page.getByLabel("Début", { exact: true }).fill("2026-08-05");
+  await page.getByLabel("Heure de début").fill("09:00");
+  await page.getByLabel("Fin", { exact: true }).fill("2026-08-19");
+  await page.getByLabel("Heure de fin").fill("18:00");
   const capacity = page.getByRole("spinbutton", { name: "Capacité (points)" });
   await capacity.fill("5");
   await expect(page.getByRole("alert")).toHaveText(
@@ -619,8 +625,8 @@ test("démarre un sprint renommé avec son nom, son objectif et ses dates à jou
   await sprintMenuAction(page, "Sprint 1", "Modifier");
   await page.getByRole("textbox", { name: "Nom" }).fill(RENAMED_SPRINT);
   await page.getByRole("textbox", { name: "Objectif" }).fill("Sprint de test 1 semaine");
-  await page.getByLabel("Début prévu").fill("2026-08-05T09:00");
-  await page.getByLabel("Fin prévue").fill("2026-08-12T18:00");
+  await page.getByLabel("Début prévu").fill("2026-08-05");
+  await page.getByLabel("Fin prévue").fill("2026-08-12");
   await businessPost(page, () =>
     page.getByRole("button", { name: "Enregistrer" }).click(),
   );
@@ -630,8 +636,10 @@ test("démarre un sprint renommé avec son nom, son objectif et ses dates à jou
   await expect(page.getByRole("textbox", { name: "Nom" })).toHaveValue(RENAMED_SPRINT);
   await expect(page.getByRole("textbox", { name: "Objectif" }))
     .toHaveValue("Sprint de test 1 semaine");
-  await expect(page.getByLabel("Début", { exact: true })).toHaveValue("2026-08-05T09:00");
-  await expect(page.getByLabel("Fin", { exact: true })).toHaveValue("2026-08-12T18:00");
+  await expect(page.getByLabel("Début", { exact: true })).toHaveValue("2026-08-05");
+  await expect(page.getByLabel("Heure de début")).toHaveValue("09:00");
+  await expect(page.getByLabel("Fin", { exact: true })).toHaveValue("2026-08-12");
+  await expect(page.getByLabel("Heure de fin")).toHaveValue("18:00");
   await businessPost(page, () =>
     page.getByRole("button", { name: "Confirmer le démarrage" }).click(),
   );
@@ -932,8 +940,10 @@ test("laisse le lecteur consulter la planification et le Board sans aucun contr�
   await page.getByRole("button", { name: "Démarrer le sprint Sprint 1" }).click();
   await page.getByRole("textbox", { name: "Nom" }).fill(ACTIVE_SPRINT);
   await page.getByRole("textbox", { name: "Objectif" }).fill("Objectif visible lecteur");
-  await page.getByLabel("Début", { exact: true }).fill("2026-08-05T09:00");
-  await page.getByLabel("Fin", { exact: true }).fill("2026-08-19T18:00");
+  await page.getByLabel("Début", { exact: true }).fill("2026-08-05");
+  await page.getByLabel("Heure de début").fill("09:00");
+  await page.getByLabel("Fin", { exact: true }).fill("2026-08-19");
+  await page.getByLabel("Heure de fin").fill("18:00");
   await page.getByRole("spinbutton", { name: "Capacité (points)" }).fill("13");
   await businessPost(page, () =>
     page.getByRole("button", { name: "Confirmer le démarrage" }).click(),
