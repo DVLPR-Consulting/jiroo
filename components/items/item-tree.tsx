@@ -13,6 +13,8 @@ import {
   type NewItemButtonProps,
 } from "@/components/items/new-item-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ViewStartGuide } from "@/components/items/backlog-start-guide";
+import { hierarchyStartStep } from "@/lib/tree/hierarchy";
 import { LABEL_HUES, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
 import { StatusDot as CanonicalStatusDot } from "@/components/icons/status-dot";
 import {
@@ -174,6 +176,8 @@ export function ItemTree({
 }: ItemTreeProps) {
   const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
   const canScheduleItems = planningCapabilities?.reparent ?? legacyCanScheduleItems;
+  // A new backlog says where to start: Composant, then Epic (JIR-88).
+  const startStep = createDialogProps ? hierarchyStartStep(createDialogProps.items) : null;
   const viewUrl = useViewUrlState();
   // The open item follows the URL, which changes without a server render.
   const selectedKey = useRequestedItemKey() ?? undefined;
@@ -453,6 +457,19 @@ export function ItemTree({
 
   if (items.length === 0) {
     const showNoResults = filtersActive && (hasItems ?? items.length > 0);
+    if (!showNoResults && startStep && createDialogProps) {
+      return (
+        <div className="grid flex-1 place-items-center p-10">
+          <ViewStartGuide
+            step={startStep}
+            backlogKey={backlogKey}
+            dialogProps={createDialogProps}
+            canCreateItems={canCreateItems}
+            variant="empty"
+          />
+        </div>
+      );
+    }
     return (
       <div className="grid flex-1 place-items-center p-10">
         <EmptyState
@@ -501,6 +518,16 @@ export function ItemTree({
           </button>
         </div>
       )}
+      {startStep && !filtersActive && createDialogProps ? (
+        <ViewStartGuide
+          step={startStep}
+          backlogKey={backlogKey}
+          dialogProps={createDialogProps}
+          canCreateItems={canCreateItems}
+          variant="callout"
+          className="mx-3 mt-3 flex-none sm:mx-4"
+        />
+      ) : null}
       <div className="flex-1 overflow-auto py-1">{roots.map((node) => renderNode(node))}</div>
     </div>
   );
