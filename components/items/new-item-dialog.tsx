@@ -2,6 +2,7 @@
 
 import {
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -101,12 +102,19 @@ export type NewItemButtonProps = {
    * `initialParentId` is re-applied on every opening too.
    */
   initialTitle?: string;
+  /**
+   * The item types of the whole live backlog (JIR-91). `items` may be
+   * narrowed by a view filter (e.g. a Version): this tells a parent level the
+   * filter hides from one the backlog does not have yet. Defaults to the
+   * types of `items`.
+   */
+  backlogItemTypes?: ItemType[];
 };
 
 /** The dialog data a view hands down to its « Nouvel item » buttons. */
 export type NewItemDialogData = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions"
+  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "backlogItemTypes"
 >;
 
 const EMPTY_FIELD_OPTIONS: NewItemFieldOptions = {};
@@ -124,6 +132,19 @@ const KIND_OPTIONS: SelectFieldOption<ItemKind>[] = ITEM_KINDS.map((kind) => ({
   value: kind,
   label: ITEM_KIND_LABELS[kind],
 }));
+
+/** Feminine type names, for their French articles (« une Epic », « aucun Composant »). */
+const FEMININE_TYPES: ReadonlySet<ItemType> = new Set(["epic", "tache", "soustache"]);
+
+/** « un Composant », « une Epic »… */
+function aTypeName(type: ItemType): string {
+  return `${FEMININE_TYPES.has(type) ? "une" : "un"} ${ITEM_TYPE_LABELS[type]}`;
+}
+
+/** « Aucun Composant », « Aucune Epic »… */
+function noTypeName(type: ItemType): string {
+  return `${FEMININE_TYPES.has(type) ? "Aucune" : "Aucun"} ${ITEM_TYPE_LABELS[type]}`;
+}
 
 /**
  * The status the server gives a create without `statusId`: the first
@@ -228,6 +249,7 @@ export function NewItemButton({
   releaseOptions = [],
   fieldOptions = EMPTY_FIELD_OPTIONS,
   initialTitle,
+  backlogItemTypes,
 }: NewItemButtonProps) {
   const router = useRouter();
   const viewUrl = useOptionalViewUrlState();
@@ -254,6 +276,10 @@ export function NewItemButton({
   const [error, setError] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
+  const typeTriggerRef = useRef<HTMLButtonElement>(null);
+  // Set by « Créer un Composant »: focus the Type field once the new type is committed.
+  const focusTypeAfterCommit = useRef(false);
+  const parentHintId = useId();
   const titleCounterId = useId();
   const titleErrorId = useId();
 
@@ -289,6 +315,19 @@ export function NewItemButton({
   // Only a listed parent counts: the select, the validation and the payload
   // always agree, even if a prefilled parent is not among the candidates.
   const selectedParentId = parentOptions.some((option) => option.id === parentId) ? parentId : "";
+  // No candidate for the required parent (JIR-91): either the backlog has
+  // none of that level yet, or the view's filter hides them (`items` follows
+  // a Version filter). Only the first case offers to create the parent: this
+  // same draft switches to the parent's type, keeping its title and
+  // description. A sprint-contextual create stays a task, so it only explains.
+  const parentTypeInBacklog =
+    requiredParentType !== null &&
+    (backlogItemTypes ?? items.map((item) => item.type)).includes(requiredParentType);
+  const canSwitchToParentType =
+    requiredParentType !== null &&
+    !parentTypeInBacklog &&
+    !contextualTask &&
+    availableItemTypes.includes(requiredParentType);
   const assignableUsers = fieldOptions.canAssign ? (fieldOptions.users ?? []) : [];
   const canAssignToMe =
     fieldOptions.currentUserId !== undefined &&
@@ -351,6 +390,23 @@ export function NewItemButton({
       }
     }
   }
+
+  /** « Créer un Composant » (JIR-91): the same draft becomes the missing parent. */
+  function switchToParentType() {
+    if (!requiredParentType) return;
+    handleTypeChange(requiredParentType);
+    // The button goes away with the parent field: land on the type just set,
+    // after the commit so the field already names it when it gets focus.
+    focusTypeAfterCommit.current = true;
+  }
+
+  // Runs after each commit; the type change above always re-renders.
+  useLayoutEffect(() => {
+    if (!focusTypeAfterCommit.current) return;
+    focusTypeAfterCommit.current = false;
+    const trigger = typeTriggerRef.current;
+    if (trigger?.isConnected) trigger.focus();
+  });
 
   function openCreated(key: string) {
     if (viewUrl) {
@@ -484,6 +540,7 @@ export function NewItemButton({
                     <Label htmlFor="item-type">Type</Label>
                     <SelectField
                       id="item-type"
+                      triggerRef={typeTriggerRef}
                       value={effectiveType}
                       onValueChange={handleTypeChange}
                       options={availableItemTypes.map((t) => ({
@@ -516,8 +573,9 @@ export function NewItemButton({
                   id="item-parent"
                   value={selectedParentId}
                   required
+                  aria-describedby={parentOptions.length === 0 ? parentHintId : undefined}
                   onValueChange={setParentId}
-                  placeholder={`Choisir un ${ITEM_TYPE_LABELS[requiredParentType].toLowerCase()}…`}
+                  placeholder={`Choisir ${aTypeName(requiredParentType).toLowerCase()}…`}
                   options={parentOptions.map((p) => ({
                     value: p.id,
                     label: `${p.key} — ${p.title}`,
@@ -525,9 +583,21 @@ export function NewItemButton({
                   }))}
                 />
                 {parentOptions.length === 0 && (
-                  <p className="t-sm text-muted-foreground">
-                    Aucun {ITEM_TYPE_LABELS[requiredParentType].toLowerCase()} disponible — créez-en un d&apos;abord.
-                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <p id={parentHintId} className="t-sm min-w-0 flex-1 basis-56 text-muted-foreground">
+                      {parentTypeInBacklog
+                        ? `${noTypeName(requiredParentType)} parmi les items affichés : le filtre de la vue peut masquer les parents possibles.`
+                        : `${noTypeName(requiredParentType)} dans ce backlog : ${aTypeName(effectiveType)} se rattache toujours à ${aTypeName(requiredParentType)}.`}
+                    </p>
+                    {canSwitchToParentType && (
+                      <Button type="button" variant="outline" size="sm" onClick={switchToParentType}>
+                        <span aria-hidden>
+                          <TypeIcon type={requiredParentType} size={14} />
+                        </span>
+                        Créer {aTypeName(requiredParentType)}
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
             )}

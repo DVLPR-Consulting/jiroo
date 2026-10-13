@@ -363,6 +363,9 @@ export async function BacklogViewContent({
       type: item.type,
       title: item.title,
     })),
+    // `items` follows the Version filter: the live types tell the dialog a
+    // hidden parent from one the backlog does not have yet (JIR-91).
+    backlogItemTypes: [...new Set(liveItemTypes)],
     statuses: statusRows.map((status) => ({
       id: status.id,
       name: status.name,

@@ -91,7 +91,7 @@ type Status = {
 type Columns = Record<string, BoardCard[]>;
 export type BoardCreateDialogProps = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses" | "sprintId" | "contextLabel" | "canScheduleItems" | "releaseOptions" | "fieldOptions"
+  "backlogId" | "items" | "statuses" | "sprintId" | "contextLabel" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "backlogItemTypes"
 >;
 
 const sprintDateFormatter = new Intl.DateTimeFormat("fr-FR", {

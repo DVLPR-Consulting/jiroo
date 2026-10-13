@@ -1018,6 +1018,24 @@ describe("BacklogViewContent read boundary", () => {
       expect(within(dialog).getByRole("button", { name: "Créer" })).toBeEnabled();
     });
 
+    it("hands « Nouvel item » the live item types, which the Version filter does not narrow (JIR-91)", async () => {
+      render(
+        await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view: "list", version: "release-empty" }),
+        }),
+      );
+
+      expect(mocks.itemListProps).toHaveBeenCalledWith(
+        expect.objectContaining({
+          createDialogProps: expect.objectContaining({
+            items: [],
+            backlogItemTypes: ["composant", "epic"],
+          }),
+        }),
+      );
+    });
+
     it("reads the step from the unfiltered rows without a Version filter", async () => {
       mocks.listItems.mockResolvedValue([liveRow("comp", "composant")]);
       render(
