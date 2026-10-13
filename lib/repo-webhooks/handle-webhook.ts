@@ -11,11 +11,11 @@ import {
 } from "@/lib/repo-webhooks/events";
 import { verifyGithubSignature, verifyGitlabToken } from "@/lib/repo-webhooks/signature";
 import {
-  countRecentDeliveries,
   findWebhookConnection,
   ingestWebhookReferences,
   recordWebhookError,
   recordWebhookEvent,
+  reserveWebhookRequest,
 } from "@/lib/services/repo-webhooks";
 
 /**
@@ -28,8 +28,8 @@ import {
  */
 
 export const MAX_WEBHOOK_BYTES = 1024 * 1024;
+/** Authenticated requests per connection and minute, errors and replays included. */
 export const WEBHOOK_RATE_LIMIT = 120;
-const RATE_WINDOW_MS = 60 * 1000;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DELIVERY_ID = /^[A-Za-z0-9._:-]{1,200}$/;
@@ -77,8 +77,7 @@ function verify(provider: RepoProvider, request: Request, body: Uint8Array, secr
 }
 
 /**
- * The forge's delivery id, or a digest of the body when there is none: every
- * authenticated delivery is recorded, so it counts against the budget and an
+ * The forge's delivery id, or a digest of the body when there is none, so an
  * identical replay is applied once.
  */
 function deliveryId(provider: RepoProvider, request: Request, body: Uint8Array): string {
@@ -123,8 +122,13 @@ export async function handleRepoWebhook(
   if (!connection || !readable || !authentic) return refused();
 
   try {
-    if (await countRecentDeliveries(connection.id, RATE_WINDOW_MS) >= WEBHOOK_RATE_LIMIT) {
-      await recordWebhookError(connection.id, "Trop de livraisons : réessayez plus tard.");
+    // Reserved before anything is parsed or applied.
+    const used = await reserveWebhookRequest(connection.id);
+    if (used > WEBHOOK_RATE_LIMIT) {
+      // Recorded once per window, not on every refused request.
+      if (used === WEBHOOK_RATE_LIMIT + 1) {
+        await recordWebhookError(connection.id, "Trop de livraisons : réessayez plus tard.");
+      }
       return json(429, { error: "rate_limited" });
     }
 
@@ -147,11 +151,11 @@ export async function handleRepoWebhook(
 
     const delivery = deliveryId(provider, request, body);
     if (parsed.type === "ping") {
-      await recordWebhookEvent(connection.id, delivery);
+      await recordWebhookEvent(connection.id);
       return json(200, { ok: true });
     }
     if (parsed.type === "ignored") {
-      await recordWebhookEvent(connection.id, delivery);
+      await recordWebhookEvent(connection.id);
       return json(202, { ok: true, ignored: true });
     }
     if (parsed.repositoryPath !== connection.repositoryPath) {

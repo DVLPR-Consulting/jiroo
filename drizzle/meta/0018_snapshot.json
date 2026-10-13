@@ -1,5 +1,5 @@
 {
-  "id": "88ad86ea-97d8-459e-9edc-778d6bfcb64a",
+  "id": "0691ad43-a552-4a05-80ad-bd648a9ad467",
   "prevId": "fcdf5867-3252-494b-b284-80fc1f5aa537",
   "version": "7",
   "dialect": "postgresql",
@@ -3777,6 +3777,60 @@
           "columns": [
             "connection_id",
             "delivery_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.repo_webhook_rate": {
+      "name": "repo_webhook_rate",
+      "schema": "",
+      "columns": {
+        "connection_id": {
+          "name": "connection_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "window_start": {
+          "name": "window_start",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "repo_webhook_rate_connection_id_repo_connections_id_fk": {
+          "name": "repo_webhook_rate_connection_id_repo_connections_id_fk",
+          "tableFrom": "repo_webhook_rate",
+          "tableTo": "repo_connections",
+          "columnsFrom": [
+            "connection_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "repo_webhook_rate_connection_id_window_start_pk": {
+          "name": "repo_webhook_rate_connection_id_window_start_pk",
+          "columns": [
+            "connection_id",
+            "window_start"
           ]
         }
       },

@@ -919,6 +919,21 @@ export const repoWebhookDeliveries = pgTable(
   ],
 );
 
+// Authenticated webhook requests per connection and minute (JIR-95): the
+// request budget, reserved atomically and shared by every instance. Separate
+// from the delivery log, so errors and replays count too.
+export const repoWebhookRate = pgTable(
+  "repo_webhook_rate",
+  {
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => repoConnections.id, { onDelete: "cascade" }),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.connectionId, t.windowStart] })],
+);
+
 // Development references of an item: links pasted by hand (provider null)
 // and references detected from repository webhooks (JIR-95), upserted per
 // (item, kind, provider, external id). Deleting a connection keeps them.

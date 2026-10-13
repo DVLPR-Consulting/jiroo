@@ -3,16 +3,15 @@ import "dotenv/config";
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
-import { itemRefs, repoConnections } from "@/lib/db/schema/domain";
+import { itemRefs, repoConnections, repoWebhookRate } from "@/lib/db/schema/domain";
 import type { DevRefCandidate } from "@/lib/repo-webhooks/events";
 import { addRef, listRefsForItem, removeRef } from "@/lib/services/refs";
 import { createRepoConnection, deleteRepoConnection, setRepoConnectionEnabled } from "@/lib/services/repo-connections";
 import {
-  countRecentDeliveries,
   findWebhookConnection,
   ingestWebhookReferences,
   recordWebhookError,
-  recordWebhookEvent,
+  reserveWebhookRequest,
   type WebhookConnection,
 } from "@/lib/services/repo-webhooks";
 import {
@@ -156,12 +155,23 @@ describeDb("repository webhook ingestion (JIR-95)", () => {
     expect((await listRefsForItem(first.id)).map((ref) => ref.id)).not.toContain(orphan!.id);
   });
 
-  it("counts pings and ignored events against the delivery budget", async () => {
-    const before = await countRecentDeliveries(connection.id, 60_000);
-    await recordWebhookEvent(connection.id, "ping-1");
-    await recordWebhookEvent(connection.id, "ping-1");
-    await recordWebhookEvent(connection.id, "ignored-1");
-    expect(await countRecentDeliveries(connection.id, 60_000)).toBe(before + 2);
+  it("reserves requests atomically per connection and window", async () => {
+    const window = new Date("2030-01-01T10:00:30.000Z");
+    let used = 0;
+    for (let index = 0; index < 119; index += 1) used = await reserveWebhookRequest(connection.id, window);
+    expect(used).toBe(119);
+    // Two concurrent reservations at the limit never read the same count.
+    const pair = await Promise.all([
+      reserveWebhookRequest(connection.id, window),
+      reserveWebhookRequest(connection.id, window),
+    ]);
+    expect(pair.sort((a, b) => a - b)).toEqual([120, 121]);
+    expect(await reserveWebhookRequest(connection.id, window)).toBe(122);
+
+    // The next window starts again from 1 and drops the older ones.
+    expect(await reserveWebhookRequest(connection.id, new Date("2030-01-01T10:01:05.000Z"))).toBe(1);
+    const windows = await db.select().from(repoWebhookRate).where(eq(repoWebhookRate.connectionId, connection.id));
+    expect(windows.map((row) => row.windowStart.toISOString())).toEqual(["2030-01-01T10:01:00.000Z"]);
   });
 
   it("throttles the recorded error of a failing connection", async () => {

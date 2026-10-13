@@ -11,7 +11,7 @@ process.env.BETTER_AUTH_SECRET = KEY_MATERIAL;
 
 const mocks = vi.hoisted(() => ({
   findWebhookConnection: vi.fn(),
-  countRecentDeliveries: vi.fn(),
+  reserveWebhookRequest: vi.fn(),
   recordWebhookError: vi.fn(),
   recordWebhookEvent: vi.fn(),
   ingestWebhookReferences: vi.fn(),
@@ -82,7 +82,7 @@ describe("POST /api/webhooks/{github,gitlab}/[connectionId]", () => {
       id === CONNECTION_ID
         ? connection(provider, provider === "github" ? "example-org/example-repo" : "juridiction/greffe/api")
         : null);
-    mocks.countRecentDeliveries.mockResolvedValue(0);
+    mocks.reserveWebhookRequest.mockResolvedValue(1);
     mocks.ingestWebhookReferences.mockResolvedValue({ duplicate: false, linked: 1 });
   });
 
@@ -123,7 +123,7 @@ describe("POST /api/webhooks/{github,gitlab}/[connectionId]", () => {
       () => Promise.reject(new Error("database unavailable")),
     ]) {
       vi.clearAllMocks();
-      for (const write of [mocks.recordWebhookError, mocks.recordWebhookEvent, mocks.ingestWebhookReferences, mocks.countRecentDeliveries]) {
+      for (const write of [mocks.recordWebhookError, mocks.recordWebhookEvent, mocks.ingestWebhookReferences, mocks.reserveWebhookRequest]) {
         write.mockImplementation(persistence);
       }
       const answers = await Promise.all([
@@ -207,8 +207,9 @@ describe("POST /api/webhooks/{github,gitlab}/[connectionId]", () => {
     expect(ignored.status).toBe(202);
     await expect(ignored.json()).resolves.toEqual({ ok: true, ignored: true });
     expect(mocks.recordWebhookEvent).toHaveBeenCalledTimes(2);
-    // Recorded as deliveries, so they count against the budget.
-    expect(mocks.recordWebhookEvent).toHaveBeenCalledWith(CONNECTION_ID, "delivery-1");
+    expect(mocks.recordWebhookEvent).toHaveBeenCalledWith(CONNECTION_ID);
+    // Each reserved a request in the budget.
+    expect(mocks.reserveWebhookRequest).toHaveBeenCalledTimes(2);
     expect(mocks.ingestWebhookReferences).not.toHaveBeenCalled();
   });
 
@@ -254,11 +255,40 @@ describe("POST /api/webhooks/{github,gitlab}/[connectionId]", () => {
     }));
   });
 
-  it("limits the deliveries of a connection", async () => {
-    mocks.countRecentDeliveries.mockResolvedValue(120);
+  function countingBudget() {
+    let used = 0;
+    mocks.reserveWebhookRequest.mockImplementation(async () => ++used);
+  }
+
+  it("limits a connection to 120 authenticated requests a minute, errors included", async () => {
+    countingBudget();
+    const statuses: number[] = [];
+    for (let index = 0; index < 121; index += 1) {
+      statuses.push((await githubRequest(null, { body: "not json" })).status);
+    }
+    expect(statuses.slice(0, 120).every((status) => status === 400)).toBe(true);
+    expect(statuses[120]).toBe(429);
+    // The overflow is recorded once, not on every refused request.
+    expect(mocks.recordWebhookError.mock.calls.filter(([, message]) => message.startsWith("Trop de livraisons"))).toHaveLength(1);
+  });
+
+  it("counts replays of one delivery against the budget", async () => {
+    countingBudget();
+    mocks.ingestWebhookReferences.mockResolvedValue({ duplicate: true, linked: 0 });
+    let last = 0;
+    for (let index = 0; index < 121; index += 1) {
+      last = (await githubRequest(githubPrOpened, { delivery: "same-delivery" })).status;
+    }
+    expect(last).toBe(429);
+    expect(mocks.ingestWebhookReferences).toHaveBeenCalledTimes(120);
+  });
+
+  it("reserves the request before parsing anything", async () => {
+    mocks.reserveWebhookRequest.mockResolvedValue(121);
     const response = await githubRequest(githubPrOpened);
     expect(response.status).toBe(429);
     expect(mocks.ingestWebhookReferences).not.toHaveBeenCalled();
+    expect(mocks.recordWebhookEvent).not.toHaveBeenCalled();
   });
 
   it("checks GitLab's secret token and links a merge request", async () => {

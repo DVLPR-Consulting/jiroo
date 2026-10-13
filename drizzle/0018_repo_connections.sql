@@ -23,6 +23,13 @@ CREATE TABLE "repo_webhook_deliveries" (
 	CONSTRAINT "repo_webhook_deliveries_connection_id_delivery_id_pk" PRIMARY KEY("connection_id","delivery_id")
 );
 --> statement-breakpoint
+CREATE TABLE "repo_webhook_rate" (
+	"connection_id" uuid NOT NULL,
+	"window_start" timestamp with time zone NOT NULL,
+	"count" integer DEFAULT 0 NOT NULL,
+	CONSTRAINT "repo_webhook_rate_connection_id_window_start_pk" PRIMARY KEY("connection_id","window_start")
+);
+--> statement-breakpoint
 ALTER TABLE "item_refs" ADD COLUMN "connection_id" uuid;--> statement-breakpoint
 ALTER TABLE "item_refs" ADD COLUMN "provider" "repo_provider";--> statement-breakpoint
 ALTER TABLE "item_refs" ADD COLUMN "external_id" text;--> statement-breakpoint
@@ -33,6 +40,7 @@ ALTER TABLE "item_refs" ADD COLUMN "occurred_at" timestamp with time zone;--> st
 ALTER TABLE "repo_connections" ADD CONSTRAINT "repo_connections_backlog_id_backlogs_id_fk" FOREIGN KEY ("backlog_id") REFERENCES "public"."backlogs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "repo_connections" ADD CONSTRAINT "repo_connections_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "repo_webhook_deliveries" ADD CONSTRAINT "repo_webhook_deliveries_connection_id_repo_connections_id_fk" FOREIGN KEY ("connection_id") REFERENCES "public"."repo_connections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "repo_webhook_rate" ADD CONSTRAINT "repo_webhook_rate_connection_id_repo_connections_id_fk" FOREIGN KEY ("connection_id") REFERENCES "public"."repo_connections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "repo_connections_backlog_repository_idx" ON "repo_connections" USING btree ("backlog_id","provider","instance_url","repository_path");--> statement-breakpoint
 CREATE INDEX "repo_webhook_deliveries_received_idx" ON "repo_webhook_deliveries" USING btree ("connection_id","received_at");--> statement-breakpoint
 ALTER TABLE "item_refs" ADD CONSTRAINT "item_refs_connection_id_repo_connections_id_fk" FOREIGN KEY ("connection_id") REFERENCES "public"."repo_connections"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   backlogs,
@@ -8,6 +8,7 @@ import {
   items,
   repoConnections,
   repoWebhookDeliveries,
+  repoWebhookRate,
 } from "@/lib/db/schema/domain";
 import type { DevRefCandidate, RepoProvider } from "@/lib/repo-webhooks/events";
 import { extractItemKeys } from "@/lib/repo-webhooks/item-keys";
@@ -68,16 +69,32 @@ export async function findWebhookConnection(
   return connection ?? null;
 }
 
-/** Deliveries applied in the last `windowMs`, for the per-connection budget. */
-export async function countRecentDeliveries(connectionId: string, windowMs: number): Promise<number> {
+/** Width of a request budget window. */
+export const WEBHOOK_RATE_WINDOW_MS = 60 * 1000;
+
+/**
+ * Reserves one authenticated request in the connection's current window and
+ * returns how many the window now holds. A single upsert, so concurrent
+ * requests on any instance never read the same count; errors and replays
+ * reserve like any other request. The first request of a window drops the
+ * connection's older windows.
+ */
+export async function reserveWebhookRequest(connectionId: string, now = new Date()): Promise<number> {
+  const windowStart = new Date(Math.floor(now.getTime() / WEBHOOK_RATE_WINDOW_MS) * WEBHOOK_RATE_WINDOW_MS);
   const [row] = await db
-    .select({ value: count() })
-    .from(repoWebhookDeliveries)
-    .where(and(
-      eq(repoWebhookDeliveries.connectionId, connectionId),
-      gte(repoWebhookDeliveries.receivedAt, new Date(Date.now() - windowMs)),
-    ));
-  return row?.value ?? 0;
+    .insert(repoWebhookRate)
+    .values({ connectionId, windowStart, count: 1 })
+    .onConflictDoUpdate({
+      target: [repoWebhookRate.connectionId, repoWebhookRate.windowStart],
+      set: { count: sql`${repoWebhookRate.count} + 1` },
+    })
+    .returning({ count: repoWebhookRate.count });
+  if (row!.count === 1) {
+    await db
+      .delete(repoWebhookRate)
+      .where(and(eq(repoWebhookRate.connectionId, connectionId), lt(repoWebhookRate.windowStart, windowStart)));
+  }
+  return row!.count;
 }
 
 /** Shows the failure on the settings page; throttled against floods. */
@@ -98,20 +115,15 @@ export async function recordWebhookError(connectionId: string, message: string):
 }
 
 /**
- * An authenticated delivery that links nothing (ping, ignored event): still
- * recorded, so it counts against the connection's budget.
+ * An authenticated delivery that links nothing (ping, ignored event): only
+ * the connection's status changes. It has already reserved its request in
+ * the budget, and nothing is added to the delivery log.
  */
-export async function recordWebhookEvent(connectionId: string, deliveryId: string): Promise<void> {
-  await db.transaction(async (tx) => {
-    await tx
-      .insert(repoWebhookDeliveries)
-      .values({ connectionId, deliveryId })
-      .onConflictDoNothing();
-    await tx
-      .update(repoConnections)
-      .set({ lastEventAt: new Date(), lastError: null, lastErrorAt: null })
-      .where(eq(repoConnections.id, connectionId));
-  });
+export async function recordWebhookEvent(connectionId: string): Promise<void> {
+  await db
+    .update(repoConnections)
+    .set({ lastEventAt: new Date(), lastError: null, lastErrorAt: null })
+    .where(eq(repoConnections.id, connectionId));
 }
 
 type RefRow = typeof itemRefs.$inferInsert & { occurredAt: Date };
