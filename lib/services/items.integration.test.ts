@@ -22,6 +22,7 @@ import {
   createItem,
   listItems,
   listItemsWithAncestors,
+  listLiveParentCandidates,
   moveItem,
   rankBacklogItem,
   reparentItem,
@@ -884,6 +885,60 @@ describeDb("item fix version integration", () => {
       ]);
     } finally {
       await cleanupReleaseBacklogs([fixture.backlogId]);
+    }
+  });
+
+  it("lists the live parents a Version filter hides, without Sous-tâches or other backlogs", async () => {
+    const fixture = await createTaskUpdateFixture();
+    const other = await createTaskUpdateFixture();
+    const subtaskId = randomUUID();
+    const deletedEpicId = randomUUID();
+    const [task] = await db.select().from(items).where(eq(items.id, fixture.item.id));
+    await db.insert(items).values([
+      {
+        id: subtaskId,
+        key: `${randomBacklogKey()}-4`,
+        type: "soustache",
+        backlogId: fixture.backlogId,
+        title: "Sous-tâche",
+        parentId: fixture.item.id,
+        statusId: fixture.item.statusId,
+        reporterId: fixture.actorId,
+        rank: "a3",
+        path: `${task!.path}.${subtaskId.replaceAll("-", "")}`,
+        depth: 3,
+      },
+      {
+        id: deletedEpicId,
+        key: `${randomBacklogKey()}-5`,
+        type: "epic",
+        backlogId: fixture.backlogId,
+        title: "Epic supprimée",
+        parentId: fixture.componentId,
+        statusId: fixture.item.statusId,
+        reporterId: fixture.actorId,
+        rank: "a4",
+        path: `root.${fixture.componentId.replaceAll("-", "")}.${deletedEpicId.replaceAll("-", "")}`,
+        depth: 1,
+        deletedAt: new Date(),
+      },
+    ]);
+    const [emptyRelease] = await db
+      .insert(releases)
+      .values({ backlogId: fixture.backlogId, name: "Version vide", createdBy: fixture.actorId })
+      .returning({ id: releases.id });
+
+    try {
+      await expect(listItems(fixture.backlogId, { releaseIds: [emptyRelease!.id] })).resolves.toEqual([]);
+      const candidates = await listLiveParentCandidates(fixture.backlogId);
+      expect(candidates).toEqual([
+        { id: fixture.componentId, key: expect.any(String), type: "composant", title: "Produit" },
+        { id: fixture.epicId, key: expect.any(String), type: "epic", title: "Epic estimable" },
+        { id: fixture.item.id, key: fixture.item.key, type: "tache", title: "Travail estimable" },
+      ]);
+    } finally {
+      await cleanupReleaseBacklogs([fixture.backlogId]);
+      await db.delete(backlogs).where(eq(backlogs.id, other.backlogId));
     }
   });
 

@@ -97,6 +97,30 @@ export async function listLiveItemTypes(backlogId: string) {
   return rows.map((row) => row.type);
 }
 
+/** The item types that can hold a child: a Sous-tâche never does. */
+const PARENT_ITEM_TYPES = ["composant", "epic", "tache"] as const;
+
+/**
+ * The live items of a backlog that can be a parent (Composant, Epic, Tâche),
+ * whatever the view filters, with only what a creation form shows of them.
+ * A view narrowed by a Version filter hands these to creation (JIR-92), so
+ * the parents the filter hides stay choices. The caller has already checked
+ * the backlog is browsable: its unfiltered views list these same rows.
+ */
+export function listLiveParentCandidates(backlogId: string) {
+  return db
+    .select({ id: items.id, key: items.key, type: items.type, title: items.title })
+    .from(items)
+    .where(
+      and(
+        eq(items.backlogId, backlogId),
+        isNull(items.deletedAt),
+        inArray(items.type, [...PARENT_ITEM_TYPES]),
+      ),
+    )
+    .orderBy(asc(items.depth), asc(binaryTextOrder(items.rank)), asc(items.key));
+}
+
 export function listItemsWithAncestors(backlogId: string, itemIds: string[]) {
   const uniqueItemIds = [...new Set(itemIds)];
   if (uniqueItemIds.length === 0) return Promise.resolve([]);
