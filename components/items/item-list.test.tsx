@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { currentHref } from "@/test/history";
-import { ItemList } from "@/components/items/item-list";
+import { ItemList, ListColumnsMenu } from "@/components/items/item-list";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
 const mocks = vi.hoisted(() => ({
@@ -142,7 +142,7 @@ describe("ItemList", () => {
     mocks.updateItemAction.mockReset();
   });
 
-  it("renders Fix versions after Assigné with two compact chips and a remainder", () => {
+  it("shows Fix versions as two compact row chips and a remainder when the column is on", () => {
     const versions = [
       { id: "release-1", name: "2026.10", released: false, archived: false },
       { id: "release-2", name: "2026.09", released: true, archived: false },
@@ -158,28 +158,90 @@ describe("ItemList", () => {
       }],
     });
 
-    const headers = screen.getAllByRole("columnheader").map((header) => header.textContent?.trim());
-    expect(headers.indexOf("Fix versions")).toBe(headers.indexOf("Assigné") + 1);
-    const row = screen.getByRole("row", { name: /DEMO-1 — Authentication/ });
+    const row = screen.getByRole("listitem", { name: /DEMO-1 — Authentication/ });
     expect(within(row).getByText("2026.10")).toBeVisible();
     expect(within(row).getByText("2026.09")).toBeVisible();
     expect(within(row).getByText("+1")).toBeVisible();
     expect(within(row).queryByText("Legacy")).not.toBeInTheDocument();
   });
 
-  it("keeps the Fix versions column URL-configurable", async () => {
+  it("keeps the optional columns URL-configurable from « Colonnes »", async () => {
     const user = userEvent.setup();
-    renderList({ ...listProps(), showFixVersions: false });
+    const { unmount } = render(
+      <ViewUrlStateProvider initialEntries={Object.entries(initialUrlParams)}>
+        <ListColumnsMenu />
+      </ViewUrlStateProvider>,
+    );
 
-    expect(screen.queryByRole("columnheader", { name: "Fix versions" }))
-      .not.toBeInTheDocument();
+    for (const [label, param] of [
+      ["Labels", "lblcol=1"],
+      ["Échéance", "duecol=1"],
+      ["Fix versions", "fvcol=1"],
+    ] as const) {
+      await user.click(screen.getByRole("button", { name: "Configurer les colonnes" }));
+      const option = screen.getByRole("menuitemcheckbox", { name: label });
+      expect(option).not.toBeChecked();
+      await user.click(option);
+      expect(mocks.replace).toHaveBeenLastCalledWith(
+        expect.stringContaining(param),
+        { scroll: false },
+      );
+    }
+    unmount();
+
+    render(
+      <ViewUrlStateProvider
+        initialEntries={Object.entries({ ...initialUrlParams, lblcol: "1" })}
+      >
+        <ListColumnsMenu showLabels />
+      </ViewUrlStateProvider>,
+    );
     await user.click(screen.getByRole("button", { name: "Configurer les colonnes" }));
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "Fix versions" }));
-
-    expect(mocks.replace).toHaveBeenCalledWith(
-      expect.stringContaining("fvcol=1"),
+    const labels = screen.getByRole("menuitemcheckbox", { name: "Labels" });
+    expect(labels).toBeChecked();
+    await user.click(labels);
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      expect.not.stringContaining("lblcol"),
       { scroll: false },
     );
+  });
+
+  it("shows labels and the due date as row pills only when their columns are on", () => {
+    const { unmount } = renderList();
+    let row = screen.getByRole("listitem", { name: "DEMO-1 — Authentication" });
+    expect(within(row).queryByText("Urgent")).not.toBeInTheDocument();
+    expect(within(row).queryByTitle("Échéance")).not.toBeInTheDocument();
+    unmount();
+
+    renderList({ ...listProps(), showLabels: true, showDueDate: true });
+    row = screen.getByRole("listitem", { name: "DEMO-1 — Authentication" });
+    expect(within(row).getByText("Urgent")).toBeVisible();
+    expect(within(row).getByTitle("Échéance")).toHaveTextContent("12 août 2026");
+  });
+
+  it("renders a flat list with each parent as a pill", () => {
+    renderList({
+      ...listProps(),
+      groups: [{
+        key: "",
+        label: "",
+        items: [
+          item("item-3", "DEMO-3", "Sous-tâche", {
+            type: "soustache",
+            depth: 3,
+            parent: { key: "DEMO-1", title: "Authentication", type: "tache" },
+          }),
+        ],
+      }],
+    });
+
+    const row = screen.getByRole("listitem", { name: "DEMO-3 — Sous-tâche" });
+    expect(within(row).getByTitle("DEMO-1 — Authentication")).toHaveTextContent("Authentication");
+    // No hierarchy indentation (that is the Arbre), and no estimate below a task.
+    expect(row.querySelector("[style*='padding-left']")).toBeNull();
+    expect(within(row).queryByRole("button", { name: /^Estimation/ })).not.toBeInTheDocument();
+    // No drag handle outside the Backlog.
+    expect(within(row).queryByRole("button", { name: /^Déplacer/ })).not.toBeInTheDocument();
   });
 
   it("enables selection for release-only bulk assignment", async () => {
@@ -249,7 +311,7 @@ describe("ItemList", () => {
     });
 
     const note = screen.getByRole("note", { name: "Créez une Epic dans un Composant" });
-    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Liste des items" })).toBeInTheDocument();
     await user.click(within(note).getByRole("button", { name: "Nouvelle Epic" }));
     const dialog = screen.getByRole("dialog", { name: /Nouvel item/ });
     expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
@@ -316,25 +378,83 @@ describe("ItemList", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("renders the dense list as a semantic table with sticky column headers", () => {
+  it("renders Backlog rows as a list under a sticky « Trier la liste » strip, not a table", () => {
     renderList();
 
-    expect(screen.getByRole("table")).toBeInTheDocument();
-    for (const heading of ["Clé", "Titre", "Statut", "Prio", "Points", "Labels", "Échéance", "Assigné"]) {
-      expect(screen.getByRole("columnheader", { name: heading })).toBeInTheDocument();
+    // Regression (JIR-93 review): no fake table, no column headers.
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("columnheader")).toHaveLength(0);
+    expect(screen.queryAllByRole("row")).toHaveLength(0);
+    expect(document.querySelector("[aria-sort]")).toBeNull();
+    const list = screen.getByRole("list", { name: "Liste des items" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+
+    const sort = screen.getByRole("group", { name: "Trier la liste" });
+    for (const label of ["Clé", "Titre", "Échéance", "Priorité", "Statut"]) {
+      expect(within(sort).getByRole("button", { name: `Trier par ${label}` }))
+        .toHaveAttribute("aria-pressed", "false");
     }
-    expect(screen.getByRole("columnheader", { name: "Clé" }).closest("thead")).toHaveClass("sticky");
+    expect(sort.parentElement).toHaveClass("sticky");
     expect(screen.getAllByRole("img", { name: "À faire" })[0]).toBeVisible();
+    // Rows wrap instead of flooring a table width: no horizontal page scroll.
+    expect(list.getAttribute("style")).toBeNull();
   });
 
-  it("floors the table width so the title column stays readable on narrow screens", () => {
-    const { unmount } = renderList({ ...listProps(), showFixVersions: false });
-    // 2.5rem selection + 59rem fixed columns + 12rem title floor.
-    expect(screen.getByRole("table")).toHaveStyle({ minWidth: "73.5rem" });
-    unmount();
+  it("labels each group of a grouped list", () => {
+    renderList({ ...listProps(), grouped: true });
+    expect(screen.getByRole("region", { name: "Liste des items" })).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Plateforme" })).getByRole("listitem"))
+      .toHaveAccessibleName("DEMO-1 — Authentication");
+  });
 
-    renderList({ ...listProps(), showFixVersions: true });
-    expect(screen.getByRole("table")).toHaveStyle({ minWidth: "84.5rem" });
+  it.each([
+    ["Clé", "key"],
+    ["Titre", "title"],
+    ["Échéance", "dueDate"],
+    ["Priorité", "priority"],
+    ["Statut", "status"],
+  ] as const)("sorts by %s through the URL and states the pressed direction", async (label, field) => {
+    const user = userEvent.setup();
+    const props = listProps();
+    const { rerender } = renderList(props);
+
+    await user.click(screen.getByRole("button", { name: `Trier par ${label}` }));
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      expect.stringContaining(`sort=${field}%3Aasc`),
+      { scroll: false },
+    );
+
+    rerender(
+      <ViewUrlStateProvider
+        initialEntries={Object.entries({ ...initialUrlParams, sort: `${field}:asc` })}
+      >
+        <ItemList {...props} currentSort={{ field, dir: "asc" }} />
+      </ViewUrlStateProvider>,
+    );
+    const ascending = screen.getByRole("button", { name: `Trier par ${label}, croissant` });
+    expect(ascending).toHaveAttribute("aria-pressed", "true");
+    // The name carries the direction once; no description repeats it.
+    expect(ascending).toHaveAccessibleDescription("");
+    for (const other of screen.getAllByRole("button", { name: /^Trier par / })) {
+      if (other !== ascending) expect(other).toHaveAttribute("aria-pressed", "false");
+    }
+    // Keyboard: the sort control is a native button.
+    ascending.focus();
+    await user.keyboard("{Enter}");
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      expect.stringContaining(`sort=${field}%3Adesc`),
+      { scroll: false },
+    );
+
+    rerender(
+      <ViewUrlStateProvider
+        initialEntries={Object.entries({ ...initialUrlParams, sort: `${field}:desc` })}
+      >
+        <ItemList {...props} currentSort={{ field, dir: "desc" }} />
+      </ViewUrlStateProvider>,
+    );
+    expect(screen.getByRole("button", { name: `Trier par ${label}, décroissant` }))
+      .toHaveAttribute("aria-pressed", "true");
   });
 
   it("toggles title sorting while preserving unrelated URL parameters", async () => {
@@ -342,7 +462,7 @@ describe("ItemList", () => {
     const props = listProps();
     const { rerender } = renderList(props);
 
-    await user.click(screen.getByRole("button", { name: "Titre" }));
+    await user.click(screen.getByRole("button", { name: /^Trier par Titre/ }));
     expect(mocks.replace).toHaveBeenLastCalledWith(
       "/b/DEMO?view=list&item=DEMO-9&v=saved-view&q=auth&sort=title%3Aasc",
       { scroll: false },
@@ -358,7 +478,7 @@ describe("ItemList", () => {
         />
       </ViewUrlStateProvider>,
     );
-    await user.click(screen.getByRole("button", { name: "Titre" }));
+    await user.click(screen.getByRole("button", { name: /^Trier par Titre/ }));
     expect(mocks.replace).toHaveBeenLastCalledWith(
       "/b/DEMO?view=list&item=DEMO-9&v=saved-view&q=auth&sort=title%3Adesc",
       { scroll: false },
@@ -374,7 +494,7 @@ describe("ItemList", () => {
     expect(mocks.push).not.toHaveBeenCalled();
 
     mocks.push.mockClear();
-    const row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    const row = screen.getByRole("listitem", { name: "DEMO-1 — Authentication" });
     await user.click(within(row).getByRole("button", { name: /Priorité.*Moyenne/i }));
     expect(mocks.push).not.toHaveBeenCalled();
   });
@@ -384,7 +504,7 @@ describe("ItemList", () => {
     mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: {} });
     renderList();
 
-    const row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    const row = screen.getByRole("listitem", { name: "DEMO-1 — Authentication" });
     await user.click(within(row).getByRole("button", { name: "Estimation : Non estimé" }));
     const input = screen.getByRole("spinbutton", { name: "Points" });
     await user.type(input, "3");
@@ -422,13 +542,12 @@ describe("ItemList", () => {
       bulkCapabilities: { edit: false, transition: false, assign: false, schedule: false },
     });
 
-    const row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    const row = screen.getByRole("listitem", { name: "DEMO-1 — Authentication" });
     expect(within(row).queryByRole("button", { name: /Statut/i })).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
     expect(within(row).getByText("À faire")).toBeVisible();
-    expect(within(row).getByText("Marie Lemaire")).toBeVisible();
-    expect(within(row).getByText("Urgent")).toBeVisible();
+    expect(within(row).getByRole("img", { name: "Marie Lemaire" })).toBeVisible();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
 
     await user.click(within(row).getByText("Authentication"));
@@ -446,7 +565,7 @@ describe("ItemList", () => {
     };
 
     const transitioned = renderList({ ...base, canTransitionItems: true });
-    let row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    let row = screen.getByRole("listitem", { name: "DEMO-1 — Authentication" });
     expect(within(row).queryByRole("button", { name: /Statut/i })).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
@@ -457,13 +576,13 @@ describe("ItemList", () => {
       canEditItems: true,
       canTransitionItems: true,
     });
-    row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    row = screen.getByRole("listitem", { name: "DEMO-1 — Authentication" });
     expect(within(row).getByRole("button", { name: /Statut/i })).toBeVisible();
     expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
     editedAndTransitioned.unmount();
 
     const assigned = renderList({ ...base, canAssignItems: true });
-    row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    row = screen.getByRole("listitem", { name: "DEMO-1 — Authentication" });
     expect(within(row).queryByRole("button", { name: /Assigné/i })).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /Statut/i })).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /Priorité/i })).not.toBeInTheDocument();
@@ -474,13 +593,13 @@ describe("ItemList", () => {
       canEditItems: true,
       canAssignItems: true,
     });
-    row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    row = screen.getByRole("listitem", { name: "DEMO-1 — Authentication" });
     expect(within(row).getByRole("button", { name: /Assigné/i })).toBeVisible();
     expect(within(row).queryByRole("button", { name: /Statut/i })).not.toBeInTheDocument();
     editedAndAssigned.unmount();
 
     renderList({ ...base, canEditItems: true });
-    row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    row = screen.getByRole("listitem", { name: "DEMO-1 — Authentication" });
     expect(within(row).getByRole("button", { name: /Priorité.*Moyenne/i })).toBeVisible();
     expect(within(row).getByRole("button", { name: "Estimation : Non estimé" })).toBeVisible();
     expect(within(row).queryByRole("button", { name: /Statut/i })).not.toBeInTheDocument();
@@ -507,7 +626,7 @@ describe("ItemList", () => {
     const user = userEvent.setup();
     renderList();
 
-    const row = screen.getByRole("row", { name: "DEMO-1 — Authentication" });
+    const row = screen.getByRole("listitem", { name: "DEMO-1 — Authentication" });
     row.focus();
     await user.keyboard("{Meta>}a{/Meta}");
     expect(screen.getByText("2 items sélectionnés")).toBeVisible();

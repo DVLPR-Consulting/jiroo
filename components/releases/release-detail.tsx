@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ItemRow } from "@/components/items/item-row";
 import { EditReleaseDialog } from "@/components/releases/release-form-dialog";
 import { ReleaseLifecycleDialogs } from "@/components/releases/release-lifecycle-dialogs";
 import {
@@ -271,17 +272,23 @@ export function ReleaseDetail({
         {scope.rows.length === 0 ? (
           <p className="rounded-xl border p-4 text-sm text-muted-foreground">Aucun élément associé.</p>
         ) : (
-          <ul className="divide-y rounded-xl border">
+          // The Backlog row (JIR-93); the frozen snapshot below keeps its own layout.
+          <ul className="overflow-hidden rounded-xl border">
             {scope.rows.map((item) => (
-              <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
-                <div>
-                  <Link href={`/b/${backlog.key}?item=${item.key}`} className="font-medium hover:underline">
-                    {item.key} — {item.title}
-                  </Link>
-                  <p className="text-muted-foreground">{item.status.name}</p>
-                </div>
-                <span>{pointLabel(item.estimatePoints)}</span>
-              </li>
+              <ItemRow
+                key={item.id}
+                as="li"
+                href={`/b/${backlog.key}?item=${item.key}`}
+                item={{
+                  id: item.id,
+                  key: item.key,
+                  title: item.title,
+                  type: item.type,
+                  kind: item.kind,
+                  status: { name: item.status.name, category: item.status.category },
+                  estimatePoints: item.type === "tache" ? item.estimatePoints : undefined,
+                }}
+              />
             ))}
           </ul>
         )}

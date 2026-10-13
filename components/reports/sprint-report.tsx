@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ItemRow } from "@/components/items/item-row";
 import { ReportPagination } from "@/components/reports/report-pagination";
 import {
   SprintEventJournal,
@@ -83,34 +83,50 @@ export type SerializableSprintReport =
 const number = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
 const pointValue = (value: number | null) => value === null ? "Non estimé" : number.format(value);
 
-function ItemRow({ backlogKey, item }: { backlogKey: string; item: SerializableItem }) {
-  const identity = <>{item.itemKey} — {item.itemTitle}</>;
+const STATUS_CATEGORY_LABELS = {
+  todo: "À faire",
+  in_progress: "En cours",
+  done: "Terminé",
+} as const;
+
+/**
+ * A sprint participation as the read-only Backlog row (JIR-93), its sprint
+ * history at the end of the row. A deleted item keeps its frozen identity,
+ * without a link.
+ */
+function ReportItemRow({ backlogKey, item }: { backlogKey: string; item: SerializableItem }) {
+  const finalPoints = item.estimateAtFinalParticipation;
+  const finalLabel = finalPoints === null ? pointValue(null) : pointsLabel(finalPoints, number.format);
+  const history = [
+    ...(finalPoints === null ? [pointValue(null)] : []),
+    ...(item.addedAfterStart ? ["Ajouté après démarrage"] : []),
+    ...(item.removedAfterStart ? ["Retiré après démarrage"] : []),
+    ...(item.initialCommitment && item.estimateAtStart !== finalPoints
+      ? [`${pointValue(item.estimateAtStart)} → ${finalLabel}`]
+      : []),
+    ...(item.destinationSprint ? [`Reporté vers ${item.destinationSprint.name}`] : []),
+  ];
   return (
-    <li className="space-y-1 p-3 text-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          {item.itemId ? (
-            <Link href={`/b/${backlogKey}?item=${encodeURIComponent(item.itemKey)}`} className="font-medium hover:underline">
-              {identity}
-            </Link>
-          ) : (
-            <p className="font-medium">{identity}</p>
-          )}
-          <p className="text-muted-foreground">
-            {[item.itemKind, item.itemType, item.statusCategory ?? item.outcome].filter(Boolean).join(" · ")}
-          </p>
-        </div>
-        <span>{item.estimateAtFinalParticipation === null ? pointValue(null) : pointsLabel(item.estimateAtFinalParticipation, number.format)}</span>
-      </div>
-      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-        {item.addedAfterStart ? <span>Ajouté après démarrage</span> : null}
-        {item.removedAfterStart ? <span>Retiré après démarrage</span> : null}
-        {item.initialCommitment && item.estimateAtStart !== item.estimateAtFinalParticipation ? (
-          <span>{pointValue(item.estimateAtStart)} → {item.estimateAtFinalParticipation === null ? pointValue(null) : pointsLabel(item.estimateAtFinalParticipation, number.format)}</span>
-        ) : null}
-        {item.destinationSprint ? <span>Reporté vers {item.destinationSprint.name}</span> : null}
-      </div>
-    </li>
+    <ItemRow
+      as="li"
+      href={item.itemId ? `/b/${backlogKey}?item=${encodeURIComponent(item.itemKey)}` : undefined}
+      item={{
+        id: item.itemId ?? item.itemKey,
+        key: item.itemKey,
+        title: item.itemTitle,
+        type: item.itemType,
+        kind: item.itemKind,
+        status: item.statusCategory
+          ? { name: STATUS_CATEGORY_LABELS[item.statusCategory], category: item.statusCategory }
+          : null,
+        estimatePoints: finalPoints,
+      }}
+      trailing={history.length > 0 ? (
+        <span className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+          {history.map((text) => <span key={text}>{text}</span>)}
+        </span>
+      ) : undefined}
+    />
   );
 }
 
@@ -225,7 +241,7 @@ export function SprintReportView({
               {rows.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Aucun élément de cette catégorie sur cette page.</p>
               ) : (
-                <ul className="divide-y rounded-xl border">{rows.map((item) => <ItemRow key={item.itemKey} backlogKey={backlogKey} item={item} />)}</ul>
+                <ul className="overflow-hidden rounded-xl border">{rows.map((item) => <ReportItemRow key={item.itemKey} backlogKey={backlogKey} item={item} />)}</ul>
               )}
             </section>
           );

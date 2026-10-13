@@ -77,7 +77,7 @@ test("guide un nouveau backlog : Composant, puis Epic, puis Tâche", async ({ pa
   await page.screenshot({ path: testInfo.outputPath("jir88-1-liste-composant.png") });
   await page.getByRole("button", { name: "Nouveau Composant" }).click();
   await createFromDialog(page, "Composant", COMPOSANT);
-  await expect(page.getByRole("row", { name: new RegExp(`${COMPOSANT}$`) })).toBeVisible();
+  await expect(page.getByRole("listitem", { name: new RegExp(`${COMPOSANT}$`) })).toBeVisible();
   await expect(page.getByRole("note", { name: "Créez une Epic dans un Composant" })).toBeVisible();
 
   // 2. Arbre: the Epic starts under the only Composant.

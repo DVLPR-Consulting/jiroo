@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
+import { ItemRow } from "@/components/items/item-row";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { LabelPill } from "@/components/items/label-pill";
@@ -90,6 +91,10 @@ type LabelRow = typeof labelsTable.$inferSelect;
 type UserLite = { id: string; name: string };
 type StatusLite = { id: string; name: string; color: string; category: string; order?: number };
 type ChildItem = { id: string; key: string; title: string; type: ItemType; statusId: string };
+
+function statusCategory(value: string): "todo" | "in_progress" | "done" | null {
+  return value === "todo" || value === "in_progress" || value === "done" ? value : null;
+}
 
 /** Data the « Nouvel item » dialog needs, shared with the views. */
 export type DetailCreateDialog = Pick<
@@ -614,25 +619,22 @@ export function ItemDetailPanel({
                   <ul className="flex flex-col overflow-hidden rounded-[var(--radius-md)] border border-border">
                     {childItems.map((item) => {
                       const status = statusById.get(item.statusId);
+                      // The Backlog row (JIR-93), read-only in the drawer.
                       return (
-                        <li key={item.id} className="border-b border-border last:border-b-0">
-                          <Link
-                            {...itemLinkProps(item.key)}
-                            className="flex min-h-10 items-center gap-2 px-3 py-2 text-[13.5px] hover:bg-[var(--muted)]"
-                          >
-                            <TypeIcon type={item.type} size={14} />
-                            <span className="item-key flex-none">{item.key}</span>
-                            <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                            <span className="flex flex-none items-center gap-1.5 text-xs text-muted-foreground">
-                              <span
-                                aria-hidden
-                                className="size-2 rounded-full"
-                                style={{ background: status?.color ?? "var(--border-strong)" }}
-                              />
-                              {status?.name ?? ""}
-                            </span>
-                          </Link>
-                        </li>
+                        <ItemRow
+                          key={item.id}
+                          as="li"
+                          {...itemLinkProps(item.key)}
+                          item={{
+                            id: item.id,
+                            key: item.key,
+                            title: item.title,
+                            type: item.type,
+                            status: status
+                              ? { name: status.name, category: statusCategory(status.category) }
+                              : null,
+                          }}
+                        />
                       );
                     })}
                   </ul>

@@ -16,7 +16,10 @@ export type Filters = {
   sprintIds: string[]; // sprint ids (completed ones included); the literal "none" = no sprint
   kind: ItemKind[]; // bug | feature — orthogonal to the hierarchy type
   underIds: string[]; // item ids whose descendants should be included
-  showFixVersions?: boolean; // optional list-column preference, persisted with saved views
+  // Optional Liste columns (shown as row pills), persisted with saved views.
+  showFixVersions?: boolean;
+  showLabels?: boolean;
+  showDueDate?: boolean;
 };
 
 export type ViewState = {
@@ -81,6 +84,8 @@ export function parseViewState(sp: URLSearchParams): ViewState {
       kind,
       underIds: csv(sp, "under"),
       ...(sp.get("fvcol") === "1" ? { showFixVersions: true } : {}),
+      ...(sp.get("lblcol") === "1" ? { showLabels: true } : {}),
+      ...(sp.get("duecol") === "1" ? { showDueDate: true } : {}),
     },
     group,
     sort,
@@ -104,6 +109,8 @@ export function writeViewState(sp: URLSearchParams, state: ViewState): void {
   setOrDelete("kind", filters.kind.join(","));
   setOrDelete("under", filters.underIds.join(","));
   setOrDelete("fvcol", filters.showFixVersions ? "1" : "");
+  setOrDelete("lblcol", filters.showLabels ? "1" : "");
+  setOrDelete("duecol", filters.showDueDate ? "1" : "");
   setOrDelete("group", group ?? "");
   setOrDelete("sort", sort ? `${sort.field}:${sort.dir}` : "");
 }

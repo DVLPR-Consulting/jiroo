@@ -7,12 +7,9 @@ import { Trash2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { restoreTrashedItemAction, purgeItemAction } from "@/app/actions/trash";
 import type { TrashedItem } from "@/lib/services/items";
-import { TypeIcon } from "@/components/icons/type-icon";
-import { StatusDot } from "@/components/icons/status-dot";
-import { ItemKey } from "@/components/jiroo/item-key";
+import { ItemRow } from "@/components/items/item-row";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { StatusId } from "@/lib/design/constants";
 import { canRestore, restoreDeadline } from "@/lib/items/trash";
 import {
   Dialog,
@@ -139,49 +136,50 @@ function TrashRow({ item, canRestoreItems }: { item: TrashedItem; canRestoreItem
 
   return (
     <>
-      <li className="flex items-center gap-2.5 border-b border-border px-4 py-2">
-        {/* Type icon + key + title */}
-        <TypeIcon type={item.type} />
-        <ItemKey value={item.key} />
-        <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
-
-        {/* Status */}
-        <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
-          <StatusDot status={item.statusId as StatusId} />
-          {item.statusName}
-        </span>
-
-        {/* Deletion date */}
-        <span className="whitespace-nowrap text-xs text-muted-foreground">
-          supprimé {relativeTime(item.deletedAt!)}
-        </span>
-
-        <span className="whitespace-nowrap text-xs text-muted-foreground">
-          {restorable
-            ? `Restaurable jusqu’au ${restoreDeadline(item.deletedAt!).toLocaleDateString("fr-FR")}`
-            : "Délai expiré"}
-        </span>
-
-        {/* Actions */}
-        {canRestoreItems ? <div className="flex shrink-0 items-center gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isPending || !restorable}
-            onClick={handleRestore}
-          >
-            Restaurer
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            disabled={isPending}
-            onClick={() => setPurgeOpen(true)}
-          >
-            Supprimer définitivement
-          </Button>
-        </div> : null}
-      </li>
+      {/* The Backlog row (JIR-93); a deleted item opens nowhere. */}
+      <ItemRow
+        as="li"
+        item={{
+          id: item.id,
+          key: item.key,
+          title: item.title,
+          type: item.type,
+          kind: item.kind,
+          status: { name: item.statusName, category: item.statusCategory },
+        }}
+        trailing={
+          <>
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
+              supprimé {relativeTime(item.deletedAt!)}
+            </span>
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
+              {restorable
+                ? `Restaurable jusqu’au ${restoreDeadline(item.deletedAt!).toLocaleDateString("fr-FR")}`
+                : "Délai expiré"}
+            </span>
+            {canRestoreItems ? (
+              <span className="flex shrink-0 items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isPending || !restorable}
+                  onClick={handleRestore}
+                >
+                  Restaurer
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => setPurgeOpen(true)}
+                >
+                  Supprimer définitivement
+                </Button>
+              </span>
+            ) : null}
+          </>
+        }
+      />
 
       {canRestoreItems ? <PurgeConfirmDialog
         open={purgeOpen}

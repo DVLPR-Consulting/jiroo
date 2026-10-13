@@ -119,6 +119,25 @@ describe("HelpPage", () => {
     expect(topic).not.toHaveTextContent("si le filtre les masque");
   });
 
+  it("documents the shared row and the Liste sort header and columns (JIR-93)", () => {
+    render(<HelpPage />);
+    const views = document.querySelector("section#vues") as HTMLElement;
+    expect(views).not.toHaveTextContent("colonnes triables");
+    expect(views).toHaveTextContent("en lignes du Backlog ; la barre « Trier » au-dessus des lignes pour trier");
+    expect(views).not.toHaveTextContent("bandeau d’en-tête");
+    const row = within(views)
+      .getByRole("heading", { level: 3, name: "Lire une ligne du Backlog" })
+      .closest("div") as HTMLElement;
+    expect(row).toHaveTextContent("« Mes items », « Corbeille » (avec la date de suppression et « Restaurer »)");
+    const sorting = within(views)
+      .getByRole("heading", { level: 3, name: "Trier la Liste et choisir ses colonnes" })
+      .closest("div") as HTMLElement;
+    for (const label of ["Trier", "Clé", "Titre", "Échéance", "Priorité", "Statut", "Colonnes", "Labels", "Fix versions"]) {
+      expect(sorting).toHaveTextContent(`« ${label} »`);
+    }
+    expect(sorting).toHaveTextContent("enregistrés avec une vue");
+  });
+
   it("documents the rich-text editor (JIR-66)", () => {
     render(<HelpPage />);
     const tickets = document.querySelector("section#tickets") as HTMLElement;

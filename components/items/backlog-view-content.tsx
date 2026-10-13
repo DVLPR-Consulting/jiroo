@@ -45,7 +45,7 @@ import { PROJECT_VIEWS } from "@/lib/items/shell";
 import { DisplayMenu } from "@/components/shell/display-menu";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewActions } from "@/components/shell/view-actions";
-import { ItemList } from "@/components/items/item-list";
+import { ItemList, ListColumnsMenu } from "@/components/items/item-list";
 import { ItemBacklog } from "@/components/items/item-backlog";
 import { ItemBoard } from "@/components/items/item-board";
 import { ItemTree } from "@/components/items/item-tree";
@@ -85,6 +85,8 @@ const VIEW_STATE_PARAM_KEYS = [
   "group",
   "sort",
   "fvcol",
+  "lblcol",
+  "duecol",
 ] as const;
 
 export async function BacklogViewContent({
@@ -425,7 +427,7 @@ export async function BacklogViewContent({
   const itemById = new Map(items.map((item) => [item.id, item]));
   const parentPill = (parentId: string | null) => {
     const parent = parentId ? itemById.get(parentId) : undefined;
-    return parent ? { key: parent.key, title: parent.title } : null;
+    return parent ? { key: parent.key, title: parent.title, type: parent.type } : null;
   };
   const planningItemById = new Map(
     items
@@ -617,6 +619,13 @@ export async function BacklogViewContent({
                 capabilities={productCapabilities.workflow}
               />
             ) : null}
+            {view === "list" ? (
+              <ListColumnsMenu
+                showLabels={viewState.filters.showLabels === true}
+                showDueDate={viewState.filters.showDueDate === true}
+                showFixVersions={viewState.filters.showFixVersions === true}
+              />
+            ) : null}
             <DisplayMenu view={view as DisplayMode} state={viewState} />
           </>
         }
@@ -717,6 +726,7 @@ export async function BacklogViewContent({
               labels: labelsByItem.get(r.id) ?? [],
               fixVersions: fixVersionsByItem.get(r.id) ?? [],
               blocked: blockedSet.has(r.id),
+              parent: parentPill(r.parentId),
             })),
           }))}
           grouped={viewState.group !== null}
@@ -740,6 +750,8 @@ export async function BacklogViewContent({
           releaseOptions={assignableReleaseOptions}
           releaseCapabilities={productCapabilities.releases}
           showFixVersions={viewState.filters.showFixVersions === true}
+          showLabels={viewState.filters.showLabels === true}
+          showDueDate={viewState.filters.showDueDate === true}
         />
       )}
       {view === "board" && (
