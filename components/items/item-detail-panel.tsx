@@ -22,6 +22,7 @@ import {
   type FixVersionOption,
 } from "@/components/items/fix-version-picker";
 import { NewItemButton, type NewItemButtonProps } from "@/components/items/new-item-dialog";
+import type { Filters } from "@/lib/items/filter";
 import { useOptimisticFieldUpdate } from "@/components/items/detail/use-optimistic-field-update";
 import { useListNeighbors } from "@/components/items/detail/use-list-neighbors";
 import { useViewUrlState } from "@/components/shell/view-url-state";
@@ -93,7 +94,7 @@ type ChildItem = { id: string; key: string; title: string; type: ItemType; statu
 /** Data the « Nouvel item » dialog needs, shared with the views. */
 export type DetailCreateDialog = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "backlogItemTypes"
+  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions"
 >;
 
 /** The hierarchy one level down (lib/tree/hierarchy.ts), with Jira-like wording. */
@@ -184,6 +185,7 @@ export function ItemDetailPanel({
   releaseCapabilities,
   fixVersions = EMPTY_FIX_VERSIONS,
   releaseOptions = EMPTY_FIX_VERSIONS,
+  viewFilters,
 }: {
   detail: ItemRow;
   activities: ActivityRow[];
@@ -212,6 +214,8 @@ export function ItemDetailPanel({
   releaseCapabilities?: ReleaseCapabilities;
   fixVersions?: FixVersionOption[];
   releaseOptions?: FixVersionOption[];
+  /** The filters of the view behind the drawer (JIR-92), for child creation's message. */
+  viewFilters?: Filters;
 }) {
   const canEdit = itemCapabilities?.edit ?? canEditItems;
   const canTransition = itemCapabilities?.transition ?? (canEditItems && canTransitionItems);
@@ -441,6 +445,7 @@ export function ItemDetailPanel({
         items={childDialogItems}
         initialType={child.type}
         initialParentId={detail.id}
+        viewFilters={viewFilters}
         trigger={trigger}
       />
     ) : null;

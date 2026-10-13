@@ -103,7 +103,20 @@ describe("HelpPage", () => {
       expect(topic).toHaveTextContent(`« ${label} »`);
     }
     expect(topic).toHaveTextContent("en gardant le titre et la description saisis");
-    expect(topic).toHaveTextContent("si le filtre les masque");
+  });
+
+  it("explains that a Version filter no longer hides the parents at creation (JIR-92)", () => {
+    render(<HelpPage />);
+    const tickets = document.querySelector("section#tickets") as HTMLElement;
+    const topic = within(tickets)
+      .getByRole("heading", { level: 3, name: "Démarrer dans un nouveau backlog" })
+      .closest("div") as HTMLElement;
+    expect(topic).toHaveTextContent(
+      "Sous un filtre Version, « Nouvel item » et « Créer un item » proposent tous les parents du backlog, même ceux que le filtre masque.",
+    );
+    expect(topic).toHaveTextContent("Un ticket créé sans cette version n’apparaît pas dans la vue filtrée");
+    expect(topic).toHaveTextContent("« CASS-7 créé — masqué par les filtres de la vue. » le signale, avec « Ouvrir »");
+    expect(topic).not.toHaveTextContent("si le filtre les masque");
   });
 
   it("documents the rich-text editor (JIR-66)", () => {

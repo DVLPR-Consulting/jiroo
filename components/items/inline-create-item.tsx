@@ -8,8 +8,12 @@ import { TypeIcon } from "@/components/icons/type-icon";
 import { SelectField } from "@/components/ui/select";
 import {
   NewItemButton,
+  createdHiddenMessage,
+  useCurrentViewFilters,
+  useOpenCreatedItem,
   type NewItemButtonProps,
 } from "@/components/items/new-item-dialog";
+import { isHiddenByFilters } from "@/lib/items/filter";
 import { ITEM_TITLE_MAX } from "@/lib/validation/item";
 import { toast } from "@/lib/toast";
 
@@ -39,9 +43,11 @@ export function InlineCreateItem({
   parents: ParentOption[];
   parentId: string;
   onParentChange: (parentId: string) => void;
-  dialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "backlogItemTypes">;
+  dialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters">;
 }) {
   const router = useRouter();
+  const openCreated = useOpenCreatedItem();
+  const currentViewFilters = useCurrentViewFilters(dialogProps?.viewFilters);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +81,7 @@ export function InlineCreateItem({
       return;
     }
     setError(null);
+    const sentSprintIds = sprintId ? [sprintId] : [];
     startTransition(async () => {
       try {
         const result = await createItemAction({
@@ -96,7 +103,16 @@ export function InlineCreateItem({
         // Like Jira, the field stays open for the next item.
         setTitle("");
         titleRef.current?.focus();
-        toast.success(`${item.key} créé.`, {
+        // Left out by the view's filters of now (e.g. no filtered Version):
+        // say so, and offer to open it like the full dialog does (JIR-92).
+        const hidden = isHiddenByFilters(
+          { ...item, sprintIds: sentSprintIds },
+          currentViewFilters(),
+        );
+        toast.success(hidden ? createdHiddenMessage(item.key) : `${item.key} créé.`, {
+          ...(hidden
+            ? { secondaryAction: { label: "Ouvrir", run: () => openCreated(item.key) } }
+            : {}),
           action: {
             label: "Annuler",
             run: async () => {
@@ -179,8 +195,10 @@ export function InlineCreateItem({
           }))}
         />
       ) : (
+        // The Backlog shows its « Nouvelle Epic » step instead while the
+        // backlog has no Epic (JIR-88); this only covers a caller without it.
         <p className="text-xs text-muted-foreground">
-          Aucun epic disponible — créez-en un d’abord.
+          Aucune Epic dans ce backlog : une Tâche se rattache toujours à une Epic.
         </p>
       )}
       {dialogProps ? (

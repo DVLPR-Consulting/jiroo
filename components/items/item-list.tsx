@@ -353,7 +353,7 @@ export function ItemList({
    */
   startStep?: HierarchyStartStep | null;
   clearFiltersHref?: string;
-  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "backlogItemTypes">;
+  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters">;
   canCreateItems?: boolean;
   canEditItems?: boolean;
   canTransitionItems?: boolean;

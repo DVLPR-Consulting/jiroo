@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useId,
   useLayoutEffect,
   useMemo,
@@ -47,6 +48,7 @@ import {
   type Priority,
 } from "@/lib/design/constants";
 import { ITEM_TEMPLATES, getTemplate } from "@/lib/items/templates";
+import { isHiddenByFilters, type Filters } from "@/lib/items/filter";
 import { allowedParentType } from "@/lib/tree/hierarchy";
 import { toast } from "@/lib/toast";
 import { ITEM_DESCRIPTION_MAX, ITEM_TITLE_MAX } from "@/lib/validation/item";
@@ -81,6 +83,10 @@ export type NewItemFieldOptions = {
 export type NewItemButtonProps = {
   backlogId: string;
   backlogKey: string;
+  /**
+   * The parent candidates: the backlog's live items, whatever the view
+   * filters (a Version-filtered view loads them apart, JIR-92).
+   */
   items: Item[];
   statuses: Status[];
   initialStatusId?: string;
@@ -103,18 +109,16 @@ export type NewItemButtonProps = {
    */
   initialTitle?: string;
   /**
-   * The item types of the whole live backlog (JIR-91). `items` may be
-   * narrowed by a view filter (e.g. a Version): this tells a parent level the
-   * filter hides from one the backlog does not have yet. Defaults to the
-   * types of `items`.
+   * The filters the view applies (JIR-92): the success message says when
+   * they leave out the item just created.
    */
-  backlogItemTypes?: ItemType[];
+  viewFilters?: Filters;
 };
 
 /** The dialog data a view hands down to its « Nouvel item » buttons. */
 export type NewItemDialogData = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "backlogItemTypes"
+  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters"
 >;
 
 const EMPTY_FIELD_OPTIONS: NewItemFieldOptions = {};
@@ -231,6 +235,52 @@ function LabelsPicker({
   );
 }
 
+/** The success message of a create the view's filters leave out (JIR-92). */
+export function createdHiddenMessage(key: string): string {
+  return `${key} créé — masqué par les filtres de la vue.`;
+}
+
+/**
+ * The view's filters as they are now, for a create's success message read
+ * after the awaited request (JIR-92): the user may change the filters while
+ * it runs. `undefined` once the creating component left the view.
+ */
+export function useCurrentViewFilters(viewFilters: Filters | undefined) {
+  const latest = useRef<{ filters: Filters | undefined; mounted: boolean }>({
+    filters: viewFilters,
+    mounted: false,
+  });
+  useLayoutEffect(() => {
+    latest.current.filters = viewFilters;
+  });
+  useLayoutEffect(() => {
+    const current = latest.current;
+    current.mounted = true;
+    return () => {
+      current.mounted = false;
+    };
+  }, []);
+  return useCallback(
+    () => (latest.current.mounted ? latest.current.filters : undefined),
+    [],
+  );
+}
+
+/** « Ouvrir » of a create's success message: shows the item in the drawer. */
+export function useOpenCreatedItem() {
+  const router = useRouter();
+  const viewUrl = useOptionalViewUrlState();
+  return (key: string) => {
+    if (viewUrl) {
+      viewUrl.push((params) => params.set("item", key));
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set("item", key);
+    router.push(`${url.pathname}${url.search}`);
+  };
+}
+
 export function NewItemButton({
   backlogId,
   backlogKey,
@@ -249,10 +299,11 @@ export function NewItemButton({
   releaseOptions = [],
   fieldOptions = EMPTY_FIELD_OPTIONS,
   initialTitle,
-  backlogItemTypes,
+  viewFilters,
 }: NewItemButtonProps) {
   const router = useRouter();
-  const viewUrl = useOptionalViewUrlState();
+  const openCreated = useOpenCreatedItem();
+  const currentViewFilters = useCurrentViewFilters(viewFilters);
   const contextualTask = contextLabel !== undefined;
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -315,17 +366,13 @@ export function NewItemButton({
   // Only a listed parent counts: the select, the validation and the payload
   // always agree, even if a prefilled parent is not among the candidates.
   const selectedParentId = parentOptions.some((option) => option.id === parentId) ? parentId : "";
-  // No candidate for the required parent (JIR-91): either the backlog has
-  // none of that level yet, or the view's filter hides them (`items` follows
-  // a Version filter). Only the first case offers to create the parent: this
-  // same draft switches to the parent's type, keeping its title and
-  // description. A sprint-contextual create stays a task, so it only explains.
-  const parentTypeInBacklog =
-    requiredParentType !== null &&
-    (backlogItemTypes ?? items.map((item) => item.type)).includes(requiredParentType);
+  // No candidate for the required parent (JIR-91): the backlog has none of
+  // that level yet, so the dialog offers to create it: this same draft
+  // switches to the parent's type, keeping its title and description. A
+  // sprint-contextual create stays a task, so it only explains.
   const canSwitchToParentType =
     requiredParentType !== null &&
-    !parentTypeInBacklog &&
+    parentOptions.length === 0 &&
     !contextualTask &&
     availableItemTypes.includes(requiredParentType);
   const assignableUsers = fieldOptions.canAssign ? (fieldOptions.users ?? []) : [];
@@ -408,14 +455,16 @@ export function NewItemButton({
     if (trigger?.isConnected) trigger.focus();
   });
 
-  function openCreated(key: string) {
-    if (viewUrl) {
-      viewUrl.push((params) => params.set("item", key));
-      return;
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.set("item", key);
-    router.push(`${url.pathname}${url.search}`);
+  /**
+   * The new item's sprints under the Sprint filter's rule: a Tâche has the
+   * sprint actually sent, a Composant or an Epic none, and a Sous-tâche its
+   * parent tâche's, which the dialog does not know (`undefined`).
+   */
+  function createdSprintIds(): string[] | undefined {
+    if (effectiveType === "soustache") return undefined;
+    if (!isTask) return [];
+    const sent = contextualTask ? sprintId : plannedSprintId;
+    return sent ? [sent] : [];
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -423,6 +472,9 @@ export function NewItemButton({
     setError(null);
     setTitleError(null);
     const sprintForTask = contextualTask ? undefined : plannedSprintId;
+    // What the request sends, kept for the success message: the draft may
+    // change while it runs (« Créer un autre » keeps the dialog open).
+    const sent = { labelIds, fixVersionIds, sprintIds: createdSprintIds() };
     startTransition(async () => {
       const result = await createItemAction({
         backlogKey,
@@ -452,6 +504,8 @@ export function NewItemButton({
         return;
       }
       const item = result.item;
+      // Checked against the filters of now, not of the submit.
+      const hidden = isHiddenByFilters({ ...item, ...sent }, currentViewFilters());
       onCreated?.(item);
       if (createAnother) {
         // Jira's « Create another »: same type, parent, sprint and fields.
@@ -462,7 +516,7 @@ export function NewItemButton({
         reset();
         onClosed?.();
       }
-      toast.success(`${item.key} créé`, {
+      toast.success(hidden ? createdHiddenMessage(item.key) : `${item.key} créé`, {
         secondaryAction: { label: "Ouvrir", run: () => openCreated(item.key) },
         action: {
           label: "Annuler",
@@ -585,9 +639,7 @@ export function NewItemButton({
                 {parentOptions.length === 0 && (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     <p id={parentHintId} className="t-sm min-w-0 flex-1 basis-56 text-muted-foreground">
-                      {parentTypeInBacklog
-                        ? `${noTypeName(requiredParentType)} parmi les items affichés : le filtre de la vue peut masquer les parents possibles.`
-                        : `${noTypeName(requiredParentType)} dans ce backlog : ${aTypeName(effectiveType)} se rattache toujours à ${aTypeName(requiredParentType)}.`}
+                      {`${noTypeName(requiredParentType)} dans ce backlog : ${aTypeName(effectiveType)} se rattache toujours à ${aTypeName(requiredParentType)}.`}
                     </p>
                     {canSwitchToParentType && (
                       <Button type="button" variant="outline" size="sm" onClick={switchToParentType}>

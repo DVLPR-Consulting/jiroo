@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NewItemButton } from "@/components/items/new-item-dialog";
+import { enrichHierarchy, matchItem, type Filters } from "@/lib/items/filter";
+import { sprintIdsByItem } from "@/lib/items/sprint-filter";
 import { ITEM_TEMPLATES } from "@/lib/items/templates";
 import { KeyboardShortcutsProvider } from "@/components/shortcuts/keyboard-shortcuts-provider";
 
@@ -556,6 +558,237 @@ describe("NewItemButton", () => {
       expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=list&item=DEMO-9");
     });
 
+    describe("under the view's filters (JIR-92)", () => {
+      const versionFilter = {
+        q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [],
+        releaseIds: [releaseOptions[0]!.id], sprintIds: [], kind: [], underIds: [],
+      };
+      function createdRow(title: string, type = "composant") {
+        return {
+          id: "i",
+          key: "DEMO-9",
+          type,
+          kind: "feature",
+          title,
+          statusId: statuses[0]!.id,
+          priority: 0,
+          assigneeId: null,
+          path: "root.i",
+        };
+      }
+
+      it("says the filters hide an item created without the filtered Version", async () => {
+        const user = userEvent.setup();
+        mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: createdRow("Nouveau") });
+        window.history.replaceState({}, "", "/b/DEMO?view=list");
+        render(<NewItemButton {...dialogProps()} viewFilters={versionFilter} />);
+        await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+        await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Nouveau");
+        await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+        await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+        const [message, options] = mocks.toastSuccess.mock.calls[0]!;
+        expect(message).toBe("DEMO-9 créé — masqué par les filtres de la vue.");
+        expect(options.action.label).toBe("Annuler");
+        expect(options.secondaryAction.label).toBe("Ouvrir");
+        options.secondaryAction.run();
+        expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=list&item=DEMO-9");
+      });
+
+      // The reader's contract (Sprint filter, JIR-81): would the view list the
+      // created item, given its real sprint memberships?
+      const sprintA = fieldOptions.sprints![0]!.id;
+      function readerShows(
+        created: { id: string; type: "tache" | "epic" | "soustache"; parentId: string | null },
+        memberships: { itemId: string; sprintId: string }[],
+        filters: Filters,
+      ) {
+        const sprintIds = sprintIdsByItem(
+          memberships.map((m) => ({ ...m, joinedAt: new Date(0), leftAt: null, outcome: null })),
+          [created],
+        ).get(created.id) ?? [];
+        const [row] = enrichHierarchy([{
+          ...created, key: "DEMO-9", kind: "feature", title: "x", description: null,
+          statusId: statuses[0]!.id, priority: 0, assigneeId: null, path: "root.i", depth: 0,
+          dueDate: null, createdAt: new Date(0), updatedAt: new Date(0), rank: "a",
+          labelIds: [], fixVersionIds: [], sprintIds, statusOrder: 0,
+        }]);
+        return matchItem(row!, filters);
+      }
+      const sprintFilter = (sprintIds: string[]) => ({ ...versionFilter, releaseIds: [], sprintIds });
+
+      it("never claims « masqué » for a Sous-tâche from the Sprint it inherits", async () => {
+        const user = userEvent.setup();
+        const task = { id: "task-id", key: "DEMO-4", type: "tache" as const, title: "Saisie" };
+        const filters = sprintFilter([sprintA]);
+        // Its parent tâche is in Sprint A: the reader lists the Sous-tâche.
+        expect(readerShows(
+          { id: "i", type: "soustache", parentId: task.id },
+          [{ itemId: task.id, sprintId: sprintA }],
+          filters,
+        )).toBe(true);
+        mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: createdRow("Sous", "soustache") });
+        render(
+          <NewItemButton
+            {...dialogProps()}
+            items={[task]}
+            fieldOptions={fieldOptions}
+            initialType="soustache"
+            initialParentId={task.id}
+            viewFilters={filters}
+          />,
+        );
+        await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+        await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Sous");
+        await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+        await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+        expect(mocks.toastSuccess.mock.calls[0]![0]).toBe("DEMO-9 créé");
+      });
+
+      it("drops a Tâche draft's Sprint once switched to Epic, like the payload", async () => {
+        const user = userEvent.setup();
+        const composant = { id: "comp-id", key: "DEMO-1", type: "composant" as const, title: "Produit" };
+        const filters = sprintFilter([sprintA]);
+        // An Epic never joins a sprint: the reader leaves it out of Sprint A.
+        expect(readerShows({ id: "i", type: "epic", parentId: composant.id }, [], filters)).toBe(false);
+        mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: createdRow("Lot", "epic") });
+        render(
+          <NewItemButton
+            {...dialogProps()}
+            items={[...items, composant]}
+            fieldOptions={fieldOptions}
+            initialType="tache"
+            initialParentId="epic-id"
+            viewFilters={filters}
+          />,
+        );
+        await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+        await choose(user, "Sprint", "Sprint 4");
+        await choose(user, "Type", "Epic");
+        await choose(user, /Parent/, "DEMO-1 — Produit");
+        await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Lot");
+        await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+        await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+        expect(mocks.createItemAction.mock.calls[0]![0]).not.toHaveProperty("sprintId");
+        expect(mocks.toastSuccess.mock.calls[0]![0]).toBe("DEMO-9 créé — masqué par les filtres de la vue.");
+      });
+
+      it("checks a Tâche against the Sprint actually sent", async () => {
+        const user = userEvent.setup();
+        const filters = sprintFilter(["none"]);
+        // Planned in Sprint A: the reader leaves it out of « Aucun sprint ».
+        expect(readerShows(
+          { id: "i", type: "tache", parentId: "epic-id" },
+          [{ itemId: "i", sprintId: sprintA }],
+          filters,
+        )).toBe(false);
+        mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: createdRow("Planifiée", "tache") });
+        render(
+          <NewItemButton
+            {...dialogProps()}
+            items={items}
+            fieldOptions={fieldOptions}
+            initialType="tache"
+            initialParentId="epic-id"
+            viewFilters={filters}
+          />,
+        );
+        await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+        await choose(user, "Sprint", "Sprint 4");
+        await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Planifiée");
+        await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+        await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+        expect(mocks.createItemAction.mock.calls[0]![0]).toEqual(expect.objectContaining({ sprintId: sprintA }));
+        expect(mocks.toastSuccess.mock.calls[0]![0]).toBe("DEMO-9 créé — masqué par les filtres de la vue.");
+      });
+
+      describe("filters changed while the create runs (JIR-92 R2)", () => {
+        const versionV = releaseOptions[0]!.id;
+        const versionW = releaseOptions[1]!.id;
+        const onVersion = (id: string) => ({ ...versionFilter, releaseIds: [id] });
+
+        /**
+         * Submits with `before`, re-renders the view with `after` while the
+         * action is pending, then resolves it: returns the success message.
+         */
+        async function messageAfterChange(
+          before: typeof versionFilter | undefined,
+          after: typeof versionFilter | undefined,
+          sentVersion?: "2026.09",
+        ) {
+          const user = userEvent.setup();
+          let resolve!: (value: unknown) => void;
+          mocks.createItemAction.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+          const { rerender } = render(<NewItemButton {...dialogProps()} viewFilters={before} />);
+          await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+          await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Nouveau");
+          if (sentVersion) {
+            await user.click(screen.getByRole("button", { name: "Versions" }));
+            await user.click(screen.getByRole("menuitemcheckbox", { name: /^2026\.09/ }));
+            await user.keyboard("{Escape}");
+          }
+          await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+          await waitFor(() => expect(mocks.createItemAction).toHaveBeenCalled());
+          rerender(<NewItemButton {...dialogProps()} viewFilters={after} />);
+          resolve({ ok: true, item: createdRow("Nouveau") });
+          await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+          return mocks.toastSuccess.mock.calls[0]![0];
+        }
+
+        it("shows the plain message once the Version filter is cleared", async () => {
+          expect(await messageAfterChange(onVersion(versionV), undefined)).toBe("DEMO-9 créé");
+        });
+
+        it("still says « masqué » when the new Version does not match either", async () => {
+          expect(await messageAfterChange(onVersion(versionV), onVersion(versionW)))
+            .toBe("DEMO-9 créé — masqué par les filtres de la vue.");
+        });
+
+        it("shows the plain message when the new Version matches what was sent", async () => {
+          expect(await messageAfterChange(onVersion(versionV), onVersion(versionW), "2026.09"))
+            .toBe("DEMO-9 créé");
+        });
+
+        it("falls back to the plain message once the dialog left the view", async () => {
+          const user = userEvent.setup();
+          let resolve!: (value: unknown) => void;
+          mocks.createItemAction.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+          const { unmount } = render(<NewItemButton {...dialogProps()} viewFilters={onVersion(versionV)} />);
+          await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+          await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Nouveau");
+          await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+          await waitFor(() => expect(mocks.createItemAction).toHaveBeenCalled());
+          unmount();
+          resolve({ ok: true, item: createdRow("Nouveau") });
+          await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+          expect(mocks.toastSuccess.mock.calls[0]![0]).toBe("DEMO-9 créé");
+        });
+
+        it("says « masqué » for a filter set during the wait", async () => {
+          expect(await messageAfterChange(undefined, onVersion(versionV)))
+            .toBe("DEMO-9 créé — masqué par les filtres de la vue.");
+        });
+      });
+
+      it("keeps the plain message when the item gets the filtered Version", async () => {
+        const user = userEvent.setup();
+        mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: createdRow("Versionné") });
+        render(<NewItemButton {...dialogProps()} viewFilters={versionFilter} />);
+        await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+        await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Versionné");
+        await user.click(screen.getByRole("button", { name: "Versions" }));
+        await user.click(screen.getByRole("menuitemcheckbox", { name: /^2026\.10/ }));
+        await user.keyboard("{Escape}");
+        await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+        await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+        expect(mocks.toastSuccess.mock.calls[0]![0]).toBe("DEMO-9 créé");
+      });
+    });
+
     it("closes with « Annuler »", async () => {
       const user = userEvent.setup();
       render(<NewItemButton {...dialogProps()} />);
@@ -706,7 +939,7 @@ describe("NewItemButton", () => {
   describe("missing parent (JIR-91)", () => {
     it("offers « Créer un Composant » for an Epic in a backlog without Composant", async () => {
       const user = userEvent.setup();
-      render(<NewItemButton {...dialogProps()} items={[]} backlogItemTypes={[]} />);
+      render(<NewItemButton {...dialogProps()} items={[]} />);
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       await choose(user, "Type", "Epic");
 
@@ -723,7 +956,7 @@ describe("NewItemButton", () => {
       const user = userEvent.setup();
       const template = ITEM_TEMPLATES[0]!;
       mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: { id: "i", key: "DEMO-1" } });
-      render(<NewItemButton {...dialogProps()} items={[]} backlogItemTypes={[]} />);
+      render(<NewItemButton {...dialogProps()} items={[]} />);
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       await choose(user, "Type", "Epic");
       await choose(user, "Modèle", template.name);
@@ -779,28 +1012,10 @@ describe("NewItemButton", () => {
       expect(screen.getByRole("button", { name: "Créer une Epic" })).toBeVisible();
     });
 
-    it("does not claim the parent is missing when the view's filter hides it", async () => {
-      const user = userEvent.setup();
-      render(
-        <NewItemButton
-          {...dialogProps()}
-          items={[]}
-          backlogItemTypes={["composant", "epic"]}
-          initialType="epic"
-        />,
-      );
-      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
-
-      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAccessibleDescription(
-        "Aucun Composant parmi les items affichés : le filtre de la vue peut masquer les parents possibles.",
-      );
-      expect(screen.queryByRole("button", { name: "Créer un Composant" })).not.toBeInTheDocument();
-    });
-
     it("only explains in a sprint-contextual create, which must stay a task", async () => {
       const user = userEvent.setup();
       render(
-        <NewItemButton {...dialogProps()} items={[]} backlogItemTypes={[]} sprintId={null} contextLabel="Sprint 2" />,
+        <NewItemButton {...dialogProps()} items={[]} sprintId={null} contextLabel="Sprint 2" />,
       );
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
 
@@ -814,7 +1029,7 @@ describe("NewItemButton", () => {
     it("never offers an Epic, nor its missing parent, without the scheduling right", async () => {
       const user = userEvent.setup();
       render(
-        <NewItemButton {...dialogProps()} items={[]} backlogItemTypes={[]} initialType="epic" canScheduleItems={false} />,
+        <NewItemButton {...dialogProps()} items={[]} initialType="epic" canScheduleItems={false} />,
       );
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
 

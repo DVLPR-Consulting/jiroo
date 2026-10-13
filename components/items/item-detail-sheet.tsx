@@ -10,6 +10,7 @@ import {
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
 import { RecentItemTracker } from "@/components/items/recent-item-tracker";
 import { DetailPanelSkeleton } from "@/components/items/view-skeletons";
+import type { Filters } from "@/lib/items/filter";
 import type { ItemDetailData } from "@/lib/items/item-detail-data";
 import { parseDatedJson } from "@/lib/serialization/dated-json";
 import {
@@ -224,8 +225,11 @@ export function ItemDetailDrawer({
   backlogKey,
   itemKey,
   detail,
+  viewFilters,
 }: {
   backlogKey: string;
+  /** The effective filters of the view behind the drawer (JIR-92). */
+  viewFilters?: Filters;
   /** The item the server loaded `detail` for, or null when none. */
   itemKey: string | null;
   /** The server's detail for `itemKey` (null: inaccessible backlog). */
@@ -243,7 +247,7 @@ export function ItemDetailDrawer({
     <ItemDetailSheet itemKey={requestedKey}>
       {source ? (
         <Suspense key={requestedKey} fallback={<DetailPanelSkeleton />}>
-          <ItemDetailBody itemKey={requestedKey} detail={source} />
+          <ItemDetailBody itemKey={requestedKey} detail={source} viewFilters={viewFilters} />
         </Suspense>
       ) : (
         <DetailPanelSkeleton />
@@ -256,9 +260,11 @@ export function ItemDetailDrawer({
 function ItemDetailBody({
   itemKey,
   detail,
+  viewFilters,
 }: {
   itemKey: string;
   detail: Promise<DrawerDetail | null>;
+  viewFilters?: Filters;
 }) {
   const data = use(detail);
   if (data?.kind === "error") return <ItemDetailLoadError itemKey={itemKey} />;
@@ -266,7 +272,7 @@ function ItemDetailBody({
   return (
     <>
       <RecentItemTracker itemKey={data.panel.detail.key} />
-      <ItemDetailPanel key={data.panel.detail.id} {...data.panel} />
+      <ItemDetailPanel key={data.panel.detail.id} {...data.panel} viewFilters={viewFilters} />
     </>
   );
 }

@@ -1090,6 +1090,40 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
     );
   });
 
+  it("says the view's filters hide a child created from the drawer (JIR-92)", async () => {
+    const user = userEvent.setup();
+    mocks.createItemAction.mockResolvedValueOnce({
+      ok: true,
+      item: {
+        id: "new-task", key: "CASS-31", type: "tache", kind: "feature", title: "Tâche masquée",
+        statusId: detail.statusId, priority: 0, assigneeId: null, path: `${detail.path}.newtask`,
+      },
+    });
+    render(
+      <DetailHarness initialEntries={[["view", "list"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          itemCapabilities={fullCapabilities}
+          createDialog={createDialog}
+          viewFilters={{
+            q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [],
+            releaseIds: ["55555555-5555-4555-8555-555555555555"], sprintIds: [], kind: [], underIds: [],
+          }}
+        />
+      </DetailHarness>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Créer une tâche" }));
+    const dialog = await screen.findByRole("dialog", { name: /Nouvel item/ });
+    await user.type(within(dialog).getByRole("textbox", { name: /Titre/ }), "Tâche masquée");
+    await user.click(within(dialog).getByRole("button", { name: /^Créer$/ }));
+
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    const [message, options] = mocks.toastSuccess.mock.calls[0]!;
+    expect(message).toBe("CASS-31 créé — masqué par les filtres de la vue.");
+    expect(options.secondaryAction.label).toBe("Ouvrir");
+  });
+
   it("has no child section for a sub-task and no creation without the right", () => {
     const { unmount } = render(
       <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>

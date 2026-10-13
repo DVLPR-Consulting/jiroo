@@ -1,4 +1,5 @@
 import { ITEM_KINDS, ITEM_TYPES, PRIORITIES, type ItemKind, type ItemType } from "@/lib/design/constants";
+import { ltreeLabel } from "@/lib/tree/path";
 
 export type GroupKey = "status" | "assignee" | "priority" | "component" | "parent";
 export type SortField = "priority" | "dueDate" | "created" | "updated" | "key" | "title" | "status";
@@ -223,6 +224,57 @@ export function matchItem(it: FilterItem, f: Filters): boolean {
     if (!hay.includes(normalize(q))) return false;
   }
   return true;
+}
+
+/**
+ * What creation knows of an item it just created (the created row and the
+ * values it sent). `sprintIds` follows the Sprint filter's rule
+ * (`sprintIdsByItem`): `undefined` when creation cannot know it exactly, as
+ * for a Sous-tâche, which takes its parent tâche's sprints.
+ */
+export type CreatedItem = Pick<
+  FilterItem,
+  "id" | "key" | "type" | "kind" | "title" | "statusId" | "priority" | "assigneeId" | "path"
+> & { labelIds?: string[]; fixVersionIds?: string[]; sprintIds: string[] | undefined };
+
+/**
+ * Whether a view filtered by `filters` surely leaves out an item just
+ * created (JIR-92): e.g. a task created without the Version the view filters
+ * on. The `under` facet reads the ancestors from the item's own path. An
+ * unknown Sprint is left out of the check: only the facets creation knows
+ * exactly can hide the item, so it never claims « masqué » wrongly.
+ */
+export function isHiddenByFilters(created: CreatedItem, filters: Filters | undefined): boolean {
+  if (created.sprintIds === undefined && filters) {
+    filters = { ...filters, sprintIds: [] };
+  }
+  if (!filters || !isFiltersActive(filters)) return false;
+  const ancestorLabels = new Set(created.path.split(".").slice(1, -1));
+  const row: FilterItem = {
+    id: created.id,
+    key: created.key,
+    type: created.type,
+    kind: created.kind,
+    title: created.title,
+    description: null,
+    statusId: created.statusId,
+    priority: created.priority,
+    assigneeId: created.assigneeId,
+    parentId: null,
+    path: created.path,
+    depth: 0,
+    dueDate: null,
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    rank: "",
+    labelIds: created.labelIds ?? [],
+    fixVersionIds: created.fixVersionIds ?? [],
+    sprintIds: created.sprintIds ?? [],
+    ancestorIds: filters.underIds.filter((id) => ancestorLabels.has(ltreeLabel(id))),
+    componentId: null,
+    statusOrder: 0,
+  };
+  return !matchItem(row, filters);
 }
 
 // Expand a matched id set to include the ancestors of every match, using the

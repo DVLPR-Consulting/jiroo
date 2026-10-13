@@ -10,6 +10,7 @@ import {
   sortItems,
   enrichHierarchy,
   withKnownReleaseIds,
+  isHiddenByFilters,
   type ViewState,
   type Filters,
   type SortField,
@@ -639,5 +640,60 @@ describe("withKnownReleaseIds", () => {
   it("returns the same filters object when every version is known", () => {
     const state = parseViewState(new URLSearchParams("version=live"));
     expect(withKnownReleaseIds(state.filters, new Set(["live"]))).toBe(state.filters);
+  });
+});
+
+describe("isHiddenByFilters (JIR-92)", () => {
+  const composantId = "11111111-1111-4111-8111-111111111111";
+  const epicId = "22222222-2222-4222-8222-222222222222";
+  const taskId = "33333333-3333-4333-8333-333333333333";
+  const created = {
+    id: taskId,
+    key: "DEMO-3",
+    type: "tache" as const,
+    kind: "feature" as const,
+    title: "Relance par courriel",
+    statusId: "todo",
+    priority: 0,
+    assigneeId: null,
+    path: `root.${composantId.replaceAll("-", "")}.${epicId.replaceAll("-", "")}.${taskId.replaceAll("-", "")}`,
+    sprintIds: [] as string[] | undefined,
+  };
+  const filters = (patch: Partial<Filters>): Filters => ({ ...empty.filters, ...patch });
+
+  it("leaves an unknown Sprint out of the check, never claiming « masqué » from it", () => {
+    const subtask = { ...created, type: "soustache" as const, sprintIds: undefined };
+    expect(isHiddenByFilters(subtask, filters({ sprintIds: ["none"] }))).toBe(false);
+    expect(isHiddenByFilters(subtask, filters({ sprintIds: ["s1"] }))).toBe(false);
+    // The facets it knows still decide.
+    expect(isHiddenByFilters(subtask, filters({ sprintIds: ["s1"], releaseIds: ["v1"] }))).toBe(true);
+  });
+
+  it("never hides without an active filter", () => {
+    expect(isHiddenByFilters(created, undefined)).toBe(false);
+    expect(isHiddenByFilters(created, empty.filters)).toBe(false);
+  });
+
+  it("hides an item created without the filtered Version, not one created with it", () => {
+    expect(isHiddenByFilters(created, filters({ releaseIds: ["v1"] }))).toBe(true);
+    expect(isHiddenByFilters({ ...created, fixVersionIds: ["v1"] }, filters({ releaseIds: ["v1"] }))).toBe(false);
+  });
+
+  it("checks the created values against every facet", () => {
+    expect(isHiddenByFilters(created, filters({ statusIds: ["todo"], types: ["tache"] }))).toBe(false);
+    expect(isHiddenByFilters(created, filters({ statusIds: ["done"] }))).toBe(true);
+    expect(isHiddenByFilters(created, filters({ assignees: ["none"] }))).toBe(false);
+    expect(isHiddenByFilters(created, filters({ labels: ["l1"] }))).toBe(true);
+    expect(isHiddenByFilters({ ...created, labelIds: ["l1"] }, filters({ labels: ["l1"] }))).toBe(false);
+    expect(isHiddenByFilters(created, filters({ sprintIds: ["none"] }))).toBe(false);
+    expect(isHiddenByFilters({ ...created, sprintIds: ["s1"] }, filters({ sprintIds: ["none"] }))).toBe(true);
+    expect(isHiddenByFilters(created, filters({ q: "courriel" }))).toBe(false);
+    expect(isHiddenByFilters(created, filters({ q: "facture" }))).toBe(true);
+  });
+
+  it("reads the ancestors of the « under » facet from the created path", () => {
+    expect(isHiddenByFilters(created, filters({ underIds: [epicId] }))).toBe(false);
+    expect(isHiddenByFilters(created, filters({ underIds: [composantId] }))).toBe(false);
+    expect(isHiddenByFilters(created, filters({ underIds: [taskId] }))).toBe(true);
   });
 });
