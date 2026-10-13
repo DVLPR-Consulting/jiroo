@@ -8,6 +8,7 @@ import type { ItemViewId } from "@/lib/items/shell";
 const BOARD_COLUMNS = 4;
 const LIST_ROWS = 8;
 const TREE_DEPTHS = [0, 1, 2, 2, 1, 2, 0, 1];
+// Selection column, then `LIST_COLUMNS` (lib/items/table-layout.ts) in order.
 const LIST_GRID =
   "grid grid-cols-[2.5rem_8rem_minmax(14rem,1fr)_10rem_4rem_6rem_12rem_8rem_11rem] items-center";
 

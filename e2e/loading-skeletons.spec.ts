@@ -17,8 +17,11 @@ async function whileBacklogsLocked(run: () => Promise<void>) {
     await client.query("LOCK TABLE backlogs IN ACCESS EXCLUSIVE MODE");
     await run();
   } finally {
-    await client.query("ROLLBACK");
-    client.release();
+    try {
+      await client.query("ROLLBACK");
+    } finally {
+      client.release();
+    }
   }
 }
 
