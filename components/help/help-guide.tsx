@@ -31,13 +31,16 @@ export function HelpGuide() {
             <>Connectez-vous avec le mot de passe transmis : l’écran <Ui>Configurer la double authentification</Ui> s’ouvre.</>,
             <>Confirmez votre mot de passe, puis <Ui>Continuer</Ui>.</>,
             <>Scannez le QR code avec une application d’authentification (ou saisissez la <Ui>Clé manuelle</Ui>).</>,
-            <>Notez les <Ui>Codes de récupération — conservez-les</Ui> en lieu sûr, puis cochez <Ui>J&apos;ai enregistré mes codes de récupération</Ui>.</>,
+            <>Mettez les <Ui>Codes de récupération — conservez-les</Ui> en lieu sûr : <Ui>Copier les codes</Ui> (par exemple vers un gestionnaire de mots de passe) ou <Ui>Télécharger (.txt)</Ui>.</>,
+            <>Cochez la case obligatoire <Ui>J&apos;ai enregistré mes codes de récupération</Ui> : sans elle, <Ui>Activer et continuer</Ui> affiche un message sous la case.</>,
             <>Saisissez le code affiché par l’application et cliquez sur <Ui>Activer et continuer</Ui>.</>,
           ]}
         >
           <GuideNote>
             Les codes de récupération ne sont affichés qu’une seule fois. Chacun remplace le code à 6 chiffres :
-            sur l’écran de vérification, choisissez <Ui>Utiliser un code de récupération</Ui>.
+            sur l’écran de vérification, choisissez <Ui>Utiliser un code de récupération</Ui>. Ne partagez ni ces
+            codes ni la clé manuelle (pas de capture d’écran envoyée) : ils donnent accès à votre compte. La copie et
+            le fichier sont produits dans votre navigateur ; Jiroo ne les conserve pas.
           </GuideNote>
         </GuideTopic>
 

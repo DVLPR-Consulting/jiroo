@@ -140,11 +140,11 @@ describe("parcours 2FA", () => {
     expect(screen.getByRole("button", { name: "Vérifier" })).toBeDisabled();
   });
 
-  it("requires recovery-code acknowledgement before keyboard activation", async () => {
+  it("explains the required recovery-code acknowledgement before activation", async () => {
     const interaction = userEvent.setup();
     mocks.enableTwoFactor.mockResolvedValue({
       data: {
-        totpURI: "otpauth://totp/Jiroo:marie@example.test?secret=ABCDEF&issuer=Jiroo",
+        totpURI: "otpauth://totp/Jiroo:marie%40example.test?secret=ABCDEF&issuer=Jiroo",
         backupCodes: Array.from({ length: 10 }, (_, index) => `CODE-${index}`),
       },
       error: null,
@@ -158,18 +158,34 @@ describe("parcours 2FA", () => {
 
     const activate = await screen.findByRole("button", { name: "Activer et continuer" });
     expect(activate).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Copier les codes" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Télécharger (.txt)" })).toBeVisible();
+
+    const acknowledgement = screen.getByRole("checkbox", {
+      name: "J'ai enregistré mes codes de récupération (obligatoire)",
+    });
+    expect(acknowledgement).toHaveAttribute("aria-required", "true");
+    expect(acknowledgement).not.toHaveAttribute("aria-invalid");
 
     const digits = screen.getAllByRole("textbox", { name: /Chiffre/ });
     for (const [index, value] of [..."123456"].entries()) {
       fireEvent.change(digits[index]!, { target: { value } });
     }
-    expect(mocks.verifyTotp).not.toHaveBeenCalled();
-
-    await interaction.click(screen.getByRole("checkbox", { name: /J'ai enregistré/i }));
-    for (const [index, value] of [..."123456"].entries()) {
-      fireEvent.change(digits[index]!, { target: { value } });
-    }
     expect(activate).toBeEnabled();
+    await interaction.click(activate);
+
+    expect(mocks.verifyTotp).not.toHaveBeenCalled();
+    expect(acknowledgement).toHaveAttribute("aria-invalid", "true");
+    expect(acknowledgement).toHaveAccessibleDescription(
+      "Cochez cette case après avoir enregistré vos codes de récupération.",
+    );
+    expect(acknowledgement).toHaveFocus();
+
+    await interaction.click(acknowledgement);
+    expect(acknowledgement).not.toHaveAttribute("aria-invalid");
+    expect(
+      screen.queryByText("Cochez cette case après avoir enregistré vos codes de récupération."),
+    ).not.toBeInTheDocument();
     await interaction.click(activate);
 
     await waitFor(() =>

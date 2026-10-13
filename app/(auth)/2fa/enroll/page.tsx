@@ -1,20 +1,24 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import QRCode from "qrcode";
 import { authClient } from "@/lib/auth/client";
 import { AuthCard } from "@/components/auth/auth-card";
 import { OtpInput } from "@/components/auth/otp-input";
+import { RecoveryCodesPanel } from "@/components/auth/recovery-codes-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { accountFromTotpUri } from "@/lib/auth/recovery-codes-file";
 import { loadPage } from "@/lib/navigation/load-page";
 
-type Setup = { qr: string; secret: string; backupCodes: string[] };
+type Setup = { qr: string; secret: string; account: string | null; backupCodes: string[] };
 
 export default function EnrollPage() {
   const [password, setPassword] = useState("");
   const [setup, setSetup] = useState<Setup | null>(null);
   const [saved, setSaved] = useState(false);
+  const [savedError, setSavedError] = useState(false);
+  const savedRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -35,14 +39,21 @@ export default function EnrollPage() {
       const totpURI = data.totpURI;
       const secret = /secret=([^&]+)/.exec(totpURI ?? "")?.[1] ?? "";
       const qr = await QRCode.toDataURL(totpURI);
-      setSetup({ qr, secret, backupCodes: data.backupCodes });
+      setSetup({ qr, secret, account: accountFromTotpUri(totpURI), backupCodes: data.backupCodes });
     } catch {
       setError("Impossible de générer le QR code. Réessayez.");
     }
   }
 
   async function confirm() {
-    if (!saved || !/^\d{6}$/.test(code) || verifying) return;
+    // The acknowledgement stays mandatory, but the button explains it instead of
+    // silently staying disabled.
+    if (!saved) {
+      setSavedError(true);
+      savedRef.current?.focus();
+      return;
+    }
+    if (!/^\d{6}$/.test(code) || verifying) return;
     setError(null);
     setVerifying(true);
     const { error } = await authClient.twoFactor.verifyTotp({ code });
@@ -90,19 +101,34 @@ export default function EnrollPage() {
           Clé manuelle : <span className="item-key select-all">{setup.secret}</span>
         </p>
 
-        <div className="rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--accent-subtle)] p-3">
-          <p className="t-meta mb-2">Codes de récupération — conservez-les</p>
-          <div className="grid grid-cols-2 gap-1.5">
-            {setup.backupCodes.map((c) => (
-              <span key={c} className="item-key">{c}</span>
-            ))}
-          </div>
-        </div>
+        <RecoveryCodesPanel codes={setup.backupCodes} account={setup.account} />
 
-        <label className="flex items-center gap-2 t-sm">
-          <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} />
-          J&apos;ai enregistré mes codes de récupération
-        </label>
+        <div className="space-y-1">
+          <label className="flex items-center gap-2 t-sm">
+            <input
+              ref={savedRef}
+              type="checkbox"
+              checked={saved}
+              onChange={(e) => {
+                setSaved(e.target.checked);
+                if (e.target.checked) setSavedError(false);
+              }}
+              aria-required="true"
+              aria-invalid={savedError || undefined}
+              aria-describedby={savedError ? "recovery-saved-error" : undefined}
+            />
+            <span>
+              J&apos;ai enregistré mes codes de récupération{" "}
+              <span aria-hidden="true" style={{ color: "var(--danger)" }}>*</span>
+              <span className="sr-only">(obligatoire)</span>
+            </span>
+          </label>
+          {savedError && (
+            <p id="recovery-saved-error" className="t-sm" style={{ color: "var(--danger)" }}>
+              Cochez cette case après avoir enregistré vos codes de récupération.
+            </p>
+          )}
+        </div>
 
         <div>
           <p className="t-sm mb-2 text-muted-foreground">Entrez un code de votre application pour activer :</p>
@@ -117,7 +143,7 @@ export default function EnrollPage() {
         <Button
           type="button"
           className="w-full"
-          disabled={!saved || code.length !== 6 || verifying}
+          disabled={code.length !== 6 || verifying}
           onClick={confirm}
         >
           {verifying ? "Activation…" : "Activer et continuer"}
