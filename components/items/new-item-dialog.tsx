@@ -427,6 +427,18 @@ export function NewItemButton({
     if (trigger?.isConnected) trigger.focus();
   });
 
+  /**
+   * The new item's sprints under the Sprint filter's rule: a Tâche has the
+   * sprint actually sent, a Composant or an Epic none, and a Sous-tâche its
+   * parent tâche's, which the dialog does not know (`undefined`).
+   */
+  function createdSprintIds(): string[] | undefined {
+    if (effectiveType === "soustache") return undefined;
+    if (!isTask) return [];
+    const sent = contextualTask ? sprintId : plannedSprintId;
+    return sent ? [sent] : [];
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -461,9 +473,8 @@ export function NewItemButton({
         return;
       }
       const item = result.item;
-      const plannedSprint = contextualTask ? sprintId : sprintForTask;
       const hidden = isHiddenByFilters(
-        { ...item, labelIds, fixVersionIds, sprintIds: plannedSprint ? [plannedSprint] : [] },
+        { ...item, labelIds, fixVersionIds, sprintIds: createdSprintIds() },
         viewFilters,
       );
       onCreated?.(item);

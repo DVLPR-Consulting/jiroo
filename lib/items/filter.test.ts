@@ -657,8 +657,17 @@ describe("isHiddenByFilters (JIR-92)", () => {
     priority: 0,
     assigneeId: null,
     path: `root.${composantId.replaceAll("-", "")}.${epicId.replaceAll("-", "")}.${taskId.replaceAll("-", "")}`,
+    sprintIds: [] as string[] | undefined,
   };
   const filters = (patch: Partial<Filters>): Filters => ({ ...empty.filters, ...patch });
+
+  it("leaves an unknown Sprint out of the check, never claiming « masqué » from it", () => {
+    const subtask = { ...created, type: "soustache" as const, sprintIds: undefined };
+    expect(isHiddenByFilters(subtask, filters({ sprintIds: ["none"] }))).toBe(false);
+    expect(isHiddenByFilters(subtask, filters({ sprintIds: ["s1"] }))).toBe(false);
+    // The facets it knows still decide.
+    expect(isHiddenByFilters(subtask, filters({ sprintIds: ["s1"], releaseIds: ["v1"] }))).toBe(true);
+  });
 
   it("never hides without an active filter", () => {
     expect(isHiddenByFilters(created, undefined)).toBe(false);
