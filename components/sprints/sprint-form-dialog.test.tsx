@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CreateSprintButton,
   EditSprintDialog,
@@ -29,6 +29,22 @@ const sprint = {
   plannedEndAt: "2026-08-24T09:00:00.000Z",
   capacityPoints: 20,
 };
+
+// Dates are entered in the browser's time zone, Europe/Paris for the team.
+const previousTimeZone = process.env.TZ;
+beforeAll(() => {
+  process.env.TZ = "Europe/Paris";
+});
+afterAll(() => {
+  if (previousTimeZone === undefined) delete process.env.TZ;
+  else process.env.TZ = previousTimeZone;
+});
+
+const undated = { ...sprint, plannedStartAt: null, plannedEndAt: null };
+
+function setField(label: string, value: string) {
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+}
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -179,9 +195,131 @@ describe("sprint form dialogs", () => {
     expect(screen.getByRole("textbox", { name: "Nom" })).toHaveValue("Recette 1");
     expect(screen.getByRole("textbox", { name: "Objectif" }))
       .toHaveValue("Sprint de test 1 semaine");
-    expect(screen.getByLabelText("Début prévu")).toHaveValue("2026-09-01T09:30");
-    expect(screen.getByLabelText("Fin prévue")).toHaveValue("2026-09-08T17:00");
+    expect(screen.getByLabelText("Début prévu")).toHaveValue("2026-09-01");
+    expect(screen.getByLabelText("Heure de début")).toHaveValue("09:30");
+    expect(screen.getByLabelText("Fin prévue")).toHaveValue("2026-09-08");
+    expect(screen.getByLabelText("Heure de fin")).toHaveValue("17:00");
     expect(screen.getByRole("spinbutton", { name: "Capacité (points)" })).toHaveValue(15);
+  });
+
+  it("saves dates entered without a time at 09:00 and 18:00 Paris time (JIR-87)", async () => {
+    const user = userEvent.setup();
+    mocks.updateSprintAction.mockResolvedValueOnce({ ok: true, sprint });
+    render(
+      <EditSprintDialog
+        backlogId="11111111-1111-4111-8111-111111111111"
+        backlogKey="DEMO"
+        sprint={undated}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Modifier Sprint paiement" }));
+    expect(screen.getByRole("dialog").querySelector("form")).toHaveAttribute("novalidate");
+    expect(screen.getByLabelText("Heure de début")).toHaveValue("");
+    // Across the end of summer time (25 October 2026, 03:00).
+    setField("Début prévu", "2026-10-24");
+    setField("Fin prévue", "2026-10-25");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await waitFor(() => expect(mocks.updateSprintAction).toHaveBeenCalledOnce());
+    expect(mocks.updateSprintAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plannedStartAt: "2026-10-24T07:00:00.000Z",
+        plannedEndAt: "2026-10-25T17:00:00.000Z",
+      }),
+    );
+  });
+
+  it("keeps an explicit time and clears a removed date", async () => {
+    const user = userEvent.setup();
+    mocks.updateSprintAction.mockResolvedValueOnce({ ok: true, sprint });
+    render(
+      <EditSprintDialog
+        backlogId="11111111-1111-4111-8111-111111111111"
+        backlogKey="DEMO"
+        sprint={sprint}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Modifier Sprint paiement" }));
+    setField("Heure de début", "14:30");
+    setField("Fin prévue", "");
+    setField("Heure de fin", "");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await waitFor(() => expect(mocks.updateSprintAction).toHaveBeenCalledOnce());
+    expect(mocks.updateSprintAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plannedStartAt: "2026-08-10T12:30:00.000Z",
+        plannedEndAt: null,
+      }),
+    );
+  });
+
+  it("explains an end before the start under the field without calling the server", async () => {
+    const user = userEvent.setup();
+    render(
+      <EditSprintDialog
+        backlogId="11111111-1111-4111-8111-111111111111"
+        backlogKey="DEMO"
+        sprint={undated}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Modifier Sprint paiement" }));
+    setField("Début prévu", "2026-10-15");
+    setField("Fin prévue", "2026-10-14");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    const end = screen.getByLabelText("Fin prévue");
+    expect(end).toHaveAttribute("aria-invalid", "true");
+    expect(end).toHaveAccessibleDescription(
+      expect.stringContaining("La date de fin doit être postérieure à la date de début."),
+    );
+    expect(screen.getByLabelText("Début prévu")).not.toHaveAttribute("aria-invalid");
+    expect(mocks.updateSprintAction).not.toHaveBeenCalled();
+
+    setField("Fin prévue", "2026-10-29");
+    expect(end).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByText("La date de fin doit être postérieure à la date de début.")).not.toBeInTheDocument();
+  });
+
+  it("asks for the date when only a time is entered", async () => {
+    const user = userEvent.setup();
+    render(
+      <EditSprintDialog
+        backlogId="11111111-1111-4111-8111-111111111111"
+        backlogKey="DEMO"
+        sprint={undated}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Modifier Sprint paiement" }));
+    setField("Heure de début", "10:00");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(screen.getByLabelText("Début prévu")).toHaveAccessibleDescription(
+      expect.stringContaining("Indiquez la date correspondant à cette heure."),
+    );
+    expect(mocks.updateSprintAction).not.toHaveBeenCalled();
+  });
+
+  it("shows a server date error under the end field", async () => {
+    const user = userEvent.setup();
+    mocks.updateSprintAction.mockResolvedValueOnce({
+      ok: false,
+      error: "La date de fin doit être postérieure à la date de début.",
+      fieldErrors: { plannedEndAt: ["La date de fin doit être postérieure à la date de début."] },
+    });
+    render(
+      <EditSprintDialog
+        backlogId="11111111-1111-4111-8111-111111111111"
+        backlogKey="DEMO"
+        sprint={sprint}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Modifier Sprint paiement" }));
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Fin prévue")).toHaveAttribute("aria-invalid", "true"),
+    );
   });
 
   it("limits a completed sprint edit to its name and goal", async () => {

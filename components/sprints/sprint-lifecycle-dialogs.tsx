@@ -18,6 +18,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select";
+import {
+  hasBadInput,
+  readDateEntry,
+  SprintDateFields,
+} from "@/components/sprints/sprint-date-fields";
+import {
+  resolveSprintDates,
+  startSprintDateDefaults,
+  type SprintDateErrors,
+} from "@/lib/items/sprint-dates";
 import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
 import { countLabel, formatPoints, pointsLabel } from "@/lib/format/plural";
 
@@ -36,12 +46,6 @@ type CompleteSprintDialogProps = StartSprintDialogProps & {
   completedMetrics: SprintMetrics;
   incompleteMetrics: SprintMetrics;
 };
-
-function toLocalDateTime(value: Date | null): string {
-  if (!value) return "";
-  const part = (number: number) => String(number).padStart(2, "0");
-  return `${value.getFullYear()}-${part(value.getMonth() + 1)}-${part(value.getDate())}T${part(value.getHours())}:${part(value.getMinutes())}`;
-}
 
 function MetricsSummary({ metrics }: { metrics: SprintMetrics }) {
   return (
@@ -73,25 +77,50 @@ export function StartSprintDialog({
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState(sprint.name);
   const [goal, setGoal] = useState(sprint.goal ?? "");
-  const [startAt, setStartAt] = useState(toLocalDateTime(sprint.plannedStartAt));
-  const [endAt, setEndAt] = useState(toLocalDateTime(sprint.plannedEndAt));
+  // Prefilled like Jira on every opening (see reset): planned dates, else
+  // now and two weeks later. Nothing is computed before the first opening.
+  const [start, setStart] = useState({ date: "", time: "" });
+  const [end, setEnd] = useState({ date: "", time: "" });
   const [capacity, setCapacity] = useState(
     sprint.capacityPoints === null ? "" : String(sprint.capacityPoints),
   );
   const [error, setError] = useState<string | null>(null);
+  const [dateErrors, setDateErrors] = useState<SprintDateErrors>({});
+  const [capacityError, setCapacityError] = useState<string | null>(null);
 
   function reset() {
+    const defaults = startSprintDateDefaults(sprint.plannedStartAt, sprint.plannedEndAt, new Date());
     setName(sprint.name);
     setGoal(sprint.goal ?? "");
-    setStartAt(toLocalDateTime(sprint.plannedStartAt));
-    setEndAt(toLocalDateTime(sprint.plannedEndAt));
+    setStart(defaults.start);
+    setEnd(defaults.end);
     setCapacity(sprint.capacityPoints === null ? "" : String(sprint.capacityPoints));
     setError(null);
+    setDateErrors({});
+    setCapacityError(null);
   }
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    setDateErrors({});
+    setCapacityError(null);
+    // The form is `noValidate`: dates and capacity are checked here so each
+    // field gets a French message instead of the browser's bubble (JIR-87).
+    const form = event.currentTarget as HTMLFormElement;
+    const dates = resolveSprintDates({
+      start: readDateEntry(form, "start", start),
+      end: readDateEntry(form, "end", end),
+      required: true,
+    });
+    const capacityInvalid = hasBadInput(form, "capacity");
+    if (!dates.ok || capacityInvalid) {
+      if (!dates.ok) setDateErrors(dates.errors);
+      if (capacityInvalid) setCapacityError("Capacité invalide.");
+      return;
+    }
+    const { startAt, endAt } = dates;
+    if (!startAt || !endAt) return;
     startTransition(async () => {
       try {
         const result = await startSprintAction({
@@ -100,12 +129,18 @@ export function StartSprintDialog({
           id: sprint.id,
           name,
           goal: goal.trim() || null,
-          startAt: new Date(startAt).toISOString(),
-          endAt: new Date(endAt).toISOString(),
+          startAt,
+          endAt,
           capacityPoints: capacity === "" ? null : Number(capacity),
         });
         if (!result.ok) {
           setError(result.error);
+          if ("fieldErrors" in result) {
+            setDateErrors({
+              start: result.fieldErrors?.startAt?.[0],
+              end: result.fieldErrors?.endAt?.[0],
+            });
+          }
           return;
         }
         setOpen(false);
@@ -145,7 +180,7 @@ export function StartSprintDialog({
         <DialogHeader>
           <DialogTitle>Démarrer {sprint.name}</DialogTitle>
         </DialogHeader>
-        <form className="space-y-4" onSubmit={submit}>
+        <form className="space-y-4" noValidate onSubmit={submit}>
           <div className="rounded-lg bg-muted p-3">
             <MetricsSummary metrics={{ ...metrics, capacityPoints: selectedCapacity }} />
           </div>
@@ -167,22 +202,44 @@ export function StartSprintDialog({
             <Label htmlFor={`${prefix}-goal`}>Objectif</Label>
             <textarea id={`${prefix}-goal`} className={TEXTAREA} value={goal} onChange={(event) => setGoal(event.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor={`${prefix}-start`}>Début</Label>
-              <Input id={`${prefix}-start`} type="datetime-local" value={startAt} onChange={(event) => setStartAt(event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={`${prefix}-end`}>Fin</Label>
-              <Input id={`${prefix}-end`} type="datetime-local" value={endAt} onChange={(event) => setEndAt(event.target.value)} />
-            </div>
-          </div>
+          <SprintDateFields
+            prefix={prefix}
+            startLabel="Début"
+            endLabel="Fin"
+            start={start}
+            end={end}
+            errors={dateErrors}
+            onStartChange={(value) => {
+              setStart(value);
+              setDateErrors((current) => ({ ...current, start: undefined }));
+            }}
+            onEndChange={(value) => {
+              setEnd(value);
+              setDateErrors((current) => ({ ...current, end: undefined }));
+            }}
+          />
           <div className="space-y-2">
             <Label htmlFor={`${prefix}-capacity`}>Capacité (points)</Label>
-            <Input id={`${prefix}-capacity`} type="number" min="0" max="999.99" step="0.01" value={capacity} onChange={(event) => setCapacity(event.target.value)} />
+            <Input
+              id={`${prefix}-capacity`}
+              name="capacity"
+              type="number"
+              min="0"
+              max="999.99"
+              step="0.01"
+              value={capacity}
+              aria-invalid={capacityError ? true : undefined}
+              aria-describedby={capacityError ? `${prefix}-capacity-error` : undefined}
+              onChange={(event) => setCapacity(event.target.value)}
+            />
+            {capacityError && (
+              <p id={`${prefix}-capacity-error`} className="text-sm text-destructive">
+                {capacityError}
+              </p>
+            )}
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={pending || !name.trim() || !startAt || !endAt}>
+            <Button type="submit" disabled={pending || !name.trim()}>
               {pending ? "Démarrage…" : "Confirmer le démarrage"}
             </Button>
           </DialogFooter>
