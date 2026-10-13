@@ -86,6 +86,32 @@ describe("ShellBreadcrumb", () => {
     );
   });
 
+  it("leads a backlog access page back through Administration (JIR-85)", () => {
+    route.pathname = "/b/PEN/settings/access";
+    route.search = "";
+    render(<ShellBreadcrumb backlogs={backlogs} views={views} canOpenAdmin />);
+
+    expect(trail()).toEqual(["Administration", "Backlogs", "Pôle pénal", "Accès"]);
+    expect(screen.getByRole("link", { name: "Administration" })).toHaveAttribute("href", "/admin");
+    expect(screen.getByRole("link", { name: "Backlogs" })).toHaveAttribute(
+      "href",
+      "/admin?tab=backlogs",
+    );
+    expect(screen.getByRole("link", { name: "Pôle pénal" })).toHaveAttribute("href", "/b/PEN");
+    expect(screen.getByText("Accès")).toHaveAttribute("aria-current", "page");
+  });
+
+  it("does not link Administration for a viewer who cannot open it", () => {
+    route.pathname = "/b/PEN/settings/access";
+    route.search = "";
+    render(<ShellBreadcrumb backlogs={backlogs} views={views} />);
+
+    expect(trail()).toEqual(["Administration", "Backlogs", "Pôle pénal", "Accès"]);
+    expect(screen.queryByRole("link", { name: "Administration" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Backlogs" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Pôle pénal" })).toHaveAttribute("href", "/b/PEN");
+  });
+
   it("keeps a lone segment without any backlog", () => {
     route.pathname = "/";
     route.search = "";

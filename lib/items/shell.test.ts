@@ -177,6 +177,31 @@ describe("deriveShellContext", () => {
   });
 });
 
+describe("deriveShellContext — backlog access page (JIR-85)", () => {
+  it("activates the backlog in the URL, not the first one", () => {
+    expect(deriveShellContext({
+      pathname: "/b/pen/settings/access",
+      search: new URLSearchParams(),
+      backlogs,
+      views,
+    })).toEqual({
+      activeBacklogKey: "PEN",
+      section: "Accès",
+      allItemsHref: "/b/PEN",
+      activeNav: null,
+    });
+  });
+
+  it("does not activate a stale backlog", () => {
+    expect(deriveShellContext({
+      pathname: "/b/old/settings/access/",
+      search: new URLSearchParams(),
+      backlogs,
+      views,
+    })).toEqual({ section: "Accès", allItemsHref: "/b/CASS", activeNav: null });
+  });
+});
+
 describe("deriveShellContext — Backlog mode", () => {
   it("names the Backlog display mode instead of falling back to Board", () => {
     expect(
@@ -240,8 +265,8 @@ describe("project views (sidebar)", () => {
 });
 
 describe("deriveBreadcrumb (page header)", () => {
-  const crumbs = (pathname: string, search = "", list = backlogs) =>
-    deriveBreadcrumb({ pathname, search: new URLSearchParams(search), backlogs: list, views });
+  const crumbs = (pathname: string, search = "", list = backlogs, canOpenAdmin?: boolean) =>
+    deriveBreadcrumb({ pathname, search: new URLSearchParams(search), backlogs: list, views, canOpenAdmin });
 
   it("leads an item view with the clickable project then the view", () => {
     expect(crumbs("/b/CASS", "view=list")).toEqual([
@@ -289,6 +314,33 @@ describe("deriveBreadcrumb (page header)", () => {
 
   it("does not link a stale backlog", () => {
     expect(crumbs("/b/old", "view=tree")).toEqual([{ label: "OLD" }, { label: "Arbre" }]);
+  });
+
+  it("places the access page under Administration › Backlogs › project (JIR-85)", () => {
+    expect(crumbs("/b/pen/settings/access", "", backlogs, true)).toEqual([
+      { label: "Administration", href: "/admin" },
+      { label: "Backlogs", href: "/admin?tab=backlogs" },
+      { label: "Pôle pénal", href: "/b/PEN" },
+      { label: "Accès" },
+    ]);
+  });
+
+  it.each([false, undefined])("keeps the administration segments as text when canOpenAdmin is %s", (canOpenAdmin) => {
+    expect(crumbs("/b/PEN/settings/access", "", backlogs, canOpenAdmin)).toEqual([
+      { label: "Administration" },
+      { label: "Backlogs" },
+      { label: "Pôle pénal", href: "/b/PEN" },
+      { label: "Accès" },
+    ]);
+  });
+
+  it("names a stale backlog on its access page without linking it", () => {
+    expect(crumbs("/b/old/settings/access", "", backlogs, true)).toEqual([
+      { label: "Administration", href: "/admin" },
+      { label: "Backlogs", href: "/admin?tab=backlogs" },
+      { label: "OLD" },
+      { label: "Accès" },
+    ]);
   });
 
   it("keeps a lone segment without any backlog", () => {

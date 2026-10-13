@@ -18,9 +18,12 @@ import { deriveBreadcrumb } from "@/lib/items/shell";
 export function ShellBreadcrumb({
   backlogs: backlogsProp,
   views: viewsProp,
+  canOpenAdmin = false,
 }: {
   backlogs?: ShellBacklogRef[];
   views?: ShellViewRef[];
+  /** Links the Administration segments of a backlog's access page (JIR-85). */
+  canOpenAdmin?: boolean;
 } = {}) {
   const shell = useShellData();
   const backlogs = backlogsProp ?? shell.backlogs;
@@ -36,6 +39,7 @@ export function ShellBreadcrumb({
       const backlogKey = view.backlogId ? backlogKeys.get(view.backlogId) : undefined;
       return backlogKey ? [{ id: view.id, name: view.name, backlogKey }] : [];
     }),
+    canOpenAdmin,
   });
   const last = segments.length - 1;
 
