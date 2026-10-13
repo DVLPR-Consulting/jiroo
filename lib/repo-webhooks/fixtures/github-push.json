@@ -1,0 +1,55 @@
+{
+  "ref": "refs/heads/feature/CASS-12-login-form",
+  "before": "0000000000000000000000000000000000000000",
+  "after": "9f1c2b7e4d3a5f6b8c0d1e2f3a4b5c6d7e8f9a0b",
+  "created": true,
+  "deleted": false,
+  "forced": false,
+  "base_ref": null,
+  "compare": "https://github.com/example-org/example-repo/compare/feature/CASS-12-login-form",
+  "commits": [
+    {
+      "id": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+      "tree_id": "aa11bb22cc33dd44ee55ff6677889900aabbccdd",
+      "distinct": true,
+      "message": "CASS-12 add the login form\n\nLonger body that mentions CASS-99 and must be ignored.",
+      "timestamp": "2026-10-13T09:15:00+02:00",
+      "url": "https://github.com/example-org/example-repo/commit/1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+      "author": { "name": "Alex Martin", "email": "alex@example.invalid", "username": "alex-m" },
+      "committer": { "name": "Alex Martin", "email": "alex@example.invalid", "username": "alex-m" },
+      "added": ["app/login.tsx"],
+      "removed": [],
+      "modified": []
+    },
+    {
+      "id": "9f1c2b7e4d3a5f6b8c0d1e2f3a4b5c6d7e8f9a0b",
+      "tree_id": "bb11bb22cc33dd44ee55ff6677889900aabbccdd",
+      "distinct": true,
+      "message": "Fix typo in README",
+      "timestamp": "2026-10-13T09:20:00+02:00",
+      "url": "https://github.com/example-org/example-repo/commit/9f1c2b7e4d3a5f6b8c0d1e2f3a4b5c6d7e8f9a0b",
+      "author": { "name": "Alex Martin", "email": "alex@example.invalid", "username": "alex-m" },
+      "committer": { "name": "GitHub", "email": "noreply@example.invalid", "username": "web-flow" },
+      "added": [],
+      "removed": [],
+      "modified": ["README.md"]
+    }
+  ],
+  "head_commit": {
+    "id": "9f1c2b7e4d3a5f6b8c0d1e2f3a4b5c6d7e8f9a0b",
+    "message": "Fix typo in README",
+    "timestamp": "2026-10-13T09:20:00+02:00",
+    "url": "https://github.com/example-org/example-repo/commit/9f1c2b7e4d3a5f6b8c0d1e2f3a4b5c6d7e8f9a0b",
+    "author": { "name": "Alex Martin", "email": "alex@example.invalid", "username": "alex-m" }
+  },
+  "repository": {
+    "id": 123456789,
+    "name": "example-repo",
+    "full_name": "Example-Org/Example-Repo",
+    "private": true,
+    "html_url": "https://github.com/Example-Org/Example-Repo",
+    "default_branch": "main"
+  },
+  "pusher": { "name": "alex-m", "email": "alex@example.invalid" },
+  "sender": { "login": "alex-m", "id": 1001, "type": "User" }
+}

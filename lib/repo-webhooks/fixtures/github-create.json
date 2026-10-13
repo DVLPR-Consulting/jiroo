@@ -1,0 +1,16 @@
+{
+  "ref": "cass-7-export-pdf",
+  "ref_type": "branch",
+  "master_branch": "main",
+  "description": null,
+  "pusher_type": "user",
+  "repository": {
+    "id": 123456789,
+    "name": "example-repo",
+    "full_name": "example-org/example-repo",
+    "private": true,
+    "html_url": "https://github.com/example-org/example-repo",
+    "pushed_at": "2026-10-13T07:30:00Z"
+  },
+  "sender": { "login": "sam-d", "id": 1002, "type": "User" }
+}
