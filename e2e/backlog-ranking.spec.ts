@@ -94,7 +94,7 @@ test("classe à la souris, restaure au clavier et conserve chaque ordre", async 
     .poll(async () => rows.evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
     .toEqual(optimisticOrder);
 
-  const restoredHandle = page.getByRole("button", { name: `Déplacer ${movedKey}` });
+  const restoredHandle = page.getByRole("button", { name: `Déplacer ${movedKey}`, exact: true });
   await restoredHandle.focus();
   await page.keyboard.press("Space");
   await expect(

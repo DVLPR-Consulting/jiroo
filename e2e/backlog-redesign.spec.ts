@@ -193,7 +193,7 @@ test("glisser un item du backlog dans la zone d’un sprint vide le planifie", a
 
   const bareRow = page.getByRole("row", { name: new RegExp(`— ${BARE_TASK}$`) });
   const key = (await bareRow.getAttribute("aria-label"))!.split(" — ")[0]!;
-  const handle = page.getByRole("button", { name: `Déplacer ${key}` });
+  const handle = page.getByRole("button", { name: `Déplacer ${key}`, exact: true });
   await handle.scrollIntoViewIfNeeded();
   await zone.scrollIntoViewIfNeeded();
   const origin = await handle.boundingBox();

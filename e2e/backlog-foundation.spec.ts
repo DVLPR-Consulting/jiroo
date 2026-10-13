@@ -459,28 +459,32 @@ async function expectBacklogRowsFit(
   { titleRoom = false, role = "row" }: { titleRoom?: boolean; role?: "row" | "listitem" } = {},
 ) {
   const rows = page.locator(`[role=${role}][aria-label]`);
-  expect(await rows.count()).toBeGreaterThan(0);
-  const layout = await rows.evaluateAll((elements, measureRoom) =>
-    elements.map((row) => {
-      const rect = row.getBoundingClientRect();
-      const span = row.querySelector<HTMLElement>("span.truncate");
-      // Short titles: measure the room their cell leaves them instead.
-      const title = measureRoom ? span?.parentElement : span;
-      return {
-        label: row.getAttribute("aria-label") ?? "",
-        right: rect.right,
-        overflow: row.scrollWidth - row.clientWidth,
-        titleWidth: title?.getBoundingClientRect().width ?? 0,
-      };
-    }),
-    titleRoom,
-  );
   const width = page.viewportSize()!.width;
-  for (const row of layout) {
-    expect(row.right, `${row.label} dépasse l’écran`).toBeLessThanOrEqual(width + 1);
-    expect(row.overflow, `${row.label} défile horizontalement`).toBeLessThanOrEqual(1);
-    expect(row.titleWidth, `${row.label} : titre illisible`).toBeGreaterThanOrEqual(80);
-  }
+  // Measured until the rows have laid out: right after a navigation a title
+  // can still read 0 px wide.
+  await expect(async () => {
+    expect(await rows.count()).toBeGreaterThan(0);
+    const layout = await rows.evaluateAll((elements, measureRoom) =>
+      elements.map((row) => {
+        const rect = row.getBoundingClientRect();
+        const span = row.querySelector<HTMLElement>("span.truncate");
+        // Short titles: measure the room their cell leaves them instead.
+        const title = measureRoom ? span?.parentElement : span;
+        return {
+          label: row.getAttribute("aria-label") ?? "",
+          right: rect.right,
+          overflow: row.scrollWidth - row.clientWidth,
+          titleWidth: title?.getBoundingClientRect().width ?? 0,
+        };
+      }),
+      titleRoom,
+    );
+    for (const row of layout) {
+      expect(row.right, `${row.label} dépasse l’écran`).toBeLessThanOrEqual(width + 1);
+      expect(row.overflow, `${row.label} défile horizontalement`).toBeLessThanOrEqual(1);
+      expect(row.titleWidth, `${row.label} : titre illisible`).toBeGreaterThanOrEqual(80);
+    }
+  }).toPass({ timeout: 10_000 });
   const scroller = await page.evaluate(() => {
     const main = document.querySelector("main");
     const overflowing = [...(main?.querySelectorAll<HTMLElement>("*") ?? [])].filter(

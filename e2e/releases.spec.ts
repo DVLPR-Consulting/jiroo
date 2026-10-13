@@ -37,6 +37,7 @@ import {
   writeAuditScreenshot,
   writeAuditText,
 } from "./audit-artifacts";
+import { keyPattern } from "./key-helpers";
 
 const AUTH = {
   admin: ".playwright/.auth/platform-admin.json",
@@ -320,7 +321,7 @@ async function selectBulkItems(
   selectedItems: Array<{ key: string }>,
 ) {
   for (const item of selectedItems) {
-    await page.getByRole("checkbox", { name: `Sélectionner ${item.key}` }).check();
+    await page.getByRole("checkbox", { name: `Sélectionner ${item.key}`, exact: true }).check();
   }
 }
 
@@ -532,9 +533,9 @@ audited(2, "persiste deux versions à la création puis depuis le détail", asyn
   await expect(selected).toContainText(first.name);
   await expect(selected).toContainText(second.name);
   await editor.goto(`/b/CASS/releases/${first.id}`);
-  await expect(editor.getByRole("region", { name: "Périmètre actuel" })).toContainText(item.key);
+  await expect(editor.getByRole("region", { name: "Périmètre actuel" })).toContainText(keyPattern(item.key));
   await editor.goto(`/b/CASS/releases/${second.id}`);
-  await expect(editor.getByRole("region", { name: "Périmètre actuel" })).toContainText(item.key);
+  await expect(editor.getByRole("region", { name: "Périmètre actuel" })).toContainText(keyPattern(item.key));
   expect(await assignedVersionIds(item.id)).toEqual([first.id, second.id].sort());
 });
 
