@@ -31,13 +31,16 @@ export function HelpGuide() {
             <>Connectez-vous avec le mot de passe transmis : l’écran <Ui>Configurer la double authentification</Ui> s’ouvre.</>,
             <>Confirmez votre mot de passe, puis <Ui>Continuer</Ui>.</>,
             <>Scannez le QR code avec une application d’authentification (ou saisissez la <Ui>Clé manuelle</Ui>).</>,
-            <>Notez les <Ui>Codes de récupération — conservez-les</Ui> en lieu sûr, puis cochez <Ui>J&apos;ai enregistré mes codes de récupération</Ui>.</>,
+            <>Mettez les <Ui>Codes de récupération — conservez-les</Ui> en lieu sûr : <Ui>Copier les codes</Ui> (par exemple vers un gestionnaire de mots de passe) ou <Ui>Télécharger (.txt)</Ui>.</>,
+            <>Cochez la case obligatoire <Ui>J&apos;ai enregistré mes codes de récupération</Ui> : sans elle, <Ui>Activer et continuer</Ui> affiche un message sous la case.</>,
             <>Saisissez le code affiché par l’application et cliquez sur <Ui>Activer et continuer</Ui>.</>,
           ]}
         >
           <GuideNote>
             Les codes de récupération ne sont affichés qu’une seule fois. Chacun remplace le code à 6 chiffres :
-            sur l’écran de vérification, choisissez <Ui>Utiliser un code de récupération</Ui>.
+            sur l’écran de vérification, choisissez <Ui>Utiliser un code de récupération</Ui>. Ne partagez ni ces
+            codes ni la clé manuelle (pas de capture d’écran envoyée) : ils donnent accès à votre compte. La copie et
+            le fichier sont produits dans votre navigateur ; Jiroo ne les conserve pas.
           </GuideNote>
         </GuideTopic>
 
@@ -168,7 +171,7 @@ export function HelpGuide() {
         >
           <ul className="t-body list-disc space-y-1 pl-5">
             <li><Ui>Backlog</Ui> : les tâches par sprint et la section Backlog, une ligne compacte par tâche ; glisser-déposer pour classer et planifier.</li>
-            <li><Ui>Board</Ui> : les tâches du sprint actif, une colonne par statut ; déplacer une carte change son statut.</li>
+            <li><Ui>Board</Ui> : les tâches du sprint actif, une colonne par statut ; déplacer une carte change son statut. Sans sprint actif, le bandeau <Ui>Aucun sprint actif</Ui> et son lien <Ui>Voir le Backlog</Ui> surmontent les colonnes, vides et sans glisser-déposer.</li>
             <li><Ui>Liste</Ui> : tableau de tous les tickets, colonnes triables, menu <Ui>Colonnes</Ui>.</li>
             <li><Ui>Arbre</Ui> : la hiérarchie ; glisser un ticket sous un autre parent le rattache (règles de hiérarchie).</li>
           </ul>
@@ -392,7 +395,7 @@ export function HelpGuide() {
           purpose="Préparer une période de travail de l’équipe."
           steps={[
             <>Vue <Ui>Backlog</Ui> → <Ui>Créer un sprint</Ui>, dans l’en-tête de la section Backlog : il est créé aussitôt (Sprint 1, Sprint 2…).</>,
-            <>Dans l’en-tête du sprint, menu <Ui>⋯</Ui> → <Ui>Modifier</Ui> (ou lien <Ui>Ajouter des dates et un objectif</Ui>) pour changer <Ui>Nom</Ui>, <Ui>Objectif</Ui>, <Ui>Début prévu</Ui>, <Ui>Fin prévue</Ui> et <Ui>Capacité (points)</Ui>.</>,
+            <>Dans l’en-tête du sprint, menu <Ui>⋯</Ui> → <Ui>Modifier</Ui> (ou lien <Ui>Ajouter des dates et un objectif</Ui>) pour changer <Ui>Nom</Ui>, <Ui>Objectif</Ui>, <Ui>Début prévu</Ui>, <Ui>Fin prévue</Ui> et <Ui>Capacité (points)</Ui>. Une date suffit : l’heure est facultative (9 h pour le début, 18 h pour la fin par défaut).</>,
             <>Menu <Ui>⋯</Ui> → <Ui>Monter</Ui> ou <Ui>Descendre</Ui> pour réordonner les sprints planifiés.</>,
           ]}
         />
@@ -417,7 +420,7 @@ export function HelpGuide() {
           purpose="Lancer le sprint et suivre son avancement au quotidien."
           steps={[
             <>Sur un sprint planifié, cliquez sur <Ui>Démarrer le sprint</Ui>.</>,
-            <>Vérifiez <Ui>Nom</Ui>, <Ui>Début</Ui> et <Ui>Fin</Ui> (obligatoires), puis <Ui>Confirmer le démarrage</Ui>.</>,
+            <>Vérifiez <Ui>Nom</Ui>, <Ui>Début</Ui> et <Ui>Fin</Ui> (obligatoires), puis <Ui>Confirmer le démarrage</Ui>. Sans dates prévues, le début est proposé à maintenant et la fin deux semaines plus tard ; l’heure reste facultative.</>,
             <>Le <Ui>Board</Ui> affiche alors le sprint actif : déplacez les cartes de colonne en colonne.</>,
           ]}
         >
@@ -590,6 +593,7 @@ export function HelpGuide() {
             <><Ui>Utilisateurs</Ui> : <Ui>Nouvel utilisateur</Ui> ; menu « … » → <Ui>Réinitialiser le mot de passe</Ui> ou <Ui>Réinitialiser la double authentification</Ui>.</>,
             <><Ui>Groupes</Ui> : créer, renommer, ajouter ou retirer des membres ; attribuer les permissions globales.</>,
             <><Ui>Backlogs</Ui> : <Ui>Nouveau backlog</Ui>, <Ui>Modifier</Ui>, <Ui>Archiver</Ui>, et <Ui>Accès</Ui> pour affecter personnes et groupes aux rôles.</>,
+            <><Ui>Backlogs</Ui> → <Ui>Accès</Ui> : la barre latérale et le fil d’Ariane (<Ui>Administration</Ui> / <Ui>Backlogs</Ui> / nom du backlog / <Ui>Accès</Ui>) suivent le backlog affiché. En <Ui>Mode Simple</Ui>, choisissez le rôle de chaque personne ou groupe, ajoutez-en, ou cliquez <Ui>Retirer</Ui> sur sa ligne. Le dernier administrateur effectif du backlog ne peut être ni retiré ni changé de rôle.</>,
             <><Ui>Backlogs</Ui> → <Ui>Modifier</Ui> → <Ui>Responsable</Ui> : choisissez la personne affichée comme responsable sur l’accueil, ou <Ui>Aucun</Ui>. Ce champ ne donne aucun droit ; il n’apparaît qu’avec la permission de parcourir les utilisateurs.</>,
             <><Ui>Rôles de projet</Ui> et <Ui>Schémas de permissions</Ui> : réglages fins des accès.</>,
           ]}

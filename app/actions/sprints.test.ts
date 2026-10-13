@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { permissionDeniedError } from "@/test-utils/action-authorization-errors";
+import { startSprintSchema, updateSprintSchema } from "@/lib/validation/sprint";
 
 const classes = vi.hoisted(() => ({
   ResourceNotFoundError: class ResourceNotFoundError extends Error {
@@ -558,6 +559,45 @@ describe("sprint actions", () => {
     await expect(startSprintAction(payload)).resolves.toEqual({
       ok: false,
       error: "Démarrage du sprint impossible.",
+    });
+  });
+
+  it("returns the real Zod field errors of sprint dates and capacity (JIR-87)", async () => {
+    // The services parse their input with the real schemas.
+    mocks.updateSprint.mockImplementationOnce(async (input) => updateSprintSchema.parse(input));
+    mocks.startSprint.mockImplementationOnce(async (input) => startSprintSchema.parse(input));
+
+    await expect(updateSprintAction({
+      backlogKey: "DEMO",
+      id: sprintId,
+      backlogId,
+      plannedStartAt: "2026-10-15T07:00:00.000Z",
+      plannedEndAt: "2026-10-14T16:00:00.000Z",
+      capacityPoints: 1000,
+    })).resolves.toEqual({
+      ok: false,
+      error: "La capacité ne peut pas dépasser 999,99 points.",
+      fieldErrors: {
+        capacityPoints: ["La capacité ne peut pas dépasser 999,99 points."],
+        plannedEndAt: ["La date de fin doit être postérieure à la date de début."],
+      },
+    });
+    await expect(startSprintAction({
+      backlogKey: "DEMO",
+      id: sprintId,
+      backlogId,
+      name: "Sprint 1",
+      goal: null,
+      startAt: "2026-10-15T07:00:00.000Z",
+      endAt: "2026-10-14T16:00:00.000Z",
+      capacityPoints: 1.234,
+    })).resolves.toEqual({
+      ok: false,
+      error: "La capacité accepte au maximum deux décimales.",
+      fieldErrors: {
+        capacityPoints: ["La capacité accepte au maximum deux décimales."],
+        endAt: ["La date de fin doit être postérieure à la date de début."],
+      },
     });
   });
 

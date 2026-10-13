@@ -81,6 +81,46 @@ describe("AccessAdmin", () => {
     expect(mocks.remove).not.toHaveBeenCalled();
   });
 
+  it("retire un occupant en mode Simple par l’action de retrait (JIR-85)", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockResolvedValue({ ok: true });
+    render(<AccessAdmin {...base} />);
+
+    await user.click(screen.getByRole("button", { name: "Retirer Produit" }));
+
+    expect(mocks.remove).toHaveBeenCalledWith({
+      backlogId: base.access.backlog.id,
+      projectRoleId: base.access.roles[1]!.id,
+      principal: { type: "group", groupId: base.access.roles[1]!.occupants[0]!.principal.id },
+    });
+    expect(mocks.move).not.toHaveBeenCalled();
+  });
+
+  it("désactive le retrait Simple du dernier administrateur avec explication accessible", () => {
+    render(<AccessAdmin {...base} />);
+    const button = screen.getByRole("button", { name: "Retirer Ada" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription("Le dernier administrateur effectif du backlog ne peut pas être retiré.");
+    expect(screen.getByRole("combobox", { name: "Rôle de Ada" })).toHaveAccessibleDescription(
+      "Le dernier administrateur effectif du backlog ne peut pas être retiré.",
+    );
+  });
+
+  it("affiche le refus du service quand le retrait Simple échoue", async () => {
+    const user = userEvent.setup();
+    mocks.remove.mockResolvedValue({ ok: false, error: "Le dernier administrateur effectif du backlog ne peut pas être retiré." });
+    render(<AccessAdmin {...base} />);
+
+    await user.click(screen.getByRole("button", { name: "Retirer Produit" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Le dernier administrateur effectif du backlog ne peut pas être retiré.");
+  });
+
+  it("n’expose pas le retrait Simple sans manage_members", () => {
+    render(<AccessAdmin {...base} canManageMembers={false} />);
+    expect(screen.queryByRole("button", { name: /^Retirer / })).not.toBeInTheDocument();
+  });
+
   it("passe en avancé et expose occupants, schéma, changement et lien matrice", async () => {
     const user = userEvent.setup();
     mocks.mode.mockResolvedValue({ ok: true });

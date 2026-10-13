@@ -104,6 +104,23 @@ describe("HelpPage", () => {
     expect(topic).toHaveTextContent("Markdown brut");
   });
 
+  it("documents saving the 2FA recovery codes (JIR-86)", () => {
+    render(<HelpPage />);
+    const start = document.querySelector("section#demarrer") as HTMLElement;
+    const topic = within(start)
+      .getByRole("heading", { level: 3, name: "Configurer la double authentification (premier login)" })
+      .closest("article, div, section") as HTMLElement;
+    for (const label of [
+      "Copier les codes",
+      "Télécharger (.txt)",
+      "J'ai enregistré mes codes de récupération",
+      "Activer et continuer",
+    ]) {
+      expect(topic).toHaveTextContent(label);
+    }
+    expect(topic).toHaveTextContent("Ne partagez ni ces codes ni la clé manuelle");
+  });
+
   it("documents the in-place description (JIR-71)", () => {
     render(<HelpPage />);
     const tickets = document.querySelector("section#tickets") as HTMLElement;
@@ -163,6 +180,14 @@ describe("HelpPage", () => {
     }
     const rights = document.querySelector("section#droits") as HTMLElement;
     expect(rights).toHaveTextContent("« Responsable »");
+  });
+
+  it("documents the Board columns shown without an active sprint (JIR-89)", () => {
+    render(<HelpPage />);
+    const views = document.querySelector("section#vues") as HTMLElement;
+    expect(views).toHaveTextContent(
+      "Sans sprint actif, le bandeau « Aucun sprint actif » et son lien « Voir le Backlog » surmontent les colonnes, vides et sans glisser-déposer.",
+    );
   });
 
   it("documents the Sprint filter and where completed sprints go (JIR-81)", () => {
