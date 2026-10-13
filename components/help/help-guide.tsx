@@ -31,13 +31,16 @@ export function HelpGuide() {
             <>Connectez-vous avec le mot de passe transmis : l’écran <Ui>Configurer la double authentification</Ui> s’ouvre.</>,
             <>Confirmez votre mot de passe, puis <Ui>Continuer</Ui>.</>,
             <>Scannez le QR code avec une application d’authentification (ou saisissez la <Ui>Clé manuelle</Ui>).</>,
-            <>Notez les <Ui>Codes de récupération — conservez-les</Ui> en lieu sûr, puis cochez <Ui>J&apos;ai enregistré mes codes de récupération</Ui>.</>,
+            <>Mettez les <Ui>Codes de récupération — conservez-les</Ui> en lieu sûr : <Ui>Copier les codes</Ui> (par exemple vers un gestionnaire de mots de passe) ou <Ui>Télécharger (.txt)</Ui>.</>,
+            <>Cochez la case obligatoire <Ui>J&apos;ai enregistré mes codes de récupération</Ui> : sans elle, <Ui>Activer et continuer</Ui> affiche un message sous la case.</>,
             <>Saisissez le code affiché par l’application et cliquez sur <Ui>Activer et continuer</Ui>.</>,
           ]}
         >
           <GuideNote>
             Les codes de récupération ne sont affichés qu’une seule fois. Chacun remplace le code à 6 chiffres :
-            sur l’écran de vérification, choisissez <Ui>Utiliser un code de récupération</Ui>.
+            sur l’écran de vérification, choisissez <Ui>Utiliser un code de récupération</Ui>. Ne partagez ni ces
+            codes ni la clé manuelle (pas de capture d’écran envoyée) : ils donnent accès à votre compte. La copie et
+            le fichier sont produits dans votre navigateur ; Jiroo ne les conserve pas.
           </GuideNote>
         </GuideTopic>
 
@@ -572,6 +575,7 @@ export function HelpGuide() {
             <><Ui>Utilisateurs</Ui> : <Ui>Nouvel utilisateur</Ui> ; menu « … » → <Ui>Réinitialiser le mot de passe</Ui> ou <Ui>Réinitialiser la double authentification</Ui>.</>,
             <><Ui>Groupes</Ui> : créer, renommer, ajouter ou retirer des membres ; attribuer les permissions globales.</>,
             <><Ui>Backlogs</Ui> : <Ui>Nouveau backlog</Ui>, <Ui>Modifier</Ui>, <Ui>Archiver</Ui>, et <Ui>Accès</Ui> pour affecter personnes et groupes aux rôles.</>,
+            <><Ui>Backlogs</Ui> → <Ui>Accès</Ui> : la barre latérale et le fil d’Ariane (<Ui>Administration</Ui> / <Ui>Backlogs</Ui> / nom du backlog / <Ui>Accès</Ui>) suivent le backlog affiché. En <Ui>Mode Simple</Ui>, choisissez le rôle de chaque personne ou groupe, ajoutez-en, ou cliquez <Ui>Retirer</Ui> sur sa ligne. Le dernier administrateur effectif du backlog ne peut être ni retiré ni changé de rôle.</>,
             <><Ui>Backlogs</Ui> → <Ui>Modifier</Ui> → <Ui>Responsable</Ui> : choisissez la personne affichée comme responsable sur l’accueil, ou <Ui>Aucun</Ui>. Ce champ ne donne aucun droit ; il n’apparaît qu’avec la permission de parcourir les utilisateurs.</>,
             <><Ui>Rôles de projet</Ui> et <Ui>Schémas de permissions</Ui> : réglages fins des accès.</>,
           ]}
