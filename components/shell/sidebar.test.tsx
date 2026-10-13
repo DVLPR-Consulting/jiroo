@@ -5,7 +5,12 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { SidebarStateProvider } from "@/components/shell/sidebar-state";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
-const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), pathname: "/b/CASS" }));
+const mocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  replace: vi.fn(),
+  pathname: "/b/CASS",
+  search: "view=board",
+}));
 
 // The user card's password dialog imports a Server Action module.
 vi.mock("@/app/actions/account", () => ({ changeOwnPasswordAction: vi.fn() }));
@@ -14,7 +19,7 @@ vi.mock("next/navigation", () => ({
   useParams: () => ({ key: "CASS" }),
   usePathname: () => mocks.pathname,
   useRouter: () => ({ push: mocks.push, replace: mocks.replace, refresh: vi.fn() }),
-  useSearchParams: () => new URLSearchParams("view=board"),
+  useSearchParams: () => new URLSearchParams(mocks.search),
 }));
 
 vi.mock("next/link", () => ({
@@ -71,6 +76,7 @@ describe("Sidebar", () => {
     mocks.push.mockReset();
     mocks.replace.mockReset();
     mocks.pathname = "/b/CASS";
+    mocks.search = "view=board";
   });
 
   afterEach(() => {
@@ -81,8 +87,7 @@ describe("Sidebar", () => {
     renderSidebar();
 
     const allItems = screen.getByRole("link", { name: /Tous les items 42/ });
-    expect(allItems).toHaveAttribute("href", "/b/CASS");
-    expect(allItems).toHaveAttribute("aria-current", "page");
+    expect(allItems).toHaveAttribute("href", "/b/CASS?view=list");
     expect(screen.getByRole("link", { name: /Mes items 7/ })).toHaveAttribute(
       "href",
       "/mine",
@@ -241,9 +246,61 @@ describe("Sidebar", () => {
     ]);
 
     const allItems = screen.getByRole("link", { name: /Tous les items 42/ });
-    expect(allItems).toHaveAttribute("href", "/b/CASS?tag=a&tag=b");
+    expect(allItems).toHaveAttribute("href", "/b/CASS?tag=a&tag=b&view=list");
     fireEvent.click(allItems);
-    expect(mocks.push).toHaveBeenCalledWith("/b/CASS?tag=a&tag=b");
+    expect(mocks.push).toHaveBeenCalledWith("/b/CASS?tag=a&tag=b&view=list");
+  });
+
+  it("marks Tous les items current on the unfiltered Liste only (JIR-94)", () => {
+    mocks.search = "view=list";
+    const { unmount } = renderSidebar([["view", "list"]]);
+    expect(screen.getByRole("link", { name: /Tous les items 42/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    unmount();
+
+    for (const search of ["view=board", "view=list&q=bug", "view=list&status=s1"]) {
+      mocks.search = search;
+      const view = renderSidebar([...new URLSearchParams(search).entries()]);
+      expect(screen.getByRole("link", { name: /Tous les items 42/ })).not.toHaveAttribute(
+        "aria-current",
+      );
+      view.unmount();
+    }
+  });
+
+  it("opens the unfiltered Liste from the board, clearing every view state (JIR-94)", () => {
+    renderSidebar([
+      ["view", "board"],
+      ["status", "s1"],
+      ["group", "assignee"],
+      ["sort", "key:asc"],
+    ]);
+
+    fireEvent.click(screen.getByRole("link", { name: /Tous les items 42/ }));
+    expect(mocks.push).toHaveBeenCalledWith("/b/CASS?view=list");
+  });
+
+  it("only closes the drawer through the History API on the unfiltered Liste (JIR-78)", () => {
+    const pushState = vi.spyOn(window.history, "pushState").mockImplementation(() => undefined);
+    mocks.search = "view=list&item=CASS-1";
+    renderSidebar([["view", "list"], ["item", "CASS-1"]]);
+
+    fireEvent.click(screen.getByRole("link", { name: /Tous les items 42/ }));
+    expect(pushState).toHaveBeenCalledWith(null, "", "/b/CASS?view=list");
+    expect(mocks.push).not.toHaveBeenCalled();
+    pushState.mockRestore();
+  });
+
+  it("links Tous les items to the Liste from another page of the backlog (JIR-94)", () => {
+    mocks.pathname = "/b/CASS/releases";
+    mocks.search = "";
+    renderSidebar([]);
+
+    const allItems = screen.getByRole("link", { name: /Tous les items 42/ });
+    expect(allItems).toHaveAttribute("href", "/b/CASS?view=list");
+    expect(allItems).not.toHaveAttribute("aria-current");
   });
 
   it("cancels an armed query when all-items becomes authoritative", async () => {
@@ -292,7 +349,7 @@ describe("Sidebar", () => {
     fireEvent.click(screen.getByRole("link", { name: /Tous les items 42/ }));
     await act(async () => vi.advanceTimersByTime(300));
 
-    expect(mocks.push).toHaveBeenCalledWith("/b/CASS?tag=a&tag=b");
+    expect(mocks.push).toHaveBeenCalledWith("/b/CASS?tag=a&tag=b&view=list");
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 });
