@@ -227,4 +227,12 @@ describe("HelpPage", () => {
     expect(sprints).toHaveTextContent("« Rapports » → « Rapport de sprint »");
     expect(sprints).toHaveTextContent("« + Filtre » → « Sprint »");
   });
+
+  it("documents that « Tous les items » opens the unfiltered Liste (JIR-94)", () => {
+    render(<HelpPage />);
+    const organisation = document.querySelector("section#organisation") as HTMLElement;
+    expect(organisation).toHaveTextContent(
+      "« Tous les items » affiche la liste de tous les tickets du backlog courant, sans filtre (vue « Liste » ; le compteur en donne le nombre)",
+    );
+  });
 });

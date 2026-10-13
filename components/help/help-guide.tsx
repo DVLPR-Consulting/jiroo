@@ -83,7 +83,7 @@ export function HelpGuide() {
           purpose="Un backlog regroupe les tickets d’une équipe ou d’un projet, avec ses statuts, sprints, releases et vues."
           steps={[
             <>Changez de backlog avec le sélecteur en haut de la barre latérale.</>,
-            <>Dans la section <Ui>Filtres</Ui> de la barre latérale, <Ui>Tous les items</Ui> affiche le backlog courant sans filtre ; <Ui>Mes items</Ui> liste les tickets qui vous sont assignés, tous backlogs confondus.</>,
+            <>Dans la section <Ui>Filtres</Ui> de la barre latérale, <Ui>Tous les items</Ui> affiche la liste de tous les tickets du backlog courant, sans filtre (vue <Ui>Liste</Ui> ; le compteur en donne le nombre) ; <Ui>Mes items</Ui> liste les tickets qui vous sont assignés, tous backlogs confondus.</>,
             <>Depuis n’importe quelle page (Aide, Administration, Releases…), cliquez sur le logo <Ui>Jiroo</Ui> ou sur le nom du backlog dans le fil d’Ariane, au-dessus du titre de la page, pour revenir à l’accueil du backlog.</>,
           ]}
         >
