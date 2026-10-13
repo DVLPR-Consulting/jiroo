@@ -12,11 +12,14 @@ import { sprintMenuAction } from "./backlog-helpers";
  * JIR-87: a sprint date entered without its time no longer blocks the form;
  * the time defaults to 09:00 (start) / 18:00 (end), Paris time, and starting
  * a sprint without dates prefills now and two weeks later, like Jira.
+ * JIR-90: a two-decimal capacity such as 0.29 is no longer refused by float
+ * rounding and is stored exactly.
  */
 test.use({ timezoneId: "Europe/Paris" });
 
 const EDITED_SPRINT = "JIR-87 Dates seules";
 const STARTED_SPRINT = "JIR-87 Démarrage";
+const CAPACITY_SPRINT = "JIR-90 Capacité";
 
 async function seedSprint(name: string) {
   const [actor] = await db.select({ id: user.id }).from(user)
@@ -52,7 +55,7 @@ async function cleanFixture() {
   ));
   await db.delete(sprints).where(and(
     eq(sprints.backlogId, backlog.id),
-    inArray(sprints.name, [EDITED_SPRINT, STARTED_SPRINT]),
+    inArray(sprints.name, [EDITED_SPRINT, STARTED_SPRINT, CAPACITY_SPRINT]),
   ));
 }
 
@@ -167,4 +170,34 @@ test("démarre un sprint sans dates prévues avec des dates saisies sans heure",
   expect(row.startedAt?.toISOString()).toBe("2026-10-25T08:00:00.000Z");
   expect(row.plannedStartAt?.toISOString()).toBe("2026-10-25T08:00:00.000Z");
   expect(row.plannedEndAt?.toISOString()).toBe("2026-11-06T17:00:00.000Z");
+});
+
+test("enregistre une capacité à deux décimales refusée par l’arrondi flottant (JIR-90)", async ({
+  page,
+}, testInfo) => {
+  const sprint = await seedSprint(CAPACITY_SPRINT);
+  await page.goto("/b/CASS?view=backlog");
+
+  await sprintMenuAction(page, CAPACITY_SPRINT, "Modifier");
+  const dialog = page.getByRole("dialog", { name: `Modifier ${CAPACITY_SPRINT}` });
+  const capacity = dialog.getByRole("spinbutton", { name: "Capacité (points)" });
+  // 0.29 * 100 === 28.999999999999996 in binary floating point.
+  await capacity.fill("0.29");
+  await dialog.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(dialog).toBeHidden();
+
+  // The numeric(5, 2) column holds exactly 0.29, read as text to avoid any float.
+  await expect.poll(async () => {
+    const result = await db.execute<{ capacity: string | null }>(
+      sql`select capacity_points::text as capacity from sprints where id = ${sprint.id}`,
+    );
+    return result.rows[0]?.capacity;
+  }).toBe("0.29");
+  await expect(page.getByText("0 / 0,29 pt", { exact: true })).toBeVisible();
+
+  await sprintMenuAction(page, CAPACITY_SPRINT, "Modifier");
+  await expect(capacity).toHaveValue("0.29");
+  await dialog.screenshot({ path: testInfo.outputPath("jir90-capacity-two-decimals.png") });
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
 });
