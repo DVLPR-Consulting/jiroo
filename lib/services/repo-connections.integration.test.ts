@@ -82,7 +82,19 @@ describeDb("repository connections (JIR-95)", () => {
       requestCorrelationId: "repo-create",
     });
     expect(JSON.stringify(event)).not.toContain(secret);
-    expect(await listRepoConnections(fixture.backlogA.id)).toEqual([connection]);
+    expect(await listRepoConnections(fixture.backlogA.id)).toEqual([{ ...connection, secretReadable: true }]);
+  });
+
+  it("flags a secret that no longer decrypts, without returning it", async () => {
+    const { connection } = await createRepoConnection({
+      backlogId: fixture.backlogA.id,
+      provider: "github",
+      repositoryPath: "acme/unreadable",
+    }, fixture.users.admin);
+    await db.update(repoConnections).set({ secretCiphertext: "v1:garbage:garbage:garbage" }).where(eq(repoConnections.id, connection.id));
+    const listed = (await listRepoConnections(fixture.backlogA.id)).find((row) => row.id === connection.id);
+    expect(listed).toMatchObject({ secretReadable: false });
+    expect(listed).not.toHaveProperty("secretCiphertext");
   });
 
   it("refuses connecting the same repository twice to a backlog", async () => {

@@ -76,6 +76,8 @@ function gitlabRequest(payload: unknown, { token = SECRET, event = "Merge Reques
 describe("POST /api/webhooks/{github,gitlab}/[connectionId]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.recordWebhookError.mockReset().mockResolvedValue(undefined);
+    mocks.recordWebhookEvent.mockReset().mockResolvedValue(undefined);
     mocks.findWebhookConnection.mockImplementation(async (id: string, provider: "github" | "gitlab") =>
       id === CONNECTION_ID
         ? connection(provider, provider === "github" ? "example-org/example-repo" : "juridiction/greffe/api")
@@ -110,9 +112,39 @@ describe("POST /api/webhooks/{github,gitlab}/[connectionId]", () => {
       [401, '{"error":"unauthorized"}'],
     ]);
     expect(mocks.ingestWebhookReferences).not.toHaveBeenCalled();
-    // Only the known connection learns about its failing deliveries.
-    expect(mocks.recordWebhookError).toHaveBeenCalledTimes(1);
-    expect(mocks.recordWebhookError).toHaveBeenCalledWith(CONNECTION_ID, "Signature invalide.");
+    // A refusal never writes to the connection it targets.
+    expect(mocks.recordWebhookError).not.toHaveBeenCalled();
+    expect(mocks.recordWebhookEvent).not.toHaveBeenCalled();
+  });
+
+  it("refuses at once even when persistence hangs or fails", async () => {
+    for (const persistence of [
+      () => new Promise<never>(() => {}),
+      () => Promise.reject(new Error("database unavailable")),
+    ]) {
+      vi.clearAllMocks();
+      for (const write of [mocks.recordWebhookError, mocks.recordWebhookEvent, mocks.ingestWebhookReferences, mocks.countRecentDeliveries]) {
+        write.mockImplementation(persistence);
+      }
+      const answers = await Promise.all([
+        githubRequest(githubPrOpened, { secret: "wrong" }),
+        githubRequest(githubPrOpened, { id: UNKNOWN_ID }),
+        gitlabRequest(gitlabMergeRequest, { token: "nope" }),
+      ]);
+      expect(await Promise.all(answers.map(async (r) => [r.status, await r.text()]))).toEqual([
+        [401, '{"error":"unauthorized"}'],
+        [401, '{"error":"unauthorized"}'],
+        [401, '{"error":"unauthorized"}'],
+      ]);
+      expect(mocks.recordWebhookError).not.toHaveBeenCalled();
+    }
+  });
+
+  it("refuses a connection whose secret no longer decrypts, like any other", async () => {
+    mocks.findWebhookConnection.mockResolvedValue({ ...connection("github", "example-org/example-repo"), secretCiphertext: "v1:bad:bad:bad" });
+    const response = await githubRequest(githubPrOpened);
+    expect([response.status, await response.text()]).toEqual([401, '{"error":"unauthorized"}']);
+    expect(mocks.recordWebhookError).not.toHaveBeenCalled();
   });
 
   it("refuses a delivery whose body was altered after signing", async () => {
@@ -241,6 +273,6 @@ describe("POST /api/webhooks/{github,gitlab}/[connectionId]", () => {
     const wrong = await gitlabRequest(gitlabMergeRequest, { token: "nope" });
     expect(wrong.status).toBe(401);
     await expect(wrong.text()).resolves.toBe('{"error":"unauthorized"}');
-    expect(mocks.recordWebhookError).toHaveBeenCalledWith(CONNECTION_ID, "Jeton secret invalide.");
+    expect(mocks.recordWebhookError).not.toHaveBeenCalled();
   });
 });

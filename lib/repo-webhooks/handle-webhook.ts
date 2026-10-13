@@ -23,7 +23,8 @@ import {
  * the delivery is authenticated with the connection's secret, verified on the
  * raw body before any parsing. Unknown, disabled and badly signed deliveries
  * get the very same answer, so the endpoint never reveals which connections
- * exist. Neither the secret nor the payload is ever logged.
+ * exist: a refusal writes nothing and its answer never depends on a write.
+ * Neither the secret nor the payload is ever logged.
  */
 
 export const MAX_WEBHOOK_BYTES = 1024 * 1024;
@@ -105,26 +106,21 @@ export async function handleRepoWebhook(
   const connection = UUID.test(connectionId)
     ? await findWebhookConnection(connectionId.toLowerCase(), provider)
     : null;
+  // Refusals do the same work whatever the connection: no write, nothing
+  // that depends on the connection's row beyond the lookup every path makes.
   let secret = PLACEHOLDER_SECRET;
+  let readable = false;
   if (connection) {
     try {
       secret = openSecret(connection.secretCiphertext, deploymentSecretBoxKey());
+      readable = true;
     } catch {
-      await recordWebhookError(connection.id, "Secret illisible : régénérez-le.");
-      verify(provider, request, body, PLACEHOLDER_SECRET);
-      return refused();
+      // Shown on the settings page (« Secret illisible »), never recorded here.
+      secret = PLACEHOLDER_SECRET;
     }
   }
   const authentic = verify(provider, request, body, secret);
-  if (!connection || !authentic) {
-    if (connection) {
-      await recordWebhookError(
-        connection.id,
-        provider === "github" ? "Signature invalide." : "Jeton secret invalide.",
-      );
-    }
-    return refused();
-  }
+  if (!connection || !readable || !authentic) return refused();
 
   try {
     if (await countRecentDeliveries(connection.id, RATE_WINDOW_MS) >= WEBHOOK_RATE_LIMIT) {

@@ -37,6 +37,8 @@ export type RepoConnectionView = {
   lastEventAt: Date | string | null;
   lastError: string | null;
   lastErrorAt: Date | string | null;
+  /** False when the stored secret no longer decrypts: it must be regenerated. */
+  secretReadable?: boolean;
 };
 
 type Provider = RepoConnectionView["provider"];
@@ -70,6 +72,7 @@ function connectionStatus(connection: RepoConnectionView): {
   variant: "secondary" | "destructive" | "outline" | "default";
 } {
   if (!connection.enabled) return { label: "Désactivée", variant: "secondary" };
+  if (connection.secretReadable === false) return { label: "Erreur", variant: "destructive" };
   const lastEvent = connection.lastEventAt ? new Date(connection.lastEventAt).getTime() : null;
   const lastError = connection.lastErrorAt ? new Date(connection.lastErrorAt).getTime() : null;
   if (connection.lastError && lastError !== null && (lastEvent === null || lastError >= lastEvent)) {
@@ -263,6 +266,11 @@ export function RepoConnectionsAdmin({
                     ? `Dernier événement : ${dateTimeFmt.format(new Date(connection.lastEventAt))}`
                     : "Aucun événement reçu"}
                 </p>
+                {connection.secretReadable === false && (
+                  <p className="text-xs text-destructive">
+                    Secret illisible : régénérez-le, puis reportez-le dans le webhook.
+                  </p>
+                )}
                 {connection.lastError && connection.lastErrorAt && (
                   <p className="text-xs text-destructive">
                     Dernière erreur ({dateTimeFmt.format(new Date(connection.lastErrorAt))}) : {connection.lastError}

@@ -49,8 +49,8 @@ export default async function DevelopmentSettingsPage({ params }: { params: Prom
       <RepoConnectionsAdmin
         backlogId={resource.backlogId}
         backlogKey={resource.backlogKey}
-        connections={connections.map(({ id, provider, instanceUrl, repositoryPath, enabled, lastEventAt, lastError, lastErrorAt }) => ({
-          id, provider, instanceUrl, repositoryPath, enabled, lastEventAt, lastError, lastErrorAt,
+        connections={connections.map(({ id, provider, instanceUrl, repositoryPath, enabled, lastEventAt, lastError, lastErrorAt, secretReadable }) => ({
+          id, provider, instanceUrl, repositoryPath, enabled, lastEventAt, lastError, lastErrorAt, secretReadable,
         }))}
       />
     </div>

@@ -107,6 +107,7 @@ describe("RepoConnectionsAdmin", () => {
             lastErrorAt: "2026-10-13T09:00:00.000Z",
           }),
           connection({ id: "d", repositoryPath: "acme/off", enabled: false }),
+          connection({ id: "e", repositoryPath: "acme/rotated", lastEventAt: "2026-10-13T08:00:00.000Z", secretReadable: false }),
         ]}
       />,
     );
@@ -120,6 +121,8 @@ describe("RepoConnectionsAdmin", () => {
     expect(within(row("acme/off")).getByRole("button", { name: "Activer" })).toBeInTheDocument();
     expect(row("acme/off")).toHaveTextContent("Désactivée");
     expect(row("acme/active")).toHaveTextContent("/api/webhooks/github/b");
+    expect(row("acme/rotated")).toHaveTextContent("Erreur");
+    expect(row("acme/rotated")).toHaveTextContent("Secret illisible : régénérez-le");
   });
 
   it("regenerates the secret after confirmation and reveals the new one", async () => {

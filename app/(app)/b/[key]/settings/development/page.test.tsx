@@ -47,7 +47,7 @@ describe("backlog Développement settings route (JIR-95)", () => {
     mocks.getBacklogSummary.mockResolvedValue({ id: "b1", key: "DEMO", name: "Démo" });
     mocks.listRepoConnections.mockResolvedValue([{
       id: "c1", backlogId: "b1", provider: "github", instanceUrl: "https://github.com", repositoryPath: "acme/api",
-      enabled: true, lastEventAt: null, lastError: null, lastErrorAt: null, createdAt: new Date(),
+      enabled: true, lastEventAt: null, lastError: null, lastErrorAt: null, createdAt: new Date(), secretReadable: true,
     }]);
     mocks.redirect.mockImplementation((path: string) => { throw new Error(`redirect:${path}`); });
     mocks.notFound.mockImplementation(() => { throw new Error("not-found"); });
@@ -78,7 +78,7 @@ describe("backlog Développement settings route (JIR-95)", () => {
       backlogKey: "DEMO",
       connections: [{
         id: "c1", provider: "github", instanceUrl: "https://github.com", repositoryPath: "acme/api",
-        enabled: true, lastEventAt: null, lastError: null, lastErrorAt: null,
+        enabled: true, lastEventAt: null, lastError: null, lastErrorAt: null, secretReadable: true,
       }],
     });
   });

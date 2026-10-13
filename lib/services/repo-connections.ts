@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomBytes, randomUUID } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
-import { deploymentSecretBoxKey, sealSecret } from "@/lib/crypto/secret-box";
+import { deploymentSecretBoxKey, openSecret, sealSecret } from "@/lib/crypto/secret-box";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { repoConnections, securityAuditEvents } from "@/lib/db/schema/domain";
@@ -55,12 +55,35 @@ export function generateWebhookSecret(): string {
   return randomBytes(32).toString("base64url");
 }
 
-export async function listRepoConnections(backlogId: string): Promise<RepoConnectionDto[]> {
-  return db
-    .select(dtoColumns)
+export type RepoConnectionListItem = RepoConnectionDto & {
+  /** False when the secret no longer decrypts (BETTER_AUTH_SECRET rotated): regenerate it. */
+  secretReadable: boolean;
+};
+
+export async function listRepoConnections(backlogId: string): Promise<RepoConnectionListItem[]> {
+  const rows = await db
+    .select({ ...dtoColumns, secretCiphertext: repoConnections.secretCiphertext })
     .from(repoConnections)
     .where(eq(repoConnections.backlogId, backlogId))
     .orderBy(asc(repoConnections.createdAt), asc(repoConnections.id));
+  let key: ReturnType<typeof deploymentSecretBoxKey> | null = null;
+  try {
+    key = deploymentSecretBoxKey();
+  } catch {
+    key = null;
+  }
+  return rows.map(({ secretCiphertext, ...connection }) => {
+    let secretReadable = false;
+    if (key) {
+      try {
+        openSecret(secretCiphertext, key);
+        secretReadable = true;
+      } catch {
+        secretReadable = false;
+      }
+    }
+    return { ...connection, secretReadable };
+  });
 }
 
 async function actorLabel(tx: Transaction, actorId: string): Promise<string> {
