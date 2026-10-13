@@ -7,6 +7,7 @@ import { ChevronDown, X } from "lucide-react";
 export type Option = { value: string; label: string; group?: string };
 
 export function FilterMenu({
+  chipKey,
   label,
   options,
   selected,
@@ -14,6 +15,8 @@ export function FilterMenu({
   activeLabel,
   onClear,
 }: {
+  /** Marks a « + Filtre » facet's trigger so focus can land on it (JIR-79). */
+  chipKey?: string;
   label: string;
   options: Option[];
   selected: string[];
@@ -31,6 +34,7 @@ export function FilterMenu({
           <button
             type="button"
             data-active={active}
+            data-filter-chip={chipKey}
             className={
               active
                 ? "inline-flex h-8 items-center gap-1.5 rounded-l-[var(--radius-sm)] border border-[var(--accent-subtle-fg)] bg-[var(--accent-subtle)] px-2.5 text-[13px] font-medium text-[var(--accent-subtle-fg)] hover:bg-[var(--accent-subtle)]"
