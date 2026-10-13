@@ -172,7 +172,7 @@ export function HelpGuide() {
           <ul className="t-body list-disc space-y-1 pl-5">
             <li><Ui>Backlog</Ui> : les tâches par sprint et la section Backlog, une ligne compacte par tâche ; glisser-déposer pour classer et planifier.</li>
             <li><Ui>Board</Ui> : les tâches du sprint actif, une colonne par statut ; déplacer une carte change son statut. Sans sprint actif, le bandeau <Ui>Aucun sprint actif</Ui> et son lien <Ui>Voir le Backlog</Ui> surmontent les colonnes, vides et sans glisser-déposer.</li>
-            <li><Ui>Liste</Ui> : tableau de tous les tickets, colonnes triables, menu <Ui>Colonnes</Ui>.</li>
+            <li><Ui>Liste</Ui> : tous les tickets, à plat, en lignes du Backlog ; un bandeau d’en-tête pour trier, le menu <Ui>Colonnes</Ui> pour afficher des informations en plus.</li>
             <li><Ui>Arbre</Ui> : la hiérarchie ; glisser un ticket sous un autre parent le rattache (règles de hiérarchie).</li>
           </ul>
           <GuideNote>
@@ -192,6 +192,26 @@ export function HelpGuide() {
           <GuideNote>
             Une valeur vide n’est pas affichée : sans priorité ni points, leur bouton apparaît au survol de la ligne
             ou au clavier. Un cercle pointillé signale une tâche non assignée.
+          </GuideNote>
+          <p className="t-body">
+            La même ligne présente les tickets partout où ils sont listés : <Ui>Liste</Ui>, <Ui>Mes items</Ui>,{" "}
+            <Ui>Corbeille</Ui> (avec la date de suppression et <Ui>Restaurer</Ui>), périmètre d’une release,
+            sections du rapport de sprint, enfants et items liés du panneau de détail. Hors du Backlog, elle n’a pas
+            de poignée ; hors du Backlog et de la Liste, elle se lit sans modification sur place.
+          </p>
+        </GuideTopic>
+
+        <GuideTopic
+          title="Trier la Liste et choisir ses colonnes"
+          purpose="Ranger tous les tickets selon un critère et n’afficher que l’utile."
+          steps={[
+            <>Cliquez sur <Ui>Clé</Ui>, <Ui>Titre</Ui>, <Ui>Échéance</Ui>, <Ui>Priorité</Ui> ou <Ui>Statut</Ui> dans le bandeau au-dessus des lignes : un premier clic trie par ordre croissant, un second par ordre décroissant (au clavier : <Key>Tab</Key> jusqu’à l’en-tête, puis <Key>Entrée</Key>).</>,
+            <>Ouvrez <Ui>Colonnes</Ui>, à côté d’<Ui>Affichage</Ui>, et cochez <Ui>Labels</Ui>, <Ui>Échéance</Ui> ou <Ui>Fix versions</Ui> : chaque information cochée s’ajoute en pastille au bout des lignes.</>,
+          ]}
+        >
+          <GuideNote>
+            La Liste est plate : le parent d’un ticket figure en pastille, la hiérarchie se lit dans l’<Ui>Arbre</Ui>.
+            Le tri et les colonnes restent dans l’adresse de la page et sont enregistrés avec une vue.
           </GuideNote>
         </GuideTopic>
 
