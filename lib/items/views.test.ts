@@ -79,6 +79,21 @@ describe("viewStateToColumns", () => {
       .toContain("fvcol=1");
   });
 
+  it("persists the optional Labels and Échéance columns with a saved view", () => {
+    const configured = {
+      ...empty,
+      filters: { ...empty.filters, showLabels: true, showDueDate: true },
+    };
+    const columns = viewStateToColumns(configured, "list");
+    expect(columnsToViewState(columns).state.filters).toMatchObject({
+      showLabels: true,
+      showDueDate: true,
+    });
+    const url = buildViewUrl({ id: "view-1", state: configured, displayMode: "list" }, "/b/DEMO");
+    expect(url).toContain("lblcol=1");
+    expect(url).toContain("duecol=1");
+  });
+
   it("includes displayMode in the output", () => {
     expect(viewStateToColumns(empty, "tree").displayMode).toBe("tree");
   });
@@ -352,6 +367,13 @@ describe("isViewDirty", () => {
   it("returns true when group differs", () => {
     const current: ViewState = { ...full, group: "status" };
     expect(isViewDirty(saved, { state: current, displayMode: "list" })).toBe(true);
+  });
+
+  it("returns true when an optional Liste column differs", () => {
+    for (const column of ["showFixVersions", "showLabels", "showDueDate"] as const) {
+      const current: ViewState = { ...full, filters: { ...full.filters, [column]: true } };
+      expect(isViewDirty(saved, { state: current, displayMode: "list" })).toBe(true);
+    }
   });
 
   it("returns true when q differs", () => {

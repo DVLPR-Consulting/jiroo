@@ -85,6 +85,8 @@ const VIEW_STATE_PARAM_KEYS = [
   "group",
   "sort",
   "fvcol",
+  "lblcol",
+  "duecol",
 ] as const;
 
 export async function BacklogViewContent({
