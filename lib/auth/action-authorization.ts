@@ -16,6 +16,7 @@ import {
   itemLinks,
   itemRefs,
   items,
+  repoConnections,
   sprints,
   statuses,
   views,
@@ -360,5 +361,23 @@ export async function requireRefPermission(
     resourceType: "reference",
     resourceId: ref.id,
     backlogId: ref.backlogId,
+  });
+}
+
+export async function requireRepoConnectionPermission(
+  input: BacklogPermissionInput & { connectionId: string },
+): Promise<AuthorizedResource> {
+  const [connection] = await db
+    .select({ id: repoConnections.id, backlogId: repoConnections.backlogId })
+    .from(repoConnections)
+    .where(eq(repoConnections.id, input.connectionId))
+    .limit(1);
+  if (!connection) throw new ResourceNotFoundError("repo_connection", input.connectionId);
+
+  return authorizeResource({
+    ...input,
+    resourceType: "repo_connection",
+    resourceId: connection.id,
+    backlogId: connection.backlogId,
   });
 }
