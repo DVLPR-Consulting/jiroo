@@ -83,7 +83,11 @@ test.describe("panneau de ticket façon Jira", () => {
     await expect(dialog.getByRole("button", { name: "Lier un item", exact: true })).toBeVisible();
     await expect(dialog.getByRole("region", { name: "Description" })).toBeVisible();
     const children = dialog.getByRole("region", { name: "Sous-tâches" });
-    await expect(children.getByRole("link", { name: new RegExp(child.key) })).toContainText("À faire");
+    // The shared Backlog row (JIR-93): the identity links, the status follows.
+    const childRow = children.getByRole("listitem").filter({
+      has: page.getByRole("link", { name: new RegExp(child.key) }),
+    });
+    await expect(childRow).toContainText("À faire");
     await expect(dialog.getByRole("region", { name: "Items liés" })).toBeVisible();
     await expect(dialog.getByRole("tablist", { name: "Filtrer l’activité" })).toBeVisible();
     // The former tabs are gone.
