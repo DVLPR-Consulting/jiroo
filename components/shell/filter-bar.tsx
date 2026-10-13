@@ -217,8 +217,27 @@ export function FilterBar({
   };
   const secondary = splitSecondaryFilters(filters, sprints ? [] : ["sprintIds"]);
 
+  // Picking a value in the last category left removes « + Filtre » with its
+  // panel and the focused checkbox (JIR-79): hand focus to the new chip once
+  // the URL write renders it, so keyboard users keep their place.
+  const barRef = useRef<HTMLDivElement>(null);
+  const focusChip = useRef<SecondaryFilterKey | null>(null);
+  useEffect(() => {
+    const key = focusChip.current;
+    if (!key) return;
+    const chip = barRef.current?.querySelector<HTMLElement>(`[data-filter-chip="${key}"]`);
+    if (!chip) return;
+    focusChip.current = null;
+    chip.focus();
+  });
+  const addSecondary = (key: SecondaryFilterKey, value: string) => {
+    if (secondary.available.length === 1) focusChip.current = key;
+    toggleSecondary(key, value);
+  };
+
   return (
     <div
+      ref={barRef}
       className="flex flex-wrap items-center gap-2 border-b border-border px-4 pb-3 sm:px-6"
       data-slot="filter-bar"
     >
@@ -297,6 +316,7 @@ export function FilterBar({
       {secondary.active.map((filter) => (
         <FilterMenu
           key={filter.key}
+          chipKey={filter.key}
           label={filter.label}
           options={optionsByKey[filter.key]}
           selected={selectedByKey[filter.key]}
@@ -310,7 +330,7 @@ export function FilterBar({
           filters={secondary.available}
           optionsByKey={optionsByKey}
           selectedByKey={selectedByKey}
-          onToggle={toggleSecondary}
+          onToggle={addSecondary}
         />
       )}
 

@@ -496,6 +496,35 @@ describe("FilterBar", () => {
     expect(screen.getByRole("button", { name: "Priorité" })).toHaveFocus();
   });
 
+  it("hands focus to the new chip when the last « + Filtre » category gets a value", async () => {
+    const user = userEvent.setup();
+    renderBar({
+      ...emptyState,
+      filters: {
+        ...emptyState.filters,
+        priorities: [1],
+        labels: ["urgent"],
+        releaseIds: ["release-active"],
+      },
+    });
+
+    screen.getByRole("button", { name: "Filtre" }).focus();
+    await user.keyboard("{Enter}");
+    (await screen.findByRole("button", { name: "Nature" })).focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("checkbox", { name: "Fonctionnalité" })).toHaveFocus();
+    await user.keyboard(" ");
+
+    // « + Filtre » and its panel are gone with the last category taken.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /^Nature :/ })).toHaveFocus(),
+    );
+    expect(screen.queryByRole("button", { name: "Filtre" })).not.toBeInTheDocument();
+    // Radix restores focus after its unmount on a timer: it must not win.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.getByRole("button", { name: /^Nature :/ })).toHaveFocus();
+  });
+
   it("allows the filter controls to wrap instead of overflowing narrow content", () => {
     const { container } = renderBar();
 
