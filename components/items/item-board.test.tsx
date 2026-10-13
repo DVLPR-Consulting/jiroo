@@ -35,6 +35,14 @@ const readyStatus = {
   order: 0,
 };
 
+const doingStatus = {
+  id: "doing",
+  name: "En cours",
+  color: "#0a0",
+  category: "in_progress" as const,
+  order: 1,
+};
+
 const createDialogProps = {
   backlogId: "backlog-id",
   items: [],
@@ -210,13 +218,13 @@ describe("ItemBoard", () => {
     ).toBeVisible();
   });
 
-  it("shows a Backlog CTA and zero workflow columns when no sprint is active", () => {
+  it("shows a compact no-sprint banner above inert empty status columns", () => {
     renderBoard(
       <ItemBoard
         backlogKey="DEMO"
         items={[]}
-        statuses={[readyStatus]}
-        statusDomain={[readyStatus]}
+        statuses={[readyStatus, doingStatus]}
+        statusDomain={[readyStatus, doingStatus]}
         group={null}
         groupLabels={{}}
         moveItemAction={vi.fn()}
@@ -227,14 +235,133 @@ describe("ItemBoard", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Aucun sprint actif" })).toBeVisible();
+    expect(screen.getAllByRole("heading", { name: "Aucun sprint actif" })).toHaveLength(1);
+    expect(screen.getByRole("region", { name: "Aucun sprint actif" })).toHaveTextContent(
+      "Planifiez puis démarrez un sprint depuis le Backlog",
+    );
     expect(screen.getByRole("link", { name: "Voir le Backlog" })).toHaveAttribute(
       "href",
       "/b/DEMO?view=backlog&q=paiement",
     );
-    expect(screen.queryByText("Prêt")).not.toBeInTheDocument();
+    const columns = screen.getAllByRole("group");
+    expect(columns.map((column) => column.getAttribute("aria-label"))).toEqual([
+      "Prêt, 0 ticket",
+      "En cours, 0 ticket",
+    ]);
+    for (const column of columns) expect(column).toHaveTextContent(/0$/);
     expect(screen.queryByText("Aucun item")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Nouvel item" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Créer dans/ })).not.toBeInTheDocument();
+  });
+
+  it("registers no drag-and-drop context while no sprint is active", () => {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group="assignee"
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+        activeSprint={null}
+        activeSprintMetrics={null}
+      />,
+    );
+
+    expect(screen.getByRole("group", { name: "Prêt, 0 ticket" })).toBeVisible();
+    expect(document.querySelector("[id^='DndLiveRegion']")).toBeNull();
+    expect(screen.queryByText(/Pour sélectionner une carte/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the no-sprint banner and columns when filters are active", () => {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+        filtersActive
+        hasItems
+        clearFiltersHref="/b/DEMO?view=board"
+        activeSprint={null}
+        activeSprintMetrics={null}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Aucun sprint actif" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "Prêt, 0 ticket" })).toBeVisible();
+    expect(screen.queryByText("Aucun résultat")).not.toBeInTheDocument();
+  });
+
+  it("shows the empty status columns of an active sprint without items", () => {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[]}
+        statuses={[readyStatus, doingStatus]}
+        statusDomain={[readyStatus, doingStatus]}
+        group="assignee"
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={{
+          ...createDialogProps,
+          sprintId: activeSprint.id,
+          contextLabel: activeSprint.name,
+        }}
+        activeSprint={activeSprint}
+        activeSprintMetrics={{ ...activeMetrics, itemCount: 0 }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Sprint paiement" })).toBeVisible();
+    expect(screen.getAllByRole("group").map((column) => column.getAttribute("aria-label"))).toEqual([
+      "Prêt, 0 ticket",
+      "En cours, 0 ticket",
+    ]);
+    expect(screen.getByRole("button", { name: "Créer dans Prêt" })).toBeVisible();
+    expect(screen.queryByText("Aucun item")).not.toBeInTheDocument();
+    expect(screen.queryByText("Aucun sprint actif")).not.toBeInTheDocument();
+    // A live sprint board keeps its keyboard drag instructions.
+    expect(document.querySelector("[id^='DndLiveRegion']")).not.toBeNull();
+    expect(screen.getByText(/Pour sélectionner une carte/)).toBeInTheDocument();
+  });
+
+  it("keeps the no-results state when filters hide every active sprint item", () => {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[]}
+        statuses={[readyStatus]}
+        statusDomain={[readyStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+        filtersActive
+        hasItems
+        clearFiltersHref="/b/DEMO?view=board"
+        activeSprint={activeSprint}
+        activeSprintMetrics={activeMetrics}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Aucun résultat" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Effacer les filtres" })).toBeVisible();
+    expect(screen.queryByRole("group", { name: /Prêt/ })).not.toBeInTheDocument();
+  });
+
+  it("labels each column with its status and card count", () => {
+    renderEditableCard();
+
+    expect(screen.getByRole("group", { name: "Prêt, 1 ticket" })).toHaveTextContent(
+      "Authentication",
+    );
   });
 
   it("offers item creation when the board has no rows", async () => {

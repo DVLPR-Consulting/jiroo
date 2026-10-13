@@ -421,6 +421,7 @@ function Column({
   canTransitionItems,
   canScheduleItems,
   dragDisabled,
+  inert = false,
 }: {
   status: Status;
   colDomId: string;
@@ -436,22 +437,25 @@ function Column({
   canTransitionItems: boolean;
   canScheduleItems: boolean;
   dragDisabled: boolean;
+  /** Structure-only column (no active sprint): no drop target, no creation. */
+  inert?: boolean;
 }) {
-  const { setNodeRef } = useDroppable({
-    id: colDomId,
-    data: { type: "column", columnId: colDomId, swimlane, statusId: status.id },
-    disabled: !canScheduleItems,
-  });
-
   return (
-    <div className="flex w-[296px] flex-none flex-col rounded-[var(--radius-lg)] border border-border bg-[var(--surface-2)]">
+    <div
+      role="group"
+      aria-label={`${status.name}, ${countLabel(cards.length, "ticket", "tickets")}`}
+      className="flex w-[296px] flex-none flex-col rounded-[var(--radius-lg)] border border-border bg-[var(--surface-2)]"
+    >
       <div className="flex items-center gap-2 px-3 py-2.5">
         <StatusDot status={visualStatusId(status, statusDomain)} size={14} />
         <span className="text-[13px] font-medium">{status.name}</span>
-        <span className="item-key ml-auto rounded-[var(--radius-sm)] bg-[var(--surface)] px-1.5 py-0.5">
+        <span
+          aria-hidden
+          className="item-key ml-auto rounded-[var(--radius-sm)] bg-[var(--surface)] px-1.5 py-0.5"
+        >
           {cards.length}
         </span>
-        {canCreateItems && (!createDialogProps.contextLabel || canScheduleItems) && (
+        {!inert && canCreateItems && (!createDialogProps.contextLabel || canScheduleItems) && (
           <NewItemButton
             {...createDialogProps}
             backlogKey={backlogKey}
@@ -469,34 +473,91 @@ function Column({
           />
         )}
       </div>
-      <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-        <div
-          ref={setNodeRef}
-          className="flex min-h-[60px] flex-1 flex-col gap-2 rounded-b-[var(--radius-lg)] p-2 transition-colors"
-          style={
-            isOver
-              ? { background: "var(--accent-subtle)", boxShadow: "inset 0 0 0 1.5px var(--primary)" }
-              : undefined
-          }
-        >
-          {cards.map((card) => (
-            <SortableCard
-              key={card.id}
-              card={card}
-              colDomId={colDomId}
-              swimlane={swimlane}
-              backlogKey={backlogKey}
-              statusDomain={statusDomain}
-              onOpen={onOpen}
-              canEditItems={canEditItems}
-              canTransitionItems={canTransitionItems}
-              canScheduleItems={canScheduleItems}
-              dragDisabled={dragDisabled}
-            />
-          ))}
-        </div>
-      </SortableContext>
+      {inert ? (
+        <div className="min-h-[60px] flex-1 p-2" />
+      ) : (
+        <ColumnCards
+          status={status}
+          colDomId={colDomId}
+          swimlane={swimlane}
+          cards={cards}
+          statusDomain={statusDomain}
+          backlogKey={backlogKey}
+          isOver={isOver}
+          onOpen={onOpen}
+          canEditItems={canEditItems}
+          canTransitionItems={canTransitionItems}
+          canScheduleItems={canScheduleItems}
+          dragDisabled={dragDisabled}
+        />
+      )}
     </div>
+  );
+}
+
+// Droppable, sortable card list of a live column. Kept separate so an inert
+// column registers no drop target at all.
+function ColumnCards({
+  status,
+  colDomId,
+  swimlane,
+  cards,
+  statusDomain,
+  backlogKey,
+  isOver,
+  onOpen,
+  canEditItems,
+  canTransitionItems,
+  canScheduleItems,
+  dragDisabled,
+}: {
+  status: Status;
+  colDomId: string;
+  swimlane: string;
+  cards: BoardCard[];
+  statusDomain: Status[];
+  backlogKey: string;
+  isOver: boolean;
+  onOpen: (key: string) => void;
+  canEditItems: boolean;
+  canTransitionItems: boolean;
+  canScheduleItems: boolean;
+  dragDisabled: boolean;
+}) {
+  const { setNodeRef } = useDroppable({
+    id: colDomId,
+    data: { type: "column", columnId: colDomId, swimlane, statusId: status.id },
+    disabled: !canScheduleItems,
+  });
+
+  return (
+    <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+      <div
+        ref={setNodeRef}
+        className="flex min-h-[60px] flex-1 flex-col gap-2 rounded-b-[var(--radius-lg)] p-2 transition-colors"
+        style={
+          isOver
+            ? { background: "var(--accent-subtle)", boxShadow: "inset 0 0 0 1.5px var(--primary)" }
+            : undefined
+        }
+      >
+        {cards.map((card) => (
+          <SortableCard
+            key={card.id}
+            card={card}
+            colDomId={colDomId}
+            swimlane={swimlane}
+            backlogKey={backlogKey}
+            statusDomain={statusDomain}
+            onOpen={onOpen}
+            canEditItems={canEditItems}
+            canTransitionItems={canTransitionItems}
+            canScheduleItems={canScheduleItems}
+            dragDisabled={dragDisabled}
+          />
+        ))}
+      </div>
+    </SortableContext>
   );
 }
 
@@ -551,10 +612,16 @@ export function ItemBoard({
   const canScheduleItems = planningCapabilities?.rank ?? legacyCanScheduleItems;
   const viewUrl = useViewUrlState();
   const dndId = useId();
-  // Swimlane bands in first-seen order ("none" last). When ungrouped, a single
-  // band keyed "" reproduces the original layout exactly.
+  const noSprintHeadingId = useId();
+  // Swimlane bands in first-seen order ("none" last). When ungrouped — or when
+  // there is no card to derive lanes from — a single band keyed "" reproduces
+  // the original layout, so an empty board still shows its status columns.
+  const singleBand = group === null || items.length === 0;
   const swimlanes = useMemo(
-    () => (group === null ? [""] : partitionSwimlanes(items, group).map(([k]) => k)),
+    () =>
+      group === null || items.length === 0
+        ? [""]
+        : partitionSwimlanes(items, group).map(([k]) => k),
     [items, group],
   );
   const [columns, setColumns] = useState<Columns>(() =>
@@ -783,27 +850,12 @@ export function ItemBoard({
     }
   }
 
-  if (activeSprint === null) {
-    return (
-      <div className="grid flex-1 place-items-center p-10">
-        <EmptyState
-          icon={<Calendar className="size-5" />}
-          title="Aucun sprint actif"
-          description="Planifiez puis démarrez un sprint depuis le Backlog pour afficher son travail ici."
-          action={
-            <Link
-              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-              href={backlogHref ?? `/b/${encodeURIComponent(backlogKey)}?view=backlog`}
-            >
-              Voir le Backlog
-            </Link>
-          }
-        />
-      </div>
-    );
-  }
+  // No active sprint (Jira Scrum): point to the Backlog, but keep the status
+  // columns visible as an inert structure — no drop target, no creation.
+  const inert = activeSprint === null;
 
   if (
+    !inert &&
     items.length === 0 &&
     (activeSprint === undefined || (filtersActive && (hasItems ?? false)))
   ) {
@@ -836,6 +888,53 @@ export function ItemBoard({
       </div>
     );
   }
+
+  const renderColumn = (status: Status, sw: string) => {
+    const id = colId(sw, status.id);
+    return (
+      <Column
+        key={id}
+        status={status}
+        colDomId={id}
+        swimlane={sw}
+        cards={columns[id] ?? []}
+        statusDomain={statusDomain}
+        backlogKey={backlogKey}
+        createDialogProps={createDialogProps}
+        isOver={activeId !== null && overColId === id}
+        onOpen={openItem}
+        canCreateItems={canCreateItems}
+        canEditItems={canEditItems}
+        canTransitionItems={canTransitionItems}
+        canScheduleItems={canScheduleItems}
+        dragDisabled={mutationPending}
+        inert={inert}
+      />
+    );
+  };
+
+  const columnsGrid = (
+    <div className="flex-1 overflow-x-auto p-4">
+      {singleBand ? (
+        <div className="flex h-full items-start gap-3">
+          {statuses.map((status) => renderColumn(status, ""))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {swimlanes.map((sw) => (
+            <div key={sw}>
+              <div className="px-1 py-1 text-xs font-medium text-muted-foreground">
+                {groupLabels[sw] ?? sw}
+              </div>
+              <div className="flex items-start gap-3">
+                {statuses.map((status) => renderColumn(status, sw))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -879,6 +978,26 @@ export function ItemBoard({
           </div>
         </header>
       )}
+      {inert && (
+        <section
+          aria-labelledby={noSprintHeadingId}
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-3"
+        >
+          <Calendar aria-hidden className="size-4 flex-none text-muted-foreground" />
+          <h2 id={noSprintHeadingId} className="text-sm font-medium">
+            Aucun sprint actif
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Planifiez puis démarrez un sprint depuis le Backlog pour afficher son travail ici.
+          </p>
+          <Link
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+            href={backlogHref ?? `/b/${encodeURIComponent(backlogKey)}?view=backlog`}
+          >
+            Voir le Backlog
+          </Link>
+        </section>
+      )}
       {error && (
         <div
           role="alert"
@@ -888,97 +1007,40 @@ export function ItemBoard({
           {error}
         </div>
       )}
-      <DndContext
-        id={dndId}
-        sensors={sensors}
-        collisionDetection={boardCollisionDetection}
-        autoScroll={BOARD_AUTO_SCROLL}
-        accessibility={{
-          announcements,
-          screenReaderInstructions: BOARD_SCREEN_READER_INSTRUCTIONS,
-        }}
-        onDragStart={canScheduleItems ? onDragStart : undefined}
-        onDragOver={canScheduleItems ? onDragOver : undefined}
-        onDragEnd={canScheduleItems ? onDragEnd : undefined}
-        onDragCancel={canScheduleItems ? onDragCancel : undefined}
-      >
-        <div className="flex-1 overflow-x-auto p-4">
-          {group === null ? (
-            <div className="flex h-full items-start gap-3">
-              {statuses.map((status) => {
-                const id = colId("", status.id);
-                return (
-                  <Column
-                    key={id}
-                    status={status}
-                    colDomId={id}
-                    swimlane=""
-                    cards={columns[id] ?? []}
-                    statusDomain={statusDomain}
-                    backlogKey={backlogKey}
-                    createDialogProps={createDialogProps}
-                    isOver={activeId !== null && overColId === id}
-                    onOpen={openItem}
-                    canCreateItems={canCreateItems}
-                    canEditItems={canEditItems}
-                    canTransitionItems={canTransitionItems}
-                    canScheduleItems={canScheduleItems}
-                    dragDisabled={mutationPending}
-                  />
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {swimlanes.map((sw) => (
-                <div key={sw}>
-                  <div className="px-1 py-1 text-xs font-medium text-muted-foreground">
-                    {groupLabels[sw] ?? sw}
-                  </div>
-                  <div className="flex items-start gap-3">
-                    {statuses.map((status) => {
-                      const id = colId(sw, status.id);
-                      return (
-                        <Column
-                          key={id}
-                          status={status}
-                          colDomId={id}
-                          swimlane={sw}
-                          cards={columns[id] ?? []}
-                          statusDomain={statusDomain}
-                          backlogKey={backlogKey}
-                          createDialogProps={createDialogProps}
-                          isOver={activeId !== null && overColId === id}
-                          onOpen={openItem}
-                          canCreateItems={canCreateItems}
-                          canEditItems={canEditItems}
-                          canTransitionItems={canTransitionItems}
-                          canScheduleItems={canScheduleItems}
-                          dragDisabled={mutationPending}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <DragOverlay modifiers={[restrictToWindowEdges]}>
-          {canScheduleItems && activeCard ? (
-            <div
-              className="rounded-[var(--radius-md)] border border-border bg-[var(--surface)] shadow-[var(--shadow-md)]"
-              style={{ transform: "rotate(2deg)", width: 280, padding: "var(--card-pad)" }}
-            >
-              <CardInner
-                card={activeCard}
-                backlogKey={backlogKey}
-                interactivePriority={false}
-              />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      {inert ? (
+        columnsGrid
+      ) : (
+        <DndContext
+          id={dndId}
+          sensors={sensors}
+          collisionDetection={boardCollisionDetection}
+          autoScroll={BOARD_AUTO_SCROLL}
+          accessibility={{
+            announcements,
+            screenReaderInstructions: BOARD_SCREEN_READER_INSTRUCTIONS,
+          }}
+          onDragStart={canScheduleItems ? onDragStart : undefined}
+          onDragOver={canScheduleItems ? onDragOver : undefined}
+          onDragEnd={canScheduleItems ? onDragEnd : undefined}
+          onDragCancel={canScheduleItems ? onDragCancel : undefined}
+        >
+          {columnsGrid}
+          <DragOverlay modifiers={[restrictToWindowEdges]}>
+            {canScheduleItems && activeCard ? (
+              <div
+                className="rounded-[var(--radius-md)] border border-border bg-[var(--surface)] shadow-[var(--shadow-md)]"
+                style={{ transform: "rotate(2deg)", width: 280, padding: "var(--card-pad)" }}
+              >
+                <CardInner
+                  card={activeCard}
+                  backlogKey={backlogKey}
+                  interactivePriority={false}
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      )}
     </div>
   );
 }
