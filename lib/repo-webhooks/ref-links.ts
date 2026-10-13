@@ -19,7 +19,8 @@ function encodePath(value: string): string {
 }
 
 export function buildRefUrl({ provider, instanceUrl, repositoryPath, kind, id }: RefLocation): string {
-  const base = `${new URL(instanceUrl).origin}/${encodePath(repositoryPath)}`;
+  const instance = new URL(instanceUrl);
+  const base = `${instance.origin}${instance.pathname.replace(/\/+$/, "")}/${encodePath(repositoryPath)}`;
   const section = provider === "gitlab" ? "/-" : "";
   switch (kind) {
     case "pr":

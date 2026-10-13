@@ -49,8 +49,11 @@ describe("normalizeInstanceUrl", () => {
   it("defaults GitLab to gitlab.com and keeps a self-hosted origin", () => {
     expect(normalizeInstanceUrl("gitlab", undefined)).toBe("https://gitlab.com");
     expect(normalizeInstanceUrl("gitlab", " ")).toBe("https://gitlab.com");
-    expect(normalizeInstanceUrl("gitlab", "https://gitlab.example.invalid/some/path")).toBe(
+    expect(normalizeInstanceUrl("gitlab", "https://gitlab.example.invalid/")).toBe(
       "https://gitlab.example.invalid",
+    );
+    expect(normalizeInstanceUrl("gitlab", "https://intra.example.invalid/gitlab/")).toBe(
+      "https://intra.example.invalid/gitlab",
     );
     expect(normalizeInstanceUrl("gitlab", "gitlab.intra.example:8443")).toBe(
       "https://gitlab.intra.example:8443",
@@ -59,7 +62,12 @@ describe("normalizeInstanceUrl", () => {
   });
 
   it("refuses other schemes and embedded credentials", () => {
-    for (const raw of ["ftp://gitlab.example", "javascript:alert(1)", "https://user:pw@gitlab.example"]) {
+    for (const raw of [
+      "ftp://gitlab.example",
+      "javascript:alert(1)",
+      "https://user:pw@gitlab.example",
+      "https://gitlab.example/?next=x",
+    ]) {
       expect(normalizeInstanceUrl("gitlab", raw), raw).toBeNull();
     }
   });

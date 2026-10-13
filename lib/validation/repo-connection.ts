@@ -12,8 +12,9 @@ const GITHUB_PATH = /^[a-z0-9](?:[a-z0-9-]{0,38})\/[a-z0-9._-]{1,100}$/;
 const GITLAB_SEGMENT = /^[a-z0-9_.][a-z0-9_.-]{0,254}$/;
 
 /**
- * The instance origin: github.com for GitHub; gitlab.com or a self-hosted
- * GitLab (http or https, no credentials) otherwise. Null when invalid.
+ * The instance base URL: github.com for GitHub; gitlab.com or a self-hosted
+ * GitLab (http or https, no credentials, sub-path kept for an instance
+ * served under one, e.g. https://intra.example/gitlab). Null when invalid.
  */
 export function normalizeInstanceUrl(
   provider: RepoProviderInput,
@@ -29,8 +30,8 @@ export function normalizeInstanceUrl(
     return null;
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-  if (url.username || url.password || !url.hostname) return null;
-  return url.origin;
+  if (url.username || url.password || !url.hostname || url.search || url.hash) return null;
+  return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
 }
 
 /**

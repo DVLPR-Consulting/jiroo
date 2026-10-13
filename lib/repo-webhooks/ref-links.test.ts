@@ -14,7 +14,7 @@ describe("buildRefUrl", () => {
   it("links GitLab merge requests, commits and branches, self-hosted included", () => {
     const base = {
       provider: "gitlab" as const,
-      instanceUrl: "https://gitlab.example.invalid/ignored/path",
+      instanceUrl: "https://gitlab.example.invalid",
       repositoryPath: "group/sub/api",
     };
     expect(buildRefUrl({ ...base, kind: "pr", id: "7" })).toBe(
@@ -26,6 +26,16 @@ describe("buildRefUrl", () => {
     expect(buildRefUrl({ ...base, kind: "branch", id: "cass-2" })).toBe(
       "https://gitlab.example.invalid/group/sub/api/-/tree/cass-2",
     );
+  });
+
+  it("keeps a self-hosted GitLab's sub-path", () => {
+    expect(buildRefUrl({
+      provider: "gitlab",
+      instanceUrl: "https://intra.example.invalid/gitlab",
+      repositoryPath: "group/api",
+      kind: "pr",
+      id: "3",
+    })).toBe("https://intra.example.invalid/gitlab/group/api/-/merge_requests/3");
   });
 });
 
