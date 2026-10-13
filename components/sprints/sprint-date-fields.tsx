@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -50,28 +51,53 @@ export function capacityInputError(form: HTMLFormElement, value: string): string
   return parsed.success ? null : (parsed.error.issues[0]?.message ?? "Capacité invalide.");
 }
 
-/**
- * Moves focus to the first invalid field, as native validation did, so the
- * field's label and its error (via aria-describedby) are read out once.
- */
-export function focusFirstInvalid(
-  form: HTMLFormElement,
-  errors: SprintDateErrors & { name?: string | null; capacity?: string | null },
-) {
+type InvalidFields = SprintDateErrors & { name?: string | null; capacity?: string | null };
+
+function focusTargets(errors: InvalidFields): string[] {
   const datePart = (bound: Bound, message: string) =>
     message === SPRINT_DATE_MESSAGES.invalidTime ? `${bound}-time` : `${bound}-date`;
-  const target = errors.name
-    ? "name"
-    : errors.start
-      ? datePart("start", errors.start)
-      : errors.end
-        ? datePart("end", errors.end)
-        : errors.capacity
-          ? "capacity"
-          : null;
-  if (!target) return;
-  const input = form.elements.namedItem(target);
-  if (input instanceof HTMLElement) input.focus();
+  return [
+    errors.name ? "name" : null,
+    errors.start ? datePart("start", errors.start) : null,
+    errors.end ? datePart("end", errors.end) : null,
+    errors.capacity ? "capacity" : null,
+  ].filter((target): target is string => target !== null);
+}
+
+function focusable(input: unknown): input is HTMLInputElement {
+  if (!(input instanceof HTMLInputElement) || !input.isConnected || input.disabled) return false;
+  // jsdom has no layout and no checkVisibility: treat its inputs as visible.
+  return typeof input.checkVisibility === "function" ? input.checkVisibility() : true;
+}
+
+/**
+ * Moves focus to the first invalid field, as native validation did, once
+ * React has committed its error: the field is then read out with its
+ * aria-invalid state and message (via aria-describedby), once.
+ */
+export function useInvalidFieldFocus() {
+  const request = useRef<{ form: HTMLFormElement; errors: InvalidFields } | null>(null);
+  // Guarantees a commit after the request, even if the errors did not change.
+  const [, setTick] = useState(0);
+  // Runs after every commit and consumes a pending request.
+  useLayoutEffect(() => {
+    const pending = request.current;
+    if (!pending) return;
+    request.current = null;
+    if (!pending.form.isConnected) return;
+    for (const name of focusTargets(pending.errors)) {
+      const input = pending.form.elements.namedItem(name);
+      if (focusable(input)) {
+        input.focus();
+        return;
+      }
+    }
+  });
+  return useCallback((form: HTMLFormElement, errors: InvalidFields) => {
+    if (focusTargets(errors).length === 0) return;
+    request.current = { form, errors };
+    setTick((tick) => tick + 1);
+  }, []);
 }
 
 function DateField({

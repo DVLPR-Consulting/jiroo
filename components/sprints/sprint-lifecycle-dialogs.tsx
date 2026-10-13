@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select";
 import {
   capacityInputError,
-  focusFirstInvalid,
+  useInvalidFieldFocus,
   readDateEntry,
   SprintDateFields,
 } from "@/components/sprints/sprint-date-fields";
@@ -88,6 +88,7 @@ export function StartSprintDialog({
   const [error, setError] = useState<string | null>(null);
   const [dateErrors, setDateErrors] = useState<SprintDateErrors>({});
   const [capacityError, setCapacityError] = useState<string | null>(null);
+  const requestInvalidFocus = useInvalidFieldFocus();
 
   function reset() {
     const defaults = startSprintDateDefaults(sprint.plannedStartAt, sprint.plannedEndAt, new Date());
@@ -119,7 +120,7 @@ export function StartSprintDialog({
       const errors = dates.ok ? {} : dates.errors;
       setDateErrors(errors);
       setCapacityError(capacityIssue);
-      focusFirstInvalid(form, { ...errors, capacity: capacityIssue });
+      requestInvalidFocus(form, { ...errors, capacity: capacityIssue });
       return;
     }
     const { startAt, endAt } = dates;
@@ -146,7 +147,7 @@ export function StartSprintDialog({
             const serverCapacityError = result.fieldErrors?.capacityPoints?.[0] ?? null;
             setDateErrors(serverDateErrors);
             setCapacityError(serverCapacityError);
-            focusFirstInvalid(form, { ...serverDateErrors, capacity: serverCapacityError });
+            requestInvalidFocus(form, { ...serverDateErrors, capacity: serverCapacityError });
           }
           return;
         }

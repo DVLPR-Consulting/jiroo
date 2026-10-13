@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   capacityInputError,
-  focusFirstInvalid,
+  useInvalidFieldFocus,
   readDateEntry,
   SprintDateFields,
 } from "@/components/sprints/sprint-date-fields";
@@ -130,6 +130,7 @@ export function EditSprintDialog({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [dateErrors, setDateErrors] = useState<SprintDateErrors>({});
+  const requestInvalidFocus = useInvalidFieldFocus();
   const completed = sprint.state === "completed";
   // Resync from the current props on every opening, including a controlled
   // one: the sprint may have been renamed or re-planned since mount (JIR-54).
@@ -170,7 +171,7 @@ export function EditSprintDialog({
       const errors = dates && !dates.ok ? dates.errors : {};
       setDateErrors(errors);
       if (capacityIssue) setFieldErrors({ capacityPoints: [capacityIssue] });
-      focusFirstInvalid(form, { ...errors, capacity: capacityIssue });
+      requestInvalidFocus(form, { ...errors, capacity: capacityIssue });
       return;
     }
     startTransition(async () => {
@@ -199,7 +200,7 @@ export function EditSprintDialog({
             };
             setFieldErrors(errors);
             setDateErrors(serverDateErrors);
-            focusFirstInvalid(form, {
+            requestInvalidFocus(form, {
               ...serverDateErrors,
               name: errors.name?.[0],
               capacity: errors.capacityPoints?.[0],

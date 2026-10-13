@@ -78,6 +78,19 @@ function setField(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 
+/** Records the field's error state at the moment it receives focus. */
+function captureOnFocus(element: HTMLElement) {
+  const seen: Array<{ invalid: string | null; description: string }> = [];
+  element.addEventListener("focus", () => {
+    const ids = element.getAttribute("aria-describedby")?.split(" ") ?? [];
+    seen.push({
+      invalid: element.getAttribute("aria-invalid"),
+      description: ids.map((id) => document.getElementById(id)?.textContent ?? "").join(" "),
+    });
+  });
+  return seen;
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => {
@@ -382,6 +395,7 @@ describe("sprint lifecycle dialogs", () => {
       await user.click(screen.getByRole("button", { name: "Démarrer le sprint Sprint paiement" }));
       setField("Début", "2026-10-15");
       setField("Fin", "2026-10-14");
+      const focused = captureOnFocus(screen.getByLabelText("Fin"));
       await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
 
       const endDate = screen.getByLabelText("Fin");
@@ -390,6 +404,10 @@ describe("sprint lifecycle dialogs", () => {
         expect.stringContaining("La date de fin doit être postérieure à la date de début."),
       );
       expect(endDate).toHaveFocus();
+      // The error is already rendered when focus lands on the field.
+      expect(focused).toEqual([
+        { invalid: "true", description: expect.stringContaining("La date de fin doit être postérieure à la date de début.") },
+      ]);
       expect(mocks.startSprintAction).not.toHaveBeenCalled();
     });
 
@@ -426,11 +444,15 @@ describe("sprint lifecycle dialogs", () => {
       });
       render(<StartSprintDialog {...base} />);
       await user.click(screen.getByRole("button", { name: "Démarrer le sprint Sprint paiement" }));
+      const focused = captureOnFocus(screen.getByLabelText("Fin"));
       await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
 
       const endDate = screen.getByLabelText("Fin");
-      await waitFor(() => expect(endDate).toHaveAttribute("aria-invalid", "true"));
-      expect(endDate).toHaveFocus();
+      await waitFor(() => expect(endDate).toHaveFocus());
+      expect(focused).toEqual([
+        { invalid: "true", description: expect.stringContaining("La date de fin doit être postérieure à la date de début.") },
+      ]);
+      expect(endDate).toHaveAttribute("aria-invalid", "true");
       const capacity = screen.getByRole("spinbutton", { name: "Capacité (points)" });
       expect(capacity).toHaveAttribute("aria-invalid", "true");
       expect(capacity).toHaveAccessibleDescription("La capacité accepte au maximum deux décimales.");
