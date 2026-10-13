@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ReleaseDetail } from "@/components/releases/release-detail";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
+vi.mock("@/app/actions/items", () => ({ updateItemAction: vi.fn() }));
 vi.mock("@/app/actions/releases", () => ({
   archiveReleaseAction: vi.fn(),
   deleteReleaseAction: vi.fn(),
@@ -96,9 +97,12 @@ describe("ReleaseDetail", () => {
     const current = screen.getByRole("region", { name: "Périmètre actuel" });
     expect(current).toHaveTextContent("Titre actuel modifié");
     expect(current).toHaveTextContent("Terminé maintenant");
-    expect(current).toHaveTextContent("8 points");
     expect(current).not.toHaveTextContent("Titre publié original");
-    expect(screen.getByRole("link", { name: "CASS-1 — Titre actuel modifié" }))
+    // The current scope uses the Backlog row (JIR-93): points in its bubble.
+    const row = within(current).getByRole("listitem");
+    expect(within(row).getByTitle("Points")).toHaveTextContent("8 pts");
+    expect(within(row).getByRole("img", { name: "Terminé" })).toBeInTheDocument();
+    expect(within(row).getByRole("link", { name: /CASS-1\s*Titre actuel modifié/ }))
       .toHaveAttribute("href", "/b/CASS?item=CASS-1");
 
     const snapshot = screen.getByRole("region", { name: "Instantané de publication" });
@@ -121,7 +125,7 @@ describe("ReleaseDetail", () => {
     );
 
     const current = screen.getByRole("region", { name: "Périmètre actuel" });
-    expect(current).toHaveTextContent("1,5 point");
+    expect(current).toHaveTextContent("1,5 pt");
     expect(current).not.toHaveTextContent("1.5");
     const snapshot = screen.getByRole("region", { name: "Instantané de publication" });
     expect(snapshot).toHaveTextContent("2,5 points");

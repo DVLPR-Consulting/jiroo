@@ -5,7 +5,9 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
 import { backlogs, items } from "../lib/db/schema/domain";
+import { changeItemFixVersions } from "../lib/services/item-fix-versions";
 import { createLabel } from "../lib/services/labels";
+import { createRelease } from "../lib/services/releases";
 import { createItem, softDeleteItem } from "../lib/services/items";
 
 /**
@@ -116,4 +118,29 @@ test("restaure un item depuis sa ligne de la Corbeille", async ({ page }) => {
 
   await page.goto(`/b/CASS?view=list&q=${encodeURIComponent(doomed.title)}`);
   await expect(page.getByRole("row", { name: `${doomed.key} — ${doomed.title}` })).toBeVisible();
+});
+
+test("montre le périmètre d’une release en lignes du Backlog", async ({ page }) => {
+  const { actorId, backlogId } = await context();
+  const release = await createRelease({
+    backlogId,
+    name: `JIR-93 ${RUN}`.slice(0, 40),
+    driverId: actorId,
+  }, actorId, `jir93-release-${RUN}`);
+  const scoped = await task(`JIR-93 périmètre ${RUN}`, { estimatePoints: 5, kind: "bug" });
+  await changeItemFixVersions({
+    backlogId,
+    itemId: scoped.id,
+    mode: "replace",
+    releaseIds: [release.id],
+  }, actorId, `jir93-fix-${RUN}`);
+
+  await page.goto(`/b/CASS/releases/${release.id}`);
+  const row = page.getByRole("region", { name: "Périmètre actuel" })
+    .getByRole("listitem").filter({ hasText: scoped.title });
+  await expect(row.getByText("Bug")).toBeVisible();
+  await expect(row.getByText("À faire")).toBeVisible();
+  await expect(row.getByTitle("Points")).toHaveText(/5/);
+  await row.getByRole("link", { name: new RegExp(scoped.key) }).click();
+  await expect(page).toHaveURL(new RegExp(`/b/CASS\\?item=${scoped.key}$`));
 });
