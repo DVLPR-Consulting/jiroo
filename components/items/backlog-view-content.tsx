@@ -795,6 +795,7 @@ export async function BacklogViewContent({
       <ItemDetailDrawer
         backlogKey={backlog.key}
         itemKey={itemKey ?? null}
+        viewFilters={viewState.filters}
         detail={itemKey
           ? loadItemDetailData({ userId, backlogKey: backlog.key, itemKey })
           : null}

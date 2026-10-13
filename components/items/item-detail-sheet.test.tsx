@@ -22,7 +22,10 @@ const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 // through the History API, never the router (ViewUrlStateProvider).
 let historyPush: MockInstance<History["pushState"]>;
 
-type PanelProbeProps = { detail: { key: string; title: string; createdAt?: Date } };
+type PanelProbeProps = {
+  detail: { key: string; title: string; createdAt?: Date };
+  viewFilters?: { releaseIds: string[] };
+};
 const panelProps: PanelProbeProps[] = [];
 let panelMounts = 0;
 
@@ -407,6 +410,26 @@ describe("ItemDetailSheet", () => {
         fireEvent.click(screen.getByRole("button", { name: "Ouvrir CASS-4" }));
       });
     }
+
+    it("hands the view's filters to the panel of an item opened through the History API (JIR-92)", async () => {
+      const { answer } = stubFetch();
+      const viewFilters = {
+        q: "", types: [], statusIds: [], priorities: [], assignees: [], labels: [],
+        releaseIds: ["release-1"], sprintIds: [], kind: [], underIds: [],
+      };
+      render(
+        <ViewUrlStateProvider initialEntries={[["view", "backlog"]]}>
+          <OpenRow itemKey="CASS-4" />
+          <ItemDetailDrawer backlogKey="CASS" itemKey={null} detail={null} viewFilters={viewFilters} />
+        </ViewUrlStateProvider>,
+      );
+
+      await openRow();
+      await answer(jsonResponse({ kind: "item", panel: { detail: { id: "id-CASS-4", key: "CASS-4", title: "Titre" } } }));
+
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+      expect(panelProps.at(-1)?.viewFilters).toEqual(viewFilters);
+    });
 
     it("fetches the detail of an item opened from the view, without a server navigation", async () => {
       const { fetchMock, answer } = stubFetch();

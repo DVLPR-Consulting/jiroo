@@ -363,6 +363,7 @@ describe("BacklogViewContent read boundary", () => {
       backlogKey: "DEMO",
       itemKey: "DEMO-1",
       detail: detailPromise,
+      viewFilters: expect.objectContaining({ releaseIds: [] }),
     });
   });
 
@@ -1057,6 +1058,10 @@ describe("BacklogViewContent read boundary", () => {
       // The effective filters, so a create they leave out says so.
       expect(props.createDialogProps.viewFilters).toEqual(
         expect.objectContaining({ releaseIds: ["release-empty"] }),
+      );
+      // The drawer's child creation gets them too, opened by URL or History API.
+      expect(mocks.itemDetailDrawerProps).toHaveBeenCalledWith(
+        expect.objectContaining({ viewFilters: props.createDialogProps.viewFilters }),
       );
     });
 
