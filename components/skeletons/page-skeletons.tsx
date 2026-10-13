@@ -56,21 +56,41 @@ function PageHeaderSkeleton({
   );
 }
 
-/** Grouped item rows (Mes items, Corbeille): a small key chip, then rows. */
-function ItemRowsSkeleton({ rows, trailing = 1 }: { rows: number; trailing?: number }) {
+/**
+ * Rows shaped like the shared item row (JIR-93): optional checkbox, type,
+ * key, title, then the status (and an avatar) at the end; `trailing` adds
+ * the context's own cells (deletion date, actions…).
+ */
+function ItemRowsSkeleton({
+  rows,
+  trailing = 0,
+  selectable = false,
+  avatar = false,
+  slot = "item-row-skeleton",
+}: {
+  rows: number;
+  trailing?: number;
+  selectable?: boolean;
+  avatar?: boolean;
+  slot?: string;
+}) {
   return Array.from({ length: rows }, (_, index) => (
     <div
       key={index}
-      data-slot="item-row-skeleton"
-      className="flex h-[37px] items-center gap-2.5 border-b border-border px-4 last:border-b-0"
+      data-slot={slot}
+      className="flex items-center gap-2.5 border-b border-border pl-2 pr-3 last:border-b-0 sm:pr-3.5"
+      style={{ height: "var(--row-h)" }}
     >
-      <Skeleton className="size-4" />
-      <Skeleton className="h-3 w-14" />
-      <Skeleton className={cn("h-3.5", index % 2 === 0 ? "w-1/2" : "w-1/3")} />
+      {selectable ? <Skeleton className="mx-1 size-4 flex-none" /> : null}
+      <Skeleton className="size-4 flex-none" />
+      <Skeleton className="h-3 w-14 flex-none" />
+      <Skeleton className={cn("h-3.5 min-w-0", index % 2 === 0 ? "w-1/2" : "w-1/3")} />
       <span className="flex-1" />
+      <Skeleton className="hidden h-5 w-20 rounded-full sm:block" />
       {Array.from({ length: trailing }, (_, cell) => (
-        <Skeleton key={cell} className="h-3 w-16" />
+        <Skeleton key={cell} className="hidden h-3 w-16 sm:block" />
       ))}
+      {avatar ? <Skeleton className="size-[22px] flex-none rounded-full" /> : null}
     </div>
   ));
 }
@@ -142,8 +162,8 @@ function MineSkeleton() {
               <Skeleton className="h-[18px] w-10" />
               <Skeleton className="h-3.5 w-36" />
             </div>
-            <div className="rounded-md border border-border bg-background">
-              <ItemRowsSkeleton rows={rows} trailing={2} />
+            <div className="overflow-hidden rounded-md border border-border bg-background">
+              <ItemRowsSkeleton rows={rows} trailing={1} />
             </div>
           </div>
         ))}
@@ -172,7 +192,7 @@ function TrashSkeleton() {
               <Skeleton className="h-[18px] w-10 bg-[var(--border)]" />
               <Skeleton className="h-3 w-28 bg-[var(--border)]" />
             </div>
-            <ItemRowsSkeleton rows={rows} trailing={3} />
+            <ItemRowsSkeleton rows={rows} trailing={2} />
           </div>
         ))}
       </div>
@@ -373,7 +393,9 @@ function ReleaseDetailSkeleton() {
               <Skeleton key={index} className={cn("h-7 rounded-full", width)} />
             ))}
           </div>
-          <CardRowsSkeleton rows={4} />
+          <div className="overflow-hidden rounded-xl border">
+            <ItemRowsSkeleton rows={4} />
+          </div>
         </div>
       </div>
     </SkeletonRegion>
@@ -438,6 +460,7 @@ export {
   AdminSkeleton,
   HelpSkeleton,
   HomeSkeleton,
+  ItemRowsSkeleton,
   MineSkeleton,
   PageHeaderSkeleton,
   ReleaseDetailSkeleton,

@@ -1051,7 +1051,10 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
     );
 
     const children = screen.getByRole("region", { name: "Tâches" });
-    expect(within(children).getByRole("link", { name: /CASS-7.*Tâche enfant.*À faire/ })).toBeVisible();
+    // The Backlog row (JIR-93): the identity links, the status follows.
+    const childRow = within(children).getByRole("listitem");
+    expect(within(childRow).getByRole("link", { name: /CASS-7.*Tâche enfant/ })).toBeVisible();
+    expect(within(childRow).getByText("À faire")).toBeVisible();
     expect(screen.getByRole("button", { name: "Créer une tâche" })).toBeVisible();
 
     await user.click(within(children).getByRole("button", { name: "+ Créer une tâche" }));

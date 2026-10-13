@@ -28,19 +28,9 @@ import {
   moveSprintItemAction as defaultMoveSprintItemAction,
   reorderSprintAction as defaultReorderSprintAction,
 } from "@/app/actions/sprints";
-import { KindIcon } from "@/components/icons/kind-icon";
-import { TypeIcon } from "@/components/icons/type-icon";
 import { BulkItemToolbar } from "@/components/items/bulk-item-toolbar";
-import {
-  FixVersionChips,
-  type FixVersionOption,
-} from "@/components/items/fix-version-picker";
-import {
-  InlineAssignee,
-  InlineEstimate,
-  InlinePriority,
-  InlineStatus,
-} from "@/components/items/inline-item-field";
+import { type FixVersionOption } from "@/components/items/fix-version-picker";
+import { ItemRow, RowSelectCheckbox } from "@/components/items/item-row";
 import { InlineCreateItem } from "@/components/items/inline-create-item";
 import {
   BacklogStartGuide,
@@ -68,11 +58,7 @@ import type {
   PlanningCapabilities,
   ReleaseCapabilities,
 } from "@/lib/auth/capabilities";
-import {
-  PRIORITIES,
-  type ItemKind,
-  type Priority,
-} from "@/lib/design/constants";
+import type { ItemKind } from "@/lib/design/constants";
 import {
   emptySelection,
   reconcileSelection,
@@ -146,18 +132,6 @@ const pointFormatter = new Intl.NumberFormat("fr-FR", {
   maximumFractionDigits: 2,
 });
 
-function asPriority(value: number): Priority {
-  return PRIORITIES.includes(value as Priority) ? (value as Priority) : 0;
-}
-
-/**
- * Editable but empty values (no priority, no estimate) stay out of sight
- * until the row is hovered or the control is focused (« ne rien afficher
- * quand une valeur est vide »), so inline editing is never lost.
- */
-const REVEAL_ON_ROW_HOVER =
-  "opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100";
-
 function SelectAllCheckbox({
   checked,
   indeterminate,
@@ -215,8 +189,6 @@ function BacklogRow({
   onToggleSelection: (id: string, extendRange: boolean) => void;
 }) {
   const viewUrl = useViewUrlState();
-  const priority = asPriority(item.priority);
-  const fixVersions = item.fixVersions ?? [];
   const {
     attributes,
     listeners,
@@ -231,156 +203,52 @@ function BacklogRow({
     disabled: !canScheduleItems || !manualOrder || mutationPending,
   });
 
-  function openItem() {
-    viewUrl.push((params) => params.set("item", item.key));
-  }
-
   return (
-    <div
-      ref={setNodeRef}
-      role="row"
-      tabIndex={0}
-      data-shortcut-item={item.key}
-      aria-label={`${item.key} — ${item.title}`}
-      onClick={openItem}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) return;
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          openItem();
-        }
+    <ItemRow
+      item={item}
+      editing={{
+        backlogKey,
+        statuses,
+        users,
+        canEdit: canEditItems,
+        canTransition: canTransitionItems,
+        canAssign: canAssignItems,
       }}
-      className={`group/row flex min-h-[var(--row-h)] cursor-pointer flex-wrap items-center gap-x-2.5 gap-y-0.5 border-b border-border py-0.5 pl-2 pr-3 transition-colors last:border-b-0 hover:bg-[var(--muted)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)] sm:pr-3.5 ${
-        selectedKey === item.key || bulkSelected ? "bg-[var(--accent-subtle)]" : ""
-      }`}
+      onOpen={() => viewUrl.push((params) => params.set("item", item.key))}
+      selected={selectedKey === item.key || bulkSelected}
+      rowRef={setNodeRef}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.45 : 1,
       }}
-    >
-      <div role="cell" className="flex shrink-0 items-center gap-0.5">
-        {canSelectItems ? (
-          <input
-            type="checkbox"
-            checked={bulkSelected}
-            onChange={() => undefined}
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleSelection(item.id, event.shiftKey);
-            }}
-            aria-label={`Sélectionner ${item.key}`}
-            className="mx-1 size-4 cursor-pointer accent-[var(--primary)]"
-          />
-        ) : null}
-        {manualOrder && canScheduleItems ? (
-          <button
-            ref={setActivatorNodeRef}
-            {...attributes}
-            {...listeners}
-            type="button"
-            aria-label={`Déplacer ${item.key}`}
-            data-rank-handle={item.id}
-            disabled={mutationPending}
-            onClick={(event) => event.stopPropagation()}
-            className="inline-flex size-6 cursor-grab items-center justify-center rounded text-[var(--subtle-foreground)] outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <GripVertical aria-hidden size={15} />
-          </button>
-        ) : null}
-      </div>
-      <div role="cell" className="flex min-w-0 flex-1 basis-48 items-center gap-2">
-        <TypeIcon type={item.type} />
-        <span className="shrink-0 font-mono text-[11.5px] font-medium text-muted-foreground">
-          {item.key}
-        </span>
-        <span className="min-w-0 truncate text-sm">{item.title}</span>
-        {item.blocked ? (
-          <span
-            className="inline-flex flex-none items-center rounded px-1.5 py-0.5 text-[11px] font-medium"
-            style={{
-              color: "color-mix(in oklch, var(--danger) 80%, var(--foreground))",
-              background: "color-mix(in oklch, var(--danger) 14%, transparent)",
-            }}
-          >
-            bloqué
-          </span>
-        ) : null}
-      </div>
-      <div
-        role="cell"
-        className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-0.5"
-      >
-        {item.kind === "bug" ? (
-          <span
-            className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11.5px] font-medium"
-            style={{
-              color: "color-mix(in oklch, var(--danger) 80%, var(--foreground))",
-              background: "color-mix(in oklch, var(--danger) 12%, transparent)",
-            }}
-          >
-            <span aria-hidden className="inline-flex">
-              <KindIcon kind="bug" />
-            </span>
-            Bug
-          </span>
-        ) : null}
-        {item.parent ? (
-          <span
-            className="inline-flex max-w-40 items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--accent-subtle)] px-2 py-0.5 text-xs font-medium text-[var(--accent-subtle-fg)]"
-            title={`${item.parent.key} — ${item.parent.title}`}
-          >
-            <TypeIcon type="epic" size={11} />
-            <span className="truncate">{item.parent.title}</span>
-          </span>
-        ) : null}
-        {priority !== 0 ? (
-          <InlinePriority
-            itemId={item.id}
-            backlogKey={backlogKey}
-            priority={priority}
-            readOnly={!canEditItems}
-          />
-        ) : canEditItems ? (
-          <span className={REVEAL_ON_ROW_HOVER}>
-            <InlinePriority itemId={item.id} backlogKey={backlogKey} priority={0} />
-          </span>
-        ) : null}
-        {fixVersions.length > 0 ? <FixVersionChips versions={fixVersions} /> : null}
-        <span className="inline-flex w-28 min-w-0 justify-start">
-          <InlineStatus
-            itemId={item.id}
-            backlogKey={backlogKey}
-            statusId={item.statusId}
-            statuses={statuses}
-            readOnly={!canEditItems || !canTransitionItems}
-          />
-        </span>
-        <span
-          className={`inline-flex w-8 justify-center ${
-            item.estimatePoints === null && canEditItems ? REVEAL_ON_ROW_HOVER : ""
-          }`}
-        >
-          <InlineEstimate
-            itemId={item.id}
-            backlogKey={backlogKey}
-            estimatePoints={item.estimatePoints}
-            readOnly={!canEditItems}
-            compact
-          />
-        </span>
-        <InlineAssignee
-          itemId={item.id}
-          backlogKey={backlogKey}
-          assigneeId={item.assigneeId}
-          assigneeName={item.assigneeName}
-          users={users}
-          readOnly={!canEditItems || !canAssignItems}
-          compact
-        />
-      </div>
-    </div>
+      leading={
+        <>
+          {canSelectItems ? (
+            <RowSelectCheckbox
+              itemKey={item.key}
+              checked={bulkSelected}
+              onToggle={(extendRange) => onToggleSelection(item.id, extendRange)}
+            />
+          ) : null}
+          {manualOrder && canScheduleItems ? (
+            <button
+              ref={setActivatorNodeRef}
+              {...attributes}
+              {...listeners}
+              type="button"
+              aria-label={`Déplacer ${item.key}`}
+              data-rank-handle={item.id}
+              disabled={mutationPending}
+              onClick={(event) => event.stopPropagation()}
+              className="inline-flex size-6 cursor-grab items-center justify-center rounded text-[var(--subtle-foreground)] outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <GripVertical aria-hidden size={15} />
+            </button>
+          ) : null}
+        </>
+      }
+    />
   );
 }
 

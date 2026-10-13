@@ -37,6 +37,18 @@ describe("view skeletons", () => {
     expectHiddenBars(container);
   });
 
+  it("shapes the Liste as shared item rows that wrap instead of a wide table (JIR-93)", () => {
+    const { container } = render(<BacklogViewSkeleton view="list" />);
+    const rows = container.querySelectorAll('[data-slot="list-skeleton-row"]');
+
+    expect(rows[0]).toHaveStyle({ height: "var(--row-h)" });
+    expect(rows[0]).toHaveClass("flex");
+    expect(container.querySelector("[class*='min-w-[']")).toBeNull();
+    // A left-aligned « Trier : … » strip: five sort buttons, no column headers.
+    const sort = container.querySelector('[data-slot="list-skeleton-sort"]')!;
+    expect(sort.querySelectorAll('[data-slot="skeleton"].h-5')).toHaveLength(5);
+  });
+
   it("keeps the page header and the filter bar above every view", () => {
     const { container } = render(<BacklogViewSkeleton view="list" />);
     const region = container.firstElementChild!;

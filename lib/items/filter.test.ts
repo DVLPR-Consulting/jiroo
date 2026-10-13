@@ -38,6 +38,15 @@ describe("parseViewState", () => {
     expect(params.get("fvcol")).toBe("1");
   });
 
+  it("round-trips the optional Labels and Échéance list columns", () => {
+    const state = parseViewState(new URLSearchParams("lblcol=1&duecol=1"));
+    expect(state.filters).toMatchObject({ showLabels: true, showDueDate: true });
+    const params = new URLSearchParams("lblcol=1&duecol=1");
+    writeViewState(params, { ...state, filters: { ...state.filters, showDueDate: false } });
+    expect(params.get("lblcol")).toBe("1");
+    expect(params.has("duecol")).toBe(false);
+  });
+
   it("parses every dimension", () => {
     const sp = new URLSearchParams(
       "q=qr&type=tache,soustache&status=s1,s2&prio=3,4&assignee=none,u1&group=assignee&sort=priority:desc",

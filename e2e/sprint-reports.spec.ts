@@ -728,7 +728,7 @@ audited(1, "affiche les rapports figés et la vélocité explicable", async ({ p
     .getByText("Rapport 1 — terminé figé", { exact: false })
     .locator("xpath=ancestor::li");
   await expect(frozenItem).toContainText("5 pts");
-  await expect(frozenItem).toContainText("done");
+  await expect(frozenItem).toContainText("Terminé");
   await expect(frozenItem.getByRole("link")).toHaveCount(0);
   await expect(page.getByRole("region", { name: /Reportés/ })
     .getByText("Rapport 1 — terminé figé", { exact: false })).toHaveCount(0);
