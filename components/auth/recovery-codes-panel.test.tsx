@@ -99,4 +99,21 @@ describe("RecoveryCodesPanel", () => {
     await waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith("blob:codes"), { timeout: 2_000 });
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it("cleans up the file URL when the download click fails", async () => {
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {
+        throw new DOMException("blocked");
+      });
+    const user = setupUser();
+    render(<RecoveryCodesPanel codes={codes} account="marie@example.test" />);
+
+    await user.click(screen.getByRole("button", { name: "Télécharger (.txt)" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(/Téléchargement impossible/);
+    expect(document.querySelector('a[href="blob:codes"]')).toBeNull();
+    await waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith("blob:codes"), { timeout: 2_000 });
+    click.mockRestore();
+  });
 });

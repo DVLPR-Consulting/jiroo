@@ -12,14 +12,18 @@ import {
 function download(fileName: string, content: string) {
   const url = URL.createObjectURL(new Blob([content], { type: "text/plain;charset=utf-8" }));
   const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  // Revoking synchronously can cancel the download in Safari and Firefox; the
-  // URL must not outlive the click by more than this grace period.
-  setTimeout(() => URL.revokeObjectURL(url), 1_000);
+  try {
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.append(anchor);
+    anchor.click();
+  } finally {
+    // Cleaned up even when the click throws: the URL holds the codes.
+    anchor.remove();
+    // Revoking synchronously can cancel the download in Safari and Firefox; the
+    // URL must not outlive the click by more than this grace period.
+    setTimeout(() => URL.revokeObjectURL(url), 1_000);
+  }
 }
 
 /**
