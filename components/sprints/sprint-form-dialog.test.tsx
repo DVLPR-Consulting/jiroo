@@ -5,6 +5,8 @@ import {
   CreateSprintButton,
   EditSprintDialog,
 } from "@/components/sprints/sprint-form-dialog";
+import { mapSprintZodActionError } from "@/lib/validation/action-error";
+import { updateSprintSchema } from "@/lib/validation/sprint";
 
 const mocks = vi.hoisted(() => ({
   createSprintAction: vi.fn(),
@@ -274,6 +276,8 @@ describe("sprint form dialogs", () => {
       expect.stringContaining("La date de fin doit être postérieure à la date de début."),
     );
     expect(screen.getByLabelText("Début prévu")).not.toHaveAttribute("aria-invalid");
+    // Focus moves to the field, which reads its label and error once.
+    expect(end).toHaveFocus();
     expect(mocks.updateSprintAction).not.toHaveBeenCalled();
 
     setField("Fin prévue", "2026-10-29");
@@ -300,12 +304,42 @@ describe("sprint form dialogs", () => {
     expect(mocks.updateSprintAction).not.toHaveBeenCalled();
   });
 
-  it("shows a server date error under the end field", async () => {
+  it.each([
+    ["1000", "La capacité ne peut pas dépasser 999,99 points."],
+    ["-1", "La capacité doit être positive."],
+    ["1.234", "La capacité accepte au maximum deux décimales."],
+  ])("explains an invalid capacity %s under the field before calling the server", async (value, message) => {
     const user = userEvent.setup();
-    mocks.updateSprintAction.mockResolvedValueOnce({
-      ok: false,
-      error: "La date de fin doit être postérieure à la date de début.",
-      fieldErrors: { plannedEndAt: ["La date de fin doit être postérieure à la date de début."] },
+    render(
+      <EditSprintDialog
+        backlogId="11111111-1111-4111-8111-111111111111"
+        backlogKey="DEMO"
+        sprint={sprint}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Modifier Sprint paiement" }));
+    setField("Capacité (points)", value);
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    const capacity = screen.getByRole("spinbutton", { name: "Capacité (points)" });
+    expect(capacity).toHaveAttribute("aria-invalid", "true");
+    expect(capacity).toHaveAccessibleDescription(message);
+    expect(capacity).toHaveFocus();
+    expect(mocks.updateSprintAction).not.toHaveBeenCalled();
+  });
+
+  it("shows the server's real validation errors under the date and capacity fields", async () => {
+    const user = userEvent.setup();
+    // The server rejects what the dialog sent once tampered: the real schema
+    // and the real action mapper produce the response.
+    mocks.updateSprintAction.mockImplementationOnce(async (input) => {
+      const parsed = updateSprintSchema.safeParse({
+        ...input,
+        plannedEndAt: "2026-08-01T09:00:00.000Z",
+        capacityPoints: 1000,
+      });
+      if (parsed.success) throw new Error("Expected validation failure");
+      return { ok: false, ...mapSprintZodActionError(parsed.error) };
     });
     render(
       <EditSprintDialog
@@ -317,9 +351,15 @@ describe("sprint form dialogs", () => {
     await user.click(screen.getByRole("button", { name: "Modifier Sprint paiement" }));
     await user.click(screen.getByRole("button", { name: "Enregistrer" }));
 
-    await waitFor(() =>
-      expect(screen.getByLabelText("Fin prévue")).toHaveAttribute("aria-invalid", "true"),
+    const end = screen.getByLabelText("Fin prévue");
+    await waitFor(() => expect(end).toHaveAttribute("aria-invalid", "true"));
+    expect(end).toHaveAccessibleDescription(
+      expect.stringContaining("La date de fin doit être postérieure à la date de début."),
     );
+    expect(end).toHaveFocus();
+    const capacity = screen.getByRole("spinbutton", { name: "Capacité (points)" });
+    expect(capacity).toHaveAttribute("aria-invalid", "true");
+    expect(capacity).toHaveAccessibleDescription("La capacité ne peut pas dépasser 999,99 points.");
   });
 
   it("limits a completed sprint edit to its name and goal", async () => {

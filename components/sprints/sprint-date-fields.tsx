@@ -2,11 +2,13 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type {
-  DateTimeEntry,
-  DateTimeParts,
-  SprintDateErrors,
+import {
+  SPRINT_DATE_MESSAGES,
+  type DateTimeEntry,
+  type DateTimeParts,
+  type SprintDateErrors,
 } from "@/lib/items/sprint-dates";
+import { capacityPointsSchema } from "@/lib/validation/sprint";
 
 type Bound = "start" | "end";
 
@@ -32,9 +34,44 @@ export function readDateEntry(
 }
 
 /** True when a native number input holds text the browser cannot parse. */
-export function hasBadInput(form: HTMLFormElement, name: string): boolean {
+function hasBadInput(form: HTMLFormElement, name: string): boolean {
   const input = form.elements.namedItem(name);
   return input instanceof HTMLInputElement && input.validity.badInput;
+}
+
+/**
+ * Client check of the capacity field, with the server schema's messages:
+ * `noValidate` turns off the native min / max / step constraints.
+ */
+export function capacityInputError(form: HTMLFormElement, value: string): string | null {
+  if (hasBadInput(form, "capacity")) return "Capacité invalide.";
+  if (value === "") return null;
+  const parsed = capacityPointsSchema.safeParse(Number(value));
+  return parsed.success ? null : (parsed.error.issues[0]?.message ?? "Capacité invalide.");
+}
+
+/**
+ * Moves focus to the first invalid field, as native validation did, so the
+ * field's label and its error (via aria-describedby) are read out once.
+ */
+export function focusFirstInvalid(
+  form: HTMLFormElement,
+  errors: SprintDateErrors & { name?: string | null; capacity?: string | null },
+) {
+  const datePart = (bound: Bound, message: string) =>
+    message === SPRINT_DATE_MESSAGES.invalidTime ? `${bound}-time` : `${bound}-date`;
+  const target = errors.name
+    ? "name"
+    : errors.start
+      ? datePart("start", errors.start)
+      : errors.end
+        ? datePart("end", errors.end)
+        : errors.capacity
+          ? "capacity"
+          : null;
+  if (!target) return;
+  const input = form.elements.namedItem(target);
+  if (input instanceof HTMLElement) input.focus();
 }
 
 function DateField({

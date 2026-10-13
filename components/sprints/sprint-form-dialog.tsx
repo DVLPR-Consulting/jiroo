@@ -19,7 +19,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  hasBadInput,
+  capacityInputError,
+  focusFirstInvalid,
   readDateEntry,
   SprintDateFields,
 } from "@/components/sprints/sprint-date-fields";
@@ -164,10 +165,12 @@ export function EditSprintDialog({
           end: readDateEntry(form, "end", plannedEnd),
           required: false,
         });
-    const capacityInvalid = !completed && hasBadInput(form, "capacity");
-    if ((dates && !dates.ok) || capacityInvalid) {
-      if (dates && !dates.ok) setDateErrors(dates.errors);
-      if (capacityInvalid) setFieldErrors({ capacityPoints: ["Capacité invalide."] });
+    const capacityIssue = completed ? null : capacityInputError(form, capacity);
+    if ((dates && !dates.ok) || capacityIssue) {
+      const errors = dates && !dates.ok ? dates.errors : {};
+      setDateErrors(errors);
+      if (capacityIssue) setFieldErrors({ capacityPoints: [capacityIssue] });
+      focusFirstInvalid(form, { ...errors, capacity: capacityIssue });
       return;
     }
     startTransition(async () => {
@@ -190,10 +193,16 @@ export function EditSprintDialog({
           setError(result.error);
           if ("fieldErrors" in result) {
             const errors = result.fieldErrors ?? {};
-            setFieldErrors(errors);
-            setDateErrors({
+            const serverDateErrors = {
               start: errors.plannedStartAt?.[0],
               end: errors.plannedEndAt?.[0],
+            };
+            setFieldErrors(errors);
+            setDateErrors(serverDateErrors);
+            focusFirstInvalid(form, {
+              ...serverDateErrors,
+              name: errors.name?.[0],
+              capacity: errors.capacityPoints?.[0],
             });
           }
           return;
@@ -256,6 +265,7 @@ export function EditSprintDialog({
             <Label htmlFor={`${prefix}-name`}>Nom</Label>
             <Input
               id={`${prefix}-name`}
+              name="name"
               value={name}
               aria-invalid={nameError ? true : undefined}
               aria-describedby={nameError ? `${prefix}-name-error` : undefined}

@@ -19,7 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select";
 import {
-  hasBadInput,
+  capacityInputError,
+  focusFirstInvalid,
   readDateEntry,
   SprintDateFields,
 } from "@/components/sprints/sprint-date-fields";
@@ -113,10 +114,12 @@ export function StartSprintDialog({
       end: readDateEntry(form, "end", end),
       required: true,
     });
-    const capacityInvalid = hasBadInput(form, "capacity");
-    if (!dates.ok || capacityInvalid) {
-      if (!dates.ok) setDateErrors(dates.errors);
-      if (capacityInvalid) setCapacityError("Capacité invalide.");
+    const capacityIssue = capacityInputError(form, capacity);
+    if (!dates.ok || capacityIssue) {
+      const errors = dates.ok ? {} : dates.errors;
+      setDateErrors(errors);
+      setCapacityError(capacityIssue);
+      focusFirstInvalid(form, { ...errors, capacity: capacityIssue });
       return;
     }
     const { startAt, endAt } = dates;
@@ -136,10 +139,14 @@ export function StartSprintDialog({
         if (!result.ok) {
           setError(result.error);
           if ("fieldErrors" in result) {
-            setDateErrors({
+            const serverDateErrors = {
               start: result.fieldErrors?.startAt?.[0],
               end: result.fieldErrors?.endAt?.[0],
-            });
+            };
+            const serverCapacityError = result.fieldErrors?.capacityPoints?.[0] ?? null;
+            setDateErrors(serverDateErrors);
+            setCapacityError(serverCapacityError);
+            focusFirstInvalid(form, { ...serverDateErrors, capacity: serverCapacityError });
           }
           return;
         }

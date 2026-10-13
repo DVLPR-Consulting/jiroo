@@ -5,6 +5,8 @@ import {
   CompleteSprintDialog,
   StartSprintDialog,
 } from "@/components/sprints/sprint-lifecycle-dialogs";
+import { mapSprintZodActionError } from "@/lib/validation/action-error";
+import { startSprintSchema } from "@/lib/validation/sprint";
 
 const mocks = vi.hoisted(() => ({
   completeSprintAction: vi.fn(),
@@ -387,7 +389,52 @@ describe("sprint lifecycle dialogs", () => {
       expect(endDate).toHaveAccessibleDescription(
         expect.stringContaining("La date de fin doit être postérieure à la date de début."),
       );
+      expect(endDate).toHaveFocus();
       expect(mocks.startSprintAction).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["1000", "La capacité ne peut pas dépasser 999,99 points."],
+      ["-1", "La capacité doit être positive."],
+      ["1.234", "La capacité accepte au maximum deux décimales."],
+    ])("explains an invalid capacity %s under the field before calling the server", async (value, message) => {
+      const user = userEvent.setup();
+      render(<StartSprintDialog {...base} />);
+      await user.click(screen.getByRole("button", { name: "Démarrer le sprint Sprint paiement" }));
+      setField("Capacité (points)", value);
+      await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
+
+      const capacity = screen.getByRole("spinbutton", { name: "Capacité (points)" });
+      expect(capacity).toHaveAttribute("aria-invalid", "true");
+      expect(capacity).toHaveAccessibleDescription(message);
+      expect(capacity).toHaveFocus();
+      expect(mocks.startSprintAction).not.toHaveBeenCalled();
+    });
+
+    it("shows the server's real validation errors under the end and capacity fields", async () => {
+      const user = userEvent.setup();
+      // The server rejects what the dialog sent once tampered: the real schema
+      // and the real action mapper produce the response.
+      mocks.startSprintAction.mockImplementationOnce(async (input) => {
+        const parsed = startSprintSchema.safeParse({
+          ...input,
+          endAt: input.startAt,
+          capacityPoints: 1.234,
+        });
+        if (parsed.success) throw new Error("Expected validation failure");
+        return { ok: false, ...mapSprintZodActionError(parsed.error) };
+      });
+      render(<StartSprintDialog {...base} />);
+      await user.click(screen.getByRole("button", { name: "Démarrer le sprint Sprint paiement" }));
+      await user.click(screen.getByRole("button", { name: "Confirmer le démarrage" }));
+
+      const endDate = screen.getByLabelText("Fin");
+      await waitFor(() => expect(endDate).toHaveAttribute("aria-invalid", "true"));
+      expect(endDate).toHaveFocus();
+      const capacity = screen.getByRole("spinbutton", { name: "Capacité (points)" });
+      expect(capacity).toHaveAttribute("aria-invalid", "true");
+      expect(capacity).toHaveAccessibleDescription("La capacité accepte au maximum deux décimales.");
+      expect(mocks.push).not.toHaveBeenCalled();
     });
   });
 
