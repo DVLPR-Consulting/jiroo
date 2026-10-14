@@ -30,7 +30,9 @@ import {
   permissionPrincipalEnum,
   permissionScopeEnum,
   refKindEnum,
+  refStateEnum,
   releaseIncompleteDispositionEnum,
+  repoProviderEnum,
   releaseItemDispositionEnum,
   roleActorTypeEnum,
   sprintEventTypeEnum,
@@ -866,6 +868,75 @@ export const itemLinks = pgTable(
   ],
 );
 
+// A GitHub or GitLab repository connected to a backlog by webhook (JIR-95).
+// Jiroo never calls the forge: it only receives signed webhooks. The secret
+// is stored encrypted (lib/crypto/secret-box) and never shown again.
+export const repoConnections = pgTable(
+  "repo_connections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    backlogId: uuid("backlog_id")
+      .notNull()
+      .references(() => backlogs.id, { onDelete: "cascade" }),
+    provider: repoProviderEnum("provider").notNull(),
+    // Origin of the forge: https://github.com, https://gitlab.com or a
+    // self-hosted GitLab. Only used to build links.
+    instanceUrl: text("instance_url").notNull(),
+    // `owner/repo` (GitHub) or the GitLab project path, lower-cased.
+    repositoryPath: text("repository_path").notNull(),
+    secretCiphertext: text("secret_ciphertext").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    lastEventAt: timestamp("last_event_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("repo_connections_backlog_repository_idx").on(
+      t.backlogId,
+      t.provider,
+      t.instanceUrl,
+      t.repositoryPath,
+    ),
+  ],
+);
+
+// Webhook deliveries already applied, for idempotent replays (JIR-95).
+export const repoWebhookDeliveries = pgTable(
+  "repo_webhook_deliveries",
+  {
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => repoConnections.id, { onDelete: "cascade" }),
+    deliveryId: text("delivery_id").notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.connectionId, t.deliveryId] }),
+    index("repo_webhook_deliveries_received_idx").on(t.connectionId, t.receivedAt),
+  ],
+);
+
+// Authenticated webhook requests per connection and minute (JIR-95): the
+// request budget, reserved atomically and shared by every instance. Separate
+// from the delivery log, so errors and replays count too.
+export const repoWebhookRate = pgTable(
+  "repo_webhook_rate",
+  {
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => repoConnections.id, { onDelete: "cascade" }),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.connectionId, t.windowStart] })],
+);
+
+// Development references of an item: links pasted by hand (provider null)
+// and references detected from repository webhooks (JIR-95), upserted per
+// (item, kind, provider, external id). Deleting a connection keeps them.
 export const itemRefs = pgTable(
   "item_refs",
   {
@@ -877,8 +948,26 @@ export const itemRefs = pgTable(
     kind: refKindEnum("kind").notNull(),
     createdBy: text("created_by").references(() => user.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    connectionId: uuid("connection_id").references(() => repoConnections.id, {
+      onDelete: "set null",
+    }),
+    provider: repoProviderEnum("provider"),
+    // Repository-scoped identity, e.g. `github.com/owner/repo#12`.
+    externalId: text("external_id"),
+    title: text("title"),
+    authorName: text("author_name"),
+    state: refStateEnum("state"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }),
   },
-  (t) => [index("item_refs_item_idx").on(t.itemId)],
+  (t) => [
+    index("item_refs_item_idx").on(t.itemId),
+    // Manual links have no provider: NULLs stay distinct, so they never collide.
+    uniqueIndex("item_refs_external_idx").on(t.itemId, t.kind, t.provider, t.externalId),
+    check(
+      "item_refs_external_identity",
+      sql`(${t.provider} is null) = (${t.externalId} is null)`,
+    ),
+  ],
 );
 
 export const userGroups = pgTable("user_groups", {

@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { itemRefs, items } from "@/lib/db/schema/domain";
 import { addRefInput, parseGithubRef } from "@/lib/items/github-ref";
@@ -12,10 +12,18 @@ export type RefRow = {
   url: string;
   kind: typeof itemRefs.$inferSelect.kind;
   createdAt: Date;
+  provider: typeof itemRefs.$inferSelect.provider;
+  title: string | null;
+  authorName: string | null;
+  state: typeof itemRefs.$inferSelect.state;
+  occurredAt: Date | null;
+  connectionId: string | null;
 };
 
 /**
- * Returns all GitHub refs attached to an item, ordered by createdAt ascending.
+ * Returns the development references of an item, ordered by createdAt
+ * ascending: manual GitHub links (no provider) and references detected
+ * from connected repositories (JIR-95).
  */
 export async function listRefsForItem(itemId: string): Promise<RefRow[]> {
   const rows = await db
@@ -24,6 +32,12 @@ export async function listRefsForItem(itemId: string): Promise<RefRow[]> {
       url: itemRefs.url,
       kind: itemRefs.kind,
       createdAt: itemRefs.createdAt,
+      provider: itemRefs.provider,
+      title: itemRefs.title,
+      authorName: itemRefs.authorName,
+      state: itemRefs.state,
+      occurredAt: itemRefs.occurredAt,
+      connectionId: itemRefs.connectionId,
     })
     .from(itemRefs)
     .where(eq(itemRefs.itemId, itemId))
@@ -81,8 +95,12 @@ export async function addRef(
 // ---------------------------------------------------------------------------
 
 /**
- * Removes a GitHub ref by id. Idempotent — no error if already gone.
+ * Removes a manual GitHub link, or a reference whose repository connection
+ * was deleted. Idempotent — no error if already gone. References of a live
+ * connection are not removable: its next webhook would bring them back.
  */
 export async function removeRef(id: string): Promise<void> {
-  await db.delete(itemRefs).where(eq(itemRefs.id, id));
+  await db
+    .delete(itemRefs)
+    .where(and(eq(itemRefs.id, id), or(isNull(itemRefs.provider), isNull(itemRefs.connectionId))));
 }

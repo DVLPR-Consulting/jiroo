@@ -385,7 +385,23 @@ export function HelpGuide() {
             <><Ui>Copier le nom de branche</Ui> copie un nom prêt à l’emploi, par exemple <code className="font-mono text-[0.9em]">cass-3-ecran-de-verification-du-code</code>, pour créer la branche vous-même.</>,
           ]}
         >
-          <GuideNote>Saisie manuelle uniquement (adresses https://github.com) : aucune synchronisation automatique avec GitHub.</GuideNote>
+          <GuideNote>Le lien manuel accepte les adresses https://github.com. Pour que les références arrivent seules, connectez le dépôt (rubrique suivante).</GuideNote>
+        </GuideTopic>
+
+        <GuideTopic
+          title="Connecter un dépôt GitHub ou GitLab"
+          purpose="Voir sur chaque ticket, sans rien coller, les branches, commits et pull / merge requests qui citent sa clé."
+          steps={[
+            <>Administrateur du backlog : <Ui>Administration</Ui> → <Ui>Backlogs</Ui> → <Ui>Développement</Ui> (ou l’onglet <Ui>Développement</Ui> à côté d’<Ui>Accès</Ui>), puis <Ui>Connecter un dépôt</Ui>.</>,
+            <>Choisissez la forge (<Ui>GitHub</Ui> ou <Ui>GitLab</Ui>), saisissez le dépôt (<code className="font-mono text-[0.9em]">propriétaire/dépôt</code>) ou le chemin du projet GitLab, et l’<Ui>URL de l’instance GitLab</Ui> si elle n’est pas gitlab.com, puis <Ui>Connecter le dépôt</Ui>.</>,
+            <>Copiez l’<Ui>URL du webhook</Ui> et le <Ui>Secret du webhook</Ui> : le secret n’est affiché qu’une fois. Créez le webhook dans la forge en suivant les étapes affichées (GitHub : format JSON, événements Pushes, Pull requests et Branch or tag creation ; GitLab : jeton secret, Push events et Merge request events), puis <Ui>J’ai copié le secret</Ui>.</>,
+            <>Nommez vos branches, commits et pull / merge requests avec la clé du ticket, par exemple <code className="font-mono text-[0.9em]">cass-12-formulaire</code> ou « CASS-12 Ajoute le formulaire » : ils apparaissent dans le panneau <Ui>Développement</Ui> du ticket, groupés en pull requests (avec leur état : <Ui>Ouverte</Ui>, <Ui>Fusionnée</Ui>, <Ui>Fermée</Ui>), branches et commits (les plus récents d’abord, <Ui>Voir tout</Ui> pour la suite).</>,
+            <>Sur la page <Ui>Développement</Ui>, chaque dépôt affiche son dernier événement et sa dernière erreur. <Ui>Régénérer le secret</Ui> refuse aussitôt l’ancien ; <Ui>Désactiver</Ui> suspend la réception ; <Ui>Supprimer</Ui> retire la connexion.</>,
+          ]}
+        >
+          <GuideNote>
+            Jiroo ne fait que recevoir les webhooks : aucun jeton d’accès, aucune requête vers GitHub ou GitLab. Seuls la clé du backlog connecté et les tickets non supprimés sont reconnus ; seule la première ligne des messages de commit est conservée, sans adresse e-mail ni contenu de code. L’historique antérieur à la connexion n’est pas importé, et les références restent sur les tickets après suppression de la connexion ; elles peuvent alors être retirées une à une.
+          </GuideNote>
         </GuideTopic>
 
         <GuideTopic
@@ -618,7 +634,7 @@ export function HelpGuide() {
             <>Barre latérale → <Ui>Administration</Ui> (visible seulement si vous avez un droit d’administration ; chaque onglet dépend de vos permissions).</>,
             <><Ui>Utilisateurs</Ui> : <Ui>Nouvel utilisateur</Ui> ; menu « … » → <Ui>Réinitialiser le mot de passe</Ui> ou <Ui>Réinitialiser la double authentification</Ui>.</>,
             <><Ui>Groupes</Ui> : créer, renommer, ajouter ou retirer des membres ; attribuer les permissions globales.</>,
-            <><Ui>Backlogs</Ui> : <Ui>Nouveau backlog</Ui>, <Ui>Modifier</Ui>, <Ui>Archiver</Ui>, et <Ui>Accès</Ui> pour affecter personnes et groupes aux rôles.</>,
+            <><Ui>Backlogs</Ui> : <Ui>Nouveau backlog</Ui>, <Ui>Modifier</Ui>, <Ui>Archiver</Ui>, <Ui>Accès</Ui> pour affecter personnes et groupes aux rôles, et <Ui>Développement</Ui> pour connecter des dépôts GitHub ou GitLab.</>,
             <><Ui>Backlogs</Ui> → <Ui>Accès</Ui> : la barre latérale et le fil d’Ariane (<Ui>Administration</Ui> / <Ui>Backlogs</Ui> / nom du backlog / <Ui>Accès</Ui>) suivent le backlog affiché. En <Ui>Mode Simple</Ui>, choisissez le rôle de chaque personne ou groupe, ajoutez-en, ou cliquez <Ui>Retirer</Ui> sur sa ligne. Le dernier administrateur effectif du backlog ne peut être ni retiré ni changé de rôle.</>,
             <><Ui>Backlogs</Ui> → <Ui>Modifier</Ui> → <Ui>Responsable</Ui> : choisissez la personne affichée comme responsable sur l’accueil, ou <Ui>Aucun</Ui>. Ce champ ne donne aucun droit ; il n’apparaît qu’avec la permission de parcourir les utilisateurs.</>,
             <><Ui>Rôles de projet</Ui> et <Ui>Schémas de permissions</Ui> : réglages fins des accès.</>,

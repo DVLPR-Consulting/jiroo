@@ -305,6 +305,13 @@ export function BacklogAdmin({
                   </Button>
                 )}
                 {!archived && (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/b/${b.key}/settings/development`} aria-label={`Connecter des dépôts à ${b.name}`}>
+                      Développement
+                    </Link>
+                  </Button>
+                )}
+                {!archived && (
                   <>
                     <BacklogDialog
                       title="Modifier le backlog"

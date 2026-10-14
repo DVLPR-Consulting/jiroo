@@ -260,6 +260,22 @@ describe("deriveShellContext — backlog access page (JIR-85)", () => {
   });
 });
 
+describe("deriveShellContext — backlog Développement settings (JIR-95)", () => {
+  it("activates the backlog in the URL and names the section", () => {
+    expect(deriveShellContext({
+      pathname: "/b/pen/settings/development",
+      search: new URLSearchParams(),
+      backlogs,
+      views,
+    })).toEqual({
+      activeBacklogKey: "PEN",
+      section: "Développement",
+      allItemsHref: "/b/PEN?view=list",
+      activeNav: null,
+    });
+  });
+});
+
 describe("deriveShellContext — Backlog mode", () => {
   it("names the Backlog display mode instead of falling back to Board", () => {
     expect(
@@ -402,6 +418,15 @@ describe("deriveBreadcrumb (page header)", () => {
       { label: "Backlogs" },
       { label: "Pôle pénal", href: "/b/PEN" },
       { label: "Accès" },
+    ]);
+  });
+
+  it("places the Développement settings under the same trail (JIR-95)", () => {
+    expect(crumbs("/b/PEN/settings/development", "", backlogs, true)).toEqual([
+      { label: "Administration", href: "/admin" },
+      { label: "Backlogs", href: "/admin?tab=backlogs" },
+      { label: "Pôle pénal", href: "/b/PEN" },
+      { label: "Développement" },
     ]);
   });
 

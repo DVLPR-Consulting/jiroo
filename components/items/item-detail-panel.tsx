@@ -73,6 +73,7 @@ import type {
 } from "@/lib/db/schema/domain";
 import { LinksSection } from "@/components/items/detail/links-section";
 import { DevRefsSection } from "@/components/items/detail/dev-refs-section";
+import type { DevRef } from "@/lib/items/dev-refs";
 import { toast } from "@/lib/toast";
 import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import type {
@@ -205,7 +206,7 @@ export function ItemDetailPanel({
   backlogKey: string;
   links: LinkWithOther[];
   candidates: { id: string; key: string; title: string; type: ItemType }[];
-  refs: { id: string; url: string; kind: string; createdAt: Date | string }[];
+  refs: DevRef[];
   parent?: { key: string; title: string; type?: ItemType };
   childItems?: ChildItem[];
   createDialog?: DetailCreateDialog;

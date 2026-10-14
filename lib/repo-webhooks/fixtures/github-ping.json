@@ -1,0 +1,7 @@
+{
+  "zen": "Keep it logically awesome.",
+  "hook_id": 555000111,
+  "hook": { "type": "Repository", "id": 555000111, "events": ["push", "pull_request", "create"], "active": true },
+  "repository": { "id": 123456789, "full_name": "example-org/example-repo" },
+  "sender": { "login": "alex-m", "id": 1001, "type": "User" }
+}

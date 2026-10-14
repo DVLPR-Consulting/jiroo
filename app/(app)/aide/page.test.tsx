@@ -254,4 +254,36 @@ describe("HelpPage", () => {
       "« Tous les items » affiche la liste de tous les tickets du backlog courant, sans filtre (vue « Liste » ; le compteur en donne le nombre)",
     );
   });
+
+  it("explains connecting a GitHub or GitLab repository (JIR-95)", () => {
+    render(<HelpPage />);
+    const tickets = document.querySelector("section#tickets") as HTMLElement;
+    const topic = within(tickets)
+      .getByRole("heading", { level: 3, name: "Connecter un dépôt GitHub ou GitLab" })
+      .closest("div") as HTMLElement;
+    for (const label of [
+      "Développement",
+      "Connecter un dépôt",
+      "URL de l’instance GitLab",
+      "Connecter le dépôt",
+      "URL du webhook",
+      "Secret du webhook",
+      "J’ai copié le secret",
+      "Ouverte",
+      "Fusionnée",
+      "Fermée",
+      "Voir tout",
+      "Régénérer le secret",
+      "Désactiver",
+      "Supprimer",
+    ]) {
+      expect(topic).toHaveTextContent(`« ${label} »`);
+    }
+    expect(topic).toHaveTextContent("le secret n’est affiché qu’une fois");
+    expect(topic).toHaveTextContent("aucun jeton d’accès, aucune requête vers GitHub ou GitLab");
+    expect(topic).toHaveTextContent("elles peuvent alors être retirées une à une");
+    expect(tickets).not.toHaveTextContent("aucune synchronisation automatique");
+    const rights = document.querySelector("section#droits") as HTMLElement;
+    expect(rights).toHaveTextContent("« Développement » pour connecter des dépôts GitHub ou GitLab");
+  });
 });

@@ -15,6 +15,10 @@ export const notificationTypeEnum = pgEnum("notification_type", ["mention", "ass
 export const displayModeEnum = pgEnum("display_mode", ["backlog", "board", "list", "tree"]);
 export const linkTypeEnum = pgEnum("link_type", ["blocks", "relates", "duplicates"]);
 export const refKindEnum = pgEnum("ref_kind", ["pr", "commit", "branch", "repo", "other"]);
+// Repository connections (JIR-95): the forge a webhook comes from, and the
+// state of a pull / merge request it reported.
+export const repoProviderEnum = pgEnum("repo_provider", ["github", "gitlab"]);
+export const refStateEnum = pgEnum("ref_state", ["open", "merged", "closed"]);
 export const sprintStateEnum = pgEnum("sprint_state", [
   "planned",
   "active",
