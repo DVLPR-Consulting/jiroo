@@ -600,10 +600,25 @@ describe("ItemBacklog", () => {
     const opener = screen.getByRole("button", { name: "Créer un item dans Backlog" });
     await user.click(opener);
     const field = screen.getByRole("textbox", { name: "Titre du nouvel item dans Backlog" });
+    // What the picker says at the moment it receives focus (JIR-69).
+    const picker = screen.getByRole("combobox", { name: "Epic parent" });
+    const atFocus: (string | null)[] = [];
+    picker.addEventListener("focus", () => atFocus.push(picker.getAttribute("aria-invalid")));
     await user.type(field, "Sans parent{Enter}");
-    expect(await screen.findByRole("alert")).toHaveTextContent("Choisissez l’epic parent.");
-    expect(screen.getByRole("combobox", { name: "Epic parent" })).toHaveFocus();
+    expect(picker).toHaveFocus();
+    expect(atFocus).toEqual(["true"]);
+    expect(picker).toHaveAttribute("aria-required", "true");
+    // The error belongs to the picker, not to the title.
+    expect(picker).toHaveAccessibleDescription("Choisissez l’epic parent.");
+    expect(field).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(mocks.createItemAction).not.toHaveBeenCalled();
+
+    await user.click(picker);
+    await user.click(screen.getByRole("option", { name: /^DEMO-8 — / }));
+    expect(picker).not.toHaveAttribute("aria-invalid");
+    expect(picker).not.toHaveAccessibleDescription();
+    field.focus();
 
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("textbox", { name: "Titre du nouvel item dans Backlog" }))
