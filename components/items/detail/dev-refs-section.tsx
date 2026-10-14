@@ -282,9 +282,9 @@ export function DevRefsSection({
         <div className="flex flex-col gap-1">
           <p className="text-xs text-muted-foreground">
             {hasRepoConnection ? (
-              <>Liaison automatique active : mettez la clé <span className="font-mono">{itemKey}</span> dans un nom de branche, un message de commit ou le titre d&apos;une PR.</>
+              <>Liaison automatique active : mettez la clé <span className="font-mono">{itemKey}</span> dans un nom de branche, un message de commit ou le titre d’une PR.</>
             ) : (
-              <>Aucun dépôt connecté. Mettez la clé <span className="font-mono">{itemKey}</span> dans un nom de branche, un message de commit ou le titre d&apos;une PR : elle sera liée automatiquement une fois le dépôt connecté.</>
+              <>Aucun dépôt connecté. Mettez la clé <span className="font-mono">{itemKey}</span> dans un nom de branche, un message de commit ou le titre d’une PR : elle sera liée automatiquement une fois le dépôt connecté.</>
             )}
           </p>
           {!hasRepoConnection && canAdministerBacklog && (

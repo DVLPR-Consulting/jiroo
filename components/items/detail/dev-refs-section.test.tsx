@@ -19,7 +19,7 @@ describe("DevRefsSection", () => {
     );
 
     expect(screen.getByText(/Aucun dépôt connecté\./)).toHaveTextContent(
-      "Aucun dépôt connecté. Mettez la clé CASS-1 dans un nom de branche, un message de commit ou le titre d'une PR : elle sera liée automatiquement une fois le dépôt connecté.",
+      "Aucun dépôt connecté. Mettez la clé CASS-1 dans un nom de branche, un message de commit ou le titre d’une PR : elle sera liée automatiquement une fois le dépôt connecté.",
     );
     expect(screen.getByText("CASS-1")).toHaveClass("font-mono");
     expect(screen.getByRole("link", { name: "Connecter un dépôt" })).toHaveAttribute(
@@ -43,7 +43,7 @@ describe("DevRefsSection", () => {
     );
 
     expect(screen.getByText(/Liaison automatique active/)).toHaveTextContent(
-      "Liaison automatique active : mettez la clé CASS-1 dans un nom de branche, un message de commit ou le titre d'une PR.",
+      "Liaison automatique active : mettez la clé CASS-1 dans un nom de branche, un message de commit ou le titre d’une PR.",
     );
     expect(screen.getByText("CASS-1")).toHaveClass("font-mono");
     expect(screen.queryByText(/Aucun dépôt connecté/)).not.toBeInTheDocument();
