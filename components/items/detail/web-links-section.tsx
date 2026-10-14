@@ -64,7 +64,6 @@ export function WebLinksSection({
       const res = await removeWebLinkAction({ backlogKey, id });
       if (res.ok) {
         toast.success("Lien supprimé.");
-        closeForm();
         router.refresh();
       } else {
         toast.error(res.error);

@@ -88,7 +88,9 @@ import { cn } from "@/lib/utils";
 type ItemRow = typeof itemsTable.$inferSelect;
 type ActivityRow = typeof activitiesTable.$inferSelect;
 const EMPTY_FIX_VERSIONS: FixVersionOption[] = [];
+type ItemWebLink = { id: string; url: string; title: string | null; createdAt: Date | string };
 const EMPTY_CHILDREN: ChildItem[] = [];
+const EMPTY_WEB_LINKS: ItemWebLink[] = [];
 type LabelRow = typeof labelsTable.$inferSelect;
 type UserLite = { id: string; name: string };
 type StatusLite = { id: string; name: string; color: string; category: string; order?: number };
@@ -181,7 +183,7 @@ export function ItemDetailPanel({
   refs,
   hasRepoConnection = false,
   canAdministerBacklog = false,
-  webLinks = [],
+  webLinks = EMPTY_WEB_LINKS,
   parent,
   childItems = EMPTY_CHILDREN,
   createDialog,
@@ -214,7 +216,7 @@ export function ItemDetailPanel({
   hasRepoConnection?: boolean;
   canAdministerBacklog?: boolean;
   /** Web links of the item (JIR-99). */
-  webLinks?: { id: string; url: string; title: string | null; createdAt: Date | string }[];
+  webLinks?: ItemWebLink[];
   parent?: { key: string; title: string; type?: ItemType };
   childItems?: ChildItem[];
   createDialog?: DetailCreateDialog;
