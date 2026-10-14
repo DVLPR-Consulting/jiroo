@@ -73,6 +73,7 @@ import type {
 } from "@/lib/db/schema/domain";
 import { LinksSection } from "@/components/items/detail/links-section";
 import { DevRefsSection } from "@/components/items/detail/dev-refs-section";
+import { WebLinksSection } from "@/components/items/detail/web-links-section";
 import type { DevRef } from "@/lib/items/dev-refs";
 import { toast } from "@/lib/toast";
 import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
@@ -180,6 +181,7 @@ export function ItemDetailPanel({
   refs,
   hasRepoConnection = false,
   canAdministerBacklog = false,
+  webLinks = [],
   parent,
   childItems = EMPTY_CHILDREN,
   createDialog,
@@ -671,6 +673,17 @@ export function ItemDetailPanel({
                 />
               </Section>
             </div>
+
+            {(canLink || webLinks.length > 0) && (
+              <Section title="Liens web">
+                <WebLinksSection
+                  itemId={detail.id}
+                  backlogKey={backlogKey}
+                  webLinks={webLinks}
+                  canLink={canLink}
+                />
+              </Section>
+            )}
 
             <ActivityFeed
               itemId={detail.id}
