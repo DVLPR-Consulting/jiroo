@@ -37,16 +37,21 @@ describe("view skeletons", () => {
     expectHiddenBars(container);
   });
 
-  it("shapes the Liste as shared item rows that wrap instead of a wide table (JIR-93)", () => {
+  it("shapes the Liste as a Backlog card of shared item rows, not a wide table (JIR-93, JIR-97)", () => {
     const { container } = render(<BacklogViewSkeleton view="list" />);
     const rows = container.querySelectorAll('[data-slot="list-skeleton-row"]');
 
     expect(rows[0]).toHaveStyle({ height: "var(--row-h)" });
     expect(rows[0]).toHaveClass("flex");
     expect(container.querySelector("[class*='min-w-[']")).toBeNull();
-    // A left-aligned « Trier : … » strip: five sort buttons, no column headers.
-    const sort = container.querySelector('[data-slot="list-skeleton-sort"]')!;
+    // The Backlog card (JIR-97): the « Trier : … » line of five sort buttons
+    // sits in its header, the rows below; no column headers.
+    const card = container.querySelector('[data-slot="list-skeleton-section"]')!;
+    expect(card).toHaveClass("rounded-[var(--radius-lg)]", "border");
+    const sort = card.querySelector('[data-slot="list-skeleton-sort"]')!;
+    expect(sort).toHaveClass("basis-full");
     expect(sort.querySelectorAll('[data-slot="skeleton"].h-5')).toHaveLength(5);
+    expect(card.querySelectorAll('[data-slot="list-skeleton-row"]')).toHaveLength(8);
   });
 
   it("keeps the page header and the filter bar above every view", () => {

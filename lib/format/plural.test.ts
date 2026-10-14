@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { countLabel, formatPoints, frenchPlural, isFrenchPlural, pointsLabel } from "./plural";
+import {
+  countLabel,
+  formatPoints,
+  frenchPlural,
+  isFrenchPlural,
+  itemsSummaryLabel,
+  pointsLabel,
+} from "./plural";
 
 describe("isFrenchPlural", () => {
   it.each([
@@ -71,5 +78,15 @@ describe("pointsLabel", () => {
     const signed = new Intl.NumberFormat("fr-FR", { signDisplay: "exceptZero" });
     expect(pointsLabel(1, signed.format)).toBe("+1 pt");
     expect(pointsLabel(-4, signed.format)).toBe("-4 pts");
+  });
+});
+
+describe("itemsSummaryLabel", () => {
+  it("summarises items with or without the unestimated count", () => {
+    expect(itemsSummaryLabel(3, 1)).toBe("3 items · 1 non estimé");
+    expect(itemsSummaryLabel(1, 0)).toBe("1 item · 0 non estimé");
+    expect(itemsSummaryLabel(2, 2)).toBe("2 items · 2 non estimés");
+    expect(itemsSummaryLabel(4)).toBe("4 items");
+    expect(itemsSummaryLabel(0, null)).toBe("0 item");
   });
 });

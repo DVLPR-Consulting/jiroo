@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import { render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TrashList } from "@/components/items/trash-list";
@@ -53,6 +54,38 @@ describe("TrashList", () => {
       screen.getByText("Les items supprimés apparaîtront ici pendant 30 jours."),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Voir les backlogs" })).toHaveAttribute("href", "/");
+  });
+
+  it("frames each backlog of the trash in a collapsible Backlog card (JIR-97)", async () => {
+    const user = userEvent.setup();
+    render(
+      <TrashList
+        restorableBacklogIds={["backlog-demo"]}
+        groups={[
+          {
+            backlog: { id: "backlog-demo", key: "DEMO", name: "Démo", color: "#475569" },
+            items: [trashedItem({}), trashedItem({ id: "item-2", key: "DEMO-2" })],
+          },
+          {
+            backlog: { id: "backlog-labs", key: "LABS", name: "Labo", color: "#0f766e" },
+            items: [trashedItem({ id: "item-3", key: "LABS-1", backlogId: "backlog-labs" })],
+          },
+        ]}
+      />,
+    );
+
+    const demo = screen.getByRole("region", { name: "Démo" });
+    expect(demo).toHaveAttribute("data-item-section");
+    expect(within(demo).getByRole("heading", { level: 2, name: "DEMO Démo" })).toBeVisible();
+    // Deleted items have no points: only the count.
+    expect(within(demo).getByText("2 items")).toBeVisible();
+    expect(within(demo).queryByText(/Points par statut/)).not.toBeInTheDocument();
+    expect(within(demo).getAllByRole("button", { name: "Restaurer" })).toHaveLength(2);
+    expect(within(screen.getByRole("region", { name: "Labo" })).getByText("1 item")).toBeVisible();
+
+    await user.click(within(demo).getByRole("button", { name: "Replier Démo" }));
+    expect(within(demo).queryByRole("listitem")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Labo" })).getByRole("listitem")).toBeVisible();
   });
 
   it("shows the restore deadline and disables only restore after expiry", () => {

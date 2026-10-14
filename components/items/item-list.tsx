@@ -7,7 +7,6 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronsUpDown,
-  ChevronRight,
   Columns3,
   Inbox,
   SearchX,
@@ -20,9 +19,21 @@ import {
   type ItemRowEditing,
 } from "@/components/items/item-row";
 import {
+  ItemSection,
+  ItemSectionHeader,
+  ItemSectionSummary,
+  SectionSelectAll,
+  StatusPointsPills,
+} from "@/components/items/item-section";
+import { itemsSummaryLabel } from "@/lib/format/plural";
+import {
   NewItemButton,
   type NewItemButtonProps,
 } from "@/components/items/new-item-dialog";
+import {
+  SectionCreateFooter,
+  useInlineCreateParent,
+} from "@/components/items/section-create-footer";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   DropdownMenu,
@@ -40,8 +51,10 @@ import type { SortDir, SortField } from "@/lib/items/filter";
 import type {
   BulkItemCapabilities,
   ItemCapabilities,
+  PlanningCapabilities,
   ReleaseCapabilities,
 } from "@/lib/auth/capabilities";
+import { pointsByStatusCategory } from "@/lib/items/status-points";
 import {
   emptySelection,
   reconcileSelection,
@@ -87,7 +100,7 @@ export type ListItem = {
 type Group = { key: string; label: string; items: ListItem[] };
 type CurrentSort = { field: SortField; dir: SortDir } | null;
 
-/** The Liste sort fields, in the strip's order (the same `sort=` as before). */
+/** The Liste sort fields, in display order (the same `sort=` as before). */
 const SORT_OPTIONS: Array<{ field: SortField; label: string }> = [
   { field: "key", label: "Clé" },
   { field: "title", label: "Titre" },
@@ -104,6 +117,14 @@ const OPTIONAL_COLUMNS = [
 ] as const;
 
 type OptionalColumns = { labels: boolean; dueDate: boolean; fixVersions: boolean };
+
+/** The ungrouped Liste's single card, named like the « Tous les items » filter. */
+const ALL_ITEMS = { key: "\u0000all", label: "Tous les items" };
+
+/** Only tasks are estimated: the other levels neither add points nor count as unestimated. */
+function estimateOf(item: ListItem) {
+  return item.type === "tache" ? item.estimatePoints : undefined;
+}
 
 /**
  * One sort field of « Trier la liste »: a toggle button, pressed for the
@@ -222,7 +243,7 @@ function ListRow({
       item={{
         ...item,
         // Only tasks are estimated; the other levels keep an empty slot.
-        estimatePoints: item.type === "tache" ? item.estimatePoints : undefined,
+        estimatePoints: estimateOf(item),
         labels: columns.labels ? item.labels : undefined,
         dueDate: columns.dueDate ? item.dueDate : undefined,
         fixVersions: columns.fixVersions ? item.fixVersions : undefined,
@@ -261,7 +282,9 @@ export function ItemList({
   canTransitionItems: legacyCanTransitionItems = true,
   canAssignItems: legacyCanAssignItems = true,
   canBulkChangeItems: legacyCanBulkChangeItems = true,
+  canScheduleItems: legacyCanScheduleItems = true,
   itemCapabilities,
+  planningCapabilities,
   bulkCapabilities,
   releaseOptions = [],
   releaseCapabilities,
@@ -290,7 +313,10 @@ export function ItemList({
   canTransitionItems?: boolean;
   canAssignItems?: boolean;
   canBulkChangeItems?: boolean;
+  /** Inline creation makes a task under an epic, which needs this right. */
+  canScheduleItems?: boolean;
   itemCapabilities?: ItemCapabilities;
+  planningCapabilities?: PlanningCapabilities;
   bulkCapabilities?: BulkItemCapabilities;
   releaseOptions?: FixVersionOption[];
   releaseCapabilities?: ReleaseCapabilities;
@@ -302,6 +328,7 @@ export function ItemList({
   const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
   const canTransitionItems = itemCapabilities?.transition ?? legacyCanTransitionItems;
   const canAssignItems = itemCapabilities?.assign ?? legacyCanAssignItems;
+  const canScheduleItems = planningCapabilities?.rank ?? legacyCanScheduleItems;
   const canBulkChangeItems = bulkCapabilities
     ? Object.values(bulkCapabilities).some(Boolean)
     : legacyCanBulkChangeItems;
@@ -312,13 +339,22 @@ export function ItemList({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const [selection, setSelection] = useState(emptySelection);
   const [selectionScope, setSelectionScope] = useState<string | null>(null);
+  const { epics, parentId, setParentId } = useInlineCreateParent(createDialogProps?.items);
   const total = groups.reduce((count, group) => count + group.items.length, 0);
+  // One card per group, or a single « Tous les items » card (JIR-97).
+  const sections: Group[] = useMemo(
+    () =>
+      grouped
+        ? groups
+        : [{ ...ALL_ITEMS, items: groups.flatMap((group) => group.items) }],
+    [grouped, groups],
+  );
   const visibleItems = useMemo(
     () =>
-      groups.flatMap((group) =>
-        grouped && collapsedGroups.has(group.key) ? [] : group.items,
+      sections.flatMap((section) =>
+        collapsedGroups.has(section.key) ? [] : section.items,
       ),
-    [collapsedGroups, grouped, groups],
+    [collapsedGroups, sections],
   );
   const visibleIds = useMemo(
     () => visibleItems.map((item) => item.id),
@@ -332,9 +368,6 @@ export function ItemList({
   const selectedItems = visibleItems.filter((item) =>
     selection.selectedIds.has(item.id),
   );
-  const allSelected =
-    visibleIds.length > 0 && visibleIds.every((id) => selection.selectedIds.has(id));
-  const partlySelected = selection.selectedIds.size > 0 && !allSelected;
   const canSelectItems = releaseCapabilities?.bulkAssignItems === true || (
     bulkCapabilities
       ? Object.values(bulkCapabilities).some(Boolean)
@@ -454,118 +487,153 @@ export function ItemList({
     );
   }
 
-  return (
-    <>
-      {startStep && !filtersActive && createDialogProps ? (
-        <ViewStartGuide
-          step={startStep}
-          backlogKey={backlogKey}
-          dialogProps={createDialogProps}
-          canCreateItems={canCreateItems}
-          variant="callout"
-          className="mx-3 mt-3 flex-none sm:mx-4"
+  // Like the Backlog sections, creation sits at the bottom of the card; a
+  // grouped Liste has no single card where a new item would belong.
+  const canCreateInCard = !grouped && canCreateItems && canScheduleItems;
+  const startStepInFooter = canCreateInCard && createDialogProps !== undefined;
+  const sortGroup = (
+    <div
+      role="group"
+      aria-label="Trier la liste"
+      className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5"
+    >
+      <span aria-hidden className="mr-0.5">Trier :</span>
+      {SORT_OPTIONS.map((option) => (
+        <SortButton
+          key={option.field}
+          field={option.field}
+          label={option.label}
+          currentSort={currentSort}
+          onSort={sortBy}
         />
-      ) : null}
-      <div
-        className="min-h-0 flex-1 overflow-auto"
-        onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
-      >
-        {/* Selection and « Trier la liste »: a strip, not column headers. */}
-        <div className="sticky top-0 z-20 flex min-h-9 flex-wrap items-center gap-x-2.5 gap-y-1 border-b border-border bg-[var(--surface-2)] py-1 pl-2 pr-3 sm:pr-3.5">
-          {canSelectItems ? (
-            <input
-              ref={(node) => {
-                if (node) node.indeterminate = partlySelected;
-              }}
-              type="checkbox"
-              checked={allSelected}
-              onChange={() =>
-                setSelection(allSelected ? emptySelection() : selectAllVisible(visibleIds))
-              }
-              aria-label="Sélectionner tous les items visibles"
-              className="mx-1 size-4 shrink-0 cursor-pointer accent-[var(--primary)]"
-            />
-          ) : null}
-          <div
-            role="group"
-            aria-label="Trier la liste"
-            className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 gap-y-0.5"
-          >
-            <span aria-hidden className="mr-0.5 text-xs text-muted-foreground">
-              Trier :
-            </span>
-            {SORT_OPTIONS.map((option) => (
-              <SortButton
-                key={option.field}
-                field={option.field}
-                label={option.label}
-                currentSort={currentSort}
-                onSort={sortBy}
+      ))}
+    </div>
+  );
+
+  function renderSection(section: Group, index: number) {
+    const expanded = !collapsedGroups.has(section.key);
+    const sectionIds = expanded ? section.items.map((item) => item.id) : [];
+    const selectedCount = sectionIds.filter((id) => selection.selectedIds.has(id)).length;
+    const unestimatedCount = section.items.filter((item) => estimateOf(item) === null).length;
+    const statusPoints = pointsByStatusCategory(
+      section.items.map((item) => ({
+        statusId: item.statusId,
+        estimatePoints: estimateOf(item) ?? null,
+      })),
+      statuses,
+    );
+    const allItems = section.key === ALL_ITEMS.key;
+    return (
+      <ItemSection key={section.key || "ungrouped"} aria-label={section.label}>
+        <ItemSectionHeader
+          name={section.label}
+          headingLevel={2}
+          expanded={expanded}
+          onExpandedChange={() => toggleGroup(section.key)}
+          selectControl={
+            canSelectItems && sectionIds.length > 0 ? (
+              <SectionSelectAll
+                checked={selectedCount === sectionIds.length}
+                indeterminate={selectedCount > 0 && selectedCount < sectionIds.length}
+                onChange={() =>
+                  setSelection((current) => {
+                    const next = new Set(current.selectedIds);
+                    if (selectedCount === sectionIds.length) {
+                      sectionIds.forEach((id) => next.delete(id));
+                    } else {
+                      sectionIds.forEach((id) => next.add(id));
+                    }
+                    return { selectedIds: next, anchorId: null };
+                  })
+                }
+                label={
+                  allItems
+                    ? "Sélectionner tous les items visibles"
+                    : `Sélectionner tous les items de ${section.label}`
+                }
               />
-            ))}
-          </div>
-        </div>
-        {grouped ? (
-          <div role="region" aria-label="Liste des items">
-            {groups.map((group) => {
-              const collapsed = collapsedGroups.has(group.key);
-              return (
-                <div key={group.key || "ungrouped"}>
-                  <div className="border-b border-border bg-[var(--surface-2)] px-3 py-1.5">
-                    <button
-                      type="button"
-                      aria-expanded={!collapsed}
-                      onClick={() => toggleGroup(group.key)}
-                      className="flex w-full items-center gap-1.5 rounded text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-                    >
-                      <ChevronRight
-                        aria-hidden
-                        size={13}
-                        className="transition-transform"
-                        style={{ transform: collapsed ? "rotate(0deg)" : "rotate(90deg)" }}
-                      />
-                      <span>{group.label}</span>
-                      <span className="item-key ml-1">{group.items.length}</span>
-                    </button>
-                  </div>
-                  {collapsed ? null : (
-                    <div role="list" aria-label={group.label}>
-                      {group.items.map(renderRow)}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
+            ) : null
+          }
+          summary={
+            <ItemSectionSummary>
+              {itemsSummaryLabel(section.items.length, unestimatedCount)}
+            </ItemSectionSummary>
+          }
+          aside={<StatusPointsPills value={statusPoints} />}
+          // « Trier la liste » orders every card: it sits once, in the first header.
+          meta={index === 0 ? sortGroup : null}
+        />
+        {expanded ? (
           // Rows are list items, as tickets are listed elsewhere (no fake table).
-          <div role="list" aria-label="Liste des items">
-            {groups.flatMap((group) => group.items).map(renderRow)}
+          <div role="list" aria-label={allItems ? "Liste des items" : section.label}>
+            {section.items.map(renderRow)}
           </div>
-        )}
-        {canSelectItems && selectedItems.length > 0 ? (
-          <BulkItemToolbar
+        ) : null}
+        {expanded && canCreateInCard ? (
+          <SectionCreateFooter
             backlogId={backlogId}
             backlogKey={backlogKey}
-            selectedItems={selectedItems.map((item) => ({
-              id: item.id,
-              type: item.type,
-            }))}
-            statuses={statuses}
-            users={users}
-            canEditItems={canEditItems}
-            canTransitionItems={canTransitionItems}
-            canAssignItems={canAssignItems}
-            canScheduleItems={false}
-            canBulkChangeItems={canBulkChangeItems}
-            capabilities={bulkCapabilities}
-            releaseOptions={releaseOptions}
-            releaseCapabilities={releaseCapabilities}
-            onClearSelection={() => setSelection(emptySelection())}
-            onMutationSuccess={() => router.refresh()}
+            sprintId={null}
+            contextLabel={section.label}
+            startStep={startStep}
+            filtersActive={filtersActive}
+            clearFiltersHref={clearFiltersHref}
+            dialogProps={createDialogProps}
+            parents={epics}
+            parentId={parentId}
+            onParentChange={setParentId}
+            bordered={section.items.length > 0}
           />
         ) : null}
+      </ItemSection>
+    );
+  }
+
+  return (
+    <div
+      className="min-h-0 flex-1 overflow-auto"
+      onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
+    >
+      <div
+        className="flex flex-col gap-4 p-3 sm:p-4"
+        {...(grouped ? { role: "region", "aria-label": "Liste des items" } : {})}
+      >
+        {startStep && !filtersActive && createDialogProps ? (
+          <ViewStartGuide
+            step={startStep}
+            backlogKey={backlogKey}
+            dialogProps={createDialogProps}
+            canCreateItems={canCreateItems}
+            // With the scheduling right, the button sits in place of
+            // « Créer un item » at the bottom of the card, as in the Backlog.
+            showAction={!startStepInFooter}
+            variant="callout"
+          />
+        ) : null}
+        {sections.map(renderSection)}
       </div>
-    </>
+      {canSelectItems && selectedItems.length > 0 ? (
+        <BulkItemToolbar
+          backlogId={backlogId}
+          backlogKey={backlogKey}
+          selectedItems={selectedItems.map((item) => ({
+            id: item.id,
+            type: item.type,
+          }))}
+          statuses={statuses}
+          users={users}
+          canEditItems={canEditItems}
+          canTransitionItems={canTransitionItems}
+          canAssignItems={canAssignItems}
+          canScheduleItems={false}
+          canBulkChangeItems={canBulkChangeItems}
+          capabilities={bulkCapabilities}
+          releaseOptions={releaseOptions}
+          releaseCapabilities={releaseCapabilities}
+          onClearSelection={() => setSelection(emptySelection())}
+          onMutationSuccess={() => router.refresh()}
+        />
+      ) : null}
+    </div>
   );
 }

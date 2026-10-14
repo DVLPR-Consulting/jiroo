@@ -10,10 +10,12 @@ import { createLabel } from "../lib/services/labels";
 import { createRelease } from "../lib/services/releases";
 import { createItem, softDeleteItem } from "../lib/services/items";
 import { keyPattern } from "./key-helpers";
+import { chooseOption } from "./select-helpers";
 
 /**
- * JIR-93: every list display shows the Backlog row. The Liste lists its rows
- * under a « Trier la liste » strip and shows « Colonnes » fields as pills.
+ * JIR-93: every list display shows the Backlog row; « Colonnes » fields are
+ * pills. JIR-97: the Liste is the Backlog's table — one card « Tous les
+ * items » (or one per group) whose header holds « Trier la liste ».
  */
 const RUN = process.env.JIROO_E2E_RUN_ID ?? String(Date.now());
 
@@ -108,7 +110,61 @@ test("trie la Liste depuis « Trier la liste » et affiche les colonnes choisies
   await expect(page.getByRole("dialog", { name: keyPattern(high.key) })).toBeVisible();
 });
 
-test("montre Mes items en lignes du Backlog qui ouvrent l’item", async ({ page }) => {
+test("présente la Liste dans le tableau du Backlog : en-tête, sélection, création et groupes", async ({ page }) => {
+  const prefix = `JIR-97 carte ${RUN}`;
+  const epic = await fixtureEpic(`JIR-97 parent ${RUN}`);
+  const estimated = await task(`${prefix} estimée`, { estimatePoints: 3 }, epic);
+  const open = await task(`${prefix} ouverte`, {}, epic);
+
+  await page.goto(`/b/CASS?view=list&q=${encodeURIComponent(prefix)}`);
+  const card = page.getByRole("region", { name: "Tous les items" });
+  const header = card.locator("header");
+  await expect(header.getByRole("heading", { level: 2, name: "Tous les items" })).toBeVisible();
+  await expect(header.getByText("2 items · 1 non estimé")).toBeVisible();
+  await expect(header.getByText("Points par statut : À faire 3, En cours 0, Terminé 0")).toBeAttached();
+  await expect(header.getByRole("group", { name: "Trier la liste" })).toBeVisible();
+  await expect(card.getByRole("button", { name: /^Déplacer / })).toHaveCount(0);
+
+  // « Tout sélectionner » in the card header, as in the Backlog.
+  const selectAll = header.getByRole("checkbox", { name: "Sélectionner tous les items visibles" });
+  await selectAll.click();
+  await expect(page.getByText("2 items sélectionnés")).toBeVisible();
+  await expect(card.getByRole("checkbox", { name: `Sélectionner ${open.key}`, exact: true })).toBeChecked();
+  await selectAll.click();
+  await expect(page.getByRole("region", { name: "Actions groupées" })).toHaveCount(0);
+
+  // « + Créer un item » at the bottom of the card, under a chosen Epic.
+  await card.getByRole("button", { name: "Créer un item dans Tous les items" }).click();
+  const form = card.getByRole("form", { name: "Créer un item dans Tous les items" });
+  await chooseOption(form, "Epic parent", `${epic.key} — ${epic.title}`);
+  const createdTitle = `${prefix} créée`;
+  await form.getByRole("textbox", { name: "Titre du nouvel item dans Tous les items" }).fill(createdTitle);
+  await form.getByRole("textbox", { name: "Titre du nouvel item dans Tous les items" }).press("Enter");
+  const createdRow = card.getByRole("listitem").filter({ hasText: createdTitle });
+  await expect(createdRow).toBeVisible();
+  await expect(createdRow.getByTitle(`${epic.key} — ${epic.title}`)).toBeVisible();
+  await expect(header.getByText("3 items · 2 non estimés")).toBeVisible();
+
+  // Collapsing hides the rows, not the header.
+  await header.getByRole("button", { name: "Replier Tous les items" }).click();
+  await expect(card.getByRole("list")).toHaveCount(0);
+  await header.getByRole("button", { name: "Déplier Tous les items" }).click();
+  await expect(card.getByRole("listitem", { name: `${estimated.key} — ${estimated.title}` })).toBeVisible();
+
+  // Grouped: one card per group, each with its own header and counts.
+  await page.goto(`/b/CASS?view=list&group=status&q=${encodeURIComponent(prefix)}`);
+  const todo = page.getByRole("region", { name: "À faire", exact: true });
+  await expect(todo.locator("header").getByText("3 items · 2 non estimés")).toBeVisible();
+  await expect(page.getByRole("group", { name: "Trier la liste" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /^Créer un item dans / })).toHaveCount(0);
+  await todo.getByRole("checkbox", { name: "Sélectionner tous les items de À faire" }).click();
+  await expect(page.getByText("3 items sélectionnés")).toBeVisible();
+  await todo.getByRole("button", { name: "Replier À faire" }).click();
+  await expect(todo.getByRole("list")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Actions groupées" })).toHaveCount(0);
+});
+
+test("montre Mes items dans le tableau du Backlog, en lignes qui ouvrent l’item", async ({ page }) => {
   const { actorId } = await context();
   const mine = await task(`JIR-93 mes items ${RUN}`, {
     assigneeId: actorId,
@@ -118,7 +174,11 @@ test("montre Mes items en lignes du Backlog qui ouvrent l’item", async ({ page
   });
 
   await page.goto("/mine");
-  const row = page.getByRole("listitem").filter({ hasText: mine.title });
+  // The Backlog's table (JIR-97): one card per backlog, with its counters.
+  const card = page.getByRole("region", { name: "Cour de cassation" });
+  await expect(card.locator("header")).toContainText(/\d+ items? · \d+ non estimés?/);
+  await expect(card.locator("header [data-status-points]")).toBeVisible();
+  const row = card.getByRole("listitem").filter({ hasText: mine.title });
   await expect(row.getByText("Bug")).toBeVisible();
   await expect(row.getByText("À faire")).toBeVisible();
   await expect(row.getByTitle("Points")).toHaveText(/3/);
@@ -127,13 +187,16 @@ test("montre Mes items en lignes du Backlog qui ouvrent l’item", async ({ page
   await expect(page.getByRole("dialog", { name: new RegExp(`^${mine.key} —`) })).toBeVisible();
 });
 
-test("restaure un item depuis sa ligne de la Corbeille", async ({ page }) => {
+test("restaure un item depuis sa ligne, dans le tableau de la Corbeille", async ({ page }) => {
   const { actorId } = await context();
   const doomed = await task(`JIR-93 corbeille ${RUN}`, { kind: "bug" });
   await softDeleteItem({ id: doomed.id }, actorId);
 
   await page.goto("/trash");
-  const row = page.getByRole("listitem").filter({ hasText: doomed.title });
+  // The Backlog's table (JIR-97): one card per backlog, counting its items.
+  const card = page.getByRole("region", { name: "Cour de cassation" });
+  await expect(card.locator("header")).toContainText(/CASS\s*Cour de cassation\s*\d+ items?/);
+  const row = card.getByRole("listitem").filter({ hasText: doomed.title });
   await expect(row.getByText(doomed.key, { exact: true })).toBeVisible();
   await expect(row.getByText("Bug")).toBeVisible();
   await expect(row.getByText("supprimé aujourd'hui")).toBeVisible();
@@ -146,7 +209,7 @@ test("restaure un item depuis sa ligne de la Corbeille", async ({ page }) => {
   await expect(page.getByRole("listitem", { name: `${doomed.key} — ${doomed.title}` })).toBeVisible();
 });
 
-test("montre le périmètre d’une release en lignes du Backlog", async ({ page }) => {
+test("montre le périmètre d’une release dans le tableau du Backlog", async ({ page }) => {
   const { actorId, backlogId } = await context();
   const release = await createRelease({
     backlogId,
@@ -162,8 +225,12 @@ test("montre le périmètre d’une release en lignes du Backlog", async ({ page
   }, actorId, `jir93-fix-${RUN}`);
 
   await page.goto(`/b/CASS/releases/${release.id}`);
-  const row = page.getByRole("region", { name: "Périmètre actuel" })
-    .getByRole("listitem").filter({ hasText: scoped.title });
+  // The Backlog's table (JIR-97): the whole scope's counters in its header.
+  const card = page.getByRole("region", { name: "Périmètre actuel" });
+  await expect(card.locator("header")).toContainText("1 item · 0 non estimé");
+  await expect(card.locator("header [data-status-points]"))
+    .toContainText("Points par statut : À faire 5, En cours 0, Terminé 0");
+  const row = card.getByRole("listitem").filter({ hasText: scoped.title });
   await expect(row.getByText("Bug")).toBeVisible();
   await expect(row.getByText("À faire")).toBeVisible();
   await expect(row.getByTitle("Points")).toHaveText(/5/);

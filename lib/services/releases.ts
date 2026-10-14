@@ -47,6 +47,8 @@ export type ReleaseProgress = {
   done: number;
   totalPoints: number;
   donePoints: number;
+  /** Points of the in-progress items; to do is the rest of `totalPoints`. */
+  inProgressPoints: number;
   unestimated: number;
 };
 
@@ -1265,6 +1267,10 @@ function releaseSummaryQuery(
         sql<number>`coalesce(sum(${items.estimatePoints}) filter (where ${statuses.category} = 'done'), 0)::double precision`.as(
           "done_points",
         ),
+      inProgressPoints:
+        sql<number>`coalesce(sum(${items.estimatePoints}) filter (where ${statuses.category} = 'in_progress'), 0)::double precision`.as(
+          "in_progress_points",
+        ),
       unestimated:
         sql<number>`count(*) filter (where ${items.estimatePoints} is null)::int`.as(
           "unestimated",
@@ -1362,6 +1368,7 @@ function releaseSummaryQuery(
       done: sql<number>`coalesce(${progress.done}, 0)::int`,
       totalPoints: sql<number>`coalesce(${progress.totalPoints}, 0)::double precision`,
       donePoints: sql<number>`coalesce(${progress.donePoints}, 0)::double precision`,
+      inProgressPoints: sql<number>`coalesce(${progress.inProgressPoints}, 0)::double precision`,
       unestimated: sql<number>`coalesce(${progress.unestimated}, 0)::int`,
       createdAt: releases.createdAt,
       updatedAt: releases.updatedAt,
@@ -1411,6 +1418,7 @@ function toReleaseSummary(row: SummaryRow): ReleaseSummary {
       done: row.done,
       totalPoints: row.totalPoints,
       donePoints: row.donePoints,
+      inProgressPoints: row.inProgressPoints,
       unestimated: row.unestimated,
     },
   };

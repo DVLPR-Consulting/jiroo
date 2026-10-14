@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
 import { X } from "lucide-react";
 import { DialogClose, DialogTitle } from "@/components/ui/dialog";
-import { ItemRowsSkeleton, PageHeaderSkeleton } from "@/components/skeletons/page-skeletons";
+import { PageHeaderSkeleton, SectionCardSkeleton } from "@/components/skeletons/page-skeletons";
 import { Skeleton, SkeletonRegion } from "@/components/ui/skeleton";
 import type { ItemViewId } from "@/lib/items/shell";
 
@@ -71,23 +71,31 @@ function BoardBody() {
   );
 }
 
-/** The Liste (JIR-93): the « Trier : … » strip above shared item rows. */
+/**
+ * The Liste (JIR-97): one Backlog card, its header (select-all, chevron,
+ * name, summary, points) and the « Trier : … » line, above shared item rows.
+ */
 function ListBody() {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <div
-        data-slot="list-skeleton-sort"
-        className="flex min-h-9 items-center gap-2.5 border-b border-border bg-[var(--surface-2)] pl-2 pr-3 sm:pr-3.5"
-      >
-        <Skeleton className="mx-1 size-4 bg-[var(--border)]" />
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-2.5 w-9 bg-[var(--border)]" />
-          {["w-8", "w-9", "w-14", "w-12", "w-11"].map((width, index) => (
-            <Skeleton key={index} className={`h-5 ${width} bg-[var(--border)]`} />
-          ))}
-        </div>
+      <div className="flex flex-col gap-4 p-3 sm:p-4">
+        <SectionCardSkeleton
+          rows={LIST_ROWS}
+          slot="list-skeleton-section"
+          rowSlot="list-skeleton-row"
+          selectable
+          points
+          avatar
+          meta={
+            <div data-slot="list-skeleton-sort" className="flex basis-full items-center gap-2">
+              <Skeleton className="h-2.5 w-9" />
+              {["w-8", "w-9", "w-14", "w-12", "w-11"].map((width, index) => (
+                <Skeleton key={index} className={`h-5 ${width}`} />
+              ))}
+            </div>
+          }
+        />
       </div>
-      <ItemRowsSkeleton rows={LIST_ROWS} selectable avatar slot="list-skeleton-row" />
     </div>
   );
 }

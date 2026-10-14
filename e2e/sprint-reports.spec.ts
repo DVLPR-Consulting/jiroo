@@ -725,6 +725,8 @@ audited(1, "affiche les rapports figés et la vélocité explicable", async ({ p
     .toContainText("Ajoutés 3 pts");
   await expect(page.getByRole("heading", { name: /Reportés/ })).toBeVisible();
   const completedSection = page.getByRole("region", { name: "Terminés (1)" });
+  // The Backlog's table (JIR-97): a card whose header counts the section.
+  await expect(completedSection.locator("header")).toContainText(/Terminés\s*1 item/);
   const frozenItem = completedSection
     .getByText("Rapport 1 — terminé figé", { exact: false })
     .locator("xpath=ancestor::li");

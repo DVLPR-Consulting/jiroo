@@ -7,6 +7,8 @@ import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
 const mocks = vi.hoisted(() => ({
   bulkUpdateItemsAction: vi.fn(),
+  createItemAction: vi.fn(),
+  softDeleteItemAction: vi.fn(),
   push: vi.fn(),
   refresh: vi.fn(),
   replace: vi.fn(),
@@ -24,6 +26,8 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/app/actions/items", () => ({
   bulkUpdateItemsAction: mocks.bulkUpdateItemsAction,
+  createItemAction: mocks.createItemAction,
+  softDeleteItemAction: mocks.softDeleteItemAction,
   updateItemAction: mocks.updateItemAction,
 }));
 
@@ -312,7 +316,12 @@ describe("ItemList", () => {
 
     const note = screen.getByRole("note", { name: "Créez une Epic dans un Composant" });
     expect(screen.getByRole("list", { name: "Liste des items" })).toBeInTheDocument();
-    await user.click(within(note).getByRole("button", { name: "Nouvelle Epic" }));
+    // As in the Backlog, the button sits in place of « Créer un item » at the
+    // bottom of the card, not twice.
+    expect(within(note).queryByRole("button")).not.toBeInTheDocument();
+    const card = screen.getByRole("region", { name: "Tous les items" });
+    expect(within(card).queryByRole("button", { name: /Créer un item/ })).not.toBeInTheDocument();
+    await user.click(within(card).getByRole("button", { name: "Nouvelle Epic (Tous les items)" }));
     const dialog = screen.getByRole("dialog", { name: /Nouvel item/ });
     expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
     // Two Composants: the parent is left to choose.
@@ -378,7 +387,7 @@ describe("ItemList", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("renders Backlog rows as a list under a sticky « Trier la liste » strip, not a table", () => {
+  it("renders rows as a list in the Backlog card, sorted from its header, not a table", () => {
     renderList();
 
     // Regression (JIR-93 review): no fake table, no column headers.
@@ -394,7 +403,10 @@ describe("ItemList", () => {
       expect(within(sort).getByRole("button", { name: `Trier par ${label}` }))
         .toHaveAttribute("aria-pressed", "false");
     }
-    expect(sort.parentElement).toHaveClass("sticky");
+    // No separate strip: the sort sits on the card header's second line.
+    const card = screen.getByRole("region", { name: "Tous les items" });
+    expect(within(card).getByRole("banner")).toContainElement(sort);
+    expect(sort.parentElement).toHaveClass("basis-full");
     expect(screen.getAllByRole("img", { name: "À faire" })[0]).toBeVisible();
     // Rows wrap instead of flooring a table width: no horizontal page scroll.
     expect(list.getAttribute("style")).toBeNull();
@@ -697,17 +709,183 @@ describe("ItemList", () => {
     const user = userEvent.setup();
     renderList({ ...listProps(), grouped: true, groups });
 
-    const toggle = screen.getByRole("button", { name: /Plateforme.*1/ });
+    const toggle = screen.getByRole("button", { name: "Replier Plateforme" });
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("Authentication")).toBeInTheDocument();
 
     await user.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveAccessibleName("Déplier Plateforme");
     expect(screen.queryByText("Authentication")).not.toBeInTheDocument();
     expect(mocks.push).not.toHaveBeenCalled();
     expect(mocks.replace).not.toHaveBeenCalled();
 
     await user.click(toggle);
     await waitFor(() => expect(screen.getByText("Authentication")).toBeInTheDocument());
+  });
+
+  it("frames the ungrouped Liste in one Backlog card with counts and points (JIR-97)", () => {
+    renderList({
+      ...listProps(),
+      groups: [
+        {
+          key: "",
+          label: "",
+          items: [
+            item("item-1", "DEMO-1", "Authentication", { estimatePoints: 3 }),
+            item("item-2", "DEMO-2", "Invoices", {
+              estimatePoints: 5,
+              statusId: "22222222-2222-4222-8222-222222222222",
+            }),
+            item("item-3", "DEMO-3", "Audit"),
+            // Not a task: neither points nor « non estimé ».
+            item("item-4", "DEMO-4", "Portail", { type: "epic", estimatePoints: 8 }),
+          ],
+        },
+      ],
+    });
+
+    const card = screen.getByRole("region", { name: "Tous les items" });
+    expect(card).toHaveAttribute("data-item-section");
+    const header = within(card).getByRole("banner");
+    expect(within(header).getByRole("heading", { level: 2, name: "Tous les items" })).toBeVisible();
+    expect(within(header).getByText("4 items · 1 non estimé")).toBeVisible();
+    expect(within(header).getByText("Points par statut : À faire 3, En cours 5, Terminé 0"))
+      .toBeInTheDocument();
+    expect(within(header).getByRole("checkbox", { name: "Sélectionner tous les items visibles" }))
+      .not.toBeChecked();
+    expect(within(header).getByRole("button", { name: "Replier Tous les items" }))
+      .toHaveAttribute("aria-expanded", "true");
+    expect(within(card).getAllByRole("listitem")).toHaveLength(4);
+    // No drag handle: the Liste follows its sort.
+    expect(screen.queryByRole("button", { name: /^Déplacer/ })).not.toBeInTheDocument();
+  });
+
+  it("collapses the card and drops its hidden rows from the selection", async () => {
+    const user = userEvent.setup();
+    renderList();
+
+    await user.click(screen.getByRole("checkbox", { name: "Sélectionner DEMO-1" }));
+    expect(screen.getByText("1 item sélectionné")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Replier Tous les items" }));
+
+    expect(screen.queryByRole("list", { name: "Liste des items" })).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Actions groupées" })).not.toBeInTheDocument(),
+    );
+    // Still sortable and counted while collapsed.
+    expect(screen.getByRole("group", { name: "Trier la liste" })).toBeVisible();
+    expect(screen.getByText("2 items · 2 non estimés")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Déplier Tous les items" }));
+    expect(screen.getByRole("list", { name: "Liste des items" })).toBeVisible();
+  });
+
+  it("gives each group its own card, counts, points and select-all, sorted once (JIR-97)", async () => {
+    const user = userEvent.setup();
+    renderList({
+      ...listProps(),
+      grouped: true,
+      groups: [
+        groups[0]!,
+        {
+          key: "billing",
+          label: "Facturation",
+          items: [
+            item("item-2", "DEMO-2", "Invoices", { estimatePoints: 2 }),
+            item("item-3", "DEMO-3", "Refunds"),
+          ],
+        },
+      ],
+    });
+
+    const platform = screen.getByRole("region", { name: "Plateforme" });
+    const billing = screen.getByRole("region", { name: "Facturation" });
+    expect(within(platform).getByText("1 item · 1 non estimé")).toBeVisible();
+    expect(within(billing).getByText("2 items · 1 non estimé")).toBeVisible();
+    expect(within(billing).getByText("Points par statut : À faire 2, En cours 0, Terminé 0"))
+      .toBeInTheDocument();
+    expect(screen.getAllByRole("group", { name: "Trier la liste" })).toHaveLength(1);
+    expect(within(platform).getByRole("group", { name: "Trier la liste" })).toBeVisible();
+    // A grouped card is no place for a new item.
+    expect(screen.queryByRole("button", { name: /Créer un item/ })).not.toBeInTheDocument();
+
+    await user.click(
+      within(billing).getByRole("checkbox", { name: "Sélectionner tous les items de Facturation" }),
+    );
+    expect(screen.getByText("2 items sélectionnés")).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: "Sélectionner DEMO-1" })).not.toBeChecked();
+    await user.click(within(billing).getByRole("button", { name: "Replier Facturation" }));
+    expect(within(billing).queryByRole("list")).not.toBeInTheDocument();
+    expect(within(platform).getByRole("list", { name: "Plateforme" })).toBeVisible();
+  });
+
+  it("creates a task under the only Epic from the bottom of the card (JIR-97)", async () => {
+    const user = userEvent.setup();
+    mocks.createItemAction.mockResolvedValue({
+      ok: true,
+      item: { id: "new-id", key: "DEMO-10", type: "tache", kind: "feature", title: "Relance", statusId: todoStatusId, priority: 2, assigneeId: null, parentId: "epic-1", labelIds: [], fixVersionIds: [] },
+    });
+    renderList({
+      ...listProps(),
+      createDialogProps: {
+        backlogId: "backlog-id",
+        items: [{ id: "epic-1", key: "DEMO-5", type: "epic", title: "Paiements" }],
+        statuses: [{ id: todoStatusId, name: "À faire" }],
+      },
+    });
+
+    const card = screen.getByRole("region", { name: "Tous les items" });
+    await user.click(within(card).getByRole("button", { name: "Créer un item dans Tous les items" }));
+    expect(within(card).getByRole("combobox", { name: "Epic parent" })).toHaveTextContent("DEMO-5 — Paiements");
+    await user.type(
+      within(card).getByRole("textbox", { name: "Titre du nouvel item dans Tous les items" }),
+      "Relance{Enter}",
+    );
+
+    await waitFor(() => expect(mocks.createItemAction).toHaveBeenCalledTimes(1));
+    expect(mocks.createItemAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        backlogKey: "DEMO",
+        backlogId: "backlog-id",
+        type: "tache",
+        parentId: "epic-1",
+        title: "Relance",
+        sprintId: null,
+      }),
+    );
+  });
+
+  it.each([
+    ["a viewer", { canCreateItems: false }],
+    ["a creator without the scheduling right", { canScheduleItems: false }],
+  ])("does not offer inline creation to %s", (_name, rights) => {
+    renderList({
+      ...listProps(),
+      ...rights,
+      createDialogProps: {
+        backlogId: "backlog-id",
+        items: [{ id: "epic-1", key: "DEMO-5", type: "epic", title: "Paiements" }],
+        statuses: [{ id: todoStatusId, name: "À faire" }],
+      },
+    });
+    expect(screen.queryByRole("button", { name: /Créer un item/ })).not.toBeInTheDocument();
+  });
+
+  it("points to clearing the filters while the Epic step is missing under filters", () => {
+    renderList({
+      ...listProps(),
+      filtersActive: true,
+      clearFiltersHref: "/b/DEMO?view=list",
+      startStep: "epic",
+      createDialogProps: {
+        backlogId: "backlog-id",
+        items: [{ id: "comp-1", key: "DEMO-9", type: "composant", title: "Portail" }],
+        statuses: [{ id: todoStatusId, name: "À faire" }],
+      },
+    });
+    const card = screen.getByRole("region", { name: "Tous les items" });
+    expect(within(card).getByText(/il faut d’abord une Epic : effacez les filtres/)).toBeVisible();
+    expect(within(card).getByRole("link", { name: "Effacer les filtres" }))
+      .toHaveAttribute("href", "/b/DEMO?view=list");
   });
 });

@@ -172,7 +172,7 @@ export function HelpGuide() {
           <ul className="t-body list-disc space-y-1 pl-5">
             <li><Ui>Backlog</Ui> : les tâches par sprint et la section Backlog, une ligne compacte par tâche ; glisser-déposer pour classer et planifier.</li>
             <li><Ui>Board</Ui> : les tâches du sprint actif, une colonne par statut ; déplacer une carte change son statut. Sans sprint actif, le bandeau <Ui>Aucun sprint actif</Ui> et son lien <Ui>Voir le Backlog</Ui> surmontent les colonnes, vides et sans glisser-déposer.</li>
-            <li><Ui>Liste</Ui> : tous les tickets, à plat, en lignes du Backlog ; la barre <Ui>Trier</Ui> au-dessus des lignes pour trier, le menu <Ui>Colonnes</Ui> pour afficher des informations en plus.</li>
+            <li><Ui>Liste</Ui> : tous les tickets, à plat, dans le même tableau que le Backlog, intitulé <Ui>Tous les items</Ui> (nombre d’items et de non estimés, points par statut, <Ui>Créer un item</Ui> en bas) ; la ligne <Ui>Trier</Ui> de son en-tête pour trier, le menu <Ui>Colonnes</Ui> pour afficher des informations en plus. Groupée (<Ui>Affichage</Ui>), elle montre un tableau par groupe, repliable comme les sections du Backlog.</li>
             <li><Ui>Arbre</Ui> : la hiérarchie ; glisser un ticket sous un autre parent le rattache (règles de hiérarchie).</li>
           </ul>
           <GuideNote>
@@ -199,13 +199,19 @@ export function HelpGuide() {
             sections du rapport de sprint, enfants et items liés du panneau de détail. Hors du Backlog, elle n’a pas
             de poignée ; hors du Backlog et de la Liste, elle se lit sans modification sur place.
           </p>
+          <p className="t-body">
+            Sauf dans le panneau de détail, ces lignes sont aussi rangées dans le même tableau que les sections du
+            Backlog : un cadre dont l’en-tête donne le nom (le backlog pour <Ui>Mes items</Ui> et la{" "}
+            <Ui>Corbeille</Ui>), le nombre d’items et, quand les tickets ont des points, le nombre de non estimés et
+            les points par statut. La flèche à gauche du nom replie ou déplie le tableau.
+          </p>
         </GuideTopic>
 
         <GuideTopic
           title="Trier la Liste et choisir ses colonnes"
           purpose="Ranger tous les tickets selon un critère et n’afficher que l’utile."
           steps={[
-            <>Dans la barre <Ui>Trier</Ui> au-dessus des lignes, cliquez sur <Ui>Clé</Ui>, <Ui>Titre</Ui>, <Ui>Échéance</Ui>, <Ui>Priorité</Ui> ou <Ui>Statut</Ui> : un premier clic trie par ordre croissant (▲), un second par ordre décroissant (▼) ; le critère actif est mis en évidence (au clavier : <Key>Tab</Key> jusqu’au bouton, puis <Key>Entrée</Key>).</>,
+            <>Dans la ligne <Ui>Trier</Ui> de l’en-tête du tableau (du premier tableau quand la Liste est groupée), cliquez sur <Ui>Clé</Ui>, <Ui>Titre</Ui>, <Ui>Échéance</Ui>, <Ui>Priorité</Ui> ou <Ui>Statut</Ui> : un premier clic trie par ordre croissant (▲), un second par ordre décroissant (▼) ; le critère actif est mis en évidence (au clavier : <Key>Tab</Key> jusqu’au bouton, puis <Key>Entrée</Key>).</>,
             <>Ouvrez <Ui>Colonnes</Ui>, à côté d’<Ui>Affichage</Ui>, et cochez <Ui>Labels</Ui>, <Ui>Échéance</Ui> ou <Ui>Fix versions</Ui> : chaque information cochée s’ajoute en pastille au bout des lignes.</>,
           ]}
         >

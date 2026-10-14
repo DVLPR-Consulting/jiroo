@@ -16,19 +16,17 @@ function roundPoints(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-export function pointsByStatusCategory(
-  items: ReadonlyArray<{ statusId: string; estimatePoints: number | null }>,
-  statuses: ReadonlyArray<{ id: string; category: StatusCategory }>,
+/** The same totals for items that already know their status category. */
+export function pointsByCategory(
+  items: ReadonlyArray<{ category: StatusCategory | null; estimatePoints: number | null }>,
 ): PointsByStatusCategory {
-  const categoryById = new Map(statuses.map((status) => [status.id, status.category]));
   const totals = { todo: 0, inProgress: 0, done: 0 };
   for (const item of items) {
     if (item.estimatePoints === null) continue;
     // An unknown status counts as to do so the three totals add up to the
     // section's estimated points.
-    const category = categoryById.get(item.statusId) ?? "todo";
-    if (category === "done") totals.done += item.estimatePoints;
-    else if (category === "in_progress") totals.inProgress += item.estimatePoints;
+    if (item.category === "done") totals.done += item.estimatePoints;
+    else if (item.category === "in_progress") totals.inProgress += item.estimatePoints;
     else totals.todo += item.estimatePoints;
   }
   return {
@@ -36,4 +34,17 @@ export function pointsByStatusCategory(
     inProgress: roundPoints(totals.inProgress),
     done: roundPoints(totals.done),
   };
+}
+
+export function pointsByStatusCategory(
+  items: ReadonlyArray<{ statusId: string; estimatePoints: number | null }>,
+  statuses: ReadonlyArray<{ id: string; category: StatusCategory }>,
+): PointsByStatusCategory {
+  const categoryById = new Map(statuses.map((status) => [status.id, status.category]));
+  return pointsByCategory(
+    items.map((item) => ({
+      category: categoryById.get(item.statusId) ?? null,
+      estimatePoints: item.estimatePoints,
+    })),
+  );
 }

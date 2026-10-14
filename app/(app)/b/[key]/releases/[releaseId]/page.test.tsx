@@ -85,6 +85,7 @@ const release = {
     done: 1,
     totalPoints: 3,
     donePoints: 3,
+    inProgressPoints: 0,
     unestimated: 0,
   },
   createdAt: new Date("2026-08-01T10:00:00.000Z"),

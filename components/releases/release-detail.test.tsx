@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ReleaseDetail } from "@/components/releases/release-detail";
@@ -31,7 +32,7 @@ const props = {
     publicationScopeRevision: "0123456789abcdef0123456789abcdef",
     publicationCount: 0,
     removalScope: { revision: "0123456789abcdef0123456789abcdef", linkedCount: 0, trashedCount: 0 },
-    progress: { total: 1, todo: 0, inProgress: 0, done: 1, totalPoints: 5, donePoints: 5, unestimated: 0 },
+    progress: { total: 1, todo: 0, inProgress: 0, done: 1, totalPoints: 5, donePoints: 5, inProgressPoints: 0, unestimated: 0 },
     createdAt: "2026-08-01T10:00:00.000Z",
     updatedAt: "2026-08-02T10:00:00.000Z",
   },
@@ -113,6 +114,33 @@ describe("ReleaseDetail", () => {
     expect(snapshot).toHaveTextContent("Déplacée vers Version 2");
     expect(snapshot).toHaveTextContent("5 points");
     expect(snapshot).not.toHaveTextContent("Titre actuel modifié");
+  });
+
+  it("frames the current scope in the Backlog card with the whole scope's counters (JIR-97)", async () => {
+    const user = userEvent.setup();
+    render(
+      <ReleaseDetail
+        {...props}
+        release={{
+          ...props.release,
+          progress: { total: 4, todo: 2, inProgress: 1, done: 1, totalPoints: 9.5, donePoints: 5, inProgressPoints: 1.5, unestimated: 1 },
+        }}
+      />,
+    );
+
+    const current = screen.getByRole("region", { name: "Périmètre actuel" });
+    expect(current).toHaveAttribute("data-item-section");
+    expect(within(current).getByRole("heading", { level: 2, name: "Périmètre actuel" })).toBeVisible();
+    expect(within(current).getByText("4 items · 1 non estimé")).toBeVisible();
+    expect(within(current).getByText("Points par statut : À faire 3, En cours 1,5, Terminé 5"))
+      .toBeInTheDocument();
+    expect(within(current).getByRole("navigation", { name: "Filtrer le périmètre" })).toBeVisible();
+    // Read-only scope: no selection, no creation.
+    expect(within(current).queryByRole("checkbox")).not.toBeInTheDocument();
+
+    await user.click(within(current).getByRole("button", { name: "Replier Périmètre actuel" }));
+    expect(within(current).queryByRole("listitem")).not.toBeInTheDocument();
+    expect(within(current).getByText("4 items · 1 non estimé")).toBeVisible();
   });
 
   it("formats decimal item points with the French comma in both sections", () => {

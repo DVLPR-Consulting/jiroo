@@ -148,31 +148,73 @@ function HomeSkeleton() {
   );
 }
 
-/** « Mes items »: backlog groups of assigned items. */
+/**
+ * The Backlog's section card (JIR-97) while it loads: header (select-all,
+ * chevron, backlog badge, name, summary, points, a second line) above rows.
+ */
+function SectionCardSkeleton({
+  rows,
+  slot = "section-card-skeleton",
+  selectable = false,
+  badge = false,
+  points = false,
+  meta,
+  trailing,
+  avatar,
+  rowSlot,
+}: {
+  rows: number;
+  slot?: string;
+  selectable?: boolean;
+  badge?: boolean;
+  points?: boolean;
+  meta?: ReactNode;
+  trailing?: number;
+  avatar?: boolean;
+  rowSlot?: string;
+}) {
+  return (
+    <div
+      data-slot={slot}
+      className="rounded-[var(--radius-lg)] border border-border bg-[var(--surface)]"
+    >
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-b border-border px-3 py-2.5 sm:px-3.5">
+        {selectable ? <Skeleton className="mx-1 size-4" /> : null}
+        <Skeleton className="size-6" />
+        {badge ? <Skeleton className="h-[18px] w-10" /> : null}
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-3.5 w-36" />
+        {points ? <Skeleton className="ml-auto h-5 w-24 rounded-full" /> : null}
+        {meta}
+      </div>
+      <ItemRowsSkeleton
+        rows={rows}
+        selectable={selectable}
+        trailing={trailing}
+        avatar={avatar}
+        slot={rowSlot}
+      />
+    </div>
+  );
+}
+
+/** « Mes items »: one Backlog card per backlog of assigned items. */
 function MineSkeleton() {
   return (
     <SkeletonRegion label="Chargement de mes items" name="mine" className="mx-auto max-w-3xl p-8">
       <div className="mb-6">
         <PageTitleSkeleton titleClassName="w-32" />
       </div>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         {[4, 2].map((rows, index) => (
-          <div key={index}>
-            <div className="mb-1 flex items-center gap-2 px-4 py-1.5">
-              <Skeleton className="h-[18px] w-10" />
-              <Skeleton className="h-3.5 w-36" />
-            </div>
-            <div className="overflow-hidden rounded-md border border-border bg-background">
-              <ItemRowsSkeleton rows={rows} trailing={1} />
-            </div>
-          </div>
+          <SectionCardSkeleton key={index} rows={rows} badge points trailing={1} />
         ))}
       </div>
     </SkeletonRegion>
   );
 }
 
-/** « Corbeille »: bordered header, then collapsible backlog groups. */
+/** « Corbeille »: bordered header, then one Backlog card per backlog. */
 function TrashSkeleton() {
   return (
     <SkeletonRegion label="Chargement de la corbeille" name="trash" className="flex h-full flex-col">
@@ -185,15 +227,9 @@ function TrashSkeleton() {
           <Skeleton className="h-3.5 w-28" />
         </div>
       </div>
-      <div className="flex-1">
+      <div className="flex flex-1 flex-col gap-4 p-3 sm:p-4">
         {[3, 2].map((rows, index) => (
-          <div key={index} className="border-b border-border">
-            <div className="flex items-center gap-2 bg-[var(--surface-2)] px-4 py-1.5">
-              <Skeleton className="h-[18px] w-10 bg-[var(--border)]" />
-              <Skeleton className="h-3 w-28 bg-[var(--border)]" />
-            </div>
-            <ItemRowsSkeleton rows={rows} trailing={2} />
-          </div>
+          <SectionCardSkeleton key={index} rows={rows} badge trailing={2} />
         ))}
       </div>
     </SkeletonRegion>
@@ -356,7 +392,7 @@ function ReleasesSkeleton() {
   );
 }
 
-/** One release: back link, header with facts, the current scope list. */
+/** One release: back link, header with facts, the current scope card. */
 function ReleaseDetailSkeleton() {
   return (
     <SkeletonRegion label="Chargement de la release" name="release">
@@ -386,17 +422,18 @@ function ReleaseDetailSkeleton() {
             ))}
           </div>
         </div>
-        <div className="space-y-3">
-          <Skeleton className="h-5 w-40" />
-          <div className="flex gap-2">
-            {["w-14", "w-16", "w-20", "w-16"].map((width, index) => (
-              <Skeleton key={index} className={cn("h-7 rounded-full", width)} />
-            ))}
-          </div>
-          <div className="overflow-hidden rounded-xl border">
-            <ItemRowsSkeleton rows={4} />
-          </div>
-        </div>
+        {/* « Périmètre actuel »: the Backlog card, its filters on the second line. */}
+        <SectionCardSkeleton
+          rows={4}
+          points
+          meta={
+            <div className="flex basis-full flex-wrap gap-2">
+              {["w-14", "w-16", "w-20", "w-16"].map((width, index) => (
+                <Skeleton key={index} className={cn("h-7 rounded-full", width)} />
+              ))}
+            </div>
+          }
+        />
       </div>
     </SkeletonRegion>
   );
@@ -457,6 +494,7 @@ function ReportsSkeleton() {
 
 export {
   AccessSkeleton,
+  SectionCardSkeleton,
   AdminSkeleton,
   HelpSkeleton,
   HomeSkeleton,

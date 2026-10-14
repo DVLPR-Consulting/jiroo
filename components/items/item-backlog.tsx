@@ -31,11 +31,13 @@ import {
 import { BulkItemToolbar } from "@/components/items/bulk-item-toolbar";
 import { type FixVersionOption } from "@/components/items/fix-version-picker";
 import { ItemRow, RowSelectCheckbox } from "@/components/items/item-row";
-import { InlineCreateItem } from "@/components/items/inline-create-item";
+import { ItemSection, SectionSelectAll } from "@/components/items/item-section";
+import {
+  SectionCreateFooter,
+  useInlineCreateParent,
+} from "@/components/items/section-create-footer";
 import {
   BacklogStartGuide,
-  FilteredStartStep,
-  InlineStartStep,
   StartStepButton,
   canCreateStartStep,
 } from "@/components/items/backlog-start-guide";
@@ -131,31 +133,6 @@ type RankItemAction = (input: {
 const pointFormatter = new Intl.NumberFormat("fr-FR", {
   maximumFractionDigits: 2,
 });
-
-function SelectAllCheckbox({
-  checked,
-  indeterminate,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  indeterminate: boolean;
-  onChange: () => void;
-  label: string;
-}) {
-  return (
-    <input
-      ref={(node) => {
-        if (node) node.indeterminate = indeterminate;
-      }}
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      aria-label={label}
-      className="mx-1 size-4 shrink-0 cursor-pointer accent-[var(--primary)]"
-    />
-  );
-}
 
 function BacklogRow({
   item,
@@ -549,7 +526,7 @@ function LegacyItemBacklog({
     >
       <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-3 py-3 sm:px-4">
         {canSelectItems && displayedItems.length > 0 ? (
-          <SelectAllCheckbox
+          <SectionSelectAll
             checked={allSelected}
             indeterminate={partlySelected}
             onChange={() =>
@@ -751,17 +728,15 @@ function SprintSectionDropZone({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `section:${sectionId}` });
   return (
-    <section
+    <ItemSection
       ref={setNodeRef}
       aria-label={label}
       data-sprint-section={sectionId}
       data-drop-target={isOver ? "true" : undefined}
-      className={`rounded-[var(--radius-lg)] border bg-[var(--surface)] ${
-        isOver ? "border-[var(--ring)] bg-[var(--accent-subtle)]" : "border-border"
-      }`}
+      highlighted={isOver}
     >
       {children}
-    </section>
+    </ItemSection>
   );
 }
 
@@ -824,17 +799,12 @@ function SprintItemBacklog({
       )
   );
   const sectionSnapshot = useRef<SprintBacklogSection[] | null>(null);
-  const epics = useMemo(
-    () =>
-      (createDialogProps?.items ?? [])
-        .filter((item) => item.type === "epic")
-        .map(({ id, key, title }) => ({ id, key, title })),
-    [createDialogProps?.items],
-  );
-  // Inline creation remembers the last epic used, across sections; the only
-  // epic stands in until one is picked (e.g. the first one just created).
-  const [pickedParentId, setCreateParentId] = useState("");
-  const createParentId = pickedParentId || (epics.length === 1 ? epics[0]!.id : "");
+  // Inline creation remembers the last epic used, across sections.
+  const {
+    epics,
+    parentId: createParentId,
+    setParentId: setCreateParentId,
+  } = useInlineCreateParent(createDialogProps?.items);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -1153,7 +1123,7 @@ function SprintItemBacklog({
                   backlogKey={backlogKey}
                   selectControl={
                     canSelectItems && sectionVisibleIds.length > 0 ? (
-                      <SelectAllCheckbox
+                      <SectionSelectAll
                         checked={selectedCount === sectionVisibleIds.length}
                         indeterminate={
                           selectedCount > 0 && selectedCount < sectionVisibleIds.length
@@ -1263,33 +1233,21 @@ function SprintItemBacklog({
                     </p>
                   )
                 ) : null}
-                {sectionExpanded && canCreateInSection && startStep && filtersActive ? (
-                  <div className={section.items.length > 0 ? "border-t border-border" : undefined}>
-                    <FilteredStartStep step={startStep} clearFiltersHref={clearFiltersHref} />
-                  </div>
-                ) : sectionExpanded && canCreateInSection && startStep && createDialogProps ? (
-                  <div className={section.items.length > 0 ? "border-t border-border" : undefined}>
-                    <InlineStartStep
-                      step={startStep}
-                      backlogId={backlogId}
-                      backlogKey={backlogKey}
-                      dialogProps={createDialogProps}
-                      contextLabel={section.sprint?.name ?? "Backlog"}
-                    />
-                  </div>
-                ) : sectionExpanded && canCreateInSection ? (
-                  <div className={section.items.length > 0 ? "border-t border-border" : undefined}>
-                    <InlineCreateItem
-                      backlogId={backlogId}
-                      backlogKey={backlogKey}
-                      sprintId={section.sprint?.id ?? null}
-                      contextLabel={section.sprint?.name ?? "Backlog"}
-                      parents={epics}
-                      parentId={createParentId}
-                      onParentChange={setCreateParentId}
-                      dialogProps={createDialogProps}
-                    />
-                  </div>
+                {sectionExpanded && canCreateInSection ? (
+                  <SectionCreateFooter
+                    backlogId={backlogId}
+                    backlogKey={backlogKey}
+                    sprintId={section.sprint?.id ?? null}
+                    contextLabel={section.sprint?.name ?? "Backlog"}
+                    startStep={startStep}
+                    filtersActive={filtersActive}
+                    clearFiltersHref={clearFiltersHref}
+                    dialogProps={createDialogProps}
+                    parents={epics}
+                    parentId={createParentId}
+                    onParentChange={setCreateParentId}
+                    bordered={section.items.length > 0}
+                  />
                 ) : null}
               </SprintSectionDropZone>
             );
