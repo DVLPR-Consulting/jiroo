@@ -119,11 +119,15 @@ describe("HelpPage", () => {
     expect(topic).not.toHaveTextContent("si le filtre les masque");
   });
 
-  it("documents the shared row and the Liste sort header and columns (JIR-93)", () => {
+  it("documents the shared row and the Liste card, sort header and columns (JIR-93, JIR-97)", () => {
     render(<HelpPage />);
     const views = document.querySelector("section#vues") as HTMLElement;
     expect(views).not.toHaveTextContent("colonnes triables");
-    expect(views).toHaveTextContent("en lignes du Backlog ; la barre « Trier » au-dessus des lignes pour trier");
+    expect(views).toHaveTextContent(
+      "dans le même tableau que le Backlog, intitulé « Tous les items » (nombre d’items et de non estimés, points par statut, « Créer un item » en bas) ; la ligne « Trier » de son en-tête pour trier",
+    );
+    expect(views).toHaveTextContent("elle montre un tableau par groupe, repliable comme les sections du Backlog");
+    expect(views).not.toHaveTextContent("au-dessus des lignes");
     expect(views).not.toHaveTextContent("bandeau d’en-tête");
     const row = within(views)
       .getByRole("heading", { level: 3, name: "Lire une ligne du Backlog" })

@@ -417,9 +417,10 @@ test("restaure le classement et conserve la sélection après deux échecs rése
 });
 
 /**
- * JIR-42 / JIR-93: at 390 px the Liste's « Trier la liste » strip wraps its
- * sort buttons instead of overflowing, each one unclipped; its rows fit like
- * the Backlog's. It is a sort control, not column headers.
+ * JIR-42 / JIR-93 / JIR-97: at 390 px the « Trier la liste » line of the
+ * Liste card's header wraps its sort buttons instead of overflowing, each one
+ * unclipped; its rows fit like the Backlog's. It is a sort control, not
+ * column headers.
  */
 async function expectReadableListSort(page: Page) {
   await expect(page.getByRole("columnheader")).toHaveCount(0);
@@ -491,7 +492,7 @@ async function expectBacklogRowsFit(
       (element) => element.scrollWidth > element.clientWidth + 1
         && getComputedStyle(element).overflowX !== "hidden"
         && getComputedStyle(element).overflowX !== "clip"
-        && element.closest("[data-sprint-section]") !== null,
+        && element.closest("[data-item-section]") !== null,
     );
     return overflowing.map((element) => element.className.toString().slice(0, 80));
   });
@@ -507,6 +508,9 @@ test("garde le Backlog et les en-têtes de la Liste lisibles à 390 par 844", as
 
   await page.goto("/b/CASS?view=list");
   await expect(page.getByRole("list", { name: "Liste des items" })).toBeVisible();
+  // The Backlog's card frames the Liste and fits the screen (JIR-97).
+  const card = await page.getByRole("region", { name: "Tous les items" }).boundingBox();
+  expect(card!.x + card!.width, "Le tableau de la Liste dépasse l’écran").toBeLessThanOrEqual(391);
   await expectReadableListSort(page);
   await expectBacklogRowsFit(page, { titleRoom: true, role: "listitem" });
   const pageOverflow = await page.evaluate(

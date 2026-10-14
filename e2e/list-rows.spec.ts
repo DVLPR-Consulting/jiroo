@@ -10,10 +10,12 @@ import { createLabel } from "../lib/services/labels";
 import { createRelease } from "../lib/services/releases";
 import { createItem, softDeleteItem } from "../lib/services/items";
 import { keyPattern } from "./key-helpers";
+import { chooseOption } from "./select-helpers";
 
 /**
- * JIR-93: every list display shows the Backlog row. The Liste lists its rows
- * under a « Trier la liste » strip and shows « Colonnes » fields as pills.
+ * JIR-93: every list display shows the Backlog row; « Colonnes » fields are
+ * pills. JIR-97: the Liste is the Backlog's table — one card « Tous les
+ * items » (or one per group) whose header holds « Trier la liste ».
  */
 const RUN = process.env.JIROO_E2E_RUN_ID ?? String(Date.now());
 
@@ -106,6 +108,60 @@ test("trie la Liste depuis « Trier la liste » et affiche les colonnes choisies
   await highRow.getByText(high.title).click();
   await expect(page).toHaveURL(new RegExp(`[?&]item=${high.key}(&|$)`));
   await expect(page.getByRole("dialog", { name: keyPattern(high.key) })).toBeVisible();
+});
+
+test("présente la Liste dans le tableau du Backlog : en-tête, sélection, création et groupes", async ({ page }) => {
+  const prefix = `JIR-97 carte ${RUN}`;
+  const epic = await fixtureEpic(`JIR-97 parent ${RUN}`);
+  const estimated = await task(`${prefix} estimée`, { estimatePoints: 3 }, epic);
+  const open = await task(`${prefix} ouverte`, {}, epic);
+
+  await page.goto(`/b/CASS?view=list&q=${encodeURIComponent(prefix)}`);
+  const card = page.getByRole("region", { name: "Tous les items" });
+  const header = card.locator("header");
+  await expect(header.getByRole("heading", { level: 2, name: "Tous les items" })).toBeVisible();
+  await expect(header.getByText("2 items · 1 non estimé")).toBeVisible();
+  await expect(header.getByText("Points par statut : À faire 3, En cours 0, Terminé 0")).toBeAttached();
+  await expect(header.getByRole("group", { name: "Trier la liste" })).toBeVisible();
+  await expect(card.getByRole("button", { name: /^Déplacer / })).toHaveCount(0);
+
+  // « Tout sélectionner » in the card header, as in the Backlog.
+  const selectAll = header.getByRole("checkbox", { name: "Sélectionner tous les items visibles" });
+  await selectAll.click();
+  await expect(page.getByText("2 items sélectionnés")).toBeVisible();
+  await expect(card.getByRole("checkbox", { name: `Sélectionner ${open.key}`, exact: true })).toBeChecked();
+  await selectAll.click();
+  await expect(page.getByRole("region", { name: "Actions groupées" })).toHaveCount(0);
+
+  // « + Créer un item » at the bottom of the card, under a chosen Epic.
+  await card.getByRole("button", { name: "Créer un item dans Tous les items" }).click();
+  const form = card.getByRole("form", { name: "Créer un item dans Tous les items" });
+  await chooseOption(form, "Epic parent", `${epic.key} — ${epic.title}`);
+  const createdTitle = `${prefix} créée`;
+  await form.getByRole("textbox", { name: "Titre du nouvel item dans Tous les items" }).fill(createdTitle);
+  await form.getByRole("textbox", { name: "Titre du nouvel item dans Tous les items" }).press("Enter");
+  const createdRow = card.getByRole("listitem").filter({ hasText: createdTitle });
+  await expect(createdRow).toBeVisible();
+  await expect(createdRow.getByTitle(`${epic.key} — ${epic.title}`)).toBeVisible();
+  await expect(header.getByText("3 items · 2 non estimés")).toBeVisible();
+
+  // Collapsing hides the rows, not the header.
+  await header.getByRole("button", { name: "Replier Tous les items" }).click();
+  await expect(card.getByRole("list")).toHaveCount(0);
+  await header.getByRole("button", { name: "Déplier Tous les items" }).click();
+  await expect(card.getByRole("listitem", { name: `${estimated.key} — ${estimated.title}` })).toBeVisible();
+
+  // Grouped: one card per group, each with its own header and counts.
+  await page.goto(`/b/CASS?view=list&group=status&q=${encodeURIComponent(prefix)}`);
+  const todo = page.getByRole("region", { name: "À faire", exact: true });
+  await expect(todo.locator("header").getByText("3 items · 2 non estimés")).toBeVisible();
+  await expect(page.getByRole("group", { name: "Trier la liste" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /^Créer un item dans / })).toHaveCount(0);
+  await todo.getByRole("checkbox", { name: "Sélectionner tous les items de À faire" }).click();
+  await expect(page.getByText("3 items sélectionnés")).toBeVisible();
+  await todo.getByRole("button", { name: "Replier À faire" }).click();
+  await expect(todo.getByRole("list")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Actions groupées" })).toHaveCount(0);
 });
 
 test("montre Mes items en lignes du Backlog qui ouvrent l’item", async ({ page }) => {

@@ -745,7 +745,9 @@ export async function BacklogViewContent({
           canTransitionItems={capabilities.transitionItems}
           canAssignItems={capabilities.assignItems}
           canBulkChangeItems={capabilities.bulkChangeItems}
+          canScheduleItems={capabilities.scheduleItems}
           itemCapabilities={productCapabilities.items}
+          planningCapabilities={productCapabilities.planning}
           bulkCapabilities={productCapabilities.bulk}
           releaseOptions={assignableReleaseOptions}
           releaseCapabilities={productCapabilities.releases}

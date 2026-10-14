@@ -71,23 +71,34 @@ function BoardBody() {
   );
 }
 
-/** The Liste (JIR-93): the « Trier : … » strip above shared item rows. */
+/**
+ * The Liste (JIR-97): one Backlog card, its header (select-all, chevron,
+ * name, summary, points) and the « Trier : … » line, above shared item rows.
+ */
 function ListBody() {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <div
-        data-slot="list-skeleton-sort"
-        className="flex min-h-9 items-center gap-2.5 border-b border-border bg-[var(--surface-2)] pl-2 pr-3 sm:pr-3.5"
-      >
-        <Skeleton className="mx-1 size-4 bg-[var(--border)]" />
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-2.5 w-9 bg-[var(--border)]" />
-          {["w-8", "w-9", "w-14", "w-12", "w-11"].map((width, index) => (
-            <Skeleton key={index} className={`h-5 ${width} bg-[var(--border)]`} />
-          ))}
+      <div className="flex flex-col gap-4 p-3 sm:p-4">
+        <div
+          data-slot="list-skeleton-section"
+          className="rounded-[var(--radius-lg)] border border-border bg-[var(--surface)]"
+        >
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-b border-border px-3 py-2.5 sm:px-3.5">
+            <Skeleton className="mx-1 size-4" />
+            <Skeleton className="size-6" />
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3.5 w-36" />
+            <Skeleton className="ml-auto h-5 w-24 rounded-full" />
+            <div data-slot="list-skeleton-sort" className="flex basis-full items-center gap-2">
+              <Skeleton className="h-2.5 w-9" />
+              {["w-8", "w-9", "w-14", "w-12", "w-11"].map((width, index) => (
+                <Skeleton key={index} className={`h-5 ${width}`} />
+              ))}
+            </div>
+          </div>
+          <ItemRowsSkeleton rows={LIST_ROWS} selectable avatar slot="list-skeleton-row" />
         </div>
       </div>
-      <ItemRowsSkeleton rows={LIST_ROWS} selectable avatar slot="list-skeleton-row" />
     </div>
   );
 }

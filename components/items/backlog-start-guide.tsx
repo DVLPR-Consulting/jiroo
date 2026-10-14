@@ -182,6 +182,7 @@ export function ViewStartGuide({
   backlogKey,
   dialogProps,
   canCreateItems,
+  showAction = true,
   variant,
   className,
 }: {
@@ -189,6 +190,8 @@ export function ViewStartGuide({
   backlogKey: string;
   dialogProps: StartStepDialogProps & { backlogId: string };
   canCreateItems: boolean;
+  /** False when the same button already sits elsewhere in the view. */
+  showAction?: boolean;
   variant: "empty" | "callout";
   className?: string;
 }) {
@@ -199,7 +202,7 @@ export function ViewStartGuide({
       canCreate={canCreate}
       variant={variant}
       className={className}
-      action={
+      action={showAction && (
         <StartStepButton
           step={step}
           backlogId={dialogProps.backlogId}
@@ -207,7 +210,7 @@ export function ViewStartGuide({
           dialogProps={dialogProps}
           variant={variant === "callout" ? "outline" : "default"}
         />
-      }
+      )}
     />
   );
 }
