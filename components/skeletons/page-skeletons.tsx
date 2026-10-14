@@ -148,24 +148,66 @@ function HomeSkeleton() {
   );
 }
 
-/** « Mes items »: backlog groups of assigned items. */
+/**
+ * The Backlog's section card (JIR-97) while it loads: header (select-all,
+ * chevron, backlog badge, name, summary, points, a second line) above rows.
+ */
+function SectionCardSkeleton({
+  rows,
+  slot = "section-card-skeleton",
+  selectable = false,
+  badge = false,
+  points = false,
+  meta,
+  trailing,
+  avatar,
+  rowSlot,
+}: {
+  rows: number;
+  slot?: string;
+  selectable?: boolean;
+  badge?: boolean;
+  points?: boolean;
+  meta?: ReactNode;
+  trailing?: number;
+  avatar?: boolean;
+  rowSlot?: string;
+}) {
+  return (
+    <div
+      data-slot={slot}
+      className="rounded-[var(--radius-lg)] border border-border bg-[var(--surface)]"
+    >
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-b border-border px-3 py-2.5 sm:px-3.5">
+        {selectable ? <Skeleton className="mx-1 size-4" /> : null}
+        <Skeleton className="size-6" />
+        {badge ? <Skeleton className="h-[18px] w-10" /> : null}
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-3.5 w-36" />
+        {points ? <Skeleton className="ml-auto h-5 w-24 rounded-full" /> : null}
+        {meta}
+      </div>
+      <ItemRowsSkeleton
+        rows={rows}
+        selectable={selectable}
+        trailing={trailing}
+        avatar={avatar}
+        slot={rowSlot}
+      />
+    </div>
+  );
+}
+
+/** « Mes items »: one Backlog card per backlog of assigned items. */
 function MineSkeleton() {
   return (
     <SkeletonRegion label="Chargement de mes items" name="mine" className="mx-auto max-w-3xl p-8">
       <div className="mb-6">
         <PageTitleSkeleton titleClassName="w-32" />
       </div>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         {[4, 2].map((rows, index) => (
-          <div key={index}>
-            <div className="mb-1 flex items-center gap-2 px-4 py-1.5">
-              <Skeleton className="h-[18px] w-10" />
-              <Skeleton className="h-3.5 w-36" />
-            </div>
-            <div className="overflow-hidden rounded-md border border-border bg-background">
-              <ItemRowsSkeleton rows={rows} trailing={1} />
-            </div>
-          </div>
+          <SectionCardSkeleton key={index} rows={rows} badge points trailing={1} />
         ))}
       </div>
     </SkeletonRegion>
@@ -457,6 +499,7 @@ function ReportsSkeleton() {
 
 export {
   AccessSkeleton,
+  SectionCardSkeleton,
   AdminSkeleton,
   HelpSkeleton,
   HomeSkeleton,

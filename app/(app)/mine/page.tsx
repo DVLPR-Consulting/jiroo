@@ -1,6 +1,13 @@
 import { requireAppPageSession } from "@/lib/auth/session";
 import { listItemsAssignedTo } from "@/lib/services/items";
 import { ItemRow } from "@/components/items/item-row";
+import {
+  CollapsibleItemSection,
+  ItemSectionSummary,
+  StatusPointsPills,
+} from "@/components/items/item-section";
+import { itemsSummaryLabel } from "@/lib/format/plural";
+import { pointsByCategory } from "@/lib/items/status-points";
 import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
 
 type Row = Awaited<ReturnType<typeof listItemsAssignedTo>>[number];
@@ -72,28 +79,58 @@ export default async function MinePage() {
           <p className="t-sm text-muted-foreground">Aucun item ne vous est assigné.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
-          {groups.map(({ backlog, items }) => (
-            <section key={backlog.id}>
-              {/* Backlog section header */}
-              <div className="mb-1 flex items-center gap-2 px-4 py-1.5">
-                <span
-                  className="rounded px-1.5 py-0.5 text-[11px] font-medium text-white"
-                  style={{ background: backlog.color }}
-                >
-                  {backlog.key}
-                </span>
-                <span className="text-sm font-medium">{backlog.name}</span>
-                <span className="t-meta text-muted-foreground">{items.length}</span>
-              </div>
-
-              <ul className="overflow-hidden rounded-md border border-border bg-background">
-                {items.map((row) => (
-                  <MineRow key={row.id} row={row} />
-                ))}
-              </ul>
-            </section>
-          ))}
+        // The Backlog's table (JIR-97): one card per backlog.
+        <div className="flex flex-col gap-4">
+          {groups.map(({ backlog, items }) => {
+            // Only tasks are estimated: points apply when the backlog lists one.
+            const tasks = items.filter((row) => row.type === "tache");
+            return (
+              <CollapsibleItemSection
+                key={backlog.id}
+                name={backlog.name}
+                headingLevel={2}
+                title={
+                  <>
+                    <span
+                      className="mr-1 rounded px-1.5 py-0.5 align-[1px] text-[11px] font-medium text-white"
+                      style={{ background: backlog.color }}
+                    >
+                      {backlog.key}
+                    </span>{" "}
+                    {backlog.name}
+                  </>
+                }
+                summary={
+                  <ItemSectionSummary>
+                    {itemsSummaryLabel(
+                      items.length,
+                      tasks.length > 0
+                        ? tasks.filter((row) => row.estimatePoints === null).length
+                        : null,
+                    )}
+                  </ItemSectionSummary>
+                }
+                aside={
+                  tasks.length > 0 ? (
+                    <StatusPointsPills
+                      value={pointsByCategory(
+                        tasks.map((row) => ({
+                          category: row.statusCategory,
+                          estimatePoints: row.estimatePoints,
+                        })),
+                      )}
+                    />
+                  ) : undefined
+                }
+              >
+                <ul aria-label={`Items de ${backlog.name}`}>
+                  {items.map((row) => (
+                    <MineRow key={row.id} row={row} />
+                  ))}
+                </ul>
+              </CollapsibleItemSection>
+            );
+          })}
         </div>
       )}
     </div>

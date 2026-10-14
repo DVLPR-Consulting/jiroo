@@ -84,6 +84,42 @@ describe("MinePage", () => {
     expect(screen.queryByRole("img", { name: "Non assigné" })).not.toBeInTheDocument();
   });
 
+  it("frames each backlog in the Backlog card with counts and points (JIR-97)", async () => {
+    mocks.listItemsAssignedTo.mockResolvedValue([
+      row({}),
+      row({ id: "item-2", key: "CASS-2", estimatePoints: null, statusCategory: "todo" }),
+      row({ id: "item-3", key: "CASS-3", type: "epic", estimatePoints: null }),
+      row({
+        id: "item-4",
+        key: "LABS-1",
+        type: "epic",
+        backlogId: "backlog-labs",
+        backlogKey: "LABS",
+        backlogName: "Laboratoire",
+      }),
+    ]);
+
+    render(await MinePage());
+
+    const cass = screen.getByRole("region", { name: "Cour de cassation" });
+    expect(cass).toHaveAttribute("data-item-section");
+    expect(within(cass).getByRole("heading", { level: 2, name: "CASS Cour de cassation" })).toBeVisible();
+    // Only tasks are estimated: the epic neither counts nor adds points.
+    expect(within(cass).getByText("3 items · 1 non estimé")).toBeVisible();
+    expect(within(cass).getByText("Points par statut : À faire 0, En cours 5, Terminé 0"))
+      .toBeInTheDocument();
+    expect(within(cass).getAllByRole("listitem")).toHaveLength(3);
+    // Read-only: no selection, no creation.
+    expect(within(cass).queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(within(cass).queryByRole("button", { name: /Créer/ })).not.toBeInTheDocument();
+
+    const labs = screen.getByRole("region", { name: "Laboratoire" });
+    expect(within(labs).getByText("1 item")).toBeVisible();
+    expect(within(labs).queryByText(/Points par statut/)).not.toBeInTheDocument();
+    expect(within(labs).getByRole("button", { name: "Replier Laboratoire" }))
+      .toHaveAttribute("aria-expanded", "true");
+  });
+
   it("explains an empty list", async () => {
     mocks.listItemsAssignedTo.mockResolvedValue([]);
     render(await MinePage());

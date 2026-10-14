@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pointsByStatusCategory } from "@/lib/items/status-points";
+import { pointsByCategory, pointsByStatusCategory } from "@/lib/items/status-points";
 
 const statuses = [
   { id: "todo", category: "todo" as const },
@@ -56,5 +56,19 @@ describe("pointsByStatusCategory", () => {
     expect(
       pointsByStatusCategory([{ statusId: "missing", estimatePoints: 3 }], statuses),
     ).toEqual({ todo: 3, inProgress: 0, done: 0 });
+  });
+});
+
+describe("pointsByCategory", () => {
+  it("sums estimates of items that carry their category, unknown ones as to do", () => {
+    expect(
+      pointsByCategory([
+        { category: "todo", estimatePoints: 2 },
+        { category: "in_progress", estimatePoints: 1.5 },
+        { category: "done", estimatePoints: 3 },
+        { category: null, estimatePoints: 1 },
+        { category: "done", estimatePoints: null },
+      ]),
+    ).toEqual({ todo: 3, inProgress: 1.5, done: 3 });
   });
 });

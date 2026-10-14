@@ -164,7 +164,7 @@ test("présente la Liste dans le tableau du Backlog : en-tête, sélection, cré
   await expect(page.getByRole("region", { name: "Actions groupées" })).toHaveCount(0);
 });
 
-test("montre Mes items en lignes du Backlog qui ouvrent l’item", async ({ page }) => {
+test("montre Mes items dans le tableau du Backlog, en lignes qui ouvrent l’item", async ({ page }) => {
   const { actorId } = await context();
   const mine = await task(`JIR-93 mes items ${RUN}`, {
     assigneeId: actorId,
@@ -174,7 +174,11 @@ test("montre Mes items en lignes du Backlog qui ouvrent l’item", async ({ page
   });
 
   await page.goto("/mine");
-  const row = page.getByRole("listitem").filter({ hasText: mine.title });
+  // The Backlog's table (JIR-97): one card per backlog, with its counters.
+  const card = page.getByRole("region", { name: "Cour de cassation" });
+  await expect(card.locator("header")).toContainText(/\d+ items? · \d+ non estimés?/);
+  await expect(card.locator("header [data-status-points]")).toBeVisible();
+  const row = card.getByRole("listitem").filter({ hasText: mine.title });
   await expect(row.getByText("Bug")).toBeVisible();
   await expect(row.getByText("À faire")).toBeVisible();
   await expect(row.getByTitle("Points")).toHaveText(/3/);

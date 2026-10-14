@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
 import { X } from "lucide-react";
 import { DialogClose, DialogTitle } from "@/components/ui/dialog";
-import { ItemRowsSkeleton, PageHeaderSkeleton } from "@/components/skeletons/page-skeletons";
+import { PageHeaderSkeleton, SectionCardSkeleton } from "@/components/skeletons/page-skeletons";
 import { Skeleton, SkeletonRegion } from "@/components/ui/skeleton";
 import type { ItemViewId } from "@/lib/items/shell";
 
@@ -79,25 +79,22 @@ function ListBody() {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="flex flex-col gap-4 p-3 sm:p-4">
-        <div
-          data-slot="list-skeleton-section"
-          className="rounded-[var(--radius-lg)] border border-border bg-[var(--surface)]"
-        >
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-b border-border px-3 py-2.5 sm:px-3.5">
-            <Skeleton className="mx-1 size-4" />
-            <Skeleton className="size-6" />
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-3.5 w-36" />
-            <Skeleton className="ml-auto h-5 w-24 rounded-full" />
+        <SectionCardSkeleton
+          rows={LIST_ROWS}
+          slot="list-skeleton-section"
+          rowSlot="list-skeleton-row"
+          selectable
+          points
+          avatar
+          meta={
             <div data-slot="list-skeleton-sort" className="flex basis-full items-center gap-2">
               <Skeleton className="h-2.5 w-9" />
               {["w-8", "w-9", "w-14", "w-12", "w-11"].map((width, index) => (
                 <Skeleton key={index} className={`h-5 ${width}`} />
               ))}
             </div>
-          </div>
-          <ItemRowsSkeleton rows={LIST_ROWS} selectable avatar slot="list-skeleton-row" />
-        </div>
+          }
+        />
       </div>
     </div>
   );
