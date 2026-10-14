@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
+import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { X, GitFork, GitPullRequest, GitCommitHorizontal, GitBranch, GitPullRequestArrow, Link } from "lucide-react";
 import { ForgeIcon } from "@/components/icons/forge-icon";
@@ -191,13 +192,19 @@ function DetectedRefs({ refs, remove }: { refs: DevRef[]; remove?: RemoveRef }) 
 
 export function DevRefsSection({
   itemId,
+  itemKey,
   backlogKey,
   refs,
+  hasRepoConnection = false,
+  canAdministerBacklog = false,
   canLink = true,
 }: {
   itemId: string;
+  itemKey: string;
   backlogKey: string;
   refs: DevRef[];
+  hasRepoConnection?: boolean;
+  canAdministerBacklog?: boolean;
   canLink?: boolean;
 }) {
   const router = useRouter();
@@ -271,12 +278,28 @@ export function DevRefsSection({
         />
       )}
 
+      {refs.length === manualRefs.length && (
+        <div className="flex flex-col gap-1">
+          <p className="text-xs text-muted-foreground">
+            {hasRepoConnection ? (
+              <>Liaison automatique active : mettez la clé <span className="font-mono">{itemKey}</span> dans un nom de branche, un message de commit ou le titre d&apos;une PR.</>
+            ) : (
+              <>Aucun dépôt connecté. Mettez la clé <span className="font-mono">{itemKey}</span> dans un nom de branche, un message de commit ou le titre d&apos;une PR : elle sera liée automatiquement une fois le dépôt connecté.</>
+            )}
+          </p>
+          {!hasRepoConnection && canAdministerBacklog && (
+            <NextLink
+              href={`/b/${backlogKey}/settings/development`}
+              className="self-start text-xs text-[var(--primary)] hover:underline"
+            >
+              Connecter un dépôt
+            </NextLink>
+          )}
+        </div>
+      )}
+
       {/* Links added by hand */}
-      {refs.length === 0 ? (
-        canLink ? null : (
-          <p className="text-xs text-muted-foreground">Aucun lien de développement.</p>
-        )
-      ) : manualRefs.length === 0 ? null : (
+      {manualRefs.length > 0 && (
         <div className="flex flex-col gap-1">
           {manualRefs.map((ref) => {
             const meta = parseGithubRef(ref.url);
