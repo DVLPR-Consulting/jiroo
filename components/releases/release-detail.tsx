@@ -1,5 +1,10 @@
 import Link from "next/link";
 import { ItemRow } from "@/components/items/item-row";
+import {
+  CollapsibleItemSection,
+  ItemSectionSummary,
+  StatusPointsPills,
+} from "@/components/items/item-section";
 import { EditReleaseDialog } from "@/components/releases/release-form-dialog";
 import { ReleaseLifecycleDialogs } from "@/components/releases/release-lifecycle-dialogs";
 import {
@@ -14,7 +19,7 @@ import type {
   ReleaseSummary,
 } from "@/lib/services/releases";
 import type { StatusIdsByCategory } from "@/lib/services/statuses";
-import { countLabel, formatPoints } from "@/lib/format/plural";
+import { countLabel, formatPoints, itemsSummaryLabel } from "@/lib/format/plural";
 
 type Person = { id: string; name: string };
 type Page<T> = { rows: T[]; total: number; page: number };
@@ -233,65 +238,91 @@ export function ReleaseDetail({
         </p>
       </header>
 
-      <section role="region" aria-labelledby="current-scope-title" className="space-y-3">
-        <h2 id="current-scope-title" className="t-h2">Périmètre actuel</h2>
-        <p className="text-sm text-muted-foreground">
-          Éléments actuellement associés à cette version.
-        </p>
-        <nav aria-label="Filtrer le périmètre" className="flex flex-wrap gap-2 text-sm">
-          {([
-            [null, "Tous les statuts"],
-            ["todo", "À faire"],
-            ["in_progress", "En cours"],
-            ["done", "Terminés"],
-          ] as const).map(([value, label]) => (
-            <Link
-              key={label}
-              href={scopeHref(value, scopeFilters.estimate)}
-              aria-current={scopeFilters.statusCategory === value ? "page" : undefined}
-              className="rounded-full border px-2.5 py-1 aria-current:bg-muted"
-            >
-              {label}
-            </Link>
-          ))}
-          {([
-            [null, "Toutes les estimations"],
-            ["estimated", "Estimés"],
-            ["unestimated", "Non estimés"],
-          ] as const).map(([value, label]) => (
-            <Link
-              key={label}
-              href={scopeHref(scopeFilters.statusCategory, value)}
-              aria-current={scopeFilters.estimate === value ? "page" : undefined}
-              className="rounded-full border px-2.5 py-1 aria-current:bg-muted"
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
-        {scope.rows.length === 0 ? (
-          <p className="rounded-xl border p-4 text-sm text-muted-foreground">Aucun élément associé.</p>
-        ) : (
-          // The Backlog row (JIR-93); the frozen snapshot below keeps its own layout.
-          <ul className="overflow-hidden rounded-xl border">
-            {scope.rows.map((item) => (
-              <ItemRow
-                key={item.id}
-                as="li"
-                href={`/b/${backlog.key}?item=${item.key}`}
-                item={{
-                  id: item.id,
-                  key: item.key,
-                  title: item.title,
-                  type: item.type,
-                  kind: item.kind,
-                  status: { name: item.status.name, category: item.status.category },
-                  estimatePoints: item.type === "tache" ? item.estimatePoints : undefined,
-                }}
-              />
-            ))}
-          </ul>
-        )}
+      {/* The Backlog's table (JIR-97), its header summing the whole scope. */}
+      <div className="space-y-3">
+        <CollapsibleItemSection
+          name="Périmètre actuel"
+          headingLevel={2}
+          summary={
+            <ItemSectionSummary>
+              {itemsSummaryLabel(release.progress.total, release.progress.unestimated)}
+            </ItemSectionSummary>
+          }
+          aside={
+            <StatusPointsPills
+              value={{
+                // To do is the rest of the total, rounded like the other sums.
+                todo: Math.round(
+                  (release.progress.totalPoints
+                    - release.progress.donePoints
+                    - release.progress.inProgressPoints) * 100,
+                ) / 100,
+                inProgress: release.progress.inProgressPoints,
+                done: release.progress.donePoints,
+              }}
+            />
+          }
+          meta={
+            <>
+              <span className="basis-full">Éléments actuellement associés à cette version.</span>
+              <nav aria-label="Filtrer le périmètre" className="flex flex-wrap gap-2 py-1 text-sm text-foreground">
+                {([
+                  [null, "Tous les statuts"],
+                  ["todo", "À faire"],
+                  ["in_progress", "En cours"],
+                  ["done", "Terminés"],
+                ] as const).map(([value, label]) => (
+                  <Link
+                    key={label}
+                    href={scopeHref(value, scopeFilters.estimate)}
+                    aria-current={scopeFilters.statusCategory === value ? "page" : undefined}
+                    className="rounded-full border px-2.5 py-1 aria-current:bg-muted"
+                  >
+                    {label}
+                  </Link>
+                ))}
+                {([
+                  [null, "Toutes les estimations"],
+                  ["estimated", "Estimés"],
+                  ["unestimated", "Non estimés"],
+                ] as const).map(([value, label]) => (
+                  <Link
+                    key={label}
+                    href={scopeHref(scopeFilters.statusCategory, value)}
+                    aria-current={scopeFilters.estimate === value ? "page" : undefined}
+                    className="rounded-full border px-2.5 py-1 aria-current:bg-muted"
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </nav>
+            </>
+          }
+        >
+          {scope.rows.length === 0 ? (
+            <p className="px-4 py-5 text-sm text-muted-foreground">Aucun élément associé.</p>
+          ) : (
+            // The Backlog row (JIR-93); the frozen snapshot below keeps its own layout.
+            <ul aria-label="Éléments du périmètre actuel">
+              {scope.rows.map((item) => (
+                <ItemRow
+                  key={item.id}
+                  as="li"
+                  href={`/b/${backlog.key}?item=${item.key}`}
+                  item={{
+                    id: item.id,
+                    key: item.key,
+                    title: item.title,
+                    type: item.type,
+                    kind: item.kind,
+                    status: { name: item.status.name, category: item.status.category },
+                    estimatePoints: item.type === "tache" ? item.estimatePoints : undefined,
+                  }}
+                />
+              ))}
+            </ul>
+          )}
+        </CollapsibleItemSection>
         <Pagination
           page={scope.page}
           total={scope.total}
@@ -299,7 +330,7 @@ export function ReleaseDetail({
           path={path}
           extra={{ eventPage: String(events.page), ...snapshotState, ...scopeFilterState }}
         />
-      </section>
+      </div>
 
       <section role="region" aria-labelledby="snapshot-title" className="space-y-3">
         <h2 id="snapshot-title" className="t-h2">Instantané de publication</h2>

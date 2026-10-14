@@ -392,7 +392,7 @@ function ReleasesSkeleton() {
   );
 }
 
-/** One release: back link, header with facts, the current scope list. */
+/** One release: back link, header with facts, the current scope card. */
 function ReleaseDetailSkeleton() {
   return (
     <SkeletonRegion label="Chargement de la release" name="release">
@@ -422,17 +422,18 @@ function ReleaseDetailSkeleton() {
             ))}
           </div>
         </div>
-        <div className="space-y-3">
-          <Skeleton className="h-5 w-40" />
-          <div className="flex gap-2">
-            {["w-14", "w-16", "w-20", "w-16"].map((width, index) => (
-              <Skeleton key={index} className={cn("h-7 rounded-full", width)} />
-            ))}
-          </div>
-          <div className="overflow-hidden rounded-xl border">
-            <ItemRowsSkeleton rows={4} />
-          </div>
-        </div>
+        {/* « Périmètre actuel »: the Backlog card, its filters on the second line. */}
+        <SectionCardSkeleton
+          rows={4}
+          points
+          meta={
+            <div className="flex basis-full flex-wrap gap-2">
+              {["w-14", "w-16", "w-20", "w-16"].map((width, index) => (
+                <Skeleton key={index} className={cn("h-7 rounded-full", width)} />
+              ))}
+            </div>
+          }
+        />
       </div>
     </SkeletonRegion>
   );

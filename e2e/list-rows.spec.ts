@@ -209,7 +209,7 @@ test("restaure un item depuis sa ligne, dans le tableau de la Corbeille", async 
   await expect(page.getByRole("listitem", { name: `${doomed.key} — ${doomed.title}` })).toBeVisible();
 });
 
-test("montre le périmètre d’une release en lignes du Backlog", async ({ page }) => {
+test("montre le périmètre d’une release dans le tableau du Backlog", async ({ page }) => {
   const { actorId, backlogId } = await context();
   const release = await createRelease({
     backlogId,
@@ -225,8 +225,12 @@ test("montre le périmètre d’une release en lignes du Backlog", async ({ page
   }, actorId, `jir93-fix-${RUN}`);
 
   await page.goto(`/b/CASS/releases/${release.id}`);
-  const row = page.getByRole("region", { name: "Périmètre actuel" })
-    .getByRole("listitem").filter({ hasText: scoped.title });
+  // The Backlog's table (JIR-97): the whole scope's counters in its header.
+  const card = page.getByRole("region", { name: "Périmètre actuel" });
+  await expect(card.locator("header")).toContainText("1 item · 0 non estimé");
+  await expect(card.locator("header [data-status-points]"))
+    .toContainText("Points par statut : À faire 5, En cours 0, Terminé 0");
+  const row = card.getByRole("listitem").filter({ hasText: scoped.title });
   await expect(row.getByText("Bug")).toBeVisible();
   await expect(row.getByText("À faire")).toBeVisible();
   await expect(row.getByTitle("Points")).toHaveText(/5/);
