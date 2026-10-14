@@ -211,16 +211,16 @@ describe("ItemDetailPanel header", () => {
     window.history.replaceState({}, "", "/b/CASS?view=board&item=CASS-2");
   });
 
-  it("renders the parent and current keys as a breadcrumb", () => {
+  it("renders the parent key and title, then the current key alone, as a breadcrumb", () => {
     renderPanel({ key: "PARENT-1", title: "Composant parent" });
 
-    expect(screen.getByRole("navigation", { name: "Fil d’Ariane" })).toHaveTextContent(
-      /^PARENT-1\s*\/\s*CASS-2$/,
-    );
-    expect(screen.getByRole("link", { name: "PARENT-1" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("item=PARENT-1"),
-    );
+    const breadcrumb = screen.getByRole("navigation", { name: "Fil d’Ariane" });
+    expect(breadcrumb).toHaveTextContent(/^PARENT-1\s*Composant parent\s*\/\s*CASS-2$/);
+    const parentLink = within(breadcrumb).getByRole("link", {
+      name: /PARENT-1\s*Composant parent/,
+    });
+    expect(parentLink).toHaveAttribute("href", expect.stringContaining("item=PARENT-1"));
+    expect(parentLink).toHaveAttribute("title", "PARENT-1 — Composant parent");
   });
 
   it("renders only the current key when there is no parent", () => {

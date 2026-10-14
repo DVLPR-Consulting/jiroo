@@ -479,18 +479,20 @@ export function ItemDetailPanel({
             <>
               <Link
                 {...itemLinkProps(parent.key)}
-                title={parent.title}
-                className="flex flex-none items-center gap-1.5 whitespace-nowrap text-muted-foreground hover:text-foreground hover:underline"
+                title={`${parent.key} — ${parent.title}`}
+                className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-muted-foreground hover:text-foreground hover:underline"
               >
                 {parent.type && <TypeIcon type={parent.type} />}
-                {parent.key}
+                <span className="flex-none">{parent.key}</span>
+                {/* The current item's title is the heading below, so only the parent gets its name here. */}
+                <span className="min-w-0 truncate font-sans">{parent.title}</span>
               </Link>
-              <span className="text-[var(--subtle-foreground)]" aria-hidden>
+              <span className="flex-none text-[var(--subtle-foreground)]" aria-hidden>
                 /
               </span>
             </>
           )}
-          <span className="flex min-w-0 items-center gap-1.5 font-semibold whitespace-nowrap text-foreground">
+          <span className="flex flex-none items-center gap-1.5 font-semibold whitespace-nowrap text-foreground">
             <TypeIcon type={detail.type} />
             {detail.key}
           </span>
