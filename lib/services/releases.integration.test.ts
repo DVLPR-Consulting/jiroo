@@ -436,6 +436,7 @@ describeDb("release metadata and read models", () => {
         done: 0,
         totalPoints: 0,
         donePoints: 0,
+        inProgressPoints: 0,
         unestimated: 0,
       },
     });
@@ -877,6 +878,7 @@ describeDb("release metadata and read models", () => {
         done: 3,
         totalPoints: 25,
         donePoints: 13,
+        inProgressPoints: 6,
         unestimated: 3,
       });
     } finally {

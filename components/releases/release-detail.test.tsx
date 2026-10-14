@@ -31,7 +31,7 @@ const props = {
     publicationScopeRevision: "0123456789abcdef0123456789abcdef",
     publicationCount: 0,
     removalScope: { revision: "0123456789abcdef0123456789abcdef", linkedCount: 0, trashedCount: 0 },
-    progress: { total: 1, todo: 0, inProgress: 0, done: 1, totalPoints: 5, donePoints: 5, unestimated: 0 },
+    progress: { total: 1, todo: 0, inProgress: 0, done: 1, totalPoints: 5, donePoints: 5, inProgressPoints: 0, unestimated: 0 },
     createdAt: "2026-08-01T10:00:00.000Z",
     updatedAt: "2026-08-02T10:00:00.000Z",
   },

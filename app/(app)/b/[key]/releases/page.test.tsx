@@ -154,6 +154,7 @@ describe("releases list route", () => {
           done: 0,
           totalPoints: 0,
           donePoints: 0,
+          inProgressPoints: 0,
           unestimated: 0,
         },
       },
