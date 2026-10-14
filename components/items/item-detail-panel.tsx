@@ -211,6 +211,8 @@ export function ItemDetailPanel({
   refs: DevRef[];
   hasRepoConnection?: boolean;
   canAdministerBacklog?: boolean;
+  /** Web links of the item (JIR-99). */
+  webLinks?: { id: string; url: string; title: string | null; createdAt: Date | string }[];
   parent?: { key: string; title: string; type?: ItemType };
   childItems?: ChildItem[];
   createDialog?: DetailCreateDialog;
