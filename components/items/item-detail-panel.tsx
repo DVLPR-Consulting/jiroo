@@ -492,7 +492,7 @@ export function ItemDetailPanel({
               </span>
             </>
           )}
-          <span className="flex min-w-0 items-center gap-1.5 font-semibold whitespace-nowrap text-foreground">
+          <span className="flex flex-none items-center gap-1.5 font-semibold whitespace-nowrap text-foreground">
             <TypeIcon type={detail.type} />
             {detail.key}
           </span>
