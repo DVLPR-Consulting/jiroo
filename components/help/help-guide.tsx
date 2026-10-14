@@ -324,7 +324,7 @@ export function HelpGuide() {
           purpose="Voir et éditer toutes les informations d’un ticket sans quitter la vue."
           steps={[
             <>Cliquez sur un ticket (ou <Key>Entrée</Key> sur une ligne sélectionnée) : le détail s’ouvre en panneau latéral, avec le contenu à gauche et les propriétés à droite (en dessous sur un écran étroit, en plein écran sur mobile).</>,
-            <>En-tête : le fil d’Ariane mène au parent ; <Ui>Copier le lien</Ui> copie une adresse qui rouvre ce ticket ; <Ui>Plus d’actions</Ui> permet de supprimer ; <Ui>Item précédent (K)</Ui> et <Ui>Item suivant (J)</Ui> parcourent les tickets dans l’ordre de la vue affichée derrière ; <Ui>Fermer (Échap)</Ui>.</>,
+            <>En-tête : le fil d’Ariane affiche la clé et le titre du parent (titre complet au survol) et mène à lui ; <Ui>Copier le lien</Ui> copie une adresse qui rouvre ce ticket ; <Ui>Plus d’actions</Ui> permet de supprimer ; <Ui>Item précédent (K)</Ui> et <Ui>Item suivant (J)</Ui> parcourent les tickets dans l’ordre de la vue affichée derrière ; <Ui>Fermer (Échap)</Ui>.</>,
             <>Cliquez sur le titre pour le renommer. Description : écrivez directement dedans, comme sur une page (voir <Ui>Écrire la description</Ui> ci-dessous).</>,
             <>Sous la description, la section des enfants (<Ui>Epics</Ui>, <Ui>Tâches</Ui> ou <Ui>Sous-tâches</Ui>) liste les tickets rattachés avec leur statut ; <Ui>+ Créer…</Ui> en ajoute un.</>,
             <>À droite, le bouton de statut change le statut ; le bouton voisin (par exemple <Ui>En cours →</Ui>) passe directement au statut suivant du flux.</>,
