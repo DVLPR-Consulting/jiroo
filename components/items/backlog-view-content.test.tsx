@@ -1148,7 +1148,8 @@ describe("BacklogViewContent read boundary", () => {
       await user.click(within(dialog).getByRole("combobox", { name: "Type" }));
       await user.click(screen.getByRole("option", { name: "Epic" }));
       const parent = within(dialog).getByRole("combobox", { name: /Parent/ });
-      expect(parent).not.toHaveAccessibleDescription();
+      // Only the rule (JIR-69), not the « Aucun Composant » hint of a missing parent.
+      expect(parent).toHaveAccessibleDescription("Une Epic se rattache toujours à un Composant.");
       await user.click(parent);
       expect(screen.getByRole("option", { name: "DEMO-comp — comp" })).toBeVisible();
       expect(within(dialog).queryByText(/le filtre de la vue peut masquer/)).not.toBeInTheDocument();

@@ -9,6 +9,7 @@ import {
   useState,
   useTransition,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Plus } from "lucide-react";
@@ -148,6 +149,12 @@ function aTypeName(type: ItemType): string {
 /** « Aucun Composant », « Aucune Epic »… */
 function noTypeName(type: ItemType): string {
   return `${FEMININE_TYPES.has(type) ? "Aucune" : "Aucun"} ${ITEM_TYPE_LABELS[type]}`;
+}
+
+/** The rule the Parent field states under itself (« Une Epic se rattache toujours à un Composant. »). */
+function parentRule(type: ItemType, parentType: ItemType): string {
+  const rule = `${aTypeName(type)} se rattache toujours à ${aTypeName(parentType)}.`;
+  return rule.charAt(0).toUpperCase() + rule.slice(1);
 }
 
 /**
@@ -326,11 +333,17 @@ export function NewItemButton({
   const [createAnother, setCreateAnother] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
+  const [parentError, setParentError] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const typeTriggerRef = useRef<HTMLButtonElement>(null);
-  // Set by « Créer un Composant »: focus the Type field once the new type is committed.
-  const focusTypeAfterCommit = useRef(false);
+  const parentTriggerRef = useRef<HTMLButtonElement>(null);
+  // The field to focus once React has committed the change that asked for it.
+  const focusAfterCommit = useRef<RefObject<HTMLButtonElement | null> | null>(null);
+  // Guarantees that commit, even when the state did not change.
+  const [, setFocusRequest] = useState(0);
   const parentHintId = useId();
+  const parentHelpId = useId();
+  const parentErrorId = useId();
   const titleCounterId = useId();
   const titleErrorId = useId();
 
@@ -393,6 +406,7 @@ export function NewItemButton({
     setDescription("");
     setError(null);
     setTitleError(null);
+    setParentError(null);
   }
 
   function reset() {
@@ -428,6 +442,8 @@ export function NewItemButton({
 
   function handleTypeChange(next: ItemType) {
     setType(next);
+    // The required parent changes with the type: its error no longer applies.
+    setParentError(null);
     // Clear the parent if it no longer matches the new required type.
     const nextParentType = allowedParentType(next);
     if (parentId) {
@@ -444,14 +460,21 @@ export function NewItemButton({
     handleTypeChange(requiredParentType);
     // The button goes away with the parent field: land on the type just set,
     // after the commit so the field already names it when it gets focus.
-    focusTypeAfterCommit.current = true;
+    focusOnceCommitted(typeTriggerRef);
   }
 
-  // Runs after each commit; the type change above always re-renders.
+  function focusOnceCommitted(target: RefObject<HTMLButtonElement | null>) {
+    focusAfterCommit.current = target;
+    setFocusRequest((request) => request + 1);
+  }
+
+  // Runs after each commit and consumes a pending focus request: the field is
+  // then read out with what the commit changed (its type, its error).
   useLayoutEffect(() => {
-    if (!focusTypeAfterCommit.current) return;
-    focusTypeAfterCommit.current = false;
-    const trigger = typeTriggerRef.current;
+    const target = focusAfterCommit.current;
+    if (!target) return;
+    focusAfterCommit.current = null;
+    const trigger = target.current;
     if (trigger?.isConnected) trigger.focus();
   });
 
@@ -469,6 +492,17 @@ export function NewItemButton({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Jira's required field: « Créer » says what is missing instead of
+    // staying silently disabled (JIR-69). The server still checks it.
+    if (requiredParentType && !selectedParentId) {
+      setParentError(
+        parentOptions.length === 0
+          ? `Parent obligatoire : créez d’abord ${aTypeName(requiredParentType)}.`
+          : `Parent obligatoire : choisissez ${aTypeName(requiredParentType)}.`,
+      );
+      focusOnceCommitted(parentTriggerRef);
+      return;
+    }
     setError(null);
     setTitleError(null);
     const sprintForTask = contextualTask ? undefined : plannedSprintId;
@@ -532,7 +566,17 @@ export function NewItemButton({
   }
 
   const parentRequired = requiredParentType !== null;
-  const submitDisabled = pending || !title.trim() || (parentRequired && !selectedParentId);
+  // Without the scheduling right there is no Parent field to point at: only
+  // a parent handed down (« Plus d’options ») lets the task be created.
+  const submitDisabled =
+    pending || !title.trim() || (parentRequired && !canScheduleItems && !selectedParentId);
+  const parentDescribedBy = [
+    parentError ? parentErrorId : null,
+    // JIR-91's « Aucune Epic… » already states the rule: no second sentence.
+    parentOptions.length === 0 ? parentHintId : parentHelpId,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <Dialog
@@ -622,13 +666,19 @@ export function NewItemButton({
               <div className="space-y-2">
                 <Label htmlFor="item-parent">
                   Parent <span className="text-[var(--danger)]" aria-hidden>*</span>
+                  <span className="sr-only">(obligatoire)</span>
                 </Label>
                 <SelectField
                   id="item-parent"
+                  triggerRef={parentTriggerRef}
                   value={selectedParentId}
-                  required
-                  aria-describedby={parentOptions.length === 0 ? parentHintId : undefined}
-                  onValueChange={setParentId}
+                  aria-required
+                  aria-invalid={parentError ? true : undefined}
+                  aria-describedby={parentDescribedBy}
+                  onValueChange={(next) => {
+                    setParentId(next);
+                    setParentError(null);
+                  }}
                   placeholder={`Choisir ${aTypeName(requiredParentType).toLowerCase()}…`}
                   options={parentOptions.map((p) => ({
                     value: p.id,
@@ -636,6 +686,16 @@ export function NewItemButton({
                     icon: <TypeIcon type={p.type} />,
                   }))}
                 />
+                {parentError && (
+                  <p id={parentErrorId} className="t-sm text-destructive">
+                    {parentError}
+                  </p>
+                )}
+                {parentOptions.length > 0 && (
+                  <p id={parentHelpId} className="t-sm text-muted-foreground">
+                    {parentRule(effectiveType, requiredParentType)}
+                  </p>
+                )}
                 {parentOptions.length === 0 && (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     <p id={parentHintId} className="t-sm min-w-0 flex-1 basis-56 text-muted-foreground">

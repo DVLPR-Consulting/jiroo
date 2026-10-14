@@ -58,7 +58,12 @@ test("« + Créer » une Epic sans Composant propose de créer le Composant d’
   await expect(parent).toHaveAccessibleDescription(
     "Aucun Composant dans ce backlog : une Epic se rattache toujours à un Composant.",
   );
-  await expect(dialog.getByRole("button", { name: "Créer", exact: true })).toBeDisabled();
+  // « Créer » explains the missing parent instead of staying disabled (JIR-69).
+  await dialog.getByRole("button", { name: "Créer", exact: true }).click();
+  await expect(parent).toBeFocused();
+  await expect(parent).toHaveAccessibleDescription(
+    "Parent obligatoire : créez d’abord un Composant. Aucun Composant dans ce backlog : une Epic se rattache toujours à un Composant.",
+  );
   await page.screenshot({ path: testInfo.outputPath("jir91-1-epic-sans-composant.png") });
 
   // 2. « Créer un Composant » switches the same draft, text kept.
@@ -91,7 +96,7 @@ test("« + Créer » une Epic sans Composant propose de créer le Composant d’
   await page.goto(`/b/${KEY}?view=list&version=${release!.id}`);
   await createButton.click();
   await chooseOption(dialog, "Type", "Epic");
-  await expect(parent).not.toHaveAttribute("aria-describedby");
+  await expect(parent).toHaveAccessibleDescription("Une Epic se rattache toujours à un Composant.");
   await expect(dialog.getByRole("button", { name: "Créer un Composant" })).toHaveCount(0);
   await parent.click();
   await expect(page.getByRole("option", { name: new RegExp(`${COMPOSANT}$`) })).toBeVisible();
@@ -106,7 +111,7 @@ test("« + Créer » une Epic sans Composant propose de créer le Composant d’
   await createButton.click();
   await chooseOption(dialog, "Type", "Epic");
   await chooseOption(dialog, /Parent/, new RegExp(`${COMPOSANT}$`));
-  await expect(parent).not.toHaveAttribute("aria-describedby");
+  await expect(parent).toHaveAccessibleDescription("Une Epic se rattache toujours à un Composant.");
   await dialog.getByRole("textbox", { name: /Titre/ }).fill(EPIC);
   await page.screenshot({ path: testInfo.outputPath("jir91-4-epic-avec-composant.png") });
   await dialog.getByRole("button", { name: "Créer", exact: true }).click();
