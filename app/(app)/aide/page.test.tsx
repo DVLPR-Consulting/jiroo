@@ -133,6 +133,8 @@ describe("HelpPage", () => {
       .getByRole("heading", { level: 3, name: "Lire une ligne du Backlog" })
       .closest("div") as HTMLElement;
     expect(row).toHaveTextContent("« Mes items », « Corbeille » (avec la date de suppression et « Restaurer »)");
+    expect(row).toHaveTextContent("Sauf dans le panneau de détail, ces lignes sont aussi rangées dans le même tableau que les sections du Backlog");
+    expect(row).toHaveTextContent("La flèche à gauche du nom replie ou déplie le tableau.");
     const sorting = within(views)
       .getByRole("heading", { level: 3, name: "Trier la Liste et choisir ses colonnes" })
       .closest("div") as HTMLElement;

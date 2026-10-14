@@ -199,6 +199,12 @@ export function HelpGuide() {
             sections du rapport de sprint, enfants et items liés du panneau de détail. Hors du Backlog, elle n’a pas
             de poignée ; hors du Backlog et de la Liste, elle se lit sans modification sur place.
           </p>
+          <p className="t-body">
+            Sauf dans le panneau de détail, ces lignes sont aussi rangées dans le même tableau que les sections du
+            Backlog : un cadre dont l’en-tête donne le nom (le backlog pour <Ui>Mes items</Ui> et la{" "}
+            <Ui>Corbeille</Ui>), le nombre d’items et, quand les tickets ont des points, le nombre de non estimés et
+            les points par statut. La flèche à gauche du nom replie ou déplie le tableau.
+          </p>
         </GuideTopic>
 
         <GuideTopic
