@@ -1,10 +1,11 @@
 import { ItemRow } from "@/components/items/item-row";
+import { CollapsibleItemSection, ItemSectionSummary } from "@/components/items/item-section";
 import { ReportPagination } from "@/components/reports/report-pagination";
 import {
   SprintEventJournal,
   type SerializableEventPage,
 } from "@/components/reports/sprint-event-journal";
-import { countLabel, pointsLabel } from "@/lib/format/plural";
+import { countLabel, itemsSummaryLabel, pointsLabel } from "@/lib/format/plural";
 
 type SerializableItem = {
   itemId: string | null;
@@ -236,14 +237,19 @@ export function SprintReportView({
           const label = `${SECTION_LABELS[section]} (${total})`;
           const rows = report.items.rows.filter((item) => item.section === section);
           return (
-            <section key={section} role="region" aria-label={label} className="space-y-2">
-              <h3 className="t-h3">{label}</h3>
+            // The Backlog's table (JIR-97); the section total spans every page.
+            <CollapsibleItemSection
+              key={section}
+              name={SECTION_LABELS[section]}
+              label={label}
+              summary={<ItemSectionSummary>{itemsSummaryLabel(total)}</ItemSectionSummary>}
+            >
               {rows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucun élément de cette catégorie sur cette page.</p>
+                <p className="px-4 py-5 text-sm text-muted-foreground">Aucun élément de cette catégorie sur cette page.</p>
               ) : (
-                <ul className="overflow-hidden rounded-xl border">{rows.map((item) => <ReportItemRow key={item.itemKey} backlogKey={backlogKey} item={item} />)}</ul>
+                <ul aria-label={`Éléments ${SECTION_LABELS[section].toLowerCase()}`}>{rows.map((item) => <ReportItemRow key={item.itemKey} backlogKey={backlogKey} item={item} />)}</ul>
               )}
-            </section>
+            </CollapsibleItemSection>
           );
         })}
         <ReportPagination

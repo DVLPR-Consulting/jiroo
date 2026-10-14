@@ -82,9 +82,14 @@ describe("SprintReportView", () => {
     expect(screen.getByText("Engagement").parentElement).toHaveTextContent("2 éléments · 5 pts · 1 non estimé");
     expect(screen.getByText("Périmètre actuel").parentElement).toHaveTextContent("2 éléments · 8 pts");
     expect(screen.getByText("Évolution du périmètre").parentElement).toHaveTextContent("Ajoutés 3 pts");
-    expect(screen.getByRole("heading", { name: "Terminés (1)" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Non terminés (1)" })).toBeVisible();
+    // Each section is the Backlog's card (JIR-97): heading, total, collapse.
+    expect(screen.getByRole("heading", { level: 3, name: "Terminés" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 3, name: "Non terminés" })).toBeVisible();
     const completed = screen.getByRole("region", { name: "Terminés (1)" });
+    expect(completed).toHaveAttribute("data-item-section");
+    expect(within(completed).getByText("1 item")).toBeVisible();
+    expect(within(completed).getByRole("button", { name: "Replier Terminés" }))
+      .toHaveAttribute("aria-expanded", "true");
     expect(within(completed).getByRole("link", { name: /CASS-42/ })).toHaveAttribute(
       "href",
       "/b/CASS?item=CASS-42",
@@ -130,7 +135,7 @@ describe("SprintReportView", () => {
     );
 
     expect(screen.getByText("Engagement").parentElement).toHaveTextContent("1 élément · 1 pt · 0 non estimé");
-    expect(screen.getByText("Terminés").parentElement).toHaveTextContent("1 élément · 1,5 pt");
+    expect(screen.getByText("Terminés", { selector: "dt" }).parentElement).toHaveTextContent("1 élément · 1,5 pt");
     expect(screen.getByText("Périmètre actuel").parentElement).toHaveTextContent("0 élément · 0 pt · 2 non estimés");
     expect(screen.getByText("Évolution du périmètre").parentElement)
       .toHaveTextContent("Ajoutés 1 pt · Retirés 0 pt · Delta 1 pt · 1 événement");
