@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getBacklogByKeyForUser: vi.fn(),
   resolveBacklogAccess: vi.fn(),
+  checkPermission: vi.fn(),
   getItemByKeyForBacklog: vi.fn(),
   getItemLabelIds: vi.fn(),
   listActivities: vi.fn(),
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   listUsers: vi.fn(),
   listUsersByIds: vi.fn(),
   statusRows: [] as unknown[],
+  repoConnectionRows: [] as { id: string }[],
 }));
 
 vi.mock("server-only", () => ({}));
@@ -28,6 +30,7 @@ vi.mock("@/lib/db", () => ({
         from: () => query,
         where: () => query,
         orderBy: () => Promise.resolve(mocks.statusRows),
+        limit: () => Promise.resolve(mocks.repoConnectionRows),
       };
       return query;
     },
@@ -37,6 +40,7 @@ vi.mock("@/lib/auth/accessible-backlogs", () => ({
   resolveBacklogAccess: mocks.resolveBacklogAccess,
 }));
 vi.mock("@/lib/auth/authorization", () => ({
+  checkPermission: mocks.checkPermission,
   listAssignableUsersForBacklog: mocks.listAssignableUsersForBacklog,
 }));
 vi.mock("@/lib/services/backlogs", () => ({
@@ -130,6 +134,8 @@ function load(itemKey = detail.key) {
 describe("loadItemDetailData", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.repoConnectionRows = [];
+    mocks.checkPermission.mockResolvedValue({ allowed: false });
     mocks.statusRows = [
       { id: "status-1", name: "À faire", color: "#999", category: "todo", order: 0, backlogId: "backlog-1" },
     ];
@@ -222,6 +228,8 @@ describe("loadItemDetailData", () => {
     expect(panel.detail).toBe(detail);
     expect(panel.backlogKey).toBe("DEMO");
     expect(panel.currentUserId).toBe("viewer-1");
+    expect(panel.hasRepoConnection).toBe(false);
+    expect(panel.canAdministerBacklog).toBe(false);
     expect(panel.itemLabelIds).toEqual(["label-1"]);
     expect(panel.parent).toEqual({ key: "DEMO-1", title: "Epic parent", type: "epic" });
     expect(panel.childItems).toEqual([
@@ -246,6 +254,22 @@ describe("loadItemDetailData", () => {
     }));
     expect(panel.planningCapabilities).toEqual(expect.objectContaining({ rank: true, manageSprints: false }));
     expect(panel.releaseCapabilities).toEqual({ manage: false, assignItems: false, bulkAssignItems: false });
+  });
+
+  it("passes repository connectivity and backlog administration permission to the panel", async () => {
+    mocks.repoConnectionRows = [{ id: "connection-1" }];
+    mocks.checkPermission.mockResolvedValue({ allowed: true });
+
+    const data = await load();
+    if (data?.kind !== "item") throw new Error("expected an item");
+
+    expect(data.panel.hasRepoConnection).toBe(true);
+    expect(data.panel.canAdministerBacklog).toBe(true);
+    expect(mocks.checkPermission).toHaveBeenCalledWith({
+      actorId: "viewer-1",
+      permission: "administer_backlog",
+      scope: { type: "backlog", backlogId: "backlog-1" },
+    });
   });
 
   it("keeps the item's archived fix versions but offers only unarchived ones", async () => {

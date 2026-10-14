@@ -13,11 +13,74 @@ vi.mock("@/app/actions/refs", () => ({
 }));
 
 describe("DevRefsSection", () => {
+  it("explains linking and lets a backlog admin connect a repository without link permission", () => {
+    render(
+      <DevRefsSection itemId="item-1" itemKey="CASS-1" backlogKey="CASS" refs={[]} canAdministerBacklog canLink={false} />,
+    );
+
+    expect(screen.getByText(/Aucun dépôt connecté\./)).toHaveTextContent(
+      "Aucun dépôt connecté. Mettez la clé CASS-1 dans un nom de branche, un message de commit ou le titre d’une PR : elle sera liée automatiquement une fois le dépôt connecté.",
+    );
+    expect(screen.getByText("CASS-1")).toHaveClass("font-mono");
+    expect(screen.getByRole("link", { name: "Connecter un dépôt" })).toHaveAttribute(
+      "href", "/b/CASS/settings/development",
+    );
+    expect(screen.queryByText("Aucun lien de développement.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Lier une PR ou un commit" })).not.toBeInTheDocument();
+  });
+
+  it("explains linking without offering repository settings to non-admins", () => {
+    render(<DevRefsSection itemId="item-1" itemKey="CASS-1" backlogKey="CASS" refs={[]} />);
+
+    expect(screen.getByText(/Aucun dépôt connecté\./)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Connecter un dépôt" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lier une PR ou un commit" })).toBeInTheDocument();
+  });
+
+  it("explains active automatic linking even without link permission", () => {
+    render(
+      <DevRefsSection itemId="item-1" itemKey="CASS-1" backlogKey="CASS" refs={[]} hasRepoConnection canAdministerBacklog canLink={false} />,
+    );
+
+    expect(screen.getByText(/Liaison automatique active/)).toHaveTextContent(
+      "Liaison automatique active : mettez la clé CASS-1 dans un nom de branche, un message de commit ou le titre d’une PR.",
+    );
+    expect(screen.getByText("CASS-1")).toHaveClass("font-mono");
+    expect(screen.queryByText(/Aucun dépôt connecté/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Connecter un dépôt" })).not.toBeInTheDocument();
+  });
+
+  it.each([false, true])("hides the hint when a detected reference exists (connected: %s)", (hasRepoConnection) => {
+    render(
+      <DevRefsSection
+        itemId="item-1"
+        itemKey="CASS-1"
+        backlogKey="CASS"
+        hasRepoConnection={hasRepoConnection}
+        canAdministerBacklog
+        refs={[{
+          id: "detected-1",
+          url: "https://github.com/acme/api/pull/42",
+          kind: "pr",
+          createdAt: "2026-10-13T08:00:00.000Z",
+          provider: "github",
+          title: "Login form",
+          connectionId: hasRepoConnection ? "connection-1" : null,
+        }]}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "#42 Login form" })).toBeInTheDocument();
+    expect(screen.queryByText(/Aucun dépôt connecté|Liaison automatique active/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Connecter un dépôt" })).not.toBeInTheDocument();
+  });
+
   it("keeps development-reference removal in keyboard order without hover", async () => {
     const user = userEvent.setup();
     render(
       <DevRefsSection
         itemId="item-1"
+        itemKey="CASS-1"
         backlogKey="CASS"
         refs={[
           {
@@ -31,6 +94,7 @@ describe("DevRefsSection", () => {
     );
 
     const link = screen.getByRole("link", { name: "PR #1 · openai/openai-node" });
+    expect(screen.getByText(/Aucun dépôt connecté\./)).toBeInTheDocument();
     const remove = screen.getByRole("button", {
       name: "Supprimer le lien PR #1 · openai/openai-node",
     });
@@ -42,7 +106,7 @@ describe("DevRefsSection", () => {
 
   it("keeps the URL form behind « Lier une PR ou un commit »", async () => {
     const user = userEvent.setup();
-    render(<DevRefsSection itemId="item-1" backlogKey="CASS" refs={[]} />);
+    render(<DevRefsSection itemId="item-1" itemKey="CASS-1" backlogKey="CASS" refs={[]} />);
 
     expect(screen.queryByRole("textbox", { name: "URL GitHub à ajouter" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Lier une PR ou un commit" }));
@@ -68,6 +132,7 @@ describe("DevRefsSection", () => {
     render(
       <DevRefsSection
         itemId="item-1"
+        itemKey="CASS-1"
         backlogKey="CASS"
         refs={[
           {
@@ -150,6 +215,7 @@ describe("DevRefsSection", () => {
     render(
       <DevRefsSection
         itemId="item-1"
+        itemKey="CASS-1"
         backlogKey="CASS"
         refs={[
           {

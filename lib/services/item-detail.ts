@@ -1,10 +1,10 @@
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { resolveBacklogAccess } from "@/lib/auth/accessible-backlogs";
-import { listAssignableUsersForBacklog } from "@/lib/auth/authorization";
+import { checkPermission, listAssignableUsersForBacklog } from "@/lib/auth/authorization";
 import { projectBacklogCapabilities } from "@/lib/auth/capabilities";
 import { db } from "@/lib/db";
-import { statuses } from "@/lib/db/schema/domain";
+import { repoConnections, statuses } from "@/lib/db/schema/domain";
 import type { ItemType } from "@/lib/design/constants";
 import type { ItemDetailData } from "@/lib/items/item-detail-data";
 import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
@@ -83,6 +83,8 @@ export async function loadItemDetailData({
     comments,
     links,
     refs,
+    enabledConnections,
+    administerDecision,
     directoryUsers,
     assigneeCandidates,
   ] = await Promise.all([
@@ -91,6 +93,16 @@ export async function loadItemDetailData({
     listComments(detail.id),
     listLinksForItem(detail.id),
     listRefsForItem(detail.id),
+    db
+      .select({ id: repoConnections.id })
+      .from(repoConnections)
+      .where(and(eq(repoConnections.backlogId, backlog.id), eq(repoConnections.enabled, true)))
+      .limit(1),
+    checkPermission({
+      actorId: userId,
+      permission: "administer_backlog",
+      scope: { type: "backlog", backlogId: backlog.id },
+    }),
     canBrowseUsers ? listUsers() : Promise.resolve([]),
     canBrowseUsers ? listAssignableUsersForBacklog(backlog.id) : Promise.resolve([]),
   ]);
@@ -172,6 +184,8 @@ export async function loadItemDetailData({
       links,
       candidates,
       refs,
+      hasRepoConnection: enabledConnections.length > 0,
+      canAdministerBacklog: administerDecision.allowed,
       parent: parentItem
         ? { key: parentItem.key, title: parentItem.title, type: parentItem.type as ItemType }
         : undefined,

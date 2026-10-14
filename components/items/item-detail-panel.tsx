@@ -178,6 +178,8 @@ export function ItemDetailPanel({
   links,
   candidates,
   refs,
+  hasRepoConnection = false,
+  canAdministerBacklog = false,
   parent,
   childItems = EMPTY_CHILDREN,
   createDialog,
@@ -207,6 +209,8 @@ export function ItemDetailPanel({
   links: LinkWithOther[];
   candidates: { id: string; key: string; title: string; type: ItemType }[];
   refs: DevRef[];
+  hasRepoConnection?: boolean;
+  canAdministerBacklog?: boolean;
   parent?: { key: string; title: string; type?: ItemType };
   childItems?: ChildItem[];
   createDialog?: DetailCreateDialog;
@@ -946,8 +950,11 @@ export function ItemDetailPanel({
                 </button>
                 <DevRefsSection
                   itemId={detail.id}
+                  itemKey={detail.key}
                   backlogKey={backlogKey}
                   refs={refs}
+                  hasRepoConnection={hasRepoConnection}
+                  canAdministerBacklog={canAdministerBacklog}
                   canLink={canLink}
                 />
               </div>
