@@ -15,6 +15,7 @@ import {
   requireStatusPermission,
   requireViewMutationPermission,
   requireViewPermission,
+  requireWebLinkPermission,
 } from "@/lib/auth/action-authorization";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
@@ -30,6 +31,7 @@ import {
   itemLinks,
   itemRefs,
   items,
+  itemWebLinks,
   permissionGrants,
   permissionSchemes,
   sprints,
@@ -61,6 +63,7 @@ let otherCommentAId = "";
 let linkAId = "";
 let crossBacklogLinkId = "";
 let refAId = "";
+let webLinkAId = "";
 let sharedViewAId = "";
 let privateOtherViewAId = "";
 
@@ -223,6 +226,11 @@ describeDb("ownership-aware authorization helpers", () => {
       })
       .returning({ id: itemRefs.id });
     refAId = createdRefA!.id;
+    const [createdWebLinkA] = await db
+      .insert(itemWebLinks)
+      .values({ itemId: itemAId, url: "https://www.figma.com/design/abc", createdBy: actorId })
+      .returning({ id: itemWebLinks.id });
+    webLinkAId = createdWebLinkA!.id;
 
     const [createdSprintA, createdSprintB] = await db
       .insert(sprints)
@@ -399,6 +407,12 @@ describeDb("ownership-aware authorization helpers", () => {
     await expect(
       requireRefPermission({ actorId, refId: refAId, permission: "link_items" }),
     ).resolves.toMatchObject({ backlogId: backlogA.id, resourceId: refAId });
+    await expect(
+      requireWebLinkPermission({ actorId, webLinkId: webLinkAId, permission: "link_items" }),
+    ).resolves.toMatchObject({ backlogId: backlogA.id, resourceId: webLinkAId });
+    await expect(
+      requireWebLinkPermission({ actorId, webLinkId: randomUUID(), permission: "link_items" }),
+    ).rejects.toBeInstanceOf(ResourceNotFoundError);
   });
 
   it("hides a malformed link whose stored endpoints cross backlogs", async () => {

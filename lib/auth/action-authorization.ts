@@ -16,6 +16,7 @@ import {
   itemLinks,
   itemRefs,
   items,
+  itemWebLinks,
   repoConnections,
   sprints,
   statuses,
@@ -361,6 +362,25 @@ export async function requireRefPermission(
     resourceType: "reference",
     resourceId: ref.id,
     backlogId: ref.backlogId,
+  });
+}
+
+export async function requireWebLinkPermission(
+  input: BacklogPermissionInput & { webLinkId: string },
+): Promise<AuthorizedResource> {
+  const [link] = await db
+    .select({ id: itemWebLinks.id, backlogId: items.backlogId })
+    .from(itemWebLinks)
+    .innerJoin(items, eq(itemWebLinks.itemId, items.id))
+    .where(eq(itemWebLinks.id, input.webLinkId))
+    .limit(1);
+  if (!link) throw new ResourceNotFoundError("web_link", input.webLinkId);
+
+  return authorizeResource({
+    ...input,
+    resourceType: "web_link",
+    resourceId: link.id,
+    backlogId: link.backlogId,
   });
 }
 

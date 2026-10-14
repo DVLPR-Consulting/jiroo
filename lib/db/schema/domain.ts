@@ -970,6 +970,24 @@ export const itemRefs = pgTable(
   ],
 );
 
+// Web links of an item (JIR-99): mockups, specs, documents — Jira's « Web
+// links ». No uniqueness, as in Jira: the same page may carry two labels.
+export const itemWebLinks = pgTable(
+  "item_web_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    // Null: the label is derived from the URL when shown.
+    title: text("title"),
+    createdBy: text("created_by").references(() => user.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("item_web_links_item_idx").on(t.itemId)],
+);
+
 export const userGroups = pgTable("user_groups", {
   id: uuid("id").primaryKey().defaultRandom(),
   key: text("key").notNull().unique(),

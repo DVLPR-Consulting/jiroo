@@ -73,6 +73,7 @@ import type {
 } from "@/lib/db/schema/domain";
 import { LinksSection } from "@/components/items/detail/links-section";
 import { DevRefsSection } from "@/components/items/detail/dev-refs-section";
+import { WebLinksSection } from "@/components/items/detail/web-links-section";
 import type { DevRef } from "@/lib/items/dev-refs";
 import { toast } from "@/lib/toast";
 import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
@@ -87,7 +88,9 @@ import { cn } from "@/lib/utils";
 type ItemRow = typeof itemsTable.$inferSelect;
 type ActivityRow = typeof activitiesTable.$inferSelect;
 const EMPTY_FIX_VERSIONS: FixVersionOption[] = [];
+type ItemWebLink = { id: string; url: string; title: string | null; createdAt: Date | string };
 const EMPTY_CHILDREN: ChildItem[] = [];
+const EMPTY_WEB_LINKS: ItemWebLink[] = [];
 type LabelRow = typeof labelsTable.$inferSelect;
 type UserLite = { id: string; name: string };
 type StatusLite = { id: string; name: string; color: string; category: string; order?: number };
@@ -180,6 +183,7 @@ export function ItemDetailPanel({
   refs,
   hasRepoConnection = false,
   canAdministerBacklog = false,
+  webLinks = EMPTY_WEB_LINKS,
   parent,
   childItems = EMPTY_CHILDREN,
   createDialog,
@@ -211,6 +215,8 @@ export function ItemDetailPanel({
   refs: DevRef[];
   hasRepoConnection?: boolean;
   canAdministerBacklog?: boolean;
+  /** Web links of the item (JIR-99). */
+  webLinks?: ItemWebLink[];
   parent?: { key: string; title: string; type?: ItemType };
   childItems?: ChildItem[];
   createDialog?: DetailCreateDialog;
@@ -669,6 +675,17 @@ export function ItemDetailPanel({
                 />
               </Section>
             </div>
+
+            {(canLink || webLinks.length > 0) && (
+              <Section title="Liens web">
+                <WebLinksSection
+                  itemId={detail.id}
+                  backlogKey={backlogKey}
+                  webLinks={webLinks}
+                  canLink={canLink}
+                />
+              </Section>
+            )}
 
             <ActivityFeed
               itemId={detail.id}

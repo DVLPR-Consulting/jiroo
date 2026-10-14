@@ -64,6 +64,11 @@ vi.mock("@/app/actions/refs", () => ({
   removeRefAction: vi.fn(),
 }));
 
+vi.mock("@/app/actions/web-links", () => ({
+  addWebLinkAction: vi.fn(),
+  removeWebLinkAction: vi.fn(),
+}));
+
 vi.mock("@/lib/toast", () => ({
   toast: {
     error: mocks.toastError,
@@ -229,6 +234,40 @@ describe("ItemDetailPanel header", () => {
     const breadcrumb = screen.getByRole("navigation", { name: "Fil d’Ariane" });
     expect(breadcrumb).toHaveTextContent(/^CASS-2$/);
     expect(within(breadcrumb).queryByText("PARENT-1")).not.toBeInTheDocument();
+  });
+
+  it("places web links after linked items and keeps Escape local to their form", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    const linkedItems = screen.getByRole("region", { name: "Items liés" });
+    const webSection = screen.getByRole("region", { name: "Liens web" });
+    expect(linkedItems.parentElement?.nextElementSibling).toBe(webSection);
+    await user.click(within(webSection).getByRole("button", { name: "+ Ajouter un lien web" }));
+    expect(within(webSection).getByRole("textbox", { name: "URL du lien" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(within(webSection).queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("hides empty web links without permission but displays existing links", () => {
+    const { rerender } = renderPanel(undefined, detail, false);
+    expect(screen.queryByRole("region", { name: "Liens web" })).not.toBeInTheDocument();
+    rerender(
+      <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+        <ItemDetailPanel
+          {...baseProps}
+          canEditItems={false}
+          webLinks={[{
+            id: "web-1", url: "https://figma.com/design/abc", title: "Maquette",
+            createdAt: "2026-10-14T08:00:00.000Z",
+          }]}
+        />
+      </DetailHarness>,
+    );
+    const section = screen.getByRole("region", { name: "Liens web" });
+    expect(within(section).getByRole("link", { name: "Maquette" })).toHaveAttribute("href", "https://figma.com/design/abc");
+    expect(within(section).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("shows story points only for tasks", async () => {

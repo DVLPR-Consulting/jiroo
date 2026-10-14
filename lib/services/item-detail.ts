@@ -21,6 +21,7 @@ import {
 } from "@/lib/services/items";
 import { listLinksForItem } from "@/lib/services/links";
 import { listRefsForItem } from "@/lib/services/refs";
+import { listWebLinksForItem } from "@/lib/services/web-links";
 import { listReleaseSummaries } from "@/lib/services/releases";
 import { listSprintsForBacklog } from "@/lib/services/sprints";
 
@@ -85,6 +86,7 @@ export async function loadItemDetailData({
     refs,
     enabledConnections,
     administerDecision,
+    webLinks,
     directoryUsers,
     assigneeCandidates,
   ] = await Promise.all([
@@ -103,6 +105,7 @@ export async function loadItemDetailData({
       permission: "administer_backlog",
       scope: { type: "backlog", backlogId: backlog.id },
     }),
+    listWebLinksForItem(detail.id),
     canBrowseUsers ? listUsers() : Promise.resolve([]),
     canBrowseUsers ? listAssignableUsersForBacklog(backlog.id) : Promise.resolve([]),
   ]);
@@ -186,6 +189,7 @@ export async function loadItemDetailData({
       refs,
       hasRepoConnection: enabledConnections.length > 0,
       canAdministerBacklog: administerDecision.allowed,
+      webLinks,
       parent: parentItem
         ? { key: parentItem.key, title: parentItem.title, type: parentItem.type as ItemType }
         : undefined,

@@ -381,6 +381,7 @@ export function HelpGuide() {
           steps={[
             <>Dans le détail, cliquez sur <Ui>Lier un item</Ui> (ou <Ui>+ Lier un item</Ui> dans la section <Ui>Items liés</Ui>), puis choisissez le <Ui>Type de relation</Ui> : Bloque, Est bloqué par, Lié à, Duplique, Est dupliqué par.</>,
             <>Cherchez le ticket dans <Ui>Rechercher un item…</Ui>, puis <Ui>Ajouter le lien</Ui>. Les liens s’affichent groupés par type.</>,
+            <>Dans <Ui>Liens web</Ui>, cliquez sur <Ui>Ajouter un lien web</Ui> pour rattacher une maquette Figma, une spec ou un document : saisissez une URL http ou https et un <Ui>Texte affiché</Ui> facultatif, puis <Ui>Ajouter</Ui>. Le lien s’ouvre dans un nouvel onglet ; le bouton de suppression apparaît au survol ou au focus.</>,
           ]}
         />
 

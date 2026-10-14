@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   listLabelsForBacklog: vi.fn(),
   listLinksForItem: vi.fn(),
   listRefsForItem: vi.fn(),
+  listWebLinksForItem: vi.fn(),
   listReleaseSummaries: vi.fn(),
   listSprintsForBacklog: vi.fn(),
   listUsers: vi.fn(),
@@ -61,6 +62,7 @@ vi.mock("@/lib/services/items", () => ({
 }));
 vi.mock("@/lib/services/links", () => ({ listLinksForItem: mocks.listLinksForItem }));
 vi.mock("@/lib/services/refs", () => ({ listRefsForItem: mocks.listRefsForItem }));
+vi.mock("@/lib/services/web-links", () => ({ listWebLinksForItem: mocks.listWebLinksForItem }));
 vi.mock("@/lib/services/releases", () => ({
   listReleaseSummaries: mocks.listReleaseSummaries,
 }));
@@ -171,6 +173,9 @@ describe("loadItemDetailData", () => {
     mocks.listComments.mockResolvedValue([{ id: "comment-1", authorId: "user-author" }]);
     mocks.listLinksForItem.mockResolvedValue([]);
     mocks.listRefsForItem.mockResolvedValue([]);
+    mocks.listWebLinksForItem.mockResolvedValue([
+      { id: "web-link-1", url: "https://www.figma.com/design/abc", title: "Maquettes", createdAt: new Date(0) },
+    ]);
     mocks.listUsers.mockResolvedValue([
       { id: "user-assignee", name: "Assignée", email: "private@example.test" },
       { id: "user-other", name: "Autre", email: "other@example.test" },
@@ -209,6 +214,7 @@ describe("loadItemDetailData", () => {
     expect(mocks.resolveBacklogAccess).toHaveBeenCalledWith("viewer-1", "backlog-1", ["browse_users"]);
     expect(mocks.listActivities).not.toHaveBeenCalled();
     expect(mocks.listComments).not.toHaveBeenCalled();
+    expect(mocks.listWebLinksForItem).not.toHaveBeenCalled();
   });
 
   it("reports a key missing from the backlog as not found", async () => {
@@ -218,6 +224,7 @@ describe("loadItemDetailData", () => {
 
     expect(mocks.getItemByKeyForBacklog).toHaveBeenCalledWith("DEMO-404", "backlog-1");
     expect(mocks.listActivities).not.toHaveBeenCalled();
+    expect(mocks.listWebLinksForItem).not.toHaveBeenCalled();
   });
 
   it("builds the panel props from the whole backlog, with exact capabilities", async () => {
@@ -231,6 +238,10 @@ describe("loadItemDetailData", () => {
     expect(panel.hasRepoConnection).toBe(false);
     expect(panel.canAdministerBacklog).toBe(false);
     expect(panel.itemLabelIds).toEqual(["label-1"]);
+    expect(mocks.listWebLinksForItem).toHaveBeenCalledWith(detail.id);
+    expect(panel.webLinks).toEqual([
+      { id: "web-link-1", url: "https://www.figma.com/design/abc", title: "Maquettes", createdAt: new Date(0) },
+    ]);
     expect(panel.parent).toEqual({ key: "DEMO-1", title: "Epic parent", type: "epic" });
     expect(panel.childItems).toEqual([
       { id: child.id, key: "DEMO-3", title: "Titre DEMO-3", type: "soustache", statusId: "status-1" },
