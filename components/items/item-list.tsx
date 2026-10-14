@@ -24,8 +24,8 @@ import {
   ItemSectionSummary,
   SectionSelectAll,
   StatusPointsPills,
-  itemsSummaryLabel,
 } from "@/components/items/item-section";
+import { itemsSummaryLabel } from "@/lib/format/plural";
 import {
   NewItemButton,
   type NewItemButtonProps,

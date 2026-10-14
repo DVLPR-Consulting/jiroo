@@ -2,7 +2,6 @@
 
 import { useState, type ComponentProps, type ReactNode, type Ref } from "react";
 import { ChevronRight } from "lucide-react";
-import { countLabel } from "@/lib/format/plural";
 import type { PointsByStatusCategory } from "@/lib/items/status-points";
 
 /**
@@ -42,14 +41,7 @@ export function StatusPointsPills({ value }: { value: PointsByStatusCategory }) 
   );
 }
 
-/** « 3 items · 1 non estimé » (or only the count when estimates do not apply). */
-export function itemsSummaryLabel(itemCount: number, unestimatedCount?: number | null) {
-  const items = countLabel(itemCount, "item", "items");
-  if (unestimatedCount === undefined || unestimatedCount === null) return items;
-  return `${items} · ${countLabel(unestimatedCount, "non estimé", "non estimés")}`;
-}
-
-/** The section's summary, next to its title. */
+/** The section's summary, next to its title (see `itemsSummaryLabel`). */
 export function ItemSectionSummary({ children }: { children: ReactNode }) {
   return <span className="text-[13px] text-muted-foreground">{children}</span>;
 }

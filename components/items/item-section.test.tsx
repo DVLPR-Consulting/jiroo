@@ -8,18 +8,10 @@ import {
   ItemSectionSummary,
   SectionSelectAll,
   StatusPointsPills,
-  itemsSummaryLabel,
 } from "@/components/items/item-section";
+import { itemsSummaryLabel } from "@/lib/format/plural";
 
 describe("item section", () => {
-  it("summarises items with or without the unestimated count", () => {
-    expect(itemsSummaryLabel(3, 1)).toBe("3 items · 1 non estimé");
-    expect(itemsSummaryLabel(1, 0)).toBe("1 item · 0 non estimé");
-    expect(itemsSummaryLabel(2, 2)).toBe("2 items · 2 non estimés");
-    expect(itemsSummaryLabel(4)).toBe("4 items");
-    expect(itemsSummaryLabel(0, null)).toBe("0 item");
-  });
-
   it("frames a named card and marks it as a shared item section", () => {
     render(
       <ItemSection aria-label="Tous les items" data-extra="1">

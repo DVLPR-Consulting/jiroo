@@ -43,3 +43,13 @@ export function formatPoints(points: number): string {
 export function pointsLabel(points: number, format: NumberFormat = formatPoints): string {
   return countLabel(points, "pt", "pts", format);
 }
+
+/**
+ * A section summary, « 3 items · 1 non estimé », or only the count when
+ * estimates do not apply (JIR-97).
+ */
+export function itemsSummaryLabel(itemCount: number, unestimatedCount?: number | null) {
+  const items = countLabel(itemCount, "item", "items");
+  if (unestimatedCount === undefined || unestimatedCount === null) return items;
+  return `${items} · ${countLabel(unestimatedCount, "non estimé", "non estimés")}`;
+}

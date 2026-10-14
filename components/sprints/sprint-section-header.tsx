@@ -13,12 +13,11 @@ import { EditSprintDialog } from "@/components/sprints/sprint-form-dialog";
 import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
 import type { PlanningCapabilities } from "@/lib/auth/capabilities";
 import type { PointsByStatusCategory } from "@/lib/items/status-points";
-import { pointsLabel } from "@/lib/format/plural";
+import { itemsSummaryLabel, pointsLabel } from "@/lib/format/plural";
 import {
   ItemSectionHeader,
   ItemSectionSummary,
   StatusPointsPills,
-  itemsSummaryLabel,
 } from "@/components/items/item-section";
 
 const points = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
