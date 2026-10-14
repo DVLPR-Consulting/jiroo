@@ -8,6 +8,12 @@ import { toast } from "@/lib/toast";
 import { restoreTrashedItemAction, purgeItemAction } from "@/app/actions/trash";
 import type { TrashedItem } from "@/lib/services/items";
 import { ItemRow } from "@/components/items/item-row";
+import {
+  BacklogSectionTitle,
+  CollapsibleItemSection,
+  ItemSectionSummary,
+} from "@/components/items/item-section";
+import { itemsSummaryLabel } from "@/lib/format/plural";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { canRestore, restoreDeadline } from "@/lib/items/trash";
@@ -217,33 +223,30 @@ export function TrashList({ groups, restorableBacklogIds }: TrashListProps) {
 
   const restorableBacklogs = new Set(restorableBacklogIds);
 
+  // The Backlog's table (JIR-97): one card per backlog.
   return (
     <div className="flex-1 overflow-auto">
-      {groups.map(({ backlog, items }) => (
-        <details key={backlog.key} open className="border-b border-border">
-          {/* Backlog section header */}
-          <summary className="flex cursor-pointer items-center gap-2 bg-[var(--surface-2)] px-4 py-1.5 text-xs font-medium text-muted-foreground">
-            <span
-              className="rounded px-1.5 py-0.5 text-[11px] font-medium text-white"
-              style={{ background: backlog.color }}
-            >
-              {backlog.key}
-            </span>
-            <span>{backlog.name}</span>
-            <span className="ml-1">{items.length}</span>
-          </summary>
-
-          <ul>
-            {items.map((item) => (
-              <TrashRow
-                key={item.id}
-                item={item}
-                canRestoreItems={restorableBacklogs.has(backlog.id)}
-              />
-            ))}
-          </ul>
-        </details>
-      ))}
+      <div className="flex flex-col gap-4 p-3 sm:p-4">
+        {groups.map(({ backlog, items }) => (
+          <CollapsibleItemSection
+            key={backlog.key}
+            name={backlog.name}
+            headingLevel={2}
+            title={<BacklogSectionTitle backlog={backlog} />}
+            summary={<ItemSectionSummary>{itemsSummaryLabel(items.length)}</ItemSectionSummary>}
+          >
+            <ul aria-label={`Items supprimés de ${backlog.name}`}>
+              {items.map((item) => (
+                <TrashRow
+                  key={item.id}
+                  item={item}
+                  canRestoreItems={restorableBacklogs.has(backlog.id)}
+                />
+              ))}
+            </ul>
+          </CollapsibleItemSection>
+        ))}
+      </div>
     </div>
   );
 }

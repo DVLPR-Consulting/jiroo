@@ -46,6 +46,25 @@ export function ItemSectionSummary({ children }: { children: ReactNode }) {
   return <span className="text-[13px] text-muted-foreground">{children}</span>;
 }
 
+/** A backlog's section title: its colored key badge, then its name. */
+export function BacklogSectionTitle({
+  backlog,
+}: {
+  backlog: { key: string; name: string; color: string };
+}) {
+  return (
+    <>
+      <span
+        className="mr-1 rounded px-1.5 py-0.5 align-[1px] text-[11px] font-medium text-white"
+        style={{ background: backlog.color }}
+      >
+        {backlog.key}
+      </span>{" "}
+      {backlog.name}
+    </>
+  );
+}
+
 /** The select-all checkbox of a section header (indeterminate when partly selected). */
 export function SectionSelectAll({
   checked,

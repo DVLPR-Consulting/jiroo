@@ -187,13 +187,16 @@ test("montre Mes items dans le tableau du Backlog, en lignes qui ouvrent l’ite
   await expect(page.getByRole("dialog", { name: new RegExp(`^${mine.key} —`) })).toBeVisible();
 });
 
-test("restaure un item depuis sa ligne de la Corbeille", async ({ page }) => {
+test("restaure un item depuis sa ligne, dans le tableau de la Corbeille", async ({ page }) => {
   const { actorId } = await context();
   const doomed = await task(`JIR-93 corbeille ${RUN}`, { kind: "bug" });
   await softDeleteItem({ id: doomed.id }, actorId);
 
   await page.goto("/trash");
-  const row = page.getByRole("listitem").filter({ hasText: doomed.title });
+  // The Backlog's table (JIR-97): one card per backlog, counting its items.
+  const card = page.getByRole("region", { name: "Cour de cassation" });
+  await expect(card.locator("header")).toContainText(/CASS\s*Cour de cassation\s*\d+ items?/);
+  const row = card.getByRole("listitem").filter({ hasText: doomed.title });
   await expect(row.getByText(doomed.key, { exact: true })).toBeVisible();
   await expect(row.getByText("Bug")).toBeVisible();
   await expect(row.getByText("supprimé aujourd'hui")).toBeVisible();

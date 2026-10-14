@@ -2,6 +2,7 @@ import { requireAppPageSession } from "@/lib/auth/session";
 import { listItemsAssignedTo } from "@/lib/services/items";
 import { ItemRow } from "@/components/items/item-row";
 import {
+  BacklogSectionTitle,
   CollapsibleItemSection,
   ItemSectionSummary,
   StatusPointsPills,
@@ -89,17 +90,7 @@ export default async function MinePage() {
                 key={backlog.id}
                 name={backlog.name}
                 headingLevel={2}
-                title={
-                  <>
-                    <span
-                      className="mr-1 rounded px-1.5 py-0.5 align-[1px] text-[11px] font-medium text-white"
-                      style={{ background: backlog.color }}
-                    >
-                      {backlog.key}
-                    </span>{" "}
-                    {backlog.name}
-                  </>
-                }
+                title={<BacklogSectionTitle backlog={backlog} />}
                 summary={
                   <ItemSectionSummary>
                     {itemsSummaryLabel(

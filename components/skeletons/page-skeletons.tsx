@@ -214,7 +214,7 @@ function MineSkeleton() {
   );
 }
 
-/** « Corbeille »: bordered header, then collapsible backlog groups. */
+/** « Corbeille »: bordered header, then one Backlog card per backlog. */
 function TrashSkeleton() {
   return (
     <SkeletonRegion label="Chargement de la corbeille" name="trash" className="flex h-full flex-col">
@@ -227,15 +227,9 @@ function TrashSkeleton() {
           <Skeleton className="h-3.5 w-28" />
         </div>
       </div>
-      <div className="flex-1">
+      <div className="flex flex-1 flex-col gap-4 p-3 sm:p-4">
         {[3, 2].map((rows, index) => (
-          <div key={index} className="border-b border-border">
-            <div className="flex items-center gap-2 bg-[var(--surface-2)] px-4 py-1.5">
-              <Skeleton className="h-[18px] w-10 bg-[var(--border)]" />
-              <Skeleton className="h-3 w-28 bg-[var(--border)]" />
-            </div>
-            <ItemRowsSkeleton rows={rows} trailing={2} />
-          </div>
+          <SectionCardSkeleton key={index} rows={rows} badge trailing={2} />
         ))}
       </div>
     </SkeletonRegion>
