@@ -812,18 +812,21 @@ describe("NewItemButton", () => {
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveTextContent("Choisir une epic…");
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche");
-      expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAttribute("aria-invalid", "true");
       expect(mocks.createItemAction).not.toHaveBeenCalled();
     });
 
-    it("keeps « Créer » disabled when no parent candidate exists", async () => {
+    it("refuses the create when no parent candidate exists", async () => {
       const user = userEvent.setup();
       render(
         <NewItemButton {...dialogProps()} items={[]} initialType="tache" initialParentId="opened-epic" />,
       );
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche");
-      expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+      expect(screen.getByText("Parent obligatoire : créez d’abord une Epic.")).toBeVisible();
+      expect(mocks.createItemAction).not.toHaveBeenCalled();
     });
   });
 
@@ -936,6 +939,109 @@ describe("NewItemButton", () => {
     });
   });
 
+  describe("required parent (JIR-69)", () => {
+    const composant = { id: "component-id", key: "DEMO-1", type: "composant" as const, title: "Plateforme" };
+    const epic = { id: "epic-id", key: "DEMO-2", type: "epic" as const, title: "Connexion" };
+    const tache = { id: "task-id", key: "DEMO-3", type: "tache" as const, title: "Formulaire" };
+
+    it("marks the Parent field required and states the rule of each type", async () => {
+      const user = userEvent.setup();
+      render(<NewItemButton {...dialogProps()} items={[composant, epic, tache]} />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      expect(screen.queryByRole("combobox", { name: /Parent/ })).not.toBeInTheDocument();
+
+      for (const [type, rule] of [
+        ["Epic", "Une Epic se rattache toujours à un Composant."],
+        ["Tâche", "Une Tâche se rattache toujours à une Epic."],
+        ["Sous-tâche", "Une Sous-tâche se rattache toujours à une Tâche."],
+      ] as const) {
+        await choose(user, "Type", type);
+        const parent = screen.getByRole("combobox", { name: "Parent (obligatoire)" });
+        expect(parent).toHaveAttribute("aria-required", "true");
+        expect(parent).not.toHaveAttribute("aria-invalid");
+        expect(parent).toHaveAccessibleDescription(rule);
+      }
+      // The asterisk is visual only; the label says « (obligatoire) » to assistive tech.
+      const label = document.querySelector('label[for="item-parent"]')!;
+      expect(label.querySelector('[aria-hidden="true"]')).toHaveTextContent("*");
+      expect(document.querySelectorAll("select[required]")).toHaveLength(0);
+    });
+
+    it("explains a missing parent on « Créer » and focuses the field once the error shows", async () => {
+      const user = userEvent.setup();
+      render(<NewItemButton {...dialogProps()} items={[epic]} initialType="tache" />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Écran de vérification");
+      const submit = screen.getByRole("button", { name: /^Créer$/ });
+      expect(submit).toBeEnabled();
+
+      // What the Parent field says at the moment it receives focus.
+      const parent = screen.getByRole("combobox", { name: /Parent/ });
+      const atFocus: (string | null)[] = [];
+      parent.addEventListener("focus", () => {
+        atFocus.push(parent.getAttribute("aria-invalid"));
+        atFocus.push(document.getElementById(parent.getAttribute("aria-describedby")!.split(" ")[0]!)?.textContent ?? null);
+      });
+      await user.click(submit);
+
+      expect(parent).toHaveFocus();
+      expect(atFocus).toEqual(["true", "Parent obligatoire : choisissez une Epic."]);
+      expect(parent).toHaveAccessibleDescription(
+        "Parent obligatoire : choisissez une Epic. Une Tâche se rattache toujours à une Epic.",
+      );
+      expect(mocks.createItemAction).not.toHaveBeenCalled();
+
+      // A second « Créer » focuses the field again, the error unchanged.
+      screen.getByRole("textbox", { name: /Titre/ }).focus();
+      await user.click(submit);
+      expect(parent).toHaveFocus();
+    });
+
+    it("clears the error once a parent is chosen, then creates", async () => {
+      const user = userEvent.setup();
+      mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: { id: "i", key: "DEMO-4" } });
+      render(<NewItemButton {...dialogProps()} items={[epic]} initialType="tache" />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Écran de vérification");
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+      expect(screen.getByText("Parent obligatoire : choisissez une Epic.")).toBeVisible();
+
+      await choose(user, /Parent/, "DEMO-2 — Connexion");
+      const parent = screen.getByRole("combobox", { name: /Parent/ });
+      expect(parent).not.toHaveAttribute("aria-invalid");
+      expect(parent).toHaveAccessibleDescription("Une Tâche se rattache toujours à une Epic.");
+      expect(screen.queryByText(/Parent obligatoire/)).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+      await waitFor(() =>
+        expect(mocks.createItemAction).toHaveBeenCalledWith(
+          expect.objectContaining({ type: "tache", parentId: "epic-id", title: "Écran de vérification" }),
+        ),
+      );
+    });
+
+    it("drops the error when the type changes, and names the new parent next time", async () => {
+      const user = userEvent.setup();
+      render(<NewItemButton {...dialogProps()} items={[composant, epic]} initialType="tache" />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Brouillon");
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+      expect(screen.getByText("Parent obligatoire : choisissez une Epic.")).toBeVisible();
+
+      await choose(user, "Type", "Epic");
+      expect(screen.queryByText(/Parent obligatoire/)).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+      expect(screen.getByText("Parent obligatoire : choisissez un Composant.")).toBeVisible();
+    });
+
+    it("keeps « Créer » disabled for an empty title, as before", async () => {
+      const user = userEvent.setup();
+      render(<NewItemButton {...dialogProps()} items={[epic]} initialType="tache" />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
+    });
+  });
+
   describe("missing parent (JIR-91)", () => {
     it("offers « Créer un Composant » for an Epic in a backlog without Composant", async () => {
       const user = userEvent.setup();
@@ -949,7 +1055,14 @@ describe("NewItemButton", () => {
       );
       expect(screen.getByRole("button", { name: "Créer un Composant" })).toBeVisible();
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Connexion");
-      expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
+      // JIR-69: « Créer » explains instead of staying disabled, without repeating the rule.
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+      expect(parent).toHaveAccessibleDescription(
+        "Parent obligatoire : créez d’abord un Composant. Aucun Composant dans ce backlog : une Epic se rattache toujours à un Composant.",
+      );
+      expect(parent).toHaveFocus();
+      expect(screen.queryByText("Une Epic se rattache toujours à un Composant.")).not.toBeInTheDocument();
+      expect(mocks.createItemAction).not.toHaveBeenCalled();
     });
 
     it("switches the same draft to a Composant, keeping its title and description", async () => {
@@ -1002,7 +1115,9 @@ describe("NewItemButton", () => {
       await user.click(screen.getByRole("button", { name: "Créer une Epic" }));
       expect(screen.getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
       // The Epic finds its Composant: the parent field is a normal choice again.
-      expect(screen.getByRole("combobox", { name: /Parent/ })).not.toHaveAccessibleDescription();
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAccessibleDescription(
+        "Une Epic se rattache toujours à un Composant.",
+      );
       unmount();
 
       render(<NewItemButton {...dialogProps()} items={[composant]} initialType="soustache" />);

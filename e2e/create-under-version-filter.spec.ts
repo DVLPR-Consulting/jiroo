@@ -108,7 +108,8 @@ test("crée une Tâche sous l’Epic masquée par un filtre Version vide", async
   const dialog = page.getByRole("dialog", { name: "Nouvel item" });
   await chooseOption(dialog, "Type", "Epic");
   const parent = dialog.getByRole("combobox", { name: /Parent/ });
-  await expect(parent).not.toHaveAttribute("aria-describedby");
+  // Only the rule (JIR-69), not the « Aucun Composant » hint of a missing parent.
+  await expect(parent).toHaveAccessibleDescription("Une Epic se rattache toujours à un Composant.");
   await parent.click();
   await expect(page.getByRole("option", { name: new RegExp(`${COMPOSANT}$`) })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("jir92-3-dialog-composant.png") });

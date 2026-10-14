@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState, useTransition } from "react";
+import { useId, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createItemAction, softDeleteItemAction } from "@/app/actions/items";
@@ -51,6 +51,10 @@ export function InlineCreateItem({
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Tied to the Epic picker rather than to the title (JIR-69).
+  const [parentError, setParentError] = useState<string | null>(null);
+  // Focuses the picker once its error is committed, even when unchanged.
+  const [focusParentRequest, setFocusParentRequest] = useState(0);
   const [pending, startTransition] = useTransition();
   const openerRef = useRef<HTMLButtonElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -59,12 +63,14 @@ export function InlineCreateItem({
   // closes this form; a cancelled dialog returns to the inline draft.
   const createdFromDialog = useRef(false);
   const errorId = useId();
+  const parentErrorId = useId();
   const selectedParent = parents.some((parent) => parent.id === parentId) ? parentId : "";
 
   function close() {
     setOpen(false);
     setTitle("");
     setError(null);
+    setParentError(null);
     requestAnimationFrame(() => openerRef.current?.focus());
   }
 
@@ -76,11 +82,13 @@ export function InlineCreateItem({
     const trimmed = title.trim();
     if (!trimmed || pending) return;
     if (!selectedParent) {
-      setError("Choisissez l’epic parent.");
-      parentRef.current?.focus();
+      setError(null);
+      setParentError("Choisissez l’epic parent.");
+      setFocusParentRequest((request) => request + 1);
       return;
     }
     setError(null);
+    setParentError(null);
     const sentSprintIds = sprintId ? [sprintId] : [];
     startTransition(async () => {
       try {
@@ -128,6 +136,11 @@ export function InlineCreateItem({
       }
     });
   }
+
+  // After the commit, so the picker is read out with its error (aria-describedby).
+  useLayoutEffect(() => {
+    if (focusParentRequest > 0) parentRef.current?.focus();
+  }, [focusParentRequest]);
 
   if (!open) {
     return (
@@ -183,8 +196,12 @@ export function InlineCreateItem({
           onValueChange={(next) => {
             onParentChange(next);
             if (error) setError(null);
+            setParentError(null);
           }}
           aria-label="Epic parent"
+          aria-required
+          aria-invalid={parentError ? true : undefined}
+          aria-describedby={parentError ? parentErrorId : undefined}
           placeholder="Epic parent…"
           disabled={pending}
           className="w-56 max-w-full"
@@ -241,6 +258,16 @@ export function InlineCreateItem({
       {error ? (
         <p id={errorId} role="alert" className="basis-full text-xs text-destructive">
           {error}
+        </p>
+      ) : null}
+      {parentError ? (
+        // Without a picker to focus, the message announces itself.
+        <p
+          id={parentErrorId}
+          role={parents.length > 0 ? undefined : "alert"}
+          className="basis-full text-xs text-destructive"
+        >
+          {parentError}
         </p>
       ) : null}
     </form>
