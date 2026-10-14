@@ -31,6 +31,7 @@ import {
 import { BulkItemToolbar } from "@/components/items/bulk-item-toolbar";
 import { type FixVersionOption } from "@/components/items/fix-version-picker";
 import { ItemRow, RowSelectCheckbox } from "@/components/items/item-row";
+import { ItemSection, SectionSelectAll } from "@/components/items/item-section";
 import { InlineCreateItem } from "@/components/items/inline-create-item";
 import {
   BacklogStartGuide,
@@ -131,31 +132,6 @@ type RankItemAction = (input: {
 const pointFormatter = new Intl.NumberFormat("fr-FR", {
   maximumFractionDigits: 2,
 });
-
-function SelectAllCheckbox({
-  checked,
-  indeterminate,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  indeterminate: boolean;
-  onChange: () => void;
-  label: string;
-}) {
-  return (
-    <input
-      ref={(node) => {
-        if (node) node.indeterminate = indeterminate;
-      }}
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      aria-label={label}
-      className="mx-1 size-4 shrink-0 cursor-pointer accent-[var(--primary)]"
-    />
-  );
-}
 
 function BacklogRow({
   item,
@@ -549,7 +525,7 @@ function LegacyItemBacklog({
     >
       <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-3 py-3 sm:px-4">
         {canSelectItems && displayedItems.length > 0 ? (
-          <SelectAllCheckbox
+          <SectionSelectAll
             checked={allSelected}
             indeterminate={partlySelected}
             onChange={() =>
@@ -751,17 +727,15 @@ function SprintSectionDropZone({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `section:${sectionId}` });
   return (
-    <section
+    <ItemSection
       ref={setNodeRef}
       aria-label={label}
       data-sprint-section={sectionId}
       data-drop-target={isOver ? "true" : undefined}
-      className={`rounded-[var(--radius-lg)] border bg-[var(--surface)] ${
-        isOver ? "border-[var(--ring)] bg-[var(--accent-subtle)]" : "border-border"
-      }`}
+      highlighted={isOver}
     >
       {children}
-    </section>
+    </ItemSection>
   );
 }
 
@@ -1153,7 +1127,7 @@ function SprintItemBacklog({
                   backlogKey={backlogKey}
                   selectControl={
                     canSelectItems && sectionVisibleIds.length > 0 ? (
-                      <SelectAllCheckbox
+                      <SectionSelectAll
                         checked={selectedCount === sectionVisibleIds.length}
                         indeterminate={
                           selectedCount > 0 && selectedCount < sectionVisibleIds.length
