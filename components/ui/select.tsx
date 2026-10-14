@@ -158,6 +158,12 @@ export type SelectFieldProps<V extends string = string> = {
   required?: boolean
   "aria-label"?: string
   "aria-describedby"?: string
+  /**
+   * Marks the trigger required without `required`, whose hidden native
+   * select would let the browser block the form's submit on its own.
+   */
+  "aria-required"?: boolean
+  "aria-invalid"?: boolean
   className?: string
   /** The trigger button (e.g. to focus it after a validation error). */
   triggerRef?: React.Ref<HTMLButtonElement>
@@ -178,6 +184,8 @@ function SelectField<V extends string = string>({
   required,
   "aria-label": ariaLabel,
   "aria-describedby": ariaDescribedBy,
+  "aria-required": ariaRequired,
+  "aria-invalid": ariaInvalid,
   className,
   triggerRef,
 }: SelectFieldProps<V>) {
@@ -197,6 +205,9 @@ function SelectField<V extends string = string>({
         id={id}
         aria-label={ariaLabel}
         aria-describedby={ariaDescribedBy}
+        // Radix sets aria-required from `required`; an explicit prop would override it.
+        aria-required={ariaRequired ?? required}
+        aria-invalid={ariaInvalid}
         className={className}
       >
         <SelectValue placeholder={placeholder} />

@@ -283,8 +283,9 @@ export function HelpGuide() {
           purpose="Ajouter un Composant, une Epic, une Tâche ou une Sous-tâche."
           steps={[
             <>Dans une vue du backlog, cliquez sur <Ui>+ Créer</Ui> dans la barre du haut, à côté du champ de recherche (ou touche <Key>C</Key>) : la fenêtre <Ui>Nouvel item</Ui> s’ouvre. Dans le Backlog, utilisez aussi <Ui>Créer un item</Ui> en bas d’une section (voir ci-dessous). Depuis le détail d’un ticket, <Ui>+ Créer une tâche</Ui> (ou une sous-tâche, un epic) préremplit le type et le parent.</>,
-            <>Choisissez le <Ui>Type</Ui> (et un <Ui>Modèle</Ui> si besoin), puis, sauf pour un Composant, le <Ui>Parent</Ui> obligatoire ; saisissez le <Ui>Titre</Ui> et la <Ui>Description</Ui> dans l’éditeur mis en forme. Si le backlog n’a encore aucun parent possible, le champ <Ui>Parent</Ui> propose de le créer d’abord (voir « Démarrer dans un nouveau backlog »).</>,
+            <>Choisissez le <Ui>Type</Ui> (et un <Ui>Modèle</Ui> si besoin), puis, sauf pour un Composant, le <Ui>Parent</Ui> obligatoire (marqué d’un astérisque ; une Epic se rattache à un Composant, une Tâche à une Epic, une Sous-tâche à une Tâche) ; saisissez le <Ui>Titre</Ui> et la <Ui>Description</Ui> dans l’éditeur mis en forme. Si le backlog n’a encore aucun parent possible, le champ <Ui>Parent</Ui> propose de le créer d’abord (voir « Démarrer dans un nouveau backlog »).</>,
             <>Dans <Ui>Détails</Ui>, ajustez <Ui>Statut</Ui> (il affiche le statut que recevra le ticket, le premier statut « À faire » par défaut), <Ui>Assigné</Ui> (ou <Ui>M’assigner</Ui>, à droite du champ), <Ui>Priorité</Ui>, <Ui>Points</Ui> et <Ui>Sprint</Ui> (tâches), <Ui>Nature</Ui>, <Ui>Labels</Ui>, <Ui>Fix versions</Ui>, <Ui>Échéance</Ui>, puis <Ui>Créer</Ui>.</>,
+            <>Sans parent choisi, <Ui>Créer</Ui> ne crée rien : le message « Parent obligatoire : choisissez une Epic. » apparaît sous le champ <Ui>Parent</Ui>, qui reçoit le focus. Il disparaît dès que vous choisissez le parent.</>,
             <>Cochez <Ui>Créer un autre</Ui> pour enchaîner : la fenêtre reste ouverte avec le même type, le même parent et le même sprint ; seuls le titre et la description sont vidés.</>,
           ]}
         >
@@ -298,7 +299,7 @@ export function HelpGuide() {
           purpose="Ajouter vite une tâche dans un sprint ou dans la section Backlog."
           steps={[
             <>En bas du sprint ou de la section Backlog, cliquez sur <Ui>Créer un item</Ui>.</>,
-            <>Saisissez le titre, choisissez l’<Ui>Epic parent</Ui> (la dernière utilisée est proposée), puis <Key>Entrée</Key>.</>,
+            <>Saisissez le titre, choisissez l’<Ui>Epic parent</Ui> (la dernière utilisée est proposée), puis <Key>Entrée</Key>. Sans epic choisie, « Choisissez l’epic parent. » s’affiche et le champ <Ui>Epic parent</Ui> reçoit le focus.</>,
             <>Le champ reste ouvert pour la tâche suivante ; <Key>Échap</Key> le referme.</>,
           ]}
         >

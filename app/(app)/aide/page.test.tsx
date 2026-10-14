@@ -105,6 +105,24 @@ describe("HelpPage", () => {
     expect(topic).toHaveTextContent("en gardant le titre et la description saisis");
   });
 
+  it("explains that « Créer » points at a missing parent (JIR-69)", () => {
+    render(<HelpPage />);
+    const tickets = document.querySelector("section#tickets") as HTMLElement;
+    const topicOf = (name: string) =>
+      within(tickets).getByRole("heading", { level: 3, name }).closest("div") as HTMLElement;
+    const create = topicOf("Créer un ticket");
+    expect(create).toHaveTextContent("le « Parent » obligatoire (marqué d’un astérisque");
+    expect(create).toHaveTextContent(
+      "une Epic se rattache à un Composant, une Tâche à une Epic, une Sous-tâche à une Tâche",
+    );
+    expect(create).toHaveTextContent(
+      "Sans parent choisi, « Créer » ne crée rien : le message « Parent obligatoire : choisissez une Epic. » apparaît sous le champ « Parent », qui reçoit le focus.",
+    );
+    expect(topicOf("Créer une tâche depuis le Backlog")).toHaveTextContent(
+      "Sans epic choisie, « Choisissez l’epic parent. » s’affiche et le champ « Epic parent » reçoit le focus.",
+    );
+  });
+
   it("explains that a Version filter no longer hides the parents at creation (JIR-92)", () => {
     render(<HelpPage />);
     const tickets = document.querySelector("section#tickets") as HTMLElement;

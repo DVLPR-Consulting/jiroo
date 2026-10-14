@@ -85,4 +85,22 @@ describe("SelectField", () => {
     expect(onChange).toHaveBeenCalledWith("marie");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
+
+  it("marks a required trigger without the native required select of a form", () => {
+    render(
+      <form>
+        <label htmlFor="parent">Parent</label>
+        <SelectField id="parent" value="" options={OPTIONS.slice(1)} onValueChange={() => {}} aria-required aria-invalid />
+        <label htmlFor="sprint">Sprint</label>
+        <SelectField id="sprint" value="" options={OPTIONS.slice(1)} onValueChange={() => {}} required />
+      </form>,
+    );
+
+    const parent = screen.getByRole("combobox", { name: "Parent" });
+    expect(parent).toHaveAttribute("aria-required", "true");
+    expect(parent).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("combobox", { name: "Sprint" })).toHaveAttribute("aria-required", "true");
+    // Only `required` reaches the hidden native select, which blocks a submit.
+    expect(document.querySelectorAll("select[required]")).toHaveLength(1);
+  });
 });
