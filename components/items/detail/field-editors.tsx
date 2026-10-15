@@ -54,14 +54,14 @@ function asPriority(value: number): Priority {
   return Math.min(4, Math.max(0, value)) as Priority;
 }
 
-// yyyy-mm-dd in local time for an <input type="date"> value.
+// Calendar days stay unchanged; legacy Date values use their UTC day.
 function toDateInputValue(date: Date | string | null): string {
   if (!date) return "";
-  const d = typeof date === "string" ? new Date(date) : date;
-  if (Number.isNaN(d.getTime())) return "";
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  if (typeof date === "string") return date;
+  if (Number.isNaN(date.getTime())) return "";
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
 
@@ -322,6 +322,50 @@ export function ReporterField({
           </option>
         ))}
       </select>
+      <FieldError error={field.error} />
+    </div>
+  );
+}
+
+export function StartDateField({
+  itemId,
+  backlogKey,
+  startDate,
+}: {
+  itemId: string;
+  backlogKey: string;
+  startDate: Date | string | null;
+}) {
+  const field = useOptimisticFieldUpdate({
+    value: toDateInputValue(startDate),
+    itemId,
+    backlogKey,
+    toPatch: (next) => ({ startDate: next || null }),
+  });
+
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <input
+          type="date"
+          className={selectClass}
+          value={field.value}
+          disabled={field.pending}
+          onChange={(e) => field.update(e.target.value)}
+          aria-label="Début"
+          aria-busy={field.pending}
+        />
+        {field.value && (
+          <button
+            type="button"
+            onClick={() => field.update("")}
+            disabled={field.pending}
+            className="shrink-0 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-[var(--muted)] disabled:opacity-60"
+          >
+            Effacer
+          </button>
+        )}
+      </div>
       <FieldError error={field.error} />
     </div>
   );

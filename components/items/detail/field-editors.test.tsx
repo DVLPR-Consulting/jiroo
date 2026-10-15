@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EstimateField, ReporterField } from "@/components/items/detail/field-editors";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DueDateField, EstimateField, ReporterField, StartDateField } from "@/components/items/detail/field-editors";
 
 const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
@@ -120,4 +120,80 @@ describe("EstimateField", () => {
     });
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
   });
+});
+
+
+describe("StartDateField", () => {
+  beforeEach(() => {
+    mocks.refresh.mockReset();
+    mocks.updateItemAction.mockReset();
+  });
+
+  it.each([null, "2026-10-01"])("shows the start date %s", (startDate) => {
+    render(<StartDateField itemId="item-1" backlogKey="DEMO" startDate={startDate} />);
+    expect(screen.getByLabelText("Début")).toHaveValue(startDate ?? "");
+  });
+
+  it("updates the start date optimistically and waits for confirmation", async () => {
+    const update = deferred<{ ok: true; item: object }>();
+    mocks.updateItemAction.mockReturnValueOnce(update.promise);
+    render(<StartDateField itemId="item-1" backlogKey="DEMO" startDate={null} />);
+    const input = screen.getByLabelText("Début");
+
+    fireEvent.change(input, { target: { value: "2026-10-01" } });
+
+    expect(input).toHaveValue("2026-10-01");
+    expect(input).toBeDisabled();
+    expect(input).toHaveAttribute("aria-busy", "true");
+    expect(mocks.updateItemAction).toHaveBeenCalledWith({
+      id: "item-1", backlogKey: "DEMO", startDate: "2026-10-01",
+    });
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    await act(async () => update.resolve({ ok: true, item: {} }));
+    expect(input).not.toBeDisabled();
+    expect(mocks.refresh).toHaveBeenCalledOnce();
+  });
+
+  it("clears the start date to null", async () => {
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: {} });
+    render(<StartDateField itemId="item-1" backlogKey="DEMO" startDate="2026-10-01" />);
+    await userEvent.setup().click(screen.getByRole("button", { name: "Effacer" }));
+    expect(mocks.updateItemAction).toHaveBeenCalledWith({
+      id: "item-1", backlogKey: "DEMO", startDate: null,
+    });
+    expect(screen.getByLabelText("Début")).toHaveValue("");
+    expect(screen.queryByRole("button", { name: "Effacer" })).not.toBeInTheDocument();
+  });
+
+  it("shows the ordering error and restores the previous date", async () => {
+    const update = deferred<{ ok: false; error: string }>();
+    mocks.updateItemAction.mockReturnValueOnce(update.promise);
+    render(<StartDateField itemId="item-1" backlogKey="DEMO" startDate="2026-10-01" />);
+    const input = screen.getByLabelText("Début");
+    fireEvent.change(input, { target: { value: "2026-11-01" } });
+    expect(input).toHaveValue("2026-11-01");
+    await act(async () => update.resolve({ ok: false, error: "Le début doit précéder l’échéance." }));
+    expect(screen.getByText("Le début doit précéder l’échéance.")).toBeVisible();
+    expect(input).toHaveValue("2026-10-01");
+    expect(input).not.toBeDisabled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("calendar date inputs", () => {
+  beforeEach(() => {
+    vi.stubEnv("TZ", "America/Los_Angeles");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each(["2026-10-20", new Date("2026-10-20T00:00:00.000Z")])(
+    "keeps the UTC calendar day for %s",
+    (dueDate) => {
+      render(<DueDateField itemId="item-1" backlogKey="DEMO" dueDate={dueDate} />);
+      expect(screen.getByLabelText("Échéance")).toHaveValue("2026-10-20");
+    },
+  );
 });
