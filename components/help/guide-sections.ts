@@ -6,6 +6,7 @@ export const GUIDE_SECTIONS = [
   { id: "tickets", title: "Tickets" },
   { id: "collaboration", title: "Travailler à plusieurs" },
   { id: "sprints", title: "Sprints" },
+  { id: "roadmap", title: "Roadmap" },
   { id: "releases", title: "Releases" },
   { id: "rapports", title: "Rapports" },
   { id: "recherche", title: "Recherche, notifications et raccourcis" },

@@ -8,7 +8,7 @@ import { databasePool } from "../lib/db";
  * navigation), so the streamed skeleton stays on screen long enough to check.
  */
 const DESKTOP = { width: 1440, height: 900 };
-const SHAPES = ["home", "backlog", "board", "list", "tree", "admin", "mine", "trash", "releases"];
+const SHAPES = ["home", "backlog", "board", "list", "tree", "admin", "mine", "trash", "releases", "roadmap"];
 
 async function whileBacklogsLocked(run: () => Promise<void>) {
   const client = await databasePool.connect();
@@ -91,6 +91,12 @@ test("chaque page se charge derrière un squelette à sa forme", async ({ page }
     label: "Chargement de l’arbre",
     navigate: link(views, "Arbre"),
     heading: "Arbre",
+  });
+  await expectSkeleton(page, testInfo, {
+    shape: "roadmap",
+    label: "Chargement de la roadmap",
+    navigate: link(views, "Roadmap"),
+    heading: "Roadmap",
   });
   await expectSkeleton(page, testInfo, {
     shape: "releases",
