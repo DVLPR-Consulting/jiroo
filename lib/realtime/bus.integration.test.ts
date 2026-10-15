@@ -70,6 +70,22 @@ describeDb("RealtimeBus against Postgres", () => {
     expect(received.at(-1)).toMatchObject({ kind: "item", backlogId, actorId: "integration" });
   });
 
+  it("hears notifications published by notifyUsers", async () => {
+    const { notifyUsers } = await import("@/lib/realtime/publish");
+    const userId = `integration-${backlogId}`;
+    const received: BusMessage[] = [];
+    unsubscribe = newBus().subscribe({ backlogId: null, userId }, (message) =>
+      received.push(message),
+    );
+    await vi.waitFor(
+      async () => {
+        if (received.length === 0) await notifyUsers([userId, "someone-else"], "integration");
+        expect(received).toEqual([expect.objectContaining({ kind: "notification", userId })]);
+      },
+      { timeout: 5_000, interval: 100 },
+    );
+  });
+
   it("resyncs and keeps listening after the connection is killed", async () => {
     const received: BusMessage[] = [];
     unsubscribe = newBus().subscribe({ backlogId, userId: "me" }, (message) =>
