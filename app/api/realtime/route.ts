@@ -15,8 +15,9 @@ const NO_STORE = { "Cache-Control": "private, no-store" };
  * it shows, if any, and the viewer's own notifications. Events carry ids only;
  * the tab reloads through the usual permission-checked paths.
  *
- * 404 covers an unknown backlog and one the viewer may not browse alike, so the
- * answer never reveals that a backlog exists.
+ * An unknown backlog and one the viewer may not browse get the same answer,
+ * only the viewer's notifications, so it never reveals that a backlog exists
+ * and a refused page keeps its bell (no failed request in the console).
  */
 export async function GET(request: Request) {
   const session = await getSession();
@@ -29,8 +30,7 @@ export async function GET(request: Request) {
     const backlog = BACKLOG_KEY_RE.test(backlogKey)
       ? await getBacklogByKeyForUser(backlogKey, userId)
       : null;
-    if (!backlog) return new Response(null, { status: 404, headers: NO_STORE });
-    backlogId = backlog.id;
+    backlogId = backlog?.id ?? null;
   }
 
   const bus = getRealtimeBus();
