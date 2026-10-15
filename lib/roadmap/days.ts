@@ -26,6 +26,26 @@ export function dayFromDate(date: Date): Day {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * The team's time zone. Sprint instants are entered in local time and
+ * "today" must match on the server and in the browser (no hydration drift),
+ * so the roadmap reads both in this zone.
+ */
+export const TEAM_TIME_ZONE = "Europe/Paris";
+
+const dayFormats = new Map<string, Intl.DateTimeFormat>();
+
+/** The calendar day of an instant in a time zone. */
+export function dayInZone(date: Date, timeZone: string = TEAM_TIME_ZONE): Day {
+  let format = dayFormats.get(timeZone);
+  if (!format) {
+    // en-CA formats as YYYY-MM-DD.
+    format = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" });
+    dayFormats.set(timeZone, format);
+  }
+  return format.format(date);
+}
+
 export function addDays(day: Day, days: number): Day {
   return fromDayNumber(dayNumber(day) + days);
 }

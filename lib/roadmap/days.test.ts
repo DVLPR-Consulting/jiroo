@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   dayFromDate,
+  dayInZone,
   dayNumber,
   daysBetween,
   fromDayNumber,
@@ -42,6 +43,12 @@ describe("calendar days", () => {
 
   it("reads the UTC day of a timestamp", () => {
     expect(dayFromDate(new Date("2026-10-15T23:30:00Z"))).toBe("2026-10-15");
+  });
+
+  it("reads the day of an instant in the team's time zone", () => {
+    // 23:30 UTC is already the next day in Paris (UTC+2 in October).
+    expect(dayInZone(new Date("2026-10-15T23:30:00Z"))).toBe("2026-10-16");
+    expect(dayInZone(new Date("2026-10-15T23:30:00Z"), "UTC")).toBe("2026-10-15");
   });
 
   it("finds the start of a week (Monday), month and quarter", () => {
