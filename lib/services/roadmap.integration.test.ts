@@ -4,7 +4,8 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { databasePool, db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
-import { backlogs, releases, sprints, statuses } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { backlogs, items, releases, sprints, statuses } from "@/lib/db/schema";
 import { createItem, softDeleteItem } from "@/lib/services/items";
 import { loadRoadmap } from "@/lib/services/roadmap";
 
@@ -124,6 +125,24 @@ describeDb("loadRoadmap", () => {
       "Tâche",
       "Tâche terminée",
     ]);
+  });
+
+  it("orders siblings by binary rank, whatever the database collation", async () => {
+    const parentId = (await createItem(
+      { backlogId, type: "composant", parentId: null, title: "Rangs" },
+      actorId,
+      randomUUID(),
+    )).id;
+    // Byte order puts upper case first: V, Z, a, l.
+    for (const [title, rank] of [["l", "a5l"], ["V", "a5V"], ["a", "a5a"], ["Z", "a5Z"]] as const) {
+      const id = (await createItem({ backlogId, type: "epic", parentId, title }, actorId, randomUUID())).id;
+      await db.update(items).set({ rank }).where(eq(items.id, id));
+    }
+    const roadmap = await loadRoadmap(backlogId);
+    expect(roadmap.items.filter((item) => item.parentId === parentId).map((item) => item.title))
+      .toEqual(["V", "Z", "a", "l"]);
+    await db.update(items).set({ deletedAt: new Date() }).where(eq(items.parentId, parentId));
+    await db.update(items).set({ deletedAt: new Date() }).where(eq(items.id, parentId));
   });
 
   it("carries days, status category and the current sprint", async () => {

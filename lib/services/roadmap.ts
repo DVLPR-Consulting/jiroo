@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { binaryTextOrder } from "@/lib/db/order";
 import { items, releases, sprintItems, sprints, statuses } from "@/lib/db/schema";
 import type { Day } from "@/lib/roadmap/days";
 
@@ -69,7 +70,8 @@ export async function loadRoadmap(backlogId: string): Promise<RoadmapData> {
           inArray(items.type, [...ROADMAP_TYPES]),
         ),
       )
-      .orderBy(asc(items.rank)),
+      // Ranks compare byte by byte, as in Backlog and Sprints.
+      .orderBy(asc(binaryTextOrder(items.rank))),
     db
       .select({ itemId: sprintItems.itemId, sprintId: sprintItems.sprintId })
       .from(sprintItems)
@@ -85,7 +87,7 @@ export async function loadRoadmap(backlogId: string): Promise<RoadmapData> {
       })
       .from(sprints)
       .where(and(eq(sprints.backlogId, backlogId), ne(sprints.state, "completed")))
-      .orderBy(asc(sprints.rank)),
+      .orderBy(asc(binaryTextOrder(sprints.rank))),
     db
       .select({
         id: releases.id,
