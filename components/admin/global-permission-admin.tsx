@@ -17,8 +17,12 @@ export type GlobalGrantDto = {
   id: string;
   permission: string;
   permissionLabel: string;
-  principal: { type: "user" | "group"; id: string; label: string };
+  principal: { type: GlobalPrincipalType; id: string; label: string };
 };
+
+type GlobalPrincipalType = "user" | "group" | "authenticated_user";
+/** Everyone may browse users (Jira's default); nothing else goes to everyone. */
+const EVERYONE_PERMISSION: GlobalPermissionKey = "browse_users";
 
 export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
   grants: GlobalGrantDto[];
@@ -27,7 +31,7 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
   canManage: boolean;
 }) {
   const [permission, setPermission] = useState<GlobalPermissionKey>("browse_users");
-  const [principalType, setPrincipalType] = useState<"user" | "group">("user");
+  const [principalType, setPrincipalType] = useState<GlobalPrincipalType>("user");
   const [principalId, setPrincipalId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [removing, setRemoving] = useState<GlobalGrantDto | null>(null);
@@ -35,7 +39,8 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
   // surface in it, and it starts clean on every open (JIR-64).
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const options = principalType === "user" ? users : groups;
+  const options = principalType === "user" ? users : principalType === "group" ? groups : [];
+  const everyone = principalType === "authenticated_user";
 
   return (
     <section aria-labelledby="global-permissions-title" className="space-y-3 rounded-xl border border-border p-4 bg-card">
@@ -65,7 +70,9 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
           startTransition(async () => {
             const principal = principalType === "user"
               ? { type: "user" as const, userId: principalId }
-              : { type: "group" as const, groupId: principalId };
+              : principalType === "group"
+                ? { type: "group" as const, groupId: principalId }
+                : { type: "authenticated_user" as const };
             let result: Awaited<ReturnType<typeof addGlobalPermissionGrantAction>>;
             try {
               result = await addGlobalPermissionGrantAction({ permission, principal });
@@ -77,17 +84,22 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
             else setPrincipalId("");
           });
         }}>
-          <select aria-label="Permission globale" value={permission} onChange={(e) => setPermission(e.target.value as GlobalPermissionKey)} className="h-8 rounded-lg border border-input bg-card px-2 text-sm">
+          <select aria-label="Permission globale" value={permission} onChange={(e) => {
+            const next = e.target.value as GlobalPermissionKey;
+            setPermission(next);
+            if (next !== EVERYONE_PERMISSION && everyone) setPrincipalType("user");
+          }} className="h-8 rounded-lg border border-input bg-card px-2 text-sm">
             {Object.values(GLOBAL_PERMISSION_DEFINITIONS).map((definition) => <option key={definition.key} value={definition.key}>{definition.label}</option>)}
           </select>
-          <select aria-label="Type de principal" value={principalType} onChange={(e) => { setPrincipalType(e.target.value as "user" | "group"); setPrincipalId(""); }} className="h-8 rounded-lg border border-input bg-card px-2 text-sm">
+          <select aria-label="Type de principal" value={principalType} onChange={(e) => { setPrincipalType(e.target.value as GlobalPrincipalType); setPrincipalId(""); }} className="h-8 rounded-lg border border-input bg-card px-2 text-sm">
             <option value="user">Utilisateur</option><option value="group">Groupe</option>
+            {permission === EVERYONE_PERMISSION && <option value="authenticated_user">Tous les utilisateurs authentifiés</option>}
           </select>
-          <select aria-label="Principal" value={principalId} onChange={(e) => setPrincipalId(e.target.value)} className="h-8 rounded-lg border border-input bg-card px-2 text-sm">
-            <option value="">Choisir…</option>
+          <select aria-label="Principal" value={principalId} disabled={everyone} onChange={(e) => setPrincipalId(e.target.value)} className="h-8 rounded-lg border border-input bg-card px-2 text-sm disabled:opacity-50">
+            <option value="">{everyone ? "Tous" : "Choisir…"}</option>
             {options.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
           </select>
-          <Button type="submit" disabled={pending || !principalId} aria-busy={pending}>Ajouter la permission</Button>
+          <Button type="submit" disabled={pending || (!everyone && !principalId)} aria-busy={pending}>Ajouter la permission</Button>
           {error && <p role="alert" className="text-sm text-destructive md:col-span-4">{error}</p>}
         </form>
       )}

@@ -41,6 +41,43 @@ describe("GlobalPermissionAdmin", () => {
     expect(screen.getByRole("combobox", { name: "Principal" })).toHaveValue("u1");
   });
 
+  it("accorde « Parcourir les utilisateurs » à tous les utilisateurs authentifiés, et rien d’autre", async () => {
+    const user = userEvent.setup();
+    mocks.add.mockResolvedValue({ ok: true });
+    render(<GlobalPermissionAdmin grants={[]} users={[]} groups={[]} canManage />);
+    const principalType = screen.getByRole("combobox", { name: "Type de principal" });
+    await user.selectOptions(screen.getByRole("combobox", { name: "Permission globale" }), "browse_users");
+    await user.selectOptions(principalType, "authenticated_user");
+    expect(screen.getByRole("combobox", { name: "Principal" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Ajouter la permission" }));
+    expect(mocks.add).toHaveBeenCalledWith({
+      permission: "browse_users",
+      principal: { type: "authenticated_user" },
+    });
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Permission globale" }), "administer_jiroo");
+    expect(principalType).toHaveValue("user");
+    expect(within(principalType).queryByRole("option", { name: "Tous les utilisateurs authentifiés" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("affiche la permission accordée à tous", () => {
+    render(
+      <GlobalPermissionAdmin
+        grants={[{
+          id: "33333333-3333-4333-8333-333333333333",
+          permission: "browse_users",
+          permissionLabel: "Parcourir les utilisateurs",
+          principal: { type: "authenticated_user", id: "authenticated_user", label: "Tous les utilisateurs authentifiés" },
+        }]}
+        users={[]}
+        groups={[]}
+        canManage={false}
+      />,
+    );
+    expect(screen.getByText("Tous les utilisateurs authentifiés")).toBeVisible();
+  });
+
   it("demande confirmation avant de retirer un grant", async () => {
     const user = userEvent.setup();
     mocks.remove.mockResolvedValue({ ok: true });
