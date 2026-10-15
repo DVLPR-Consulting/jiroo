@@ -409,7 +409,7 @@ function SortableReleaseCard({
               </div>
             ) : null}
             {capabilities.manage ? (
-              <details className="rounded-lg border p-2">
+              <details className="rounded-lg border p-2 bg-card">
                 <summary className="cursor-pointer text-sm font-medium">
                   Actions pour {release.name}
                 </summary>

@@ -38,7 +38,7 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
   const options = principalType === "user" ? users : groups;
 
   return (
-    <section aria-labelledby="global-permissions-title" className="space-y-3 rounded-xl border border-border p-4">
+    <section aria-labelledby="global-permissions-title" className="space-y-3 rounded-xl border border-border p-4 bg-card">
       <div>
         <h2 id="global-permissions-title" className="font-medium">Permissions globales</h2>
         <p className="text-xs text-muted-foreground">Les permissions s’additionnent entre utilisateurs et groupes.</p>
@@ -77,13 +77,13 @@ export function GlobalPermissionAdmin({ grants, users, groups, canManage }: {
             else setPrincipalId("");
           });
         }}>
-          <select aria-label="Permission globale" value={permission} onChange={(e) => setPermission(e.target.value as GlobalPermissionKey)} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
+          <select aria-label="Permission globale" value={permission} onChange={(e) => setPermission(e.target.value as GlobalPermissionKey)} className="h-8 rounded-lg border border-input bg-card px-2 text-sm">
             {Object.values(GLOBAL_PERMISSION_DEFINITIONS).map((definition) => <option key={definition.key} value={definition.key}>{definition.label}</option>)}
           </select>
-          <select aria-label="Type de principal" value={principalType} onChange={(e) => { setPrincipalType(e.target.value as "user" | "group"); setPrincipalId(""); }} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
+          <select aria-label="Type de principal" value={principalType} onChange={(e) => { setPrincipalType(e.target.value as "user" | "group"); setPrincipalId(""); }} className="h-8 rounded-lg border border-input bg-card px-2 text-sm">
             <option value="user">Utilisateur</option><option value="group">Groupe</option>
           </select>
-          <select aria-label="Principal" value={principalId} onChange={(e) => setPrincipalId(e.target.value)} className="h-8 rounded-lg border border-input bg-background px-2 text-sm">
+          <select aria-label="Principal" value={principalId} onChange={(e) => setPrincipalId(e.target.value)} className="h-8 rounded-lg border border-input bg-card px-2 text-sm">
             <option value="">Choisir…</option>
             {options.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
           </select>

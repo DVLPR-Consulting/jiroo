@@ -187,7 +187,7 @@ export function InlineCreateItem({
         readOnly={pending}
         aria-busy={pending || undefined}
         autoFocus
-        className="h-8 min-w-0 flex-1 basis-48 rounded-[var(--radius)] border border-[var(--border-strong)] bg-transparent px-2.5 text-sm outline-none focus-visible:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]/40"
+        className="h-8 min-w-0 flex-1 basis-48 rounded-[var(--radius)] border border-[var(--border-strong)] bg-card px-2.5 text-sm outline-none focus-visible:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]/40"
       />
       {parents.length > 0 ? (
         <SelectField

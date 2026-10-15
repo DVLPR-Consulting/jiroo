@@ -152,7 +152,7 @@ export function SprintReportView({
   });
   if (report.kind === "legacy_unavailable") {
     return (
-      <section className="space-y-3 rounded-xl border p-5">
+      <section className="space-y-3 rounded-xl border p-5 bg-card">
         <h1 className="t-h1">{report.sprint.name}</h1>
         <p className="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium">
           {report.statusLabel}
@@ -211,10 +211,10 @@ export function SprintReportView({
 
       <section aria-label="Mesures du sprint" className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <dl className="contents">
-          <div className="rounded-xl border p-4"><dt className="font-medium">Engagement</dt><dd>{countLabel(metrics.initialItemCount, "élément", "éléments")} · {pointsLabel(metrics.committedPoints, number.format)} · {countLabel(metrics.initialUnestimatedCount, "non estimé", "non estimés")}</dd></div>
-          <div className="rounded-xl border p-4"><dt className="font-medium">Terminés</dt><dd>{countLabel(metrics.completedItemCount, "élément", "éléments")} · {pointsLabel(metrics.completedPoints, number.format)}</dd></div>
-          <div className="rounded-xl border p-4"><dt className="font-medium">{report.kind === "completed" ? "Périmètre final" : "Périmètre actuel"}</dt><dd>{countLabel(metrics.currentItemCount, "élément", "éléments")} · {pointsLabel(metrics.currentScopePoints, number.format)} · {countLabel(metrics.currentUnestimatedCount, "non estimé", "non estimés")}</dd></div>
-          <div className="rounded-xl border p-4"><dt className="font-medium">Évolution du périmètre</dt><dd>Ajoutés {pointsLabel(metrics.grossPointsAdded, number.format)} · Retirés {pointsLabel(metrics.grossPointsRemoved, number.format)} · Delta {pointsLabel(metrics.netEstimateDelta, number.format)} · {countLabel(metrics.scopeEventCount, "événement", "événements")}</dd></div>
+          <div className="rounded-xl border p-4 bg-card"><dt className="font-medium">Engagement</dt><dd>{countLabel(metrics.initialItemCount, "élément", "éléments")} · {pointsLabel(metrics.committedPoints, number.format)} · {countLabel(metrics.initialUnestimatedCount, "non estimé", "non estimés")}</dd></div>
+          <div className="rounded-xl border p-4 bg-card"><dt className="font-medium">Terminés</dt><dd>{countLabel(metrics.completedItemCount, "élément", "éléments")} · {pointsLabel(metrics.completedPoints, number.format)}</dd></div>
+          <div className="rounded-xl border p-4 bg-card"><dt className="font-medium">{report.kind === "completed" ? "Périmètre final" : "Périmètre actuel"}</dt><dd>{countLabel(metrics.currentItemCount, "élément", "éléments")} · {pointsLabel(metrics.currentScopePoints, number.format)} · {countLabel(metrics.currentUnestimatedCount, "non estimé", "non estimés")}</dd></div>
+          <div className="rounded-xl border p-4 bg-card"><dt className="font-medium">Évolution du périmètre</dt><dd>Ajoutés {pointsLabel(metrics.grossPointsAdded, number.format)} · Retirés {pointsLabel(metrics.grossPointsRemoved, number.format)} · Delta {pointsLabel(metrics.netEstimateDelta, number.format)} · {countLabel(metrics.scopeEventCount, "événement", "événements")}</dd></div>
         </dl>
       </section>
 

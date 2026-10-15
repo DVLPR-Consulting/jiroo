@@ -15,7 +15,7 @@ export function DensityToggle() {
   return (
     <fieldset
       aria-label="Densité d’affichage"
-      className="inline-flex rounded-md border border-[var(--border-strong)] p-0.5"
+      className="inline-flex rounded-md border border-[var(--border-strong)] p-0.5 bg-card"
     >
       {OPTIONS.map((o) => (
         <label key={o.value} className="cursor-pointer">

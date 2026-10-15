@@ -76,7 +76,7 @@ export function OtpInput({
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
-          className="h-[52px] w-[44px] rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] text-center text-[22px] text-foreground outline-none focus:border-[var(--ring)] focus:ring-2"
+          className="h-[52px] w-[44px] rounded-[var(--radius)] border border-[var(--border-strong)] bg-card text-center text-[22px] text-foreground outline-none focus:border-[var(--ring)] focus:ring-2"
           style={{ fontFamily: "var(--font-mono)" }}
         />
       ))}

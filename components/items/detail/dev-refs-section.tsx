@@ -359,7 +359,7 @@ export function DevRefsSection({
           disabled={pending}
           placeholder="Coller une URL GitHub (PR, commit, branche)…"
           aria-label="URL GitHub à ajouter"
-          className="w-full rounded border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-1 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[var(--ring)] disabled:opacity-60"
+          className="w-full rounded border border-[var(--border-strong)] bg-card px-2 py-1 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[var(--ring)] disabled:opacity-60"
         />
         <button
           type="button"

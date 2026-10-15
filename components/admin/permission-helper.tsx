@@ -32,12 +32,12 @@ export function PermissionHelper({ users, backlogs }: {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  return <section className="space-y-4 rounded-xl border border-border p-4" aria-labelledby="permission-helper-title">
+  return <section className="space-y-4 rounded-xl border border-border p-4 bg-card" aria-labelledby="permission-helper-title">
     <div><h2 id="permission-helper-title" className="font-medium">Assistant de permissions</h2><p className="text-xs text-muted-foreground">Explique l’accès effectif avec des libellés métier.</p></div>
     <form aria-busy={pending} className="grid gap-2 md:grid-cols-3" onSubmit={(event) => { event.preventDefault(); setError(null); setResult(null); startTransition(async () => { let response: Awaited<ReturnType<typeof permissionHelperAction>>; try { response = await permissionHelperAction({ userId, backlogId, permission }); } catch { setError("Vérification impossible."); return; } if (!response.ok) setError(response.error); else setResult(response.result); }); }}>
-      <select aria-label="Utilisateur à vérifier" value={userId} onChange={(e) => setUserId(e.target.value)} className="h-8 rounded-lg border bg-background px-2 text-sm"><option value="">Choisir un utilisateur…</option>{users.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select>
-      <select aria-label="Backlog à vérifier" value={backlogId} onChange={(e) => setBacklogId(e.target.value)} className="h-8 rounded-lg border bg-background px-2 text-sm">{backlogs.map((backlog) => <option key={backlog.id} value={backlog.id}>{backlog.name} ({backlog.key})</option>)}</select>
-      <select aria-label="Permission à vérifier" value={permission} onChange={(e) => setPermission(e.target.value as BacklogPermissionKey)} className="h-8 rounded-lg border bg-background px-2 text-sm">{Object.values(BACKLOG_PERMISSION_DEFINITIONS).map((definition) => <option key={definition.key} value={definition.key}>{definition.label}</option>)}</select>
+      <select aria-label="Utilisateur à vérifier" value={userId} onChange={(e) => setUserId(e.target.value)} className="h-8 rounded-lg border bg-card px-2 text-sm"><option value="">Choisir un utilisateur…</option>{users.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select>
+      <select aria-label="Backlog à vérifier" value={backlogId} onChange={(e) => setBacklogId(e.target.value)} className="h-8 rounded-lg border bg-card px-2 text-sm">{backlogs.map((backlog) => <option key={backlog.id} value={backlog.id}>{backlog.name} ({backlog.key})</option>)}</select>
+      <select aria-label="Permission à vérifier" value={permission} onChange={(e) => setPermission(e.target.value as BacklogPermissionKey)} className="h-8 rounded-lg border bg-card px-2 text-sm">{Object.values(BACKLOG_PERMISSION_DEFINITIONS).map((definition) => <option key={definition.key} value={definition.key}>{definition.label}</option>)}</select>
       <Button className="md:col-span-3" type="submit" disabled={pending || !userId || !backlogId} aria-busy={pending}>Vérifier la permission</Button>
     </form>
     {error && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}

@@ -273,7 +273,7 @@ function HelpSkeleton() {
 /** Bordered list of rows used by the settings pages. */
 function CardRowsSkeleton({ rows }: { rows: number }) {
   return (
-    <div className="divide-y divide-border rounded-xl border border-border">
+    <div className="divide-y divide-border rounded-xl border border-border bg-card">
       {Array.from({ length: rows }, (_, index) => (
         <div key={index} className="flex items-center gap-3 p-3">
           <div className="min-w-0 flex-1 space-y-1.5">

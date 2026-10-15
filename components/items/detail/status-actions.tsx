@@ -83,7 +83,7 @@ export function StatusActions({
             disabled={field.pending}
             value={field.value}
             onChange={(event) => field.update(event.target.value)}
-            className="h-9 cursor-pointer appearance-none rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--muted)] pr-8 pl-7 text-[13px] font-semibold text-foreground outline-none hover:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60"
+            className="h-9 cursor-pointer appearance-none rounded-[var(--radius)] border border-[var(--border-strong)] bg-card pr-8 pl-7 text-[13px] font-semibold text-foreground outline-none hover:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60"
           >
             {statuses.map((status) => (
               <option key={status.id} value={status.id}>

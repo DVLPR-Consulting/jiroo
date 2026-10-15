@@ -231,7 +231,7 @@ export function StatusManagerDialog({
         </DialogHeader>
 
         <div className="space-y-3">
-          <ol className="divide-y divide-border rounded-md border border-border">
+          <ol className="divide-y divide-border rounded-md border border-border bg-card">
             {rows.map((status, index) => {
               const protectedCategory =
                 (status.category === "todo" && todoCount <= 1) ||
@@ -319,7 +319,7 @@ export function StatusManagerDialog({
                   <Label htmlFor="status-replacement">Statut de destination</Label>
                   <select
                     id="status-replacement"
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
                     value={replacementStatusId}
                     onChange={(event) => setReplacementStatusId(event.target.value)}
                   >
@@ -346,7 +346,7 @@ export function StatusManagerDialog({
             </section>
           ) : (
             <form
-              className="space-y-4 rounded-md border border-border p-4"
+              className="space-y-4 rounded-md border border-border p-4 bg-card"
               onSubmit={(event) => {
                 event.preventDefault();
                 submitStatus();
@@ -369,7 +369,7 @@ export function StatusManagerDialog({
                 <Label htmlFor="status-category">Catégorie</Label>
                 <select
                   id="status-category"
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
                   value={category}
                   onChange={(event) => setCategory(event.target.value as StatusCategory)}
                 >

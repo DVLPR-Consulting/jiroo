@@ -88,7 +88,7 @@ export function SprintEventJournal({
       {events.rows.length === 0 ? (
         <p className="rounded-xl border p-4 text-sm text-muted-foreground">Aucun événement.</p>
       ) : (
-        <ol className="divide-y rounded-xl border">
+        <ol className="divide-y rounded-xl border bg-card">
           {events.rows.map((event) => (
             <li key={event.id} className="flex flex-wrap justify-between gap-2 p-3 text-sm">
               <span>{eventSentence(event)}</span>

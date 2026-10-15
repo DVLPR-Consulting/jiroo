@@ -64,7 +64,7 @@ export function ReportNavigation({
               id="report-sprint"
               name="sprint"
               defaultValue={selectedSprintId ?? sprints[0]?.id}
-              className="h-8 rounded-lg border bg-background px-2 text-sm"
+              className="h-8 rounded-lg border bg-card px-2 text-sm"
             >
               {sprints.map((sprint) => (
                 <option key={sprint.id} value={sprint.id}>

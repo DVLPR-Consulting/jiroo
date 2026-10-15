@@ -149,7 +149,7 @@ export function WebLinksSection({
             value={url}
             onChange={(event) => setUrl(event.target.value)}
             disabled={pending}
-            className="w-full rounded border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-1 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[var(--ring)] disabled:opacity-60"
+            className="w-full rounded border border-[var(--border-strong)] bg-card px-2 py-1 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[var(--ring)] disabled:opacity-60"
           />
           <input
             type="text"
@@ -158,7 +158,7 @@ export function WebLinksSection({
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             disabled={pending}
-            className="w-full rounded border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-1 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[var(--ring)] disabled:opacity-60"
+            className="w-full rounded border border-[var(--border-strong)] bg-card px-2 py-1 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[var(--ring)] disabled:opacity-60"
           />
           <button
             type="submit"

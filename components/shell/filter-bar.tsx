@@ -254,7 +254,7 @@ export function FilterBar({
           setText(e.target.value);
           scheduleQ(e.target.value);
         }}
-        className="h-8 w-44 min-w-0 rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface)] px-2.5 text-[13px] placeholder:text-muted-foreground sm:w-52"
+        className="h-8 w-44 min-w-0 rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-card px-2.5 text-[13px] placeholder:text-muted-foreground sm:w-52"
       />
       <div role="group" aria-label="Filtrer par assigné" className="flex flex-wrap items-center">
         {assigneeOpts.map((option, index) => {

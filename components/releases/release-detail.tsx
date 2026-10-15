@@ -346,7 +346,7 @@ export function ReleaseDetail({
             Cet instantané ne contient aucun élément.
           </p>
         ) : (
-          <ul className="divide-y rounded-xl border">
+          <ul className="divide-y rounded-xl border bg-card">
             {snapshot.rows.map((item) => (
               <li key={item.id} className="flex flex-wrap items-start justify-between gap-3 p-3 text-sm">
                 <div className="space-y-1">
@@ -385,7 +385,7 @@ export function ReleaseDetail({
         {events.rows.length === 0 ? (
           <p className="rounded-xl border p-4 text-sm text-muted-foreground">Aucun événement.</p>
         ) : (
-          <ol className="divide-y rounded-xl border">
+          <ol className="divide-y rounded-xl border bg-card">
             {events.rows.map((event) => (
               <li key={event.id} className="flex flex-wrap justify-between gap-2 p-3 text-sm">
                 <div className="space-y-1">

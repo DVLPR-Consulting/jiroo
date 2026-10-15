@@ -342,7 +342,7 @@ export function InlineEstimate({
                 disabled={pending}
                 onChange={(event) => setDraft(event.target.value)}
                 onKeyDown={(event) => event.stopPropagation()}
-                className="w-full rounded border border-border bg-[var(--surface)] px-2 py-1 text-sm text-foreground outline-none focus:border-[var(--ring)]"
+                className="w-full rounded border border-border bg-card px-2 py-1 text-sm text-foreground outline-none focus:border-[var(--ring)]"
               />
             </label>
             <button

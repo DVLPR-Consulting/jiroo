@@ -181,7 +181,7 @@ export function ReleaseNotesEditor({
           </h2>
           <div
             ref={previewRef}
-            className={cn("rounded-lg border p-4", MARKDOWN_PROSE)}
+            className={cn("rounded-lg border p-4 bg-card", MARKDOWN_PROSE)}
           >
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
           </div>

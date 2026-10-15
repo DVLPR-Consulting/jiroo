@@ -325,7 +325,7 @@ export function MarkdownEditor({
           maxLength={maxLength}
           rows={10}
           className={cn(
-            "w-full resize-y rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 font-mono text-sm leading-relaxed text-foreground outline-none focus:border-[var(--ring)] disabled:opacity-60",
+            "w-full resize-y rounded-[var(--radius)] border border-[var(--border-strong)] bg-card px-3 py-2 font-mono text-sm leading-relaxed text-foreground outline-none focus:border-[var(--ring)] disabled:opacity-60",
             minHeightClassName,
           )}
           value={value}
