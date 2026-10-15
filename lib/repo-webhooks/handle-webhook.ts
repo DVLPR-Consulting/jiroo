@@ -1,8 +1,8 @@
 import "server-only";
 
-import { publishBacklogChange } from "@/lib/realtime/publish";
 import { createHash } from "node:crypto";
 import { deploymentSecretBoxKey, openSecret } from "@/lib/crypto/secret-box";
+import { publishBacklogChange } from "@/lib/realtime/publish";
 import {
   parseGithubWebhook,
   parseGitlabWebhook,

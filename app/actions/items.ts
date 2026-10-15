@@ -358,7 +358,11 @@ export async function bulkUpdateItemsAction(input: {
 export async function softDeleteItemAction(input: { id: string; backlogKey: string }) {
   const actorId = await authenticatedActorId();
   try {
-    const authorization = await requireItemPermission({ actorId, itemId: input.id, permission: "delete_items" });
+    const authorization = await requireItemPermission({
+      actorId,
+      itemId: input.id,
+      permission: "delete_items",
+    });
     const requestCorrelationId = randomUUID();
     const item = await softDeleteItem({ id: input.id }, actorId, requestCorrelationId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
@@ -379,7 +383,11 @@ export async function softDeleteItemAction(input: { id: string; backlogKey: stri
 export async function restoreItemAction(input: { id: string; backlogKey: string }) {
   const actorId = await authenticatedActorId();
   try {
-    const authorization = await requireItemPermission({ actorId, itemId: input.id, permission: "restore_items" });
+    const authorization = await requireItemPermission({
+      actorId,
+      itemId: input.id,
+      permission: "restore_items",
+    });
     const item = await restoreItem({ id: input.id }, actorId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
     await invalidateBacklog(input.backlogKey, {

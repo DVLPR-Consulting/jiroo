@@ -1351,7 +1351,12 @@ export async function removeSchemeGrant(
       newValue: { version },
       requestCorrelationId: correlationId(requestCorrelationId),
     });
-    return { id: grant.id, version, affectedBacklogKeys: affected.map((entry) => entry.key), affectedBacklogs: affected.map(({ id, key }) => ({ id, key })) };
+    return {
+      id: grant.id,
+      version,
+      affectedBacklogKeys: affected.map((entry) => entry.key),
+      affectedBacklogs: affected.map(({ id, key }) => ({ id, key })),
+    };
   });
 }
 
@@ -1439,7 +1444,11 @@ export async function removeGlobalPermissionGrant(
       },
       requestCorrelationId: correlationId(requestCorrelationId),
     });
-    return { id: grant.id, affectedBacklogKeys: affectedBacklogs.map((backlog) => backlog.key), affectedBacklogs };
+    return {
+      id: grant.id,
+      affectedBacklogKeys: affectedBacklogs.map((backlog) => backlog.key),
+      affectedBacklogs,
+    };
   });
 }
 

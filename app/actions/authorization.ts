@@ -198,7 +198,10 @@ function revalidateAdmin(): void {
   revalidatePath("/admin");
 }
 
-async function revalidateAccess(backlogs: readonly { id: string; key: string }[], actorId: string): Promise<void> {
+async function revalidateAccess(
+  backlogs: readonly { id: string; key: string }[],
+  actorId: string,
+): Promise<void> {
   revalidatePath("/admin");
   for (const backlog of new Map(backlogs.map((backlog) => [backlog.id, backlog])).values()) {
     await invalidateBacklog(backlog.key, {
@@ -402,7 +405,10 @@ export async function assignBacklogRoleActorAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    await revalidateAccess([{ id: parsed.backlogId, key: occupancy.backlogKey }], authorization.actorId);
+    await revalidateAccess(
+      [{ id: parsed.backlogId, key: occupancy.backlogKey }],
+      authorization.actorId,
+    );
     return { ok: true as const, occupancy };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
@@ -423,7 +429,10 @@ export async function removeBacklogRoleActorAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    await revalidateAccess([{ id: parsed.backlogId, key: occupancy.backlogKey }], authorization.actorId);
+    await revalidateAccess(
+      [{ id: parsed.backlogId, key: occupancy.backlogKey }],
+      authorization.actorId,
+    );
     return { ok: true as const, occupancy };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
@@ -444,7 +453,10 @@ export async function moveBacklogRoleActorAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    await revalidateAccess([{ id: parsed.backlogId, key: occupancy.backlogKey }], authorization.actorId);
+    await revalidateAccess(
+      [{ id: parsed.backlogId, key: occupancy.backlogKey }],
+      authorization.actorId,
+    );
     return { ok: true as const, occupancy };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
@@ -584,7 +596,10 @@ export async function associatePermissionSchemeAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    await revalidateAccess([{ id: parsed.backlogId, key: association.backlogKey }], authorization.actorId);
+    await revalidateAccess(
+      [{ id: parsed.backlogId, key: association.backlogKey }],
+      authorization.actorId,
+    );
     return { ok: true as const, association };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
@@ -605,7 +620,10 @@ export async function setBacklogAccessModeAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    await revalidateAccess([{ id: parsed.backlogId, key: access.backlogKey }], authorization.actorId);
+    await revalidateAccess(
+      [{ id: parsed.backlogId, key: access.backlogKey }],
+      authorization.actorId,
+    );
     return { ok: true as const, access };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
