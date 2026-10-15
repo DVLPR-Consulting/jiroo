@@ -170,6 +170,14 @@ describe("reactionFor", () => {
     });
   });
 
+  it("catches up quietly once the stream is ready", () => {
+    expect(reactionFor({ kind: "ready", self: false }, { openItemId: ITEM })).toEqual({
+      refreshOpenItem: true,
+      showBanner: false,
+      refreshBell: true,
+    });
+  });
+
   it("acts as if everything changed after a resync", () => {
     expect(reactionFor({ kind: "resync", self: false }, { openItemId: ITEM })).toEqual({
       refreshOpenItem: true,

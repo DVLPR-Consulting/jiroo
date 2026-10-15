@@ -60,10 +60,10 @@ describe("createChangeStream", () => {
     expect(await readText()).toBe('data: {"kind":"sprint","self":false}\n\n');
   });
 
-  it("forwards a resync", async () => {
+  it.each(["ready", "resync"] as const)("forwards %s", async (kind) => {
     await readText();
-    emit({ kind: "resync" });
-    expect(await readText()).toBe('data: {"kind":"resync","self":false}\n\n');
+    emit({ kind });
+    expect(await readText()).toBe(`data: {"kind":"${kind}","self":false}\n\n`);
   });
 
   it("sends a heartbeat comment", async () => {

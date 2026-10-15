@@ -19,7 +19,6 @@ vi.mock("next/navigation", () => ({
 
 class FakeEventSource {
   static instances: FakeEventSource[] = [];
-  onopen: (() => void) | null = null;
   onmessage: ((message: { data: string }) => void) | null = null;
   closed = false;
 
@@ -29,10 +28,6 @@ class FakeEventSource {
 
   close() {
     this.closed = true;
-  }
-
-  open() {
-    act(() => this.onopen?.());
   }
 
   send(event: object | string) {
@@ -149,20 +144,24 @@ describe("RealtimeProvider", () => {
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
-  it("catches up quietly when the stream reconnects", () => {
+  it("passes the stream's ready on quietly, without a banner", async () => {
     renderProvider();
-    latestSource().open();
-    expect(onEvents).not.toHaveBeenCalled();
-
-    latestSource().open();
-    expect(onEvents).toHaveBeenCalledWith([{ kind: "resync", self: false }]);
+    latestSource().send({ kind: "ready", self: false });
+    await flush();
+    expect(onEvents).toHaveBeenCalledWith([{ kind: "ready", self: false }]);
     expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("shows the banner after a resync", async () => {
+    renderProvider();
+    latestSource().send({ kind: "resync", self: false });
+    await flush();
+    expect(screen.getByRole("status")).toBeInTheDocument();
   });
 
   it("drops the stream of a tab hidden for a minute and reopens it on return", async () => {
     renderProvider();
     const first = latestSource();
-    first.open();
 
     setVisibility("hidden");
     await act(async () => {

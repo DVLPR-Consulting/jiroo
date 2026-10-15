@@ -23,8 +23,8 @@ export type ChangeStreamOptions = {
 };
 
 function toWire(message: BusMessage, viewerId: string): WireEvent {
-  return message.kind === "resync"
-    ? { kind: "resync", self: false }
+  return message.kind === "ready" || message.kind === "resync"
+    ? { kind: message.kind, self: false }
     : toWireEvent(message, viewerId);
 }
 

@@ -24,6 +24,7 @@ const WIRE_KINDS = new Set<WireEvent["kind"]>([
   "release",
   "backlog",
   "notification",
+  "ready",
   "resync",
 ]);
 
@@ -88,32 +89,24 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let source: EventSource | null = null;
-    let opened = false;
     let queue: WireEvent[] = [];
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
     let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
 
-    function deliver(events: readonly WireEvent[], raiseBanner: boolean) {
-      for (const listener of listeners.current) listener(events);
-      if (
-        raiseBanner
-        && backlogKey !== null
-        && events.some((event) => reactionFor(event, { openItemId: null }).showBanner)
-      ) {
-        setBanner({ backlogKey, visible: true });
-      }
-    }
-
+    // Each (re)connection starts with `ready` once the server listens: the
+    // listeners then catch up quietly on what happened before it.
     function flush() {
       flushTimer = null;
       const events = queue;
       queue = [];
-      if (events.length > 0) deliver(events, true);
-    }
-
-    /** After a gap (hidden tab, reconnect): refresh quietly, no banner. */
-    function catchUp() {
-      deliver([{ kind: "resync", self: false }], false);
+      if (events.length === 0) return;
+      for (const listener of listeners.current) listener(events);
+      if (
+        backlogKey !== null
+        && events.some((event) => reactionFor(event, { openItemId: null }).showBanner)
+      ) {
+        setBanner({ backlogKey, visible: true });
+      }
     }
 
     function connect() {
@@ -121,10 +114,6 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         ? `/api/realtime?backlog=${encodeURIComponent(backlogKey)}`
         : "/api/realtime";
       source = new EventSource(url);
-      source.onopen = () => {
-        if (opened) catchUp();
-        opened = true;
-      };
       source.onmessage = (message) => {
         const event = parseWireEvent(message.data);
         if (!event) return;

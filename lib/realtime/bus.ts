@@ -9,9 +9,16 @@ import {
   type RealtimeSubscription,
 } from "@/lib/realtime/events";
 
-/** What a subscriber receives: a change, or `resync` when events may have been missed. */
-export type BusMessage = ChangeEvent | { kind: "resync" };
+/**
+ * What a subscriber receives: a change; `ready` once its LISTEN is active, so
+ * it can catch up on what happened before; `resync` when an established
+ * listener was lost and changes may have been missed.
+ */
+export type BusMessage = ChangeEvent | { kind: "ready" } | { kind: "resync" };
 export type BusListener = (message: BusMessage) => void;
+
+/** Bounds a connection attempt that would otherwise hang (pg waits forever by default). */
+const CONNECT_TIMEOUT_MS = 10_000;
 
 /** The slice of `pg.Client` the bus relies on, so tests can stand in for it. */
 export interface ListenClient {
@@ -50,7 +57,8 @@ export class RealtimeBus {
 
   readonly #entries = new Set<Entry>();
   #client: ListenClient | null = null;
-  #connecting = false;
+  /** The connection being opened; replaced or cleared to abandon it. */
+  #pending: ListenClient | null = null;
   #retryTimer: ReturnType<typeof setTimeout> | null = null;
   #retryAttempt = 0;
   #missedEvents = false;
@@ -58,7 +66,13 @@ export class RealtimeBus {
   constructor(options: RealtimeBusOptions) {
     this.#connectionString = options.connectionString;
     this.#createClient =
-      options.createClient ?? ((connectionString) => new Client({ connectionString }));
+      options.createClient
+      ?? ((connectionString) =>
+        new Client({
+          connectionString,
+          connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
+          query_timeout: CONNECT_TIMEOUT_MS,
+        }));
     this.#minRetryDelayMs = options.minRetryDelayMs ?? 500;
     this.#maxRetryDelayMs = options.maxRetryDelayMs ?? 30_000;
     this.#log = options.log ?? ((message, error) => console.error(`[realtime] ${message}`, error));
@@ -71,21 +85,25 @@ export class RealtimeBus {
     const entry: Entry = { subscription, listener };
     this.#entries.add(entry);
     if (this.#entries.size === 1) this.#open();
+    else if (this.#client) {
+      // Already listening: ready once the caller holds its unsubscribe.
+      queueMicrotask(() => {
+        if (this.#entries.has(entry) && this.#client) this.#call(entry, { kind: "ready" });
+      });
+    }
     return () => {
       if (this.#entries.delete(entry) && this.#entries.size === 0) this.#close();
     };
   }
 
   #open() {
-    if (this.#client || this.#connecting || this.#retryTimer) return;
-    this.#connecting = true;
-    void this.#connect().finally(() => {
-      this.#connecting = false;
-    });
+    if (this.#client || this.#pending || this.#retryTimer) return;
+    const client = this.#createClient(this.#connectionString!);
+    this.#pending = client;
+    void this.#connect(client);
   }
 
-  async #connect() {
-    const client = this.#createClient(this.#connectionString!);
+  async #connect(client: ListenClient) {
     client.on("notification", (message) => {
       if (this.#client === client && message.channel === REALTIME_CHANNEL && message.payload) {
         this.#deliver(message.payload);
@@ -99,24 +117,26 @@ export class RealtimeBus {
       await client.connect();
       await client.query(`LISTEN ${REALTIME_CHANNEL}`);
     } catch (error) {
+      // Abandoned attempts were already closed by #close.
+      if (this.#pending !== client) return;
+      this.#pending = null;
       this.#log("could not listen for changes", error);
       void client.end().catch(() => {});
-      this.#missedEvents = true;
       if (this.#entries.size > 0) this.#scheduleRetry();
       return;
     }
 
-    if (this.#entries.size === 0) {
+    if (this.#pending !== client) {
       // Everyone left while the connection was opening.
       void client.end().catch(() => {});
       return;
     }
+    this.#pending = null;
     this.#client = client;
     this.#retryAttempt = 0;
-    if (this.#missedEvents) {
-      this.#missedEvents = false;
-      this.#broadcast({ kind: "resync" });
-    }
+    const missed = this.#missedEvents;
+    this.#missedEvents = false;
+    this.#broadcast({ kind: missed ? "resync" : "ready" });
   }
 
   #lose(client: ListenClient, error?: unknown) {
@@ -144,9 +164,11 @@ export class RealtimeBus {
     this.#retryAttempt = 0;
     // Nobody is left to resync; the next subscriber loads fresh data anyway.
     this.#missedEvents = false;
-    const client = this.#client;
+    for (const client of [this.#client, this.#pending]) {
+      if (client) void client.end().catch(() => {});
+    }
     this.#client = null;
-    if (client) void client.end().catch(() => {});
+    this.#pending = null;
   }
 
   #deliver(payload: string) {

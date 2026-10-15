@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { Pool } from "pg";
+import { Client, Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { RealtimeBus, type BusMessage } from "@/lib/realtime/bus";
 import { REALTIME_CHANNEL, buildChangeEvent, serializeChangeEvent } from "@/lib/realtime/events";
@@ -12,6 +12,8 @@ const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.
 
 describeDb("RealtimeBus against Postgres", () => {
   const backlogId = randomUUID();
+  // Tags this suite's listeners so it never touches another process's.
+  const applicationName = `jiroo-realtime-test-${backlogId.slice(0, 8)}`;
   let pool: Pool;
   let unsubscribe: (() => void) | null = null;
 
@@ -31,6 +33,8 @@ describeDb("RealtimeBus against Postgres", () => {
   function newBus() {
     return new RealtimeBus({
       connectionString: process.env.DATABASE_URL,
+      createClient: (connectionString) =>
+        new Client({ connectionString, application_name: applicationName }),
       minRetryDelayMs: 50,
       log: () => {},
     });
@@ -55,8 +59,8 @@ describeDb("RealtimeBus against Postgres", () => {
 
   async function listenerPids(): Promise<number[]> {
     const { rows } = await pool.query<{ pid: number }>(
-      "SELECT pid FROM pg_stat_activity WHERE query = $1 AND pid <> pg_backend_pid()",
-      [`LISTEN ${REALTIME_CHANNEL}`],
+      "SELECT pid FROM pg_stat_activity WHERE application_name = $1 AND query = $2",
+      [applicationName, `LISTEN ${REALTIME_CHANNEL}`],
     );
     return rows.map((row) => row.pid);
   }
@@ -80,10 +84,23 @@ describeDb("RealtimeBus against Postgres", () => {
     await vi.waitFor(
       async () => {
         if (received.length === 0) await notifyUsers([userId, "someone-else"], "integration");
-        expect(received).toEqual([expect.objectContaining({ kind: "notification", userId })]);
+        expect(received.filter((message) => message.kind === "notification")).toEqual([
+          expect.objectContaining({ kind: "notification", userId }),
+        ]);
       },
       { timeout: 5_000, interval: 100 },
     );
+  });
+
+  it("tells the subscriber once its LISTEN is ready", async () => {
+    const received: BusMessage[] = [];
+    unsubscribe = newBus().subscribe({ backlogId, userId: "me" }, (message) =>
+      received.push(message),
+    );
+    await vi.waitFor(() => expect(received).toEqual([{ kind: "ready" }]), {
+      timeout: 5_000,
+      interval: 50,
+    });
   });
 
   it("resyncs and keeps listening after the connection is killed", async () => {

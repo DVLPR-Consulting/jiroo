@@ -100,9 +100,13 @@ export function matchesSubscription(event: ChangeEvent, subscription: RealtimeSu
   return subscription.backlogId !== null && event.backlogId === subscription.backlogId;
 }
 
-/** What the browser receives. `resync` is sent after a lost connection, never published. */
+/**
+ * What the browser receives. Never published: `ready` when its stream starts
+ * listening (catch up quietly on what happened before), `resync` after a lost
+ * connection (changes may have been missed).
+ */
 export type WireEvent = {
-  kind: ChangeKind | "resync";
+  kind: ChangeKind | "ready" | "resync";
   itemIds?: string[];
   self: boolean;
 };
@@ -125,6 +129,9 @@ export function reactionFor(
   event: WireEvent,
   context: { openItemId: string | null },
 ): RealtimeReaction {
+  if (event.kind === "ready") {
+    return { refreshOpenItem: context.openItemId !== null, showBanner: false, refreshBell: true };
+  }
   if (event.kind === "resync") {
     return { refreshOpenItem: context.openItemId !== null, showBanner: true, refreshBell: true };
   }
