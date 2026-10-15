@@ -11,14 +11,14 @@ export function HelpGuide() {
       <GuideSection id="demarrer">
         <GuideTopic
           title="Se connecter"
-          purpose="Accéder à Jiroo avec le compte créé par un administrateur."
+          purpose="Accéder à Jiroo avec le compte créé par un administrateur Jiroo."
           steps={[
             <>Saisissez votre <Ui>E-mail</Ui> et votre <Ui>Mot de passe</Ui>, puis cliquez sur <Ui>Se connecter</Ui>.</>,
             <>Saisissez le code à 6 chiffres de votre application d’authentification, puis <Ui>Vérifier</Ui>.</>,
           ]}
         >
           <GuideNote>
-            Pas d’inscription libre ni de mot de passe oublié en libre-service : un administrateur crée les comptes
+            Pas d’inscription libre ni de mot de passe oublié en libre-service : une personne autorisée crée les comptes
             et réinitialise les accès. Après une vérification réussie, le navigateur est mémorisé pendant un temps ; il
             peut vous être redemandé un code après un changement de mot de passe ou une réinitialisation.
           </GuideNote>
@@ -61,7 +61,7 @@ export function HelpGuide() {
           purpose="Retrouver l’accès si vous ne pouvez plus produire de code."
           steps={[
             <>Utilisez un code de récupération si vous en avez encore un.</>,
-            <>Sinon, demandez à un administrateur de <Ui>Réinitialiser la double authentification</Ui> de votre compte.</>,
+            <>Sinon, demandez à un administrateur Jiroo de <Ui>Réinitialiser la double authentification</Ui> de votre compte.</>,
             <>À la connexion suivante, configurez à nouveau la double authentification.</>,
           ]}
         />
@@ -329,6 +329,7 @@ export function HelpGuide() {
             <>Sous la description, la section des enfants (<Ui>Epics</Ui>, <Ui>Tâches</Ui> ou <Ui>Sous-tâches</Ui>) liste les tickets rattachés avec leur statut ; <Ui>+ Créer…</Ui> en ajoute un.</>,
             <>À droite, le bouton de statut change le statut ; le bouton voisin (par exemple <Ui>En cours →</Ui>) passe directement au statut suivant du flux.</>,
             <>Panneau <Ui>Détails</Ui> : cliquez sur une valeur (<Ui>Assigné</Ui>, <Ui>Priorité</Ui>, <Ui>Début</Ui>, <Ui>Échéance</Ui>…) pour la modifier ; <Ui>M’assigner</Ui> vous attribue le ticket. Les panneaux <Ui>Détails</Ui> et <Ui>Développement</Ui> se replient ; ce choix est mémorisé sur l’appareil.</>,
+            <>Sans la permission globale <Ui>Parcourir les utilisateurs</Ui>, le champ <Ui>Assigné</Ui> explique pourquoi la liste est restreinte et invite à contacter un administrateur Jiroo, y compris à la création et dans les menus en ligne.</>,
             <>La date <Ui>Début</Ui> est facultative et sert à planifier le ticket dans la vue Roadmap ; elle doit précéder l’<Ui>Échéance</Ui> ou lui être égale si celle-ci est renseignée.</>,
           ]}
         />
@@ -658,20 +659,31 @@ export function HelpGuide() {
           <ul className="t-body list-disc space-y-1 pl-5">
             <li><Ui>Lecteur</Ui> : consulte le backlog, sans rien modifier.</li>
             <li><Ui>Membre</Ui> : crée, modifie, change le statut, planifie et assigne les tickets ; commente ; crée des liens.</li>
-            <li><Ui>Administrateur</Ui> : tout ce que fait un membre, plus supprimer et restaurer, gérer sprints, releases, statuts, membres et vues partagées.</li>
+            <li><Ui>Administrateur du backlog</Ui> : tout ce que fait un membre, plus supprimer et restaurer, gérer sprints, releases, statuts, membres et vues partagées.</li>
           </ul>
           <GuideNote>
+            Le rôle Administrateur du backlog ne donne pas la permission globale Administrer Jiroo. Un administrateur Jiroo dispose de cette permission globale et peut gérer les accès de la plateforme.
             Les droits s’additionnent (utilisateur, groupes, rôles) et peuvent être ajustés par backlog. Les actions
             disponibles dépendent de vos droits et de l&apos;état de l&apos;élément.
           </GuideNote>
         </GuideTopic>
 
         <GuideTopic
-          title="Administration (administrateurs)"
+          title="Parcourir les utilisateurs et assigner"
+          purpose="Comprendre pourquoi le menu Assigné peut ne proposer aucun utilisateur."
+          steps={[
+            <>La permission globale <Ui>Parcourir les utilisateurs</Ui> est accordée par défaut à tous les utilisateurs authentifiés. Elle permet d’afficher les candidats ; le droit d’assigner dans le backlog reste nécessaire pour modifier l’assigné.</>,
+            <>Un administrateur Jiroo peut retirer cet accès depuis <Ui>Administration</Ui> → <Ui>Groupes</Ui> → <Ui>Permissions globales</Ui>.</>,
+            <>Sans cette permission, le menu <Ui>Assigné</Ui> de la création, du détail, de la Liste et du Backlog explique le droit manquant et invite à le demander à un administrateur Jiroo. <Ui>Non assigné</Ui> reste proposé ; <Ui>M’assigner</Ui> reste disponible quand votre compte fait déjà partie des candidats.</>,
+          ]}
+        />
+
+        <GuideTopic
+          title="Administration et administrateurs Jiroo"
           purpose="Gérer comptes, groupes, backlogs et accès."
           steps={[
             <>Barre latérale → <Ui>Administration</Ui> (visible seulement si vous avez un droit d’administration ; chaque onglet dépend de vos permissions).</>,
-            <><Ui>Utilisateurs</Ui> : <Ui>Nouvel utilisateur</Ui> ; menu « … » → <Ui>Réinitialiser le mot de passe</Ui> ou <Ui>Réinitialiser la double authentification</Ui>.</>,
+            <><Ui>Utilisateurs</Ui> : <Ui>Nouvel utilisateur</Ui> crée un compte sans attribution directe de droits globaux ; les droits accordés à tous les utilisateurs authentifiés restent applicables. Le formulaire renvoie vers <Ui>Groupes</Ui> pour lui en donner d’autres ; menu « … » → <Ui>Réinitialiser le mot de passe</Ui> ou <Ui>Réinitialiser la double authentification</Ui>.</>,
             <><Ui>Groupes</Ui> : créer, renommer, ajouter ou retirer des membres ; attribuer les permissions globales.</>,
             <><Ui>Backlogs</Ui> : <Ui>Nouveau backlog</Ui>, <Ui>Modifier</Ui>, <Ui>Archiver</Ui>, <Ui>Accès</Ui> pour affecter personnes et groupes aux rôles, et <Ui>Développement</Ui> pour connecter des dépôts GitHub ou GitLab.</>,
             <><Ui>Backlogs</Ui> → <Ui>Accès</Ui> : la barre latérale et le fil d’Ariane (<Ui>Administration</Ui> / <Ui>Backlogs</Ui> / nom du backlog / <Ui>Accès</Ui>) suivent le backlog affiché. En <Ui>Mode Simple</Ui>, choisissez le rôle de chaque personne ou groupe, ajoutez-en, ou cliquez <Ui>Retirer</Ui> sur sa ligne. Le dernier administrateur effectif du backlog ne peut être ni retiré ni changé de rôle.</>,
@@ -681,7 +693,7 @@ export function HelpGuide() {
         >
           <GuideNote>
             La récupération des accès (mot de passe, double authentification) et l’attribution de permissions
-            globales sont réservées aux administrateurs de Jiroo ; la récupération concerne un autre compte que le
+            globales sont réservées aux administrateurs Jiroo ; la récupération concerne un autre compte que le
             vôtre. Les accès dépendent des permissions du backlog : elles peuvent être attribuées à une personne, à
             un groupe, à un rôle ou à tous les utilisateurs connectés. Vérifiez les accès avant de créer un compte de
             test. Pas de désactivation de compte dans l’interface.
@@ -703,10 +715,10 @@ export function HelpGuide() {
           title="Remonter un retour"
           purpose="Signaler un bug ou proposer une amélioration pendant les tests."
           steps={[
-            <>Si l’administrateur a créé un backlog « Recette », ouvrez-le avec le sélecteur de backlog.</>,
+            <>Si un administrateur Jiroo a créé un backlog « Recette », ouvrez-le avec le sélecteur de backlog.</>,
             <>Créez un ticket avec le modèle <Ui>Rapport de bug</Ui> (ou <Ui>User story</Ui> pour une idée).</>,
             <>Décrivez les étapes, le résultat attendu et le résultat observé.</>,
-            <>À défaut de backlog « Recette », transmettez votre retour directement à l’administrateur.</>,
+            <>À défaut de backlog « Recette », transmettez votre retour directement à un administrateur Jiroo.</>,
           ]}
         />
       </GuideSection>
