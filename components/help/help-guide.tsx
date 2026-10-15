@@ -440,6 +440,18 @@ export function HelpGuide() {
         </GuideTopic>
       </GuideSection>
 
+      <GuideSection id="collaboration">
+        <ul className="t-body list-disc space-y-1 pl-5">
+          <li>Quand quelqu’un d’autre modifie le backlog affiché, le bandeau <Ui>Ce backlog a été modifié par quelqu&apos;un d&apos;autre.</Ui> apparaît en haut de l’écran.</li>
+          <li>Les vues Backlog, Board, Liste et Arbre restent en place : cliquez sur <Ui>Actualiser</Ui> pour voir les changements, ou sur <Ui>Masquer</Ui> pour fermer le bandeau.</li>
+          <li>Vos propres modifications ne font pas apparaître ce bandeau.</li>
+          <li>Le panneau de détail ouvert se met à jour tout seul quand quelqu’un d’autre modifie ce ticket.</li>
+          <li>La cloche se met à jour toute seule quand quelqu’un vous mentionne dans un commentaire.</li>
+          <li>Si un onglet reste caché plus d’une minute, le suivi se met en pause ; à votre retour, le panneau ouvert et la cloche rattrapent les changements.</li>
+          <li>Vous ne voyez pas qui regarde un ticket et l’écriture à plusieurs en direct n’est pas proposée.</li>
+        </ul>
+      </GuideSection>
+
       <GuideSection id="sprints">
         <GuideTopic
           title="Créer et modifier un sprint"
