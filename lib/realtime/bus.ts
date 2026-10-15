@@ -66,7 +66,7 @@ export class RealtimeBus {
 
   subscribe(subscription: RealtimeSubscription, listener: BusListener): () => void {
     if (!this.#connectionString) {
-      throw new Error("Realtime needs DATABASE_URL_UNPOOLED or DATABASE_URL.");
+      throw new Error("Realtime needs DIRECT_DATABASE_URL or DATABASE_URL.");
     }
     const entry: Entry = { subscription, listener };
     this.#entries.add(entry);
@@ -177,11 +177,11 @@ const globalForRealtime = globalThis as typeof globalThis & { jirooRealtimeBus?:
 
 /**
  * The process-wide bus. LISTEN needs a direct connection: Neon's pooler runs in
- * transaction mode, hence the optional unpooled URL.
+ * transaction mode, so the unpooled URL used by migrations wins when set.
  */
 export function getRealtimeBus(): RealtimeBus {
   globalForRealtime.jirooRealtimeBus ??= new RealtimeBus({
-    connectionString: process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL,
+    connectionString: process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL,
   });
   return globalForRealtime.jirooRealtimeBus;
 }
