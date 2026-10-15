@@ -19,7 +19,7 @@
   --surface: oklch(1 0 0);
   --surface-2: oklch(0.978 0.004 60);
   --muted: oklch(0.948 0.005 60);
-  --muted-foreground: oklch(0.552 0.012 55);
+  --muted-foreground: oklch(0.52 0.012 55);
   --subtle-foreground: oklch(0.648 0.012 55);
   --foreground: oklch(0.248 0.01 50);
   --border: oklch(0.922 0.004 60);
