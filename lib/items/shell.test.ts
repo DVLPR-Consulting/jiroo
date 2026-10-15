@@ -161,6 +161,7 @@ describe("deriveShellContext", () => {
 
   it.each([
     ["/b/PEN/releases", "Releases"],
+    ["/b/pen/roadmap", "Roadmap"],
     ["/b/pen/reports", "Rapports"],
     ["/b/PEN/reports/detail", "Rapports"],
   ] as const)("keeps the requested backlog for %s", (pathname, section) => {
@@ -290,12 +291,13 @@ describe("deriveShellContext — Backlog mode", () => {
 });
 
 describe("project views (sidebar)", () => {
-  it("lists the six project views in sidebar order", () => {
+  it("lists the seven project views in sidebar order", () => {
     expect(PROJECT_VIEWS.map((view) => view.label)).toEqual([
       "Backlog",
       "Board",
       "Liste",
       "Arbre",
+      "Roadmap",
       "Releases",
       "Rapports",
     ]);
@@ -306,6 +308,7 @@ describe("project views (sidebar)", () => {
     ["board", "/b/CASS?view=board"],
     ["list", "/b/CASS?view=list"],
     ["tree", "/b/CASS?view=tree"],
+    ["roadmap", "/b/CASS/roadmap"],
     ["releases", "/b/CASS/releases"],
     ["reports", "/b/CASS/reports"],
   ] as const)("links %s to %s", (id, href) => {
@@ -321,6 +324,7 @@ describe("project views (sidebar)", () => {
     ["/b/cass", "view=list", "list"],
     ["/b/CASS/", "view=backlog", "backlog"],
     ["/b/CASS", "view=unknown", "board"],
+    ["/b/CASS/roadmap", "", "roadmap"],
     ["/b/CASS/releases", "", "releases"],
     ["/b/CASS/releases/r-1/notes", "", "releases"],
     ["/b/CASS/reports", "view=list", "reports"],
@@ -379,6 +383,7 @@ describe("deriveBreadcrumb (page header)", () => {
 
   it.each([
     ["/b/PEN/releases", "Pôle pénal", "/b/PEN", "Releases"],
+    ["/b/pen/roadmap", "Pôle pénal", "/b/PEN", "Roadmap"],
     ["/b/pen/reports", "Pôle pénal", "/b/PEN", "Rapports"],
     ["/aide", "Pôle civil", "/b/CASS", "Aide"],
     ["/admin", "Pôle civil", "/b/CASS", "Administration"],

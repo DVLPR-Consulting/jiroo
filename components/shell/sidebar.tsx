@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   ChartColumn,
+  ChartGantt,
   FolderKanban,
   Layers,
   List,
@@ -41,6 +42,7 @@ const PROJECT_VIEW_ICONS: Record<ProjectViewId, LucideIcon> = {
   board: SquareKanban,
   list: List,
   tree: ListTree,
+  roadmap: ChartGantt,
   releases: Tag,
   reports: ChartColumn,
 };

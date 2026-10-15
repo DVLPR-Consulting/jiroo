@@ -158,6 +158,7 @@ describe("Sidebar", () => {
       "Board",
       "Liste",
       "Arbre",
+      "Roadmap",
       "Releases",
       "Rapports",
     ]);

@@ -65,7 +65,7 @@ export function deriveShellContext({
     };
   }
 
-  const completedFeatureMatch = /^\/b\/([^/]+)\/(releases|reports)(?:\/.*)?$/.exec(pathname);
+  const completedFeatureMatch = /^\/b\/([^/]+)\/(roadmap|releases|reports)(?:\/.*)?$/.exec(pathname);
   if (completedFeatureMatch) {
     const requestedKey = decodeURIComponent(completedFeatureMatch[1]!).toUpperCase();
     const backlog = backlogs.find(
@@ -74,7 +74,7 @@ export function deriveShellContext({
     const feature = completedFeatureMatch[2];
     return {
       ...(backlog ? { activeBacklogKey: requestedKey } : {}),
-      section: feature === "releases" ? "Releases" : "Rapports",
+      section: feature === "roadmap" ? "Roadmap" : feature === "releases" ? "Releases" : "Rapports",
       allItemsHref: backlog ? allItemsHrefFor(requestedKey) : allItemsHref,
       activeNav: null,
     };
@@ -138,7 +138,7 @@ export function deriveShellContext({
 // ---------------------------------------------------------------------------
 
 export type ItemViewId = "backlog" | "board" | "list" | "tree";
-export type ProjectViewId = ItemViewId | "releases" | "reports";
+export type ProjectViewId = ItemViewId | "roadmap" | "releases" | "reports";
 
 /**
  * The project's views, in sidebar order. Item views are display modes of
@@ -149,6 +149,7 @@ export const PROJECT_VIEWS = [
   { id: "board", label: "Board", kind: "item" },
   { id: "list", label: "Liste", kind: "item" },
   { id: "tree", label: "Arbre", kind: "item" },
+  { id: "roadmap", label: "Roadmap", kind: "page" },
   { id: "releases", label: "Releases", kind: "page" },
   { id: "reports", label: "Rapports", kind: "page" },
 ] as const satisfies readonly {
@@ -176,7 +177,7 @@ export function activeProjectView(
   search: URLSearchParams,
   backlogKey: string,
 ): ProjectViewId | null {
-  const match = /^\/b\/([^/]+)(?:\/(releases|reports)(?:\/.*)?|\/?)$/.exec(pathname);
+  const match = /^\/b\/([^/]+)(?:\/(roadmap|releases|reports)(?:\/.*)?|\/?)$/.exec(pathname);
   if (!match) return null;
   if (decodeURIComponent(match[1]!).toUpperCase() !== backlogKey.toUpperCase()) return null;
   if (match[2]) return match[2] as ProjectViewId;
