@@ -537,8 +537,8 @@ export function ItemTree({
         />
       ) : null}
       <div className="flex-1 overflow-auto p-3 sm:p-4">
-        <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border bg-card">
-          {/* -mb-px hides the last row's separator under the card border. */}
+        <div className="min-w-fit overflow-hidden rounded-[var(--radius-lg)] border border-border bg-card">
+          {/* min-w-fit lets the card widen with rows that cannot shrink, so the outer scroller reaches them; -mb-px hides the last separator. */}
           <div className="-mb-px">{roots.map((node) => renderNode(node))}</div>
         </div>
       </div>
