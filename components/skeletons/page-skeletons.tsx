@@ -372,6 +372,42 @@ function ReleaseCardSkeleton() {
   );
 }
 
+/** A backlog's Roadmap: toolbar, item labels and calendar bars. */
+function RoadmapSkeleton() {
+  return (
+    <SkeletonRegion label="Chargement de la roadmap" name="roadmap" className="flex h-full flex-col">
+      <PageHeaderSkeleton titleClassName="w-36" />
+      <div data-slot="roadmap-skeleton-toolbar" className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6">
+        <Skeleton className="h-9 w-56" />
+        <Skeleton className="h-8 w-28" />
+        <Skeleton className="ml-auto h-4 w-52" />
+      </div>
+      <div className="min-h-0 flex-1 px-3 pb-3 sm:px-4 sm:pb-4">
+        <div className="h-full overflow-hidden rounded-[var(--radius-lg)] border border-border bg-card">
+          <div className="grid h-16 grid-cols-[minmax(0,20rem)_minmax(0,1fr)] border-b border-border">
+            <div className="flex items-center border-r border-border px-4"><Skeleton className="h-3 w-24" /></div>
+            <div className="flex items-center justify-around gap-4 px-4">
+              {[0, 1, 2].map((index) => <Skeleton key={index} className="h-3 w-16" />)}
+            </div>
+          </div>
+          {Array.from({ length: 7 }, (_, index) => (
+            <div key={index} data-slot="roadmap-skeleton-row" className="grid grid-cols-[minmax(0,20rem)_minmax(0,1fr)] border-b border-border" style={{ height: "var(--row-h)" }}>
+              <div className="flex min-w-0 items-center gap-2 border-r border-border pr-4" style={{ paddingLeft: index % 3 === 0 ? 12 : 32 }}>
+                <Skeleton className="size-4 flex-none" />
+                <Skeleton className="h-3 w-12 flex-none" />
+                <Skeleton className="h-3 w-28 max-w-full" />
+              </div>
+              <div className="flex items-center px-4">
+                <Skeleton className="h-5" style={{ marginLeft: `${(index % 3) * 10}%`, width: index % 2 === 0 ? "55%" : "35%" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </SkeletonRegion>
+  );
+}
+
 /** A backlog's Releases list. */
 function ReleasesSkeleton() {
   return (
@@ -505,5 +541,6 @@ export {
   ReleaseNotesSkeleton,
   ReleasesSkeleton,
   ReportsSkeleton,
+  RoadmapSkeleton,
   TrashSkeleton,
 };
