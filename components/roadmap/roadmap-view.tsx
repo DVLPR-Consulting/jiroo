@@ -1,22 +1,41 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import { ChartGantt, ChevronRight } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { Day } from "@/lib/roadmap/days";
-import type { Bar } from "@/lib/roadmap/intervals";
+import { useRoadmapEdits } from "@/components/roadmap/use-roadmap-edits";
+import { addDays, type Day } from "@/lib/roadmap/days";
+import {
+  dragInterval,
+  keyboardEdit,
+  sameInterval,
+  type Bar,
+  type DragMode,
+  type Interval,
+} from "@/lib/roadmap/intervals";
 import { buildRows, type RoadmapRow, type RoadmapSource } from "@/lib/roadmap/rows";
 import {
   barRect,
   buildTimeline,
   dayToX,
   DAY_WIDTH,
+  dragDays,
   ticks,
   timelineWidth,
+  xToDay,
   ZOOMS,
   type Timeline,
   type Zoom,
@@ -44,6 +63,21 @@ const ZOOM_LABELS: Record<Zoom, string> = {
 const ZOOM_STORAGE_KEY = "jiroo.roadmap.zoom";
 const DEFAULT_ZOOM: Zoom = "months";
 const LABEL_WIDTH = 320;
+/** A click on an unplanned row plans a week from the clicked day. */
+const PLAN_DAYS = 7;
+/** Pointer travel under which a press is a click, not a drag. */
+const DRAG_THRESHOLD_PX = 3;
+/** Arrow keys repeat: save once they settle. */
+const KEY_SAVE_DELAY_MS = 600;
+
+type Drag = {
+  row: RoadmapRow;
+  mode: DragMode;
+  origin: Interval;
+  anchorX: number;
+  preview: Interval;
+  moved: boolean;
+};
 
 const dayLabel = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
@@ -121,6 +155,8 @@ function visible(
  * once an epic is expanded, its tasks, each as a bar over a calendar.
  */
 export function RoadmapView({
+  backlogKey,
+  canEdit,
   today,
   items,
   sprints,
@@ -134,6 +170,14 @@ export function RoadmapView({
   releases: readonly RoadmapViewRelease[];
 }) {
   const { push } = useViewUrlState();
+  const hintId = useId();
+  const [announcement, setAnnouncement] = useState("");
+  const { effectiveItems, save } = useRoadmapEdits(backlogKey, items, setAnnouncement);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  // Pointer events can outrun renders: handlers read the drag from here.
+  const dragRef = useRef<Drag | null>(null);
+  // The click that ends a drag must not open the item.
+  const suppressClick = useRef(false);
   const scroller = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<Zoom>(DEFAULT_ZOOM);
   const [showDone, setShowDone] = useState(false);
@@ -150,8 +194,8 @@ export function RoadmapView({
 
   const rows = useMemo(() => {
     const sprintDays = new Map(sprints.map((sprint) => [sprint.id, { start: sprint.start, end: sprint.end }]));
-    return buildRows(items, sprintDays, { today, showDone });
-  }, [items, sprints, today, showDone]);
+    return buildRows(effectiveItems, sprintDays, { today, showDone });
+  }, [effectiveItems, sprints, today, showDone]);
   const shown = useMemo(() => visible(rows, openEpics, closedGroups), [rows, openEpics, closedGroups]);
 
   const datedSprints = useMemo(
@@ -214,8 +258,82 @@ export function RoadmapView({
   }
 
   function openItem(key: string) {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
     push((params) => params.set("item", key));
   }
+
+  function commit(row: RoadmapRow, interval: Interval, delayMs = 0) {
+    save(row, interval, barDescription({ ...interval, derived: false }), delayMs);
+  }
+
+  function updateDrag(next: Drag | null) {
+    dragRef.current = next;
+    setDrag(next);
+  }
+
+  function beginDrag(event: PointerEvent<HTMLElement>, row: RoadmapRow, mode: DragMode, origin: Interval) {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    suppressClick.current = false;
+    updateDrag({ row, mode, origin, anchorX: event.clientX, preview: origin, moved: false });
+  }
+
+  function pressBar(event: PointerEvent<HTMLElement>, row: RoadmapRow, bar: Bar) {
+    const edge = (event.target as HTMLElement).dataset.edge;
+    beginDrag(event, row, edge === "start" || edge === "end" ? edge : "move", bar);
+  }
+
+  function pressTrack(event: PointerEvent<HTMLElement>, row: RoadmapRow) {
+    const day = xToDay(timeline, event.clientX - event.currentTarget.getBoundingClientRect().left);
+    beginDrag(event, row, "plan", { start: day, end: day });
+  }
+
+  function moveDrag(event: PointerEvent<HTMLElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = event.clientX - drag.anchorX;
+    updateDrag({
+      ...drag,
+      preview: dragInterval(drag.mode, drag.origin, dragDays(timeline, dx)),
+      moved: drag.moved || Math.abs(dx) > DRAG_THRESHOLD_PX,
+    });
+  }
+
+  function endDrag() {
+    const drag = dragRef.current;
+    if (!drag) return;
+    updateDrag(null);
+    if (drag.mode === "plan") {
+      commit(drag.row, drag.moved
+        ? drag.preview
+        : { start: drag.origin.start, end: addDays(drag.origin.start, PLAN_DAYS - 1) });
+      return;
+    }
+    // A press without travel is a click: it opens the item.
+    if (!drag.moved) return;
+    suppressClick.current = true;
+    if (!sameInterval(drag.preview, drag.origin)) commit(drag.row, drag.preview);
+  }
+
+  function nudge(event: KeyboardEvent<HTMLElement>, row: RoadmapRow, bar: Bar) {
+    if (event.key === "Escape" && dragRef.current) {
+      updateDrag(null);
+      return;
+    }
+    const next = keyboardEdit(bar, event.key, event);
+    if (!next) return;
+    event.preventDefault();
+    commit(row, next, KEY_SAVE_DELAY_MS);
+  }
+
+  const dragHandlers = {
+    onPointerMove: moveDrag,
+    onPointerUp: endDrag,
+    onPointerCancel: () => updateDrag(null),
+  };
 
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6">
@@ -323,11 +441,20 @@ export function RoadmapView({
                         </span>
                       ) : null}
                     </div>
-                    <div className="relative flex-none" style={{ width }}>
-                      {row.bar ? (
-                        <RoadmapBar row={row} bar={row.bar} timeline={timeline} onOpen={() => openItem(row.key)} />
-                      ) : null}
-                    </div>
+                    <RoadmapTrack
+                      row={row}
+                      bar={drag?.row.id === row.id ? { ...drag.preview, derived: false } : row.bar}
+                      dragging={drag?.row.id === row.id}
+                      editable={canEdit && row.editable}
+                      hintId={hintId}
+                      timeline={timeline}
+                      width={width}
+                      onOpen={() => openItem(row.key)}
+                      onPressBar={pressBar}
+                      onPressTrack={pressTrack}
+                      onKeyDown={nudge}
+                      dragHandlers={dragHandlers}
+                    />
                   </div>
                 );
               })}
@@ -345,6 +472,77 @@ export function RoadmapView({
           </div>
         </div>
       </div>
+      <p id={hintId} className="sr-only">
+        Flèches gauche et droite : déplacer d’un jour. Avec Maj : changer l’échéance. Avec Alt : changer le début.
+      </p>
+      <p aria-live="polite" className="sr-only">{announcement}</p>
+    </div>
+  );
+}
+
+type DragHandlers = {
+  onPointerMove: (event: PointerEvent<HTMLElement>) => void;
+  onPointerUp: () => void;
+  onPointerCancel: () => void;
+};
+
+/** One row's calendar: its bar, or, when it can be planned, a surface to draw one. */
+function RoadmapTrack({
+  row,
+  bar,
+  dragging,
+  editable,
+  hintId,
+  timeline,
+  width,
+  onOpen,
+  onPressBar,
+  onPressTrack,
+  onKeyDown,
+  dragHandlers,
+}: {
+  row: RoadmapRow;
+  bar: Bar | null;
+  dragging: boolean;
+  editable: boolean;
+  hintId: string;
+  timeline: Timeline;
+  width: number;
+  onOpen: () => void;
+  onPressBar: (event: PointerEvent<HTMLElement>, row: RoadmapRow, bar: Bar) => void;
+  onPressTrack: (event: PointerEvent<HTMLElement>, row: RoadmapRow) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLElement>, row: RoadmapRow, bar: Bar) => void;
+  dragHandlers: DragHandlers;
+}) {
+  const plannable = editable && row.bar === null;
+  return (
+    <div
+      className={cn("relative flex-none", plannable && "cursor-crosshair")}
+      style={{ width }}
+      title={plannable && !dragging ? "Cliquez ou glissez pour planifier" : undefined}
+      data-roadmap-track={row.key}
+      {...(plannable
+        ? { onPointerDown: (event: PointerEvent<HTMLElement>) => onPressTrack(event, row), ...dragHandlers }
+        : {})}
+    >
+      {bar ? (
+        <RoadmapBar
+          row={row}
+          bar={bar}
+          timeline={timeline}
+          editable={editable}
+          dragging={dragging}
+          hintId={hintId}
+          onOpen={onOpen}
+          {...(editable && !plannable
+            ? {
+                onPointerDown: (event: PointerEvent<HTMLElement>) => onPressBar(event, row, bar),
+                onKeyDown: (event: KeyboardEvent<HTMLElement>) => onKeyDown(event, row, bar),
+                ...dragHandlers,
+              }
+            : {})}
+        />
+      ) : null}
     </div>
   );
 }
@@ -353,32 +551,69 @@ function RoadmapBar({
   row,
   bar,
   timeline,
+  editable,
+  dragging,
+  hintId,
   onOpen,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+  onKeyDown,
 }: {
   row: RoadmapRow;
   bar: Bar;
   timeline: Timeline;
+  editable: boolean;
+  dragging: boolean;
+  hintId: string;
   onOpen: () => void;
-}) {
+  onKeyDown?: (event: KeyboardEvent<HTMLElement>) => void;
+} & Partial<DragHandlers> & { onPointerDown?: (event: PointerEvent<HTMLElement>) => void }) {
   const rect = barRect(timeline, bar);
   const progress = row.progress && row.progress.total > 0 ? row.progress.done / row.progress.total : null;
   return (
-    <button
-      type="button"
-      data-roadmap-bar={row.key}
-      aria-label={`${row.key} — ${row.title}, ${barDescription(bar)}`}
-      title={`${row.title} · ${barDescription(bar)}`}
-      onClick={onOpen}
-      className={cn(
-        "absolute top-1/2 -translate-y-1/2 overflow-hidden rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-        row.depth === 0 ? "h-2" : "h-5",
-      )}
-      style={{ left: rect.left, width: Math.max(rect.width, 6), ...barStyle(row, bar) }}
-    >
-      {progress !== null ? (
-        <span aria-hidden className="absolute inset-y-0 left-0 bg-black/20" style={{ width: `${progress * 100}%` }} />
+    <>
+      {dragging ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -top-1 z-30 -translate-y-full rounded bg-foreground px-1.5 py-0.5 text-xs whitespace-nowrap text-background shadow"
+          style={{ left: rect.left }}
+        >
+          {barDescription(bar)}
+        </span>
       ) : null}
-    </button>
+      <button
+        type="button"
+        data-roadmap-bar={row.key}
+        aria-label={`${row.key} — ${row.title}, ${barDescription(bar)}`}
+        aria-describedby={editable ? hintId : undefined}
+        title={dragging ? undefined : `${row.title} · ${barDescription(bar)}`}
+        onClick={onOpen}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onKeyDown={onKeyDown}
+        className={cn(
+          "absolute top-1/2 -translate-y-1/2 overflow-hidden rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+          row.depth === 0 ? "h-2" : "h-5",
+          editable && "touch-none",
+          editable && (dragging ? "cursor-grabbing shadow-md" : "cursor-grab"),
+        )}
+        style={{ left: rect.left, width: Math.max(rect.width, 6), ...barStyle(row, bar) }}
+      >
+        {progress !== null ? (
+          <span aria-hidden className="absolute inset-y-0 left-0 bg-black/20" style={{ width: `${progress * 100}%` }} />
+        ) : null}
+        {editable ? (
+          <>
+            <span aria-hidden data-edge="start" className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize" />
+            <span aria-hidden data-edge="end" className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize" />
+          </>
+        ) : null}
+      </button>
+    </>
   );
 }
 
