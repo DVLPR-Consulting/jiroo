@@ -796,6 +796,74 @@ describeDb("updateItem reporter transaction", () => {
   });
 });
 
+describeDb("updateItem start and due days (JIR-101)", () => {
+  async function dayAudit(itemId: string) {
+    return db
+      .select({ field: activities.field, oldValue: activities.oldValue, newValue: activities.newValue })
+      .from(activities)
+      .where(and(eq(activities.itemId, itemId), inArray(activities.field, ["start_date", "due_date"])))
+      .orderBy(asc(activities.at), asc(activities.id));
+  }
+
+  async function withFixture(run: (fixture: Awaited<ReturnType<typeof createUpdateFixture>>) => Promise<void>) {
+    const [actor] = await db.select({ id: user.id }).from(user).limit(1);
+    if (!actor) throw new Error("Le seed doit contenir un utilisateur.");
+    const fixture = await createUpdateFixture(actor.id);
+    try {
+      await run(fixture);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  }
+
+  it("stores both days and audits each change", async () => {
+    await withFixture(async (fixture) => {
+      const updated = await updateItem(
+        { id: fixture.item.id, startDate: "2026-10-01", dueDate: "2026-10-31" },
+        fixture.actorId,
+      );
+      expect(updated).toMatchObject({ startDate: "2026-10-01", dueDate: "2026-10-31" });
+      // Both rows share one timestamp: compare them in any order.
+      const audit = await dayAudit(fixture.item.id);
+      expect(audit).toHaveLength(2);
+      expect(audit).toEqual(expect.arrayContaining([
+        { field: "start_date", oldValue: null, newValue: "2026-10-01" },
+        { field: "due_date", oldValue: null, newValue: "2026-10-31" },
+      ]));
+    });
+  });
+
+  it("checks a day given alone against the stored other one", async () => {
+    await withFixture(async (fixture) => {
+      await updateItem({ id: fixture.item.id, dueDate: "2026-10-31" }, fixture.actorId);
+      await expect(
+        updateItem({ id: fixture.item.id, startDate: "2026-11-01" }, fixture.actorId),
+      ).rejects.toThrow("Le début doit précéder l’échéance.");
+      await expect(
+        updateItem({ id: fixture.item.id, startDate: "2026-10-31" }, fixture.actorId),
+      ).resolves.toMatchObject({ startDate: "2026-10-31" });
+    });
+  });
+
+  it("writes nothing for an unchanged day", async () => {
+    await withFixture(async (fixture) => {
+      await updateItem({ id: fixture.item.id, startDate: "2026-10-01" }, fixture.actorId);
+      await updateItem({ id: fixture.item.id, startDate: "2026-10-01" }, fixture.actorId);
+      expect(await dayAudit(fixture.item.id)).toHaveLength(1);
+    });
+  });
+
+  it("is enforced by the database too", async () => {
+    await withFixture(async (fixture) => {
+      await expect(
+        db.update(items)
+          .set({ startDate: "2026-11-01", dueDate: "2026-10-31" })
+          .where(eq(items.id, fixture.item.id)),
+      ).rejects.toThrow();
+    });
+  });
+});
+
 describeDb("item fix version integration", () => {
   it("treats a malformed release filter like a non-matching foreign release", async () => {
     const fixture = await createUpdateFixture();
@@ -1219,7 +1287,7 @@ describeDb("createItem with the « Nouvel item » fields (JIR-73)", () => {
       );
 
       expect(created.assigneeId).toBe(fixture.actorId);
-      expect(created.dueDate?.toISOString().slice(0, 10)).toBe("2026-11-02");
+      expect(created.dueDate).toBe("2026-11-02");
       expect(
         await db
           .select({ labelId: itemLabels.labelId })

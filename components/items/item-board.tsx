@@ -288,7 +288,8 @@ function SortableCard({
 
 /** Format a due date as a short French date: "12 juin". */
 function formatDueDate(d: Date | string): string {
-  return new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  // A calendar day is UTC midnight: format it in UTC so no zone shifts it.
+  return new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
 // Visual body shared by sortable cards and the drag overlay.

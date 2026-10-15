@@ -207,3 +207,54 @@ describe("reparentItemSchema", () => {
     expect(reparentItemSchema.safeParse({ id: UA, newParentId: UB, beforeId: UC, afterId: UC }).success).toBe(false);
   });
 });
+
+describe("calendar days (JIR-101)", () => {
+  const ID = "33333333-3333-4333-8333-333333333333";
+
+  it("keeps start and due dates as calendar days", () => {
+    const r = updateItemSchema.parse({ id: ID, startDate: "2026-10-01", dueDate: "2026-10-31" });
+    expect(r).toMatchObject({ startDate: "2026-10-01", dueDate: "2026-10-31" });
+  });
+
+  it("maps an empty field to null and leaves an absent one undefined", () => {
+    const r = updateItemSchema.parse({ id: ID, startDate: "" });
+    expect(r.startDate).toBeNull();
+    expect(r.dueDate).toBeUndefined();
+  });
+
+  it.each(["2026-10-01T00:00:00.000Z", "01/10/2026", "2026-02-30", "demain"])(
+    "rejects %s",
+    (value) => {
+      expect(updateItemSchema.safeParse({ id: ID, dueDate: value }).success).toBe(false);
+      expect(updateItemSchema.safeParse({ id: ID, startDate: value }).success).toBe(false);
+    },
+  );
+
+  it("rejects a start after the due date given together", () => {
+    const r = updateItemSchema.safeParse({ id: ID, startDate: "2026-11-01", dueDate: "2026-10-31" });
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0]).toMatchObject({
+      path: ["startDate"],
+      message: "Le début doit précéder l’échéance.",
+    });
+  });
+
+  it("accepts a one-day item", () => {
+    expect(
+      updateItemSchema.safeParse({ id: ID, startDate: "2026-10-31", dueDate: "2026-10-31" }).success,
+    ).toBe(true);
+  });
+
+  it("applies the same rule on creation", () => {
+    const r = createItemSchema.safeParse({
+      backlogId: BID,
+      title: "Composant",
+      type: "composant",
+      parentId: null,
+      startDate: "2026-11-01",
+      dueDate: "2026-10-31",
+    });
+    expect(r.success).toBe(false);
+  });
+});
+

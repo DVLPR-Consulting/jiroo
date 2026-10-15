@@ -97,6 +97,7 @@ const detail: Parameters<typeof ItemDetailPanel>[0]["detail"] = {
   rank: "a1",
   path: "root.33333333333343338333333333333333.22222222222242229222222222222222",
   depth: 1,
+  startDate: null,
   dueDate: null,
   createdAt: new Date("2026-08-01T10:00:00.000Z"),
   updatedAt: new Date("2026-08-02T10:00:00.000Z"),

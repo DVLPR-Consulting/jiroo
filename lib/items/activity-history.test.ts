@@ -78,6 +78,15 @@ describe("describeHistory", () => {
     expect(
       describeHistory(row("update", "due_date", null, "2026-10-20T00:00:00.000Z"), lookup),
     ).toEqual({ text: "a changé l’échéance", from: "Aucune", to: "20 oct. 2026" });
+    // Calendar days since JIR-101; older rows keep their UTC timestamps.
+    expect(
+      describeHistory(row("update", "due_date", "2026-10-20", "2026-10-31"), lookup),
+    ).toEqual({ text: "a changé l’échéance", from: "20 oct. 2026", to: "31 oct. 2026" });
+    expect(describeHistory(row("update", "start_date", null, "2026-10-01"), lookup)).toEqual({
+      text: "a changé le début",
+      from: "Aucun",
+      to: "1 oct. 2026",
+    });
     expect(describeHistory(row("update", "description", "a", "b"), lookup)).toEqual({
       text: "a modifié la description",
     });
