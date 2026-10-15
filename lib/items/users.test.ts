@@ -154,8 +154,8 @@ describe("setRoleInput", () => {
 // ---------------------------------------------------------------------------
 
 describe("ROLE_LABELS", () => {
-  it("maps admin to Administrateur", () => {
-    expect(ROLE_LABELS.admin).toBe("Administrateur");
+  it("maps admin to Administrateur Jiroo", () => {
+    expect(ROLE_LABELS.admin).toBe("Administrateur Jiroo");
   });
 
   it("maps contributor to Contributeur", () => {

@@ -23,7 +23,7 @@ describe("PermissionHelper", () => {
     ["authenticated_user_grant", "Tous les utilisateurs authentifiés", "Grant pour tous les utilisateurs authentifiés."],
     ["missing_prerequisite", undefined, "La permission « Consulter le backlog » est absente."],
     ["no_matching_grant", undefined, "Aucun grant ne correspond."],
-    ["platform_administrator", undefined, "Administrateur de la plateforme : accès de récupération."],
+    ["platform_administrator", undefined, "Administrateur Jiroo : accès de récupération."],
   ])("traduit la raison métier %s sans identifiant brut", async (type, label, expected) => {
     const user = userEvent.setup();
     mocks.helper.mockResolvedValue({ ok: true, result: { allowed: type !== "missing_prerequisite" && type !== "no_matching_grant", permission: "edit_items", reasons: [{ type, ...(label ? { label } : {}) }] } });

@@ -58,7 +58,7 @@ describe("UserCard", () => {
     const dialog = await screen.findByRole("dialog", { name: "Profil" });
     expect(within(dialog).getByText("Ada Lovelace")).toBeVisible();
     expect(within(dialog).getByText("ada@example.com")).toBeVisible();
-    expect(within(dialog).getByText("Administrateur")).toBeVisible();
+    expect(within(dialog).getByText("Administrateur Jiroo")).toBeVisible();
   });
 
   it("opens the change-password dialog from its menu", async () => {

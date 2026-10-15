@@ -11,14 +11,14 @@ describe("LoginHelp", () => {
     const button = screen.getByRole("button", { name: "Mot de passe oublié ?" });
     expect(button).toHaveAttribute("aria-expanded", "false");
     expect(
-      screen.queryByText("Contactez un administrateur pour réinitialiser votre accès."),
+      screen.queryByText("Contactez un administrateur Jiroo pour réinitialiser votre accès."),
     ).not.toBeInTheDocument();
 
     await user.click(button);
 
     expect(button).toHaveAttribute("aria-expanded", "true");
     expect(
-      screen.getByText("Contactez un administrateur pour réinitialiser votre accès."),
+      screen.getByText("Contactez un administrateur Jiroo pour réinitialiser votre accès."),
     ).toBeInTheDocument();
   });
 

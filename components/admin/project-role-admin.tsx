@@ -1,5 +1,6 @@
 "use client";
 
+import { backlogRoleLabel } from "@/lib/items/users";
 import { useState, useTransition } from "react";
 import { createProjectRoleAction, deleteProjectRoleAction, updateProjectRoleAction } from "@/app/actions/authorization";
 import { Badge } from "@/components/ui/badge";
@@ -60,8 +61,8 @@ export function ProjectRoleAdmin({ roles }: ProjectRoleAdminProps) {
       <Button type="submit" disabled={pending || !create.name.trim()} aria-busy={pending}>Créer le rôle</Button>
       {errors.create && <p role="alert" className="text-sm text-destructive md:col-span-3">{errors.create}</p>}
     </form>
-    {roles.map((role) => { const draft = drafts[role.id] ?? { name: role.name, description: role.description ?? "" }; return <section role="region" aria-label={role.name} key={role.id} className="space-y-3 rounded-xl border p-4 bg-card" aria-busy={pending}>
-      <div className="flex gap-2"><Input aria-label="Nom du rôle" value={draft.name} disabled={role.protected || pending} onChange={(e) => setDrafts((current) => ({ ...current, [role.id]: { ...draft, name: e.target.value } }))} />{role.protected && <Badge variant="secondary">Rôle protégé</Badge>}<span className="whitespace-nowrap text-xs text-muted-foreground">{role.occupancyCount} affectation{role.occupancyCount > 1 ? "s" : ""}</span></div>
+    {roles.map((role) => { const draft = drafts[role.id] ?? { name: role.name, description: role.description ?? "" }; return <section role="region" aria-label={backlogRoleLabel(role)} key={role.id} className="space-y-3 rounded-xl border p-4 bg-card" aria-busy={pending}>
+      <div className="flex gap-2"><Input aria-label="Nom du rôle" value={role.protected ? backlogRoleLabel(role) : draft.name} disabled={role.protected || pending} onChange={(e) => setDrafts((current) => ({ ...current, [role.id]: { ...draft, name: e.target.value } }))} />{role.protected && <Badge variant="secondary">Rôle protégé</Badge>}<span className="whitespace-nowrap text-xs text-muted-foreground">{role.occupancyCount} affectation{role.occupancyCount > 1 ? "s" : ""}</span></div>
       <Input aria-label="Description du rôle" value={draft.description} disabled={role.protected || pending} onChange={(e) => setDrafts((current) => ({ ...current, [role.id]: { ...draft, description: e.target.value } }))} />
       <p className="text-sm text-muted-foreground">{role.description || "Aucune description"}</p>
       {role.blockers.length > 0 && <ul className="list-disc pl-5 text-xs text-muted-foreground">{role.blockers.map((blocker, index) => <li key={`${index}:${blocker}`}>{blocker}</li>)}</ul>}

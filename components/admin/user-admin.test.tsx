@@ -505,3 +505,12 @@ describe("UserAdmin account recovery", () => {
     consoleError.mockRestore();
   });
 });
+
+it("explains the new account's global rights and links to groups", async () => {
+  const user = userEvent.setup();
+  render(<UserAdmin users={users} currentUserId="admin-1" />);
+  await user.click(screen.getByRole("button", { name: "Nouvel utilisateur" }));
+  expect(screen.getByText(/Aucun droit global ne sera attribué directement à ce compte/)).toBeVisible();
+  expect(screen.getByText(/il bénéficiera des droits accordés à tous les utilisateurs authentifiés/)).toBeVisible();
+  expect(screen.getByRole("link", { name: "Ouvrir les groupes" })).toHaveAttribute("href", "/admin?tab=groups");
+});

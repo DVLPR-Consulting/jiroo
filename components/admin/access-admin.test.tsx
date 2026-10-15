@@ -144,7 +144,7 @@ describe("AccessAdmin", () => {
 
   it("désactive le retrait du dernier administrateur avec explication accessible", () => {
     render(<AccessAdmin {...base} access={{ ...base.access, mode: "advanced" }} />);
-    const adminRegion = screen.getByRole("region", { name: "Administrateur" });
+    const adminRegion = screen.getByRole("region", { name: "Administrateur du backlog" });
     const button = within(adminRegion).getByRole("button", { name: "Retirer Ada" });
     expect(button).toBeDisabled();
     expect(button).toHaveAccessibleDescription("Le dernier administrateur effectif du backlog ne peut pas être retiré.");
@@ -181,4 +181,10 @@ describe("AccessAdmin", () => {
     expect(await screen.findByRole("heading", { name: "Accès avancé" })).toBeVisible();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
+});
+
+it.each(["simple", "advanced"] as const)("names the protected backlog administrator in %s mode", (mode) => {
+  render(<AccessAdmin {...base} access={{ ...base.access, mode }} />);
+  if (mode === "simple") expect(screen.getAllByRole("option", { name: "Administrateur du backlog" }).length).toBeGreaterThan(0);
+  else expect(screen.getByRole("region", { name: "Administrateur du backlog" })).toBeVisible();
 });

@@ -185,3 +185,10 @@ describe("ProjectRoleAdmin", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });
+
+it("names the protected administrator without renaming custom roles", () => {
+  render(<ProjectRoleAdmin roles={[{ ...role, key: "administrators", name: "Administrateur", protected: true }, { ...role, id: "custom", name: "Administrateur", protected: false }]} />);
+  const admin = screen.getByRole("region", { name: "Administrateur du backlog" });
+  expect(within(admin).getByRole("textbox", { name: "Nom du rôle" })).toHaveValue("Administrateur du backlog");
+  expect(screen.getByRole("region", { name: "Administrateur" })).toBeVisible();
+});

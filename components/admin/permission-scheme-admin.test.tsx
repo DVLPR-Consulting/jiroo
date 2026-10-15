@@ -273,3 +273,27 @@ describe("PermissionSchemeAdmin", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });
+
+it("names the protected backlog administrator in matrix grants", () => {
+  render(<PermissionSchemeAdmin schemes={[{ ...scheme, grants: [{ ...scheme.grants[0]!, principal: { type: "project_role", id: "admin-role", label: "Administrateur" } }] }]} users={[]} groups={[]} roles={[{ id: "admin-role", key: "administrators", name: "Administrateur" }]} initialSchemeId={scheme.id} />);
+  expect(screen.getByRole("button", { name: "Retirer Administrateur du backlog de Consulter le backlog" })).toBeVisible();
+});
+
+it.each([
+  ["admin-role", "Administrateur du backlog (rôle protégé)"],
+  ["custom-role", "Administrateur du backlog"],
+])("assigns a grant to the selected role id despite colliding display names (%s)", async (id, label) => {
+  mocks.add.mockReset();
+  mocks.add.mockResolvedValue({ ok: true, grant: { id: "new-grant", version: 8 } });
+  const user = userEvent.setup();
+  render(<PermissionSchemeAdmin schemes={[{ ...scheme, usageCount: 1 }]} users={[]} groups={[]} roles={[
+    { id: "admin-role", key: "administrators", name: "Administrateur" },
+    { id: "custom-role", key: "custom", name: "Administrateur du backlog" },
+  ]} initialSchemeId={scheme.id} />);
+  await user.selectOptions(screen.getByRole("combobox", { name: "Type de principal" }), "project_role");
+  const picker = screen.getByRole("combobox", { name: "Rôle de backlog" });
+  expect(within(picker).getByRole("option", { name: label })).toHaveValue(id);
+  await user.selectOptions(picker, id);
+  await user.click(screen.getByRole("button", { name: "Ajouter le grant" }));
+  await waitFor(() => expect(mocks.add).toHaveBeenCalledWith(expect.objectContaining({ principal: { type: "project_role", projectRoleId: id } })));
+});

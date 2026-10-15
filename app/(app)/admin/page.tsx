@@ -105,7 +105,7 @@ export default async function AdminPage({
                 schemes,
                 users: rawUsers.map(({ id, name }) => ({ id, name })),
                 groups: rawGroups.map(({ id, name }) => ({ id, name })),
-                roles: rawRoles.map(({ id, name }) => ({ id, name })),
+                roles: rawRoles.map(({ id, name, key }) => ({ id, name, key })),
                 initialSchemeId: typeof scheme === "string" ? scheme : undefined,
               };
             })();

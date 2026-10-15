@@ -144,7 +144,7 @@ describe("BacklogOverview", () => {
 
     expect(screen.getByRole("heading", { name: "Aucun backlog" })).toBeInTheDocument();
     expect(
-      screen.getByText("Un administrateur peut en créer un dans l’administration."),
+      screen.getByText("Un administrateur Jiroo peut en créer un dans l’administration."),
     ).toBeInTheDocument();
   });
 });
