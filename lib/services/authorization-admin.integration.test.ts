@@ -605,6 +605,24 @@ describeDb("transactional authorization administration", () => {
     ).toEqual([{ action: "global_permission_grant_removed" }]);
   });
 
+  it("lists the default browse_users grant to everyone and refuses any other one", async () => {
+    expect(await listGlobalPermissionGrants()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          permission: "browse_users",
+          principal: { type: "authenticated_user", id: "authenticated_user", label: "Tous les utilisateurs authentifiés" },
+        }),
+      ]),
+    );
+    await expect(
+      addGlobalPermissionGrant(
+        { permission: "administer_jiroo", principal: { type: "authenticated_user" } },
+        actorId,
+        correlation("global-grant-everyone"),
+      ),
+    ).rejects.toThrow("Seule « Parcourir les utilisateurs »");
+  });
+
   it("persists a platform-administrator bypass before an independent domain transaction", async () => {
     await appendPlatformAdministratorBypassEvent({
       actorId,

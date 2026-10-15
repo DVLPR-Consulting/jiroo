@@ -1670,7 +1670,9 @@ export async function listGlobalPermissionGrants() {
       ? { type: "user" as const, id: row.userId, label: row.userName }
       : row.principalType === "group" && row.groupId && row.groupName
         ? { type: "group" as const, id: row.groupId, label: row.groupName }
-        : null;
+        : row.principalType === "authenticated_user"
+          ? { type: "authenticated_user" as const, id: "authenticated_user", label: "Tous les utilisateurs authentifiés" }
+          : null;
     return principal ? [{ id: row.id, permission: row.permission, permissionLabel: safePermissionLabel(row.permission), principal }] : [];
   });
 }

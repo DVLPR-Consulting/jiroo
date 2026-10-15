@@ -162,6 +162,8 @@ async function loadGrantMatchesByPermission(
             eq(permissionGrants.principalType, "group"),
             groupMembershipExists(input.actor.id),
           ),
+          // Only browse_users can be granted globally to everyone (CHECK).
+          eq(permissionGrants.principalType, "authenticated_user"),
         )
       : or(
           and(

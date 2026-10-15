@@ -45,6 +45,7 @@ export const schemeGrantPrincipalInput = z.discriminatedUnion("type", [
 export const globalGrantPrincipalInput = z.discriminatedUnion("type", [
   userPrincipal,
   groupPrincipal,
+  authenticatedUserPrincipal,
 ]);
 
 export const backlogRolePrincipalInput = z.discriminatedUnion("type", [
@@ -108,7 +109,16 @@ export const schemeGrantRemovalInput = z
 
 export const globalGrantInput = z
   .object({ permission: globalPermission, principal: globalGrantPrincipalInput })
-  .strict();
+  .strict()
+  // Everyone may browse users (Jira's default); no other global permission
+  // goes to all authenticated users. The database enforces it too.
+  .refine(
+    (input) => input.principal.type !== "authenticated_user" || input.permission === "browse_users",
+    {
+      message: "Seule « Parcourir les utilisateurs » peut être accordée à tous les utilisateurs authentifiés.",
+      path: ["principal"],
+    },
+  );
 
 export const globalGrantRemovalInput = z.object({ grantId: uuid }).strict();
 
