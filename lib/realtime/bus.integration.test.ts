@@ -81,14 +81,18 @@ describeDb("RealtimeBus against Postgres", () => {
     unsubscribe = newBus().subscribe({ backlogId: null, userId }, (message) =>
       received.push(message),
     );
+    // Publish once the LISTEN is active, so the notification cannot be lost.
+    await vi.waitFor(() => expect(received).toContainEqual({ kind: "ready" }), {
+      timeout: 5_000,
+      interval: 50,
+    });
+    await notifyUsers([userId, "someone-else"], "integration");
     await vi.waitFor(
-      async () => {
-        if (received.length === 0) await notifyUsers([userId, "someone-else"], "integration");
+      () =>
         expect(received.filter((message) => message.kind === "notification")).toEqual([
           expect.objectContaining({ kind: "notification", userId }),
-        ]);
-      },
-      { timeout: 5_000, interval: 100 },
+        ]),
+      { timeout: 5_000, interval: 50 },
     );
   });
 
