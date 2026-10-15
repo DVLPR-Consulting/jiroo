@@ -159,7 +159,7 @@ export function LinksSection({
             {group.label}
           </span>
           {/* The Backlog row (JIR-93), with the removal at its end. */}
-          <ul className="overflow-hidden rounded-[var(--radius-md)] border border-border">
+          <ul className="overflow-hidden rounded-[var(--radius-md)] border border-border bg-card">
             {group.items.map((link) => (
               <ItemRow
                 key={link.id}
@@ -223,7 +223,7 @@ export function LinksSection({
           value={linkType}
           onChange={(e) => setLinkType(e.target.value as (typeof LINK_TYPES)[number])}
           disabled={pending}
-          className="w-full rounded border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-1 text-xs text-foreground outline-none focus:border-[var(--ring)] disabled:opacity-60"
+          className="w-full rounded border border-[var(--border-strong)] bg-card px-2 py-1 text-xs text-foreground outline-none focus:border-[var(--ring)] disabled:opacity-60"
           aria-label="Type de relation"
         >
           {LINK_TYPES.map((t) => (
@@ -250,7 +250,7 @@ export function LinksSection({
             disabled={pending}
             placeholder="Rechercher un item…"
             aria-label="Rechercher un item à lier"
-            className="w-full rounded border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-1 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[var(--ring)] disabled:opacity-60"
+            className="w-full rounded border border-[var(--border-strong)] bg-card px-2 py-1 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[var(--ring)] disabled:opacity-60"
           />
 
           {/* Dropdown */}

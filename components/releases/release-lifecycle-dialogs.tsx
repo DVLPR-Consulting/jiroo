@@ -24,7 +24,7 @@ import { toast } from "@/lib/toast";
 import { countLabel } from "@/lib/format/plural";
 
 const SELECT =
-  "h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-9 w-full rounded-lg border border-input bg-card px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 type Backlog = { id: string; key: string };
 type LifecycleRelease = {

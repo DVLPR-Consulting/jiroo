@@ -322,7 +322,7 @@ function ExactValues({ backlogKey, report }: { backlogKey: string; report: Detai
         role="region"
         aria-labelledby="burndown-table-caption"
         tabIndex={0}
-        className="max-w-full overflow-x-auto rounded-xl border focus-visible:outline-2"
+        className="max-w-full overflow-x-auto rounded-xl border focus-visible:outline-2 bg-card"
       >
         <table aria-describedby="burndown-baseline" className="w-full min-w-[640px] text-left text-sm">
           <caption id="burndown-table-caption" className="sr-only">
@@ -404,7 +404,7 @@ export function BurndownReportView({
   const identity = <SprintIdentity sprint={report.sprint} statusLabel={report.statusLabel} />;
   if (report.kind === "legacy_unavailable") {
     return (
-      <div className="space-y-4 rounded-xl border p-5">
+      <div className="space-y-4 rounded-xl border p-5 bg-card">
         {identity}
         <p className="text-sm text-muted-foreground">
           Ce sprint précède l’historique fiable du burndown. Aucune courbe ni aucun total
@@ -421,21 +421,21 @@ export function BurndownReportView({
 
       <section aria-label="Mesures du burndown" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <dl className="contents">
-          <div className="rounded-xl border p-4">
+          <div className="rounded-xl border p-4 bg-card">
             <dt className="font-medium">Restant initial</dt>
             <dd>{pts(summary.initialRemainingPoints)}</dd>
           </div>
-          <div className="rounded-xl border p-4">
+          <div className="rounded-xl border p-4 bg-card">
             <dt className="font-medium">
               {report.kind === "completed" ? "Restant à la clôture" : "Restant actuel"}
             </dt>
             <dd>{pts(summary.remainingPoints)}</dd>
           </div>
-          <div className="rounded-xl border p-4">
+          <div className="rounded-xl border p-4 bg-card">
             <dt className="font-medium">Terminés</dt>
             <dd>{pts(summary.completedPoints)}</dd>
           </div>
-          <div className="rounded-xl border p-4">
+          <div className="rounded-xl border p-4 bg-card">
             <dt className="font-medium">Non estimés</dt>
             <dd>{summary.unestimatedCount}</dd>
           </div>

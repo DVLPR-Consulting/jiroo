@@ -134,7 +134,7 @@ const ACTION_BUTTON =
 const DASHED_BUTTON =
   "flex h-10 w-full items-center rounded-[var(--radius-md)] border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-3.5 text-left text-[13.5px] text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground";
 const SELECT =
-  "w-full rounded-[var(--radius)] border border-border bg-[var(--surface)] px-2 py-1 text-sm";
+  "w-full rounded-[var(--radius)] border border-border bg-card px-2 py-1 text-sm";
 
 function Section({
   title,
@@ -629,7 +629,7 @@ export function ItemDetailPanel({
             {child && (
               <Section title={child.section}>
                 {childItems.length > 0 ? (
-                  <ul className="flex flex-col overflow-hidden rounded-[var(--radius-md)] border border-border">
+                  <ul className="flex flex-col overflow-hidden rounded-[var(--radius-md)] border border-border bg-card">
                     {childItems.map((item) => {
                       const status = statusById.get(item.statusId);
                       // The Backlog row (JIR-93), read-only in the drawer.

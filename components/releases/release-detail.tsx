@@ -338,15 +338,15 @@ export function ReleaseDetail({
           Copie immuable du périmètre et de son état au moment de la publication.
         </p>
         {snapshot === null ? (
-          <p className="rounded-xl border p-4 text-sm text-muted-foreground">
+          <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">
             Aucun instantané de publication visible.
           </p>
         ) : snapshot.rows.length === 0 ? (
-          <p className="rounded-xl border p-4 text-sm text-muted-foreground">
+          <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">
             Cet instantané ne contient aucun élément.
           </p>
         ) : (
-          <ul className="divide-y rounded-xl border">
+          <ul className="divide-y rounded-xl border bg-card">
             {snapshot.rows.map((item) => (
               <li key={item.id} className="flex flex-wrap items-start justify-between gap-3 p-3 text-sm">
                 <div className="space-y-1">
@@ -383,9 +383,9 @@ export function ReleaseDetail({
       <section role="region" aria-labelledby="history-title" className="space-y-3">
         <h2 id="history-title" className="t-h2">Historique</h2>
         {events.rows.length === 0 ? (
-          <p className="rounded-xl border p-4 text-sm text-muted-foreground">Aucun événement.</p>
+          <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">Aucun événement.</p>
         ) : (
-          <ol className="divide-y rounded-xl border">
+          <ol className="divide-y rounded-xl border bg-card">
             {events.rows.map((event) => (
               <li key={event.id} className="flex flex-wrap justify-between gap-2 p-3 text-sm">
                 <div className="space-y-1">

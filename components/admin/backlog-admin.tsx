@@ -34,7 +34,7 @@ export type Backlog = {
 export type BacklogLeadOption = { id: string; name: string };
 
 const SELECT =
-  "h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-9 w-full rounded-lg border border-input bg-card px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 const DEFAULT_COLOR = "#7c3030";
 const PRESET_COLORS = [
@@ -274,7 +274,7 @@ export function BacklogAdmin({
         </p>
       )}
 
-      <ul className="divide-y divide-border rounded-[var(--radius)] border border-border">
+      <ul className="divide-y divide-border rounded-[var(--radius)] border border-border bg-card">
         {backlogs.map((b) => {
           const archived = b.archivedAt != null;
           return (

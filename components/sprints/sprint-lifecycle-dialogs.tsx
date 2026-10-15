@@ -33,7 +33,7 @@ import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
 import { countLabel, formatPoints, pointsLabel } from "@/lib/format/plural";
 
 const TEXTAREA =
-  "min-h-20 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "min-h-20 w-full rounded-lg border border-input bg-card px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 type StartSprintDialogProps = {
   backlogId: string;

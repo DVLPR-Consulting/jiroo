@@ -50,7 +50,7 @@ export function VelocityReportView({
         </nav>
       </header>
       {report.state === "empty" ? (
-        <section className="space-y-2 rounded-xl border p-5">
+        <section className="space-y-2 rounded-xl border p-5 bg-card">
           <h2 className="font-medium">{report.label}</h2>
           <p className="text-sm text-muted-foreground">
             La moyenne apparaîtra après un sprint figé contenant des données de points.
@@ -60,7 +60,7 @@ export function VelocityReportView({
         <p className="font-medium">Moyenne des points terminés : {exact(report.averageCompletedPoints)} sur {countLabel(report.population, "sprint inclus", "sprints inclus")}</p>
       )}
       {report.bars.length > 0 ? <>
-        <div className="overflow-x-auto rounded-xl border p-4">
+        <div className="overflow-x-auto rounded-xl border p-4 bg-card">
         <svg role="group" aria-label="Graphique de vélocité" viewBox={`0 0 ${chartWidth} 240`} className="min-w-[480px]">
           {report.averageCompletedPoints !== null ? (
             <line x1="36" x2={chartWidth - 12} y1={200 - (report.averageCompletedPoints / maximum) * 160} y2={200 - (report.averageCompletedPoints / maximum) * 160} stroke="currentColor" strokeDasharray="4 4" />

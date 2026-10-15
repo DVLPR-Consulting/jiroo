@@ -80,7 +80,7 @@ export function GroupAdmin({ groups, users, globalGrants, canAdministerGlobals }
         const selectedLabel = users.find((candidate) => candidate.id === selected)?.name ?? "ce membre";
         const canManageMembership =
           !group.membershipRequiresPlatformAdmin || canAdministerGlobals;
-        return <section role="region" aria-label={group.name} key={group.id} className="space-y-3 rounded-xl border border-border p-4" aria-busy={pending}>
+        return <section role="region" aria-label={group.name} key={group.id} className="space-y-3 rounded-xl border border-border p-4 bg-card" aria-busy={pending}>
           <div className="flex items-center gap-2">
             <Input aria-label="Nom du groupe" value={names[group.id] ?? group.name} disabled={group.protected || pending} onChange={(e) => setNames((current) => ({ ...current, [group.id]: e.target.value }))} />
             <Button size="sm" variant="outline" disabled={group.protected || pending} onClick={() => run(() => renameGroupAction({ groupId: group.id, name: names[group.id] ?? group.name }))}>Renommer</Button>
@@ -90,7 +90,7 @@ export function GroupAdmin({ groups, users, globalGrants, canAdministerGlobals }
           <p className="text-xs text-muted-foreground">{group.memberCount} membre{group.memberCount > 1 ? "s" : ""}</p>
           <ul className="space-y-1">{group.members.map((member) => <li key={member.id} className="flex items-center gap-2 text-sm"><span>{member.name}</span>{canManageMembership && <Button className="ml-auto" size="xs" variant="ghost" disabled={pending} onClick={() => run(() => removeGroupMemberAction({ groupId: group.id, userId: member.id }))} aria-label={`Retirer ${member.name}`}>Retirer</Button>}</li>)}</ul>
           {canManageMembership && <div className="flex gap-2">
-            <select aria-label="Ajouter un membre" value={selected} onChange={(e) => setSelectedUsers((current) => ({ ...current, [group.id]: e.target.value }))} className="h-8 flex-1 rounded-lg border border-input bg-background px-2 text-sm"><option value="">Choisir…</option>{available.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select>
+            <select aria-label="Ajouter un membre" value={selected} onChange={(e) => setSelectedUsers((current) => ({ ...current, [group.id]: e.target.value }))} className="h-8 flex-1 rounded-lg border border-input bg-card px-2 text-sm"><option value="">Choisir…</option>{available.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select>
             <Button size="sm" disabled={!selected || pending} onClick={() => run(() => addGroupMemberAction({ groupId: group.id, userId: selected }), () => setSelectedUsers((current) => ({ ...current, [group.id]: "" })))} aria-label={`Ajouter ${selectedLabel}`}>Ajouter</Button>
           </div>}
           {group.blockers.length > 0 && <ul className="list-disc pl-5 text-xs text-muted-foreground">{group.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul>}

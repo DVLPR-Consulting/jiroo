@@ -89,7 +89,7 @@ function ViewSaveForm({
             checked={shared}
             onChange={(e) => setShared(e.target.checked)}
             disabled={pending}
-            className="h-4 w-4 rounded border border-input accent-primary disabled:pointer-events-none disabled:opacity-50"
+            className="h-4 w-4 rounded border border-input accent-primary disabled:pointer-events-none disabled:opacity-50 bg-card"
           />
           <Label htmlFor="view-shared">Partager avec l&apos;équipe</Label>
         </div>

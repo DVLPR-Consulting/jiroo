@@ -241,12 +241,12 @@ export function RepoConnectionsAdmin({
       )}
 
       {connections.length === 0 ? (
-        <p className="rounded-[var(--radius)] border border-dashed border-border p-6 text-sm text-muted-foreground">
+        <p className="rounded-[var(--radius)] border border-dashed border-border bg-card p-6 text-sm text-muted-foreground">
           Aucun dépôt connecté. Connectez un dépôt GitHub ou GitLab : les branches, commits et pull / merge requests
           qui citent une clé de ticket ({backlogKey}-12) apparaîtront dans son panneau Développement.
         </p>
       ) : (
-        <ul className="divide-y divide-border rounded-[var(--radius)] border border-border">
+        <ul className="divide-y divide-border rounded-[var(--radius)] border border-border bg-card">
           {connections.map((connection) => {
             const status = connectionStatus(connection);
             const host = new URL(connection.instanceUrl).host;

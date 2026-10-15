@@ -65,7 +65,7 @@ function PreferenceRow({
       role="group"
       aria-labelledby={`preference-${id}-label`}
       aria-describedby={`preference-${id}-description`}
-      className="flex items-center gap-4 rounded-lg border border-border p-3"
+      className="flex items-center gap-4 rounded-lg border border-border p-3 bg-card"
     >
       <div className="min-w-0 flex-1">
         <div id={`preference-${id}-label`} className="font-medium">

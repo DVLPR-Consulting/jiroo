@@ -37,7 +37,7 @@ function FieldError({ error }: { error: string | null }) {
 }
 
 const selectClass =
-  "w-full rounded-[var(--radius)] border border-border bg-[var(--surface)] px-2 py-1 text-sm text-foreground outline-none focus:border-[var(--ring)] disabled:opacity-60";
+  "w-full rounded-[var(--radius)] border border-border bg-card px-2 py-1 text-sm text-foreground outline-none focus:border-[var(--ring)] disabled:opacity-60";
 
 /** Focus a native select and, where supported, open its list (shortcuts). */
 function openSelect(select: HTMLSelectElement | null) {

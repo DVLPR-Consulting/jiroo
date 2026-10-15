@@ -374,7 +374,7 @@ export function LinkForm({
         placeholder="https://…"
         aria-invalid={Boolean(error)}
         aria-describedby={error ? errorId : undefined}
-        className="h-7 min-w-0 flex-1 rounded border border-[var(--border-strong)] bg-[var(--surface)] px-2 text-sm outline-none focus:border-[var(--ring)]"
+        className="h-7 min-w-0 flex-1 rounded border border-[var(--border-strong)] bg-card px-2 text-sm outline-none focus:border-[var(--ring)]"
         onChange={(event) => {
           setHref(event.target.value);
           setError(null);

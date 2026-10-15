@@ -68,7 +68,7 @@ export function EditableTitle({
           aria-invalid={Boolean(error)}
           aria-describedby={`${counterId}${error ? ` ${errorId}` : ""}`}
           maxLength={ITEM_TITLE_MAX}
-          className="w-full rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-1 text-[26px] leading-tight font-semibold tracking-[-0.01em] text-foreground outline-none focus:border-[var(--ring)]"
+          className="w-full rounded-[var(--radius)] border border-[var(--border-strong)] bg-card px-2 py-1 text-[26px] leading-tight font-semibold tracking-[-0.01em] text-foreground outline-none focus:border-[var(--ring)]"
           value={value}
           onChange={(e) => {
             setValue(e.target.value);
