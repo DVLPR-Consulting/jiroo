@@ -367,6 +367,29 @@ describe("NotificationBell live updates", () => {
     ).toBeInTheDocument();
   });
 
+  it("drops an answer that a newer server render overtook", async () => {
+    let answer: (response: Response) => void = () => {};
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => {
+      answer = resolve;
+    })));
+    const bell = (notifications: NotificationRow[], unreadCount: number) => (
+      <ViewUrlStateProvider initialEntries={[]}>
+        <NotificationBell notifications={notifications} unreadCount={unreadCount} />
+      </ViewUrlStateProvider>
+    );
+    const rendered = render(bell([demoNotification], 2));
+
+    emit([{ kind: "notification", self: false }]);
+    // The server re-renders the layout (all read) before the fetch answers.
+    rendered.rerender(bell([], 0));
+    await act(async () => {
+      answer(new Response(stringifyDatedJson({ unreadCount: 2, notifications: [demoNotification] })));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+  });
+
   it("ignores backlog changes", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

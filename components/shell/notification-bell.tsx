@@ -77,10 +77,11 @@ function useLiveBell(notifications: NotificationRow[], unreadCount: number): Bel
   useRealtime((events) => {
     if (!events.some((event) => reactionFor(event, { openItemId: null }).refreshBell)) return;
     const request = ++latestRequest.current;
+    const server = state.server;
     void fetchBellData().then((data) => {
-      if (data && request === latestRequest.current) {
-        setState((current) => ({ ...current, live: data }));
-      }
+      if (!data || request !== latestRequest.current) return;
+      // A server render that landed meanwhile is newer than this answer.
+      setState((current) => (current.server === server ? { ...current, live: data } : current));
     });
   });
 
