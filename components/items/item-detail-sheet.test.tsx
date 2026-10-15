@@ -560,6 +560,26 @@ describe("ItemDetailSheet", () => {
       expect(panelMounts).toBe(mountsBefore);
     });
 
+    it("keeps the open panel, and listening, when the refetch fails", async () => {
+      const { fetchMock, answer } = stubFetch();
+      render(page(null, [["view", "backlog"]]));
+      await openRow();
+      await answer(jsonResponse(itemData("CASS-4")));
+      const mountsBefore = panelMounts;
+
+      await emit([{ kind: "item", itemIds: ["id-CASS-4"], self: false }]);
+      await answer(new Response(null, { status: 500 }));
+
+      // Unsaved edits live in the panel: it must stay mounted.
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+      expect(panelMounts).toBe(mountsBefore);
+
+      await emit([{ kind: "item", itemIds: ["id-CASS-4"], self: false }]);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      await answer(jsonResponse(retitled("CASS-4", "Titre rétabli")));
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre rétabli" })).toBeVisible();
+    });
+
     it("ignores changes to other items", async () => {
       const { fetchMock, answer } = stubFetch();
       render(page(null, [["view", "backlog"]]));

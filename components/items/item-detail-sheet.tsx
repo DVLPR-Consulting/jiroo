@@ -162,22 +162,36 @@ export async function fetchItemDetail(
   }
 }
 
-type ClientRequest = { backlogKey: string; itemKey: string; promise: Promise<DrawerDetail> };
+type ClientRequest = {
+  backlogKey: string;
+  itemKey: string;
+  promise: Promise<DrawerDetail | null>;
+};
 
 /**
  * One fetch per opening of `itemKey` (null: nothing to fetch). The request
  * lives in state so a re-render reuses its promise; clearing it on close or
  * when the server provides the detail makes the next opening fetch afresh.
  * `refetch` starts a new request from an event handler: a suspended
- * transition render is discarded, so it cannot start one itself.
+ * transition render is discarded, so it cannot start one itself. A failed
+ * refetch keeps `current` on screen: the open panel and its unsaved edits stay.
  */
 function useClientItemDetail(
   backlogKey: string,
   itemKey: string | null,
-): { promise: Promise<DrawerDetail> | null; refetch: (itemKey: string) => void } {
+): {
+  promise: Promise<DrawerDetail | null> | null;
+  refetch: (itemKey: string, current: Promise<DrawerDetail | null>) => void;
+} {
   const [request, setRequest] = useState<ClientRequest | null>(null);
-  const refetch = (key: string) =>
-    setRequest({ backlogKey, itemKey: key, promise: fetchItemDetail(backlogKey, key) });
+  const refetch = (key: string, current: Promise<DrawerDetail | null>) =>
+    setRequest({
+      backlogKey,
+      itemKey: key,
+      promise: fetchItemDetail(backlogKey, key).then((detail) =>
+        detail.kind === "error" ? current : detail,
+      ),
+    });
   if (itemKey === null) {
     if (request !== null) setRequest(null);
     return { promise: null, refetch };
@@ -274,7 +288,7 @@ export function ItemDetailDrawer({
               // A transition keeps the open panel on screen while it refetches.
               startTransition(() => {
                 setVersion((current) => current + 1);
-                refetch(requestedKey);
+                refetch(requestedKey, source);
               })
             }
           />
