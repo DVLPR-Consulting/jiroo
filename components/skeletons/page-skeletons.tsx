@@ -384,14 +384,14 @@ function RoadmapSkeleton() {
       </div>
       <div className="min-h-0 flex-1 px-3 pb-3 sm:px-4 sm:pb-4">
         <div className="h-full overflow-hidden rounded-[var(--radius-lg)] border border-border bg-card">
-          <div className="grid h-16 grid-cols-[minmax(0,20rem)_minmax(0,1fr)] border-b border-border">
+          <div className="grid h-16 grid-cols-[10.5rem_minmax(0,1fr)] sm:grid-cols-[20rem_minmax(0,1fr)] border-b border-border">
             <div className="flex items-center border-r border-border px-4"><Skeleton className="h-3 w-24" /></div>
             <div className="flex items-center justify-around gap-4 px-4">
               {[0, 1, 2].map((index) => <Skeleton key={index} className="h-3 w-16" />)}
             </div>
           </div>
           {Array.from({ length: 7 }, (_, index) => (
-            <div key={index} data-slot="roadmap-skeleton-row" className="grid grid-cols-[minmax(0,20rem)_minmax(0,1fr)] border-b border-border" style={{ height: "var(--row-h)" }}>
+            <div key={index} data-slot="roadmap-skeleton-row" className="grid grid-cols-[10.5rem_minmax(0,1fr)] sm:grid-cols-[20rem_minmax(0,1fr)] border-b border-border" style={{ height: "var(--row-h)" }}>
               <div className="flex min-w-0 items-center gap-2 border-r border-border pr-4" style={{ paddingLeft: index % 3 === 0 ? 12 : 32 }}>
                 <Skeleton className="size-4 flex-none" />
                 <Skeleton className="h-3 w-12 flex-none" />

@@ -62,7 +62,9 @@ const ZOOM_LABELS: Record<Zoom, string> = {
 };
 const ZOOM_STORAGE_KEY = "jiroo.roadmap.zoom";
 const DEFAULT_ZOOM: Zoom = "months";
-const LABEL_WIDTH = 320;
+/** The fixed label column: narrower on a phone, so the calendar keeps room. */
+const LABEL_COLUMN = "[--roadmap-label:10.5rem] sm:[--roadmap-label:20rem]";
+const LABEL_WIDTH = "var(--roadmap-label)";
 /** A click on an unplanned row plans a week from the clicked day. */
 const PLAN_DAYS = 7;
 /** Pointer travel under which a press is a click, not a drag. */
@@ -227,7 +229,8 @@ export function RoadmapView({
   function scrollToToday(behavior: ScrollBehavior) {
     const node = scroller.current;
     if (!node) return;
-    const span = node.clientWidth - LABEL_WIDTH;
+    const label = node.querySelector<HTMLElement>("[data-roadmap-label]")?.offsetWidth ?? 0;
+    const span = node.clientWidth - label;
     node.scrollTo({ left: Math.max(0, todayX - span / 3), behavior });
   }
 
@@ -388,9 +391,9 @@ export function RoadmapView({
         <div
           ref={scroller}
           data-testid="roadmap-scroller"
-          className="h-full overflow-auto rounded-[var(--radius-lg)] border border-border bg-card"
+          className={cn("h-full overflow-auto rounded-[var(--radius-lg)] border border-border bg-card", LABEL_COLUMN)}
         >
-          <div className="relative" style={{ width: LABEL_WIDTH + width }}>
+          <div className="relative" style={{ width: `calc(${LABEL_WIDTH} + ${width}px)` }}>
             <RoadmapHeader timeline={timeline} width={width} sprints={datedSprints} releases={datedReleases} />
             <div className="relative">
               {shown.map((row) => {
@@ -429,7 +432,10 @@ export function RoadmapView({
                         className="flex min-w-0 flex-1 items-center gap-2 rounded text-left outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
                       >
                         <TypeIcon type={row.type} />
-                        <ItemKey value={row.key} />
+                        {/* The title matters more than the key on a phone. */}
+                        <span className="hidden sm:contents">
+                          <ItemKey value={row.key} />
+                        </span>
                         <span className="min-w-0 flex-1 truncate">{row.title}</span>
                       </button>
                       {row.progress && row.progress.total > 0 ? (
@@ -632,6 +638,7 @@ function RoadmapHeader({
   return (
     <div className="sticky top-0 z-20 flex border-b border-border bg-card text-xs text-muted-foreground">
       <div
+        data-roadmap-label
         className="sticky left-0 z-10 flex flex-none items-end border-r border-border bg-card px-3 pb-1.5 font-medium"
         style={{ width: LABEL_WIDTH }}
       >
