@@ -7,6 +7,7 @@ import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
 import { requirePermission } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
+import { invalidateBacklog } from "@/lib/realtime/publish";
 import {
   archiveRelease,
   createRelease,
@@ -124,8 +125,18 @@ function staleReleaseScopeResult(error: unknown) {
   };
 }
 
-function revalidateReleasePaths(backlogKey: string, ...releaseIds: string[]) {
-  revalidatePath(`/b/${backlogKey}`);
+/** Publishes the release change, then re-renders the release pages it touched. */
+async function revalidateReleasePaths(
+  backlog: { backlogKey: string; backlogId: string },
+  actorId: string,
+  ...releaseIds: string[]
+) {
+  await invalidateBacklog(backlog.backlogKey, {
+    kind: "release",
+    backlogId: backlog.backlogId,
+    actorId,
+  });
+  const { backlogKey } = backlog;
   revalidatePath(`/b/${backlogKey}/releases`);
   for (const releaseId of releaseIds) revalidatePath(`/b/${backlogKey}/releases/${releaseId}`);
 }
@@ -168,7 +179,7 @@ export async function createReleaseAction(input: unknown) {
       actorId,
       randomUUID(),
     );
-    revalidateReleasePaths(backlog.backlogKey);
+    await revalidateReleasePaths(backlog, actorId);
     return { ok: true as const, result };
   } catch (error) {
     return safeReleaseError(error, "Création de release impossible.");
@@ -182,7 +193,7 @@ export async function updateReleaseAction(input: unknown) {
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     await requireDriverBrowsePermission(actorId, command.driverId);
     const result = await updateRelease(command, actorId, randomUUID());
-    revalidateReleasePaths(backlog.backlogKey, command.releaseId);
+    await revalidateReleasePaths(backlog, actorId, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
     return safeReleaseError(error, "Mise à jour de release impossible.");
@@ -202,7 +213,7 @@ export async function publishReleaseAction(input: unknown) {
       });
     }
     const result = await publishRelease(command, actorId, randomUUID());
-    revalidateReleasePaths(backlog.backlogKey, command.releaseId);
+    await revalidateReleasePaths(backlog, actorId, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
     const staleScope = stalePublicationScopeResult(error);
@@ -217,7 +228,7 @@ export async function unreleaseReleaseAction(input: unknown) {
     const actorId = await authenticatedActorId();
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     const result = await unreleaseRelease(command, actorId, randomUUID());
-    revalidateReleasePaths(backlog.backlogKey, command.releaseId);
+    await revalidateReleasePaths(backlog, actorId, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
     return safeReleaseError(error, "Dépublication impossible.");
@@ -230,7 +241,7 @@ export async function archiveReleaseAction(input: unknown) {
     const actorId = await authenticatedActorId();
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     const result = await archiveRelease(command, actorId, randomUUID());
-    revalidateReleasePaths(backlog.backlogKey, command.releaseId);
+    await revalidateReleasePaths(backlog, actorId, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
     return safeReleaseError(error, "Archivage impossible.");
@@ -243,7 +254,7 @@ export async function unarchiveReleaseAction(input: unknown) {
     const actorId = await authenticatedActorId();
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     const result = await unarchiveRelease(command, actorId, randomUUID());
-    revalidateReleasePaths(backlog.backlogKey, command.releaseId);
+    await revalidateReleasePaths(backlog, actorId, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
     return safeReleaseError(error, "Désarchivage impossible.");
@@ -260,7 +271,7 @@ export async function mergeReleaseAction(input: unknown) {
     const actorId = await authenticatedActorId();
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     const result = await mergeRelease(command, actorId, randomUUID());
-    revalidateReleasePaths(backlog.backlogKey, command.sourceReleaseId, command.targetReleaseId);
+    await revalidateReleasePaths(backlog, actorId, command.sourceReleaseId, command.targetReleaseId);
     return { ok: true as const, result };
   } catch (error) {
     const staleScope = staleReleaseScopeResult(error);
@@ -275,8 +286,9 @@ export async function deleteReleaseAction(input: unknown) {
     const actorId = await authenticatedActorId();
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     const result = await deleteRelease(command, actorId, randomUUID());
-    revalidateReleasePaths(
-      backlog.backlogKey,
+    await revalidateReleasePaths(
+      backlog,
+      actorId,
       command.releaseId,
       ...(result.targetRelease ? [result.targetRelease.id] : []),
     );
@@ -294,7 +306,7 @@ export async function reorderReleaseAction(input: unknown) {
     const actorId = await authenticatedActorId();
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     const result = await reorderRelease(command, actorId, randomUUID());
-    revalidateReleasePaths(backlog.backlogKey);
+    await revalidateReleasePaths(backlog, actorId);
     return { ok: true as const, result };
   } catch (error) {
     return safeReleaseError(error, "Réordonnancement impossible.");

@@ -18,6 +18,7 @@ import {
 } from "@/lib/auth/authorization";
 import type { BacklogPermissionKey } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
+import { invalidateBacklog } from "@/lib/realtime/publish";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
 import { mapZodActionError } from "@/lib/validation/action-error";
 import { bulkUpdateItems } from "@/lib/services/item-bulk";
@@ -70,11 +71,6 @@ async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
   if (!session?.user.id) throw new Error("Forbidden");
   return session.user.id;
-}
-
-function revalidateBacklog(backlogKey: string) {
-  revalidatePath(`/b/${backlogKey}`);
-  revalidatePath(`/b/${backlogKey}/reports`);
 }
 
 function hasOwnField<T extends object>(input: T, field: PropertyKey): boolean {
@@ -254,7 +250,12 @@ export async function createItemAction(input: CreateItemActionInput) {
     const { backlogKey, ...data } = input;
     const requestCorrelationId = randomUUID();
     const item = await createItem(data, actorId, requestCorrelationId);
-    revalidateBacklog(backlogKey);
+    await invalidateBacklog(backlogKey, {
+      kind: "item",
+      backlogId: backlog.backlogId,
+      itemIds: [item.id, ...(input.parentId ? [input.parentId] : [])],
+      actorId,
+    });
     return { ok: true as const, item };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
@@ -268,11 +269,16 @@ export async function createItemAction(input: CreateItemActionInput) {
 export async function updateItemAction(input: UpdateItemActionInput) {
   const actorId = await authenticatedActorId();
   try {
-    await authorizeItemUpdate(actorId, input);
+    const authorization = await authorizeItemUpdate(actorId, input);
     const { backlogKey, ...data } = input;
     const requestCorrelationId = randomUUID();
     const item = await updateItem(data, actorId, requestCorrelationId);
-    revalidateBacklog(backlogKey);
+    await invalidateBacklog(backlogKey, {
+      kind: "item",
+      backlogId: authorization.backlogId,
+      itemIds: [input.id],
+      actorId,
+    });
     return { ok: true as const, item };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
@@ -333,7 +339,12 @@ export async function bulkUpdateItemsAction(input: {
     const { backlogKey, ...serviceInput } = input;
     const requestCorrelationId = randomUUID();
     const result = await bulkUpdateItems(serviceInput, actorId, requestCorrelationId);
-    revalidateBacklog(backlogKey);
+    await invalidateBacklog(backlogKey, {
+      kind: "item",
+      backlogId: authorizedBacklog.backlogId,
+      itemIds: input.itemIds,
+      actorId,
+    });
     return { ok: true as const, ...result };
   } catch (error) {
     const authorizationError = mapActionAuthorizationError(error);
@@ -347,11 +358,19 @@ export async function bulkUpdateItemsAction(input: {
 export async function softDeleteItemAction(input: { id: string; backlogKey: string }) {
   const actorId = await authenticatedActorId();
   try {
-    await requireItemPermission({ actorId, itemId: input.id, permission: "delete_items" });
+    const authorization = await requireItemPermission({
+      actorId,
+      itemId: input.id,
+      permission: "delete_items",
+    });
     const requestCorrelationId = randomUUID();
     const item = await softDeleteItem({ id: input.id }, actorId, requestCorrelationId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
-    revalidateBacklog(input.backlogKey);
+    await invalidateBacklog(input.backlogKey, {
+      kind: "item",
+      backlogId: authorization.backlogId,
+      actorId,
+    });
     revalidatePath("/trash");
     return { ok: true as const };
   } catch (error) {
@@ -364,10 +383,18 @@ export async function softDeleteItemAction(input: { id: string; backlogKey: stri
 export async function restoreItemAction(input: { id: string; backlogKey: string }) {
   const actorId = await authenticatedActorId();
   try {
-    await requireItemPermission({ actorId, itemId: input.id, permission: "restore_items" });
+    const authorization = await requireItemPermission({
+      actorId,
+      itemId: input.id,
+      permission: "restore_items",
+    });
     const item = await restoreItem({ id: input.id }, actorId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
-    revalidateBacklog(input.backlogKey);
+    await invalidateBacklog(input.backlogKey, {
+      kind: "item",
+      backlogId: authorization.backlogId,
+      actorId,
+    });
     revalidatePath("/trash");
     return { ok: true as const };
   } catch (e) {
@@ -423,7 +450,12 @@ export async function rankBacklogItemAction(input: RankBacklogItemActionInput) {
     const { backlogKey, ...data } = input;
     const item = await rankBacklogItem(data, actorId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
-    revalidateBacklog(backlogKey);
+    await invalidateBacklog(backlogKey, {
+      kind: "item",
+      backlogId: itemAuthorization.backlogId,
+      itemIds: [input.id],
+      actorId,
+    });
     return { ok: true as const, item };
   } catch (error) {
     const authorizationError = mapActionAuthorizationError(error);
@@ -483,7 +515,12 @@ export async function moveItemAction(input: MoveItemActionInput) {
     const requestCorrelationId = randomUUID();
     const item = await moveItem(data, actorId, requestCorrelationId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
-    revalidateBacklog(input.backlogKey);
+    await invalidateBacklog(input.backlogKey, {
+      kind: "item",
+      backlogId: itemAuthorization.backlogId,
+      itemIds: [input.id],
+      actorId,
+    });
     return { ok: true as const, item };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
@@ -508,7 +545,11 @@ export async function reparentItemAction(input: ReparentItemActionInput) {
     const { backlogKey, ...data } = input;
     const item = await reparentItem(data, actorId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
-    revalidateBacklog(backlogKey);
+    await invalidateBacklog(backlogKey, {
+      kind: "item",
+      backlogId: itemAuthorization.backlogId,
+      actorId,
+    });
     return { ok: true as const, item };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);

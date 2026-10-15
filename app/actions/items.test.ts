@@ -41,12 +41,15 @@ const mocks = vi.hoisted(() => ({
   requireSprintPermission: vi.fn(),
   requireStatusPermission: vi.fn(),
   revalidatePath: vi.fn(),
+  invalidateBacklog: vi.fn(),
+  notifyUsers: vi.fn(),
   restoreItem: vi.fn(),
   softDeleteItem: vi.fn(),
   updateItem: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireBacklogPermissionById: mocks.requireBacklogPermissionById,
   requireItemPermission: mocks.requireItemPermission,
@@ -134,6 +137,19 @@ function resetActionMocks() {
 describe("item action permission mapping", () => {
   beforeEach(() => {
     resetActionMocks();
+  });
+
+  it("publishes only after the mutation service resolves", async () => {
+    let commit!: (item: { id: string }) => void;
+    mocks.updateItem.mockReturnValueOnce(new Promise((resolve) => { commit = resolve; }));
+    const result = updateItemAction({ backlogKey: "DEMO", id: itemId, title: "Updated" });
+    await vi.waitFor(() => expect(mocks.updateItem).toHaveBeenCalled());
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
+    commit({ id: itemId });
+    await expect(result).resolves.toEqual({ ok: true, item: { id: itemId } });
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", {
+      kind: "item", backlogId, itemIds: [itemId], actorId: "writer-1",
+    });
   });
 
   it("requires create_items and schedule_items when creating directly in a sprint", async () => {
@@ -374,7 +390,7 @@ describe("item action permission mapping", () => {
       "writer-1",
       expect.stringMatching(uuidPattern),
     );
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", expect.objectContaining({ kind: "item", backlogId, actorId: "writer-1" }));
   });
 
   it.each([
@@ -769,7 +785,7 @@ describe("item action validation", () => {
       "writer-1",
       expect.stringMatching(uuidPattern),
     );
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", expect.objectContaining({ kind: "item", backlogId, actorId: "writer-1" }));
   });
 
   it("returns the task-only estimate error without leaking internals", async () => {
@@ -788,6 +804,7 @@ describe("item action validation", () => {
       error: "Seules les tâches peuvent être estimées.",
     });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 });
 
@@ -821,7 +838,7 @@ describe("rankBacklogItemAction", () => {
       },
       "writer-1",
     );
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", expect.objectContaining({ kind: "item", backlogId, actorId: "writer-1" }));
   });
 
   it("rejects viewers before calling the service", async () => {
@@ -855,6 +872,7 @@ describe("rankBacklogItemAction", () => {
       error: message,
     });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 
   it("collapses unknown failures without leaking internals", async () => {
@@ -867,6 +885,7 @@ describe("rankBacklogItemAction", () => {
       error: "Classement impossible.",
     });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 });
 
@@ -885,6 +904,7 @@ describe("restoreItemAction", () => {
       restoreItemAction({ id: "missing-item", backlogKey: "DEMO" }),
     ).resolves.toEqual({ ok: false, error: "Item introuvable." });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 
   it("returns a safe error when the restore service rejects", async () => {
@@ -894,6 +914,7 @@ describe("restoreItemAction", () => {
       restoreItemAction({ id: "item-1", backlogKey: "DEMO" }),
     ).resolves.toEqual({ ok: false, error: "Restauration impossible." });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 
   it("surfaces the expired restore window without revalidating", async () => {
@@ -903,6 +924,7 @@ describe("restoreItemAction", () => {
       restoreItemAction({ id: "item-1", backlogKey: "DEMO" }),
     ).resolves.toEqual({ ok: false, error: "Délai de restauration dépassé." });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 });
 
@@ -941,9 +963,8 @@ describe("bulkUpdateItemsAction", () => {
       "writer-1",
       expect.stringMatching(uuidPattern),
     );
-    expect(mocks.revalidatePath).toHaveBeenCalledTimes(2);
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledTimes(1);
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", expect.objectContaining({ kind: "item", backlogId, actorId: "writer-1" }));
   });
 
   it("forwards one correlation to soft deletion after authorization", async () => {
@@ -957,7 +978,7 @@ describe("bulkUpdateItemsAction", () => {
       "writer-1",
       expect.stringMatching(uuidPattern),
     );
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", expect.objectContaining({ kind: "item", backlogId, actorId: "writer-1" }));
   });
 
   it("rejects viewers before calling the bulk service", async () => {
@@ -974,6 +995,7 @@ describe("bulkUpdateItemsAction", () => {
     });
     expect(mocks.bulkUpdateItems).not.toHaveBeenCalled();
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 
   it("preserves bulk validation field errors", async () => {
@@ -991,6 +1013,7 @@ describe("bulkUpdateItemsAction", () => {
       fieldErrors: {},
     });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -1011,6 +1034,7 @@ describe("bulkUpdateItemsAction", () => {
       error: message,
     });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -1024,6 +1048,7 @@ describe("bulkUpdateItemsAction", () => {
       error: "Un ou plusieurs items sont introuvables.",
     });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 
   it("collapses unknown service failures", async () => {
@@ -1036,5 +1061,6 @@ describe("bulkUpdateItemsAction", () => {
       error: "Modification groupée impossible.",
     });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 });

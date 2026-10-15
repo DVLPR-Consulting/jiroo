@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth/session";
+import { notifyUsers } from "@/lib/realtime/publish";
 import { markRead, markAllRead } from "@/lib/services/notifications";
 
 // ---------------------------------------------------------------------------
@@ -24,6 +25,7 @@ export async function markReadAction(input: { id: string }) {
   try {
     const userId = await requireUser();
     await markRead(input.id, userId);
+    await notifyUsers([userId], userId);
     revalidatePath("/", "layout");
     return { ok: true as const };
   } catch {
@@ -36,6 +38,7 @@ export async function markAllReadAction() {
   try {
     const userId = await requireUser();
     await markAllRead(userId);
+    await notifyUsers([userId], userId);
     revalidatePath("/", "layout");
     return { ok: true as const };
   } catch {

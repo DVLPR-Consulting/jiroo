@@ -5,6 +5,7 @@ import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
 import { requirePermission } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
+import { invalidateBacklog } from "@/lib/realtime/publish";
 import { ZodError } from "zod";
 import {
   archiveBacklog,
@@ -35,6 +36,11 @@ export async function createBacklogAction(input: { key: string; name: string; co
       scope: { type: "global" },
     });
     const b = await createBacklog(input, actorId);
+    await invalidateBacklog(b.key, {
+      kind: "backlog",
+      backlogId: b.id,
+      actorId,
+    });
     revalidatePath("/admin");
     return { ok: true as const, backlog: b };
   } catch (e) {
@@ -71,13 +77,18 @@ export async function updateBacklogAction(input: {
     const result = await updateBacklog(input, actorId);
     if (!result) return { ok: false as const, error: "Modification impossible." };
 
+    for (const key of new Set([result.previousKey, result.backlog.key])) {
+      await invalidateBacklog(key, {
+        kind: "backlog",
+        backlogId: result.backlog.id,
+        actorId,
+      });
+    }
     for (const path of [
       "/admin",
       "/",
       "/mine",
       "/trash",
-      `/b/${result.previousKey}`,
-      `/b/${result.backlog.key}`,
     ]) {
       revalidatePath(path);
     }
@@ -99,12 +110,17 @@ export async function updateBacklogAction(input: {
 export async function archiveBacklogAction(id: string) {
   const actorId = await authenticatedActorId();
   try {
-    await requireBacklogPermissionById({
+    const backlog = await requireBacklogPermissionById({
       actorId,
       backlogId: id,
       permission: "administer_backlog",
     });
     await archiveBacklog(id);
+    await invalidateBacklog(backlog.backlogKey, {
+      kind: "backlog",
+      backlogId: backlog.backlogId,
+      actorId,
+    });
     revalidatePath("/admin");
     return { ok: true as const };
   } catch (error) {

@@ -113,7 +113,7 @@ export async function addComment(input: unknown, authorId: string) {
       newValue: null,
     });
 
-    return comment!;
+    return { ...comment!, notifyUserIds: targets };
   });
 }
 

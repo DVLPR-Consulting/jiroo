@@ -23,11 +23,14 @@ const mocks = vi.hoisted(() => ({
   requireItemPermission: vi.fn(),
   requireSprintPermission: vi.fn(),
   revalidatePath: vi.fn(),
+  invalidateBacklog: vi.fn(),
+  notifyUsers: vi.fn(),
   startSprint: vi.fn(),
   updateSprint: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
 vi.mock("@/lib/auth/rbac", () => ({ canWriteItems: mocks.canWriteItems }));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireBacklogPermissionById: mocks.requireBacklogPermissionById,
@@ -355,9 +358,8 @@ describe("sprint actions", () => {
       "writer-1",
       expect.stringMatching(uuidPattern),
     );
-    expect(mocks.revalidatePath).toHaveBeenCalledTimes(10);
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledTimes(5);
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", expect.objectContaining({ kind: "sprint", backlogId, actorId: "writer-1" }));
   });
 
   it("returns compact lifecycle successes", async () => {
@@ -418,7 +420,7 @@ describe("sprint actions", () => {
       "writer-1",
       expect.stringMatching(uuidPattern),
     );
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", expect.objectContaining({ kind: "sprint", backlogId, actorId: "writer-1" }));
   });
 
   it("forwards one completion correlation after authorization and strips forged fields", async () => {
@@ -451,7 +453,7 @@ describe("sprint actions", () => {
     expect(
       mocks.requireSprintPermission.mock.invocationCallOrder[0]!,
     ).toBeLessThan(mocks.completeSprint.mock.invocationCallOrder[0]!);
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO/reports");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", expect.objectContaining({ kind: "sprint", backlogId, actorId: "writer-1" }));
   });
 
   it("blocks a viewer before every planning and lifecycle service call", async () => {

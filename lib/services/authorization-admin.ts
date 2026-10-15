@@ -678,9 +678,8 @@ async function affectedBacklogsForGroup(tx: Transaction, groupId: string) {
   );
 }
 
-async function allBacklogKeys(tx: Transaction): Promise<string[]> {
-  const rows = await tx.select({ key: backlogs.key }).from(backlogs).orderBy(asc(backlogs.key));
-  return rows.map((row) => row.key);
+async function allBacklogs(tx: Transaction): Promise<Array<{ id: string; key: string }>> {
+  return tx.select({ id: backlogs.id, key: backlogs.key }).from(backlogs).orderBy(asc(backlogs.key));
 }
 
 export async function createGroup(
@@ -775,6 +774,7 @@ export async function addGroupMember(
       groupId: group.id,
       userId: parsed.userId,
       affectedBacklogKeys: affected.map((backlog) => backlog.key),
+      affectedBacklogs: affected.map(({ id, key }) => ({ id, key })),
     };
   });
 }
@@ -823,6 +823,7 @@ export async function removeGroupMember(
       groupId: group.id,
       userId: parsed.userId,
       affectedBacklogKeys: affected.map((backlog) => backlog.key),
+      affectedBacklogs: affected.map(({ id, key }) => ({ id, key })),
     };
   });
 }
@@ -1280,6 +1281,7 @@ export async function addSchemeGrant(
       principalType: parsed.principal.type,
       version,
       affectedBacklogKeys: affected.map((backlog) => backlog.key),
+      affectedBacklogs: affected.map(({ id, key }) => ({ id, key })),
     };
   });
 }
@@ -1349,7 +1351,12 @@ export async function removeSchemeGrant(
       newValue: { version },
       requestCorrelationId: correlationId(requestCorrelationId),
     });
-    return { id: grant.id, version, affectedBacklogKeys: affected.map((entry) => entry.key) };
+    return {
+      id: grant.id,
+      version,
+      affectedBacklogKeys: affected.map((entry) => entry.key),
+      affectedBacklogs: affected.map(({ id, key }) => ({ id, key })),
+    };
   });
 }
 
@@ -1383,12 +1390,13 @@ export async function addGlobalPermissionGrant(
       newValue: { permission: parsed.permission, principal: parsed.principal },
       requestCorrelationId: correlationId(requestCorrelationId),
     });
+    const affectedBacklogs = parsed.permission === "administer_jiroo" ? await allBacklogs(tx) : [];
     return {
       id: grant.id,
       permission: parsed.permission,
       principalType: parsed.principal.type,
-      affectedBacklogKeys:
-        parsed.permission === "administer_jiroo" ? await allBacklogKeys(tx) : [],
+      affectedBacklogKeys: affectedBacklogs.map((backlog) => backlog.key),
+      affectedBacklogs,
     };
   });
 }
@@ -1418,8 +1426,8 @@ export async function removeGlobalPermissionGrant(
     if (grant.permissionKey === "administer_jiroo") {
       await assertPlatformAdministratorsRemain(tx, { grantId: grant.id });
     }
-    const affectedBacklogKeys =
-      grant.permissionKey === "administer_jiroo" ? await allBacklogKeys(tx) : [];
+    const affectedBacklogs =
+      grant.permissionKey === "administer_jiroo" ? await allBacklogs(tx) : [];
     await tx.delete(permissionGrants).where(eq(permissionGrants.id, grant.id));
     await appendSecurityAuditEvent(tx, {
       actorId,
@@ -1436,7 +1444,11 @@ export async function removeGlobalPermissionGrant(
       },
       requestCorrelationId: correlationId(requestCorrelationId),
     });
-    return { id: grant.id, affectedBacklogKeys };
+    return {
+      id: grant.id,
+      affectedBacklogKeys: affectedBacklogs.map((backlog) => backlog.key),
+      affectedBacklogs,
+    };
   });
 }
 

@@ -1,7 +1,6 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { revalidatePath } from "next/cache";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
   requireBacklogPermissionById,
@@ -11,6 +10,7 @@ import {
 } from "@/lib/auth/action-authorization";
 import { ResourceNotFoundError } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
+import { invalidateBacklog } from "@/lib/realtime/publish";
 import {
   completeSprint,
   startSprint,
@@ -51,11 +51,6 @@ function assertStoredBacklog(resource: AuthorizedResource, backlogId: string): v
   if (resource.backlogId !== backlogId) {
     throw new ResourceNotFoundError("backlog", backlogId);
   }
-}
-
-function revalidateBacklog(backlogKey: string) {
-  revalidatePath(`/b/${backlogKey}`);
-  revalidatePath(`/b/${backlogKey}/reports`);
 }
 
 const PLANNING_ERRORS = new Set([
@@ -118,7 +113,11 @@ export async function createSprintAction(input: {
     });
     const { backlogKey, ...serviceInput } = input;
     const sprint = await createSprint(serviceInput, actorId);
-    revalidateBacklog(backlogKey);
+    await invalidateBacklog(backlogKey, {
+      kind: "sprint",
+      backlogId: input.backlogId,
+      actorId,
+    });
     return { ok: true as const, sprint };
   } catch (error) {
     return {
@@ -141,7 +140,11 @@ export async function updateSprintAction(
     assertStoredBacklog(sprintAuthorization, input.backlogId);
     const { backlogKey, ...serviceInput } = input;
     const sprint = await updateSprint(serviceInput, actorId);
-    revalidateBacklog(backlogKey);
+    await invalidateBacklog(backlogKey, {
+      kind: "sprint",
+      backlogId: input.backlogId,
+      actorId,
+    });
     return { ok: true as const, sprint };
   } catch (error) {
     return {
@@ -164,7 +167,11 @@ export async function reorderSprintAction(
     assertStoredBacklog(sprintAuthorization, input.backlogId);
     const { backlogKey, ...serviceInput } = input;
     const sprint = await reorderSprint(serviceInput, actorId);
-    revalidateBacklog(backlogKey);
+    await invalidateBacklog(backlogKey, {
+      kind: "sprint",
+      backlogId: input.backlogId,
+      actorId,
+    });
     return { ok: true as const, sprint };
   } catch (error) {
     return {
@@ -200,7 +207,12 @@ export async function assignSprintItemsAction(
       actorId,
       requestCorrelationId,
     );
-    revalidateBacklog(backlogKey);
+    await invalidateBacklog(backlogKey, {
+      kind: "sprint",
+      backlogId: input.backlogId,
+      itemIds: input.itemIds,
+      actorId,
+    });
     return { ok: true as const, ...result };
   } catch (error) {
     return {
@@ -236,7 +248,12 @@ export async function moveSprintItemAction(
       actorId,
       requestCorrelationId,
     );
-    revalidateBacklog(backlogKey);
+    await invalidateBacklog(backlogKey, {
+      kind: "sprint",
+      backlogId: input.backlogId,
+      itemIds: [input.itemId],
+      actorId,
+    });
     return { ok: true as const, item };
   } catch (error) {
     return {
@@ -258,7 +275,11 @@ export async function startSprintAction(input: WithBacklogKey<StartSprintInput>)
     const requestCorrelationId = randomUUID();
     const { backlogKey, ...serviceInput } = input;
     const result = await startSprint(serviceInput, actorId, requestCorrelationId);
-    revalidateBacklog(backlogKey);
+    await invalidateBacklog(backlogKey, {
+      kind: "sprint",
+      backlogId: input.backlogId,
+      actorId,
+    });
     return { ok: true as const, ...result };
   } catch (error) {
     return {
@@ -286,7 +307,11 @@ export async function completeSprintAction(
       actorId,
       requestCorrelationId,
     );
-    revalidateBacklog(input.backlogKey);
+    await invalidateBacklog(input.backlogKey, {
+      kind: "sprint",
+      backlogId: input.backlogId,
+      actorId,
+    });
     return { ok: true as const, ...result };
   } catch (error) {
     if (

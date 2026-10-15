@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { markReadAction, markAllReadAction } from "@/app/actions/notifications";
@@ -15,6 +15,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useBacklogItemNavigation } from "@/components/shell/use-backlog-item-navigation";
+import { useRealtime } from "@/components/realtime/realtime-provider";
+import { reactionFor } from "@/lib/realtime/events";
+import { parseDatedJson } from "@/lib/serialization/dated-json";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -39,16 +42,64 @@ function badgeLabel(count: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Live data
+// ---------------------------------------------------------------------------
+
+type BellData = { notifications: NotificationRow[]; unreadCount: number };
+
+async function fetchBellData(): Promise<BellData | null> {
+  try {
+    const response = await fetch("/api/notifications", {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return null;
+    return parseDatedJson<BellData>(await response.text());
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The server-rendered bell, refetched when the realtime stream says it changed
+ * (a mention, read in another tab). A newer server render wins again.
+ */
+function useLiveBell(notifications: NotificationRow[], unreadCount: number): BellData {
+  const [state, setState] = useState<{ server: BellData; live: BellData | null }>({
+    server: { notifications, unreadCount },
+    live: null,
+  });
+  if (state.server.notifications !== notifications || state.server.unreadCount !== unreadCount) {
+    setState({ server: { notifications, unreadCount }, live: null });
+  }
+  const latestRequest = useRef(0);
+
+  useRealtime((events) => {
+    if (!events.some((event) => reactionFor(event, { openItemId: null }).refreshBell)) return;
+    const request = ++latestRequest.current;
+    const server = state.server;
+    void fetchBellData().then((data) => {
+      if (!data || request !== latestRequest.current) return;
+      // A server render that landed meanwhile is newer than this answer.
+      setState((current) => (current.server === server ? { ...current, live: data } : current));
+    });
+  });
+
+  return state.live ?? state.server;
+}
+
+// ---------------------------------------------------------------------------
 // NotificationBell
 // ---------------------------------------------------------------------------
 
 export function NotificationBell({
-  notifications,
-  unreadCount,
+  notifications: serverNotifications,
+  unreadCount: serverUnreadCount,
 }: {
   notifications: NotificationRow[];
   unreadCount: number;
 }) {
+  const { notifications, unreadCount } = useLiveBell(serverNotifications, serverUnreadCount);
   const router = useRouter();
   const openBacklogItem = useBacklogItemNavigation();
   const [isPending, startTransition] = useTransition();

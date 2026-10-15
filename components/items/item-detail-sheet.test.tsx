@@ -51,6 +51,24 @@ function itemData(key: string): ItemDetailData {
   } as unknown as ItemDetailData;
 }
 
+const realtime = vi.hoisted(() => ({
+  handlers: new Set<(events: readonly { kind: string; itemIds?: string[]; self: boolean }[]) => void>(),
+}));
+
+vi.mock("@/components/realtime/realtime-provider", async () => {
+  const { useEffect: useMountEffect } = await import("react");
+  return {
+    useRealtime: (handler: (events: readonly { kind: string; itemIds?: string[]; self: boolean }[]) => void) => {
+      useMountEffect(() => {
+        realtime.handlers.add(handler);
+        return () => {
+          realtime.handlers.delete(handler);
+        };
+      });
+    },
+  };
+});
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/b/CASS",
   useRouter: () => ({ push: mocks.push, replace: mocks.replace, refresh: vi.fn() }),
@@ -509,6 +527,82 @@ describe("ItemDetailSheet", () => {
       expect(await screen.findByRole("dialog", { name: "CASS-4 — Titre modifié" })).toBeVisible();
       // Same panel instance: local state (editors, scroll) survives the refresh.
       expect(panelMounts).toBe(mountsBefore);
+    });
+
+    async function emit(events: { kind: string; itemIds?: string[]; self: boolean }[]) {
+      await act(async () => {
+        for (const handler of realtime.handlers) handler(events);
+      });
+    }
+
+    function retitled(key: string, title: string) {
+      const data = itemData(key);
+      (data as { panel: { detail: { title: string } } }).panel.detail.title = title;
+      return data;
+    }
+
+    it("refetches the open item, keeping the panel on screen, when someone else changed it", async () => {
+      const { fetchMock, answer } = stubFetch();
+      render(page(null, [["view", "backlog"]]));
+      await openRow();
+      await answer(jsonResponse(itemData("CASS-4")));
+      const mountsBefore = panelMounts;
+
+      await emit([{ kind: "item", itemIds: ["id-CASS-4"], self: false }]);
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      // The transition keeps the current panel instead of the skeleton.
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+      await answer(jsonResponse(retitled("CASS-4", "Titre modifié ailleurs")));
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre modifié ailleurs" })).toBeVisible();
+      expect(panelMounts).toBe(mountsBefore);
+    });
+
+    it("keeps the open panel, and listening, when the refetch fails", async () => {
+      const { fetchMock, answer } = stubFetch();
+      render(page(null, [["view", "backlog"]]));
+      await openRow();
+      await answer(jsonResponse(itemData("CASS-4")));
+      const mountsBefore = panelMounts;
+
+      await emit([{ kind: "item", itemIds: ["id-CASS-4"], self: false }]);
+      await answer(new Response(null, { status: 500 }));
+
+      // Unsaved edits live in the panel: it must stay mounted.
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+      expect(panelMounts).toBe(mountsBefore);
+
+      await emit([{ kind: "item", itemIds: ["id-CASS-4"], self: false }]);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      await answer(jsonResponse(retitled("CASS-4", "Titre rétabli")));
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre rétabli" })).toBeVisible();
+    });
+
+    it("ignores changes to other items", async () => {
+      const { fetchMock, answer } = stubFetch();
+      render(page(null, [["view", "backlog"]]));
+      await openRow();
+      await answer(jsonResponse(itemData("CASS-4")));
+
+      await emit([{ kind: "item", itemIds: ["id-CASS-9"], self: false }]);
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves a server-rendered item for a fresh fetch when it changed elsewhere", async () => {
+      const { fetchMock, answer } = stubFetch();
+      await act(async () => {
+        render(page("CASS-4", [["view", "backlog"], ["item", "CASS-4"]]));
+      });
+      expect(await screen.findByRole("dialog", { name: "CASS-4 — Titre" })).toBeVisible();
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      await emit([{ kind: "sprint", self: false }]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await answer(jsonResponse(retitled("CASS-4", "Titre du sprint")));
+      expect(screen.getByRole("dialog", { name: "CASS-4 — Titre du sprint" })).toBeVisible();
     });
 
     it("fetches afresh when an item is reopened after closing", async () => {

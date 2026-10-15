@@ -9,10 +9,13 @@ const mocks = vi.hoisted(() => ({
   requireBacklogPermissionById: vi.fn(),
   requireStatusPermission: vi.fn(),
   revalidatePath: vi.fn(),
+  invalidateBacklog: vi.fn(),
+  notifyUsers: vi.fn(),
   updateStatus: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireBacklogPermissionById: mocks.requireBacklogPermissionById,
   requireStatusPermission: mocks.requireStatusPermission,
@@ -153,8 +156,9 @@ describe("workflow status actions", () => {
       category: "in_progress",
       color: "#8b5cf6",
     });
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", { kind: "backlog", backlogId, actorId: "admin-1" });
     expect(new Set(mocks.revalidatePath.mock.calls.map(([path]) => path))).toEqual(
-      new Set(["/admin", "/", "/mine", "/trash", "/b/DEMO"]),
+      new Set(["/admin", "/", "/mine", "/trash"]),
     );
   });
 

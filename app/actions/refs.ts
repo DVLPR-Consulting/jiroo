@@ -1,12 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
   requireItemPermission,
   requireRefPermission,
 } from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
+import { invalidateBacklog } from "@/lib/realtime/publish";
 import { addRef, removeRef } from "@/lib/services/refs";
 
 async function authenticatedActorId(): Promise<string> {
@@ -34,13 +34,18 @@ export async function addRefAction(input: {
   const actorId = await authenticatedActorId();
   const { backlogKey, itemId, url } = input;
   try {
-    await requireItemPermission({
+    const authorization = await requireItemPermission({
       actorId,
       itemId: input.itemId,
       permission: "link_items",
     });
     const ref = await addRef({ itemId, url }, actorId);
-    revalidatePath(`/b/${backlogKey}`);
+    await invalidateBacklog(backlogKey, {
+      kind: "item",
+      backlogId: authorization.backlogId,
+      itemIds: [itemId],
+      actorId,
+    });
     return { ok: true as const, ref };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
@@ -57,13 +62,18 @@ export async function removeRefAction(input: { backlogKey: string; id: string })
   const actorId = await authenticatedActorId();
   const { backlogKey, id } = input;
   try {
-    await requireRefPermission({
+    const authorization = await requireRefPermission({
       actorId,
       refId: input.id,
       permission: "link_items",
     });
-    await removeRef(id);
-    revalidatePath(`/b/${backlogKey}`);
+    const removed = await removeRef(id);
+    await invalidateBacklog(backlogKey, {
+      kind: "item",
+      backlogId: authorization.backlogId,
+      ...(removed ? { itemIds: [removed.itemId] } : {}),
+      actorId,
+    });
     return { ok: true as const };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);

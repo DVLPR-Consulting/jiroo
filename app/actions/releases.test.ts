@@ -15,12 +15,15 @@ const mocks = vi.hoisted(() => ({
   requireBacklogPermissionById: vi.fn(),
   requirePermission: vi.fn(),
   revalidatePath: vi.fn(),
+  invalidateBacklog: vi.fn(),
+  notifyUsers: vi.fn(),
   unarchiveRelease: vi.fn(),
   unreleaseRelease: vi.fn(),
   updateRelease: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireBacklogPermissionById: mocks.requireBacklogPermissionById,
 }));
@@ -449,11 +452,11 @@ describe("release server action permissions", () => {
     },
   );
 
-  it("uses only the stored backlog key for literal revalidation paths", async () => {
+  it("uses only the stored backlog for publication and release paths", async () => {
     await updateReleaseAction(updateInput);
 
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("STORED", { kind: "release", backlogId, actorId });
     expect(mocks.revalidatePath.mock.calls.map(([path]) => path)).toEqual([
-      "/b/STORED",
       "/b/STORED/releases",
       `/b/STORED/releases/${releaseId}`,
     ]);
@@ -646,7 +649,6 @@ describe("release depth server actions", () => {
   it("revalidates the stored backlog paths and the target detail", async () => {
     await mergeReleaseAction(mergeInput);
     expect(mocks.revalidatePath.mock.calls.map(([path]) => path)).toEqual([
-      "/b/STORED",
       "/b/STORED/releases",
       `/b/STORED/releases/${releaseId}`,
       `/b/STORED/releases/${destinationReleaseId}`,
@@ -654,7 +656,6 @@ describe("release depth server actions", () => {
     mocks.revalidatePath.mockClear();
     await deleteReleaseAction(deleteRemoveInput);
     expect(mocks.revalidatePath.mock.calls.map(([path]) => path)).toEqual([
-      "/b/STORED",
       "/b/STORED/releases",
       `/b/STORED/releases/${releaseId}`,
     ]);

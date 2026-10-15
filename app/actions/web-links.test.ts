@@ -8,9 +8,12 @@ const mocks = vi.hoisted(() => ({
   requireItemPermission: vi.fn(),
   requireWebLinkPermission: vi.fn(),
   revalidatePath: vi.fn(),
+  invalidateBacklog: vi.fn(),
+  notifyUsers: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireItemPermission: mocks.requireItemPermission,
   requireWebLinkPermission: mocks.requireWebLinkPermission,
@@ -45,7 +48,7 @@ describe("web link action permissions (JIR-99)", () => {
       { itemId: "item-1", url: "https://figma.com/x", title: "Maquettes" },
       "writer-1",
     );
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/CASS");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("CASS", { kind: "item", backlogId: "backlog-1", itemIds: ["item-1"], actorId: "writer-1" });
   });
 
   it("returns a structured permission denial without writing", async () => {

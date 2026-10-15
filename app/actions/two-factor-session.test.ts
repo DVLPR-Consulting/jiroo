@@ -14,6 +14,7 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ toString: () => "" }),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: vi.fn() }));
 vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: mocks.authGetSession } },
 }));

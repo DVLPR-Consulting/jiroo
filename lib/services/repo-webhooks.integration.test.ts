@@ -71,7 +71,7 @@ describeDb("repository webhook ingestion (JIR-95)", () => {
         { kind: "commit", id: "9f1c2b7e4d3a5f6b8c0d1e2f3a4b5c6d7e8f9a0b", title: `${deleted.key} ${foreign.key}`, authorName: "Alex Martin", state: null, occurredAt: new Date("2026-10-13T07:16:00Z"), texts: [`${deleted.key} ${foreign.key}`] },
       ],
     });
-    expect(result).toEqual({ duplicate: false, linked: 3 });
+    expect(result).toEqual({ duplicate: false, linked: 3, itemIds: [first.id, second.id] });
 
     const firstRefs = await refsOf(first.id);
     expect(firstRefs.map((ref) => [ref.kind, ref.url, ref.state])).toEqual([
@@ -98,9 +98,9 @@ describeDb("repository webhook ingestion (JIR-95)", () => {
     const { first } = fixture.items;
     const before = await refsOf(first.id);
     const refs: DevRefCandidate[] = [{ kind: "commit", id: "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b", title: first.key, authorName: "Alex Martin", state: null, occurredAt: new Date("2026-10-13T07:15:00Z"), texts: [first.key] }];
-    expect(await ingestWebhookReferences({ connection, deliveryId: "push-1", refs })).toEqual({ duplicate: true, linked: 0 });
-    expect(await ingestWebhookReferences({ connection, deliveryId: "push-2", refs })).toEqual({ duplicate: false, linked: 1 });
-    expect(await ingestWebhookReferences({ connection, deliveryId: null, refs })).toEqual({ duplicate: false, linked: 1 });
+    expect(await ingestWebhookReferences({ connection, deliveryId: "push-1", refs })).toEqual({ duplicate: true, linked: 0, itemIds: [] });
+    expect(await ingestWebhookReferences({ connection, deliveryId: "push-2", refs })).toEqual({ duplicate: false, linked: 1, itemIds: [first.id] });
+    expect(await ingestWebhookReferences({ connection, deliveryId: null, refs })).toEqual({ duplicate: false, linked: 1, itemIds: [first.id] });
     expect((await refsOf(first.id)).map((ref) => ref.id)).toEqual(before.map((ref) => ref.id));
   });
 
@@ -196,7 +196,7 @@ describeDb("repository webhook ingestion (JIR-95)", () => {
       occurredAt: new Date("2026-10-13T09:00:00Z"),
       texts: [`${second.key} change ${index}`],
     }));
-    expect(await ingestWebhookReferences({ connection, deliveryId: "large-push", refs: commits })).toEqual({ duplicate: false, linked: 620 });
+    expect(await ingestWebhookReferences({ connection, deliveryId: "large-push", refs: commits })).toEqual({ duplicate: false, linked: 620, itemIds: [second.id] });
     const linked = (await listRefsForItem(second.id)).filter((ref) => ref.kind === "commit" && ref.title?.includes("change"));
     expect(linked).toHaveLength(620);
   });

@@ -26,6 +26,7 @@ describe("HelpPage", () => {
       "Organisation",
       "Les vues",
       "Tickets",
+      "Travailler à plusieurs",
       "Sprints",
       "Releases",
       "Rapports",

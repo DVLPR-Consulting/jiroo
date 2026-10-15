@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { deploymentSecretBoxKey, openSecret } from "@/lib/crypto/secret-box";
+import { publishBacklogChange } from "@/lib/realtime/publish";
 import {
   parseGithubWebhook,
   parseGitlabWebhook,
@@ -171,6 +172,13 @@ export async function handleRepoWebhook(
       deliveryId: delivery,
       refs: parsed.refs,
     });
+    if (!result.duplicate && result.linked > 0) {
+      await publishBacklogChange({
+        backlogId: connection.backlogId,
+        itemIds: result.itemIds,
+        actorId: null,
+      });
+    }
     return json(200, result.duplicate ? { ok: true, duplicate: true } : { ok: true, linked: result.linked });
   } catch (error) {
     // Never the payload nor the secret: the connection and the error kind only.

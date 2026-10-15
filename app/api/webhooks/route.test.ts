@@ -11,6 +11,7 @@ process.env.BETTER_AUTH_SECRET = KEY_MATERIAL;
 
 const mocks = vi.hoisted(() => ({
   findWebhookConnection: vi.fn(),
+  publishBacklogChange: vi.fn(),
   reserveWebhookRequest: vi.fn(),
   recordWebhookError: vi.fn(),
   recordWebhookEvent: vi.fn(),
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/realtime/publish", () => ({ publishBacklogChange: mocks.publishBacklogChange }));
 vi.mock("@/lib/services/repo-webhooks", () => mocks);
 
 import { POST as githubPost } from "@/app/api/webhooks/github/[connectionId]/route";
@@ -83,11 +85,13 @@ describe("POST /api/webhooks/{github,gitlab}/[connectionId]", () => {
         ? connection(provider, provider === "github" ? "example-org/example-repo" : "juridiction/greffe/api")
         : null);
     mocks.reserveWebhookRequest.mockResolvedValue(1);
-    mocks.ingestWebhookReferences.mockResolvedValue({ duplicate: false, linked: 1 });
+    mocks.ingestWebhookReferences.mockResolvedValue({ duplicate: false, linked: 1, itemIds: ["item-1"] });
   });
 
   it("links a correctly signed GitHub pull request event", async () => {
     const response = await githubRequest(githubPrOpened);
+    expect(mocks.publishBacklogChange).toHaveBeenCalledWith({ backlogId: "backlog-1", itemIds: ["item-1"], actorId: null });
+    expect(mocks.ingestWebhookReferences.mock.invocationCallOrder[0]).toBeLessThan(mocks.publishBacklogChange.mock.invocationCallOrder[0]!);
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true, linked: 1 });
     expect(response.headers.get("cache-control")).toBe("no-store");
@@ -97,6 +101,12 @@ describe("POST /api/webhooks/{github,gitlab}/[connectionId]", () => {
       deliveryId: "delivery-1",
       refs: [expect.objectContaining({ kind: "pr", id: "42", state: "open" })],
     });
+  });
+
+  it.each([{ duplicate: true, linked: 1, itemIds: ["item-1"] }, { duplicate: false, linked: 0, itemIds: [] }])("does not publish a duplicate or unlinked delivery: %j", async (result) => {
+    mocks.ingestWebhookReferences.mockResolvedValueOnce(result);
+    expect((await githubRequest(githubPrOpened)).status).toBe(200);
+    expect(mocks.publishBacklogChange).not.toHaveBeenCalled();
   });
 
   it("answers a bad signature, an unknown and a malformed connection identically", async () => {

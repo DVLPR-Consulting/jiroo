@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requireItemPermission } from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
+import { invalidateBacklog } from "@/lib/realtime/publish";
+import { getBacklogSummary } from "@/lib/services/backlogs";
 import { purgeItem, restoreItem } from "@/lib/services/items";
 
 async function authenticatedActorId(): Promise<string> {
@@ -24,8 +26,21 @@ function mapTrashError(e: unknown): string {
 export async function restoreTrashedItemAction(input: { id: string }) {
   const actorId = await authenticatedActorId();
   try {
-    await requireItemPermission({ actorId, itemId: input.id, permission: "restore_items" });
-    await restoreItem({ id: input.id }, actorId);
+    const authorization = await requireItemPermission({
+      actorId,
+      itemId: input.id,
+      permission: "restore_items",
+    });
+    const backlog = await getBacklogSummary(authorization.backlogId);
+    const item = await restoreItem({ id: input.id }, actorId);
+    if (!item) return { ok: false as const, error: "Item introuvable dans la corbeille." };
+    if (backlog) {
+      await invalidateBacklog(backlog.key, {
+        kind: "item",
+        backlogId: authorization.backlogId,
+        actorId,
+      });
+    }
     revalidatePath("/trash");
     return { ok: true as const };
   } catch (e) {
@@ -38,8 +53,20 @@ export async function restoreTrashedItemAction(input: { id: string }) {
 export async function purgeItemAction(input: { id: string }) {
   const actorId = await authenticatedActorId();
   try {
-    await requireItemPermission({ actorId, itemId: input.id, permission: "restore_items" });
+    const authorization = await requireItemPermission({
+      actorId,
+      itemId: input.id,
+      permission: "restore_items",
+    });
+    const backlog = await getBacklogSummary(authorization.backlogId);
     await purgeItem(input.id);
+    if (backlog) {
+      await invalidateBacklog(backlog.key, {
+        kind: "item",
+        backlogId: authorization.backlogId,
+        actorId,
+      });
+    }
     revalidatePath("/trash");
     return { ok: true as const };
   } catch (e) {

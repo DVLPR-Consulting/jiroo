@@ -8,9 +8,12 @@ const mocks = vi.hoisted(() => ({
   requireItemPermission: vi.fn(),
   requireLinkPermission: vi.fn(),
   revalidatePath: vi.fn(),
+  invalidateBacklog: vi.fn(),
+  notifyUsers: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireItemPermission: mocks.requireItemPermission,
   requireLinkPermission: mocks.requireLinkPermission,
@@ -51,6 +54,7 @@ describe("link action permissions", () => {
       { actorId: "writer-1", itemId: "item-1", permission: "link_items" },
       { actorId: "writer-1", itemId: "item-2", permission: "link_items" },
     ]);
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("FORGED", { kind: "item", backlogId: "backlog-1", itemIds: ["item-1", "item-2"], actorId: "writer-1" });
     expect(mocks.addLink).toHaveBeenCalled();
   });
 

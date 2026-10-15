@@ -48,11 +48,14 @@ const mocks = vi.hoisted(() => ({
   requireBacklogReadPermissionById: vi.fn(),
   requirePermission: vi.fn(),
   revalidatePath: vi.fn(),
+  invalidateBacklog: vi.fn(),
+  notifyUsers: vi.fn(),
   setBacklogAccessMode: vi.fn(),
   updateProjectRole: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireBacklogReadPermissionById: mocks.requireBacklogReadPermissionById,
@@ -408,6 +411,7 @@ describe("authorization administration Server Actions", () => {
       permission: "administer_jiroo",
       principalType: "user",
       affectedBacklogKeys: ["DEMO"],
+      affectedBacklogs: [{ id: backlogId, key: "DEMO" }],
     });
 
     await addGlobalPermissionGrantAction({
@@ -415,7 +419,7 @@ describe("authorization administration Server Actions", () => {
       principal: { type: "user", userId: "member-1" },
     });
 
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", { kind: "backlog", backlogId, actorId: "actor-session" });
   });
 
   it("revalidates every backlog returned by global-admin group membership changes", async () => {
@@ -423,21 +427,23 @@ describe("authorization administration Server Actions", () => {
       groupId,
       userId: "member-1",
       affectedBacklogKeys: ["DEMO", "OPS"],
+      affectedBacklogs: [{ id: backlogId, key: "DEMO" }, { id: "00000000-0000-4000-8000-000000000099", key: "OPS" }],
     });
     mocks.removeGroupMember.mockResolvedValue({
       groupId,
       userId: "member-1",
       affectedBacklogKeys: ["DEMO", "OPS"],
+      affectedBacklogs: [{ id: backlogId, key: "DEMO" }, { id: "00000000-0000-4000-8000-000000000099", key: "OPS" }],
     });
 
     await addGroupMemberAction({ groupId, userId: "member-1" });
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/OPS");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", { kind: "backlog", backlogId, actorId: "actor-session" });
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("OPS", { kind: "backlog", backlogId: "00000000-0000-4000-8000-000000000099", actorId: "actor-session" });
 
-    mocks.revalidatePath.mockClear();
+    mocks.invalidateBacklog.mockClear();
     await removeGroupMemberAction({ groupId, userId: "member-1" });
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/DEMO");
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/b/OPS");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", { kind: "backlog", backlogId, actorId: "actor-session" });
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("OPS", { kind: "backlog", backlogId: "00000000-0000-4000-8000-000000000099", actorId: "actor-session" });
   });
 
   it.each([
@@ -496,6 +502,7 @@ describe("authorization administration Server Actions", () => {
       groupId,
       userId: "member-1",
       affectedBacklogKeys: ["DEMO"],
+      affectedBacklogs: [{ id: backlogId, key: "DEMO" }],
     });
 
     await addGroupMemberAction({ groupId, userId: "member-1" });
@@ -554,8 +561,9 @@ describe("authorization administration Server Actions", () => {
       ok: true,
       access: { backlogId, backlogKey: "DEMO", mode: "advanced" },
     });
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", { kind: "backlog", backlogId, actorId: "actor-session" });
     expect(new Set(mocks.revalidatePath.mock.calls.map(([path]) => path))).toEqual(
-      new Set(["/admin", "/b/DEMO", "/", "/mine", "/trash"]),
+      new Set(["/admin", "/", "/mine", "/trash"]),
     );
   });
 });

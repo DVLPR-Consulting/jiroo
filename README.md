@@ -33,7 +33,7 @@ Reset the database: `docker compose down -v`.
 - `pnpm typecheck` — TypeScript, no emit
 - `pnpm test` — unit tests (Vitest)
 - `pnpm db:generate` — generate a migration from the schema
-- `pnpm db:migrate` — apply migrations (uses `DIRECT_DATABASE_URL`)
+- `pnpm db:migrate` — apply migrations (uses `DIRECT_DATABASE_URL`, also used for realtime `LISTEN`; realtime falls back to `DATABASE_URL` if unset)
 - `pnpm db:seed` — seed demo data
 - `pnpm db:studio` — Drizzle Studio
 - `pnpm check:auth` — headless sign-in smoke check
@@ -179,7 +179,7 @@ every move writes an audit row.
 
 ## Environments
 
-`DATABASE_URL` switches the app between local Docker, Neon (pooled, EU) and the future internal server. Migrations use `DIRECT_DATABASE_URL` (unpooled). Auth secrets live in `.env` / host env; never commit them. The auth API route runs on the Node.js runtime (not edge).
+`DATABASE_URL` switches the app between local Docker, Neon (pooled, EU) and the future internal server. Migrations and realtime `LISTEN` use `DIRECT_DATABASE_URL` (direct/unpooled, never Neon's transaction pooler); realtime falls back to `DATABASE_URL` if it is unset. Auth secrets live in `.env` / host env; never commit them. The auth API route runs on the Node.js runtime (not edge).
 
 ## Design system
 

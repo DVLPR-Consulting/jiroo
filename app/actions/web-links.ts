@@ -1,12 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
   requireItemPermission,
   requireWebLinkPermission,
 } from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
+import { invalidateBacklog } from "@/lib/realtime/publish";
 import { addWebLink, removeWebLink } from "@/lib/services/web-links";
 
 async function authenticatedActorId(): Promise<string> {
@@ -32,9 +32,14 @@ export async function addWebLinkAction(input: {
   const actorId = await authenticatedActorId();
   const { backlogKey, itemId, url, title } = input;
   try {
-    await requireItemPermission({ actorId, itemId, permission: "link_items" });
+    const authorization = await requireItemPermission({ actorId, itemId, permission: "link_items" });
     const webLink = await addWebLink({ itemId, url, title }, actorId);
-    revalidatePath(`/b/${backlogKey}`);
+    await invalidateBacklog(backlogKey, {
+      kind: "item",
+      backlogId: authorization.backlogId,
+      itemIds: [itemId],
+      actorId,
+    });
     return { ok: true as const, webLink };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
@@ -47,9 +52,14 @@ export async function removeWebLinkAction(input: { backlogKey: string; id: strin
   const actorId = await authenticatedActorId();
   const { backlogKey, id } = input;
   try {
-    await requireWebLinkPermission({ actorId, webLinkId: id, permission: "link_items" });
-    await removeWebLink(id);
-    revalidatePath(`/b/${backlogKey}`);
+    const authorization = await requireWebLinkPermission({ actorId, webLinkId: id, permission: "link_items" });
+    const removed = await removeWebLink(id);
+    await invalidateBacklog(backlogKey, {
+      kind: "item",
+      backlogId: authorization.backlogId,
+      ...(removed ? { itemIds: [removed.itemId] } : {}),
+      actorId,
+    });
     return { ok: true as const };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);

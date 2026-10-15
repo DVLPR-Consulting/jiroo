@@ -187,7 +187,7 @@ export async function ingestWebhookReferences(input: {
   connection: WebhookConnection;
   deliveryId: string | null;
   refs: DevRefCandidate[];
-}): Promise<{ duplicate: boolean; linked: number }> {
+}): Promise<{ duplicate: boolean; linked: number; itemIds: string[] }> {
   const { connection, deliveryId } = input;
   return db.transaction(async (tx) => {
     if (deliveryId) {
@@ -196,7 +196,7 @@ export async function ingestWebhookReferences(input: {
         .values({ connectionId: connection.id, deliveryId })
         .onConflictDoNothing()
         .returning({ deliveryId: repoWebhookDeliveries.deliveryId });
-      if (inserted.length === 0) return { duplicate: true, linked: 0 };
+      if (inserted.length === 0) return { duplicate: true, linked: 0, itemIds: [] };
       await tx
         .delete(repoWebhookDeliveries)
         .where(and(
@@ -242,6 +242,6 @@ export async function ingestWebhookReferences(input: {
       .update(repoConnections)
       .set({ lastEventAt: new Date(), lastError: null, lastErrorAt: null })
       .where(eq(repoConnections.id, connection.id));
-    return { duplicate: false, linked: rows.length };
+    return { duplicate: false, linked: rows.length, itemIds: [...new Set(rows.map((row) => row.itemId))] };
   });
 }
