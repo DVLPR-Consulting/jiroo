@@ -7,8 +7,12 @@ import { toDatePatch, type Interval } from "@/lib/roadmap/intervals";
 import type { RoadmapSource } from "@/lib/roadmap/rows";
 import { toast } from "@/lib/toast";
 
-/** Days shown before the server confirms them. */
-type Override = { start: Day; due: Day; seq: number; settled: boolean };
+type Days = { start: Day; due: Day };
+/**
+ * Days shown before the server's render carries them: pending, or saved
+ * (`settled`). `confirmed` keeps the last saved days a failed save returns to.
+ */
+type Override = Days & { seq: number; settled: boolean; confirmed: Days | null };
 
 /**
  * Optimistic date edits: a moved bar stays where it was dropped while it
@@ -46,13 +50,18 @@ export function useRoadmapEdits(
     }
   }
 
-  function settle(id: string, mine: number, ok: boolean) {
+  function settle(id: string, mine: number, days: Days, ok: boolean) {
     setOverrides((current) => {
       const override = current.get(id);
-      // A later edit of the same item owns the override now.
-      if (!override || override.seq !== mine) return current;
+      if (!override) return current;
       const next = new Map(current);
-      if (ok) next.set(id, { ...override, settled: true });
+      if (override.seq !== mine) {
+        // A later edit owns the override: a success only becomes its fallback.
+        if (!ok || override.settled) return current;
+        return next.set(id, { ...override, confirmed: days });
+      }
+      if (ok) next.set(id, { ...override, settled: true, confirmed: null });
+      else if (override.confirmed) next.set(id, { ...override, ...override.confirmed, settled: true, confirmed: null });
       else next.delete(id);
       return next;
     });
@@ -76,9 +85,18 @@ export function useRoadmapEdits(
     delayMs = 0,
   ) {
     const mine = ++seq.current;
-    setOverrides((current) =>
-      new Map(current).set(item.id, { start: interval.start, due: interval.end, seq: mine, settled: false }),
-    );
+    setOverrides((current) => {
+      const previous = current.get(item.id);
+      // Saved days not yet in the server's render stay the fallback.
+      const confirmed = previous?.settled ? { start: previous.start, due: previous.due } : previous?.confirmed ?? null;
+      return new Map(current).set(item.id, {
+        start: interval.start,
+        due: interval.end,
+        seq: mine,
+        settled: false,
+        confirmed,
+      });
+    });
     clearTimeout(pending.current.get(item.id)?.timer);
     pending.current.delete(item.id);
     const run = () => void send(item, interval, describe, mine);
@@ -94,21 +112,22 @@ export function useRoadmapEdits(
   }
 
   async function send(item: { id: string; key: string }, interval: Interval, describe: string, mine: number) {
+    const days = { start: interval.start, due: interval.end };
     try {
       const result = await updateItemAction({ id: item.id, backlogKey, ...toDatePatch(interval) });
       if (result.ok) {
-        settle(item.id, mine, true);
+        settle(item.id, mine, days, true);
         announce(`${item.key} planifié ${describe}.`);
         return;
       }
-      settle(item.id, mine, false);
+      settle(item.id, mine, days, false);
       const message = "error" in result && typeof result.error === "string"
         ? result.error
         : "Mise à jour impossible.";
       toast.error(message);
       announce(`${item.key} : ${message}`);
     } catch {
-      settle(item.id, mine, false);
+      settle(item.id, mine, days, false);
       toast.error("Mise à jour impossible.");
       announce(`${item.key} : mise à jour impossible.`);
     }
