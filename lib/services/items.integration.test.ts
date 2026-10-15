@@ -845,6 +845,22 @@ describeDb("updateItem start and due days (JIR-101)", () => {
     });
   });
 
+  it("checks a due day given alone against the stored start, and clears either day", async () => {
+    await withFixture(async (fixture) => {
+      await updateItem({ id: fixture.item.id, startDate: "2026-10-10" }, fixture.actorId);
+      await expect(
+        updateItem({ id: fixture.item.id, dueDate: "2026-10-09" }, fixture.actorId),
+      ).rejects.toThrow("Le début doit précéder l’échéance.");
+      await updateItem({ id: fixture.item.id, dueDate: "2026-10-20" }, fixture.actorId);
+      await expect(
+        updateItem({ id: fixture.item.id, startDate: null }, fixture.actorId),
+      ).resolves.toMatchObject({ startDate: null, dueDate: "2026-10-20" });
+      await expect(
+        updateItem({ id: fixture.item.id, dueDate: "" }, fixture.actorId),
+      ).resolves.toMatchObject({ startDate: null, dueDate: null });
+    });
+  });
+
   it("writes nothing for an unchanged day", async () => {
     await withFixture(async (fixture) => {
       await updateItem({ id: fixture.item.id, startDate: "2026-10-01" }, fixture.actorId);

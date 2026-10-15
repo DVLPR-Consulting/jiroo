@@ -257,4 +257,3 @@ describe("calendar days (JIR-101)", () => {
     expect(r.success).toBe(false);
   });
 });
-
