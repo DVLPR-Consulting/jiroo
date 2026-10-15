@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { currentHref } from "@/test/history";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { NotificationBell } from "@/components/shell/notification-bell";
@@ -10,6 +10,8 @@ import {
 } from "@/components/shell/view-url-state";
 import type { ViewState } from "@/lib/items/filter";
 import type { NotificationRow } from "@/lib/services/notifications";
+import type { RealtimeListener } from "@/components/realtime/realtime-provider";
+import { stringifyDatedJson } from "@/lib/serialization/dated-json";
 
 const mocks = vi.hoisted(() => ({
   pathname: "/b/DEMO",
@@ -19,6 +21,13 @@ const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
   markReadAction: vi.fn(),
   markAllReadAction: vi.fn(),
+  realtime: null as RealtimeListener | null,
+}));
+
+vi.mock("@/components/realtime/realtime-provider", () => ({
+  useRealtime: (handler: RealtimeListener) => {
+    mocks.realtime = handler;
+  },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -320,5 +329,58 @@ describe("NotificationBell item navigation", () => {
     });
     expect(mocks.push).not.toHaveBeenCalled();
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("NotificationBell live updates", () => {
+  beforeEach(() => {
+    mocks.realtime = null;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function emit(...args: Parameters<RealtimeListener>) {
+    if (!mocks.realtime) throw new Error("bell is not listening");
+    act(() => mocks.realtime?.(...args));
+  }
+
+  it("refetches its data when a notification arrives", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        stringifyDatedJson({
+          unreadCount: 2,
+          notifications: [demoNotification, { ...demoNotification, id: "n2", itemKey: "DEMO-2" }],
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderSubject();
+    expect(screen.getByRole("button", { name: "Notifications (1 non lues)" })).toBeInTheDocument();
+
+    emit([{ kind: "notification", self: false }]);
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/notifications", expect.anything());
+    expect(
+      await screen.findByRole("button", { name: "Notifications (2 non lues)" }),
+    ).toBeInTheDocument();
+  });
+
+  it("ignores backlog changes", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    renderSubject();
+    emit([{ kind: "item", self: false }]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the server data when the refetch fails", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderSubject();
+    emit([{ kind: "resync", self: false }]);
+    await act(async () => Promise.resolve());
+    expect(screen.getByRole("button", { name: "Notifications (1 non lues)" })).toBeInTheDocument();
   });
 });
