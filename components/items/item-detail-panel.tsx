@@ -52,6 +52,7 @@ import {
   KindField,
   AssigneeField,
   ReporterField,
+  StartDateField,
   DueDateField,
   LabelsField,
 } from "@/components/items/detail/field-editors";
@@ -928,6 +929,15 @@ export function ItemDetailPanel({
                     ) : null}
                   </dd>
                 </div>
+
+                <DetailField
+                  label="Début"
+                  emptyText="Aucun"
+                  value={detail.startDate ? dueDateFmt.format(new Date(detail.startDate)) : null}
+                  editor={canEdit ? (
+                    <StartDateField itemId={detail.id} backlogKey={backlogKey} startDate={detail.startDate} />
+                  ) : undefined}
+                />
 
                 <DetailField
                   label="Échéance"

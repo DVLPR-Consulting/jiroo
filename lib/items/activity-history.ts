@@ -126,6 +126,8 @@ export function describeHistory(row: HistoryRow, lookup: HistoryLookup): History
       return change("a changé le rapporteur", row, person, "Aucun");
     case "estimate_points":
       return change("a changé les points", row, pointsName, "Non estimé");
+    case "start_date":
+      return change("a changé le début", row, dueDateName, "Aucun");
     case "due_date":
       return change("a changé l’échéance", row, dueDateName, "Aucune");
     case "sprint":

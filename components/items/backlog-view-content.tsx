@@ -721,7 +721,6 @@ export async function BacklogViewContent({
             items: rows.map((r) => ({
               ...r,
               estimatePoints: estimateByItem.get(r.id) ?? null,
-              dueDate: r.dueDate?.toISOString() ?? null,
               assigneeName: r.assigneeId ? (userName.get(r.assigneeId) ?? null) : null,
               labels: labelsByItem.get(r.id) ?? [],
               fixVersions: fixVersionsByItem.get(r.id) ?? [],

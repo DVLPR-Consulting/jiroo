@@ -97,6 +97,7 @@ const detail: Parameters<typeof ItemDetailPanel>[0]["detail"] = {
   rank: "a1",
   path: "root.33333333333343338333333333333333.22222222222242229222222222222222",
   depth: 1,
+  startDate: null,
   dueDate: null,
   createdAt: new Date("2026-08-01T10:00:00.000Z"),
   updatedAt: new Date("2026-08-02T10:00:00.000Z"),
@@ -193,6 +194,38 @@ function renderPanel(
     </DetailHarness>,
   );
 }
+
+describe("ItemDetailPanel start date", () => {
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/b/CASS?view=board&item=CASS-2");
+  });
+
+  it.each(["composant", "epic", "tache", "soustache"] as const)(
+    "shows the start date before the due date for a %s",
+    (type) => {
+      renderPanel(undefined, { ...detail, type, startDate: "2026-10-01" });
+      const start = screen.getByRole("button", { name: "Début 1 oct. 2026" });
+      const due = screen.getByRole("button", { name: "Échéance Aucune" });
+      expect(start).toBeVisible();
+      expect(start.compareDocumentPosition(due) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    },
+  );
+
+  it("opens the empty start date editor", async () => {
+    renderPanel();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Début Aucun" }));
+    expect(screen.getByLabelText("Début")).toBeVisible();
+    expect(screen.getByLabelText("Début")).toHaveValue("");
+  });
+
+  it.each([null, "2026-10-01"])("shows %s without editing controls when edit_items is denied", (startDate) => {
+    renderPanel(undefined, { ...detail, startDate }, false);
+    const row = screen.getByText("Début").closest('[data-testid="item-detail-field"]') as HTMLElement;
+    expect(row).toHaveTextContent(startDate ? "1 oct. 2026" : "Aucun");
+    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(row).queryByLabelText("Début")).not.toBeInTheDocument();
+  });
+});
 
 describe("ItemDetailPanel header", () => {
   const writeText = vi.fn();

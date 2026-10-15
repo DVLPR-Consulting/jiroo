@@ -43,6 +43,7 @@ type CreateItemActionInput = {
   statusId?: string;
   priority?: number;
   assigneeId?: string | null;
+  startDate?: string | null;
   dueDate?: string | null;
   labelIds?: string[];
   kind?: ItemKind;
@@ -61,6 +62,7 @@ type UpdateItemActionInput = {
   estimatePoints?: number | null;
   assigneeId?: string | null;
   reporterId?: string;
+  startDate?: string | null;
   dueDate?: string | null;
   labelIds?: string[];
   kind?: ItemKind;
@@ -290,6 +292,8 @@ export async function updateItemAction(input: UpdateItemActionInput) {
       ? "Statut invalide pour ce backlog."
       : s.includes("Seules les tâches")
         ? "Seules les tâches peuvent être estimées."
+      : s.includes("Le début doit précéder")
+        ? "Le début doit précéder l’échéance."
       : s.includes("label") || s.includes("Label")
         ? "Label invalide pour ce backlog."
         : "Mise à jour impossible.";

@@ -30,10 +30,22 @@ export const estimatePointsSchema = z
     message: "L’estimation accepte au maximum deux décimales.",
   })
   .nullable();
-// Map ''/null → null so an empty "no due date" field doesn't coerce to Invalid Date.
-const dueDate = z
-  .preprocess((v) => (v === "" || v == null ? null : v), z.coerce.date().nullable())
+// A calendar day "YYYY-MM-DD" (JIR-101): no time, so no time zone. An empty
+// field means no date.
+const calendarDay = z
+  .preprocess(
+    (v) => (v === "" || v == null ? null : v),
+    z.iso.date("Date invalide.").nullable(),
+  )
   .optional();
+const startDate = calendarDay;
+const dueDate = calendarDay;
+
+/** Both days are ISO strings, so their text order is their calendar order. */
+function startsBeforeDue(d: { startDate?: string | null; dueDate?: string | null }): boolean {
+  return d.startDate == null || d.dueDate == null || d.startDate <= d.dueDate;
+}
+const START_BEFORE_DUE = { message: "Le début doit précéder l’échéance.", path: ["startDate"] };
 const labelIds = z.array(z.uuid()).default([]);
 const fixVersionIds = z
   .array(z.uuid())
@@ -53,6 +65,7 @@ export const createItemSchema = z
     priority: priority.default(0),
     kind: z.enum(ITEM_KINDS).default("feature"),
     assigneeId,
+    startDate,
     dueDate,
     labelIds,
     fixVersionIds: fixVersionIds.default([]),
@@ -70,7 +83,8 @@ export const createItemSchema = z
   .refine((d) => d.estimatePoints == null || d.type === "tache", {
     message: "Seules les tâches peuvent être estimées.",
     path: ["estimatePoints"],
-  });
+  })
+  .refine(startsBeforeDue, START_BEFORE_DUE);
 
 export const updateItemSchema = z.object({
   id: z.uuid(),
@@ -82,10 +96,13 @@ export const updateItemSchema = z.object({
   assigneeId,
   reporterId,
   estimatePoints: estimatePointsSchema.optional(),
+  startDate,
   dueDate,
   labelIds: z.array(z.uuid()).optional(),
   fixVersionIds: fixVersionIds.optional(),
-});
+})
+  // Only when both are given; the service checks one against the stored other.
+  .refine(startsBeforeDue, START_BEFORE_DUE);
 
 export const idInputSchema = z.object({ id: z.uuid() });
 

@@ -168,7 +168,9 @@ export const items = pgTable(
     rank: text("rank").notNull(),
     path: ltree("path").notNull(),
     depth: integer("depth").notNull().default(0),
-    dueDate: timestamp("due_date", { withTimezone: true }),
+    // Calendar days ("YYYY-MM-DD"): a day has no time zone (JIR-101).
+    startDate: date("start_date", { mode: "string" }),
+    dueDate: date("due_date", { mode: "string" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
@@ -194,6 +196,10 @@ export const items = pgTable(
     check(
       "items_estimate_points_range",
       sql`${t.estimatePoints} is null or (${t.estimatePoints} >= 0 and ${t.estimatePoints} <= 999.99)`,
+    ),
+    check(
+      "items_start_before_due",
+      sql`${t.startDate} is null or ${t.dueDate} is null or ${t.startDate} <= ${t.dueDate}`,
     ),
   ],
 );

@@ -556,9 +556,9 @@ describe("groupItems", () => {
 
 describe("sortItems", () => {
   const rows = [
-    item({ id: "a", priority: 1, key: "CASS-2", createdAt: new Date("2026-01-03"), dueDate: new Date("2026-02-01") }),
+    item({ id: "a", priority: 1, key: "CASS-2", createdAt: new Date("2026-01-03"), dueDate: "2026-02-01" }),
     item({ id: "b", priority: 4, key: "CASS-10", createdAt: new Date("2026-01-01"), dueDate: null }),
-    item({ id: "c", priority: 1, key: "CASS-1", createdAt: new Date("2026-01-02"), dueDate: new Date("2026-01-15") }),
+    item({ id: "c", priority: 1, key: "CASS-1", createdAt: new Date("2026-01-02"), dueDate: "2026-01-15" }),
   ];
   it("sorts by priority desc", () => {
     expect(sortItems(rows, { field: "priority", dir: "desc" }).map((r) => r.id)).toEqual(["b", "a", "c"]);
@@ -617,9 +617,9 @@ describe("sortItems", () => {
     "sorts list field %s in %s order",
     (field, dir, expected) => {
       const listRows = [
-        item({ id: "a", key: "CASS-2", title: "Éclair", statusOrder: 2, priority: 1, dueDate: new Date("2026-02-01") }),
+        item({ id: "a", key: "CASS-2", title: "Éclair", statusOrder: 2, priority: 1, dueDate: "2026-02-01" }),
         item({ id: "b", key: "CASS-10", title: "apple", statusOrder: 1, priority: 4, dueDate: null }),
-        item({ id: "c", key: "CASS-1", title: "Zebra", statusOrder: 1, priority: 2, dueDate: new Date("2026-01-15") }),
+        item({ id: "c", key: "CASS-1", title: "Zebra", statusOrder: 1, priority: 2, dueDate: "2026-01-15" }),
       ];
 
       expect(sortItems(listRows, { field, dir }).map((row) => row.id)).toEqual(expected);

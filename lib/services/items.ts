@@ -571,6 +571,7 @@ export async function createItem(
           rank,
           path,
           depth,
+          startDate: data.startDate ?? null,
           dueDate: data.dueDate ?? null,
           closedAt,
         })
@@ -707,22 +708,21 @@ export async function updateItem(
       patch.reporterId = reporter.id;
       acts.push(activityRow(cur.id, actorId, "update", "reporter", cur.reporterId, reporter.id));
     }
-    if (data.dueDate !== undefined) {
-      const newDue = data.dueDate ?? null;
-      const curT = cur.dueDate ? cur.dueDate.getTime() : null;
-      const newT = newDue ? newDue.getTime() : null;
-      if (curT !== newT) {
-        patch.dueDate = newDue;
-        acts.push(
-          activityRow(
-            cur.id,
-            actorId,
-            "update",
-            "due_date",
-            cur.dueDate ? cur.dueDate.toISOString() : null,
-            newDue ? newDue.toISOString() : null,
-          ),
-        );
+    if (data.startDate !== undefined || data.dueDate !== undefined) {
+      // Calendar days: ISO text order is calendar order. A day given alone is
+      // checked against the stored other one.
+      const nextStart = data.startDate !== undefined ? data.startDate : cur.startDate;
+      const nextDue = data.dueDate !== undefined ? data.dueDate : cur.dueDate;
+      if (nextStart !== null && nextDue !== null && nextStart > nextDue) {
+        throw new Error("Le début doit précéder l’échéance.");
+      }
+      if (nextStart !== cur.startDate) {
+        patch.startDate = nextStart;
+        acts.push(activityRow(cur.id, actorId, "update", "start_date", cur.startDate, nextStart));
+      }
+      if (nextDue !== cur.dueDate) {
+        patch.dueDate = nextDue;
+        acts.push(activityRow(cur.id, actorId, "update", "due_date", cur.dueDate, nextDue));
       }
     }
     if (data.statusId !== undefined) {

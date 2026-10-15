@@ -128,7 +128,8 @@ export type FilterItem = {
   parentId: string | null;
   path: string;
   depth: number;
-  dueDate: Date | null;
+  /** Calendar day "YYYY-MM-DD". */
+  dueDate: string | null;
   createdAt: Date;
   updatedAt: Date;
   rank: string;
@@ -332,7 +333,8 @@ export function sortItems<T extends FilterItem>(items: T[], sort: { field: SortF
         if (a.dueDate === null && b.dueDate === null) return 0;
         if (a.dueDate === null) return 1;
         if (b.dueDate === null) return -1;
-        return (a.dueDate.getTime() - b.dueDate.getTime()) * sign;
+        // ISO days sort as text.
+        return (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0) * sign;
       }
     }
   };
