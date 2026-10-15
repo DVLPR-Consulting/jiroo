@@ -336,6 +336,8 @@ describe("loadItemDetailData", () => {
     );
     expect(mocks.listAssignableUsersForBacklog).not.toHaveBeenCalled();
     expect(data.panel.assigneeCandidates).toEqual([]);
+    expect(data.panel.canBrowseUsers).toBe(false);
+    expect(data.panel.createDialog?.fieldOptions?.canBrowseUsers).toBe(false);
     expect(data.panel.reporterCandidates).toEqual([]);
     expect(data.panel.users).toEqual([
       { id: "user-assignee", name: "Assignée" },
@@ -361,6 +363,7 @@ describe("loadItemDetailData", () => {
       fieldOptions: {
         users: [{ id: "user-assignee", name: "Assignée" }],
         canAssign: true,
+        canBrowseUsers: true,
         currentUserId: "viewer-1",
         sprints: [{ id: "sprint-active", name: "Sprint 2" }],
         labels: [{ id: "label-1", name: "Urgent", color: "#f00" }],

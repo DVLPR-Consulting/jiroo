@@ -889,3 +889,10 @@ describe("ItemList", () => {
       .toHaveAttribute("href", "/b/DEMO?view=list");
   });
 });
+
+it("passes denied directory access to a list row's assignee menu", async () => {
+  const user = userEvent.setup();
+  renderList({ ...listProps(), users: [], canBrowseUsers: false });
+  await user.click(screen.getAllByRole("button", { name: /^Assigné :/ })[0]!);
+  expect(screen.getByText(/Il vous manque la permission globale/)).toBeVisible();
+});

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DueDateField, EstimateField, ReporterField, StartDateField } from "@/components/items/detail/field-editors";
+import { AssigneeField, DueDateField, EstimateField, ReporterField, StartDateField } from "@/components/items/detail/field-editors";
 
 const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
@@ -196,4 +196,14 @@ describe("calendar date inputs", () => {
       expect(screen.getByLabelText("Échéance")).toHaveValue("2026-10-20");
     },
   );
+});
+
+describe("AssigneeField directory access", () => {
+  it.each([false, true])("explains missing browse_users only when denied (%s)", (canBrowseUsers) => {
+    render(<AssigneeField itemId="item-1" backlogKey="DEMO" assigneeId={null} users={[]} canBrowseUsers={canBrowseUsers} />);
+    expect(screen.getByRole("option", { name: "Non assigné" })).toBeEnabled();
+    const hint = screen.queryByText(/Il vous manque la permission globale/);
+    if (canBrowseUsers) expect(hint).not.toBeInTheDocument();
+    else expect(hint).toBeVisible();
+  });
 });

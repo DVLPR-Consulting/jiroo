@@ -459,7 +459,7 @@ describe("BacklogViewContent read boundary", () => {
       }),
     );
     expect(mocks.itemListProps).toHaveBeenCalledWith(
-      expect.objectContaining({ users: [] }),
+      expect.objectContaining({ users: [], canBrowseUsers: false }),
     );
   });
 

@@ -176,6 +176,7 @@ export function ItemDetailPanel({
   backlogLabels,
   users,
   assigneeCandidates,
+  canBrowseUsers = true,
   reporterCandidates,
   statuses,
   backlogKey,
@@ -208,6 +209,7 @@ export function ItemDetailPanel({
   backlogLabels: LabelRow[];
   users: UserLite[];
   assigneeCandidates: UserLite[];
+  canBrowseUsers?: boolean;
   reporterCandidates: UserLite[];
   statuses: StatusLite[];
   backlogKey: string;
@@ -745,6 +747,7 @@ export function ItemDetailPanel({
                         assigneeId={assigneeField.value}
                         currentAssignee={assignee}
                         users={assigneeCandidates}
+                        canBrowseUsers={canBrowseUsers}
                         currentUserId={currentUserId}
                       />
                     ) : undefined

@@ -1,6 +1,8 @@
 "use client";
 
-import { useContext, useRef, useTransition, useState } from "react";
+import { AssigneePermissionHint } from "@/components/items/assignee-permission-hint";
+
+import { useContext, useId, useRef, useTransition, useState } from "react";
 import { createLabelAction } from "@/app/actions/labels";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { LabelPill } from "@/components/items/label-pill";
@@ -220,6 +222,7 @@ export function KindField({
 }
 
 export function AssigneeField({
+  canBrowseUsers = true,
   itemId,
   backlogKey,
   assigneeId,
@@ -227,6 +230,7 @@ export function AssigneeField({
   users,
   currentUserId,
 }: {
+  canBrowseUsers?: boolean;
   itemId: string;
   backlogKey: string;
   assigneeId: string | null;
@@ -235,6 +239,7 @@ export function AssigneeField({
   /** Enables « i » (assign to me) when this user is an assignable member. */
   currentUserId?: string;
 }) {
+  const hintId = useId();
   const field = useOptimisticFieldUpdate({
     value: assigneeId,
     itemId,
@@ -261,6 +266,7 @@ export function AssigneeField({
         value={field.value ?? ""}
         disabled={field.pending}
         onChange={(e) => field.update(e.target.value || null)}
+        aria-describedby={!canBrowseUsers ? hintId : undefined}
         aria-label="Assigné"
         aria-busy={field.pending}
       >
@@ -276,6 +282,7 @@ export function AssigneeField({
           </option>
         ))}
       </select>
+      {!canBrowseUsers && <AssigneePermissionHint id={hintId} />}
       <FieldError error={field.error} />
     </div>
   );

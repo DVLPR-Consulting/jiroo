@@ -1,5 +1,7 @@
 "use client";
 
+import { AssigneePermissionHint } from "@/components/items/assignee-permission-hint";
+
 import { useId, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { updateItemAction } from "@/app/actions/items";
@@ -382,6 +384,7 @@ export function InlineEstimate({
 }
 
 export function InlineAssignee({
+  canBrowseUsers = true,
   itemId,
   backlogKey,
   assigneeId,
@@ -390,6 +393,7 @@ export function InlineAssignee({
   readOnly = false,
   compact = false,
 }: {
+  canBrowseUsers?: boolean;
   itemId: string;
   backlogKey: string;
   assigneeId: string | null;
@@ -476,6 +480,7 @@ export function InlineAssignee({
             />
             Non assigné
           </DropdownMenuItem>
+          {!canBrowseUsers && <AssigneePermissionHint />}
           {users.map((user) => (
             <DropdownMenuItem
               key={user.id}

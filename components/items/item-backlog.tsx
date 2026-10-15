@@ -138,6 +138,7 @@ function BacklogRow({
   item,
   statuses,
   users,
+  canBrowseUsers = true,
   backlogKey,
   selectedKey,
   canSelectItems,
@@ -153,6 +154,7 @@ function BacklogRow({
   item: BacklogItem;
   statuses: StatusOption[];
   users: UserOption[];
+  canBrowseUsers?: boolean;
   backlogKey: string;
   selectedKey?: string;
   canSelectItems: boolean;
@@ -190,6 +192,7 @@ function BacklogRow({
         canEdit: canEditItems,
         canTransition: canTransitionItems,
         canAssign: canAssignItems,
+        canBrowseUsers,
       }}
       onOpen={() => viewUrl.push((params) => params.set("item", item.key))}
       selected={selectedKey === item.key || bulkSelected}
@@ -235,6 +238,7 @@ type RowListProps = {
   grouped: boolean;
   statuses: StatusOption[];
   users: UserOption[];
+  canBrowseUsers?: boolean;
   backlogKey: string;
   selectedKey?: string;
   canSelectItems: boolean;
@@ -291,6 +295,7 @@ function LegacyItemBacklog({
   grouped,
   statuses,
   users,
+  canBrowseUsers = true,
   backlogKey,
   backlogId,
   selectedKey,
@@ -312,6 +317,7 @@ function LegacyItemBacklog({
   grouped: boolean;
   statuses: StatusOption[];
   users: UserOption[];
+  canBrowseUsers?: boolean;
   backlogKey: string;
   backlogId: string;
   selectedKey?: string;
@@ -613,6 +619,7 @@ function LegacyItemBacklog({
             grouped={grouped}
             statuses={statuses}
             users={users}
+            canBrowseUsers={canBrowseUsers}
             backlogKey={backlogKey}
             selectedKey={selectedKey}
             canSelectItems={canSelectItems}
@@ -658,6 +665,7 @@ type SharedBacklogProps = {
   grouped: boolean;
   statuses: StatusOption[];
   users: UserOption[];
+  canBrowseUsers?: boolean;
   backlogKey: string;
   backlogId: string;
   selectedKey?: string;
@@ -746,6 +754,7 @@ function SprintItemBacklog({
   grouped,
   statuses,
   users,
+  canBrowseUsers = true,
   backlogKey,
   backlogId,
   selectedKey,
@@ -1188,6 +1197,7 @@ function SprintItemBacklog({
                       grouped={grouped}
                       statuses={statuses}
                       users={users}
+                      canBrowseUsers={canBrowseUsers}
                       backlogKey={backlogKey}
                       selectedKey={selectedKey}
                       canSelectItems={canSelectItems}

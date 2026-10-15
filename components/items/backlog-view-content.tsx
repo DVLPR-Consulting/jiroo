@@ -382,6 +382,7 @@ export async function BacklogViewContent({
     fieldOptions: {
       users: assigneeCandidates,
       canAssign: capabilities.assignItems,
+      canBrowseUsers: browseUsersDecision.allowed,
       currentUserId: userId,
       sprints: sprintSnapshot.sprints
         .filter((sprint) => sprint.state !== "completed")
@@ -692,6 +693,7 @@ export async function BacklogViewContent({
           grouped={viewState.group !== null}
           statuses={statusList}
           users={assigneeCandidates}
+          canBrowseUsers={browseUsersDecision.allowed}
           backlogKey={key}
           backlogId={backlog.id}
           filtersActive={filtersOn}
@@ -731,6 +733,7 @@ export async function BacklogViewContent({
           grouped={viewState.group !== null}
           statuses={statusList}
           users={assigneeCandidates}
+          canBrowseUsers={browseUsersDecision.allowed}
           backlogId={backlog.id}
           backlogKey={key}
           currentSort={viewState.sort}

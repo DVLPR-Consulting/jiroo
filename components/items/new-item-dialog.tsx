@@ -1,5 +1,7 @@
 "use client";
 
+import { AssigneePermissionHint } from "@/components/items/assignee-permission-hint";
+
 import {
   useCallback,
   useId,
@@ -74,6 +76,7 @@ export type NewItemFieldOptions = {
   /** Assignable members; the Assigné field needs `canAssign` too. */
   users?: { id: string; name: string }[];
   canAssign?: boolean;
+  canBrowseUsers?: boolean;
   /** Enables « M'assigner » when this user is assignable. */
   currentUserId?: string;
   /** Open sprints a task can be planned in (needs scheduling). */
@@ -785,10 +788,11 @@ export function NewItemButton({
                   />
                 </FieldRow>
 
-                {assignableUsers.length > 0 && (
+                {fieldOptions.canAssign && (
                   <FieldRow label="Assigné" htmlFor="item-assignee">
                     <SelectField
                       id="item-assignee"
+                      footer={fieldOptions.canBrowseUsers === false ? <AssigneePermissionHint /> : undefined}
                       value={assigneeId}
                       onValueChange={setAssigneeId}
                       options={[
