@@ -213,7 +213,7 @@ describe("ItemDetailPanel start date", () => {
 
   it("opens the empty start date editor", async () => {
     renderPanel();
-    await userEvent.setup().click(screen.getByRole("button", { name: "Début Aucune" }));
+    await userEvent.setup().click(screen.getByRole("button", { name: "Début Aucun" }));
     expect(screen.getByLabelText("Début")).toBeVisible();
     expect(screen.getByLabelText("Début")).toHaveValue("");
   });
@@ -221,7 +221,7 @@ describe("ItemDetailPanel start date", () => {
   it.each([null, "2026-10-01"])("shows %s without editing controls when edit_items is denied", (startDate) => {
     renderPanel(undefined, { ...detail, startDate }, false);
     const row = screen.getByText("Début").closest('[data-testid="item-detail-field"]') as HTMLElement;
-    expect(row).toHaveTextContent(startDate ? "1 oct. 2026" : "Aucune");
+    expect(row).toHaveTextContent(startDate ? "1 oct. 2026" : "Aucun");
     expect(within(row).queryByRole("button")).not.toBeInTheDocument();
     expect(within(row).queryByLabelText("Début")).not.toBeInTheDocument();
   });

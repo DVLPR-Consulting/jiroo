@@ -932,7 +932,7 @@ export function ItemDetailPanel({
 
                 <DetailField
                   label="Début"
-                  emptyText="Aucune"
+                  emptyText="Aucun"
                   value={detail.startDate ? dueDateFmt.format(new Date(detail.startDate)) : null}
                   editor={canEdit ? (
                     <StartDateField itemId={detail.id} backlogKey={backlogKey} startDate={detail.startDate} />
