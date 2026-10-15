@@ -34,11 +34,11 @@ test("ouvre le guide depuis l’en-tête et suit le sommaire", async ({ page }, 
   await expect(page.locator('[data-slot="shell-breadcrumb-current"]')).toHaveText("Aide");
   await page.screenshot({ path: testInfo.outputPath("jir67-desktop-1440.png") });
 
-  const reports = page.locator("section#rapports");
-  await expect(reports).not.toBeInViewport();
-  await tocLink(page, /Rapports/).click();
-  await expect(page).toHaveURL(/\/aide#rapports$/);
-  await expect(reports.getByRole("heading", { level: 2 })).toBeInViewport();
+  const roadmap = page.locator("section#roadmap");
+  await expect(roadmap).not.toBeInViewport();
+  await tocLink(page, /Roadmap/).click();
+  await expect(page).toHaveURL(/\/aide#roadmap$/);
+  await expect(roadmap.getByRole("heading", { level: 2 })).toBeInViewport();
   // Only the content area scrolls: the header and the sticky table of contents stay put.
   await expect(help).toBeInViewport();
   await expect(tocLink(page, /Démarrer/)).toBeInViewport();

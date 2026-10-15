@@ -28,6 +28,7 @@ describe("HelpPage", () => {
       "Tickets",
       "Travailler à plusieurs",
       "Sprints",
+      "Roadmap",
       "Releases",
       "Rapports",
       "Recherche, notifications et raccourcis",

@@ -329,7 +329,7 @@ export function HelpGuide() {
             <>Sous la description, la section des enfants (<Ui>Epics</Ui>, <Ui>Tâches</Ui> ou <Ui>Sous-tâches</Ui>) liste les tickets rattachés avec leur statut ; <Ui>+ Créer…</Ui> en ajoute un.</>,
             <>À droite, le bouton de statut change le statut ; le bouton voisin (par exemple <Ui>En cours →</Ui>) passe directement au statut suivant du flux.</>,
             <>Panneau <Ui>Détails</Ui> : cliquez sur une valeur (<Ui>Assigné</Ui>, <Ui>Priorité</Ui>, <Ui>Début</Ui>, <Ui>Échéance</Ui>…) pour la modifier ; <Ui>M’assigner</Ui> vous attribue le ticket. Les panneaux <Ui>Détails</Ui> et <Ui>Développement</Ui> se replient ; ce choix est mémorisé sur l’appareil.</>,
-            <>La date <Ui>Début</Ui> est facultative et servira à la future vue Roadmap ; elle doit précéder l’<Ui>Échéance</Ui> ou lui être égale si celle-ci est renseignée.</>,
+            <>La date <Ui>Début</Ui> est facultative et sert à planifier le ticket dans la vue Roadmap ; elle doit précéder l’<Ui>Échéance</Ui> ou lui être égale si celle-ci est renseignée.</>,
           ]}
         />
 
@@ -507,6 +507,23 @@ export function HelpGuide() {
             {" "}avec <Ui>+ Filtre</Ui> → <Ui>Sprint</Ui>.
           </GuideNote>
         </GuideTopic>
+      </GuideSection>
+
+      <GuideSection id="roadmap">
+        <GuideTopic
+          title="Lire et planifier la Roadmap"
+          purpose="Voir les composants, leurs epics et leurs tâches sur un calendrier, puis ajuster leurs dates."
+          steps={[
+            <>Ouvrez <Ui>Roadmap</Ui> dans les vues du backlog. Les composants regroupent leurs epics ; dépliez un epic pour voir ses tâches. Cliquez sur un libellé ou une barre pour ouvrir le panneau du ticket.</>,
+            <>Une barre montre les dates du ticket. Hachurée, elle est déduite : une tâche reprend les dates de son sprint, un epic l’étendue de ses tâches. La barre du composant couvre ses epics et reste en lecture seule.</>,
+            <>Glissez une barre pour déplacer ses deux dates. Étirez son bord gauche pour changer le début, ou son bord droit pour changer l’échéance.</>,
+            <>Sur une ligne sans barre, cliquez à la date voulue pour planifier sept jours, ou glissez pour choisir la période.</>,
+            <>Au clavier, ciblez une barre avec <Key>Tab</Key> : <Key>←</Key> et <Key>→</Key> déplacent d’un jour, <Key>Maj</Key> avec une flèche change l’échéance, <Key>Alt</Key> avec une flèche change le début. L’enregistrement est automatique après une courte pause.</>,
+            <>Choisissez <Ui>Semaines</Ui>, <Ui>Mois</Ui> ou <Ui>Trimestres</Ui> ; le zoom est mémorisé sur cet appareil. <Ui>Aujourd’hui</Ui> recentre le calendrier. Les sprints et les releases servent de repères.</>,
+            <>Cochez <Ui>Afficher les éléments terminés</Ui> pour retrouver les epics terminés depuis plus de 30 jours, masqués par défaut.</>,
+            <>Le début doit précéder l’échéance ou lui être égal. Sans droit de modification des tickets, vous pouvez consulter les barres et ouvrir le panneau, mais pas changer leurs dates.</>,
+          ]}
+        />
       </GuideSection>
 
       <GuideSection id="releases">
