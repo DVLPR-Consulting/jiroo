@@ -85,6 +85,14 @@ async function resetBrowserDatabase(input: {
       startedAt: input.startedAt,
       systemIdentifierFingerprint: verifiedIdentity.systemIdentifierFingerprint,
     });
+    // Migration 0021 supplies this default, independently of account fixtures.
+    // Preserve its actual row: truncating the authorization tables must not
+    // silently turn every E2E run into a non-default permission configuration.
+    const migratedBrowseUsers = await client.query<{ id: string; created_at: Date }>(`
+      SELECT id, created_at FROM permission_grants
+      WHERE scope = 'global' AND permission_key = 'browse_users'
+        AND principal_type = 'authenticated_user'
+    `);
     await client.query(`
       TRUNCATE TABLE
         "security_audit_events",
@@ -102,6 +110,12 @@ async function resetBrowserDatabase(input: {
         "user"
       RESTART IDENTITY CASCADE
     `);
+    for (const grant of migratedBrowseUsers.rows) {
+      await client.query(`
+        INSERT INTO permission_grants (id, scope, permission_key, principal_type, created_at)
+        VALUES ($1, 'global', 'browse_users', 'authenticated_user', $2)
+      `, [grant.id, grant.created_at]);
+    }
     // Generated keys must stay below the seeded fixture keys (9001+).
     await client.query("ALTER SEQUENCE item_key_seq RESTART WITH 1");
   } finally {
