@@ -40,6 +40,9 @@ vi.mock("@/components/shell/app-shell", () => ({
 }));
 vi.mock("@/components/shell/sidebar", () => ({ Sidebar: mocks.sidebar }));
 vi.mock("@/components/shell/topbar", () => ({ Topbar: () => null }));
+vi.mock("@/components/realtime/realtime-provider", () => ({
+  RealtimeProvider: ({ children }: { children: ReactNode }) => children,
+}));
 
 import AppLayout from "@/app/(app)/layout";
 

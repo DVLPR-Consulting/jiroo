@@ -9,6 +9,7 @@ import { DraftsSession } from "@/components/shell/drafts-session";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 import { ShellDataProvider } from "@/components/shell/shell-data";
+import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAppPageSession();
@@ -25,29 +26,32 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
   const role = (session.user as { role?: string }).role ?? "viewer";
   return (
-    <AppShell
-      sidebar={
-        <Sidebar
-          backlogs={backlogs}
-          views={views}
-          userId={session.user.id}
-          user={{ name: session.user.name, email: session.user.email, role }}
-          canAdminister={adminDecisions.some((decision) => decision.allowed)}
-          adminHref={adminDecisions[0]?.allowed || adminDecisions[2]?.allowed ? "/admin" : "/admin?tab=users"}
-          counts={counts}
-        />
-      }
-      topbar={
-        <Topbar notifications={notifications} unreadCount={notifCount} />
-      }
-    >
-      <DraftsSession userId={session.user.id} />
-      <ShellDataProvider
-        backlogs={backlogs.map(({ id, key, name }) => ({ id, key, name }))}
-        views={views.map(({ id, name, backlogId }) => ({ id, name, backlogId }))}
+    // Around the whole shell: the topbar's bell listens too.
+    <RealtimeProvider>
+      <AppShell
+        sidebar={
+          <Sidebar
+            backlogs={backlogs}
+            views={views}
+            userId={session.user.id}
+            user={{ name: session.user.name, email: session.user.email, role }}
+            canAdminister={adminDecisions.some((decision) => decision.allowed)}
+            adminHref={adminDecisions[0]?.allowed || adminDecisions[2]?.allowed ? "/admin" : "/admin?tab=users"}
+            counts={counts}
+          />
+        }
+        topbar={
+          <Topbar notifications={notifications} unreadCount={notifCount} />
+        }
       >
-        {children}
-      </ShellDataProvider>
-    </AppShell>
+        <DraftsSession userId={session.user.id} />
+        <ShellDataProvider
+          backlogs={backlogs.map(({ id, key, name }) => ({ id, key, name }))}
+          views={views.map(({ id, name, backlogId }) => ({ id, name, backlogId }))}
+        >
+          {children}
+        </ShellDataProvider>
+      </AppShell>
+    </RealtimeProvider>
   );
 }
