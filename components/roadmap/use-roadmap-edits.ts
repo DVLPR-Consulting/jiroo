@@ -42,11 +42,17 @@ export function useRoadmapEdits(
     };
   }, []);
 
-  // A server render after a save carries its days: drop the settled overrides.
+  // A server render carries every save acknowledged before it, and maybe
+  // newer changes from others: it replaces the settled overrides, and the
+  // pending ones fall back to it rather than to an older confirmed save.
   if (seenItems !== items) {
     setSeenItems(items);
-    if ([...overrides.values()].some((override) => override.settled)) {
-      setOverrides(new Map([...overrides].filter(([, override]) => !override.settled)));
+    if ([...overrides.values()].some((override) => override.settled || override.confirmed)) {
+      setOverrides(new Map(
+        [...overrides]
+          .filter(([, override]) => !override.settled)
+          .map(([id, override]) => [id, { ...override, confirmed: null }]),
+      ));
     }
   }
 

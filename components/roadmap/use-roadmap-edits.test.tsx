@@ -98,6 +98,20 @@ describe("useRoadmapEdits", () => {
     expect(days()).toEqual(["2026-10-05", "2026-10-14"]);
   });
 
+  it("falls back to a newer server render rather than an older confirmed save", async () => {
+    const answer = controlledSaves();
+    const { hook, days, save } = setup();
+    save("2026-10-05", "2026-10-14");
+    await answer(0, OK);
+    save("2026-10-07", "2026-10-16");
+    hook.rerender({ items: [{ ...EPIC, start: "2026-10-05", due: "2026-10-14" }] });
+    // Someone else moves it while the second save is pending.
+    hook.rerender({ items: [{ ...EPIC, start: "2026-11-01", due: "2026-11-05" }] });
+    expect(days()).toEqual(["2026-10-07", "2026-10-16"]);
+    await answer(1, REFUSED);
+    expect(days()).toEqual(["2026-11-01", "2026-11-05"]);
+  });
+
   it("gives way to the server's render once saved", async () => {
     const answer = controlledSaves();
     const { hook, days, save } = setup();
