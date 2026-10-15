@@ -1,7 +1,5 @@
 "use client";
 
-import { AssigneePermissionHint } from "@/components/items/assignee-permission-hint";
-
 import { useContext, useId, useRef, useTransition, useState } from "react";
 import { createLabelAction } from "@/app/actions/labels";
 import { PrioIcon } from "@/components/icons/prio-icon";
@@ -25,6 +23,7 @@ import {
 import { useOptimisticFieldUpdate } from "@/components/items/detail/use-optimistic-field-update";
 import { useShortcutHandler } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import { FieldEditingContext } from "@/components/items/detail/field-status";
+import { AssigneePermissionHint } from "@/components/items/assignee-permission-hint";
 
 type UserLite = { id: string; name: string };
 type LabelLite = { id: string; name: string; color: string };

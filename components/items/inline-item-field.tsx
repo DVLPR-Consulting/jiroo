@@ -1,7 +1,5 @@
 "use client";
 
-import { AssigneePermissionHint } from "@/components/items/assignee-permission-hint";
-
 import { useId, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { updateItemAction } from "@/app/actions/items";
@@ -23,6 +21,7 @@ import {
   type StatusId,
 } from "@/lib/design/constants";
 import { formatPoints, pointsLabel } from "@/lib/format/plural";
+import { AssigneePermissionHint } from "@/components/items/assignee-permission-hint";
 
 type StatusOption = {
   id: string;

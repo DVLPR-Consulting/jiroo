@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { backlogRoleLabel } from "@/lib/items/users";
 import { useState, useTransition } from "react";
 import {
   assignBacklogRoleActorAction,
@@ -13,6 +12,7 @@ import {
 import type { AuthorizationGroupOption, AuthorizationUserOption } from "@/components/admin/global-permission-admin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { backlogRoleLabel } from "@/lib/items/users";
 
 const LAST_ADMIN_MESSAGE = "Le dernier administrateur effectif du backlog ne peut pas être retiré.";
 

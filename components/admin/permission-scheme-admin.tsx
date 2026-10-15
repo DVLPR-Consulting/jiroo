@@ -1,7 +1,5 @@
 "use client";
 
-import { backlogRoleLabel } from "@/lib/items/users";
-
 import { useMemo, useState, useTransition } from "react";
 import {
   addSchemeGrantAction,
@@ -15,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { useRetainedWhileClosing } from "@/components/admin/use-retained-while-closing";
 import { BACKLOG_PERMISSION_DEFINITIONS, type BacklogPermissionKey } from "@/lib/auth/permissions";
+import { backlogRoleLabel } from "@/lib/items/users";
 
 type SchemePrincipal = { type: "user" | "group" | "project_role" | "authenticated_user"; id: string; label: string };
 export type PermissionSchemeGrantDto = { id: string; permission: string; permissionLabel: string; category: string; principal: SchemePrincipal };

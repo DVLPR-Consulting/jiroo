@@ -1,6 +1,5 @@
 "use client";
 
-import { backlogRoleLabel } from "@/lib/items/users";
 import { useState, useTransition } from "react";
 import { createProjectRoleAction, deleteProjectRoleAction, updateProjectRoleAction } from "@/app/actions/authorization";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useRetainedWhileClosing } from "@/components/admin/use-retained-while-closing";
+import { backlogRoleLabel } from "@/lib/items/users";
 
 export type ProjectRoleAdminDto = { id: string; key: string; name: string; description: string | null; protected: boolean; occupancyCount: number; blockers: string[] };
 export type ProjectRoleAdminProps = { roles: ProjectRoleAdminDto[] };

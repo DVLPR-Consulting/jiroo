@@ -1,7 +1,5 @@
 "use client";
 
-import { AssigneePermissionHint } from "@/components/items/assignee-permission-hint";
-
 import {
   useCallback,
   useId,
@@ -60,6 +58,7 @@ import {
   FixVersionPicker,
   type FixVersionOption,
 } from "@/components/items/fix-version-picker";
+import { AssigneePermissionHint } from "@/components/items/assignee-permission-hint";
 
 type Item = { id: string; key: string; type: ItemType; title: string };
 /**
