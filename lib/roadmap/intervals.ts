@@ -93,6 +93,25 @@ export function keyboardEdit(
   return moveBar(bar, step);
 }
 
+export type DragMode = "move" | "start" | "end" | "plan";
+
+/**
+ * The bar under a pointer dragged `days` from where it was pressed: the whole
+ * bar, one edge, or, to plan an item, the span between the pressed day and
+ * the current one.
+ */
+export function dragInterval(mode: DragMode, origin: Interval, days: number): Interval {
+  if (mode === "move") return moveBar(origin, days);
+  if (mode === "start") return resizeBar(origin, "start", addDays(origin.start, days));
+  if (mode === "end") return resizeBar(origin, "end", addDays(origin.end, days));
+  const day = addDays(origin.start, days);
+  return day < origin.start ? { start: day, end: origin.start } : { start: origin.start, end: day };
+}
+
+export function sameInterval(a: Interval, b: Interval): boolean {
+  return a.start === b.start && a.end === b.end;
+}
+
 export function toDatePatch(bar: Interval): { startDate: Day; dueDate: Day } {
   return { startDate: bar.start, dueDate: bar.end };
 }

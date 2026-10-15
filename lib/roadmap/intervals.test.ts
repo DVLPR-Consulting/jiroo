@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   epicBar,
   groupBar,
+  dragInterval,
   keyboardEdit,
   moveBar,
   progressOf,
@@ -147,6 +148,16 @@ describe("bar edits", () => {
       end: "2026-10-09",
     });
     expect(keyboardEdit(bar, "Enter", {})).toBeNull();
+  });
+
+  it("drags a whole bar, one edge, or a new span", () => {
+    expect(dragInterval("move", bar, 3)).toEqual({ start: "2026-10-08", end: "2026-10-12" });
+    expect(dragInterval("start", bar, -2)).toEqual({ start: "2026-10-03", end: "2026-10-09" });
+    expect(dragInterval("start", bar, 10)).toEqual({ start: "2026-10-09", end: "2026-10-09" });
+    expect(dragInterval("end", bar, -10)).toEqual({ start: "2026-10-05", end: "2026-10-05" });
+    const pressed = { start: "2026-10-05", end: "2026-10-05" };
+    expect(dragInterval("plan", pressed, 4)).toEqual({ start: "2026-10-05", end: "2026-10-09" });
+    expect(dragInterval("plan", pressed, -2)).toEqual({ start: "2026-10-03", end: "2026-10-05" });
   });
 
   it("turns a bar into the item's date patch", () => {
