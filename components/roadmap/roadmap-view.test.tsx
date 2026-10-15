@@ -232,6 +232,12 @@ describe("RoadmapView editing", () => {
     );
   });
 
+  it("keeps horizontal touch drags for planning, vertical ones for scrolling", () => {
+    renderView();
+    expect(document.querySelector('[data-roadmap-track="CASS-5"]')).toHaveClass("touch-pan-y");
+    expect(epicBar()).toHaveClass("touch-none");
+  });
+
   it("plans the span of a drag", async () => {
     renderView();
     const track = document.querySelector<HTMLElement>('[data-roadmap-track="CASS-5"]')!;

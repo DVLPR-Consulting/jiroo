@@ -523,7 +523,8 @@ function RoadmapTrack({
   const plannable = editable && row.bar === null;
   return (
     <div
-      className={cn("relative flex-none", plannable && "cursor-crosshair")}
+      // A horizontal touch drag plans the row; a vertical one still scrolls.
+      className={cn("relative flex-none", plannable && "cursor-crosshair touch-pan-y")}
       style={{ width }}
       title={plannable && !dragging ? "Cliquez ou glissez pour planifier" : undefined}
       data-roadmap-track={row.key}
