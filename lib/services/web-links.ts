@@ -55,6 +55,7 @@ export async function addWebLink(
 }
 
 /** Removes a web link. Idempotent — no error if it is already gone. */
-export async function removeWebLink(id: string): Promise<void> {
-  await db.delete(itemWebLinks).where(eq(itemWebLinks.id, id));
+export async function removeWebLink(id: string) {
+  const [removed] = await db.delete(itemWebLinks).where(eq(itemWebLinks.id, id)).returning();
+  return removed;
 }

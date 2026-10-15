@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import {
   requireItemPermission,
@@ -8,6 +7,7 @@ import {
 } from "@/lib/auth/action-authorization";
 import { ResourceNotFoundError } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
+import { invalidateBacklog } from "@/lib/realtime/publish";
 import type { LinkType } from "@/lib/items/links";
 import { addLink, removeLink } from "@/lib/services/links";
 
@@ -50,7 +50,12 @@ export async function addLinkAction(input: {
       throw new ResourceNotFoundError("item", target.resourceId);
     }
     const link = await addLink({ sourceId, targetId, type }, actorId);
-    revalidatePath(`/b/${backlogKey}`);
+    await invalidateBacklog(backlogKey, {
+      kind: "item",
+      backlogId: source.backlogId,
+      itemIds: [sourceId, targetId],
+      actorId,
+    });
     return { ok: true as const, link };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
@@ -63,13 +68,18 @@ export async function removeLinkAction(input: { backlogKey: string; id: string }
   const actorId = await authenticatedActorId();
   const { backlogKey, id } = input;
   try {
-    await requireLinkPermission({
+    const authorization = await requireLinkPermission({
       actorId,
       linkId: input.id,
       permission: "link_items",
     });
-    await removeLink(id);
-    revalidatePath(`/b/${backlogKey}`);
+    const removed = await removeLink(id);
+    await invalidateBacklog(backlogKey, {
+      kind: "item",
+      backlogId: authorization.backlogId,
+      ...(removed ? { itemIds: [removed.sourceId, removed.targetId] } : {}),
+      actorId,
+    });
     return { ok: true as const };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);

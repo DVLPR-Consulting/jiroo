@@ -12,6 +12,7 @@ import {
 import { permissionDefinition } from "@/lib/auth/permissions";
 import { requireBacklogReadPermissionById } from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
+import { invalidateBacklog } from "@/lib/realtime/publish";
 import {
   addGlobalPermissionGrant,
   addGroupMember,
@@ -197,9 +198,15 @@ function revalidateAdmin(): void {
   revalidatePath("/admin");
 }
 
-function revalidateAccess(backlogKeys: readonly string[] = []): void {
+async function revalidateAccess(backlogs: readonly { id: string; key: string }[], actorId: string): Promise<void> {
   revalidatePath("/admin");
-  for (const key of new Set(backlogKeys)) revalidatePath(`/b/${key}`);
+  for (const backlog of new Map(backlogs.map((backlog) => [backlog.id, backlog])).values()) {
+    await invalidateBacklog(backlog.key, {
+      kind: "backlog",
+      backlogId: backlog.id,
+      actorId,
+    });
+  }
   revalidatePath("/");
   revalidatePath("/mine");
   revalidatePath("/trash");
@@ -269,7 +276,7 @@ export async function addGroupMemberAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    revalidateAccess(membership.affectedBacklogKeys);
+    await revalidateAccess(membership.affectedBacklogs, authorization.actorId);
     return { ok: true as const, membership };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
@@ -298,7 +305,7 @@ export async function removeGroupMemberAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    revalidateAccess(membership.affectedBacklogKeys);
+    await revalidateAccess(membership.affectedBacklogs, authorization.actorId);
     return { ok: true as const, membership };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
@@ -395,7 +402,7 @@ export async function assignBacklogRoleActorAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    revalidateAccess([occupancy.backlogKey]);
+    await revalidateAccess([{ id: parsed.backlogId, key: occupancy.backlogKey }], authorization.actorId);
     return { ok: true as const, occupancy };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
@@ -416,7 +423,7 @@ export async function removeBacklogRoleActorAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    revalidateAccess([occupancy.backlogKey]);
+    await revalidateAccess([{ id: parsed.backlogId, key: occupancy.backlogKey }], authorization.actorId);
     return { ok: true as const, occupancy };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
@@ -437,7 +444,7 @@ export async function moveBacklogRoleActorAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    revalidateAccess([occupancy.backlogKey]);
+    await revalidateAccess([{ id: parsed.backlogId, key: occupancy.backlogKey }], authorization.actorId);
     return { ok: true as const, occupancy };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
@@ -479,7 +486,7 @@ export async function addSchemeGrantAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    revalidateAccess(grant.affectedBacklogKeys);
+    await revalidateAccess(grant.affectedBacklogs, authorization.actorId);
     return { ok: true as const, grant };
   } catch (error) {
     if (error instanceof SchemeTopologyConfirmationRequiredError) {
@@ -507,7 +514,7 @@ export async function removeSchemeGrantAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    revalidateAccess(grant.affectedBacklogKeys);
+    await revalidateAccess(grant.affectedBacklogs, authorization.actorId);
     return { ok: true as const, grant };
   } catch (error) {
     if (error instanceof SchemeTopologyConfirmationRequiredError) {
@@ -535,7 +542,7 @@ export async function addGlobalPermissionGrantAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    revalidateAccess(grant.affectedBacklogKeys);
+    await revalidateAccess(grant.affectedBacklogs, authorization.actorId);
     return { ok: true as const, grant };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
@@ -556,7 +563,7 @@ export async function removeGlobalPermissionGrantAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    revalidateAccess(grant.affectedBacklogKeys);
+    await revalidateAccess(grant.affectedBacklogs, authorization.actorId);
     return { ok: true as const };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
@@ -577,7 +584,7 @@ export async function associatePermissionSchemeAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    revalidateAccess([association.backlogKey]);
+    await revalidateAccess([{ id: parsed.backlogId, key: association.backlogKey }], authorization.actorId);
     return { ok: true as const, association };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
@@ -598,7 +605,7 @@ export async function setBacklogAccessModeAction(input: unknown) {
       authorization.actorId,
       authorization.requestCorrelationId,
     );
-    revalidateAccess([access.backlogKey]);
+    await revalidateAccess([{ id: parsed.backlogId, key: access.backlogKey }], authorization.actorId);
     return { ok: true as const, access };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };

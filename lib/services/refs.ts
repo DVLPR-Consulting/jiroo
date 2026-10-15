@@ -99,8 +99,10 @@ export async function addRef(
  * was deleted. Idempotent — no error if already gone. References of a live
  * connection are not removable: its next webhook would bring them back.
  */
-export async function removeRef(id: string): Promise<void> {
-  await db
+export async function removeRef(id: string) {
+  const [removed] = await db
     .delete(itemRefs)
-    .where(and(eq(itemRefs.id, id), or(isNull(itemRefs.provider), isNull(itemRefs.connectionId))));
+    .where(and(eq(itemRefs.id, id), or(isNull(itemRefs.provider), isNull(itemRefs.connectionId))))
+    .returning();
+  return removed;
 }

@@ -7,6 +7,7 @@ import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
 import { requirePermission } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
+import { invalidateBacklog } from "@/lib/realtime/publish";
 import {
   archiveRelease,
   createRelease,
@@ -125,7 +126,6 @@ function staleReleaseScopeResult(error: unknown) {
 }
 
 function revalidateReleasePaths(backlogKey: string, ...releaseIds: string[]) {
-  revalidatePath(`/b/${backlogKey}`);
   revalidatePath(`/b/${backlogKey}/releases`);
   for (const releaseId of releaseIds) revalidatePath(`/b/${backlogKey}/releases/${releaseId}`);
 }
@@ -168,6 +168,11 @@ export async function createReleaseAction(input: unknown) {
       actorId,
       randomUUID(),
     );
+    await invalidateBacklog(backlog.backlogKey, {
+      kind: "release",
+      backlogId: backlog.backlogId,
+      actorId,
+    });
     revalidateReleasePaths(backlog.backlogKey);
     return { ok: true as const, result };
   } catch (error) {
@@ -182,6 +187,11 @@ export async function updateReleaseAction(input: unknown) {
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     await requireDriverBrowsePermission(actorId, command.driverId);
     const result = await updateRelease(command, actorId, randomUUID());
+    await invalidateBacklog(backlog.backlogKey, {
+      kind: "release",
+      backlogId: backlog.backlogId,
+      actorId,
+    });
     revalidateReleasePaths(backlog.backlogKey, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
@@ -202,6 +212,11 @@ export async function publishReleaseAction(input: unknown) {
       });
     }
     const result = await publishRelease(command, actorId, randomUUID());
+    await invalidateBacklog(backlog.backlogKey, {
+      kind: "release",
+      backlogId: backlog.backlogId,
+      actorId,
+    });
     revalidateReleasePaths(backlog.backlogKey, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
@@ -217,6 +232,11 @@ export async function unreleaseReleaseAction(input: unknown) {
     const actorId = await authenticatedActorId();
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     const result = await unreleaseRelease(command, actorId, randomUUID());
+    await invalidateBacklog(backlog.backlogKey, {
+      kind: "release",
+      backlogId: backlog.backlogId,
+      actorId,
+    });
     revalidateReleasePaths(backlog.backlogKey, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
@@ -230,6 +250,11 @@ export async function archiveReleaseAction(input: unknown) {
     const actorId = await authenticatedActorId();
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     const result = await archiveRelease(command, actorId, randomUUID());
+    await invalidateBacklog(backlog.backlogKey, {
+      kind: "release",
+      backlogId: backlog.backlogId,
+      actorId,
+    });
     revalidateReleasePaths(backlog.backlogKey, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
@@ -243,6 +268,11 @@ export async function unarchiveReleaseAction(input: unknown) {
     const actorId = await authenticatedActorId();
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     const result = await unarchiveRelease(command, actorId, randomUUID());
+    await invalidateBacklog(backlog.backlogKey, {
+      kind: "release",
+      backlogId: backlog.backlogId,
+      actorId,
+    });
     revalidateReleasePaths(backlog.backlogKey, command.releaseId);
     return { ok: true as const, result };
   } catch (error) {
@@ -260,6 +290,11 @@ export async function mergeReleaseAction(input: unknown) {
     const actorId = await authenticatedActorId();
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     const result = await mergeRelease(command, actorId, randomUUID());
+    await invalidateBacklog(backlog.backlogKey, {
+      kind: "release",
+      backlogId: backlog.backlogId,
+      actorId,
+    });
     revalidateReleasePaths(backlog.backlogKey, command.sourceReleaseId, command.targetReleaseId);
     return { ok: true as const, result };
   } catch (error) {
@@ -275,6 +310,11 @@ export async function deleteReleaseAction(input: unknown) {
     const actorId = await authenticatedActorId();
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     const result = await deleteRelease(command, actorId, randomUUID());
+    await invalidateBacklog(backlog.backlogKey, {
+      kind: "release",
+      backlogId: backlog.backlogId,
+      actorId,
+    });
     revalidateReleasePaths(
       backlog.backlogKey,
       command.releaseId,
@@ -294,6 +334,11 @@ export async function reorderReleaseAction(input: unknown) {
     const actorId = await authenticatedActorId();
     const backlog = await authorizeReleaseManagement(actorId, command.backlogId);
     const result = await reorderRelease(command, actorId, randomUUID());
+    await invalidateBacklog(backlog.backlogKey, {
+      kind: "release",
+      backlogId: backlog.backlogId,
+      actorId,
+    });
     revalidateReleasePaths(backlog.backlogKey);
     return { ok: true as const, result };
   } catch (error) {

@@ -8,10 +8,13 @@ const mocks = vi.hoisted(() => ({
   requireCommentPermission: vi.fn(),
   requireItemPermission: vi.fn(),
   revalidatePath: vi.fn(),
+  invalidateBacklog: vi.fn(),
+  notifyUsers: vi.fn(),
   softDeleteComment: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireCommentPermission: mocks.requireCommentPermission,
   requireItemPermission: mocks.requireItemPermission,
@@ -39,19 +42,22 @@ describe("comment action permissions", () => {
       resourceId: "comment-1",
       authorId: "author-1",
     });
-    mocks.addComment.mockResolvedValue({ id: "comment-1" });
-    mocks.editComment.mockResolvedValue({ id: "comment-1" });
-    mocks.softDeleteComment.mockResolvedValue({ id: "comment-1" });
+    mocks.addComment.mockResolvedValue({ id: "comment-1", notifyUserIds: ["recipient-1"] });
+    mocks.editComment.mockResolvedValue({ id: "comment-1", itemId: "item-1" });
+    mocks.softDeleteComment.mockResolvedValue({ id: "comment-1", itemId: "item-1" });
   });
 
   it("requires add_comments from the item stored backlog", async () => {
-    await addCommentAction({
+    await expect(addCommentAction({
       backlogKey: "FORGED",
       itemId: "item-1",
       body: "Message",
       mentionIds: [],
-    });
+    })).resolves.toEqual({ ok: true, comment: { id: "comment-1" } });
 
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("FORGED", { kind: "item", backlogId: "backlog-1", itemIds: ["item-1"], actorId: "author-1" });
+    expect(mocks.notifyUsers).toHaveBeenCalledWith(["recipient-1"], "author-1");
+    expect(mocks.addComment.mock.invocationCallOrder[0]).toBeLessThan(mocks.notifyUsers.mock.invocationCallOrder[0]!);
     expect(mocks.requireItemPermission).toHaveBeenCalledWith({
       actorId: "author-1",
       itemId: "item-1",
@@ -79,6 +85,8 @@ describe("comment action permissions", () => {
       error: "Vous n’avez pas la permission « Ajouter des commentaires » pour ce backlog.",
     });
     expect(mocks.addComment).not.toHaveBeenCalled();
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
+    expect(mocks.notifyUsers).not.toHaveBeenCalled();
   });
 
   it("requires edit_own_comments with stored comment ownership", async () => {

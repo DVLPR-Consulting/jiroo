@@ -173,8 +173,9 @@ export async function addLink(
  * Removes a link by id. Idempotent — no error if the link is already gone.
  * Any writer may delete any link in their accessible backlogs (enforced at action layer).
  */
-export async function removeLink(id: string): Promise<void> {
-  await db.delete(itemLinks).where(eq(itemLinks.id, id));
+export async function removeLink(id: string) {
+  const [removed] = await db.delete(itemLinks).where(eq(itemLinks.id, id)).returning();
+  return removed;
 }
 
 /**

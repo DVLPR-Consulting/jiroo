@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth/action-authorization";
 import { ResourceNotFoundError } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
+import { invalidateBacklog } from "@/lib/realtime/publish";
 import {
   createStatus,
   deleteStatus,
@@ -53,8 +54,13 @@ function actionError(error: unknown) {
   return SAFE_ERRORS.has(message) ? message : "Modification du workflow impossible.";
 }
 
-function revalidateWorkflow(backlogKey: string) {
-  for (const path of ["/admin", "/", "/mine", "/trash", `/b/${backlogKey}`]) {
+async function revalidateWorkflow(backlogKey: string, backlogId: string, actorId: string) {
+  await invalidateBacklog(backlogKey, {
+    kind: "backlog",
+    backlogId,
+    actorId,
+  });
+  for (const path of ["/admin", "/", "/mine", "/trash"]) {
     revalidatePath(path);
   }
 }
@@ -79,7 +85,7 @@ export async function createStatusAction(input: {
       category: input.category,
       color: input.color,
     });
-    revalidateWorkflow(input.backlogKey);
+    await revalidateWorkflow(input.backlogKey, input.backlogId, actorId);
     return { ok: true as const, status };
   } catch (error) {
     return { ok: false as const, error: actionError(error) };
@@ -112,7 +118,7 @@ export async function updateStatusAction(input: {
       },
       actorId,
     );
-    revalidateWorkflow(input.backlogKey);
+    await revalidateWorkflow(input.backlogKey, input.backlogId, actorId);
     return { ok: true as const, status };
   } catch (error) {
     return { ok: false as const, error: actionError(error) };
@@ -140,7 +146,7 @@ export async function reorderStatusesAction(input: {
       assertStatusBacklog(statusAuthorization, input.backlogId);
     }
     await reorderStatuses({ backlogId: input.backlogId, statusIds: input.statusIds });
-    revalidateWorkflow(input.backlogKey);
+    await revalidateWorkflow(input.backlogKey, input.backlogId, actorId);
     return { ok: true as const };
   } catch (error) {
     return { ok: false as const, error: actionError(error) };
@@ -177,7 +183,7 @@ export async function deleteStatusAction(input: {
       },
       actorId,
     );
-    revalidateWorkflow(input.backlogKey);
+    await revalidateWorkflow(input.backlogKey, input.backlogId, actorId);
     return { ok: true as const, ...result };
   } catch (error) {
     const currentItemCount =

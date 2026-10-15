@@ -8,11 +8,14 @@ const mocks = vi.hoisted(() => ({
   requireBacklogPermissionById: vi.fn(),
   requirePermission: vi.fn(),
   revalidatePath: vi.fn(),
+  invalidateBacklog: vi.fn(),
+  notifyUsers: vi.fn(),
   setBacklogStar: vi.fn(),
   updateBacklog: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireBacklogPermissionById: mocks.requireBacklogPermissionById,
 }));
@@ -41,6 +44,7 @@ describe("backlog action permissions", () => {
     mocks.getSession.mockResolvedValue({
       user: { id: "admin-1", role: "admin", twoFactorEnabled: true },
     });
+    mocks.requireBacklogPermissionById.mockResolvedValue({ backlogId: "backlog-1", resourceId: "backlog-1", backlogKey: "WEB" });
     mocks.createBacklog.mockResolvedValue({ id: "backlog-created", key: "API" });
     mocks.updateBacklog.mockResolvedValue({
       previousKey: "WEB",
@@ -137,8 +141,10 @@ describe("updateBacklogAction", () => {
       { id: "backlog-1", key: "PLAT", name: "Plateforme", color: "#2b6cb0" },
       "admin-1",
     );
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("WEB", { kind: "backlog", backlogId: "backlog-1", actorId: "admin-1" });
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("PLAT", { kind: "backlog", backlogId: "backlog-1", actorId: "admin-1" });
     expect(new Set(mocks.revalidatePath.mock.calls.map(([path]) => path))).toEqual(
-      new Set(["/admin", "/", "/mine", "/trash", "/b/WEB", "/b/PLAT"]),
+      new Set(["/admin", "/", "/mine", "/trash"]),
     );
   });
 

@@ -6,9 +6,12 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   requireBacklogPermissionById: vi.fn(),
   revalidatePath: vi.fn(),
+  invalidateBacklog: vi.fn(),
+  notifyUsers: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireBacklogPermissionById: mocks.requireBacklogPermissionById,
 }));
@@ -28,6 +31,7 @@ describe("label action permissions", () => {
 
     await createLabelAction({ backlogKey: "FORGED", backlogId: "backlog-1", name: "Urgent" });
 
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("FORGED", { kind: "backlog", backlogId: "backlog-1", actorId: "writer-1" });
     expect(mocks.requireBacklogPermissionById).toHaveBeenCalledWith({
       actorId: "writer-1",
       backlogId: "backlog-1",

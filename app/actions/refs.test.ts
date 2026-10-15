@@ -8,9 +8,12 @@ const mocks = vi.hoisted(() => ({
   requireItemPermission: vi.fn(),
   requireRefPermission: vi.fn(),
   revalidatePath: vi.fn(),
+  invalidateBacklog: vi.fn(),
+  notifyUsers: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireItemPermission: mocks.requireItemPermission,
   requireRefPermission: mocks.requireRefPermission,
@@ -31,6 +34,7 @@ describe("reference action permissions", () => {
 
   it("requires link_items from the stored item before adding a reference", async () => {
     await addRefAction({ backlogKey: "FORGED", itemId: "item-1", url: "https://github.com/o/r/pull/1" });
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("FORGED", { kind: "item", backlogId: "backlog-1", itemIds: ["item-1"], actorId: "writer-1" });
     expect(mocks.requireItemPermission).toHaveBeenCalledWith({
       actorId: "writer-1",
       itemId: "item-1",

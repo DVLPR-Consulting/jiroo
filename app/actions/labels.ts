@@ -1,9 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
+import { invalidateBacklog } from "@/lib/realtime/publish";
 import { createLabel } from "@/lib/services/labels";
 
 async function authenticatedActorId(): Promise<string> {
@@ -33,7 +33,11 @@ export async function createLabelAction(input: {
       permission: "edit_items",
     });
     const label = await createLabel({ backlogId: input.backlogId, name: input.name });
-    revalidatePath(`/b/${input.backlogKey}`);
+    await invalidateBacklog(input.backlogKey, {
+      kind: "backlog",
+      backlogId: input.backlogId,
+      actorId,
+    });
     return { ok: true as const, label };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
