@@ -32,7 +32,7 @@ describe("invalidateBacklog", () => {
   it("re-renders the backlog pages and publishes an item change", async () => {
     await invalidateBacklog("CASS", { backlogId: BACKLOG, itemIds: [ITEM], actorId: "u1" });
 
-    expect(revalidatePath.mock.calls).toEqual([["/b/CASS"], ["/b/CASS/reports"]]);
+    expect(revalidatePath.mock.calls).toEqual([["/b/CASS"], ["/b/CASS/roadmap"], ["/b/CASS/reports"]]);
     expect(publishedEvents()).toEqual([
       expect.objectContaining({ kind: "item", backlogId: BACKLOG, itemIds: [ITEM], actorId: "u1" }),
     ]);
@@ -52,7 +52,7 @@ describe("invalidateBacklog", () => {
     await expect(
       invalidateBacklog("CASS", { backlogId: BACKLOG, actorId: "u1" }),
     ).resolves.toBeUndefined();
-    expect(revalidatePath).toHaveBeenCalledTimes(2);
+    expect(revalidatePath).toHaveBeenCalledTimes(3);
     expect(consoleError).toHaveBeenCalled();
     consoleError.mockRestore();
   });

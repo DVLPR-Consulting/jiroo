@@ -26,6 +26,7 @@ export type BacklogChange = {
  */
 export async function invalidateBacklog(backlogKey: string, change: BacklogChange): Promise<void> {
   revalidatePath(`/b/${backlogKey}`);
+  revalidatePath(`/b/${backlogKey}/roadmap`);
   revalidatePath(`/b/${backlogKey}/reports`);
   await publishBacklogChange(change);
 }
