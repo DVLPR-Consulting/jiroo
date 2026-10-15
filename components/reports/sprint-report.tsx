@@ -219,12 +219,12 @@ export function SprintReportView({
       </section>
 
       {report.kind === "active" && metrics.currentItemCount === 0 ? (
-        <p className="rounded-xl border p-4 text-sm text-muted-foreground">
+        <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">
           Ce sprint actif ne contient encore aucun élément.
         </p>
       ) : report.kind === "active" &&
         metrics.currentUnestimatedCount === metrics.currentItemCount ? (
-        <p className="rounded-xl border p-4 text-sm text-muted-foreground">
+        <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">
           Tous les éléments actuels de ce sprint sont non estimés.
         </p>
       ) : null}

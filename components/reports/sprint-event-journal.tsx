@@ -86,7 +86,7 @@ export function SprintEventJournal({
     <section role="region" aria-labelledby="sprint-journal-title" className="space-y-3">
       <h2 id="sprint-journal-title" className="t-h2">Journal du sprint</h2>
       {events.rows.length === 0 ? (
-        <p className="rounded-xl border p-4 text-sm text-muted-foreground">Aucun événement.</p>
+        <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">Aucun événement.</p>
       ) : (
         <ol className="divide-y rounded-xl border bg-card">
           {events.rows.map((event) => (

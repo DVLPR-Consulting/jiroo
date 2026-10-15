@@ -77,7 +77,7 @@ export function ReportNavigation({
         </form>
       ) : null}
       {report !== "velocity" && sprints.length === 0 ? (
-        <p className="rounded-xl border p-4 text-sm text-muted-foreground">
+        <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">
           {plannedCount > 0
             ? `${countLabel(plannedCount, "sprint est planifié", "sprints sont planifiés")}, mais aucun n’a encore démarré.`
             : "Aucun sprint actif ou terminé."}
