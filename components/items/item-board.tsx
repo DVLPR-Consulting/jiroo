@@ -444,14 +444,14 @@ function Column({
     <div
       role="group"
       aria-label={`${status.name}, ${countLabel(cards.length, "item", "items")}`}
-      className="flex w-[296px] flex-none flex-col rounded-[var(--radius-lg)] border border-border bg-[var(--surface-2)]"
+      className="flex w-[296px] flex-none flex-col rounded-[var(--radius-lg)] border border-border bg-card"
     >
-      <div className="flex items-center gap-2 px-3 py-2.5">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
         <StatusDot status={visualStatusId(status, statusDomain)} size={14} />
         <span className="text-[13px] font-medium">{status.name}</span>
         <span
           aria-hidden
-          className="item-key ml-auto rounded-[var(--radius-sm)] bg-[var(--surface)] px-1.5 py-0.5"
+          className="item-key ml-auto rounded-[var(--radius-sm)] bg-muted px-1.5 py-0.5"
         >
           {cards.length}
         </span>

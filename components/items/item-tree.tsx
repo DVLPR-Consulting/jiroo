@@ -388,18 +388,22 @@ export function ItemTree({
           data-shortcut-item={isContext ? undefined : node.key}
           aria-disabled={isContext || undefined}
           aria-label={`${node.key} — ${node.title}`}
-          className={`group relative flex items-center gap-2 py-1.5 pr-3 text-sm transition-colors ${
+          className={`group relative flex min-h-[var(--row-h)] items-center gap-2 border-b border-border py-0.5 pr-3 text-sm transition-colors ${
             isContext
               ? "cursor-default"
-              : `${canScheduleItems ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${isSelected ? "bg-[var(--accent-subtle)]" : "hover:bg-muted/50"}`
+              : `${canScheduleItems ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${isSelected ? "bg-[var(--accent-subtle)]" : "hover:bg-[var(--muted)]/60"}`
           }`}
           style={{
             paddingLeft: 8 + node.depth * 20,
             opacity: isContext ? 0.45 : dragId === node.id ? 0.4 : 1,
-            boxShadow: zone === "into" ? "inset 0 0 0 1.5px var(--ring)" : undefined,
             background: zone === "into" ? "var(--accent-subtle)" : undefined,
-            borderTop: zone === "before" ? "2px solid var(--ring)" : "2px solid transparent",
-            borderBottom: zone === "after" ? "2px solid var(--ring)" : "2px solid transparent",
+            boxShadow: zone === "into"
+              ? "inset 0 0 0 1.5px var(--ring)"
+              : zone === "before"
+                ? "inset 0 2px 0 var(--ring)"
+                : zone === "after"
+                  ? "inset 0 -2px 0 var(--ring)"
+                  : undefined,
           }}
         >
           <button
@@ -532,7 +536,12 @@ export function ItemTree({
           className="mx-3 mt-3 flex-none sm:mx-4"
         />
       ) : null}
-      <div className="flex-1 overflow-auto py-1">{roots.map((node) => renderNode(node))}</div>
+      <div className="flex-1 overflow-auto p-3 sm:p-4">
+        <div className="min-w-fit overflow-hidden rounded-[var(--radius-lg)] border border-border bg-card">
+          {/* min-w-fit lets the card widen with rows that cannot shrink, so the outer scroller reaches them; -mb-px hides the last separator. */}
+          <div className="-mb-px">{roots.map((node) => renderNode(node))}</div>
+        </div>
+      </div>
     </div>
   );
 }
