@@ -66,6 +66,24 @@ describe("createChangeStream", () => {
     expect(await readText()).toBe(`data: {"kind":"${kind}","self":false}\n\n`);
   });
 
+  // Without a backlog nothing on screen can be stale: only the bell catches up,
+  // so a refused backlog page never shows « Ce backlog a été modifié ».
+  it("turns resync into ready on a notifications-only stream", async () => {
+    let next: BusListener | null = null;
+    const only = createChangeStream({
+      subscribe: (_subscription, listen) => {
+        next = listen;
+        return () => {};
+      },
+      subscription: { backlogId: null, userId: "me" },
+      signal: new AbortController().signal,
+    }).getReader();
+    await only.read();
+    next!({ kind: "resync" });
+    expect(decoder.decode((await only.read()).value)).toBe('data: {"kind":"ready","self":false}\n\n');
+    await only.cancel();
+  });
+
   it("sends a heartbeat comment", async () => {
     await readText();
     await vi.advanceTimersByTimeAsync(1_000);

@@ -51,18 +51,29 @@ describe("GET /api/realtime", () => {
     expect(mocks.subscribe).not.toHaveBeenCalled();
   });
 
-  it("hides a backlog the viewer may not browse", async () => {
+  // A refused page still has a bell: the tab falls back to its notifications,
+  // and an unknown backlog answers exactly the same, revealing nothing.
+  it("streams only my notifications for a backlog the viewer may not browse", async () => {
     mocks.getBacklogByKeyForUser.mockResolvedValue(null);
-    const { response } = get("?backlog=SECRET");
-    expect((await response).status).toBe(404);
+    const { response, abort } = get("?backlog=SECRET");
+    expect((await response).status).toBe(200);
     expect(mocks.getBacklogByKeyForUser).toHaveBeenCalledWith("SECRET", "viewer-1");
-    expect(mocks.subscribe).not.toHaveBeenCalled();
+    expect(mocks.subscribe).toHaveBeenCalledWith(
+      { backlogId: null, userId: "viewer-1" },
+      expect.any(Function),
+    );
+    abort.abort();
   });
 
-  it("rejects a malformed backlog key without querying", async () => {
-    const { response } = get("?backlog=not%20a%20key");
-    expect((await response).status).toBe(404);
+  it("streams only my notifications for a malformed backlog key without querying", async () => {
+    const { response, abort } = get("?backlog=not%20a%20key");
+    expect((await response).status).toBe(200);
     expect(mocks.getBacklogByKeyForUser).not.toHaveBeenCalled();
+    expect(mocks.subscribe).toHaveBeenCalledWith(
+      { backlogId: null, userId: "viewer-1" },
+      expect.any(Function),
+    );
+    abort.abort();
   });
 
   it("streams the backlog's changes and my notifications", async () => {
