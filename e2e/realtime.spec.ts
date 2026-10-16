@@ -101,7 +101,10 @@ async function openBacklog(page: Page, itemKey?: string) {
   const response = await stream;
   expect(response.status()).toBe(200);
   expect(response.headers()["content-type"]).toContain("text/event-stream");
-  await expect(page.getByRole("list", { name: "Liste des items" })).toBeVisible();
+  // An open drawer is modal: the list behind it leaves the accessibility tree.
+  await expect(itemKey
+    ? page.getByRole("dialog", { name: keyPattern(itemKey) })
+    : page.getByRole("list", { name: "Liste des items" })).toBeVisible();
 }
 
 function banner(page: Page) {
