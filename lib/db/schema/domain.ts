@@ -1093,6 +1093,7 @@ export const permissionGrants = pgTable(
       "permission_grants_scope_consistent",
       sql`(
         (${t.scope} = 'global' and ${t.permissionSchemeId} is null and ${t.principalType} in ('user', 'group'))
+        or (${t.scope} = 'global' and ${t.permissionSchemeId} is null and ${t.principalType} = 'authenticated_user' and ${t.permissionKey} = 'browse_users')
         or (${t.scope} = 'backlog' and ${t.permissionSchemeId} is not null)
       )`,
     ),
@@ -1111,6 +1112,11 @@ export const permissionGrants = pgTable(
     uniqueIndex("permission_grants_global_group_idx")
       .on(t.permissionKey, t.groupId)
       .where(sql`${t.scope} = 'global' and ${t.principalType} = 'group'`),
+    // Everyone may only browse users: the CHECK above keeps any other global
+    // permission, administer_jiroo first, off "all authenticated users".
+    uniqueIndex("permission_grants_global_authenticated_user_idx")
+      .on(t.permissionKey)
+      .where(sql`${t.scope} = 'global' and ${t.principalType} = 'authenticated_user'`),
     uniqueIndex("permission_grants_backlog_user_idx")
       .on(t.permissionSchemeId, t.permissionKey, t.userId)
       .where(sql`${t.scope} = 'backlog' and ${t.principalType} = 'user'`),

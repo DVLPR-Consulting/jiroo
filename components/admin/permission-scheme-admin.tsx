@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { useRetainedWhileClosing } from "@/components/admin/use-retained-while-closing";
 import { BACKLOG_PERMISSION_DEFINITIONS, type BacklogPermissionKey } from "@/lib/auth/permissions";
+import { backlogRoleLabel } from "@/lib/items/users";
 
 type SchemePrincipal = { type: "user" | "group" | "project_role" | "authenticated_user"; id: string; label: string };
 export type PermissionSchemeGrantDto = { id: string; permission: string; permissionLabel: string; category: string; principal: SchemePrincipal };
@@ -25,7 +26,7 @@ export type PermissionSchemeAdminProps = {
   schemes: PermissionSchemeAdminDto[];
   users: AuthorizationUserOption[];
   groups: AuthorizationGroupOption[];
-  roles: Array<{ id: string; name: string }>;
+  roles: Array<{ id: string; name: string; key?: string }>;
   initialSchemeId?: string;
 };
 
@@ -62,6 +63,7 @@ export function PermissionSchemeAdmin({ schemes, users, groups, roles, initialSc
   const [cloneDescription, setCloneDescription] = useState("");
   const [principalType, setPrincipalType] = useState<SchemePrincipal["type"]>("user");
   const [principalSearch, setPrincipalSearch] = useState("");
+  const [projectRoleId, setProjectRoleId] = useState("");
   const [permission, setPermission] = useState<BacklogPermissionKey>("browse_backlog");
   const [staged, setStaged] = useState<StagedChange | null>(null);
   const [matrixError, setMatrixError] = useState<string | null>(null);
@@ -75,9 +77,16 @@ export function PermissionSchemeAdmin({ schemes, users, groups, roles, initialSc
   const principalOptions = useMemo(() => {
     if (principalType === "user") return users.map((entry) => ({ id: entry.id, label: entry.name }));
     if (principalType === "group") return groups.map((entry) => ({ id: entry.id, label: entry.name }));
-    if (principalType === "project_role") return roles.map((entry) => ({ id: entry.id, label: entry.name }));
+    if (principalType === "project_role") return roles.map((entry) => ({
+      id: entry.id,
+      label: entry.key === "administrators" ? `${backlogRoleLabel(entry)} (rôle protégé)` : entry.name,
+    }));
     return [{ id: "authenticated_user", label: "Tous les utilisateurs authentifiés" }];
   }, [groups, principalType, roles, users]);
+
+  const principalLabel = (principal: SchemePrincipal) => principal.type === "project_role"
+    ? backlogRoleLabel(roles.find((role) => role.id === principal.id) ?? { name: principal.label })
+    : principal.label;
 
   const execute = (change: StagedChange) => {
     setMatrixError(null);
@@ -127,7 +136,7 @@ export function PermissionSchemeAdmin({ schemes, users, groups, roles, initialSc
           principal = { type: "group", id, label: groups.find((entry) => entry.id === id)?.name ?? "Groupe" };
         } else if (principalInput.type === "project_role") {
           const id = principalInput.projectRoleId;
-          principal = { type: "project_role", id, label: roles.find((entry) => entry.id === id)?.name ?? "Rôle de projet" };
+          principal = { type: "project_role", id, label: backlogRoleLabel(roles.find((entry) => entry.id === id) ?? { name: "Rôle de projet" }) };
         } else {
           principal = { type: "authenticated_user", id: "authenticated_user", label: "Tous les utilisateurs authentifiés" };
         }
@@ -165,12 +174,19 @@ export function PermissionSchemeAdmin({ schemes, users, groups, roles, initialSc
     <Dialog open={matrix !== null} onOpenChange={(open) => { if (!open && !pending) setMatrix(null); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Matrice de {shownMatrix?.name}</DialogTitle><DialogDescription>Les grants sont additifs. La consultation du backlog reste un prérequis.</DialogDescription></DialogHeader>
       {shownMatrix && <div className="space-y-5">
         <Badge variant="secondary">Version {shownMatrix.version}</Badge>
-        {MATRIX_CATEGORIES.map((category) => <section key={category} className="space-y-2"><h3 className="font-medium">{category}</h3><div className="space-y-2">{MATRIX_ROWS.filter((row) => row.category === category).map((row) => { const rowGrants = shownMatrix.grants.filter((grant) => grant.permission === row.key); return <div key={row.key} className="flex flex-wrap items-center gap-2 text-sm"><span className="min-w-44">{row.label}</span>{rowGrants.length === 0 ? <span className="text-xs text-muted-foreground">Aucun grant</span> : rowGrants.map((grant) => <span key={grant.id} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">{grant.principal.label}<button type="button" className="rounded px-1 hover:bg-background" aria-label={`Retirer ${grant.principal.label} de ${row.label}`} onClick={() => requestChange({ type: "remove", scheme: shownMatrix, grantId: grant.id })}>×</button></span>)}</div>; })}</div></section>)}
-        {shownMatrix.grants.some((grant) => !isKnownPermission(grant.permission)) && <section role="region" aria-labelledby={`invalid-configuration-${shownMatrix.id}`} className="space-y-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3"><h3 id={`invalid-configuration-${shownMatrix.id}`} className="font-medium text-destructive">Configuration invalide</h3><p className="text-xs text-muted-foreground">Ces permissions ne figurent plus dans le catalogue et doivent être retirées.</p><ul className="space-y-2">{shownMatrix.grants.filter((grant) => !isKnownPermission(grant.permission)).map((grant) => <li key={grant.id} className="flex flex-wrap items-center gap-2 text-sm"><code>{grant.permission}</code><span>{grant.principal.label}</span><Button size="xs" variant="outline" aria-label={`Retirer ${grant.principal.label} de ${grant.permission}`} onClick={() => requestChange({ type: "remove", scheme: shownMatrix, grantId: grant.id })}>Retirer</Button></li>)}</ul></section>}
-        <form aria-busy={pending} className="grid gap-2 md:grid-cols-2" onSubmit={(event) => { event.preventDefault(); const found = principalOptions.find((entry) => entry.label.toLocaleLowerCase("fr") === principalSearch.trim().toLocaleLowerCase("fr")) ?? (principalType === "authenticated_user" ? principalOptions[0] : undefined); if (!found) { setMatrixError("Sélectionnez un principal proposé."); return; } const principal = principalType === "user" ? { type: "user" as const, userId: found.id } : principalType === "group" ? { type: "group" as const, groupId: found.id } : principalType === "project_role" ? { type: "project_role" as const, projectRoleId: found.id } : { type: "authenticated_user" as const }; requestChange({ type: "add", scheme: shownMatrix, permission, principal }); }}>
+        {MATRIX_CATEGORIES.map((category) => <section key={category} className="space-y-2"><h3 className="font-medium">{category}</h3><div className="space-y-2">{MATRIX_ROWS.filter((row) => row.category === category).map((row) => { const rowGrants = shownMatrix.grants.filter((grant) => grant.permission === row.key); return <div key={row.key} className="flex flex-wrap items-center gap-2 text-sm"><span className="min-w-44">{row.label}</span>{rowGrants.length === 0 ? <span className="text-xs text-muted-foreground">Aucun grant</span> : rowGrants.map((grant) => <span key={grant.id} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">{principalLabel(grant.principal)}<button type="button" className="rounded px-1 hover:bg-background" aria-label={`Retirer ${principalLabel(grant.principal)} de ${row.label}`} onClick={() => requestChange({ type: "remove", scheme: shownMatrix, grantId: grant.id })}>×</button></span>)}</div>; })}</div></section>)}
+        {shownMatrix.grants.some((grant) => !isKnownPermission(grant.permission)) && <section role="region" aria-labelledby={`invalid-configuration-${shownMatrix.id}`} className="space-y-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3"><h3 id={`invalid-configuration-${shownMatrix.id}`} className="font-medium text-destructive">Configuration invalide</h3><p className="text-xs text-muted-foreground">Ces permissions ne figurent plus dans le catalogue et doivent être retirées.</p><ul className="space-y-2">{shownMatrix.grants.filter((grant) => !isKnownPermission(grant.permission)).map((grant) => <li key={grant.id} className="flex flex-wrap items-center gap-2 text-sm"><code>{grant.permission}</code><span>{principalLabel(grant.principal)}</span><Button size="xs" variant="outline" aria-label={`Retirer ${principalLabel(grant.principal)} de ${grant.permission}`} onClick={() => requestChange({ type: "remove", scheme: shownMatrix, grantId: grant.id })}>Retirer</Button></li>)}</ul></section>}
+        <form aria-busy={pending} className="grid gap-2 md:grid-cols-2" onSubmit={(event) => { event.preventDefault(); const found = principalType === "project_role" ? principalOptions.find((entry) => entry.id === projectRoleId) : principalOptions.find((entry) => entry.label.toLocaleLowerCase("fr") === principalSearch.trim().toLocaleLowerCase("fr")) ?? (principalType === "authenticated_user" ? principalOptions[0] : undefined); if (!found) { setMatrixError("Sélectionnez un principal proposé."); return; } const principal = principalType === "user" ? { type: "user" as const, userId: found.id } : principalType === "group" ? { type: "group" as const, groupId: found.id } : principalType === "project_role" ? { type: "project_role" as const, projectRoleId: found.id } : { type: "authenticated_user" as const }; requestChange({ type: "add", scheme: shownMatrix, permission, principal }); }}>
           <select aria-label="Permission de backlog" value={permission} onChange={(e) => setPermission(e.target.value as BacklogPermissionKey)} className="h-8 rounded-lg border bg-card px-2 text-sm">{Object.values(BACKLOG_PERMISSION_DEFINITIONS).map((definition) => <option key={definition.key} value={definition.key}>{definition.label}</option>)}</select>
-          <select aria-label="Type de principal" value={principalType} onChange={(e) => { const type = e.target.value as SchemePrincipal["type"]; setPrincipalType(type); setPrincipalSearch(type === "authenticated_user" ? "Tous les utilisateurs authentifiés" : ""); }} className="h-8 rounded-lg border bg-card px-2 text-sm"><option value="user">Utilisateur</option><option value="group">Groupe</option><option value="project_role">Rôle de projet</option><option value="authenticated_user">Utilisateur authentifié</option></select>
-          <Input role="combobox" aria-label="Rechercher un principal" list="scheme-principals" value={principalSearch} onChange={(e) => setPrincipalSearch(e.target.value)} /><datalist id="scheme-principals">{principalOptions.map((entry) => <option key={entry.id} value={entry.label} />)}</datalist>
+          <select aria-label="Type de principal" value={principalType} onChange={(e) => { const type = e.target.value as SchemePrincipal["type"]; setPrincipalType(type); setProjectRoleId(""); setPrincipalSearch(type === "authenticated_user" ? "Tous les utilisateurs authentifiés" : ""); }} className="h-8 rounded-lg border bg-card px-2 text-sm"><option value="user">Utilisateur</option><option value="group">Groupe</option><option value="project_role">Rôle de projet</option><option value="authenticated_user">Utilisateur authentifié</option></select>
+          {principalType === "project_role" ? (
+            <select aria-label="Rôle de backlog" value={projectRoleId} onChange={(event) => setProjectRoleId(event.target.value)} className="h-8 rounded-lg border bg-card px-2 text-sm">
+              <option value="">Choisir un rôle…</option>
+              {principalOptions.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
+            </select>
+          ) : (
+            <><Input role="combobox" aria-label="Rechercher un principal" list="scheme-principals" value={principalSearch} onChange={(e) => setPrincipalSearch(e.target.value)} /><datalist id="scheme-principals">{principalOptions.map((entry) => <option key={entry.id} value={entry.label} />)}</datalist></>
+          )}
           <Button type="submit" disabled={pending} aria-busy={pending}>Ajouter le grant</Button>
         </form>
         {matrixError && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{matrixError}</p>}

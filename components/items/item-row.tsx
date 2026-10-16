@@ -79,6 +79,7 @@ export type ItemRowEditing = {
   canEdit: boolean;
   canTransition: boolean;
   canAssign: boolean;
+  canBrowseUsers?: boolean;
 };
 
 const ROW_CLASS =
@@ -345,6 +346,7 @@ export function ItemRow({
             assigneeId={item.assigneeId ?? null}
             assigneeName={item.assigneeName}
             users={editing.users}
+            canBrowseUsers={editing.canBrowseUsers}
             readOnly={!canEdit || !editing.canAssign}
             compact
           />

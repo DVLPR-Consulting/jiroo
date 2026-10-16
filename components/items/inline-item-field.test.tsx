@@ -245,3 +245,15 @@ describe("compact inline item editors", () => {
     expect(screen.getByText("2,5 pts")).toBeVisible();
   });
 });
+
+describe("InlineAssignee directory access", () => {
+  it.each([false, true])("explains denied browsing rather than an empty directory (%s)", async (canBrowseUsers) => {
+    const user = userEvent.setup();
+    render(<InlineAssignee itemId="item-1" backlogKey="DEMO" assigneeId={null} users={[]} canBrowseUsers={canBrowseUsers} />);
+    await user.click(screen.getByRole("button", { name: "Assigné : Non assigné" }));
+    expect(screen.getByRole("menuitem", { name: "Non assigné" })).toBeEnabled();
+    const hint = screen.queryByText(/Il vous manque la permission globale/);
+    if (canBrowseUsers) expect(hint).not.toBeInTheDocument();
+    else expect(hint).toBeVisible();
+  });
+});

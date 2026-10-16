@@ -16,7 +16,7 @@ function reasonLabel(reason: HelperReason): string {
     case "authenticated_user_grant": return "Grant pour tous les utilisateurs authentifiés.";
     case "missing_prerequisite": return "La permission « Consulter le backlog » est absente.";
     case "no_matching_grant": return "Aucun grant ne correspond.";
-    case "platform_administrator": return "Administrateur de la plateforme : accès de récupération.";
+    case "platform_administrator": return "Administrateur Jiroo : accès de récupération.";
     default: return "Raison d’autorisation indisponible.";
   }
 }

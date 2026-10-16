@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { createUserAction } from "@/app/actions/users";
@@ -123,6 +124,10 @@ export function UserCreateDialog() {
             </Button>
           </DialogFooter>
         </form>
+        <p className="text-sm text-muted-foreground">
+          Aucun droit global ne sera attribué directement à ce compte ; il bénéficiera des droits accordés à tous les utilisateurs authentifiés. Ajoutez-le à un groupe (par exemple les administrateurs Jiroo) pour lui en donner d’autres.{" "}
+          <Link href="/admin?tab=groups" className="underline">Ouvrir les groupes</Link>.
+        </p>
       </DialogContent>
     </Dialog>
   );

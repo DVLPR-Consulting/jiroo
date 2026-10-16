@@ -290,12 +290,38 @@ describeDb("server-only authorization resolver", () => {
       reasons: [{ type: "user_grant", id: ids.direct, label: "Utilisateur direct" }],
     });
 
+    // Migration 0021 also grants browse_users to everyone: both reasons show.
+    const groupDecision = await checkPermission({
+      actorId: ids.group,
+      permission: "browse_users",
+      scope: { type: "global" },
+    });
+    expect(groupDecision.allowed).toBe(true);
+    expect(groupDecision.reasons).toEqual(
+      expect.arrayContaining([{ type: "group_grant", id: teamGroupId, label: "Équipe produit" }]),
+    );
+  });
+
+  it("lets every authenticated user browse users by default, and nothing more", async () => {
     await expect(
-      checkPermission({ actorId: ids.group, permission: "browse_users", scope: { type: "global" } }),
+      checkPermission({ actorId: ids.noBrowse, permission: "browse_users", scope: { type: "global" } }),
     ).resolves.toMatchObject({
       allowed: true,
-      reasons: [{ type: "group_grant", id: teamGroupId, label: "Équipe produit" }],
+      reasons: [{ type: "authenticated_user_grant", id: "authenticated_user", label: "Tous les utilisateurs authentifiés" }],
     });
+    for (const permission of ["administer_jiroo", "manage_users_groups", "create_backlogs"] as const) {
+      await expect(
+        checkPermission({ actorId: ids.noBrowse, permission, scope: { type: "global" } }),
+      ).resolves.toMatchObject({ allowed: false });
+    }
+    // The database refuses any other permission for everyone.
+    await expect(
+      db.insert(permissionGrants).values({
+        scope: "global",
+        permissionKey: "administer_jiroo",
+        principalType: "authenticated_user",
+      }),
+    ).rejects.toThrow();
   });
 
   it("resolves user-in-role and group-in-role grants", async () => {

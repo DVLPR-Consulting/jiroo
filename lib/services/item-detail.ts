@@ -175,6 +175,7 @@ export async function loadItemDetailData({
       backlogLabels: labels,
       users,
       assigneeCandidates,
+      canBrowseUsers,
       reporterCandidates: directory,
       statuses: statusRows.map(({ id, name, color, category, order }) => ({
         id,
@@ -216,6 +217,7 @@ export async function loadItemDetailData({
             fieldOptions: {
               users: assigneeCandidates,
               canAssign: capabilities.assignItems,
+              canBrowseUsers,
               currentUserId: userId,
               sprints: openSprints,
               labels: labels.map(({ id, name, color }) => ({ id, name, color })),

@@ -1154,3 +1154,21 @@ describe("NewItemButton", () => {
     });
   });
 });
+
+describe("NewItemButton directory access", () => {
+  it("explains the missing global permission in the assignee menu", async () => {
+    const user = userEvent.setup();
+    render(<NewItemButton {...dialogProps()} fieldOptions={{ users: [], canAssign: true, canBrowseUsers: false }} />);
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    await user.click(screen.getByRole("combobox", { name: "Assigné" }));
+    expect(screen.getByRole("option", { name: "Non assigné" })).toBeVisible();
+    expect(screen.getByText(/Il vous manque la permission globale/)).toBeVisible();
+  });
+  it("keeps self assignment when the caller supplies the current user", async () => {
+    const user = userEvent.setup();
+    render(<NewItemButton {...dialogProps()} fieldOptions={{ users: [{ id: "me", name: "Moi" }], currentUserId: "me", canAssign: true, canBrowseUsers: false }} />);
+    await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+    await user.click(screen.getByRole("button", { name: "M’assigner" }));
+    expect(screen.getByRole("combobox", { name: "Assigné" })).toHaveTextContent("Moi");
+  });
+});

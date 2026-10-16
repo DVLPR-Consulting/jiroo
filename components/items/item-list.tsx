@@ -269,6 +269,7 @@ export function ItemList({
   grouped,
   statuses,
   users,
+  canBrowseUsers = true,
   backlogId,
   backlogKey,
   currentSort,
@@ -296,6 +297,7 @@ export function ItemList({
   grouped: boolean;
   statuses: StatusOption[];
   users: UserOption[];
+  canBrowseUsers?: boolean;
   backlogId: string;
   backlogKey: string;
   currentSort: CurrentSort;
@@ -404,6 +406,7 @@ export function ItemList({
     canEdit: canEditItems,
     canTransition: canTransitionItems,
     canAssign: canAssignItems,
+    canBrowseUsers,
   };
   const columns: OptionalColumns = {
     labels: showLabels,

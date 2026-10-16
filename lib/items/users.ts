@@ -69,7 +69,12 @@ export type SetRoleInput = z.infer<typeof setRoleInput>;
 // ---------------------------------------------------------------------------
 
 export const ROLE_LABELS: Record<Role, string> = {
-  admin: "Administrateur",
+  admin: "Administrateur Jiroo",
   contributor: "Contributeur",
   viewer: "Lecteur",
 };
+
+/** Display the protected backlog role without renaming stored or custom roles. */
+export function backlogRoleLabel(role: { key?: string; name: string }): string {
+  return role.key === "administrators" ? "Administrateur du backlog" : role.name;
+}

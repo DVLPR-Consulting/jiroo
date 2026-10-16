@@ -80,6 +80,17 @@ describe("authorization administration validation", () => {
     ).toThrow();
   });
 
+  it("n’accorde à tous les utilisateurs authentifiés que « Parcourir les utilisateurs »", () => {
+    expect(
+      globalGrantInput.parse({ permission: "browse_users", principal: { type: "authenticated_user" } }),
+    ).toMatchObject({ permission: "browse_users", principal: { type: "authenticated_user" } });
+    for (const permission of ["administer_jiroo", "manage_users_groups", "create_backlogs"]) {
+      expect(() =>
+        globalGrantInput.parse({ permission, principal: { type: "authenticated_user" } }),
+      ).toThrow("Seule « Parcourir les utilisateurs »");
+    }
+  });
+
   it("valide un déplacement atomique entre deux rôles Simple distincts", async () => {
     const { moveBacklogRoleActorInput } = await import("@/lib/validation/authorization");
     expect(moveBacklogRoleActorInput.parse({

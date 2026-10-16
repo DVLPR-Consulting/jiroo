@@ -1388,3 +1388,12 @@ describe("ItemDetailPanel description draft (JIR-71)", () => {
     expect(await screen.findByRole("button", { name: "Réessayer" })).toBeInTheDocument();
   });
 });
+
+it("passes denied directory access to the detail assignee editor", async () => {
+  const user = userEvent.setup();
+  render(<DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
+    <ItemDetailPanel {...baseProps} assigneeCandidates={[]} canBrowseUsers={false} />
+  </DetailHarness>);
+  await editField(user, "Assigné");
+  expect(screen.getByText(/Il vous manque la permission globale/)).toBeVisible();
+});

@@ -5,7 +5,7 @@ import { useState } from "react";
 const helpItems = [
   {
     label: "Mot de passe oublié ?",
-    message: "Contactez un administrateur pour réinitialiser votre accès.",
+    message: "Contactez un administrateur Jiroo pour réinitialiser votre accès.",
   },
   {
     label: "Première connexion ?",

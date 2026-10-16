@@ -118,7 +118,7 @@ export function BacklogOverview({ rows }: { rows: BacklogOverviewRow[] }) {
         <EmptyState
           icon={<FolderKanban className="size-5" />}
           title="Aucun backlog"
-          description="Un administrateur peut en créer un dans l’administration."
+          description="Un administrateur Jiroo peut en créer un dans l’administration."
         />
       </div>
     );

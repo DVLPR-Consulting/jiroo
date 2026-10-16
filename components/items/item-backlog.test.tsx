@@ -1253,3 +1253,10 @@ describe("ItemBacklog first steps (JIR-88)", () => {
     expect(screen.queryByRole("button", { name: /Nouveau Composant/ })).not.toBeInTheDocument();
   });
 });
+
+it.each(["legacy", "sprints"])("passes denied directory access through %s backlog rows", async (mode) => {
+  const user = userEvent.setup();
+  render(<ItemBacklog {...(mode === "legacy" ? props() : sprintProps())} users={[]} canBrowseUsers={false} />);
+  await user.click(screen.getAllByRole("button", { name: /^Assigné :/ })[0]!);
+  expect(screen.getByText(/Il vous manque la permission globale/)).toBeVisible();
+});

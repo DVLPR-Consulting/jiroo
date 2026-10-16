@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 
 const ROLE_LABELS: Record<string, string> = {
-  admin: "Administrateur",
+  admin: "Administrateur Jiroo",
   contributor: "Contributeur",
   viewer: "Lecteur",
 };

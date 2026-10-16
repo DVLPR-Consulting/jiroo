@@ -167,6 +167,8 @@ export type SelectFieldProps<V extends string = string> = {
   className?: string
   /** The trigger button (e.g. to focus it after a validation error). */
   triggerRef?: React.Ref<HTMLButtonElement>
+  /** Non-selectable explanation below the choices. */
+  footer?: React.ReactNode
 }
 
 /**
@@ -188,6 +190,7 @@ function SelectField<V extends string = string>({
   "aria-invalid": ariaInvalid,
   className,
   triggerRef,
+  footer,
 }: SelectFieldProps<V>) {
   const toRadix = (v: string) => (v === "" ? EMPTY_OPTION_VALUE : v)
   const selected = options.some((option) => option.value === value) ? toRadix(value) : ""
@@ -227,6 +230,7 @@ function SelectField<V extends string = string>({
             <span className="truncate">{option.label}</span>
           </SelectItem>
         ))}
+        {footer}
       </SelectContent>
     </Select>
   )
