@@ -22,10 +22,14 @@ export type ChangeStreamOptions = {
   lifetimeMs?: number;
 };
 
-function toWire(message: BusMessage, viewerId: string): WireEvent {
-  return message.kind === "ready" || message.kind === "resync"
-    ? { kind: message.kind, self: false }
-    : toWireEvent(message, viewerId);
+function toWire(message: BusMessage, subscription: RealtimeSubscription): WireEvent {
+  if (message.kind === "ready" || message.kind === "resync") {
+    // Missed backlog changes call for the banner; without a backlog, only the
+    // bell has to catch up, which `ready` already does quietly.
+    const kind = message.kind === "resync" && subscription.backlogId === null ? "ready" : message.kind;
+    return { kind, self: false };
+  }
+  return toWireEvent(message, subscription.userId);
 }
 
 /** A Server-Sent Events stream of the changes one viewer may see. */
@@ -53,7 +57,7 @@ export function createChangeStream({
       send(`retry: ${RETRY_MS}\n\n`);
 
       const unsubscribe = subscribe(subscription, (message) =>
-        send(`data: ${JSON.stringify(toWire(message, subscription.userId))}\n\n`),
+        send(`data: ${JSON.stringify(toWire(message, subscription))}\n\n`),
       );
       const heartbeat = setInterval(() => send(": ping\n\n"), heartbeatMs);
       const lifetime = setTimeout(() => close(), lifetimeMs);
