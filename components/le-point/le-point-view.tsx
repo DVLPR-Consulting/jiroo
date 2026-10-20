@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -76,6 +76,14 @@ function Term({ children, jiroo }: { children: ReactNode; jiroo: string }) {
 export function LePointView({ data }: { data: LePointDataset }) {
   const [perspective, setPerspective] = useState<Perspective>("developer");
   const [openKey, setOpenKey] = useState<string | null>(null);
+  // The button that opened the panel from the page gets the focus back on close.
+  const returnFocus = useRef<HTMLElement | null>(null);
+
+  function open(key: string) {
+    const active = document.activeElement;
+    if (openKey === null && active instanceof HTMLElement) returnFocus.current = active;
+    setOpenKey(key);
+  }
 
   // The remembered choice only exists in the browser: apply it after hydration.
   useEffect(() => {
@@ -114,12 +122,25 @@ export function LePointView({ data }: { data: LePointDataset }) {
       </header>
 
       {perspective === "developer" ? (
-        <DeveloperPerspective data={data} viewerId={viewerId} onOpen={setOpenKey} />
+        <DeveloperPerspective data={data} viewerId={viewerId} onOpen={open} />
       ) : (
-        <ProductPerspective data={data} viewerId={viewerId} onOpen={setOpenKey} />
+        <ProductPerspective data={data} viewerId={viewerId} onOpen={open} />
       )}
 
-      <TicketPanel data={data} ticketKey={openKey} onOpen={setOpenKey} onClose={() => setOpenKey(null)} />
+      <TicketPanel
+        data={data}
+        ticketKey={openKey}
+        onOpen={open}
+        onClose={() => setOpenKey(null)}
+        onCloseAutoFocus={(event) => {
+          const target = returnFocus.current;
+          returnFocus.current = null;
+          if (target?.isConnected) {
+            event.preventDefault();
+            target.focus();
+          }
+        }}
+      />
     </div>
   );
 }
@@ -356,11 +377,13 @@ function TicketPanel({
   ticketKey,
   onOpen,
   onClose,
+  onCloseAutoFocus,
 }: {
   data: LePointDataset;
   ticketKey: string | null;
   onOpen: (key: string) => void;
   onClose: () => void;
+  onCloseAutoFocus: (event: Event) => void;
 }) {
   const ticket = data.tickets.find((candidate) => candidate.key === ticketKey);
   const objective = ticket ? undefined : data.objectives.find((candidate) => candidate.key === ticketKey);
@@ -371,7 +394,13 @@ function TicketPanel({
 
   return (
     <Dialog open={ticketKey !== null} onOpenChange={(open) => (open ? undefined : onClose())}>
-      <DialogContent variant="sheet-right" showCloseButton={false} aria-describedby={undefined} className="bg-[var(--surface)] shadow-lg">
+      <DialogContent
+        variant="sheet-right"
+        showCloseButton={false}
+        aria-describedby={undefined}
+        className="bg-[var(--surface)] shadow-lg"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <header className="flex items-center gap-2 border-b border-border px-4 py-3">
           <span className="text-xs text-muted-foreground">Démonstration · lecture seule</span>

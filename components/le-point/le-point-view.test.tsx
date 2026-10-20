@@ -88,6 +88,17 @@ describe("LePointView", () => {
     expect(screen.getByRole("dialog", { name: "DEMO-9 — API de signature électronique" })).toBeVisible();
   });
 
+  it("gives the focus back to the opening button on Escape, even after following a dependency", async () => {
+    const user = userEvent.setup();
+    render(<LePointView data={LE_POINT_DEMO} />);
+    const opener = screen.getByRole("button", { name: "Ouvrir DEMO-15 — Afficher l’arrêt publié" });
+    await user.click(opener);
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "DEMO-9" }));
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
   it("states an unknown activity instead of inventing one", async () => {
     const user = userEvent.setup();
     render(<LePointView data={LE_POINT_DEMO} />);
