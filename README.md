@@ -53,6 +53,14 @@ Reset the database: `docker compose down -v`.
 - `pnpm db:studio` — Drizzle Studio
 - `pnpm check:auth` — headless sign-in smoke check
 
+## Health
+
+`GET /api/health` is public and uncached. It returns `200 {"status":"ok"}`
+when PostgreSQL answers `select 1`, otherwise `503 {"status":"unavailable"}`
+within two seconds. Responses expose no database or deployment details.
+The probe reserves at most one separate database connection, with bounded
+connection and query waits, so an outage cannot consume the application's pool.
+
 ## Authentication
 
 The app uses [better-auth](https://www.better-auth.com/) for authentication.
