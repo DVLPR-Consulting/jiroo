@@ -13,4 +13,5 @@ pnpm db:bootstrap-admin
 - It needs the application's `DATABASE_URL`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`, as the account is created through Better Auth.
 - Nothing else is created: unlike `pnpm db:seed` (development only), no demonstration backlog or item.
 - The administrator enrols two-factor authentication at the first sign-in, then creates the other accounts and backlogs from the administration screen.
-- Running it again for the same administrator changes nothing. It refuses to create a second administrator, and never modifies an existing account or its password.
+- Running it again for the same administrator changes nothing: a permission policy edited since stays as it is. Only an interrupted first run, whose authorization defaults were never set, gets them then.
+- It refuses to create a second administrator, even when two runs start at once (they take a database lock in turn), and never modifies an existing account or its password. If a first run stopped after creating the account but before making it administrator, the account is refused as an existing one: delete it from the database, then run the command again.
