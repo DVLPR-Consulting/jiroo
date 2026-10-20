@@ -1,14 +1,14 @@
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 import { resolveBacklogAccess } from "@/lib/auth/accessible-backlogs";
 import { listAssignableUsersForBacklog } from "@/lib/auth/authorization";
 import { db } from "@/lib/db";
-import { statuses } from "@/lib/db/schema/domain";
+import { sprints, statuses } from "@/lib/db/schema/domain";
+import { binaryTextOrder } from "@/lib/db/order";
 import type { NewItemDialogData } from "@/components/items/new-item-dialog";
 import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
 import { listLabelsForBacklog, listLiveParentCandidates } from "@/lib/services/items";
 import { listReleaseSummaries } from "@/lib/services/releases";
-import { listSprintsForBacklog } from "@/lib/services/sprints";
 
 export type BacklogCreateDialog = NewItemDialogData & { backlogKey: string };
 
@@ -32,7 +32,7 @@ export async function loadBacklogCreateDialog({
   if (!capabilities?.createItems) return null;
   const canBrowseUsers = access.globalDecisions.get("browse_users")?.allowed === true;
 
-  const [parents, statusRows, labels, sprintSnapshot, releaseSummaries, assigneeCandidates] =
+  const [parents, statusRows, labels, openSprints, releaseSummaries, assigneeCandidates] =
     await Promise.all([
       listLiveParentCandidates(backlog.id),
       db
@@ -41,7 +41,12 @@ export async function loadBacklogCreateDialog({
         .where(eq(statuses.backlogId, backlog.id))
         .orderBy(asc(statuses.order), asc(statuses.id)),
       listLabelsForBacklog(backlog.id),
-      listSprintsForBacklog(backlog.id),
+      // Sprint headers only: their membership history is not needed here.
+      db
+        .select({ id: sprints.id, name: sprints.name })
+        .from(sprints)
+        .where(and(eq(sprints.backlogId, backlog.id), ne(sprints.state, "completed")))
+        .orderBy(asc(binaryTextOrder(sprints.rank))),
       listReleaseSummaries(backlog.id),
       canBrowseUsers ? listAssignableUsersForBacklog(backlog.id) : Promise.resolve([]),
     ]);
@@ -61,9 +66,7 @@ export async function loadBacklogCreateDialog({
       canAssign: capabilities.assignItems,
       canBrowseUsers,
       currentUserId: userId,
-      sprints: sprintSnapshot.sprints
-        .filter((sprint) => sprint.state !== "completed")
-        .map((sprint) => ({ id: sprint.id, name: sprint.name })),
+      sprints: openSprints,
       labels: labels.map(({ id, name, color }) => ({ id, name, color })),
     },
   };

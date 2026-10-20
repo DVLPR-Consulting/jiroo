@@ -6,9 +6,9 @@ const mocks = vi.hoisted(() => ({
   listAssignableUsersForBacklog: vi.fn(),
   listLiveParentCandidates: vi.fn(),
   listLabelsForBacklog: vi.fn(),
-  listSprintsForBacklog: vi.fn(),
   listReleaseSummaries: vi.fn(),
   statusRows: vi.fn(),
+  sprintRows: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -21,13 +21,19 @@ vi.mock("@/lib/services/items", () => ({
   listLiveParentCandidates: mocks.listLiveParentCandidates,
   listLabelsForBacklog: mocks.listLabelsForBacklog,
 }));
-vi.mock("@/lib/services/sprints", () => ({ listSprintsForBacklog: mocks.listSprintsForBacklog }));
 vi.mock("@/lib/services/releases", () => ({ listReleaseSummaries: mocks.listReleaseSummaries }));
-vi.mock("@/lib/db", () => ({
-  db: {
-    select: () => ({ from: () => ({ where: () => ({ orderBy: mocks.statusRows }) }) }),
-  },
-}));
+vi.mock("@/lib/db", async () => {
+  const { sprints } = await import("@/lib/db/schema/domain");
+  return {
+    db: {
+      select: () => ({
+        from: (table: unknown) => ({
+          where: () => ({ orderBy: table === sprints ? mocks.sprintRows : mocks.statusRows }),
+        }),
+      }),
+    },
+  };
+});
 
 import { loadBacklogCreateDialog } from "./create-dialog";
 
@@ -50,13 +56,8 @@ describe("loadBacklogCreateDialog", () => {
     ]);
     mocks.statusRows.mockResolvedValue([{ id: "s1", name: "À faire", category: "todo" }]);
     mocks.listLabelsForBacklog.mockResolvedValue([{ id: "l1", name: "ux", color: "#000", backlogId: "b1" }]);
-    mocks.listSprintsForBacklog.mockResolvedValue({
-      sprints: [
-        { id: "sp1", name: "Sprint 1", state: "active" },
-        { id: "sp0", name: "Sprint 0", state: "completed" },
-      ],
-      memberships: [],
-    });
+    // The query keeps open sprints only (state <> completed).
+    mocks.sprintRows.mockResolvedValue([{ id: "sp1", name: "Sprint 1" }]);
     mocks.listReleaseSummaries.mockResolvedValue([
       { id: "r1", name: "1.0", released: false, archived: false },
       { id: "r0", name: "0.9", released: true, archived: true },

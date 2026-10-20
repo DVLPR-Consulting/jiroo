@@ -33,7 +33,7 @@ export default async function RoadmapPage({
 
   return (
     <div className="flex h-full flex-col">
-      <Suspense fallback={null}><BacklogTopbarCreate userId={session.user.id} backlogKey={backlog.key} /></Suspense>
+      <Suspense fallback={null}><BacklogTopbarCreate userId={session.user.id} backlogKey={backlog.key} hasItemDrawer /></Suspense>
       <PageHeader title="Roadmap" />
       <RoadmapView
         backlogKey={backlog.key}

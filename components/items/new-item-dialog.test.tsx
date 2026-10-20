@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NewItemButton } from "@/components/items/new-item-dialog";
@@ -556,6 +556,31 @@ describe("NewItemButton", () => {
       expect(options.secondaryAction.label).toBe("Ouvrir");
       options.secondaryAction.run();
       expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?view=list&item=DEMO-9");
+    });
+
+    it("opens the created item in the backlog view from a page without a drawer (JIR-112)", async () => {
+      const user = userEvent.setup();
+      mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: { id: "i", key: "DEMO-9" } });
+      window.history.replaceState({}, "", "/b/DEMO/releases");
+      render(<NewItemButton {...dialogProps()} openCreatedAt="/b/DEMO" />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Nouveau");
+      await user.click(screen.getByRole("button", { name: /^Créer$/ }));
+
+      await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+      mocks.toastSuccess.mock.calls[0]![1].secondaryAction.run();
+      expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?item=DEMO-9");
+    });
+
+    it.each([
+      ["#ffeeaa", "rgb(28, 25, 23)"],
+      ["#7c3030", "rgb(255, 255, 255)"],
+    ])("keeps the key tag readable on the backlog color %s (JIR-112)", async (color, text) => {
+      const user = userEvent.setup();
+      render(<NewItemButton {...dialogProps()} backlogColor={color} />);
+      await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      const tag = within(screen.getByRole("dialog", { name: "Nouvel item" })).getByText("DEMO");
+      expect(tag).toHaveStyle({ color: text });
     });
 
     describe("under the view's filters (JIR-92)", () => {
