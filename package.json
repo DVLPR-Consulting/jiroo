@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:grant-runtime": "tsx scripts/db-runtime-role.ts",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx lib/db/seed.ts",
     "db:bootstrap-admin": "node --conditions=react-server --import tsx scripts/bootstrap-admin.ts",
