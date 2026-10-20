@@ -28,15 +28,22 @@ function run(entry: "migrate" | "config", directUrl: string | undefined) {
 }
 
 describe("explicit migration connection", () => {
-  for (const entry of ["migrate", "config"] as const) {
-    it.each([undefined, "", "   "])(`${entry} refuses a missing or blank owner URL (%s) before connecting`, (url) => {
-      const result = run(entry, url);
-      expect(result.error).toBeUndefined();
-      expect(result.status).toBe(1);
-      expect(result.stderr).toMatch(/DIRECT_DATABASE_URL.*required/i);
-      expect(result.stderr).not.toContain("ECONNREFUSED");
-    });
-  }
+  it.each([undefined, "", "   "])("migrate refuses a missing or blank owner URL (%s) before connecting", (url) => {
+    const result = run("migrate", url);
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/DIRECT_DATABASE_URL.*required/i);
+    expect(result.stderr).not.toContain("ECONNREFUSED");
+  });
+
+  // `drizzle-kit generate` reads the schema only: it must work without any URL,
+  // and never fall back to the application's DATABASE_URL.
+  it.each([undefined, "", "   "])("Drizzle config loads without credentials for a missing owner URL (%s)", (url) => {
+    const result = run("config", url);
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout).dbCredentials).toBeUndefined();
+  });
 
   it("loads the explicit direct URL in Drizzle config without consulting DATABASE_URL", () => {
     const result = run("config", "  postgresql://owner:local@127.0.0.1:1/owner_only  ");

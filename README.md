@@ -53,10 +53,11 @@ Reset the database: `docker compose down -v`.
 - `pnpm db:studio` — Drizzle Studio
 - `pnpm check:auth` — headless sign-in smoke check
 
-Migrations and Drizzle schema tools require a non-empty `DIRECT_DATABASE_URL`
-for the schema owner's direct connection. They refuse to start without it and
-never fall back to `DATABASE_URL` or PostgreSQL's `PG*` defaults. Runtime traffic
-continues to use `DATABASE_URL`.
+Migrations require a non-empty `DIRECT_DATABASE_URL` for the schema owner's
+direct connection: `pnpm db:migrate` refuses to start without it and never falls
+back to `DATABASE_URL` or PostgreSQL's `PG*` defaults. The Drizzle tools that
+connect (push, studio) read the same variable; `pnpm db:generate` needs none.
+Runtime traffic continues to use `DATABASE_URL`.
 
 ## Health
 
