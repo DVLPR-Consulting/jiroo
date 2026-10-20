@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { ReleaseDetail } from "@/components/releases/release-detail";
+import { BacklogTopbarCreate } from "@/components/shell/backlog-topbar-create";
 import { PageHeader } from "@/components/shell/page-header";
 import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
 import { checkPermission } from "@/lib/auth/authorization";
@@ -123,6 +125,7 @@ export default async function ReleaseDetailPage({
 
   return (
     <>
+      <Suspense fallback={null}><BacklogTopbarCreate userId={session.user.id} backlogKey={backlog.key} /></Suspense>
       <PageHeader className="mx-auto w-full max-w-6xl pb-0" />
       <ReleaseDetail
         backlog={{ id: backlog.id, key: backlog.key, name: backlog.name }}

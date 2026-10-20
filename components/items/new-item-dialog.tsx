@@ -86,6 +86,8 @@ export type NewItemFieldOptions = {
 export type NewItemButtonProps = {
   backlogId: string;
   backlogKey: string;
+  /** The backlog's own color, for its key tag (the primary color otherwise). */
+  backlogColor?: string;
   /**
    * The parent candidates: the backlog's live items, whatever the view
    * filters (a Version-filtered view loads them apart, JIR-92).
@@ -121,7 +123,7 @@ export type NewItemButtonProps = {
 /** The dialog data a view hands down to its « Nouvel item » buttons. */
 export type NewItemDialogData = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters"
+  "backlogId" | "backlogColor" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters"
 >;
 
 const EMPTY_FIELD_OPTIONS: NewItemFieldOptions = {};
@@ -293,6 +295,7 @@ export function useOpenCreatedItem() {
 export function NewItemButton({
   backlogId,
   backlogKey,
+  backlogColor,
   items,
   statuses,
   initialStatusId,
@@ -611,7 +614,10 @@ export function NewItemButton({
           <DialogTitle className="text-lg font-semibold">
             {contextualTask ? `Nouvelle tâche — ${contextLabel}` : "Nouvel item"}
           </DialogTitle>
-          <span className="rounded-[var(--radius-sm)] bg-[var(--primary)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--primary-foreground)]">
+          <span
+            className="rounded-[var(--radius-sm)] bg-[var(--primary)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--primary-foreground)]"
+            style={backlogColor ? { background: backlogColor, color: "#fff" } : undefined}
+          >
             <span className="sr-only">Backlog </span>
             {backlogKey}
           </span>

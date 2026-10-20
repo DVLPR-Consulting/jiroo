@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ReleaseList } from "@/components/releases/release-list";
+import { BacklogTopbarCreate } from "@/components/shell/backlog-topbar-create";
 import { PageHeader } from "@/components/shell/page-header";
 import {
   getBacklogCapabilities,
@@ -43,6 +45,7 @@ export default async function ReleasesPage({
 
   return (
     <>
+      <Suspense fallback={null}><BacklogTopbarCreate userId={session.user.id} backlogKey={backlog.key} /></Suspense>
       <PageHeader
         className="mx-auto w-full max-w-6xl"
         title="Releases"

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { BurndownReportView } from "@/components/reports/burndown-report";
@@ -7,6 +8,7 @@ import {
   type SerializableSprintReport,
 } from "@/components/reports/sprint-report";
 import { VelocityReportView } from "@/components/reports/velocity-report";
+import { BacklogTopbarCreate } from "@/components/shell/backlog-topbar-create";
 import { PageHeader } from "@/components/shell/page-header";
 import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
 import { requireAppPageSession } from "@/lib/auth/session";
@@ -166,6 +168,7 @@ export default async function ReportsPage({
 
   return (
     <>
+      <Suspense fallback={null}><BacklogTopbarCreate userId={session.user.id} backlogKey={backlog.key} /></Suspense>
       <PageHeader className="mx-auto w-full max-w-7xl" />
       <div className="mx-auto max-w-7xl space-y-6 px-4 pb-6 sm:px-6 lg:pb-8">
         {navigation}

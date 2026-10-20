@@ -362,6 +362,7 @@ export async function BacklogViewContent({
   ]);
   const createDialogProps = {
     backlogId: backlog.id,
+    backlogColor: backlog.color,
     canScheduleItems: capabilities.scheduleItems,
     items: parentCandidates.map((item) => ({
       id: item.id,
@@ -631,13 +632,13 @@ export async function BacklogViewContent({
           </>
         }
       />
-      {capabilities.createItems && (
-        view !== "board" || (activeSprint !== null && capabilities.scheduleItems)
-      ) ? (
+      {/* Always there, as Jira's Create: the Board adds to its active sprint
+          when the user may plan it, the backlog otherwise. */}
+      {capabilities.createItems ? (
         <TopbarCreateItem
           backlogKey={backlog.key}
           {...createDialogProps}
-          {...(view === "board" && activeSprint
+          {...(view === "board" && activeSprint && capabilities.scheduleItems
             ? { sprintId: activeSprint.id, contextLabel: activeSprint.name }
             : {})}
         />

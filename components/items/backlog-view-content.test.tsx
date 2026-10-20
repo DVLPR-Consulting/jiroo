@@ -1155,6 +1155,25 @@ describe("BacklogViewContent read boundary", () => {
       expect(within(dialog).queryByText(/le filtre de la vue peut masquer/)).not.toBeInTheDocument();
     });
 
+    it("keeps « + Créer » on a Board without an active sprint, tagged with the backlog color (JIR-112)", async () => {
+      const user = userEvent.setup();
+      mocks.renderRealViews.current = true;
+      const page = await BacklogViewContent({
+        paramsPromise: Promise.resolve({ key: "DEMO" }),
+        searchParamsPromise: Promise.resolve({ view: "board" }),
+      });
+      render(
+        <ViewUrlStateProvider initialEntries={[["view", "board"]]}>
+          {page}
+        </ViewUrlStateProvider>,
+      );
+
+      await user.click(screen.getByRole("button", { name: "Créer" }));
+      // No sprint to add to: Jira creates the item in the backlog.
+      const dialog = screen.getByRole("dialog", { name: "Nouvel item" });
+      expect(within(dialog).getByText("DEMO")).toHaveStyle({ background: "#2563eb" });
+    });
+
     it("reads the step from the unfiltered rows without a Version filter", async () => {
       mocks.listItems.mockResolvedValue([liveRow("comp", "composant")]);
       render(
