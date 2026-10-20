@@ -6,7 +6,7 @@ Lightweight ticket manager (Jira-like) for a Cour de cassation team. French UI.
 
 ## Requirements
 
-- Node 20+
+- Node 24
 - Corepack (selects the pnpm 10 version pinned in `package.json`)
 - Docker (local Postgres)
 
@@ -52,6 +52,20 @@ Reset the database: `docker compose down -v`.
 - `pnpm db:seed` — seed demo data
 - `pnpm db:studio` — Drizzle Studio
 - `pnpm check:auth` — headless sign-in smoke check
+
+Migrations require a non-empty `DIRECT_DATABASE_URL` for the schema owner's
+direct connection: `pnpm db:migrate` refuses to start without it and never falls
+back to `DATABASE_URL` or PostgreSQL's `PG*` defaults. The Drizzle tools that
+connect (push, studio) read the same variable; `pnpm db:generate` needs none.
+Runtime traffic continues to use `DATABASE_URL`.
+
+## Health
+
+`GET /api/health` is public and uncached. It returns `200 {"status":"ok"}`
+when PostgreSQL answers `select 1`, otherwise `503 {"status":"unavailable"}`
+within two seconds. Responses expose no database or deployment details.
+The probe reserves at most one separate database connection, with bounded
+connection and query waits, so an outage cannot consume the application's pool.
 
 ## Authentication
 
