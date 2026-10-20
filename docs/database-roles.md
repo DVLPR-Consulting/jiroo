@@ -7,9 +7,9 @@ Jiroo connects with two PostgreSQL roles (JIR-114):
 | Schema owner | `pnpm db:migrate`, `pnpm db:grant-runtime` (`DIRECT_DATABASE_URL`) | Owns the schema and every table; the only role that changes the schema |
 | Runtime role | The application (`DATABASE_URL`) | Reads and writes rows, draws sequence values; nothing else |
 
-The runtime role cannot create, alter, drop or truncate tables, nor read the migration journal (`drizzle.__drizzle_migrations`). A leaked application secret therefore cannot change the schema.
+The runtime role cannot create, alter, drop or truncate persistent tables, nor rewind a sequence or read the migration journal (`drizzle.__drizzle_migrations`). A leaked application secret therefore cannot change the schema.
 
-`db:grant-runtime` grants these rights and revokes those given to the role beyond them. It then checks what the role can still do through other roles or `PUBLIC` (role memberships, objects it owns, `CREATE` on the schema or the database, `TRUNCATE`, `REFERENCES`, `TRIGGER` or `MAINTAIN` on a table, access to the `drizzle` schema). It never changes `PUBLIC` or another role silently: it lists what to fix and grants nothing until it is fixed.
+`db:grant-runtime` grants these rights and revokes those given to the role beyond them. It then checks what the role can still do through other roles or `PUBLIC` (role memberships, objects it owns, `CREATE` on the schema or the database, `TRUNCATE`, `REFERENCES`, `TRIGGER` or `MAINTAIN` on a table, `UPDATE` on a sequence, access to the `drizzle` schema). Temporary tables, which PostgreSQL allows every role by default through `PUBLIC`, stay allowed: they only last for the session and touch no data. It never changes `PUBLIC` or another role silently: it lists what to fix and grants nothing until it is fixed.
 
 ## Set up
 

@@ -142,5 +142,16 @@ async function effectiveExcess(
     [role, tableExtras],
   );
   for (const { name, privilege } of tables) problems.push(`has ${privilege} on ${name}`);
+
+  // UPDATE on a sequence allows setval: rewinding item keys would collide.
+  const { rows: sequences } = await client.query<{ name: string }>(
+    `SELECT c.relname AS name FROM pg_class c
+      WHERE c.relnamespace = 'public'::regnamespace
+        -- CASE keeps the check off non-sequences, whatever the plan's order.
+        AND CASE WHEN c.relkind = 'S' THEN has_sequence_privilege($1, c.oid, 'UPDATE') ELSE false END
+      ORDER BY c.relname`,
+    [role],
+  );
+  for (const { name } of sequences) problems.push(`has UPDATE (setval) on sequence ${name}`);
   return problems;
 }

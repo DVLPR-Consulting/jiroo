@@ -111,6 +111,15 @@ describeDb("grantRuntimeRole (JIR-114)", () => {
     }
   });
 
+  it("refuses a role that can still rewind a sequence through PUBLIC", async () => {
+    await owner.query("GRANT UPDATE ON SEQUENCE item_key_seq TO PUBLIC");
+    try {
+      await expect(grantRuntimeRole(owner, RUNTIME)).rejects.toThrow(/UPDATE \(setval\) on sequence item_key_seq/);
+    } finally {
+      await owner.query("REVOKE UPDATE ON SEQUENCE item_key_seq FROM PUBLIC");
+    }
+  });
+
   it("refuses a role that inherits another role's rights", async () => {
     await owner.query(`GRANT pg_read_all_data TO ${RUNTIME}`);
     try {
