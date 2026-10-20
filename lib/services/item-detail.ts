@@ -200,6 +200,7 @@ export async function loadItemDetailData({
       createDialog: capabilities.createItems
         ? {
             backlogId: backlog.id,
+            backlogColor: backlog.color,
             canScheduleItems: capabilities.scheduleItems,
             items: backlogItems.map((item) => ({
               id: item.id,

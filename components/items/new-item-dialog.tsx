@@ -48,6 +48,7 @@ import {
   type ItemType,
   type Priority,
 } from "@/lib/design/constants";
+import { readableTextOn } from "@/lib/design/contrast";
 import { ITEM_TEMPLATES, getTemplate } from "@/lib/items/templates";
 import { isHiddenByFilters, type Filters } from "@/lib/items/filter";
 import { allowedParentType } from "@/lib/tree/hierarchy";
@@ -86,6 +87,13 @@ export type NewItemFieldOptions = {
 export type NewItemButtonProps = {
   backlogId: string;
   backlogKey: string;
+  /** The backlog's own color, for its key tag (the primary color otherwise). */
+  backlogColor?: string;
+  /**
+   * The page whose drawer shows a created item (« Ouvrir »); the current page
+   * by default. Pages without a drawer send it to the backlog view.
+   */
+  openCreatedAt?: string;
   /**
    * The parent candidates: the backlog's live items, whatever the view
    * filters (a Version-filtered view loads them apart, JIR-92).
@@ -121,7 +129,7 @@ export type NewItemButtonProps = {
 /** The dialog data a view hands down to its « Nouvel item » buttons. */
 export type NewItemDialogData = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters"
+  "backlogId" | "backlogColor" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters"
 >;
 
 const EMPTY_FIELD_OPTIONS: NewItemFieldOptions = {};
@@ -276,10 +284,14 @@ export function useCurrentViewFilters(viewFilters: Filters | undefined) {
 }
 
 /** « Ouvrir » of a create's success message: shows the item in the drawer. */
-export function useOpenCreatedItem() {
+export function useOpenCreatedItem(openAt?: string) {
   const router = useRouter();
   const viewUrl = useOptionalViewUrlState();
   return (key: string) => {
+    if (openAt) {
+      router.push(`${openAt}?item=${encodeURIComponent(key)}`);
+      return;
+    }
     if (viewUrl) {
       viewUrl.push((params) => params.set("item", key));
       return;
@@ -293,6 +305,8 @@ export function useOpenCreatedItem() {
 export function NewItemButton({
   backlogId,
   backlogKey,
+  backlogColor,
+  openCreatedAt,
   items,
   statuses,
   initialStatusId,
@@ -311,7 +325,7 @@ export function NewItemButton({
   viewFilters,
 }: NewItemButtonProps) {
   const router = useRouter();
-  const openCreated = useOpenCreatedItem();
+  const openCreated = useOpenCreatedItem(openCreatedAt);
   const currentViewFilters = useCurrentViewFilters(viewFilters);
   const contextualTask = contextLabel !== undefined;
   const [pending, startTransition] = useTransition();
@@ -611,7 +625,10 @@ export function NewItemButton({
           <DialogTitle className="text-lg font-semibold">
             {contextualTask ? `Nouvelle tâche — ${contextLabel}` : "Nouvel item"}
           </DialogTitle>
-          <span className="rounded-[var(--radius-sm)] bg-[var(--primary)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--primary-foreground)]">
+          <span
+            className="rounded-[var(--radius-sm)] bg-[var(--primary)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--primary-foreground)]"
+            style={backlogColor ? { background: backlogColor, color: readableTextOn(backlogColor) } : undefined}
+          >
             <span className="sr-only">Backlog </span>
             {backlogKey}
           </span>

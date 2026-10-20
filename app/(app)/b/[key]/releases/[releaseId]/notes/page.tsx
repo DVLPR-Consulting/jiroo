@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { ReleaseNotesEditor } from "@/components/releases/release-notes-editor";
+import { BacklogTopbarCreate } from "@/components/shell/backlog-topbar-create";
 import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
 import { requireAppPageSession } from "@/lib/auth/session";
 import { buildReleaseNotesMarkdown } from "@/lib/releases/notes";
@@ -54,6 +56,7 @@ export default async function ReleaseNotesPage({
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6 lg:p-8">
+      <Suspense fallback={null}><BacklogTopbarCreate userId={session.user.id} backlogKey={backlog.key} /></Suspense>
       <Link
         href={`/b/${backlog.key}/releases/${releaseId}`}
         className="text-sm text-muted-foreground hover:text-foreground"

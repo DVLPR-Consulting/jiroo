@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { BacklogSettingsNav } from "@/components/admin/backlog-settings-nav";
 import { RepoConnectionsAdmin } from "@/components/admin/repo-connections-admin";
+import { BacklogTopbarCreate } from "@/components/shell/backlog-topbar-create";
 import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
 import { requireBacklogReadPermissionByKey } from "@/lib/auth/action-authorization";
 import { checkPermission, ResourceNotFoundError } from "@/lib/auth/authorization";
@@ -38,6 +40,7 @@ export default async function DevelopmentSettingsPage({ params }: { params: Prom
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-8">
+      <Suspense fallback={null}><BacklogTopbarCreate userId={session.user.id} backlogKey={resource.backlogKey} /></Suspense>
       <div className="space-y-1">
         <ShellBreadcrumb canOpenAdmin={createBacklogsDecision.allowed} />
         <h1 className="t-h1">Développement — {backlog.name}</h1>

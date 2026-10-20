@@ -104,7 +104,7 @@ function statusCategory(value: string): "todo" | "in_progress" | "done" | null {
 /** Data the « Nouvel item » dialog needs, shared with the views. */
 export type DetailCreateDialog = Pick<
   NewItemButtonProps,
-  "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions"
+  "backlogId" | "backlogColor" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions"
 >;
 
 /** The hierarchy one level down (lib/tree/hierarchy.ts), with Jira-like wording. */

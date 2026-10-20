@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ItemDetailDrawer } from "@/components/items/item-detail-sheet";
 import { RoadmapView } from "@/components/roadmap/roadmap-view";
+import { BacklogTopbarCreate } from "@/components/shell/backlog-topbar-create";
 import { PageHeader } from "@/components/shell/page-header";
 import { getBacklogCapabilities } from "@/lib/auth/accessible-backlogs";
 import { projectBacklogCapabilities } from "@/lib/auth/capabilities";
@@ -31,6 +33,7 @@ export default async function RoadmapPage({
 
   return (
     <div className="flex h-full flex-col">
+      <Suspense fallback={null}><BacklogTopbarCreate userId={session.user.id} backlogKey={backlog.key} hasItemDrawer /></Suspense>
       <PageHeader title="Roadmap" />
       <RoadmapView
         backlogKey={backlog.key}
