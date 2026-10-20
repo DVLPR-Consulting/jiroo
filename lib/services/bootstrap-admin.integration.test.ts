@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { account, user } from "@/lib/db/schema/auth";
@@ -97,7 +97,19 @@ describeDb("bootstrapAdministrator (JIR-115)", () => {
     try {
       const result = await bootstrapAdministrator({ email: emails[0]!, name: "Premier", password: PASSWORD });
       expect(result.outcome).toBe("already-administrator");
-      expect(await db.select().from(permissionGrants).where(eq(permissionGrants.id, grant!.id))).toEqual([]);
+      // The same right under any id: a re-seed would insert a fresh row.
+      const sameRight = and(
+        eq(permissionGrants.scope, grant!.scope),
+        grant!.permissionSchemeId === null
+          ? isNull(permissionGrants.permissionSchemeId)
+          : eq(permissionGrants.permissionSchemeId, grant!.permissionSchemeId),
+        eq(permissionGrants.permissionKey, grant!.permissionKey),
+        eq(permissionGrants.principalType, grant!.principalType),
+        grant!.projectRoleId === null
+          ? isNull(permissionGrants.projectRoleId)
+          : eq(permissionGrants.projectRoleId, grant!.projectRoleId),
+      );
+      expect(await db.select().from(permissionGrants).where(sameRight)).toEqual([]);
     } finally {
       await db.insert(permissionGrants).values(grant!).onConflictDoNothing();
     }
