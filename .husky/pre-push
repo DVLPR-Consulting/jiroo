@@ -1,0 +1,11 @@
+# main only advances by merging reviewed pull requests (CLAUDE.md, JIR-34).
+# GitHub cannot protect branches on this private repository's plan, so this
+# hook refuses a direct push to main from a clone. Git passes one line per ref:
+# <local ref> <local sha> <remote ref> <remote sha>.
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "Push to main refused: open a pull request instead (JIR-34)." >&2
+    exit 1
+  fi
+done
+exit 0
