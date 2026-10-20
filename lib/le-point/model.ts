@@ -122,7 +122,7 @@ function context(data: LePointDataset) {
       .map((blocker) => {
         if ("hidden" in blocker) return "Attend un ticket que tu ne peux pas voir.";
         const dependency = tickets.get(blocker.key);
-        if (!dependency) return `Attend ${blocker.key}.`;
+        if (!dependency) return `Attend ${blocker.key}, un ticket introuvable.`;
         const state = dependency.category === "in_progress" ? "en cours" : "à faire";
         const holder = dependency.assignee ? people.get(dependency.assignee) : undefined;
         return `Attend ${dependency.key} « ${dependency.title} », ${state}${holder ? ` chez ${holder}` : ", sans assigné"}.`;
@@ -141,7 +141,10 @@ function context(data: LePointDataset) {
       objective: objective ? { key: objective.key, title: objective.title } : null,
       due: ticket.due,
       reason,
-      links: openBlockers(ticket).flatMap((blocker) => ("hidden" in blocker ? [] : [blocker.key])),
+      // Only tickets the dataset knows can be opened.
+      links: openBlockers(ticket).flatMap((blocker) =>
+        "hidden" in blocker || !tickets.has(blocker.key) ? [] : [blocker.key],
+      ),
     };
   }
 
@@ -189,11 +192,13 @@ export function developerView(data: LePointDataset, viewerId: string) {
       ];
       events.push({ day: ticket.done, card: card(ticket, sentence(parts.join(" ; "))) });
     } else if (ticket.category !== "done" && !isBlocked(ticket)) {
-      const released = doneDependencies.filter((dependency) => dependency.done > data.lastVisit);
-      const day = released.map((dependency) => dependency.done).sort().at(-1);
-      if (day) {
-        const names = released.map((dependency) => dependency.key).join(", ");
-        events.push({ day, card: card(ticket, sentence(`N’est plus bloqué : ${names} terminé le ${formatDay(day)}`)) });
+      // Released since the last visit when its last dependency was done then.
+      const day = doneDependencies.map((dependency) => dependency.done).sort().at(-1);
+      if (day && day > data.lastVisit) {
+        const parts = [...doneDependencies]
+          .sort((a, b) => a.done.localeCompare(b.done))
+          .map((dependency) => `${dependency.key} terminé le ${formatDay(dependency.done)}`);
+        events.push({ day, card: card(ticket, sentence(`N’est plus bloqué : ${parts.join(", ")}`)) });
       }
     }
   }

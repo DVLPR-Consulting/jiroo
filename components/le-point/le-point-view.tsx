@@ -80,6 +80,10 @@ export function LePointView({ data }: { data: LePointDataset }) {
   const returnFocus = useRef<HTMLElement | null>(null);
 
   function open(key: string) {
+    // Only what the dataset knows opens: never an empty, unnamed panel.
+    const known = data.tickets.some((ticket) => ticket.key === key)
+      || data.objectives.some((objective) => objective.key === key);
+    if (!known) return;
     const active = document.activeElement;
     if (openKey === null && active instanceof HTMLElement) returnFocus.current = active;
     setOpenKey(key);

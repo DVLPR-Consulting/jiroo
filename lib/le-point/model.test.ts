@@ -169,6 +169,31 @@ describe("edge cases", () => {
     ]);
   });
 
+  it("dates each dependency that released a ticket since the last visit", () => {
+    const data: LePointDataset = {
+      ...base,
+      tickets: [
+        { key: "A", title: "A", objective: null, status: "À faire", category: "todo", assignee: "camille", due: null, blockedBy: [{ key: "B" }, { key: "C" }], lastActivity: null },
+        { key: "B", title: "B", objective: null, status: "Terminé", category: "done", assignee: "hugo", due: null, done: "2026-10-29", lastActivity: null },
+        { key: "C", title: "C", objective: null, status: "Terminé", category: "done", assignee: "hugo", due: null, done: "2026-11-02", lastActivity: null },
+      ],
+    };
+    expect(developerView(data, "camille").recent[0]!.reason).toBe(
+      "N’est plus bloqué : B terminé le 29 oct., C terminé le 2 nov.",
+    );
+  });
+
+  it("names an unknown dependency without offering to open it", () => {
+    const data: LePointDataset = {
+      ...base,
+      tickets: [
+        { key: "A", title: "A", objective: null, status: "À faire", category: "todo", assignee: "camille", due: null, blockedBy: [{ key: "MISSING" }], lastActivity: null },
+      ],
+    };
+    const [blocked] = developerView(data, "camille").blocked;
+    expect(blocked).toMatchObject({ reason: "Attend MISSING, un ticket introuvable.", links: [] });
+  });
+
   it("ignores a mention on a ticket already done", () => {
     const data: LePointDataset = {
       ...base,
