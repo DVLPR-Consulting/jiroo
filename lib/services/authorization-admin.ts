@@ -226,7 +226,8 @@ async function groupRequiresPlatformAdministration(
   return Boolean(grant);
 }
 
-async function platformAdministratorIds(tx: Transaction): Promise<Set<string>> {
+/** Every Jiroo administrator: bootstrap role, or administer_jiroo through a user or group grant. */
+export async function platformAdministratorIds(tx: Transaction): Promise<Set<string>> {
   const users = await tx.select({ id: user.id, role: user.role }).from(user);
   const grants = await tx
     .select({
