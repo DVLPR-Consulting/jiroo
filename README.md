@@ -53,6 +53,11 @@ Reset the database: `docker compose down -v`.
 - `pnpm db:studio` — Drizzle Studio
 - `pnpm check:auth` — headless sign-in smoke check
 
+Migrations and Drizzle schema tools require a non-empty `DIRECT_DATABASE_URL`
+for the schema owner's direct connection. They refuse to start without it and
+never fall back to `DATABASE_URL` or PostgreSQL's `PG*` defaults. Runtime traffic
+continues to use `DATABASE_URL`.
+
 ## Health
 
 `GET /api/health` is public and uncached. It returns `200 {"status":"ok"}`

@@ -4,10 +4,17 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 
 async function main() {
-  const pool = new Pool({ connectionString: process.env.DIRECT_DATABASE_URL });
-  const db = drizzle(pool);
-  await migrate(db, { migrationsFolder: "./drizzle" });
-  await pool.end();
+  const directUrl = process.env.DIRECT_DATABASE_URL?.trim();
+  if (!directUrl) {
+    throw new Error("DIRECT_DATABASE_URL is required for migrations; set the schema owner's direct connection URL.");
+  }
+  const pool = new Pool({ connectionString: directUrl });
+  try {
+    const db = drizzle(pool);
+    await migrate(db, { migrationsFolder: "./drizzle" });
+  } finally {
+    await pool.end();
+  }
   console.log("migrations applied");
 }
 
