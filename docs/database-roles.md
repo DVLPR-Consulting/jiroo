@@ -9,15 +9,17 @@ Jiroo connects with two PostgreSQL roles (JIR-114):
 
 The runtime role cannot create, alter, drop or truncate tables, nor read the migration journal (`drizzle.__drizzle_migrations`). A leaked application secret therefore cannot change the schema.
 
+`db:grant-runtime` grants these rights and revokes those given to the role beyond them. It then checks what the role can still do through other roles or `PUBLIC` (role memberships, objects it owns, `CREATE` on the schema or the database, `TRUNCATE`, `REFERENCES`, `TRIGGER` or `MAINTAIN` on a table, access to the `drizzle` schema). It never changes `PUBLIC` or another role silently: it lists what to fix and grants nothing until it is fixed.
+
 ## Set up
 
-1. Create the runtime role, with `LOGIN` and no other attribute (no `SUPERUSER`, `CREATEROLE`, `CREATEDB` or `BYPASSRLS`; the script refuses such a role). On Neon, create it from the console; on the internal server, the database administrator runs:
+1. Create the runtime role **in SQL**, with `LOGIN` and no other attribute or membership, connected as the schema owner (the Neon SQL Editor, or `psql` on the internal server):
 
    ```sql
    CREATE ROLE jiroo_runtime LOGIN PASSWORD '…';
    ```
 
-   The password never goes in the repository: it lives in the secret store, and in the application's `DATABASE_URL` only.
+   On Neon, do not create it from the console's Roles page: a console role becomes a member of `neon_superuser`, far beyond this scope, and the script refuses it. The password never goes in the repository: it lives in the secret store, and in the application's `DATABASE_URL` only.
 
 2. Apply the migrations as the schema owner, then grant the runtime role its rights:
 

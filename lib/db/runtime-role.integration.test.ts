@@ -84,6 +84,42 @@ describeDb("grantRuntimeRole (JIR-114)", () => {
     expect(rows).toEqual([{ label: "ok" }]);
   });
 
+  it("revokes rights granted to the role beyond its scope", async () => {
+    await owner.query(`GRANT TRUNCATE, REFERENCES, TRIGGER ON items TO ${RUNTIME}`);
+    await owner.query(`GRANT UPDATE ON SEQUENCE item_key_seq TO ${RUNTIME}`);
+    await owner.query(`GRANT CREATE ON SCHEMA public TO ${RUNTIME}`);
+    await grantRuntimeRole(owner, RUNTIME);
+    const { rows: [rights] } = await owner.query(
+      `SELECT has_table_privilege($1, 'items', 'TRUNCATE') AS truncate,
+              has_table_privilege($1, 'items', 'REFERENCES') AS references,
+              has_table_privilege($1, 'items', 'TRIGGER') AS trigger,
+              has_sequence_privilege($1, 'item_key_seq', 'UPDATE') AS setval,
+              has_schema_privilege($1, 'public', 'CREATE') AS create`,
+      [RUNTIME],
+    );
+    expect(rights).toEqual({ truncate: false, references: false, trigger: false, setval: false, create: false });
+  });
+
+  it("refuses a role that still creates in the schema through PUBLIC", async () => {
+    await owner.query("GRANT CREATE ON SCHEMA public TO PUBLIC");
+    try {
+      await expect(grantRuntimeRole(owner, RUNTIME)).rejects.toThrow(
+        /can create in schema public \(REVOKE CREATE ON SCHEMA public FROM PUBLIC\)/,
+      );
+    } finally {
+      await owner.query("REVOKE CREATE ON SCHEMA public FROM PUBLIC");
+    }
+  });
+
+  it("refuses a role that inherits another role's rights", async () => {
+    await owner.query(`GRANT pg_read_all_data TO ${RUNTIME}`);
+    try {
+      await expect(grantRuntimeRole(owner, RUNTIME)).rejects.toThrow(/member of role pg_read_all_data/);
+    } finally {
+      await owner.query(`REVOKE pg_read_all_data FROM ${RUNTIME}`);
+    }
+  });
+
   it("refuses a missing role, an administrative one, and a malformed name", async () => {
     await expect(grantRuntimeRole(owner, `jiroo_missing_${suffix}`)).rejects.toThrow(RuntimeRoleError);
     await expect(grantRuntimeRole(owner, ADMIN_LIKE)).rejects.toThrow(/administrative attributes/);
