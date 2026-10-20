@@ -15,11 +15,9 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# pnpm 10 is required: the repository breaks with pnpm 11. package.json has no
-# `packageManager` field, so the version is pinned here, aligned with the
-# Vercel build (`corepack pnpm@10.34.5`). Actions are pinned to major versions.
+# package.json#packageManager is the single source of truth for pnpm in CI,
+# local Corepack commands and Vercel. Do not pass a second action-setup version.
 env:
-  PNPM_VERSION: 10.34.5
   NODE_VERSION: 24
 
 jobs:
@@ -30,8 +28,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -53,8 +49,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
