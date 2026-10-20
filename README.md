@@ -7,8 +7,23 @@ Lightweight ticket manager (Jira-like) for a Cour de cassation team. French UI.
 ## Requirements
 
 - Node 20+
-- pnpm
+- Corepack (selects the pnpm 10 version pinned in `package.json`)
 - Docker (local Postgres)
+
+## Package manager
+
+Use the Corepack pnpm shim, including when a global pnpm 11 is installed:
+
+```bash
+corepack enable
+pnpm --version             # 10.34.5, selected from package.json
+pnpm install --frozen-lockfile
+```
+
+If another pnpm executable takes precedence on your PATH, use `corepack pnpm`
+for the same commands. The package manifest is also the version source for
+GitHub Actions; keep Vercel's pnpm version aligned when updating it. pnpm 11
+ignores this project's `pnpm.overrides` and is not supported.
 
 ## Getting started
 
