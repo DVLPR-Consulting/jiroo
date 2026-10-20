@@ -1,8 +1,8 @@
 /**
  * The text color that stays readable on a user-chosen background (a backlog
- * color): white or near-black, whichever contrasts more (WCAG luminance).
+ * color): white or black, whichever contrasts more (WCAG luminance).
  */
-export const DARK_TEXT = "#1c1917";
+export const DARK_TEXT = "#000000";
 export const LIGHT_TEXT = "#ffffff";
 
 function channel(value: number): number {
@@ -20,7 +20,7 @@ function luminance(hex: string): number | null {
 
 const contrast = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 
-/** White on dark colors, near-black on light ones; white when the color is unreadable. */
+/** White on dark colors, black on light ones; white when the color is unreadable. */
 export function readableTextOn(background: string): string {
   const bg = luminance(background);
   if (bg === null) return LIGHT_TEXT;

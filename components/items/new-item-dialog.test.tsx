@@ -573,7 +573,7 @@ describe("NewItemButton", () => {
     });
 
     it.each([
-      ["#ffeeaa", "rgb(28, 25, 23)"],
+      ["#ffeeaa", "rgb(0, 0, 0)"],
       ["#7c3030", "rgb(255, 255, 255)"],
     ])("keeps the key tag readable on the backlog color %s (JIR-112)", async (color, text) => {
       const user = userEvent.setup();
