@@ -6,7 +6,7 @@ Lightweight ticket manager (Jira-like) for a Cour de cassation team. French UI.
 
 ## Requirements
 
-- Node 20+
+- Node 24
 - Corepack (selects the pnpm 10 version pinned in `package.json`)
 - Docker (local Postgres)
 
