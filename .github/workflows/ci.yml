@@ -36,8 +36,6 @@ jobs:
       # dependencies (vitest, jsdom, drizzle-kit) that `--prod` still reports,
       # e.g. esbuild via drizzle-kit (moderate, below the blocking threshold).
       # These tools are dev-only in Jiroo and are not shipped at runtime.
-      # package.json#pnpm.auditConfig.ignoreGhsas names each such advisory that
-      # reaches the blocking level, with its removal ticket (JIR-117).
       - run: pnpm audit --prod --audit-level=high
 
   checks:
