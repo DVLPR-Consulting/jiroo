@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * Tabs between a backlog's settings pages, like Jira's project settings:
- * « Accès » and « Développement » (JIR-95, repository connections). The
- * Développement tab only shows to backlog administrators.
+ * « Accès », « Développement » and « Modèles ». Only backlog administrators
+ * see these tabs.
  */
 export function BacklogSettingsNav({
   backlogKey,
@@ -12,13 +12,14 @@ export function BacklogSettingsNav({
   canAdministerBacklog,
 }: {
   backlogKey: string;
-  current: "access" | "development";
+  current: "access" | "development" | "templates";
   canAdministerBacklog: boolean;
 }) {
   if (!canAdministerBacklog) return null;
   const tabs = [
     { id: "access", label: "Accès", href: `/b/${backlogKey}/settings/access` },
     { id: "development", label: "Développement", href: `/b/${backlogKey}/settings/development` },
+    { id: "templates", label: "Modèles", href: `/b/${backlogKey}/settings/templates` },
   ] as const;
   return (
     <nav aria-label="Réglages du backlog" className="flex gap-1 border-b border-border">

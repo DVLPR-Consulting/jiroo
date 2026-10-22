@@ -33,3 +33,8 @@ export const ITEM_TEMPLATES: ItemTemplate[] = [
 export function getTemplate(id: string): ItemTemplate | undefined {
   return ITEM_TEMPLATES.find((t) => t.id === id);
 }
+
+/** Labels removed since the template was saved are reported, not applied. */
+export function missingTemplateLabelsMessage(count: number): string {
+  return count === 1 ? "1 label du modèle n’existe plus" : `${count} labels du modèle n’existent plus`;
+}

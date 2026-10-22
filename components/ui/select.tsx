@@ -145,6 +145,8 @@ export type SelectFieldOption<V extends string = string> = {
   /** Decorative (hidden from assistive tech), before the label in the option and the trigger. */
   icon?: React.ReactNode
   disabled?: boolean
+  /** Optional labelled section in the menu. */
+  group?: string
 }
 
 export type SelectFieldProps<V extends string = string> = {
@@ -194,6 +196,14 @@ function SelectField<V extends string = string>({
 }: SelectFieldProps<V>) {
   const toRadix = (v: string) => (v === "" ? EMPTY_OPTION_VALUE : v)
   const selected = options.some((option) => option.value === value) ? toRadix(value) : ""
+  const groups = new Map<string | undefined, SelectFieldOption<V>[]>()
+  for (const option of options) groups.set(option.group, [...(groups.get(option.group) ?? []), option])
+  const renderOptions = (choices: SelectFieldOption<V>[]) => choices.map((option) => (
+    <SelectItem key={option.value} value={toRadix(option.value)} disabled={option.disabled}>
+      {option.icon ? <span aria-hidden className="flex shrink-0 items-center">{option.icon}</span> : null}
+      <span className="truncate">{option.label}</span>
+    </SelectItem>
+  ))
   return (
     <Select
       value={selected}
@@ -216,20 +226,12 @@ function SelectField<V extends string = string>({
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
-        {options.map((option) => (
-          <SelectItem
-            key={option.value}
-            value={toRadix(option.value)}
-            disabled={option.disabled}
-          >
-            {option.icon ? (
-              <span aria-hidden className="flex shrink-0 items-center">
-                {option.icon}
-              </span>
-            ) : null}
-            <span className="truncate">{option.label}</span>
-          </SelectItem>
-        ))}
+        {Array.from(groups, ([group, choices]) => group ? (
+          <SelectGroup key={group}>
+            <SelectPrimitive.Label className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{group}</SelectPrimitive.Label>
+            {renderOptions(choices)}
+          </SelectGroup>
+        ) : <React.Fragment key="ungrouped">{renderOptions(choices)}</React.Fragment>)}
         {footer}
       </SelectContent>
     </Select>

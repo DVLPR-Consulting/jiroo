@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   checkPermission: vi.fn(),
   filterBarProps: vi.fn(),
+  listItemTemplates: vi.fn(),
   getBacklogByKeyForUser: vi.fn(),
   getBacklogCapabilities: vi.fn(),
   itemBacklogProps: vi.fn(),
@@ -39,6 +40,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/services/item-templates", () => ({ listItemTemplates: mocks.listItemTemplates }));
 vi.mock("next/navigation", () => ({
   notFound: mocks.notFound,
   usePathname: () => "/b/DEMO",
@@ -194,6 +196,7 @@ import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 describe("BacklogViewContent read boundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.listItemTemplates.mockResolvedValue([{ id: "shared-template", name: "Incident" }]);
     mocks.requireAppPageSession.mockResolvedValue({ user: { id: "viewer-1" } });
     mocks.notFound.mockImplementation(() => {
       throw new Error("not-found");
@@ -252,6 +255,7 @@ describe("BacklogViewContent read boundary", () => {
 
     expect(mocks.getBacklogByKeyForUser).toHaveBeenCalledWith("SECRET", "viewer-1");
     expect(mocks.getBacklogCapabilities).not.toHaveBeenCalled();
+    expect(mocks.listItemTemplates).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -325,6 +329,8 @@ describe("BacklogViewContent read boundary", () => {
     );
 
     expect(probe()).toHaveBeenCalledWith(expect.objectContaining(expected));
+    expect(mocks.listItemTemplates).toHaveBeenCalledWith("backlog-1");
+    expect(probe()).toHaveBeenCalledWith(expect.objectContaining({ createDialogProps: expect.objectContaining({ templates: [{ id: "shared-template", name: "Incident" }] }) }));
     cleanup();
   });
 

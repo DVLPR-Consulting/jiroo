@@ -155,6 +155,13 @@
       "when": 1792105450652,
       "tag": "0021_global_browse_users",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792662300550,
+      "tag": "0022_item_templates",
+      "breakpoints": true
     }
   ]
 }

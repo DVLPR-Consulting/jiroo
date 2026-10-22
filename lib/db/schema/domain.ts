@@ -782,6 +782,35 @@ export const labels = pgTable("labels", {
   color: text("color").notNull(),
 });
 
+/**
+ * A backlog's ticket templates (JIR-43): shared by everyone who creates items
+ * there, managed by its administrators. Only stable fields are kept; label ids
+ * are checked against the backlog's live labels when a template is applied.
+ */
+export const itemTemplates = pgTable(
+  "item_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    backlogId: uuid("backlog_id")
+      .notNull()
+      .references(() => backlogs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    itemType: itemTypeEnum("item_type"),
+    kind: itemKindEnum("kind").notNull().default("feature"),
+    title: text("title").notNull().default(""),
+    description: text("description").notNull().default(""),
+    priority: integer("priority").notNull().default(0),
+    labelIds: uuid("label_ids").array().notNull().default(sql`'{}'::uuid[]`),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("item_templates_backlog_name_idx").on(t.backlogId, sql`lower(${t.name})`),
+    check("item_templates_priority_range", sql`${t.priority} between 0 and 4`),
+  ],
+);
+
 export const itemLabels = pgTable(
   "item_labels",
   {

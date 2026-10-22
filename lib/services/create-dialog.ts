@@ -8,6 +8,7 @@ import { binaryTextOrder } from "@/lib/db/order";
 import type { NewItemDialogData } from "@/components/items/new-item-dialog";
 import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
 import { listLabelsForBacklog, listLiveParentCandidates } from "@/lib/services/items";
+import { listItemTemplates } from "@/lib/services/item-templates";
 import { listReleaseSummaries } from "@/lib/services/releases";
 
 export type BacklogCreateDialog = NewItemDialogData & { backlogKey: string };
@@ -32,7 +33,7 @@ export async function loadBacklogCreateDialog({
   if (!capabilities?.createItems) return null;
   const canBrowseUsers = access.globalDecisions.get("browse_users")?.allowed === true;
 
-  const [parents, statusRows, labels, openSprints, releaseSummaries, assigneeCandidates] =
+  const [parents, statusRows, labels, openSprints, releaseSummaries, assigneeCandidates, templates] =
     await Promise.all([
       listLiveParentCandidates(backlog.id),
       db
@@ -49,9 +50,11 @@ export async function loadBacklogCreateDialog({
         .orderBy(asc(binaryTextOrder(sprints.rank))),
       listReleaseSummaries(backlog.id),
       canBrowseUsers ? listAssignableUsersForBacklog(backlog.id) : Promise.resolve([]),
+      listItemTemplates(backlog.id),
     ]);
 
   return {
+    templates,
     backlogId: backlog.id,
     backlogKey: backlog.key,
     backlogColor: backlog.color,

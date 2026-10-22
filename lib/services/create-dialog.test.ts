@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  listItemTemplates: vi.fn(),
   getBacklogByKeyForUser: vi.fn(),
   resolveBacklogAccess: vi.fn(),
   listAssignableUsersForBacklog: vi.fn(),
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/services/item-templates", () => ({ listItemTemplates: mocks.listItemTemplates }));
 vi.mock("@/lib/services/backlogs", () => ({ getBacklogByKeyForUser: mocks.getBacklogByKeyForUser }));
 vi.mock("@/lib/auth/accessible-backlogs", () => ({ resolveBacklogAccess: mocks.resolveBacklogAccess }));
 vi.mock("@/lib/auth/authorization", () => ({
@@ -49,6 +51,7 @@ function access(createItems: boolean, browseUsers = true) {
 describe("loadBacklogCreateDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.listItemTemplates.mockResolvedValue([{ id: "shared-template", name: "Incident" }]);
     mocks.getBacklogByKeyForUser.mockResolvedValue(BACKLOG);
     mocks.resolveBacklogAccess.mockResolvedValue(access(true));
     mocks.listLiveParentCandidates.mockResolvedValue([
@@ -68,6 +71,7 @@ describe("loadBacklogCreateDialog", () => {
   it("returns the dialog of a backlog the user may create in, with its color", async () => {
     const dialog = await loadBacklogCreateDialog({ userId: "u1", backlogKey: "port" });
     expect(dialog).toEqual({
+      templates: [{ id: "shared-template", name: "Incident" }],
       backlogId: "b1",
       backlogKey: "PORT",
       backlogColor: "#0f766e",
@@ -84,6 +88,7 @@ describe("loadBacklogCreateDialog", () => {
         labels: [{ id: "l1", name: "ux", color: "#000" }],
       },
     });
+    expect(mocks.listItemTemplates).toHaveBeenCalledWith("b1");
   });
 
   it("offers no directory without the browse users permission", async () => {
@@ -102,5 +107,6 @@ describe("loadBacklogCreateDialog", () => {
     arrange();
     expect(await loadBacklogCreateDialog({ userId: "u1", backlogKey: "PORT" })).toBeNull();
     expect(mocks.listLiveParentCandidates).not.toHaveBeenCalled();
+    expect(mocks.listItemTemplates).not.toHaveBeenCalled();
   });
 });
