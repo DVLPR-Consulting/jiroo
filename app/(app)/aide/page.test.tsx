@@ -24,6 +24,7 @@ describe("HelpPage", () => {
     expect(GUIDE_SECTIONS.map((section) => section.title)).toEqual([
       "Démarrer",
       "Organisation",
+      "Le point",
       "Les vues",
       "Tickets",
       "Travailler à plusieurs",
