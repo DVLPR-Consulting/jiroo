@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, asc, eq, inArray, isNull, max, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { listAccessibleBacklogIds } from "@/lib/auth/accessible-backlogs";
+import { listAccessibleBacklogs } from "@/lib/auth/accessible-backlogs";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
@@ -105,9 +105,11 @@ export async function loadLePoint(input: {
         planned: releases.releaseDate,
         releasedAt: releases.releasedAt,
         effective: releases.effectiveReleaseDate,
+        archivedAt: releases.archivedAt,
       })
       .from(releases)
-      .where(and(eq(releases.backlogId, backlog.id), isNull(releases.archivedAt))),
+      // Archived ones too: a fix version pointing at one still tells whether the work shipped.
+      .where(eq(releases.backlogId, backlog.id)),
     db
       .select({ itemId: itemFixVersions.itemId, releaseId: itemFixVersions.releaseId })
       .from(itemFixVersions)
@@ -117,12 +119,13 @@ export async function loadLePoint(input: {
       .from(sprints)
       .where(and(eq(sprints.backlogId, backlog.id), eq(sprints.state, "active")))
       .limit(1),
-    listAccessibleBacklogIds(input.userId),
+    // Archived backlogs cannot be opened: their tickets stay hidden.
+    listAccessibleBacklogs(input.userId),
   ]);
 
   // Outside dependencies: everything when the reader may browse their
   // backlog; otherwise nothing leaves the server but « still open ».
-  const visibleBacklogs = new Set(accessible);
+  const visibleBacklogs = new Set(accessible.map((row) => row.id));
   const outside = new Map<string, LePointSource["outside"][number]>();
   const blocks: LePointSource["blocks"] = [];
   for (const link of links) {
@@ -183,6 +186,7 @@ export async function loadLePoint(input: {
       name: row.name,
       planned: row.planned,
       released: row.releasedAt ? row.effective : null,
+      archived: row.archivedAt !== null,
     })),
     fixVersions: versionRows,
     sprint: sprint && sprintStart && sprint.plannedEndAt

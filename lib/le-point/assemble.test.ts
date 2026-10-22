@@ -115,4 +115,36 @@ describe("assembleLePoint", () => {
     const data = assembleLePoint(source({ items, fixVersions: [], sprintItemIds: ["3"] }));
     expect(productView(data, "po").difficulties.map((card) => card.key)).toEqual(["CASS-3", "CASS-4"]);
   });
+
+  it("keeps a done objective until its delivery is known to be published", () => {
+    const done = { status: "Terminé", category: "done" as const };
+    const items = [row("1", { type: "epic", parentId: null, ...done }), row("2", done)];
+    // No version at all: nothing proves it shipped.
+    expect(assembleLePoint(source({ items, fixVersions: [] })).objectives.map((o) => o.key)).toEqual(["CASS-1"]);
+    // An archived version never published proves nothing either, and is never the next delivery.
+    const archived = assembleLePoint(source({
+      items,
+      releases: [{ id: "r9", name: "0.9", planned: "2026-06-01", released: null, archived: true }],
+      fixVersions: [{ itemId: "2", releaseId: "r9" }],
+    }));
+    expect(archived.objectives.map((o) => o.key)).toEqual(["CASS-1"]);
+    expect(archived.releases).toEqual([]);
+  });
+
+  it("explains a block by an epic, and lifts it once the epic is done", () => {
+    const blocked = (category: "todo" | "done") => {
+      const items = [
+        row("1", { type: "epic", parentId: null, title: "Socle", category, status: category === "done" ? "Terminé" : "À faire", assigneeId: "po" }),
+        row("2"),
+      ];
+      return developerView(assembleLePoint(source({ items, fixVersions: [], blocks: [{ sourceId: "1", targetId: "2" }] })), "dev");
+    };
+    expect(blocked("todo").blocked[0]!.reason).toBe("Attend CASS-1 « Socle », à faire chez Catherine.");
+    expect(blocked("done").blocked).toEqual([]);
+    expect(developerView(assembleLePoint(source({
+      items: [row("1", { type: "epic", parentId: null, assigneeId: "dev" }), row("2")],
+      blocks: [{ sourceId: "1", targetId: "2" }],
+    })), "dev").next.map((card) => card.key)).not.toContain("CASS-1");
+  });
 });
+

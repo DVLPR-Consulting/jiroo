@@ -1,8 +1,9 @@
 import "dotenv/config";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { comments, itemLinks } from "@/lib/db/schema/domain";
+import { backlogs, comments, itemLinks } from "@/lib/db/schema/domain";
 import { loadLePoint } from "@/lib/le-point/load";
 import {
   createReadVisibilityFixture,
@@ -50,4 +51,18 @@ describeDb("loadLePoint", () => {
     expect(JSON.stringify(data)).not.toContain(fixture.liveB.key);
     expect(JSON.stringify(data)).not.toContain(fixture.liveB.id);
   });
+
+  it("keeps a dependency in an archived backlog hidden, even from someone who could open it", async () => {
+    const visible = (await loadLePoint({ userId: fixture.admin, backlogKey: fixture.backlogA.key, lastVisit: null }))!;
+    expect(visible.tickets.find((ticket) => ticket.key === fixture.liveA.key)!.blockedBy).toEqual([{ key: fixture.liveB.key }]);
+    await db.update(backlogs).set({ archivedAt: new Date() }).where(eq(backlogs.id, fixture.backlogB.id));
+    try {
+      const data = (await loadLePoint({ userId: fixture.admin, backlogKey: fixture.backlogA.key, lastVisit: null }))!;
+      expect(data.tickets.find((ticket) => ticket.key === fixture.liveA.key)!.blockedBy).toEqual([{ hidden: true }]);
+      expect(JSON.stringify(data)).not.toContain(fixture.liveB.key);
+    } finally {
+      await db.update(backlogs).set({ archivedAt: null }).where(eq(backlogs.id, fixture.backlogB.id));
+    }
+  });
 });
+

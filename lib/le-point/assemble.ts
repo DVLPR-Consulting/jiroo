@@ -37,7 +37,8 @@ export type LePointSource = {
   /** Live comments that mention someone. */
   comments: { itemId: string; authorId: string; mentions: string[]; at: Date; body: string }[];
   lastActivity: { itemId: string; at: Date }[];
-  releases: { id: string; name: string; planned: Day | null; released: Day | null }[];
+  /** Archived ones included: they only date a delivery, they are never the next one. */
+  releases: { id: string; name: string; planned: Day | null; released: Day | null; archived?: boolean }[];
   fixVersions: { itemId: string; releaseId: string }[];
   sprint: { name: string; start: Day; end: Day } | null;
   /** The items in the active sprint; null without one. */
@@ -99,6 +100,14 @@ export function assembleLePoint(source: LePointSource): LePointDataset {
       return { ...toTicket(row), ...(blockedBy ? { blockedBy } : {}) };
     });
   for (const row of source.outside) tickets.push({ ...toTicket(row), objective: null, external: true });
+  // An epic or a component of the backlog can block a task too: it is kept to
+  // explain the block, never counted as anyone's work.
+  const blockingSources = new Set(source.blocks.map((block) => block.sourceId));
+  for (const row of source.items) {
+    if (blockingSources.has(row.id) && row.type !== "tache" && row.type !== "soustache") {
+      tickets.push({ ...toTicket(row), objective: null, external: true });
+    }
+  }
 
   // An objective's delivery: its own fix version, else the versions of its
   // tasks (of the open ones while some are planned); the next unpublished
@@ -111,7 +120,7 @@ export function assembleLePoint(source: LePointSource): LePointDataset {
     const ids = own.length > 0 ? own : planned.flatMap((row) => versionsOf.get(row.id) ?? []);
     const candidates = [...new Set(ids)].map((id) => releaseById.get(id)!);
     const next = candidates
-      .filter((release) => !release.released)
+      .filter((release) => !release.released && !release.archived)
       .sort((a, b) => (a.planned ?? LAST_DAY).localeCompare(b.planned ?? LAST_DAY))[0];
     if (next) return next;
     return candidates
@@ -122,8 +131,8 @@ export function assembleLePoint(source: LePointSource): LePointDataset {
   const objectives = source.items
     .filter((row) => row.type === "epic")
     .map((epic) => ({ epic, release: deliveryOf(epic) }))
-    // A done objective stays only while its delivery is still to be published.
-    .filter(({ epic, release }) => epic.category !== "done" || (release !== null && !release.released))
+    // Only a done objective whose delivery is published is history; an unknown delivery stays shown.
+    .filter(({ epic, release }) => epic.category !== "done" || !release?.released)
     .map(({ epic, release }) => ({ key: epic.key, title: epic.title, due: epic.dueDate, release: release?.name ?? null }));
 
   const mentions = source.comments.flatMap((comment) => {
@@ -146,7 +155,9 @@ export function assembleLePoint(source: LePointSource): LePointDataset {
     people: source.people,
     personas: { developer: source.viewerId, product: source.viewerId },
     sprint: source.sprint,
-    releases: source.releases.map(({ name, planned, released }) => ({ name, planned, released })),
+    releases: source.releases
+      .filter((release) => !release.archived || release.released)
+      .map(({ name, planned, released }) => ({ name, planned, released })),
     objectives,
     tickets,
     mentions,

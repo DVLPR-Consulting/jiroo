@@ -22,7 +22,7 @@ export type LePointTicket = {
   category: Category;
   /** Shown with its own icon; a ticket is a task unless told otherwise. */
   shape?: "bug" | "subtask";
-  /** A dependency from another backlog: it explains a block, it is not this backlog's work. */
+  /** Only explains a block (another backlog's ticket, an epic, a component): nobody's work here. */
   external?: boolean;
   /**
    * Work the team has committed to: in the active sprint or under way. Only
