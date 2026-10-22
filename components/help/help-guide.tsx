@@ -290,12 +290,15 @@ export function HelpGuide() {
           steps={[
             <>Sur toutes les pages d’un backlog (vues, Roadmap, Releases, Rapports, Paramètres), cliquez sur <Ui>+ Créer</Ui> dans la barre du haut, à côté du champ de recherche (ou touche <Key>C</Key>) : la fenêtre <Ui>Nouvel item</Ui> s’ouvre, avec la clé du backlog dans sa couleur. Sur le Board, le ticket rejoint le sprint actif ; sans sprint actif, il va dans le backlog. Dans le Backlog, utilisez aussi <Ui>Créer un item</Ui> en bas d’une section (voir ci-dessous). Depuis le détail d’un ticket, <Ui>+ Créer une tâche</Ui> (ou une sous-tâche, un epic) préremplit le type et le parent.</>,
             <>Choisissez le <Ui>Type</Ui> (et un <Ui>Modèle</Ui> si besoin), puis, sauf pour un Composant, le <Ui>Parent</Ui> obligatoire (marqué d’un astérisque ; une Epic se rattache à un Composant, une Tâche à une Epic, une Sous-tâche à une Tâche) ; saisissez le <Ui>Titre</Ui> et la <Ui>Description</Ui> dans l’éditeur mis en forme. Si le backlog n’a encore aucun parent possible, le champ <Ui>Parent</Ui> propose de le créer d’abord (voir « Démarrer dans un nouveau backlog »).</>,
+            <>Dans <Ui>Modèle</Ui>, retrouvez les modèles fixes <Ui>Rapport de bug</Ui> et <Ui>User story</Ui>, puis les <Ui>Modèles du backlog</Ui>. Un modèle partagé préremplit le type (si autorisé dans ce contexte), la nature, le titre, la description, la priorité et les labels. Tout reste modifiable avant de créer ; <Ui>Aucun</Ui> retire le préremplissage.</>,
             <>Dans <Ui>Détails</Ui>, ajustez <Ui>Statut</Ui> (il affiche le statut que recevra le ticket, le premier statut « À faire » par défaut), <Ui>Assigné</Ui> (ou <Ui>M’assigner</Ui>, à droite du champ), <Ui>Priorité</Ui>, <Ui>Points</Ui> et <Ui>Sprint</Ui> (tâches), <Ui>Nature</Ui>, <Ui>Labels</Ui>, <Ui>Fix versions</Ui>, <Ui>Échéance</Ui>, puis <Ui>Créer</Ui>.</>,
             <>Sans parent choisi, <Ui>Créer</Ui> ne crée rien : le message « Parent obligatoire : choisissez une Epic. » apparaît sous le champ <Ui>Parent</Ui>, qui reçoit le focus. Il disparaît dès que vous choisissez le parent.</>,
             <>Cochez <Ui>Créer un autre</Ui> pour enchaîner : la fenêtre reste ouverte avec le même type, le même parent et le même sprint ; seuls le titre et la description sont vidés.</>,
           ]}
         >
           <GuideNote>
+            Si un label du modèle a été supprimé, il est ignoré et la fenêtre le signale. Le modèle ne fixe ni parent, ni assigné, ni statut, ni sprint, ni dates, ni Fix versions, ni points.
+            <br />
             Après la création, le message « CASS-7 créé » propose <Ui>Ouvrir</Ui> (affiche le ticket) et <Ui>Annuler</Ui>. Si les filtres de la vue écartent le nouveau ticket, il devient « CASS-7 créé — masqué par les filtres de la vue. ». Les champs absents de la fenêtre dépendent de vos droits (assignation, planification).
           </GuideNote>
         </GuideTopic>
@@ -677,6 +680,18 @@ export function HelpGuide() {
             <>Sans cette permission, le menu <Ui>Assigné</Ui> de la création, du détail, de la Liste et du Backlog explique le droit manquant et invite à le demander à un administrateur Jiroo. <Ui>Non assigné</Ui> reste proposé ; <Ui>M’assigner</Ui> reste disponible quand votre compte fait déjà partie des candidats.</>,
           ]}
         />
+
+        <GuideTopic
+          title="Paramètres du backlog"
+          purpose="Partager des modèles de tickets avec les personnes qui créent dans ce backlog."
+          steps={[
+            <>Dans les paramètres du backlog, ouvrez l’onglet <Ui>Modèles</Ui>. Il est réservé aux personnes ayant la permission <Ui>Administrer le backlog</Ui>, comme les autres onglets de paramètres.</>,
+            <>Cliquez sur <Ui>Nouveau modèle</Ui> et donnez-lui un nom unique dans ce backlog. Choisissez éventuellement un type, puis la nature, le titre de départ, la description, la priorité et les labels du backlog ; cliquez sur <Ui>Créer le modèle</Ui>.</>,
+            <>Utilisez <Ui>Modifier</Ui> pour ajuster un modèle, ou <Ui>Supprimer</Ui> puis confirmez. Les tickets déjà créés restent inchangés. Chaque backlog peut conserver jusqu’à 50 modèles.</>,
+          ]}
+        >
+          <GuideNote>Les membres utilisent les modèles depuis <Ui>Nouvel item</Ui>, sans pouvoir les administrer. Un label supprimé est signalé et ignoré à la création. Les deux modèles fixes restent disponibles partout.</GuideNote>
+        </GuideTopic>
 
         <GuideTopic
           title="Administration et administrateurs Jiroo"
