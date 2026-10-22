@@ -1,6 +1,6 @@
 /**
- * Invented content of the demo dataset: a fictitious team of the Cour de
- * cassation's digital department, six backlogs and their history. Titles
+ * Invented content of the demo dataset: the work of the Cour de cassation's
+ * digital department, six backlogs and their history. Titles
  * starting with « ! » are bugs.
  */
 
@@ -8,32 +8,18 @@ export type PersonKey =
   | "claire" | "karim" | "julien" | "sophie" | "thomas" | "ines" | "antoine"
   | "lucie" | "camille" | "mathieu" | "nadia" | "pierre" | "elodie";
 
-/** `me` stands for the accounts that already exist in the target database. */
+/** `me` stands for the developers of the backlog, in turn. */
 export type Actor = PersonKey | "me";
 
-export const PEOPLE: Record<PersonKey, { name: string; email: string; role: string }> = {
-  claire: { name: "Claire Martin", email: "claire.martin", role: "Product Owner" },
-  karim: { name: "Karim Haddad", email: "karim.haddad", role: "Product Owner" },
-  julien: { name: "Julien Bernard", email: "julien.bernard", role: "Scrum Master, développeur" },
-  sophie: { name: "Sophie Lefèvre", email: "sophie.lefevre", role: "Développeuse front" },
-  thomas: { name: "Thomas Moreau", email: "thomas.moreau", role: "Développeur back" },
-  ines: { name: "Inès Benali", email: "ines.benali", role: "Développeuse full-stack" },
-  antoine: { name: "Antoine Rousseau", email: "antoine.rousseau", role: "Développeur back" },
-  lucie: { name: "Lucie Garnier", email: "lucie.garnier", role: "Développeuse front" },
-  camille: { name: "Camille Dubois", email: "camille.dubois", role: "Designer UX" },
-  mathieu: { name: "Mathieu Girard", email: "mathieu.girard", role: "Testeur" },
-  nadia: { name: "Nadia Fontaine", email: "nadia.fontaine", role: "Greffière référente" },
-  pierre: { name: "Pierre Lambert", email: "pierre.lambert", role: "Conseiller référendaire" },
-  elodie: { name: "Élodie Petit", email: "elodie.petit", role: "Exploitation" },
-};
-
-export const EMAIL_DOMAIN = "demo.jiroo-dev.invalid";
-
-export const GROUPS: { name: string; members: PersonKey[]; role: "administrators" | "members" | "viewers" }[] = [
-  { name: "Équipe produit", members: ["claire", "karim", "julien", "camille"], role: "administrators" },
-  { name: "Développement", members: ["sophie", "thomas", "ines", "antoine", "lucie", "mathieu", "elodie"], role: "members" },
-  { name: "Référents métier", members: ["nadia", "pierre"], role: "viewers" },
-];
+/**
+ * The roles of the scenario. No account is created: the seed casts each slot
+ * on an existing account, the product slots on the named product owners and
+ * the others on the developers.
+ */
+export const PRODUCT_SLOTS = ["claire", "karim", "nadia", "pierre"] as const satisfies readonly PersonKey[];
+export const DEV_SLOTS = [
+  "julien", "sophie", "thomas", "ines", "antoine", "lucie", "camille", "mathieu", "elodie",
+] as const satisfies readonly PersonKey[];
 
 export type TaskSpec = string | { title: string; points?: number | null; description?: string; sub?: string[] };
 export type EpicSpec = { title: string; description: string; tasks: TaskSpec[] };

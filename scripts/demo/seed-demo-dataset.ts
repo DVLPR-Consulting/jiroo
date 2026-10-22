@@ -1,19 +1,20 @@
 /**
- * Demo dataset: replays four months of a fictitious team's work (June to
+ * Demo dataset: replays eight months of the team's work (March to
  * 21 October 2026) through the real services, so keys, ranks, activity,
  * sprint reports, releases and notifications are what the app itself would
  * have produced. A simulated clock dates every action; timestamps the
  * database stamps itself are moved to the same simulated instant after each
- * action. The accounts already in the database join the team.
+ * action. The team is made of the accounts already in the database: no
+ * account is created. The product owners are named, the others develop.
  *
- *   JIROO_DEMO_SEED=1 DATABASE_URL=… pnpm tsx scripts/demo/seed-demo-dataset.ts
+ *   JIROO_DEMO_SEED=1 JIROO_DEMO_PRODUCT_OWNERS="Name One,Name Two" DATABASE_URL=… pnpm tsx scripts/demo/seed-demo-dataset.ts
  *
- * Runs once per database: it refuses a database that already has the demo team.
+ * Runs once per database: it refuses a database where a demo backlog already has its labels or releases.
  */
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import {
-  BACKLOGS, COMMENTS, EMAIL_DOMAIN, GROUPS, LABELS, PEOPLE, WEB_LINKS,
+  BACKLOGS, COMMENTS, DEV_SLOTS, LABELS, PRODUCT_SLOTS, WEB_LINKS,
   type Actor, type BacklogSpec, type EpicSpec, type PersonKey, type TaskSpec,
 } from "./demo-content";
 
@@ -291,19 +292,28 @@ export async function seedDemoDataset(): Promise<string> {
 const SPRINT_WORDS = ["Sprint", "Itération", "Cycle"];
 const SPRINT_COUNT = Math.max(...PLANNED_SPRINTS) + 1;
 
-async function preflight(pool: Services["database"]["databasePool"]): Promise<Map<string, string>> {
+/** The existing accounts cast as product owners, named by JIROO_DEMO_PRODUCT_OWNERS, then the developers. */
+type Cast = { productOwners: string[]; developers: string[] };
+
+async function preflight(pool: Services["database"]["databasePool"]): Promise<{ sprintWords: Map<string, string>; cast: Cast }> {
   const sprintWords = new Map<string, string>();
   const fail = (message: string) => { throw new DemoSeedError(`Preflight: ${message}`); };
-  const already = await pool.query(`select 1 from "user" where email like $1 limit 1`, [`%@${EMAIL_DOMAIN}`]);
-  if (already.rowCount) fail("the demo team already exists in this database.");
   const admins = await pool.query(`select 1 from "user" where role = 'admin' limit 1`);
   if (!admins.rowCount) fail("no administrator account: create one first (pnpm db:seed or db:bootstrap-admin).");
   const roles = await pool.query<{ key: string }>("select key from project_roles where key = any($1)", [["administrators", "members", "viewers"]]);
   if (roles.rowCount !== 3) fail("the default project roles are missing.");
-  const groups = await pool.query<{ name: string }>(
-    "select name from user_groups where lower(name) = any($1)", [GROUPS.map((group) => group.name.toLocaleLowerCase("fr"))],
+  const accounts = await pool.query<{ id: string; name: string; role: string }>(
+    `select id, name, role from "user" where role <> 'viewer' order by (role = 'admin') desc, created_at`,
   );
-  if (groups.rowCount) fail(`groups already exist: ${groups.rows.map((row) => row.name).join(", ")}.`);
+  const named = (process.env.JIROO_DEMO_PRODUCT_OWNERS ?? "").split(",").map((name) => name.trim()).filter(Boolean);
+  if (named.length === 0) fail("name the product owners in JIROO_DEMO_PRODUCT_OWNERS (comma-separated account names).");
+  const productOwners = named.map((name) => {
+    const matches = accounts.rows.filter((row) => row.name.toLocaleLowerCase("fr") === name.toLocaleLowerCase("fr"));
+    if (matches.length !== 1) fail(`product owner « ${name} »: ${matches.length} matching account(s) that may write.`);
+    return matches[0]!.id;
+  });
+  const developers = accounts.rows.map((row) => row.id).filter((id) => !productOwners.includes(id));
+  if (developers.length === 0) fail("no account is left to develop once the product owners are set apart.");
   for (const spec of BACKLOGS) {
     const found = await pool.query<{ id: string }>("select id from backlogs where upper(key) = $1", [spec.key]);
     const id = found.rows[0]?.id;
@@ -321,11 +331,13 @@ async function preflight(pool: Services["database"]["databasePool"]): Promise<Ma
       [id, spec.releases.map((release) => release.name.toLocaleLowerCase("fr"))],
     );
     if (releases.rowCount) fail(`backlog ${spec.key} already has releases named ${releases.rows.map((row) => row.name).join(", ")}.`);
+    const labels = await pool.query<{ name: string }>("select name from labels where backlog_id = $1 and name = any($2)", [id, LABELS]);
+    if (labels.rowCount) fail(`backlog ${spec.key} already has the demo labels: it was seeded before.`);
     const categories = await pool.query<{ category: string }>("select distinct category from statuses where backlog_id = $1", [id]);
     const present = new Set(categories.rows.map((row) => row.category));
     if (!["todo", "in_progress", "done"].every((category) => present.has(category))) fail(`backlog ${spec.key} lacks a to-do, in-progress or done status.`);
   }
-  return sprintWords;
+  return { sprintWords, cast: { productOwners, developers } };
 }
 
 async function run(svc: Services): Promise<string> {
@@ -333,7 +345,7 @@ async function run(svc: Services): Promise<string> {
   const log: string[] = [];
 
   // --- Guards and existing accounts ----------------------------------------
-  const sprintWords = await preflight(pool);
+  const { sprintWords, cast } = await preflight(pool);
   const existing = await pool.query<{ id: string; name: string; role: string }>(
     `select id, name, role from "user" order by (role = 'admin') desc, created_at`,
   );
@@ -427,18 +439,13 @@ async function run(svc: Services): Promise<string> {
     }
   }
 
-  // --- People and groups ------------------------------------------------------
+  // --- Cast ----------------------------------------------------------------
+  // Every role of the scenario is played by an existing account: the product
+  // slots by the product owners, the others by the developers, in turn.
   const people = {} as Record<PersonKey, string>;
-  await at(paris(KICKOFF, "08:45"), async () => {
-    for (const [key, person] of Object.entries(PEOPLE) as [PersonKey, (typeof PEOPLE)[PersonKey]][]) {
-      const created = await svc.users.createUser({
-        name: person.name, email: `${person.email}@${EMAIL_DOMAIN}`, password: randomBytes(24).toString("base64url"),
-      });
-      people[key] = created.id;
-      demoUserIds.push(created.id);
-      names.set(created.id, person.name);
-    }
-  });
+  PRODUCT_SLOTS.forEach((slot, index) => { people[slot] = cast.productOwners[index % cast.productOwners.length]!; });
+  DEV_SLOTS.forEach((slot, index) => { people[slot] = cast.developers[index % cast.developers.length]!; });
+  demoUserIds.push(...new Set(Object.values(people)), owner);
   const who = (actor: Actor, b: { me: string[] }): string => (actor === "me" ? b.me[meTurn++ % b.me.length]! : people[actor]);
 
   const roles = await pool.query<{ id: string; key: string }>("select id, key from project_roles");
@@ -447,19 +454,14 @@ async function run(svc: Services): Promise<string> {
     if (!role) throw new DemoSeedError(`Missing project role ${key}.`);
     return role.id;
   };
-  const groups: { id: string; role: string }[] = [];
-  await at(paris(KICKOFF, "09:00"), async () => {
-    for (const group of GROUPS) {
-      const created = await svc.authorization.createGroup({ name: group.name }, owner);
-      demoGroupIds.push(created.id);
-      for (const member of group.members) await svc.authorization.addGroupMember({ groupId: created.id, userId: people[member] }, owner);
-      groups.push({ id: created.id, role: group.role });
-    }
-  });
 
   // --- Backlogs: setup and grooming ---------------------------------------
   const live: LiveBacklog[] = [];
-  for (const [index, spec] of BACKLOGS.entries()) live.push(await setUpBacklog(spec, index));
+  // Each backlog gets its own product owner, and another one as business referent.
+  const slot = (index: number) => PRODUCT_SLOTS[index % Math.min(PRODUCT_SLOTS.length, cast.productOwners.length)]!;
+  for (const [index, spec] of BACKLOGS.entries()) {
+    live.push(await setUpBacklog({ ...spec, po: slot(index), business: slot(index + 1) }, index));
+  }
 
   // --- Scrum: sprints, releases and everyday work -----------------------------
   const scrum = live.filter((b) => !b.flow);
@@ -519,20 +521,25 @@ async function run(svc: Services): Promise<string> {
           { backlogId: id, projectRoleId: roleId(other.role), principal: { type: "user", userId: other.id } }, owner,
         );
       }
-      for (const group of groups) {
+      // Product owners run the sprints and releases of the backlogs they own.
+      for (const userId of new Set([po, people[spec.business]])) {
+        const manages = await Promise.all((["manage_sprints", "manage_releases"] as const).map((permission) =>
+          svc.access.checkPermission({ actorId: userId, permission, scope })));
+        if (manages.every((decision) => decision.allowed)) continue;
         await svc.authorization.assignBacklogRoleActor(
-          { backlogId: id, projectRoleId: roleId(group.role), principal: { type: "group", groupId: group.id } }, owner,
+          { backlogId: id, projectRoleId: roleId("administrators"), principal: { type: "user", userId } }, owner,
         );
       }
       // A backlog that already exists keeps its name and colour.
       const { name, color } = found.rows[0] ?? spec;
       await svc.backlogs.updateBacklog({ id, key: spec.key, name, color, leadUserId: po }, owner);
-      // Demo work goes to the existing accounts that may be assigned here.
-      const assignable = [owner];
-      for (const other of others) {
+      // Demo tasks go to the developers who may be assigned here.
+      const assignable: string[] = [];
+      for (const other of [{ id: owner }, ...others].filter((account) => cast.developers.includes(account.id))) {
         const decision = await svc.access.checkPermission({ actorId: other.id, permission: "assignable_user", scope });
         if (decision.allowed) assignable.push(other.id);
       }
+      if (assignable.length === 0) assignable.push(owner);
       const own = await pool.query<{ state: string }>("select state from sprints where backlog_id = $1", [id]);
       return {
         id, assignable,
