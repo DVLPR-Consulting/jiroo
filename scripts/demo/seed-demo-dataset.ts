@@ -18,7 +18,7 @@ import {
 } from "./demo-content";
 
 // ---------------------------------------------------------------------------
-// Simulated clock, installed before any service module is loaded.
+// Simulated clock, installed for the run only, before the services load.
 // ---------------------------------------------------------------------------
 
 const RealDate = Date;
@@ -32,18 +32,29 @@ class SimulatedDate extends RealDate {
     return RealDate.now() + clockOffsetMs;
   }
 }
-globalThis.Date = SimulatedDate as unknown as DateConstructor;
+function installClock() {
+  clockOffsetMs = 0;
+  globalThis.Date = SimulatedDate as unknown as DateConstructor;
+}
+function restoreClock() {
+  clockOffsetMs = 0;
+  globalThis.Date = RealDate;
+}
 
 export class DemoSeedError extends Error {}
 
-/** Run before importing any module that opens a database connection. */
+/**
+ * Run before importing any module that opens a database connection. A remote
+ * database must be the DEV one named by JIROO_DEMO_ALLOWED_HOST, which the
+ * DEV launcher's configuration provides.
+ */
 export function assertDemoSeedAllowed(env: Readonly<Record<string, string | undefined>>): void {
   if (env.JIROO_DEMO_SEED !== "1") throw new DemoSeedError("Set JIROO_DEMO_SEED=1 explicitly.");
   let url: URL;
   try { url = new URL(env.DATABASE_URL ?? ""); } catch { throw new DemoSeedError("DATABASE_URL is missing or invalid."); }
   const local = ["127.0.0.1", "localhost"].includes(url.hostname);
-  const neonDev = env.JIROO_ENVIRONMENT === "dev" && url.hostname.endsWith(".neon.tech");
-  if (!local && !neonDev) throw new DemoSeedError("Only a local database or the Neon DEV database is allowed.");
+  const approvedDev = env.JIROO_ENVIRONMENT === "dev" && !!env.JIROO_DEMO_ALLOWED_HOST && url.hostname === env.JIROO_DEMO_ALLOWED_HOST;
+  if (!local && !approvedDev) throw new DemoSeedError("Only a local database or the approved DEV database is allowed.");
 }
 
 // ---------------------------------------------------------------------------
@@ -233,22 +244,81 @@ type LiveBacklog = {
   bugIndex: number;
 };
 
+type Services = Awaited<ReturnType<typeof loadServices>>;
+
+/**
+ * The services open their own transactions, so the run cannot be atomic:
+ * everything that could make it stop halfway is checked before the first
+ * write, and one run at a time holds a database-wide lock.
+ */
 export async function seedDemoDataset(): Promise<string> {
   assertDemoSeedAllowed(process.env);
-  const svc = await loadServices();
+  installClock();
+  try {
+    const svc = await loadServices();
+    const lock = await svc.database.databasePool.connect();
+    try {
+      const locked = await lock.query<{ ok: boolean }>("select pg_try_advisory_lock(hashtext('jiroo:demo-seed')) as ok");
+      if (!locked.rows[0]?.ok) throw new DemoSeedError("Another demo seed is running on this database.");
+      try {
+        return await run(svc);
+      } finally {
+        await lock.query("select pg_advisory_unlock(hashtext('jiroo:demo-seed'))").catch(() => undefined);
+      }
+    } finally {
+      lock.release();
+    }
+  } finally {
+    restoreClock();
+  }
+}
+
+/** Refuses, before any write, a database where the replay could not run to its end. */
+async function preflight(pool: Services["database"]["databasePool"]): Promise<void> {
+  const fail = (message: string) => { throw new DemoSeedError(`Preflight: ${message}`); };
+  const already = await pool.query(`select 1 from "user" where email like $1 limit 1`, [`%@${EMAIL_DOMAIN}`]);
+  if (already.rowCount) fail("the demo team already exists in this database.");
+  const admins = await pool.query(`select 1 from "user" where role = 'admin' limit 1`);
+  if (!admins.rowCount) fail("no administrator account: create one first (pnpm db:seed or db:bootstrap-admin).");
+  const roles = await pool.query<{ key: string }>("select key from project_roles where key = any($1)", [["administrators", "members", "viewers"]]);
+  if (roles.rowCount !== 3) fail("the default project roles are missing.");
+  const groups = await pool.query<{ name: string }>(
+    "select name from user_groups where lower(name) = any($1)", [GROUPS.map((group) => group.name.toLocaleLowerCase("fr"))],
+  );
+  if (groups.rowCount) fail(`groups already exist: ${groups.rows.map((row) => row.name).join(", ")}.`);
+  for (const spec of BACKLOGS) {
+    const found = await pool.query<{ id: string }>("select id from backlogs where upper(key) = $1", [spec.key]);
+    const id = found.rows[0]?.id;
+    if (!id) continue;
+    const sprints = await pool.query("select 1 from sprints where backlog_id = $1 limit 1", [id]);
+    if (sprints.rowCount) fail(`backlog ${spec.key} already has sprints.`);
+    const releases = await pool.query<{ name: string }>(
+      "select name from releases where backlog_id = $1 and lower(btrim(name)) = any($2)",
+      [id, spec.releases.map((release) => release.name.toLocaleLowerCase("fr"))],
+    );
+    if (releases.rowCount) fail(`backlog ${spec.key} already has releases named ${releases.rows.map((row) => row.name).join(", ")}.`);
+    const categories = await pool.query<{ category: string }>("select distinct category from statuses where backlog_id = $1", [id]);
+    const present = new Set(categories.rows.map((row) => row.category));
+    if (!["todo", "in_progress", "done"].every((category) => present.has(category))) fail(`backlog ${spec.key} lacks a to-do, in-progress or done status.`);
+  }
+}
+
+async function run(svc: Services): Promise<string> {
   const pool = svc.database.databasePool;
   const log: string[] = [];
 
   // --- Guards and existing accounts ----------------------------------------
-  const already = await pool.query(`select 1 from "user" where email like $1 limit 1`, [`%@${EMAIL_DOMAIN}`]);
-  if (already.rowCount) throw new DemoSeedError("The demo team already exists in this database.");
-  const existing = await pool.query<{ id: string; name: string }>(
-    `select id, name from "user" order by (role = 'admin') desc, created_at`,
+  await preflight(pool);
+  const existing = await pool.query<{ id: string; name: string; role: string }>(
+    `select id, name, role from "user" order by (role = 'admin') desc, created_at`,
   );
-  if (existing.rows.length === 0) throw new DemoSeedError("No existing account: create the administrator first (pnpm db:seed).");
-  const me = existing.rows.map((row) => row.id);
-  const owner = me[0]!;
+  const owner = existing.rows[0]!.id;
+  // Existing accounts keep their rights: the others join as members, or as
+  // readers when they are readers; only working accounts get demo tasks.
+  const others = existing.rows.slice(1).map((row) => ({ id: row.id, role: row.role === "viewer" ? "viewers" : "members" }));
+  const me = [owner, ...others.filter((other) => other.role === "members").map((other) => other.id)];
   const names = new Map(existing.rows.map((row) => [row.id, row.name]));
+  const notificationsBefore = (await pool.query<{ id: string }>("select id from notifications where user_id = any($1)", [me])).rows.map((row) => row.id);
   let meTurn = 0;
 
   // --- Timestamps the database stamps itself --------------------------------
@@ -260,23 +330,45 @@ export async function seedDemoDataset(): Promise<string> {
      where trigger_schema = 'public' and event_manipulation = 'UPDATE'`,
   );
   const skipped = new Set([...immutable.rows.map((row) => row.table), "session", "account", "verification", "two_factor", "user"]);
-  const columns = await pool.query<{ table: string; column: string }>(
-    `select table_name as table, column_name as column from information_schema.columns
-     where table_schema = 'public' and data_type = 'timestamp with time zone' order by 1, 2`,
+  const columns = await pool.query<{ table: string; column: string; type: string }>(
+    `select table_name as table, column_name as column, data_type as type from information_schema.columns
+     where table_schema = 'public' order by 1, 2`,
   );
+  const tableColumns = new Map<string, Set<string>>();
   const targets = new Map<string, string[]>();
-  for (const { table, column } of columns.rows) {
-    if (skipped.has(table) || table.startsWith("repo_webhook")) continue;
+  for (const { table, column, type } of columns.rows) {
+    tableColumns.set(table, (tableColumns.get(table) ?? new Set()).add(column));
+    if (type !== "timestamp with time zone" || skipped.has(table) || table.startsWith("repo_webhook")) continue;
     targets.set(table, [...(targets.get(table) ?? []), column]);
   }
+  // Only rows of the demo are re-dated: those of its backlogs ($4), of their
+  // items, of its groups ($5), and its audit events ($6: group and user ids).
+  // Tables without such a link keep the real date.
+  const demoItems = "(select id from items where backlog_id = any(p.b))";
+  function ownedBy(table: string): string | null {
+    const has = (column: string) => tableColumns.get(table)?.has(column) ?? false;
+    if (table === "backlogs") return "id = any(p.b)";
+    if (table === "user_groups") return "id = any(p.g)";
+    if (table === "group_members") return "group_id = any(p.g)";
+    if (table === "security_audit_events") return "(backlog_id = any(p.b) or target_id = any(p.t))";
+    if (table === "item_links") return `source_id in ${demoItems}`;
+    if (has("backlog_id")) return "backlog_id = any(p.b)";
+    if (has("item_id")) return `item_id in ${demoItems}`;
+    return null;
+  }
   const quoted = (name: string) => `"${name.replaceAll('"', '""')}"`;
-  const shiftStatements = [...targets].map(([table, cols]) => {
+  const shiftStatements = [...targets].flatMap(([table, cols]) => {
+    const owned = ownedBy(table);
+    if (!owned) return [];
     const sets = cols.map((c) =>
       `${quoted(c)} = case when ${quoted(c)} between $1 and $2 then ${quoted(c)} + make_interval(secs => $3::double precision) else ${quoted(c)} end`);
-    return `update ${quoted(table)} set ${sets.join(", ")} where ${cols.map((c) => `${quoted(c)} between $1 and $2`).join(" or ")}`;
+    return [`with p as (select $4::uuid[] as b, $5::uuid[] as g, $6::text[] as t) update ${quoted(table)} set ${sets.join(", ")} from p where ${owned} and (${cols.map((c) => `${quoted(c)} between $1 and $2`).join(" or ")})`];
   });
+  const demoBacklogIds: string[] = [];
+  const demoGroupIds: string[] = [];
+  const demoUserIds: string[] = [];
 
-  /** Runs `action` at the simulated instant `when`, then dates what the database stamped. */
+  /** Runs `action` at the simulated instant `when`, then dates what the database stamped for the demo. */
   async function at<T>(when: Date, action: () => Promise<T>): Promise<T> {
     if (!past(when)) throw new DemoSeedError(`Instant after the simulated present: ${when.toISOString()}`);
     clockOffsetMs = when.getTime() - RealDate.now();
@@ -285,7 +377,10 @@ export async function seedDemoDataset(): Promise<string> {
       return await action();
     } finally {
       const ended = (await pool.query<{ t: Date }>("select clock_timestamp() as t")).rows[0]!.t.getTime();
-      const params = [new RealDate(started - 2000).toISOString(), new RealDate(ended + 2000).toISOString(), (when.getTime() - started) / 1000];
+      const params = [
+        new RealDate(started - 2000).toISOString(), new RealDate(ended + 2000).toISOString(), (when.getTime() - started) / 1000,
+        demoBacklogIds, demoGroupIds, [...demoGroupIds, ...demoUserIds],
+      ];
       await Promise.all(shiftStatements.map((statement) => pool.query(statement, params)));
     }
   }
@@ -298,6 +393,7 @@ export async function seedDemoDataset(): Promise<string> {
         name: person.name, email: `${person.email}@${EMAIL_DOMAIN}`, password: randomBytes(24).toString("base64url"),
       });
       people[key] = created.id;
+      demoUserIds.push(created.id);
       names.set(created.id, person.name);
     }
   });
@@ -313,6 +409,7 @@ export async function seedDemoDataset(): Promise<string> {
   await at(paris(KICKOFF, "09:00"), async () => {
     for (const group of GROUPS) {
       const created = await svc.authorization.createGroup({ name: group.name }, owner);
+      demoGroupIds.push(created.id);
       for (const member of group.members) await svc.authorization.addGroupMember({ groupId: created.id, userId: people[member] }, owner);
       groups.push({ id: created.id, role: group.role });
     }
@@ -349,11 +446,12 @@ export async function seedDemoDataset(): Promise<string> {
 
   // --- Roadmap and inbox -----------------------------------------------------
   for (const b of scrum) await projectRoadmap(b);
+  // Older demo notifications have been read; those from before the run are left alone.
   await pool.query(
-    `update notifications set read_at = created_at + interval '2 hours' where user_id = any($1) and created_at < $2 and read_at is null`,
-    [me, new RealDate("2026-10-12T00:00:00+02:00").toISOString()],
+    `update notifications set read_at = created_at + interval '2 hours'
+     where user_id = any($1) and created_at < $2 and read_at is null and not (id = any($3::uuid[])) and item_id in (select id from items where backlog_id = any($4::uuid[]))`,
+    [me, new RealDate("2026-10-12T00:00:00+02:00").toISOString(), notificationsBefore, demoBacklogIds],
   );
-  clockOffsetMs = 0;
   return [...log, `Comptes existants intégrés à l’équipe : ${me.map((id) => names.get(id)).join(", ")}`].join("\n");
 
   // ===========================================================================
@@ -363,16 +461,23 @@ export async function seedDemoDataset(): Promise<string> {
     const day = addDays(KICKOFF, index < 3 ? 0 : 1);
     const backlog = await at(paris(day, `09:${String(15 + index * 5).padStart(2, "0")}`), async () => {
       const found = await pool.query<{ id: string }>("select id from backlogs where key = $1", [spec.key]);
-      const id = found.rows[0]?.id ?? (await svc.backlogs.createBacklog({ key: spec.key, name: spec.name, color: spec.color }, owner)).id;
+      const reused = found.rows[0]?.id;
+      const id = reused ?? (await svc.backlogs.createBacklog({ key: spec.key, name: spec.name, color: spec.color }, owner)).id;
+      demoBacklogIds.push(id);
       for (const group of groups) {
         await svc.authorization.assignBacklogRoleActor(
           { backlogId: id, projectRoleId: roleId(group.role), principal: { type: "group", groupId: group.id } }, owner,
         );
       }
-      for (const userId of me.slice(1)) {
+      // In an existing backlog, accounts that already have a role keep it.
+      const placed = new Set(reused
+        ? (await pool.query<{ user_id: string }>("select user_id from backlog_role_actors where backlog_id = $1 and user_id is not null", [id])).rows.map((row) => row.user_id)
+        : [owner]);
+      for (const other of others) {
+        if (placed.has(other.id)) continue;
         await svc.authorization.assignBacklogRoleActor(
-          { backlogId: id, projectRoleId: roleId("administrators"), principal: { type: "user", userId } }, owner,
-        ).catch(() => undefined);
+          { backlogId: id, projectRoleId: roleId(other.role), principal: { type: "user", userId: other.id } }, owner,
+        );
       }
       await svc.backlogs.updateBacklog({ id, key: spec.key, name: spec.name, color: spec.color, leadUserId: po }, owner);
       return { id };
