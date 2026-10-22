@@ -256,6 +256,8 @@ type LiveBacklog = {
   bugIndex: number;
   /** Existing accounts that may be assigned in this backlog. */
   me: string[];
+  /** The account playing each role of the scenario in this backlog. */
+  cast: Record<PersonKey, string>;
 };
 
 type Services = Awaited<ReturnType<typeof loadServices>>;
@@ -292,11 +294,20 @@ export async function seedDemoDataset(): Promise<string> {
 const SPRINT_WORDS = ["Sprint", "Itération", "Cycle"];
 const SPRINT_COUNT = Math.max(...PLANNED_SPRINTS) + 1;
 
-/** The existing accounts cast as product owners, named by JIROO_DEMO_PRODUCT_OWNERS, then the developers. */
-type Cast = { productOwners: string[]; developers: string[] };
+/**
+ * The existing accounts cast as product owners, named by
+ * JIROO_DEMO_PRODUCT_OWNERS, and per backlog the developers: the other
+ * accounts that may write, minus those who may only read that backlog.
+ */
+type Cast = { productOwners: string[]; developers: Map<string, string[]> };
 
-async function preflight(pool: Services["database"]["databasePool"]): Promise<{ sprintWords: Map<string, string>; cast: Cast }> {
+/** What a developer needs on a backlog they can already open. */
+const DEVELOPER_PERMISSIONS = ["edit_items", "transition_items", "assignable_user"] as const;
+
+async function preflight(svc: Services): Promise<{ sprintWords: Map<string, string>; cast: Cast }> {
+  const pool = svc.database.databasePool;
   const sprintWords = new Map<string, string>();
+  const developersOf = new Map<string, string[]>();
   const fail = (message: string) => { throw new DemoSeedError(`Preflight: ${message}`); };
   const admins = await pool.query(`select 1 from "user" where role = 'admin' limit 1`);
   if (!admins.rowCount) fail("no administrator account: create one first (pnpm db:seed or db:bootstrap-admin).");
@@ -313,10 +324,21 @@ async function preflight(pool: Services["database"]["databasePool"]): Promise<{ 
     return matches[0]!.id;
   });
   const developers = accounts.rows.map((row) => row.id).filter((id) => !productOwners.includes(id));
-  if (developers.length === 0) fail("no account is left to develop once the product owners are set apart.");
   for (const spec of BACKLOGS) {
     const found = await pool.query<{ id: string }>("select id from backlogs where upper(key) = $1", [spec.key]);
     const id = found.rows[0]?.id;
+    // An account that cannot open the backlog joins it as a member; one that
+    // can keeps its rights, so it develops only if they let it.
+    const scope = { type: "backlog" as const, backlogId: id ?? "" };
+    const able: string[] = [];
+    for (const developer of developers) {
+      if (!id) { able.push(developer); continue; }
+      const check = (permission: Parameters<typeof svc.access.checkPermission>[0]["permission"]) =>
+        svc.access.checkPermission({ actorId: developer, permission, scope }).then((decision) => decision.allowed);
+      if (!(await check("browse_backlog")) || (await Promise.all(DEVELOPER_PERMISSIONS.map(check))).every(Boolean)) able.push(developer);
+    }
+    if (able.length === 0) fail(`backlog ${spec.key}: no account outside the product owners may develop there.`);
+    developersOf.set(spec.key, able);
     if (!id) {
       sprintWords.set(spec.key, SPRINT_WORDS[0]!);
       continue;
@@ -337,7 +359,7 @@ async function preflight(pool: Services["database"]["databasePool"]): Promise<{ 
     const present = new Set(categories.rows.map((row) => row.category));
     if (!["todo", "in_progress", "done"].every((category) => present.has(category))) fail(`backlog ${spec.key} lacks a to-do, in-progress or done status.`);
   }
-  return { sprintWords, cast: { productOwners, developers } };
+  return { sprintWords, cast: { productOwners, developers: developersOf } };
 }
 
 async function run(svc: Services): Promise<string> {
@@ -345,7 +367,7 @@ async function run(svc: Services): Promise<string> {
   const log: string[] = [];
 
   // --- Guards and existing accounts ----------------------------------------
-  const { sprintWords, cast } = await preflight(pool);
+  const { sprintWords, cast } = await preflight(svc);
   const existing = await pool.query<{ id: string; name: string; role: string }>(
     `select id, name, role from "user" order by (role = 'admin') desc, created_at`,
   );
@@ -379,25 +401,24 @@ async function run(svc: Services): Promise<string> {
     targets.set(table, [...(targets.get(table) ?? []), column]);
   }
   // Only rows the replay wrote are re-dated: everything in the backlogs it
-  // created (p.b), its items (p.i) and groups (p.g), its audit events (p.t).
-  // In a backlog it reuses (p.r), a row counts only when a demo person (p.u)
-  // wrote it: anything else written meanwhile keeps its real date.
-  const authorColumns = ["actor_id", "author_id", "created_by", "added_by", "joined_by"];
+  // created (p.b), its items (p.i) and groups (p.g), the sprints, releases and
+  // labels it created (p.o), and audit events about them (p.t). Its actors are
+  // real accounts, so who wrote a row proves nothing: in a backlog it reuses
+  // (p.r), anything else written meanwhile keeps its real date.
   function ownedBy(table: string): string | null {
     const has = (column: string) => tableColumns.get(table)?.has(column) ?? false;
-    const author = authorColumns.find(has);
-    const byDemo = author ? `${author} = any(p.u)` : "false";
     if (table === "backlogs") return "id = any(p.b)";
     if (table === "items") return "id = any(p.i)";
     if (table === "user_groups") return "id = any(p.g)";
     if (table === "group_members") return "group_id = any(p.g)";
-    if (table === "security_audit_events") return "(backlog_id = any(p.b) or target_id = any(p.t) or (backlog_id = any(p.r) and actor_id = any(p.u)))";
-    if (table === "backlog_role_actors") return "(backlog_id = any(p.b) or group_id = any(p.g) or user_id = any(p.u))";
-    if (table === "notifications") return "(item_id = any(p.i) or comment_id in (select id from comments where author_id = any(p.u)))";
+    if (table === "security_audit_events") return "(backlog_id = any(p.b) or target_id = any(p.t))";
+    if (table === "backlog_role_actors") return "(backlog_id = any(p.b) or group_id = any(p.g))";
+    if (table === "notifications") return "item_id = any(p.i)";
     const item = has("item_id") ? "item_id" : table === "item_links" ? "source_id" : null;
-    if (item) return `(${item} = any(p.i) or (${item} in (select id from items where backlog_id = any(p.r)) and ${byDemo}))`;
-    if (has("backlog_id")) return `(backlog_id = any(p.b) or (backlog_id = any(p.r) and ${byDemo}))`;
-    return null;
+    if (item) return `${item} = any(p.i)`;
+    const own = ["id", "sprint_id", "release_id", "label_id"].filter(has).map((column) => `${column} = any(p.o)`);
+    if (has("backlog_id")) return `(backlog_id = any(p.b) or (backlog_id = any(p.r) and (${own.join(" or ") || "false"})))`;
+    return own.length > 0 ? `(${own.join(" or ")})` : null;
   }
   const quoted = (name: string) => `"${name.replaceAll('"', '""')}"`;
   const shiftStatements = [...targets].flatMap(([table, cols]) => {
@@ -406,14 +427,16 @@ async function run(svc: Services): Promise<string> {
     const sets = cols.map((c) =>
       `${quoted(c)} = case when ${quoted(c)} between $1 and $2 then ${quoted(c)} + make_interval(secs => $3::double precision) else ${quoted(c)} end`);
     return [
-      `with p as (select $4::uuid[] as b, $5::uuid[] as g, $6::text[] as t, $7::uuid[] as i, $8::uuid[] as r, $9::text[] as u) ` +
+      `with p as (select $4::uuid[] as b, $5::uuid[] as g, $6::text[] as t, $7::uuid[] as i, $8::uuid[] as r, $9::uuid[] as o) ` +
       `update ${quoted(table)} set ${sets.join(", ")} from p where ${owned} and (${cols.map((c) => `${quoted(c)} between $1 and $2`).join(" or ")})`,
     ];
   });
   const createdBacklogIds: string[] = [];
   const reusedBacklogIds: string[] = [];
   const demoGroupIds: string[] = [];
-  const demoUserIds: string[] = [];
+  /** Sprints, releases and labels the replay created. */
+  const ownedIds: string[] = [];
+  const own = (id: string) => { ownedIds.push(id); return id; };
   const demoItemIds: string[] = [];
   /** Every item of the replay goes through here, so its rows can be re-dated. */
   async function createItem(input: Record<string, unknown>, actorId: string) {
@@ -433,7 +456,7 @@ async function run(svc: Services): Promise<string> {
       const ended = (await pool.query<{ t: Date }>("select clock_timestamp() as t")).rows[0]!.t.getTime();
       const params = [
         new RealDate(started - 2000).toISOString(), new RealDate(ended + 2000).toISOString(), (when.getTime() - started) / 1000,
-        createdBacklogIds, demoGroupIds, [...demoGroupIds, ...demoUserIds], demoItemIds, reusedBacklogIds, demoUserIds,
+        createdBacklogIds, demoGroupIds, [...demoGroupIds, ...ownedIds, ...demoItemIds], demoItemIds, reusedBacklogIds, ownedIds,
       ];
       await Promise.all(shiftStatements.map((statement) => pool.query(statement, params)));
     }
@@ -441,12 +464,15 @@ async function run(svc: Services): Promise<string> {
 
   // --- Cast ----------------------------------------------------------------
   // Every role of the scenario is played by an existing account: the product
-  // slots by the product owners, the others by the developers, in turn.
-  const people = {} as Record<PersonKey, string>;
-  PRODUCT_SLOTS.forEach((slot, index) => { people[slot] = cast.productOwners[index % cast.productOwners.length]!; });
-  DEV_SLOTS.forEach((slot, index) => { people[slot] = cast.developers[index % cast.developers.length]!; });
-  demoUserIds.push(...new Set(Object.values(people)), owner);
-  const who = (actor: Actor, b: { me: string[] }): string => (actor === "me" ? b.me[meTurn++ % b.me.length]! : people[actor]);
+  // slots by the product owners, the others by the backlog's developers, in turn.
+  const product = {} as Record<PersonKey, string>;
+  PRODUCT_SLOTS.forEach((slot, index) => { product[slot] = cast.productOwners[index % cast.productOwners.length]!; });
+  const castFor = (developers: string[]) => {
+    const people = { ...product };
+    DEV_SLOTS.forEach((slot, index) => { people[slot] = developers[index % developers.length]!; });
+    return people;
+  };
+  const who = (actor: Actor, b: LiveBacklog): string => (actor === "me" ? b.me[meTurn++ % b.me.length]! : b.cast[actor]);
 
   const roles = await pool.query<{ id: string; key: string }>("select id, key from project_roles");
   const roleId = (key: string) => {
@@ -466,7 +492,7 @@ async function run(svc: Services): Promise<string> {
   // --- Scrum: sprints, releases and everyday work -----------------------------
   const scrum = live.filter((b) => !b.flow);
   for (const b of scrum) {
-    const first = await at(paris(GROOMED.scrum, "15:00"), () => svc.sprints.createSprint({ backlogId: b.id }, people[b.spec.po]));
+    const first = await at(paris(GROOMED.scrum, "15:00"), async () => ({ id: own((await svc.sprints.createSprint({ backlogId: b.id }, b.cast[b.spec.po])).id) }));
     b.sprints.set(0, first.id);
   }
   for (let k = 0; k <= ACTIVE_SPRINT; k++) {
@@ -502,7 +528,7 @@ async function run(svc: Services): Promise<string> {
   // ===========================================================================
 
   async function setUpBacklog(spec: BacklogSpec, index: number): Promise<LiveBacklog> {
-    const po = people[spec.po];
+    const po = product[spec.po];
     const day = addDays(KICKOFF, index < 3 ? 0 : 1);
     const backlog = await at(paris(day, `09:${String(15 + index * 5).padStart(2, "0")}`), async () => {
       const found = await pool.query<{ id: string; name: string; color: string }>(
@@ -522,7 +548,7 @@ async function run(svc: Services): Promise<string> {
         );
       }
       // Product owners run the sprints and releases of the backlogs they own.
-      for (const userId of new Set([po, people[spec.business]])) {
+      for (const userId of new Set([po, product[spec.business]])) {
         const manages = await Promise.all((["manage_sprints", "manage_releases"] as const).map((permission) =>
           svc.access.checkPermission({ actorId: userId, permission, scope })));
         if (manages.every((decision) => decision.allowed)) continue;
@@ -533,13 +559,14 @@ async function run(svc: Services): Promise<string> {
       // A backlog that already exists keeps its name and colour.
       const { name, color } = found.rows[0] ?? spec;
       await svc.backlogs.updateBacklog({ id, key: spec.key, name, color, leadUserId: po }, owner);
-      // Demo tasks go to the developers who may be assigned here.
-      const assignable: string[] = [];
-      for (const other of [{ id: owner }, ...others].filter((account) => cast.developers.includes(account.id))) {
-        const decision = await svc.access.checkPermission({ actorId: other.id, permission: "assignable_user", scope });
-        if (decision.allowed) assignable.push(other.id);
+      // Demo work goes to the developers, who must now be able to do it.
+      const assignable = cast.developers.get(spec.key)!;
+      for (const developer of assignable) {
+        for (const permission of DEVELOPER_PERMISSIONS) {
+          const decision = await svc.access.checkPermission({ actorId: developer, permission, scope });
+          if (!decision.allowed) throw new DemoSeedError(`${names.get(developer)} cannot ${permission} in ${spec.key}.`);
+        }
       }
-      if (assignable.length === 0) assignable.push(owner);
       const own = await pool.query<{ state: string }>("select state from sprints where backlog_id = $1", [id]);
       return {
         id, assignable,
@@ -553,7 +580,7 @@ async function run(svc: Services): Promise<string> {
     );
     const inCategory = (category: string) => statusRows.rows.filter((row) => row.category === category);
     const b: LiveBacklog = {
-      spec, id: backlog.id, flow, sprintWord: backlog.sprintWord, labels: new Map(), releases: [], epics: [], tasks: [], queue: [], sprints: new Map(), bugIndex: 0, me: backlog.assignable,
+      spec, id: backlog.id, flow, sprintWord: backlog.sprintWord, labels: new Map(), releases: [], epics: [], tasks: [], queue: [], sprints: new Map(), bugIndex: 0, me: backlog.assignable, cast: castFor(backlog.assignable),
       status: {
         todo: inCategory("todo")[0]!.id,
         doing: inCategory("in_progress")[0]!.id,
@@ -563,14 +590,14 @@ async function run(svc: Services): Promise<string> {
     };
 
     await at(paris(day, "10:30"), async () => {
-      for (const name of LABELS) b.labels.set(name, (await svc.labels.createLabel({ backlogId: b.id, name })).id);
+      for (const name of LABELS) b.labels.set(name, own((await svc.labels.createLabel({ backlogId: b.id, name })).id));
       const dates = [["2026-04-06", "2026-05-29"], ["2026-06-01", "2026-07-24"], ["2026-07-27", "2026-09-18"], ["2026-09-21", "2027-01-29"]];
       for (const [r, release] of spec.releases.entries()) {
         const created = await svc.releases.createRelease({
           backlogId: b.id, name: release.name, description: release.description, driverId: po,
           startDate: dates[r]![0], targetDate: dates[r]![1],
         }, po, randomUUID());
-        b.releases.push(created.id);
+        b.releases.push(own(created.id));
       }
       await svc.backlogs.setBacklogStar({ backlogId: b.id, starred: true }, owner);
     });
@@ -605,7 +632,7 @@ async function run(svc: Services): Promise<string> {
     const groomed = flow ? GROOMED.flow : GROOMED.scrum;
     const groomingDays = workdaysBetween(addDays(day, 2), groomed);
     for (const [n, plan] of ordered.entries()) {
-      const author = plan.bug ? people[spec.qa] : chance(0.8) ? po : people[spec.business];
+      const author = plan.bug ? b.cast[spec.qa] : chance(0.8) ? po : b.cast[spec.business];
       const groomDay = groomingDays[Math.floor((n / ordered.length) * groomingDays.length)]!;
       const labelIds = labelsFor(plan, b.labels);
       const estimate = plan.fixedNullPoints || chance(0.3) ? null : plan.points;
@@ -643,7 +670,7 @@ async function run(svc: Services): Promise<string> {
     if (original) {
       const duplicate = await at(paris("2026-03-18", "10:12"), () => createItem({
         backlogId: b.id, type: "tache", parentId: original.epicId, title: `${original.title} (doublon)`, priority: 1,
-      }, people[spec.business]));
+      }, b.cast[spec.business]));
       await at(paris("2026-03-18", "11:40"), () => svc.items.softDeleteItem({ id: duplicate.id }, po));
     }
     // Views shared with the team.
@@ -663,7 +690,7 @@ async function run(svc: Services): Promise<string> {
   }
 
   async function planSprint(b: LiveBacklog, k: number): Promise<LiveTask[]> {
-    const po = people[b.spec.po];
+    const po = b.cast[b.spec.po];
     const start = sprintStart(k);
     const sprintId = b.sprints.get(k)!;
     const carried = b.tasks.filter((t) => t.sprint === k);
@@ -700,7 +727,7 @@ async function run(svc: Services): Promise<string> {
         if (!epic.due || epic.due < sprintEnd(k)) { epic.due = addDays(sprintEnd(k), 14); update.dueDate = epic.due; }
         if (Object.keys(update).length > 1) await svc.items.updateItem(update, po);
       }
-      if (!b.sprints.has(k + 1)) b.sprints.set(k + 1, (await svc.sprints.createSprint({ backlogId: b.id }, po)).id);
+      if (!b.sprints.has(k + 1)) b.sprints.set(k + 1, own((await svc.sprints.createSprint({ backlogId: b.id }, po)).id));
     });
     // One task waits for another of the same sprint.
     const waiting = added.filter((t) => t.subIds.length === 0);
@@ -718,12 +745,12 @@ async function run(svc: Services): Promise<string> {
     await at(paris(start, "10:00"), () => svc.lifecycle.startSprint({
       id: b.sprints.get(k)!, backlogId: b.id, name: `${b.spec.key} ${b.sprintWord} ${k + 1}`, goal: b.spec.goals[k] ?? null,
       startAt: paris(start, "10:00").toISOString(), endAt: paris(sprintEnd(k), "17:00").toISOString(), capacityPoints: CAPACITY[k]!,
-    }, people[b.spec.po]));
+    }, b.cast[b.spec.po]));
   }
 
   async function workDay(b: LiveBacklog, k: number, d: number, day: string, tasks: LiveTask[]) {
-    const po = people[b.spec.po];
-    const qa = people[b.spec.qa];
+    const po = b.cast[b.spec.po];
+    const qa = b.cast[b.spec.qa];
     // Mid-sprint: an estimate grows, and testing finds a bug.
     if (d === 1 && chance(0.6)) {
       const grown = tasks.find((t) => t.state === "todo" && t.points === 3);
@@ -800,7 +827,7 @@ async function run(svc: Services): Promise<string> {
 
   async function comment(b: LiveBacklog, t: LiveTask, day: string) {
     const template = pick(COMMENTS);
-    const roleOf = { po: people[b.spec.po], qa: people[b.spec.qa], biz: people[b.spec.business], dev: t.assignee ?? people[b.spec.po], me: owner };
+    const roleOf = { po: b.cast[b.spec.po], qa: b.cast[b.spec.qa], biz: b.cast[b.spec.business], dev: t.assignee ?? b.cast[b.spec.po], me: owner };
     const author = roleOf[template.by];
     const mentioned = template.mention ? roleOf[template.mention] : null;
     if (mentioned === author) return;
@@ -815,12 +842,12 @@ async function run(svc: Services): Promise<string> {
     const open = unfinished.filter((t) => t.subIds.length);
     if (open.length) {
       await at(paris(sprintEnd(k), "16:40"), async () => {
-        for (const t of open) for (const sub of t.subIds) await svc.items.updateItem({ id: sub, statusId: b.status.done }, t.assignee ?? people[b.spec.po]);
+        for (const t of open) for (const sub of t.subIds) await svc.items.updateItem({ id: sub, statusId: b.status.done }, t.assignee ?? b.cast[b.spec.po]);
       });
     }
     await at(paris(sprintEnd(k), "17:00"), () => svc.lifecycle.completeSprint({
       id: b.sprints.get(k)!, backlogId: b.id, destination: { type: "existing_sprint", sprintId: b.sprints.get(k + 1)! },
-    }, people[b.spec.po]));
+    }, b.cast[b.spec.po]));
     for (const t of unfinished) t.sprint = k + 1;
     log.push(`${b.spec.key} ${b.sprintWord} ${k + 1} : ${b.tasks.filter((t) => t.sprint === k).length} tâches terminées, ${unfinished.length} reportées`);
   }
@@ -833,16 +860,16 @@ async function run(svc: Services): Promise<string> {
       await svc.releases.publishRelease({
         backlogId: b.id, releaseId, expectedRevision: detail.revision, expectedScopeRevision: detail.publicationScopeRevision,
         effectiveDate: day, incompleteDisposition: "move", destinationReleaseId: b.releases[r + 1]!,
-      }, people[b.spec.po], randomUUID());
+      }, b.cast[b.spec.po], randomUUID());
     });
   }
 
   /** The two sprints after the active one, already filled; and some late work in the active one. */
   async function prepareNextSprints(b: LiveBacklog) {
-    const po = people[b.spec.po];
+    const po = b.cast[b.spec.po];
     for (const k of PLANNED_SPRINTS) {
       await at(paris("2026-10-21", k === 6 ? "15:00" : "15:30"), async () => {
-        if (!b.sprints.has(k)) b.sprints.set(k, (await svc.sprints.createSprint({ backlogId: b.id }, po)).id);
+        if (!b.sprints.has(k)) b.sprints.set(k, own((await svc.sprints.createSprint({ backlogId: b.id }, po)).id));
         const sprintId = b.sprints.get(k)!;
         await svc.sprints.updateSprint({
           id: sprintId, backlogId: b.id, name: `${b.spec.key} ${b.sprintWord} ${k + 1}`, goal: b.spec.goals[k] ?? null,
@@ -882,25 +909,27 @@ async function run(svc: Services): Promise<string> {
         await svc.links.addLink({ sourceId: blocker.id, targetId: waiting.id, type: "blocks" }, po).catch(() => undefined);
       }
     });
-    // Recent questions to the existing accounts, still unread this morning.
+    // Recent questions to the product owner, still unread this morning: the
+    // decisions waiting for them.
     const asks = [
-      { by: po, day: "2026-10-21", time: "17:40", body: "peux-tu arbitrer la priorité de ce ticket avant le point de jeudi ?" },
-      { by: people[b.spec.qa], day: "2026-10-22", time: "08:50", body: "la recette est bloquée sur ce point, j’ai besoin de ton accord pour continuer." },
-      { by: people[b.spec.business], day: "2026-10-22", time: "09:20", body: "les greffières demandent si ce sera prêt pour la prochaine version." },
+      { by: b.cast[b.spec.qa], day: "2026-10-21", time: "17:40", body: "peux-tu arbitrer la priorité de ce ticket avant le point de jeudi ?" },
+      { by: b.cast[b.spec.qa], day: "2026-10-22", time: "08:50", body: "la recette est bloquée sur ce point, j’ai besoin de ton accord pour continuer." },
+      { by: b.cast[b.spec.business], day: "2026-10-22", time: "09:20", body: "les greffières demandent si ce sera prêt pour la prochaine version." },
     ];
     const subjects = b.tasks.filter((t) => t.sprint === ACTIVE_SPRINT);
     for (const [n, ask] of asks.entries()) {
       const subject = subjects[n];
       if (!subject) break;
+      if (ask.by === po) continue;
       await at(paris(ask.day, ask.time), () => svc.comments.addComment({
-        itemId: subject.id, body: `@${names.get(owner)} ${ask.body}`, mentionIds: [owner],
+        itemId: subject.id, body: `@${names.get(po)} ${ask.body}`, mentionIds: [po],
       }, ask.by));
     }
   }
 
   /** Dates of the epics not started yet, as the product owner foresees them. */
   async function projectRoadmap(b: LiveBacklog) {
-    const po = people[b.spec.po];
+    const po = b.cast[b.spec.po];
     let cursor = "2026-11-16";
     await at(paris("2026-10-21", "17:00"), async () => {
       for (const epic of b.epics) {
@@ -915,7 +944,7 @@ async function run(svc: Services): Promise<string> {
 
   /** Cards pulled one after the other, without sprints; versions ship on their dates. */
   async function runFlow(b: LiveBacklog) {
-    const lead = people[b.spec.po];
+    const lead = b.cast[b.spec.po];
     const devs = b.spec.devs.map((dev) => who(dev, b));
     const cursors = new Map(devs.map((dev, n) => [dev, workday(addDays(FLOW_START, n))]));
     const shipDates = RELEASE_SPRINTS.map(sprintEnd);
