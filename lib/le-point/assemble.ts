@@ -128,11 +128,20 @@ export function assembleLePoint(source: LePointSource): LePointDataset {
       .sort((a, b) => b.released!.localeCompare(a.released!))[0] ?? null;
   }
 
+  // Shipped: its own fix version is published, else every one of its tasks is
+  // in a published version. Anything unknown keeps the objective shown.
+  const published = (id: string) => releaseById.get(id)?.released != null;
+  function shipped(epic: LePointRow) {
+    const own = versionsOf.get(epic.id) ?? [];
+    if (own.length > 0) return own.some(published);
+    const children = source.items.filter((row) => epicOf(row)?.id === epic.id);
+    return children.length > 0 && children.every((row) => (versionsOf.get(row.id) ?? []).some(published));
+  }
+
   const objectives = source.items
     .filter((row) => row.type === "epic")
+    .filter((epic) => epic.category !== "done" || !shipped(epic))
     .map((epic) => ({ epic, release: deliveryOf(epic) }))
-    // Only a done objective whose delivery is published is history; an unknown delivery stays shown.
-    .filter(({ epic, release }) => epic.category !== "done" || !release?.released)
     .map(({ epic, release }) => ({ key: epic.key, title: epic.title, due: epic.dueDate, release: release?.name ?? null }));
 
   const mentions = source.comments.flatMap((comment) => {

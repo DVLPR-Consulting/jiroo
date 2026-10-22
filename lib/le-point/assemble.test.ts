@@ -146,5 +146,19 @@ describe("assembleLePoint", () => {
       blocks: [{ sourceId: "1", targetId: "2" }],
     })), "dev").next.map((card) => card.key)).not.toContain("CASS-1");
   });
+
+  it("keeps a done objective while one of its tasks has no published delivery", () => {
+    const done = { status: "Terminé", category: "done" as const };
+    const items = [row("1", { type: "epic", parentId: null, ...done }), row("2", done), row("3", done)];
+    const releases = [
+      { id: "r1", name: "1.0", planned: "2026-09-18", released: "2026-09-18" },
+      { id: "r9", name: "0.9", planned: "2026-06-01", released: null, archived: true },
+    ];
+    const mixed = assembleLePoint(source({ items, releases, fixVersions: [{ itemId: "2", releaseId: "r1" }, { itemId: "3", releaseId: "r9" }] }));
+    expect(mixed.objectives.map((o) => o.key)).toEqual(["CASS-1"]);
+    expect(productView(mixed, "po").nextRelease).toBeNull();
+    const all = assembleLePoint(source({ items, releases, fixVersions: [{ itemId: "2", releaseId: "r1" }, { itemId: "3", releaseId: "r1" }] }));
+    expect(all.objectives).toEqual([]);
+  });
 });
 
