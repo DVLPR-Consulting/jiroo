@@ -22,9 +22,9 @@ const MODE_LABELS: Record<string, ShellMode> = {
   tree: "Arbre",
 };
 
-// A backlog's settings pages: « Accès » (JIR-85) and « Développement » (JIR-95).
-const SETTINGS_ROUTE = /^\/b\/([^/]+)\/settings\/(access|development)\/?$/;
-const SETTINGS_SECTIONS = { access: "Accès", development: "Développement" } as const;
+// A backlog's settings pages, kept in the current backlog context.
+const SETTINGS_ROUTE = /^\/b\/([^/]+)\/settings\/(access|development|templates)\/?$/;
+const SETTINGS_SECTIONS = { access: "Accès", development: "Développement", templates: "Modèles" } as const;
 
 /**
  * Where « Tous les items » leads: the backlog's Liste, without filters
