@@ -49,7 +49,7 @@ import {
   type Priority,
 } from "@/lib/design/constants";
 import { readableTextOn } from "@/lib/design/contrast";
-import { ITEM_TEMPLATES, getTemplate } from "@/lib/items/templates";
+import { ITEM_TEMPLATES, getTemplate, missingTemplateLabelsMessage } from "@/lib/items/templates";
 import { isHiddenByFilters, type Filters } from "@/lib/items/filter";
 import { allowedParentType } from "@/lib/tree/hierarchy";
 import { toast } from "@/lib/toast";
@@ -59,6 +59,7 @@ import {
   FixVersionPicker,
   type FixVersionOption,
 } from "@/components/items/fix-version-picker";
+import type { ItemTemplateDto } from "@/lib/services/item-templates";
 import { AssigneePermissionHint } from "@/components/items/assignee-permission-hint";
 
 type Item = { id: string; key: string; type: ItemType; title: string };
@@ -114,6 +115,8 @@ export type NewItemButtonProps = {
   canScheduleItems?: boolean;
   releaseOptions?: FixVersionOption[];
   fieldOptions?: NewItemFieldOptions;
+  /** Shared backlog templates, already filtered by backlog access and live labels. */
+  templates?: ItemTemplateDto[];
   /**
    * Pre-fills the title when opened (« Plus d’options » of inline creation);
    * `initialParentId` is re-applied on every opening too.
@@ -129,10 +132,12 @@ export type NewItemButtonProps = {
 /** The dialog data a view hands down to its « Nouvel item » buttons. */
 export type NewItemDialogData = Pick<
   NewItemButtonProps,
-  "backlogId" | "backlogColor" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters"
+  "backlogId" | "backlogColor" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters" | "templates"
 >;
 
 const EMPTY_FIELD_OPTIONS: NewItemFieldOptions = {};
+
+const EMPTY_TEMPLATES: ItemTemplateDto[] = [];
 
 const TEMPLATE_OPTIONS: SelectFieldOption[] = [
   { value: "", label: "Aucun" },
@@ -321,6 +326,7 @@ export function NewItemButton({
   canScheduleItems = true,
   releaseOptions = [],
   fieldOptions = EMPTY_FIELD_OPTIONS,
+  templates = EMPTY_TEMPLATES,
   initialTitle,
   viewFilters,
 }: NewItemButtonProps) {
@@ -333,6 +339,8 @@ export function NewItemButton({
 
   const defaultType: ItemType = initialType ?? (contextualTask ? "tache" : "composant");
   const [templateId, setTemplateId] = useState<string>("");
+  const [sharedFieldsApplied, setSharedFieldsApplied] = useState(false);
+  const [missingTemplateLabelCount, setMissingTemplateLabelCount] = useState(0);
   const [type, setType] = useState<ItemType>(defaultType);
   const [kind, setKind] = useState<ItemKind>("feature");
   const [title, setTitle] = useState("");
@@ -418,6 +426,8 @@ export function NewItemButton({
   /** Clears the draft; « Créer un autre » keeps everything but the text. */
   function resetText() {
     setTemplateId("");
+    setSharedFieldsApplied(false);
+    setMissingTemplateLabelCount(0);
     setTitle("");
     setDescription("");
     setError(null);
@@ -443,17 +453,36 @@ export function NewItemButton({
 
   function handleTemplateChange(id: string) {
     setTemplateId(id);
+    setMissingTemplateLabelCount(0);
     if (!id) {
-      // "Aucun" selected — reset template-seeded fields to defaults
+      // Reset the stable fields that a template can prefill; unrelated choices stay.
+      if (sharedFieldsApplied) {
+        handleTypeChange(defaultType);
+        setTitle(initialTitle ?? "");
+        setPriority(0);
+        setLabelIds([]);
+      }
+      setSharedFieldsApplied(false);
       setKind("feature");
       setDescription("");
       return;
     }
-    const tpl = getTemplate(id);
-    if (tpl) {
-      setKind(tpl.kind);
-      setDescription(tpl.description);
+    const shared = templates.find((template) => template.id === id);
+    if (shared) {
+      setSharedFieldsApplied(true);
+      // Templates do not grant a type forbidden by the current creation context.
+      if (shared.itemType && !contextualTask && availableItemTypes.includes(shared.itemType)) handleTypeChange(shared.itemType);
+      setKind(shared.kind);
+      setTitle(shared.title);
+      setDescription(shared.description);
+      setPriority(shared.priority as Priority);
+      const liveIds = shared.labelIds.filter((labelId) => backlogLabels.some((label) => label.id === labelId));
+      setLabelIds(liveIds);
+      setMissingTemplateLabelCount(shared.missingLabelCount + shared.labelIds.length - liveIds.length);
+      return;
     }
+    const fixed = getTemplate(id);
+    if (fixed) { setKind(fixed.kind); setDescription(fixed.description); }
   }
 
   function handleTypeChange(next: ItemType) {
@@ -676,10 +705,12 @@ export function NewItemButton({
                   id="item-template"
                   value={templateId}
                   onValueChange={handleTemplateChange}
-                  options={TEMPLATE_OPTIONS}
+                  options={[...TEMPLATE_OPTIONS, ...templates.map((template) => ({ value: template.id, label: template.name, group: "Modèles du backlog" }))]}
                 />
               </div>
             </div>
+
+            {missingTemplateLabelCount > 0 && <p role="status" className="text-sm text-muted-foreground">{missingTemplateLabelsMessage(missingTemplateLabelCount)}</p>}
 
             {parentRequired && canScheduleItems && (
               <div className="space-y-2">

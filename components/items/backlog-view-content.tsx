@@ -21,6 +21,7 @@ import {
 } from "@/lib/services/items";
 import { blockedItemIds } from "@/lib/services/links";
 import { listItemFixVersionPairs } from "@/lib/services/item-fix-versions";
+import { listItemTemplates } from "@/lib/services/item-templates";
 import { listReleaseSummaries } from "@/lib/services/releases";
 import { moveItemAction, reparentItemAction } from "@/app/actions/items";
 import {
@@ -352,15 +353,17 @@ export async function BacklogViewContent({
     permission: "browse_users",
     scope: { type: "global" },
   });
-  const [referencedUsers, rawDirectoryUsers, assigneeCandidates, backlogLabelRows] = await Promise.all([
+  const [referencedUsers, rawDirectoryUsers, assigneeCandidates, backlogLabelRows, templates] = await Promise.all([
     listUsersByIds(referencedUserIds),
     browseUsersDecision.allowed ? listUsers() : Promise.resolve([]),
     browseUsersDecision.allowed
       ? listAssignableUsersForBacklog(backlog.id)
       : Promise.resolve([]),
     listLabelsForBacklog(backlog.id),
+    capabilities.createItems ? listItemTemplates(backlog.id) : Promise.resolve([]),
   ]);
   const createDialogProps = {
+    templates,
     backlogId: backlog.id,
     backlogColor: backlog.color,
     canScheduleItems: capabilities.scheduleItems,

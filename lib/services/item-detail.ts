@@ -22,6 +22,7 @@ import {
 import { listLinksForItem } from "@/lib/services/links";
 import { listRefsForItem } from "@/lib/services/refs";
 import { listWebLinksForItem } from "@/lib/services/web-links";
+import { listItemTemplates } from "@/lib/services/item-templates";
 import { listReleaseSummaries } from "@/lib/services/releases";
 import { listSprintsForBacklog } from "@/lib/services/sprints";
 
@@ -89,6 +90,7 @@ export async function loadItemDetailData({
     webLinks,
     directoryUsers,
     assigneeCandidates,
+    templates,
   ] = await Promise.all([
     listActivities(detail.id),
     getItemLabelIds(detail.id),
@@ -108,6 +110,7 @@ export async function loadItemDetailData({
     listWebLinksForItem(detail.id),
     canBrowseUsers ? listUsers() : Promise.resolve([]),
     canBrowseUsers ? listAssignableUsersForBacklog(backlog.id) : Promise.resolve([]),
+    capabilities.createItems ? listItemTemplates(backlog.id) : Promise.resolve([]),
   ]);
   // Names shown in the drawer: the directory (when browsable) plus everyone
   // the backlog and this item reference, so no name falls back to an id. The
@@ -199,6 +202,7 @@ export async function loadItemDetailData({
       // creation picks parents among the whole backlog.
       createDialog: capabilities.createItems
         ? {
+            templates,
             backlogId: backlog.id,
             backlogColor: backlog.color,
             canScheduleItems: capabilities.scheduleItems,

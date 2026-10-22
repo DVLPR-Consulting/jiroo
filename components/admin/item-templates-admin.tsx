@@ -11,14 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select";
 import { ITEM_KINDS, ITEM_KIND_LABELS, ITEM_TYPES, ITEM_TYPE_LABELS, PRIORITIES, PRIORITY_LABELS, type ItemKind, type ItemType, type Priority } from "@/lib/design/constants";
+import { missingTemplateLabelsMessage } from "@/lib/items/templates";
 import type { ItemTemplateDto } from "@/lib/services/item-templates";
 import { ITEM_DESCRIPTION_MAX, ITEM_TITLE_MAX } from "@/lib/validation/item";
 import { ITEM_TEMPLATE_NAME_MAX, ITEM_TEMPLATES_PER_BACKLOG_MAX } from "@/lib/validation/item-template";
-
-/** Shared by the settings list and the create dialog; missing labels are never applied. */
-export function missingTemplateLabelsMessage(count: number): string {
-  return count === 1 ? "1 label du modèle n’existe plus" : `${count} labels du modèle n’existent plus`;
-}
 
 type Draft = { name: string; itemType: ItemType | null; kind: ItemKind; title: string; description: string; priority: Priority; labelIds: string[] };
 const emptyDraft = (): Draft => ({ name: "", itemType: null, kind: "feature", title: "", description: "", priority: 0, labelIds: [] });

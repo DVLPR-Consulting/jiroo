@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  listItemTemplates: vi.fn(),
   getBacklogByKeyForUser: vi.fn(),
   resolveBacklogAccess: vi.fn(),
   checkPermission: vi.fn(),
@@ -24,6 +25,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/services/item-templates", () => ({ listItemTemplates: mocks.listItemTemplates }));
 vi.mock("@/lib/db", () => ({
   db: {
     select: () => {
@@ -134,8 +136,14 @@ function load(itemKey = detail.key) {
 }
 
 describe("loadItemDetailData", () => {
+  it("loads templates for the drawer's create dialog", async () => {
+    const data = await load("DEMO-1");
+    expect(mocks.listItemTemplates).toHaveBeenCalledWith(BACKLOG.id);
+    expect(data).toMatchObject({ panel: { createDialog: { templates: [{ id: "shared-template", name: "Incident" }] } } });
+  });
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.listItemTemplates.mockResolvedValue([{ id: "shared-template", name: "Incident" }]);
     mocks.repoConnectionRows = [];
     mocks.checkPermission.mockResolvedValue({ allowed: false });
     mocks.statusRows = [
@@ -215,6 +223,7 @@ describe("loadItemDetailData", () => {
     expect(mocks.listActivities).not.toHaveBeenCalled();
     expect(mocks.listComments).not.toHaveBeenCalled();
     expect(mocks.listWebLinksForItem).not.toHaveBeenCalled();
+    expect(mocks.listItemTemplates).not.toHaveBeenCalled();
   });
 
   it("reports a key missing from the backlog as not found", async () => {
@@ -225,6 +234,7 @@ describe("loadItemDetailData", () => {
     expect(mocks.getItemByKeyForBacklog).toHaveBeenCalledWith("DEMO-404", "backlog-1");
     expect(mocks.listActivities).not.toHaveBeenCalled();
     expect(mocks.listWebLinksForItem).not.toHaveBeenCalled();
+    expect(mocks.listItemTemplates).not.toHaveBeenCalled();
   });
 
   it("builds the panel props from the whole backlog, with exact capabilities", async () => {

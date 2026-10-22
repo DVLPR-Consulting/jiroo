@@ -722,7 +722,7 @@ type SprintBacklogProps = SharedBacklogProps & {
   activeSprintCommitment?: ActiveSprintStartCommitment | null;
   moveSprintItemAction?: MoveSprintItemAction;
   reorderSprintAction?: typeof defaultReorderSprintAction;
-  createDialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters">;
+  createDialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters" | "templates">;
 };
 
 function SprintSectionDropZone({
