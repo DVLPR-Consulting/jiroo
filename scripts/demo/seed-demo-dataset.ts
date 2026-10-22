@@ -208,15 +208,15 @@ function labelsFor(plan: TaskPlan, labels: Map<string, string>): string[] {
 // ---------------------------------------------------------------------------
 
 async function loadServices() {
-  const [items, backlogs, users, authorization, labels, releases, sprints, lifecycle, comments, links, webLinks, views, database] =
+  const [items, backlogs, users, authorization, labels, releases, sprints, lifecycle, comments, links, webLinks, views, database, access] =
     await Promise.all([
       import("@/lib/services/items"), import("@/lib/services/backlogs"), import("@/lib/services/users"),
       import("@/lib/services/authorization-admin"), import("@/lib/services/labels"), import("@/lib/services/releases"),
       import("@/lib/services/sprints"), import("@/lib/services/sprint-lifecycle"), import("@/lib/services/comments"),
       import("@/lib/services/links"), import("@/lib/services/web-links"), import("@/lib/services/views"),
-      import("@/lib/db"),
+      import("@/lib/db"), import("@/lib/auth/authorization"),
     ]);
-  return { items, backlogs, users, authorization, labels, releases, sprints, lifecycle, comments, links, webLinks, views, database };
+  return { items, backlogs, users, authorization, labels, releases, sprints, lifecycle, comments, links, webLinks, views, database, access };
 }
 
 type Status = { todo: string; doing: string; review: string; done: string };
@@ -242,6 +242,8 @@ type LiveBacklog = {
   queue: LiveTask[];
   sprints: Map<number, string>;
   bugIndex: number;
+  /** Existing accounts that may be assigned in this backlog. */
+  me: string[];
 };
 
 type Services = Awaited<ReturnType<typeof loadServices>>;
@@ -313,8 +315,8 @@ async function run(svc: Services): Promise<string> {
     `select id, name, role from "user" order by (role = 'admin') desc, created_at`,
   );
   const owner = existing.rows[0]!.id;
-  // Existing accounts keep their rights: the others join as members, or as
-  // readers when they are readers; only working accounts get demo tasks.
+  // The other existing accounts join the backlogs they cannot open yet, as
+  // members or, for readers, as readers; demo tasks go to the assignable ones.
   const others = existing.rows.slice(1).map((row) => ({ id: row.id, role: row.role === "viewer" ? "viewers" : "members" }));
   const me = [owner, ...others.filter((other) => other.role === "members").map((other) => other.id)];
   const names = new Map(existing.rows.map((row) => [row.id, row.name]));
@@ -341,19 +343,25 @@ async function run(svc: Services): Promise<string> {
     if (type !== "timestamp with time zone" || skipped.has(table) || table.startsWith("repo_webhook")) continue;
     targets.set(table, [...(targets.get(table) ?? []), column]);
   }
-  // Only rows of the demo are re-dated: those of its backlogs ($4), of their
-  // items, of its groups ($5), and its audit events ($6: group and user ids).
-  // Tables without such a link keep the real date.
-  const demoItems = "(select id from items where backlog_id = any(p.b))";
+  // Only rows the replay wrote are re-dated: everything in the backlogs it
+  // created (p.b), its items (p.i) and groups (p.g), its audit events (p.t).
+  // In a backlog it reuses (p.r), a row counts only when a demo person (p.u)
+  // wrote it: anything else written meanwhile keeps its real date.
+  const authorColumns = ["actor_id", "author_id", "created_by", "added_by", "joined_by"];
   function ownedBy(table: string): string | null {
     const has = (column: string) => tableColumns.get(table)?.has(column) ?? false;
+    const author = authorColumns.find(has);
+    const byDemo = author ? `${author} = any(p.u)` : "false";
     if (table === "backlogs") return "id = any(p.b)";
+    if (table === "items") return "id = any(p.i)";
     if (table === "user_groups") return "id = any(p.g)";
     if (table === "group_members") return "group_id = any(p.g)";
-    if (table === "security_audit_events") return "(backlog_id = any(p.b) or target_id = any(p.t))";
-    if (table === "item_links") return `source_id in ${demoItems}`;
-    if (has("backlog_id")) return "backlog_id = any(p.b)";
-    if (has("item_id")) return `item_id in ${demoItems}`;
+    if (table === "security_audit_events") return "(backlog_id = any(p.b) or target_id = any(p.t) or (backlog_id = any(p.r) and actor_id = any(p.u)))";
+    if (table === "backlog_role_actors") return "(backlog_id = any(p.b) or group_id = any(p.g) or user_id = any(p.u))";
+    if (table === "notifications") return "(item_id = any(p.i) or comment_id in (select id from comments where author_id = any(p.u)))";
+    const item = has("item_id") ? "item_id" : table === "item_links" ? "source_id" : null;
+    if (item) return `(${item} = any(p.i) or (${item} in (select id from items where backlog_id = any(p.r)) and ${byDemo}))`;
+    if (has("backlog_id")) return `(backlog_id = any(p.b) or (backlog_id = any(p.r) and ${byDemo}))`;
     return null;
   }
   const quoted = (name: string) => `"${name.replaceAll('"', '""')}"`;
@@ -362,11 +370,22 @@ async function run(svc: Services): Promise<string> {
     if (!owned) return [];
     const sets = cols.map((c) =>
       `${quoted(c)} = case when ${quoted(c)} between $1 and $2 then ${quoted(c)} + make_interval(secs => $3::double precision) else ${quoted(c)} end`);
-    return [`with p as (select $4::uuid[] as b, $5::uuid[] as g, $6::text[] as t) update ${quoted(table)} set ${sets.join(", ")} from p where ${owned} and (${cols.map((c) => `${quoted(c)} between $1 and $2`).join(" or ")})`];
+    return [
+      `with p as (select $4::uuid[] as b, $5::uuid[] as g, $6::text[] as t, $7::uuid[] as i, $8::uuid[] as r, $9::text[] as u) ` +
+      `update ${quoted(table)} set ${sets.join(", ")} from p where ${owned} and (${cols.map((c) => `${quoted(c)} between $1 and $2`).join(" or ")})`,
+    ];
   });
-  const demoBacklogIds: string[] = [];
+  const createdBacklogIds: string[] = [];
+  const reusedBacklogIds: string[] = [];
   const demoGroupIds: string[] = [];
   const demoUserIds: string[] = [];
+  const demoItemIds: string[] = [];
+  /** Every item of the replay goes through here, so its rows can be re-dated. */
+  async function createItem(input: Record<string, unknown>, actorId: string) {
+    const created = await svc.items.createItem(input, actorId);
+    demoItemIds.push(created.id);
+    return created;
+  }
 
   /** Runs `action` at the simulated instant `when`, then dates what the database stamped for the demo. */
   async function at<T>(when: Date, action: () => Promise<T>): Promise<T> {
@@ -379,7 +398,7 @@ async function run(svc: Services): Promise<string> {
       const ended = (await pool.query<{ t: Date }>("select clock_timestamp() as t")).rows[0]!.t.getTime();
       const params = [
         new RealDate(started - 2000).toISOString(), new RealDate(ended + 2000).toISOString(), (when.getTime() - started) / 1000,
-        demoBacklogIds, demoGroupIds, [...demoGroupIds, ...demoUserIds],
+        createdBacklogIds, demoGroupIds, [...demoGroupIds, ...demoUserIds], demoItemIds, reusedBacklogIds, demoUserIds,
       ];
       await Promise.all(shiftStatements.map((statement) => pool.query(statement, params)));
     }
@@ -397,7 +416,7 @@ async function run(svc: Services): Promise<string> {
       names.set(created.id, person.name);
     }
   });
-  const who = (actor: Actor): string => (actor === "me" ? me[meTurn++ % me.length]! : people[actor]);
+  const who = (actor: Actor, b: { me: string[] }): string => (actor === "me" ? b.me[meTurn++ % b.me.length]! : people[actor]);
 
   const roles = await pool.query<{ id: string; key: string }>("select id, key from project_roles");
   const roleId = (key: string) => {
@@ -449,8 +468,8 @@ async function run(svc: Services): Promise<string> {
   // Older demo notifications have been read; those from before the run are left alone.
   await pool.query(
     `update notifications set read_at = created_at + interval '2 hours'
-     where user_id = any($1) and created_at < $2 and read_at is null and not (id = any($3::uuid[])) and item_id in (select id from items where backlog_id = any($4::uuid[]))`,
-    [me, new RealDate("2026-10-12T00:00:00+02:00").toISOString(), notificationsBefore, demoBacklogIds],
+     where user_id = any($1) and created_at < $2 and read_at is null and not (id = any($3::uuid[])) and item_id = any($4::uuid[])`,
+    [me, new RealDate("2026-10-12T00:00:00+02:00").toISOString(), notificationsBefore, demoItemIds],
   );
   return [...log, `Comptes existants intégrés à l’équipe : ${me.map((id) => names.get(id)).join(", ")}`].join("\n");
 
@@ -463,31 +482,37 @@ async function run(svc: Services): Promise<string> {
       const found = await pool.query<{ id: string }>("select id from backlogs where key = $1", [spec.key]);
       const reused = found.rows[0]?.id;
       const id = reused ?? (await svc.backlogs.createBacklog({ key: spec.key, name: spec.name, color: spec.color }, owner)).id;
-      demoBacklogIds.push(id);
+      (reused ? reusedBacklogIds : createdBacklogIds).push(id);
+      // Accounts that can already open the backlog, directly, through a group
+      // or globally, keep exactly the rights they have.
+      const scope = { type: "backlog" as const, backlogId: id };
+      for (const other of others) {
+        const decision = await svc.access.checkPermission({ actorId: other.id, permission: "browse_backlog", scope });
+        if (decision.allowed) continue;
+        await svc.authorization.assignBacklogRoleActor(
+          { backlogId: id, projectRoleId: roleId(other.role), principal: { type: "user", userId: other.id } }, owner,
+        );
+      }
       for (const group of groups) {
         await svc.authorization.assignBacklogRoleActor(
           { backlogId: id, projectRoleId: roleId(group.role), principal: { type: "group", groupId: group.id } }, owner,
         );
       }
-      // In an existing backlog, accounts that already have a role keep it.
-      const placed = new Set(reused
-        ? (await pool.query<{ user_id: string }>("select user_id from backlog_role_actors where backlog_id = $1 and user_id is not null", [id])).rows.map((row) => row.user_id)
-        : [owner]);
-      for (const other of others) {
-        if (placed.has(other.id)) continue;
-        await svc.authorization.assignBacklogRoleActor(
-          { backlogId: id, projectRoleId: roleId(other.role), principal: { type: "user", userId: other.id } }, owner,
-        );
-      }
       await svc.backlogs.updateBacklog({ id, key: spec.key, name: spec.name, color: spec.color, leadUserId: po }, owner);
-      return { id };
+      // Demo work goes to the existing accounts that may be assigned here.
+      const assignable = [owner];
+      for (const other of others) {
+        const decision = await svc.access.checkPermission({ actorId: other.id, permission: "assignable_user", scope });
+        if (decision.allowed) assignable.push(other.id);
+      }
+      return { id, assignable };
     });
     const statusRows = await pool.query<{ id: string; category: string }>(
       `select id, category from statuses where backlog_id = $1 order by "order"`, [backlog.id],
     );
     const inCategory = (category: string) => statusRows.rows.filter((row) => row.category === category);
     const b: LiveBacklog = {
-      spec, id: backlog.id, labels: new Map(), releases: [], epics: [], tasks: [], queue: [], sprints: new Map(), bugIndex: 0,
+      spec, id: backlog.id, labels: new Map(), releases: [], epics: [], tasks: [], queue: [], sprints: new Map(), bugIndex: 0, me: backlog.assignable,
       status: {
         todo: inCategory("todo")[0]!.id,
         doing: inCategory("in_progress")[0]!.id,
@@ -517,7 +542,7 @@ async function run(svc: Services): Promise<string> {
     const plans: TaskPlan[] = [];
     for (const [c, component] of spec.components.entries()) {
       const componentId = await at(paris(workday(addDays(day, 1)), between("09:00", "10:30")), async () =>
-        reuse("composant", component.title)?.id ?? (await svc.items.createItem({
+        reuse("composant", component.title)?.id ?? (await createItem({
           backlogId: b.id, type: "composant", parentId: null, title: component.title, description: component.description,
           priority: 2, startDate: spec.mode === "kanban" ? "2026-07-06" : FIRST_SPRINT,
           dueDate: ["2026-12-18", "2027-01-29", "2027-03-26"][c] ?? "2027-03-26",
@@ -532,7 +557,7 @@ async function run(svc: Services): Promise<string> {
             await svc.items.updateItem({ id: reused.id, description: epic.description }, po);
             return reused.id;
           }
-          return (await svc.items.createItem({
+          return (await createItem({
             backlogId: b.id, type: "epic", parentId: componentId, title: epic.title, description: epic.description, priority: 2,
             ...(spec.mode === "kanban" ? { startDate: kanbanStart, dueDate: addDays(kanbanStart, 55) } : {}),
           }, po)).id;
@@ -557,7 +582,7 @@ async function run(svc: Services): Promise<string> {
           await svc.items.updateItem({ id: reused.id, description: plan.description, estimatePoints: estimate, labelIds }, po);
           return reused;
         }
-        return svc.items.createItem({
+        return createItem({
           backlogId: b.id, type: "tache", parentId: epicId, title: plan.title,
           description: plan.description, kind: plan.bug ? "bug" : "feature",
           priority: plan.bug ? pick([3, 3, 4]) : pick([0, 1, 1, 2, 2, 2, 2, 3, 3, 4]),
@@ -588,7 +613,7 @@ async function run(svc: Services): Promise<string> {
     // A duplicate written by mistake, then put in the trash.
     const original = b.tasks[3];
     if (original) {
-      const duplicate = await at(paris("2026-07-01", "10:12"), () => svc.items.createItem({
+      const duplicate = await at(paris("2026-07-01", "10:12"), () => createItem({
         backlogId: b.id, type: "tache", parentId: original.epicId, title: `${original.title} (doublon)`, priority: 1,
       }, people[spec.business]));
       await at(paris("2026-07-01", "11:40"), () => svc.items.softDeleteItem({ id: duplicate.id }, po));
@@ -624,7 +649,7 @@ async function run(svc: Services): Promise<string> {
     const release = b.releases[releaseFor(k)];
     await at(paris(start, "09:30"), async () => {
       if (added.length) await svc.sprints.assignItemsToSprint({ backlogId: b.id, sprintId, itemIds: added.map((t) => t.id) }, po);
-      const loads = new Map<string, number>(b.spec.devs.map((dev) => [who(dev), 0]));
+      const loads = new Map<string, number>(b.spec.devs.map((dev) => [who(dev, b), 0]));
       for (const t of carried) if (t.assignee) loads.set(t.assignee, (loads.get(t.assignee) ?? 0) + t.remaining);
       for (const t of added) {
         const assignee = [...loads].sort((x, y) => x[1] - y[1])[0]![0];
@@ -636,7 +661,7 @@ async function run(svc: Services): Promise<string> {
           startDate: start, dueDate: sprintEnd(k), ...(release ? { fixVersionIds: [release] } : {}),
         }, po);
         for (const title of t.sub) {
-          const sub = await svc.items.createItem({ backlogId: b.id, type: "soustache", parentId: t.id, title, priority: 2, assigneeId: assignee }, assignee);
+          const sub = await createItem({ backlogId: b.id, type: "soustache", parentId: t.id, title, priority: 2, assigneeId: assignee }, assignee);
           t.subIds.push(sub.id);
         }
       }
@@ -692,7 +717,7 @@ async function run(svc: Services): Promise<string> {
       for (const t of tasks) if (t.assignee && t.state !== "done") loads.set(t.assignee, (loads.get(t.assignee) ?? 0) + t.remaining);
       const assignee = [...loads].sort((x, y) => x[1] - y[1])[0]?.[0] ?? po;
       const release = b.releases[releaseFor(k)];
-      const bug = await at(paris(day, between("14:00", "16:00")), () => svc.items.createItem({
+      const bug = await at(paris(day, between("14:00", "16:00")), () => createItem({
         backlogId: b.id, type: "tache", parentId: near.epicId, title, kind: "bug", priority: pick([3, 4]),
         description: bugDescription(title), estimatePoints: pick([1, 2]), assigneeId: assignee, sprintId: b.sprints.get(k)!,
         labelIds: [b.labels.get("recette métier")!], ...(release ? { fixVersionIds: [release] } : {}),
@@ -806,7 +831,7 @@ async function run(svc: Services): Promise<string> {
         if (chosen.length) await svc.sprints.assignItemsToSprint({ backlogId: b.id, sprintId, itemIds: chosen.map((t) => t.id) }, po);
         for (const [n, t] of chosen.entries()) {
           t.sprint = k;
-          t.assignee = who(b.spec.devs[n % b.spec.devs.length]!);
+          t.assignee = who(b.spec.devs[n % b.spec.devs.length]!, b);
           await svc.items.updateItem({
             id: t.id, assigneeId: t.assignee, startDate: sprintStart(k), dueDate: sprintEnd(k),
             fixVersionIds: [b.releases[releaseFor(k)]!],
@@ -862,7 +887,7 @@ async function run(svc: Services): Promise<string> {
 
   async function runKanban(b: LiveBacklog) {
     const lead = people[b.spec.po];
-    const devs = b.spec.devs.map(who);
+    const devs = b.spec.devs.map((dev) => who(dev, b));
     const cursors = new Map(devs.map((dev, n) => [dev, workday(addDays("2026-07-20", n))]));
     for (const [n, t] of b.tasks.entries()) {
       // The last cards are still waiting, or under way.
