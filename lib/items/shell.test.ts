@@ -87,6 +87,7 @@ describe("deriveShellContext", () => {
   });
 
   it.each([
+    ["/le-point", "Le point", "le-point"],
     ["/trash", "Corbeille", "trash"],
     ["/admin", "Administration", "admin"],
     ["/aide", "Aide", null],
@@ -404,6 +405,7 @@ describe("deriveBreadcrumb (page header)", () => {
     ["/aide", "Pôle civil", "/b/CASS", "Aide"],
     ["/admin", "Pôle civil", "/b/CASS", "Administration"],
     ["/mine", "Pôle civil", "/b/CASS", "Mes items"],
+    ["/le-point", "Pôle civil", "/b/CASS", "Le point"],
     ["/trash", "Pôle civil", "/b/CASS", "Corbeille"],
   ])("links %s back to its project", (pathname, project, href, current) => {
     expect(crumbs(pathname)).toEqual([{ label: project, href }, { label: current }]);

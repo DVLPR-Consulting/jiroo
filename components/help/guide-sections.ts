@@ -2,6 +2,7 @@
 export const GUIDE_SECTIONS = [
   { id: "demarrer", title: "Démarrer" },
   { id: "organisation", title: "Organisation" },
+  { id: "le-point", title: "Le point" },
   { id: "vues", title: "Les vues" },
   { id: "tickets", title: "Tickets" },
   { id: "collaboration", title: "Travailler à plusieurs" },

@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import {
   ChartColumn,
   ChartGantt,
+  Compass,
   FolderKanban,
   Layers,
   List,
@@ -17,6 +18,7 @@ import {
   User,
   type LucideIcon,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { BacklogSelector } from "@/components/shell/backlog-selector";
 import { NavLink } from "@/components/shell/nav-link";
 import { useSidebarState } from "@/components/shell/sidebar-state";
@@ -234,6 +236,22 @@ export function Sidebar({
             Mes items
           </span>
           <Count value={counts.mine} collapsed={collapsed} />
+        </NavLink>
+        <NavLink
+          href="/le-point"
+          ariaLabel={collapsed ? "Le point — pilote" : undefined}
+          collapsed={collapsed}
+          title={collapsed ? "Le point — pilote" : undefined}
+        >
+          <Compass className="size-4" aria-hidden="true" />
+          <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
+            Le point
+          </span>
+          {!collapsed && (
+            <Badge variant="outline" className="h-4 px-1.5 text-[10px] text-muted-foreground">
+              pilote
+            </Badge>
+          )}
         </NavLink>
         {!collapsed && (
           <SidebarViews

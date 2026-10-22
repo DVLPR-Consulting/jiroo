@@ -160,6 +160,43 @@ export function HelpGuide() {
         />
       </GuideSection>
 
+      <GuideSection id="le-point">
+        <GuideTopic
+          title="Comprendre où tu en es"
+          purpose="En ouvrant Le point, tu comprends où on en est et quoi faire ensuite, sans parcourir le tableau."
+          steps={[
+            <>Ouvre <Ui>Le point</Ui> dans la barre latérale, juste après <Ui>Mes items</Ui>.</>,
+            <>Choisis le backlog dans la liste en haut de page.</>,
+          ]}
+        />
+        <GuideTopic
+          title="Choisir ta perspective"
+          purpose="Retrouver les informations utiles à ce que tu fais sur le projet."
+          steps={[
+            <>Choisis <Ui>Développement</Ui> pour voir ce que tu reprends maintenant, ce qui te bloque, ce qui arrive ensuite et ce qui a changé depuis ta dernière visite.</>,
+            <>Choisis <Ui>Produit</Ui> pour retrouver les décisions qu’on t’a demandées par une mention, l’avancement des objectifs (epics), ce qui les met en difficulté et la prochaine livraison (release).</>,
+          ]}
+        >
+          <GuideNote>
+            Le choix de la perspective ne change aucun droit. La page est en lecture seule : elle ne modifie rien dans le projet.
+          </GuideNote>
+        </GuideTopic>
+        <GuideTopic
+          title="Comprendre une carte et ouvrir un ticket"
+          purpose="Savoir pourquoi une carte apparaît et retrouver le ticket pour agir."
+          steps={[
+            <>Lis <Ui>Pourquoi je vois ceci</Ui> : chaque carte cite le fait qui la justifie, qu’il s’agisse d’un statut, d’une échéance, d’un lien « bloque » ou d’une mention.</>,
+            <>Clique sur <Ui>Ouvrir</Ui> pour consulter le ticket dans le panneau en lecture seule.</>,
+            <>Choisis <Ui>Ouvrir dans le backlog</Ui> pour agir sur le ticket, selon tes droits.</>,
+          ]}
+        >
+          <GuideNote>
+            C’est un pilote. <Ui>Depuis ta dernière visite</Ui> est mémorisé sur ton appareil.
+            La première fois, tu vois les 7 derniers jours.
+          </GuideNote>
+        </GuideTopic>
+      </GuideSection>
+
       <GuideSection id="vues">
         <GuideTopic
           title="Choisir une vue"
