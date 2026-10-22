@@ -1,9 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
+import { ResourceNotFoundError } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
 import {
   createItemTemplate,
@@ -16,6 +16,7 @@ import {
   updateItemTemplate,
   type ItemTemplateDto,
 } from "@/lib/services/item-templates";
+import { invalidateBacklog } from "@/lib/realtime/publish";
 import { createItemTemplateInput, itemTemplateIdInput } from "@/lib/validation/item-template";
 
 /**
@@ -45,20 +46,29 @@ function failure(error: unknown): Failure {
   return { ok: false, error: "Action impossible. Réessayez." };
 }
 
-/** Every page of the backlog: its « Nouvel item » lists the templates. */
-function revalidateBacklog(backlogKey: string) {
-  revalidatePath(`/b/${backlogKey}`, "layout");
+/**
+ * Re-renders the backlog's pages, whose « Nouvel item » lists the templates,
+ * and tells its open tabs; no item changed.
+ */
+async function publishTemplates(backlog: { backlogKey: string; backlogId: string }, actorId: string) {
+  await invalidateBacklog(backlog.backlogKey, {
+    kind: "backlog", backlogId: backlog.backlogId, itemIds: [], actorId,
+  });
 }
 
 async function sessionActorId(): Promise<string | null> {
   return (await getSession())?.user.id ?? null;
 }
 
-/** Authorizes against the template's stored backlog, never a client value. */
+/**
+ * Authorizes against the template's stored backlog, never a client value. A
+ * missing template answers like a hidden one: its existence never leaks.
+ */
 async function administerTemplate(actorId: string, templateId: string) {
   const backlogId = await getItemTemplateBacklogId(templateId);
-  if (!backlogId) throw new Error(TEMPLATE_NOT_FOUND_MESSAGE);
-  return requireBacklogPermissionById({ actorId, backlogId, permission: "administer_backlog" });
+  if (!backlogId) throw new ResourceNotFoundError("item_template", templateId);
+  const { backlogKey } = await requireBacklogPermissionById({ actorId, backlogId, permission: "administer_backlog" });
+  return { backlogKey, backlogId };
 }
 
 export async function createItemTemplateAction(
@@ -74,7 +84,7 @@ export async function createItemTemplateAction(
       permission: "administer_backlog",
     });
     const template = await createItemTemplate(data, actorId);
-    revalidateBacklog(backlogKey);
+    await publishTemplates({ backlogKey, backlogId: data.backlogId }, actorId);
     return { ok: true, template };
   } catch (error) {
     return failure(error);
@@ -88,9 +98,9 @@ export async function updateItemTemplateAction(
   if (!actorId) return SESSION_EXPIRED;
   if (!itemTemplateIdInput.safeParse({ id: input.id }).success) return NOT_FOUND;
   try {
-    const { backlogKey } = await administerTemplate(actorId, input.id);
+    const backlog = await administerTemplate(actorId, input.id);
     const template = await updateItemTemplate(input, actorId);
-    revalidateBacklog(backlogKey);
+    await publishTemplates(backlog, actorId);
     return { ok: true, template };
   } catch (error) {
     return failure(error);
@@ -103,9 +113,9 @@ export async function deleteItemTemplateAction(input: { id: string }): Promise<{
   const parsed = itemTemplateIdInput.safeParse(input);
   if (!parsed.success) return NOT_FOUND;
   try {
-    const { backlogKey } = await administerTemplate(actorId, parsed.data.id);
+    const backlog = await administerTemplate(actorId, parsed.data.id);
     await deleteItemTemplate(parsed.data, actorId);
-    revalidateBacklog(backlogKey);
+    await publishTemplates(backlog, actorId);
     return { ok: true };
   } catch (error) {
     return failure(error);
