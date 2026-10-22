@@ -90,7 +90,16 @@ function readCookie(name: string) {
  * permission. With `pilot`, the facts are the reader's real backlog, shown
  * as a view of that project.
  */
-export function LePointView({ data, pilot = false }: { data: LePointDataset; pilot?: boolean }) {
+export function LePointView({
+  data,
+  pilot = false,
+  breadcrumb,
+}: {
+  data: LePointDataset;
+  pilot?: boolean;
+  /** The shell's « Projet / Le point » trail, above the title. */
+  breadcrumb?: ReactNode;
+}) {
   const [perspective, setPerspective] = useState<Perspective>("developer");
   const [openKey, setOpenKey] = useState<string | null>(null);
   // The button that opened the panel from the page gets the focus back on close.
@@ -149,6 +158,7 @@ export function LePointView({ data, pilot = false }: { data: LePointDataset; pil
 
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
+          {breadcrumb}
           <h1 className="t-h1">Le point</h1>
           {pilot ? (
             <p className="text-sm text-muted-foreground">{data.backlog.name} · vu par {viewer?.name}</p>

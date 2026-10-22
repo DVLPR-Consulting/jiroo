@@ -3,7 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LePointView, PERSPECTIVE_STORAGE_KEY, ticketHref } from "@/components/le-point/le-point-view";
 import { LE_POINT_DEMO } from "@/lib/le-point/fixtures";
+import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
+import { ShellDataProvider } from "@/components/shell/shell-data";
 import { VISIT_COOKIE } from "@/lib/le-point/visit";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/b/DEMO/le-point",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 
 const headings = () => screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
@@ -125,6 +132,18 @@ describe("LePointView pilot", () => {
     expect(screen.getByText("DÉMO — Portail des décisions · vu par Camille Morel")).toBeVisible();
     // The sidebar picks the project: no second backlog picker in the page.
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("shows the project trail above the title, back to the project", () => {
+    render(
+      <ShellDataProvider backlogs={[{ id: "b-demo", key: "DEMO", name: "DÉMO — Portail des décisions" }]} views={[]}>
+        <LePointView data={real} pilot breadcrumb={<ShellBreadcrumb />} />
+      </ShellDataProvider>,
+    );
+    const trail = screen.getByRole("navigation", { name: "Fil d’Ariane" });
+    expect(within(trail).getByRole("link", { name: "DÉMO — Portail des décisions" })).toHaveAttribute("href", "/b/DEMO");
+    expect(within(trail).getByText("Le point")).toBeVisible();
+    expect(trail.compareDocumentPosition(screen.getByRole("heading", { level: 1 })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("names the first visit's window", () => {

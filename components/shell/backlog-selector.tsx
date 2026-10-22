@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { Check, ChevronsUpDown, Star } from "lucide-react";
 import {
   DropdownMenu,
@@ -28,6 +28,8 @@ export function BacklogSelector({
   const viewUrl = useViewUrlState();
 
   const routeKey = typeof params.key === "string" ? params.key.toUpperCase() : undefined;
+  // Le point is read project by project (JIR-107): switching keeps it.
+  const onLePoint = /^\/b\/[^/]+\/le-point\/?$/.test(usePathname() ?? "");
   const activeKey = activeKeyOverride?.toUpperCase() ?? routeKey;
   const activeBacklog = backlogs.find((b) => b.key.toUpperCase() === activeKey);
 
@@ -90,7 +92,7 @@ export function BacklogSelector({
                     authoritative: true,
                   });
                 } else {
-                  router.push(`/b/${b.key}`);
+                  router.push(onLePoint ? `/b/${b.key}/le-point` : `/b/${b.key}`);
                 }
               }}
               className={isActive ? "bg-[var(--accent-subtle)] font-medium" : undefined}

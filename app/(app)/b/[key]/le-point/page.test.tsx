@@ -15,7 +15,10 @@ vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 vi.mock("@/lib/auth/session", () => ({ requireAppPageSession: async () => ({ user: { id: "reader" } }) }));
 vi.mock("@/lib/le-point/load", () => ({ loadLePoint: mocks.load }));
 vi.mock("@/lib/services/item-detail", () => ({ loadItemDetailData: mocks.detail }));
-vi.mock("@/components/le-point/le-point-view", () => ({ LePointView: () => <p>vue</p> }));
+vi.mock("@/components/le-point/le-point-view", () => ({
+  LePointView: ({ breadcrumb }: { breadcrumb?: React.ReactNode }) => <div>{breadcrumb}<p>vue</p></div>,
+}));
+vi.mock("@/components/shell/shell-breadcrumb", () => ({ ShellBreadcrumb: () => <nav aria-label="Fil d’Ariane" /> }));
 vi.mock("@/components/items/item-detail-sheet", () => ({
   ItemDetailDrawer: (props: unknown) => {
     mocks.drawerProps(props);
@@ -38,6 +41,7 @@ describe("BacklogLePointPage", () => {
   it("reads the project of the address with the reader's rights and last visit", async () => {
     render(await page("PORT"));
     expect(screen.getByText("vue")).toBeVisible();
+    expect(screen.getByRole("navigation", { name: "Fil d’Ariane" })).toBeInTheDocument();
     expect(mocks.load).toHaveBeenCalledWith(expect.objectContaining({ userId: "reader", backlogKey: "PORT", lastVisit: "2026-10-21" }));
     expect(mocks.drawerProps).toHaveBeenCalledWith(expect.objectContaining({ backlogKey: "PORT", itemKey: null }));
   });

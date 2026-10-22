@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { ItemDetailDrawer } from "@/components/items/item-detail-sheet";
 import { LePointView } from "@/components/le-point/le-point-view";
+import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
 import { requireAppPageSession } from "@/lib/auth/session";
 import { firstSearchParam, type RawSearchParams } from "@/lib/items/view-url-params";
 import { loadLePoint } from "@/lib/le-point/load";
@@ -36,7 +37,7 @@ export default async function BacklogLePointPage({
 
   return (
     <>
-      <LePointView data={data} pilot />
+      <LePointView data={data} pilot breadcrumb={<ShellBreadcrumb />} />
       <ItemDetailDrawer
         backlogKey={data.backlog.key}
         itemKey={itemKey}
