@@ -3,8 +3,8 @@
  * first, chosen from plain facts. Every card says why it is shown, and an
  * unknown fact stays unknown: no responsible person or date is inferred.
  *
- * Pure functions over a dataset, so the prototype's fixtures and a future
- * permission-filtered read can feed the same rules.
+ * Pure functions over a dataset, so the prototype's fixtures and the
+ * permission-filtered read of a real backlog (`load.ts`) feed the same rules.
  */
 
 /** A calendar day, `YYYY-MM-DD`. */
@@ -20,6 +20,16 @@ export type LePointTicket = {
   objective: string | null;
   status: string;
   category: Category;
+  /** Shown with its own icon; a ticket is a task unless told otherwise. */
+  shape?: "bug" | "subtask";
+  /** A dependency from another backlog: it explains a block, it is not this backlog's work. */
+  external?: boolean;
+  /**
+   * Work the team has committed to: in the active sprint or under way. Only
+   * then does a missing assignee put an objective in difficulty; a real
+   * backlog's queue is rightly unassigned. Unset, every open ticket counts.
+   */
+  committed?: boolean;
   assignee: string | null;
   due: Day | null;
   done?: Day;
@@ -33,6 +43,8 @@ export type LePointDataset = {
   today: Day;
   /** The reader's previous visit: « Depuis ta dernière visite ». */
   lastVisit: Day;
+  /** No previous visit is known: `lastVisit` is then a week ago, and the page says so. */
+  firstVisit?: boolean;
   backlog: { key: string; name: string };
   people: { id: string; name: string }[];
   personas: { developer: string; product: string };
@@ -48,6 +60,7 @@ export type LePointCard = {
   title: string;
   status: string;
   category: Category;
+  shape?: "bug" | "subtask";
   assigneeName: string | null;
   objective: { key: string; title: string } | null;
   due: Day | null;
@@ -137,6 +150,7 @@ function context(data: LePointDataset) {
       title: ticket.title,
       status: ticket.status,
       category: ticket.category,
+      ...(ticket.shape ? { shape: ticket.shape } : {}),
       assigneeName: ticket.assignee ? people.get(ticket.assignee) ?? null : null,
       objective: objective ? { key: objective.key, title: objective.title } : null,
       due: ticket.due,
@@ -158,7 +172,7 @@ const byDue = (a: LePointTicket, b: LePointTicket) =>
 /** Développement : « Que reprendre maintenant ? Qu'est-ce qui m'empêche d'avancer ? » */
 export function developerView(data: LePointDataset, viewerId: string) {
   const { tickets, isBlocked, blockedReason, card } = context(data);
-  const mine = data.tickets.filter((ticket) => ticket.assignee === viewerId);
+  const mine = data.tickets.filter((ticket) => ticket.assignee === viewerId && !ticket.external);
   const open = mine.filter((ticket) => ticket.category !== "done");
 
   const resume = open
@@ -259,7 +273,7 @@ export function productView(data: LePointDataset, viewerId: string) {
     .flatMap((ticket) => {
       const reasons = [
         ...(isBlocked(ticket) ? [`Bloqué : ${uncapitalize(blockedReason(ticket))}`] : []),
-        ...(ticket.assignee === null ? ["Personne n’est assigné."] : []),
+        ...(ticket.assignee === null && ticket.committed !== false ? ["Personne n’est assigné."] : []),
       ];
       return reasons.length > 0 ? [card(ticket, reasons.join(" "))] : [];
     });

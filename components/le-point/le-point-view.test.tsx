@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LePointView, PERSPECTIVE_STORAGE_KEY } from "@/components/le-point/le-point-view";
 import { LE_POINT_DEMO } from "@/lib/le-point/fixtures";
+import { VISIT_COOKIE } from "@/lib/le-point/visit";
+
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 const headings = () => screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
 
@@ -106,5 +110,42 @@ describe("LePointView", () => {
     await user.click(screen.getByRole("button", { name: "Ouvrir DEMO-2 — Publier les arrêts en ligne" }));
     await user.click(screen.getByRole("button", { name: /DEMO-27/ }));
     expect(screen.getByText("Aucune activité connue depuis le 20 oct.")).toBeVisible();
+  });
+});
+
+describe("LePointView pilot", () => {
+  const pilot = { backlogs: [{ key: "DEMO", name: "DÉMO — Portail des décisions" }, { key: "CASS", name: "Recherche" }] };
+  const real = { ...LE_POINT_DEMO, personas: { developer: "camille", product: "camille" } };
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    push.mockClear();
+    document.cookie = `${VISIT_COOKIE}=; path=/le-point; max-age=0`;
+  });
+
+  it("says the tickets are real and read-only, and switches backlog through the address", async () => {
+    render(<LePointView data={real} pilot={pilot} />);
+    expect(screen.getByRole("note")).toHaveTextContent("Pilote — tes vrais tickets, en lecture seule");
+    expect(screen.getByText("vu par Camille Morel")).toBeVisible();
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Backlog" }), "CASS");
+    expect(push).toHaveBeenCalledWith("/le-point?b=CASS");
+  });
+
+  it("names the first visit's window", () => {
+    render(<LePointView data={{ ...real, firstVisit: true }} pilot={pilot} />);
+    expect(screen.getByRole("heading", { name: "Ces 7 derniers jours" })).toBeVisible();
+  });
+
+  it("opens the real ticket from the read-only panel", async () => {
+    render(<LePointView data={real} pilot={pilot} />);
+    await userEvent.click(screen.getByRole("button", { name: /Ouvrir DEMO-12/ }));
+    expect(screen.getByRole("link", { name: "Ouvrir dans le backlog" })).toHaveAttribute("href", "/b/DEMO?item=DEMO-12");
+  });
+
+  it("records today's visit on the device", () => {
+    // The cookie belongs to the page's path.
+    window.history.pushState({}, "", "/le-point");
+    render(<LePointView data={real} pilot={pilot} />);
+    expect(document.cookie).toContain(`${VISIT_COOKIE}=.2026-11-03`);
   });
 });

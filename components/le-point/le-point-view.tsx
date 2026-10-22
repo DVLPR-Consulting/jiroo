@@ -1,7 +1,10 @@
 "use client";
 
 import { X } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { KindIcon } from "@/components/icons/kind-icon";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -14,6 +17,7 @@ import {
   type LePointDataset,
   type ObjectiveSummary,
 } from "@/lib/le-point/model";
+import { recordVisit, VISIT_COOKIE } from "@/lib/le-point/visit";
 import { cn } from "@/lib/utils";
 
 export type Perspective = "developer" | "product";
@@ -68,12 +72,24 @@ function Term({ children, jiroo }: { children: ReactNode; jiroo: string }) {
   );
 }
 
+/** The pilot on real tickets: the backlogs the reader may pick. Without it, the fictional prototype. */
+export type LePointPilot = { backlogs: { key: string; name: string }[] };
+
+/** The real ticket's address: its backlog is the key's prefix. */
+export function ticketHref(key: string) {
+  return `/b/${key.slice(0, key.lastIndexOf("-"))}?item=${key}`;
+}
+
+function readCookie(name: string) {
+  return document.cookie.split("; ").find((pair) => pair.startsWith(`${name}=`))?.slice(name.length + 1);
+}
+
 /**
  * « Le point » (JIR-107): one screen, two perspectives on the same facts.
- * A prototype on fictional data: it reads nothing and writes nothing, and the
- * perspective is a reading preference, never a permission.
+ * It writes nothing, and the perspective is a reading preference, never a
+ * permission. With `pilot`, the facts are the reader's real backlog.
  */
-export function LePointView({ data }: { data: LePointDataset }) {
+export function LePointView({ data, pilot }: { data: LePointDataset; pilot?: LePointPilot }) {
   const [perspective, setPerspective] = useState<Perspective>("developer");
   const [openKey, setOpenKey] = useState<string | null>(null);
   // The button that opened the panel from the page gets the focus back on close.
@@ -96,6 +112,13 @@ export function LePointView({ data }: { data: LePointDataset }) {
     if (stored) setPerspective(stored);
   }, []);
 
+  // The visit is recorded once shown, so the next one knows what changed since.
+  useEffect(() => {
+    if (!pilot) return;
+    const value = recordVisit(readCookie(VISIT_COOKIE), data.today);
+    document.cookie = `${VISIT_COOKIE}=${value}; path=/le-point; max-age=31536000; samesite=lax`;
+  }, [pilot, data.today]);
+
   function choose(next: Perspective) {
     setPerspective(next);
     writePerspective(next);
@@ -107,20 +130,34 @@ export function LePointView({ data }: { data: LePointDataset }) {
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:py-8">
-      <p
-        role="note"
-        className="rounded-[var(--radius)] border border-[var(--warning)] bg-[var(--status-doing-bg)] px-3 py-2 text-sm"
-      >
-        <strong className="font-semibold">Données de démonstration</strong> — rien n’est enregistré.
-        Nous sommes le {LONG_DAY.format(new Date(`${data.today}T00:00:00Z`))}.
-      </p>
+      {pilot ? (
+        <p role="note" className="rounded-[var(--radius)] border border-border bg-[var(--surface-2)] px-3 py-2 text-sm">
+          <strong className="font-semibold">Pilote</strong> — tes vrais tickets, en lecture seule : rien n’est modifié ici.
+          Nous sommes le {LONG_DAY.format(new Date(`${data.today}T00:00:00Z`))}.
+        </p>
+      ) : (
+        <p
+          role="note"
+          className="rounded-[var(--radius)] border border-[var(--warning)] bg-[var(--status-doing-bg)] px-3 py-2 text-sm"
+        >
+          <strong className="font-semibold">Données de démonstration</strong> — rien n’est enregistré.
+          Nous sommes le {LONG_DAY.format(new Date(`${data.today}T00:00:00Z`))}.
+        </p>
+      )}
 
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           <h1 className="t-h1">Le point</h1>
-          <p className="text-sm text-muted-foreground">
-            {data.backlog.name} · vu par {viewer?.name}, {persona}
-          </p>
+          {pilot ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <BacklogPicker backlogs={pilot.backlogs} value={data.backlog.key} />
+              <span>vu par {viewer?.name}</span>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {data.backlog.name} · vu par {viewer?.name}, {persona}
+            </p>
+          )}
         </div>
         <PerspectiveSwitch value={perspective} onChange={choose} />
       </header>
@@ -133,6 +170,7 @@ export function LePointView({ data }: { data: LePointDataset }) {
 
       <TicketPanel
         data={data}
+        pilot={!!pilot}
         ticketKey={openKey}
         onOpen={open}
         onClose={() => setOpenKey(null)}
@@ -146,6 +184,26 @@ export function LePointView({ data }: { data: LePointDataset }) {
         }}
       />
     </div>
+  );
+}
+
+function BacklogPicker({ backlogs, value }: { backlogs: LePointPilot["backlogs"]; value: string }) {
+  const router = useRouter();
+  const id = useId();
+  return (
+    <>
+      <label htmlFor={id} className="sr-only">Backlog</label>
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => router.push(`/le-point?b=${encodeURIComponent(event.target.value)}`)}
+        className="rounded-[var(--radius)] border border-border bg-[var(--surface)] px-2 py-1 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
+      >
+        {backlogs.map((backlog) => (
+          <option key={backlog.key} value={backlog.key}>{backlog.name} ({backlog.key})</option>
+        ))}
+      </select>
+    </>
   );
 }
 
@@ -208,7 +266,10 @@ function TicketCard({ card, onOpen }: { card: LePointCard; onOpen: (key: string)
   return (
     <li className="rounded-[var(--radius)] border border-border bg-card p-3 shadow-[var(--shadow-sm)]">
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-        <TypeIcon type="tache" className="mt-0.5" />
+        <span className="mt-0.5 inline-flex gap-1">
+          <TypeIcon type={card.shape === "subtask" ? "soustache" : "tache"} />
+          {card.shape === "bug" ? <KindIcon kind="bug" /> : null}
+        </span>
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-sm">
             <span className="font-mono text-xs text-muted-foreground">{card.key}</span>{" "}
@@ -275,7 +336,10 @@ function DeveloperPerspective({
           <ul className="mt-2 space-y-2">{cards(view.withoutDue, onOpen)}</ul>
         </details>
       ) : null}
-      <Zone title="Depuis ta dernière visite" empty={`Rien n’a changé pour toi depuis le ${formatDay(data.lastVisit)}.`}>
+      <Zone
+        title={data.firstVisit ? "Ces 7 derniers jours" : "Depuis ta dernière visite"}
+        empty={`Rien n’a changé pour toi depuis le ${formatDay(data.lastVisit)}.`}
+      >
         {cards(view.recent, onOpen)}
       </Zone>
     </div>
@@ -378,12 +442,14 @@ function ProductPerspective({
 /** The ticket or objective, read-only, presented like the item panel. */
 function TicketPanel({
   data,
+  pilot,
   ticketKey,
   onOpen,
   onClose,
   onCloseAutoFocus,
 }: {
   data: LePointDataset;
+  pilot: boolean;
   ticketKey: string | null;
   onOpen: (key: string) => void;
   onClose: () => void;
@@ -393,7 +459,9 @@ function TicketPanel({
   const objective = ticket ? undefined : data.objectives.find((candidate) => candidate.key === ticketKey);
   const name = (id: string | null) => data.people.find((person) => person.id === id)?.name ?? null;
   const title = ticket ? `${ticket.key} — ${ticket.title}` : objective ? `${objective.key} — ${objective.title}` : "";
-  const children = objective ? data.tickets.filter((candidate) => candidate.objective === objective.key) : [];
+  const children = objective
+    ? data.tickets.filter((candidate) => candidate.objective === objective.key && !candidate.external)
+    : [];
   const mentions = ticket ? data.mentions.filter((mention) => mention.ticket === ticket.key) : [];
 
   return (
@@ -407,7 +475,12 @@ function TicketPanel({
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <span className="text-xs text-muted-foreground">Démonstration · lecture seule</span>
+          <span className="text-xs text-muted-foreground">{pilot ? "Lecture seule" : "Démonstration · lecture seule"}</span>
+          {pilot && ticketKey ? (
+            <Link href={ticketHref(ticketKey)} className="ml-3 text-xs text-[var(--primary)] underline">
+              Ouvrir dans le backlog
+            </Link>
+          ) : null}
           <DialogClose asChild>
             <button type="button" aria-label="Fermer" className="ml-auto rounded p-1 text-muted-foreground hover:bg-[var(--muted)]">
               <X className="size-4" />

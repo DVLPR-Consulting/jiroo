@@ -1,0 +1,154 @@
+import type { Blocker, Category, Day, LePointDataset, LePointTicket } from "@/lib/le-point/model";
+import { dayInZone } from "@/lib/roadmap/days";
+
+/**
+ * « Le point » pilot (JIR-107): turns the rows read from one backlog into the
+ * dataset the rules of `model.ts` read. Pure, so it is tested without a
+ * database; `load.ts` does the permission-filtered reading.
+ */
+
+export type LePointRow = {
+  id: string;
+  key: string;
+  title: string;
+  type: "composant" | "epic" | "tache" | "soustache";
+  kind: "feature" | "bug";
+  parentId: string | null;
+  status: string;
+  category: Category;
+  assigneeId: string | null;
+  dueDate: Day | null;
+  closedAt: Date | null;
+};
+
+export type LePointSource = {
+  /** The reader: the viewer of both perspectives, a reading choice and never a permission. */
+  viewerId: string;
+  today: Day;
+  lastVisit: Day;
+  firstVisit: boolean;
+  backlog: { key: string; name: string };
+  /** The backlog's live items, in backlog order. */
+  items: LePointRow[];
+  /** « source blocks target », the target being one of `items`; a null source is in a backlog the reader cannot browse. */
+  blocks: { sourceId: string | null; targetId: string }[];
+  /** Live sources of `blocks` in other backlogs the reader may browse. */
+  outside: LePointRow[];
+  /** Live comments that mention someone. */
+  comments: { itemId: string; authorId: string; mentions: string[]; at: Date; body: string }[];
+  lastActivity: { itemId: string; at: Date }[];
+  releases: { id: string; name: string; planned: Day | null; released: Day | null }[];
+  fixVersions: { itemId: string; releaseId: string }[];
+  sprint: { name: string; start: Day; end: Day } | null;
+  /** The items in the active sprint; null without one. */
+  sprintItemIds: string[] | null;
+  people: { id: string; name: string }[];
+};
+
+const LAST_DAY = "9999-12-31";
+
+export function assembleLePoint(source: LePointSource): LePointDataset {
+  const byId = new Map(source.items.map((row) => [row.id, row]));
+  const outside = new Map(source.outside.map((row) => [row.id, row]));
+  const lastActivity = new Map(source.lastActivity.map((row) => [row.itemId, dayInZone(row.at)]));
+  const releaseById = new Map(source.releases.map((release) => [release.id, release]));
+  const inSprint = source.sprintItemIds ? new Set(source.sprintItemIds) : null;
+  const versionsOf = new Map<string, string[]>();
+  for (const { itemId, releaseId } of source.fixVersions) {
+    if (releaseById.has(releaseId)) versionsOf.set(itemId, [...(versionsOf.get(itemId) ?? []), releaseId]);
+  }
+
+  // A task belongs to the epic right above it. Sub-tasks do not count towards
+  // an objective: Jira's epic progress counts the epic's own issues only.
+  const epicOf = (row: LePointRow) => {
+    if (row.type !== "tache" || !row.parentId) return null;
+    const parent = byId.get(row.parentId);
+    return parent?.type === "epic" ? parent : null;
+  };
+
+  function toTicket(row: LePointRow): LePointTicket {
+    const shape = row.kind === "bug" ? "bug" : row.type === "soustache" ? "subtask" : undefined;
+    return {
+      key: row.key,
+      title: row.title,
+      objective: epicOf(row)?.key ?? null,
+      status: row.status,
+      category: row.category,
+      ...(shape ? { shape } : {}),
+      // Without a sprint (kanban), a due date is the commitment.
+      committed: row.category === "in_progress" || (inSprint ? inSprint.has(row.id) : row.dueDate !== null),
+      assignee: row.assigneeId,
+      due: row.dueDate,
+      ...(row.category === "done" && row.closedAt ? { done: dayInZone(row.closedAt) } : {}),
+      lastActivity: lastActivity.get(row.id) ?? null,
+    };
+  }
+
+  const blockersOf = new Map<string, Blocker[]>();
+  for (const { sourceId, targetId } of source.blocks) {
+    const known = sourceId ? (byId.get(sourceId) ?? outside.get(sourceId)) : undefined;
+    if (sourceId && !known) continue;
+    const blocker: Blocker = known ? { key: known.key } : { hidden: true };
+    blockersOf.set(targetId, [...(blockersOf.get(targetId) ?? []), blocker]);
+  }
+
+  const tickets: LePointTicket[] = source.items
+    .filter((row) => row.type === "tache" || row.type === "soustache")
+    .map((row) => {
+      const blockedBy = blockersOf.get(row.id);
+      return { ...toTicket(row), ...(blockedBy ? { blockedBy } : {}) };
+    });
+  for (const row of source.outside) tickets.push({ ...toTicket(row), objective: null, external: true });
+
+  // An objective's delivery: its own fix version, else the versions of its
+  // tasks (of the open ones while some are planned); the next unpublished
+  // one, else the last published one.
+  function deliveryOf(epic: LePointRow) {
+    const children = source.items.filter((row) => epicOf(row)?.id === epic.id);
+    const open = children.filter((row) => row.category !== "done");
+    const own = versionsOf.get(epic.id) ?? [];
+    const planned = open.some((row) => versionsOf.has(row.id)) ? open : children;
+    const ids = own.length > 0 ? own : planned.flatMap((row) => versionsOf.get(row.id) ?? []);
+    const candidates = [...new Set(ids)].map((id) => releaseById.get(id)!);
+    const next = candidates
+      .filter((release) => !release.released)
+      .sort((a, b) => (a.planned ?? LAST_DAY).localeCompare(b.planned ?? LAST_DAY))[0];
+    if (next) return next;
+    return candidates
+      .filter((release) => release.released)
+      .sort((a, b) => b.released!.localeCompare(a.released!))[0] ?? null;
+  }
+
+  const objectives = source.items
+    .filter((row) => row.type === "epic")
+    .map((epic) => ({ epic, release: deliveryOf(epic) }))
+    // A done objective stays only while its delivery is still to be published.
+    .filter(({ epic, release }) => epic.category !== "done" || (release !== null && !release.released))
+    .map(({ epic, release }) => ({ key: epic.key, title: epic.title, due: epic.dueDate, release: release?.name ?? null }));
+
+  const mentions = source.comments.flatMap((comment) => {
+    const item = byId.get(comment.itemId);
+    if (!item) return [];
+    return comment.mentions.map((mentioned) => ({
+      ticket: item.key,
+      author: comment.authorId,
+      mentioned,
+      day: dayInZone(comment.at),
+      text: comment.body,
+    }));
+  });
+
+  return {
+    today: source.today,
+    lastVisit: source.lastVisit,
+    ...(source.firstVisit ? { firstVisit: true } : {}),
+    backlog: source.backlog,
+    people: source.people,
+    personas: { developer: source.viewerId, product: source.viewerId },
+    sprint: source.sprint,
+    releases: source.releases.map(({ name, planned, released }) => ({ name, planned, released })),
+    objectives,
+    tickets,
+    mentions,
+  };
+}
