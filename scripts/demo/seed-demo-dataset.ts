@@ -63,15 +63,22 @@ export function assertDemoSeedAllowed(env: Readonly<Record<string, string | unde
 
 /** The simulated present: nothing happens after it. */
 const PRESENT = new RealDate("2026-10-22T09:45:00+02:00").getTime();
-const KICKOFF = "2026-06-15";
-const FIRST_SPRINT = "2026-08-10";
-const ACTIVE_SPRINT = 5;
-const PLANNED_SPRINTS = [6, 7];
-const CAPACITY = [16, 18, 19, 20, 19, 21, 19, 18];
+const KICKOFF = "2026-03-02";
+/** The last grooming day: scrum backlogs start sprinting the Monday after. */
+const GROOMED = { scrum: "2026-04-03", flow: "2026-03-27" };
+const FIRST_SPRINT = "2026-04-06";
+/** Backlogs worked without sprints start pulling cards on this Monday. */
+const FLOW_START = "2026-03-30";
+const ACTIVE_SPRINT = 14;
+const PLANNED_SPRINTS = [15, 16];
+const CAPACITY = [16, 18, 19, 20, 19, 21, 22, 20, 21, 22, 21, 23, 22, 21, 22, 21, 20];
+/** Releases 1.0, 1.1 and 1.2 ship at the end of these sprints; 2.0 is under way. */
+const RELEASE_SPRINTS = [3, 7, 11];
 
-/** A Paris wall-clock instant (summer time until 25 October 2026). */
+/** A Paris wall-clock instant (summer time from 29 March to 25 October 2026). */
 function paris(day: string, hm: string): Date {
-  return new RealDate(`${day}T${hm}:00${day >= "2026-10-25" ? "+01:00" : "+02:00"}`);
+  const summer = day >= "2026-03-29" && day < "2026-10-25";
+  return new RealDate(`${day}T${hm}:00${summer ? "+02:00" : "+01:00"}`);
 }
 const past = (when: Date) => when.getTime() <= PRESENT;
 function addDays(day: string, days: number): string {
@@ -97,7 +104,7 @@ function workday(day: string): string {
 }
 const sprintStart = (k: number) => addDays(FIRST_SPRINT, 14 * k);
 const sprintEnd = (k: number) => addDays(sprintStart(k), 11);
-const releaseFor = (k: number) => (k <= 1 ? 0 : k <= 3 ? 1 : k <= 6 ? 2 : 3);
+const releaseFor = (k: number) => RELEASE_SPRINTS.filter((last) => k > last).length;
 
 // ---------------------------------------------------------------------------
 // Deterministic randomness
@@ -128,7 +135,7 @@ function between(from: string, to: string): string {
 
 const POINTS = [1, 2, 2, 3, 3, 3, 5, 5, 8];
 /** Working days a task takes, by estimate. */
-const DURATION: Record<number, number> = { 1: 1, 2: 2, 3: 3, 5: 4, 8: 6 };
+const DURATION: Record<number, number> = { 1: 1, 2: 2, 3: 3, 5: 4, 8: 6, 13: 8 };
 const LABEL_RULES: [string, RegExp][] = [
   ["sécurité", /authentif|2FA|TOTP|session|habilitation|certificat|chiffr|secret|accès|verrouill|Journaliser|signature|vulnérab|secours|clés/i],
   ["accessibilité", /RGAA|ARIA|clavier|contraste|accessibilit/i],
@@ -234,6 +241,10 @@ type LiveTask = TaskPlan & {
 type LiveBacklog = {
   spec: BacklogSpec;
   id: string;
+  /** Worked without sprints: a kanban backlog, or one whose own sprint is under way. */
+  flow: boolean;
+  /** « Sprint », or another word when the backlog's own sprints already use those names. */
+  sprintWord: string;
   status: Status;
   labels: Map<string, string>;
   releases: string[];
@@ -276,7 +287,12 @@ export async function seedDemoDataset(): Promise<string> {
 }
 
 /** Refuses, before any write, a database where the replay could not run to its end. */
-async function preflight(pool: Services["database"]["databasePool"]): Promise<void> {
+/** The word naming every demo sprint of a backlog, chosen so none of them is taken. */
+const SPRINT_WORDS = ["Sprint", "Itération", "Cycle"];
+const SPRINT_COUNT = Math.max(...PLANNED_SPRINTS) + 1;
+
+async function preflight(pool: Services["database"]["databasePool"]): Promise<Map<string, string>> {
+  const sprintWords = new Map<string, string>();
   const fail = (message: string) => { throw new DemoSeedError(`Preflight: ${message}`); };
   const already = await pool.query(`select 1 from "user" where email like $1 limit 1`, [`%@${EMAIL_DOMAIN}`]);
   if (already.rowCount) fail("the demo team already exists in this database.");
@@ -291,9 +307,15 @@ async function preflight(pool: Services["database"]["databasePool"]): Promise<vo
   for (const spec of BACKLOGS) {
     const found = await pool.query<{ id: string }>("select id from backlogs where upper(key) = $1", [spec.key]);
     const id = found.rows[0]?.id;
-    if (!id) continue;
-    const sprints = await pool.query("select 1 from sprints where backlog_id = $1 limit 1", [id]);
-    if (sprints.rowCount) fail(`backlog ${spec.key} already has sprints.`);
+    if (!id) {
+      sprintWords.set(spec.key, SPRINT_WORDS[0]!);
+      continue;
+    }
+    const taken = new Set((await pool.query<{ name: string }>("select lower(name) as name from sprints where backlog_id = $1", [id])).rows.map((row) => row.name));
+    const word = SPRINT_WORDS.find((candidate) =>
+      Array.from({ length: SPRINT_COUNT }, (_, k) => `${spec.key} ${candidate} ${k + 1}`.toLowerCase()).every((name) => !taken.has(name)));
+    if (!word) fail(`backlog ${spec.key} already uses the demo sprint names.`);
+    sprintWords.set(spec.key, word!);
     const releases = await pool.query<{ name: string }>(
       "select name from releases where backlog_id = $1 and lower(btrim(name)) = any($2)",
       [id, spec.releases.map((release) => release.name.toLocaleLowerCase("fr"))],
@@ -303,6 +325,7 @@ async function preflight(pool: Services["database"]["databasePool"]): Promise<vo
     const present = new Set(categories.rows.map((row) => row.category));
     if (!["todo", "in_progress", "done"].every((category) => present.has(category))) fail(`backlog ${spec.key} lacks a to-do, in-progress or done status.`);
   }
+  return sprintWords;
 }
 
 async function run(svc: Services): Promise<string> {
@@ -310,7 +333,7 @@ async function run(svc: Services): Promise<string> {
   const log: string[] = [];
 
   // --- Guards and existing accounts ----------------------------------------
-  await preflight(pool);
+  const sprintWords = await preflight(pool);
   const existing = await pool.query<{ id: string; name: string; role: string }>(
     `select id, name, role from "user" order by (role = 'admin') desc, created_at`,
   );
@@ -439,9 +462,9 @@ async function run(svc: Services): Promise<string> {
   for (const [index, spec] of BACKLOGS.entries()) live.push(await setUpBacklog(spec, index));
 
   // --- Scrum: sprints, releases and everyday work -----------------------------
-  const scrum = live.filter((b) => b.spec.mode === "scrum");
+  const scrum = live.filter((b) => !b.flow);
   for (const b of scrum) {
-    const first = await at(paris("2026-08-07", "15:00"), () => svc.sprints.createSprint({ backlogId: b.id }, people[b.spec.po]));
+    const first = await at(paris(GROOMED.scrum, "15:00"), () => svc.sprints.createSprint({ backlogId: b.id }, people[b.spec.po]));
     b.sprints.set(0, first.id);
   }
   for (let k = 0; k <= ACTIVE_SPRINT; k++) {
@@ -455,13 +478,14 @@ async function run(svc: Services): Promise<string> {
     }
     if (k < ACTIVE_SPRINT) {
       for (const b of scrum) await completeSprint(b, k);
-      if (k === 1 || k === 3) for (const b of scrum) await publishRelease(b, k === 1 ? 0 : 1, sprintEnd(k));
+      const shipped = RELEASE_SPRINTS.indexOf(k);
+      if (shipped >= 0) for (const b of scrum) await publishRelease(b, shipped, sprintEnd(k));
     }
   }
   for (const b of scrum) await prepareNextSprints(b);
 
   // --- Kanban --------------------------------------------------------------
-  for (const b of live.filter((x) => x.spec.mode === "kanban")) await runKanban(b);
+  for (const b of live.filter((x) => x.flow)) await runFlow(b);
 
   // --- Roadmap and inbox -----------------------------------------------------
   for (const b of scrum) await projectRoadmap(b);
@@ -479,7 +503,9 @@ async function run(svc: Services): Promise<string> {
     const po = people[spec.po];
     const day = addDays(KICKOFF, index < 3 ? 0 : 1);
     const backlog = await at(paris(day, `09:${String(15 + index * 5).padStart(2, "0")}`), async () => {
-      const found = await pool.query<{ id: string }>("select id from backlogs where key = $1", [spec.key]);
+      const found = await pool.query<{ id: string; name: string; color: string }>(
+        "select id, name, color from backlogs where key = $1", [spec.key],
+      );
       const reused = found.rows[0]?.id;
       const id = reused ?? (await svc.backlogs.createBacklog({ key: spec.key, name: spec.name, color: spec.color }, owner)).id;
       (reused ? reusedBacklogIds : createdBacklogIds).push(id);
@@ -498,21 +524,29 @@ async function run(svc: Services): Promise<string> {
           { backlogId: id, projectRoleId: roleId(group.role), principal: { type: "group", groupId: group.id } }, owner,
         );
       }
-      await svc.backlogs.updateBacklog({ id, key: spec.key, name: spec.name, color: spec.color, leadUserId: po }, owner);
+      // A backlog that already exists keeps its name and colour.
+      const { name, color } = found.rows[0] ?? spec;
+      await svc.backlogs.updateBacklog({ id, key: spec.key, name, color, leadUserId: po }, owner);
       // Demo work goes to the existing accounts that may be assigned here.
       const assignable = [owner];
       for (const other of others) {
         const decision = await svc.access.checkPermission({ actorId: other.id, permission: "assignable_user", scope });
         if (decision.allowed) assignable.push(other.id);
       }
-      return { id, assignable };
+      const own = await pool.query<{ state: string }>("select state from sprints where backlog_id = $1", [id]);
+      return {
+        id, assignable,
+        flow: spec.mode === "kanban" || own.rows.some((row) => row.state === "active"),
+        sprintWord: sprintWords.get(spec.key)!,
+      };
     });
+    const flow = backlog.flow;
     const statusRows = await pool.query<{ id: string; category: string }>(
       `select id, category from statuses where backlog_id = $1 order by "order"`, [backlog.id],
     );
     const inCategory = (category: string) => statusRows.rows.filter((row) => row.category === category);
     const b: LiveBacklog = {
-      spec, id: backlog.id, labels: new Map(), releases: [], epics: [], tasks: [], queue: [], sprints: new Map(), bugIndex: 0, me: backlog.assignable,
+      spec, id: backlog.id, flow, sprintWord: backlog.sprintWord, labels: new Map(), releases: [], epics: [], tasks: [], queue: [], sprints: new Map(), bugIndex: 0, me: backlog.assignable,
       status: {
         todo: inCategory("todo")[0]!.id,
         doing: inCategory("in_progress")[0]!.id,
@@ -523,7 +557,7 @@ async function run(svc: Services): Promise<string> {
 
     await at(paris(day, "10:30"), async () => {
       for (const name of LABELS) b.labels.set(name, (await svc.labels.createLabel({ backlogId: b.id, name })).id);
-      const dates = [["2026-08-10", "2026-09-04"], ["2026-09-07", "2026-10-02"], ["2026-10-05", "2026-11-13"], ["2026-11-16", "2027-01-29"]];
+      const dates = [["2026-04-06", "2026-05-29"], ["2026-06-01", "2026-07-24"], ["2026-07-27", "2026-09-18"], ["2026-09-21", "2027-01-29"]];
       for (const [r, release] of spec.releases.entries()) {
         const created = await svc.releases.createRelease({
           backlogId: b.id, name: release.name, description: release.description, driverId: po,
@@ -535,31 +569,23 @@ async function run(svc: Services): Promise<string> {
     });
 
     // Components and epics, written by the product owner the day after kickoff.
-    const found = await pool.query<{ id: string; title: string; type: string; key: string }>(
-      "select id, title, type, key from items where backlog_id = $1 and deleted_at is null", [b.id],
-    );
-    const reuse = (type: string, title: string) => found.rows.find((row) => row.type === type && row.title === title);
+    // The backlog's own items are never touched, even under the same title.
     const plans: TaskPlan[] = [];
     for (const [c, component] of spec.components.entries()) {
       const componentId = await at(paris(workday(addDays(day, 1)), between("09:00", "10:30")), async () =>
-        reuse("composant", component.title)?.id ?? (await createItem({
+        (await createItem({
           backlogId: b.id, type: "composant", parentId: null, title: component.title, description: component.description,
-          priority: 2, startDate: spec.mode === "kanban" ? "2026-07-06" : FIRST_SPRINT,
-          dueDate: ["2026-12-18", "2027-01-29", "2027-03-26"][c] ?? "2027-03-26",
+          priority: 2, startDate: flow ? FLOW_START : FIRST_SPRINT,
+          dueDate: ["2026-12-18", "2027-01-29", "2027-03-26", "2027-05-28"][c] ?? "2027-05-28",
         }, po)).id,
       );
       for (const epic of component.epics) {
         const epicIndex = b.epics.length;
-        const kanbanStart = addDays("2026-07-06", 21 * epicIndex);
+        const flowStart = addDays(FLOW_START, 14 * epicIndex);
         const epicId = await at(paris(workday(addDays(day, 1)), between("10:30", "17:30")), async () => {
-          const reused = reuse("epic", epic.title);
-          if (reused) {
-            await svc.items.updateItem({ id: reused.id, description: epic.description }, po);
-            return reused.id;
-          }
           return (await createItem({
             backlogId: b.id, type: "epic", parentId: componentId, title: epic.title, description: epic.description, priority: 2,
-            ...(spec.mode === "kanban" ? { startDate: kanbanStart, dueDate: addDays(kanbanStart, 55) } : {}),
+            ...(flow ? { startDate: flowStart, dueDate: addDays(flowStart, 55) } : {}),
           }, po)).id;
         });
         b.epics.push({ id: epicId, start: null, due: null, done: false });
@@ -569,26 +595,21 @@ async function run(svc: Services): Promise<string> {
 
     // Tasks, written during the grooming weeks.
     const ordered = interleave(plans, b.epics.length);
-    const groomingDays = workdaysBetween(addDays(day, 2), spec.mode === "kanban" ? "2026-07-17" : "2026-08-07");
+    const groomed = flow ? GROOMED.flow : GROOMED.scrum;
+    const groomingDays = workdaysBetween(addDays(day, 2), groomed);
     for (const [n, plan] of ordered.entries()) {
       const author = plan.bug ? people[spec.qa] : chance(0.8) ? po : people[spec.business];
       const groomDay = groomingDays[Math.floor((n / ordered.length) * groomingDays.length)]!;
       const labelIds = labelsFor(plan, b.labels);
       const estimate = plan.fixedNullPoints || chance(0.3) ? null : plan.points;
       const epicId = b.epics[plan.epicIndex]!.id;
-      const reused = reuse("tache", plan.title);
-      const task = await at(paris(groomDay, between("09:00", "18:00")), async () => {
-        if (reused) {
-          await svc.items.updateItem({ id: reused.id, description: plan.description, estimatePoints: estimate, labelIds }, po);
-          return reused;
-        }
-        return createItem({
+      const task = await at(paris(groomDay, between("09:00", "18:00")), () =>
+        createItem({
           backlogId: b.id, type: "tache", parentId: epicId, title: plan.title,
           description: plan.description, kind: plan.bug ? "bug" : "feature",
           priority: plan.bug ? pick([3, 3, 4]) : pick([0, 1, 1, 2, 2, 2, 2, 3, 3, 4]),
           estimatePoints: estimate, labelIds,
-        }, author);
-      });
+        }, author));
       const liveTask: LiveTask = {
         ...plan, id: task.id, key: task.key, epicId, assignee: null, subIds: [], state: "todo",
         remaining: DURATION[plan.points ?? 3] ?? 2, sprint: null, blockedBy: null,
@@ -607,20 +628,20 @@ async function run(svc: Services): Promise<string> {
       const a = pick(b.tasks);
       const other = b.tasks.find((t) => t.epicId === a.epicId && t.id !== a.id);
       if (!other) continue;
-      await at(paris("2026-07-24", between("14:00", "17:00")), () =>
+      await at(paris(groomed, between("18:05", "18:25")), () =>
         svc.links.addLink({ sourceId: a.id, targetId: other.id, type: "relates" }, po).catch(() => undefined));
     }
     // A duplicate written by mistake, then put in the trash.
     const original = b.tasks[3];
     if (original) {
-      const duplicate = await at(paris("2026-07-01", "10:12"), () => createItem({
+      const duplicate = await at(paris("2026-03-18", "10:12"), () => createItem({
         backlogId: b.id, type: "tache", parentId: original.epicId, title: `${original.title} (doublon)`, priority: 1,
       }, people[spec.business]));
-      await at(paris("2026-07-01", "11:40"), () => svc.items.softDeleteItem({ id: duplicate.id }, po));
+      await at(paris("2026-03-18", "11:40"), () => svc.items.softDeleteItem({ id: duplicate.id }, po));
     }
     // Views shared with the team.
     if (spec.mode === "scrum") {
-      await at(paris("2026-07-24", "16:30"), async () => {
+      await at(paris(groomed, "18:30"), async () => {
         await svc.views.createView({
           name: "Bugs ouverts", backlogId: b.id, displayMode: "list",
           filters: { kind: ["bug"], statusIds: [b.status.todo, b.status.doing, b.status.review] },
@@ -688,7 +709,7 @@ async function run(svc: Services): Promise<string> {
   async function startSprint(b: LiveBacklog, k: number) {
     const start = sprintStart(k);
     await at(paris(start, "10:00"), () => svc.lifecycle.startSprint({
-      id: b.sprints.get(k)!, backlogId: b.id, name: `${b.spec.key} Sprint ${k + 1}`, goal: b.spec.goals[k] ?? null,
+      id: b.sprints.get(k)!, backlogId: b.id, name: `${b.spec.key} ${b.sprintWord} ${k + 1}`, goal: b.spec.goals[k] ?? null,
       startAt: paris(start, "10:00").toISOString(), endAt: paris(sprintEnd(k), "17:00").toISOString(), capacityPoints: CAPACITY[k]!,
     }, people[b.spec.po]));
   }
@@ -794,7 +815,7 @@ async function run(svc: Services): Promise<string> {
       id: b.sprints.get(k)!, backlogId: b.id, destination: { type: "existing_sprint", sprintId: b.sprints.get(k + 1)! },
     }, people[b.spec.po]));
     for (const t of unfinished) t.sprint = k + 1;
-    log.push(`${b.spec.key} Sprint ${k + 1} : ${b.tasks.filter((t) => t.sprint === k).length} tâches terminées, ${unfinished.length} reportées`);
+    log.push(`${b.spec.key} ${b.sprintWord} ${k + 1} : ${b.tasks.filter((t) => t.sprint === k).length} tâches terminées, ${unfinished.length} reportées`);
   }
 
   async function publishRelease(b: LiveBacklog, r: number, day: string) {
@@ -817,7 +838,7 @@ async function run(svc: Services): Promise<string> {
         if (!b.sprints.has(k)) b.sprints.set(k, (await svc.sprints.createSprint({ backlogId: b.id }, po)).id);
         const sprintId = b.sprints.get(k)!;
         await svc.sprints.updateSprint({
-          id: sprintId, backlogId: b.id, name: `${b.spec.key} Sprint ${k + 1}`, goal: b.spec.goals[k] ?? null,
+          id: sprintId, backlogId: b.id, name: `${b.spec.key} ${b.sprintWord} ${k + 1}`, goal: b.spec.goals[k] ?? null,
           plannedStartAt: paris(sprintStart(k), "10:00").toISOString(), plannedEndAt: paris(sprintEnd(k), "17:00").toISOString(),
           capacityPoints: CAPACITY[k]!,
         }, po);
@@ -885,31 +906,45 @@ async function run(svc: Services): Promise<string> {
     });
   }
 
-  async function runKanban(b: LiveBacklog) {
+  /** Cards pulled one after the other, without sprints; versions ship on their dates. */
+  async function runFlow(b: LiveBacklog) {
     const lead = people[b.spec.po];
     const devs = b.spec.devs.map((dev) => who(dev, b));
-    const cursors = new Map(devs.map((dev, n) => [dev, workday(addDays("2026-07-20", n))]));
+    const cursors = new Map(devs.map((dev, n) => [dev, workday(addDays(FLOW_START, n))]));
+    const shipDates = RELEASE_SPRINTS.map(sprintEnd);
+    // Every move and every release on one timeline, so a release sees the
+    // cards as they stood on its own day.
+    const timeline: { day: string; order: number; run: () => Promise<void> }[] = [];
     for (const [n, t] of b.tasks.entries()) {
       // The last cards are still waiting, or under way.
       const fromEnd = b.tasks.length - n;
       if (fromEnd <= 2) continue;
       const dev = devs[n % devs.length]!;
       const startDay = cursors.get(dev)!;
-      const reviewDay = workday(addDays(startDay, 4 + Math.floor(random() * 6)));
+      const reviewDay = workday(addDays(startDay, 3 + Math.floor(random() * 5)));
       const doneDay = workday(addDays(reviewDay, 1 + Math.floor(random() * 2)));
-      cursors.set(dev, workday(addDays(doneDay, 5 + Math.floor(random() * 7))));
+      cursors.set(dev, workday(addDays(doneDay, 1 + Math.floor(random() * 3))));
       if (!past(paris(startDay, "18:45"))) continue;
-      t.assignee = dev;
-      await at(paris(startDay, between("09:00", "10:00")), () => svc.items.updateItem({
-        id: t.id, assigneeId: dev, statusId: b.status.doing, ...(chance(0.4) ? { dueDate: doneDay } : {}),
-      }, lead));
-      t.state = "doing";
-      if (chance(0.25)) await comment(b, t, startDay);
+      const release = b.releases[shipDates.filter((ship) => startDay > ship).length];
+      timeline.push({ day: startDay, order: 0, run: async () => {
+        t.assignee = dev;
+        await at(paris(startDay, between("09:00", "10:00")), () => svc.items.updateItem({
+          id: t.id, assigneeId: dev, statusId: b.status.doing, ...(chance(0.4) ? { dueDate: doneDay } : {}),
+          ...(release ? { fixVersionIds: [release] } : {}),
+        }, lead));
+        t.state = "doing";
+        if (chance(0.25)) await comment(b, t, startDay);
+      } });
       if (fromEnd <= 4 || !past(paris(reviewDay, "18:45"))) continue;
-      await advance(b, t, "review", reviewDay, "15:00", "17:30", dev);
+      timeline.push({ day: reviewDay, order: 1, run: () => advance(b, t, "review", reviewDay, "15:00", "17:30", dev) });
       if (fromEnd <= 5 || !past(paris(doneDay, "18:45"))) continue;
-      await advance(b, t, "done", doneDay, "10:00", "17:00", lead);
+      timeline.push({ day: doneDay, order: 2, run: () => advance(b, t, "done", doneDay, "10:00", "17:00", lead) });
     }
+    for (const [r, ship] of shipDates.entries()) {
+      if (b.releases[r + 1]) timeline.push({ day: ship, order: 3, run: () => publishRelease(b, r, ship) });
+    }
+    timeline.sort((x, y) => x.day.localeCompare(y.day) || x.order - y.order);
+    for (const step of timeline) await step.run();
     await at(paris("2026-10-21", "17:30"), async () => {
       for (const epic of b.epics) {
         const children = b.tasks.filter((t) => t.epicId === epic.id);
@@ -918,7 +953,7 @@ async function run(svc: Services): Promise<string> {
         if (statusId) await svc.items.updateItem({ id: epic.id, statusId }, lead);
       }
     });
-    log.push(`${b.spec.key} (kanban) : ${b.tasks.filter((t) => t.state === "done").length} tâches terminées sur ${b.tasks.length}`);
+    log.push(`${b.spec.key} (${b.spec.mode === "kanban" ? "kanban" : "sans sprint"}) : ${b.tasks.filter((t) => t.state === "done").length} tâches terminées sur ${b.tasks.length}`);
   }
 }
 
