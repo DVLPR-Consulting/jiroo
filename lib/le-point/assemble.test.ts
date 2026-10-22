@@ -157,8 +157,25 @@ describe("assembleLePoint", () => {
     const mixed = assembleLePoint(source({ items, releases, fixVersions: [{ itemId: "2", releaseId: "r1" }, { itemId: "3", releaseId: "r9" }] }));
     expect(mixed.objectives.map((o) => o.key)).toEqual(["CASS-1"]);
     expect(productView(mixed, "po").nextRelease).toBeNull();
+    expect(productView(mixed, "po").objectives[0]!.delivery).toBe(
+      "Livraison partielle : une partie seulement de ses tickets est dans une livraison publiée.",
+    );
     const all = assembleLePoint(source({ items, releases, fixVersions: [{ itemId: "2", releaseId: "r1" }, { itemId: "3", releaseId: "r1" }] }));
     expect(all.objectives).toEqual([]);
+  });
+
+  it("claims a delivery only when every task of the objective shipped", () => {
+    const done = { status: "Terminé", category: "done" as const };
+    const items = [row("1", { type: "epic", parentId: null }), row("2", done), row("3")];
+    const releases = [{ id: "r1", name: "1.0", planned: "2026-09-18", released: "2026-09-18" }];
+    const open = assembleLePoint(source({ items, releases, fixVersions: [{ itemId: "2", releaseId: "r1" }] }));
+    expect(productView(open, "po").objectives[0]!.delivery).not.toMatch(/^Livré/);
+    const all = assembleLePoint(source({
+      items: [row("1", { type: "epic", parentId: null }), row("2", done)],
+      releases,
+      fixVersions: [{ itemId: "2", releaseId: "r1" }],
+    }));
+    expect(productView(all, "po").objectives[0]!.delivery).toBe("Livré dans la livraison 1.0, le 18 sept.");
   });
 });
 

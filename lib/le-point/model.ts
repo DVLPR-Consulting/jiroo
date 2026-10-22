@@ -50,7 +50,14 @@ export type LePointDataset = {
   personas: { developer: string; product: string };
   sprint: { name: string; start: Day; end: Day } | null;
   releases: { name: string; planned: Day | null; released: Day | null }[];
-  objectives: { key: string; title: string; due: Day | null; release: string | null }[];
+  objectives: {
+    key: string;
+    title: string;
+    due: Day | null;
+    release: string | null;
+    /** Some of its tickets shipped, not all: no delivery may be claimed. */
+    partial?: boolean;
+  }[];
   tickets: LePointTicket[];
   mentions: { ticket: string; author: string; mentioned: string; day: Day; text: string }[];
 };
@@ -247,7 +254,11 @@ export function productView(data: LePointDataset, viewerId: string) {
     const done = count((ticket) => ticket.category === "done");
     const release = objective.release ? releases.get(objective.release) : undefined;
     let delivery: string;
-    if (!release) delivery = "Aucune livraison prévue.";
+    if (!release) {
+      delivery = objective.partial
+        ? "Livraison partielle : une partie seulement de ses tickets est dans une livraison publiée."
+        : "Aucune livraison prévue.";
+    }
     else if (release.released) delivery = sentence(`Livré dans la livraison ${release.name}, le ${formatDay(release.released)}`);
     else if (children.length > 0 && done === children.length) {
       delivery = `Terminé — pas encore livré : la livraison ${release.name} n’est pas publiée.`;

@@ -141,8 +141,13 @@ export function assembleLePoint(source: LePointSource): LePointDataset {
   const objectives = source.items
     .filter((row) => row.type === "epic")
     .filter((epic) => epic.category !== "done" || !shipped(epic))
-    .map((epic) => ({ epic, release: deliveryOf(epic) }))
-    .map(({ epic, release }) => ({ key: epic.key, title: epic.title, due: epic.dueDate, release: release?.name ?? null }));
+    .map((epic) => {
+      const release = deliveryOf(epic);
+      const objective = { key: epic.key, title: epic.title, due: epic.dueDate };
+      // A published version speaks for the whole objective only once all of it shipped.
+      if (release?.released && !shipped(epic)) return { ...objective, release: null, partial: true };
+      return { ...objective, release: release?.name ?? null };
+    });
 
   const mentions = source.comments.flatMap((comment) => {
     const item = byId.get(comment.itemId);
