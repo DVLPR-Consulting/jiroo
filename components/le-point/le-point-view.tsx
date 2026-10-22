@@ -2,7 +2,6 @@
 
 import { X } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { KindIcon } from "@/components/icons/kind-icon";
 import { TypeIcon } from "@/components/icons/type-icon";
@@ -72,12 +71,13 @@ function Term({ children, jiroo }: { children: ReactNode; jiroo: string }) {
   );
 }
 
-/** The pilot on real tickets: the backlogs the reader may pick. Without it, the fictional prototype. */
-export type LePointPilot = { backlogs: { key: string; name: string }[] };
-
-/** The real ticket's address: its backlog is the key's prefix. */
-export function ticketHref(key: string) {
-  return `/b/${key.slice(0, key.lastIndexOf("-"))}?item=${key}`;
+/**
+ * The real ticket's panel: in place, on this backlog's Le point, or on its
+ * own backlog for a dependency elsewhere (its key's prefix).
+ */
+export function ticketHref(key: string, backlogKey: string) {
+  const owner = key.slice(0, key.lastIndexOf("-"));
+  return owner === backlogKey ? `/b/${owner}/le-point?item=${key}` : `/b/${owner}?item=${key}`;
 }
 
 function readCookie(name: string) {
@@ -87,9 +87,10 @@ function readCookie(name: string) {
 /**
  * « Le point » (JIR-107): one screen, two perspectives on the same facts.
  * It writes nothing, and the perspective is a reading preference, never a
- * permission. With `pilot`, the facts are the reader's real backlog.
+ * permission. With `pilot`, the facts are the reader's real backlog, shown
+ * as a view of that project.
  */
-export function LePointView({ data, pilot }: { data: LePointDataset; pilot?: LePointPilot }) {
+export function LePointView({ data, pilot = false }: { data: LePointDataset; pilot?: boolean }) {
   const [perspective, setPerspective] = useState<Perspective>("developer");
   const [openKey, setOpenKey] = useState<string | null>(null);
   // The button that opened the panel from the page gets the focus back on close.
@@ -116,7 +117,8 @@ export function LePointView({ data, pilot }: { data: LePointDataset; pilot?: LeP
   useEffect(() => {
     if (!pilot) return;
     const value = recordVisit(readCookie(VISIT_COOKIE), data.today);
-    document.cookie = `${VISIT_COOKIE}=${value}; path=/le-point; max-age=31536000; samesite=lax`;
+    // Every backlog's Le point shares the device's last visit.
+    document.cookie = `${VISIT_COOKIE}=${value}; path=/; max-age=31536000; samesite=lax`;
   }, [pilot, data.today]);
 
   function choose(next: Perspective) {
@@ -149,10 +151,7 @@ export function LePointView({ data, pilot }: { data: LePointDataset; pilot?: LeP
         <div className="space-y-1">
           <h1 className="t-h1">Le point</h1>
           {pilot ? (
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <BacklogPicker backlogs={pilot.backlogs} value={data.backlog.key} />
-              <span>vu par {viewer?.name}</span>
-            </div>
+            <p className="text-sm text-muted-foreground">{data.backlog.name} · vu par {viewer?.name}</p>
           ) : (
             <p className="text-sm text-muted-foreground">
               {data.backlog.name} · vu par {viewer?.name}, {persona}
@@ -170,7 +169,7 @@ export function LePointView({ data, pilot }: { data: LePointDataset; pilot?: LeP
 
       <TicketPanel
         data={data}
-        pilot={!!pilot}
+        pilot={pilot}
         ticketKey={openKey}
         onOpen={open}
         onClose={() => setOpenKey(null)}
@@ -184,26 +183,6 @@ export function LePointView({ data, pilot }: { data: LePointDataset; pilot?: LeP
         }}
       />
     </div>
-  );
-}
-
-function BacklogPicker({ backlogs, value }: { backlogs: LePointPilot["backlogs"]; value: string }) {
-  const router = useRouter();
-  const id = useId();
-  return (
-    <>
-      <label htmlFor={id} className="sr-only">Backlog</label>
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => router.push(`/le-point?b=${encodeURIComponent(event.target.value)}`)}
-        className="rounded-[var(--radius)] border border-border bg-[var(--surface)] px-2 py-1 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none"
-      >
-        {backlogs.map((backlog) => (
-          <option key={backlog.key} value={backlog.key}>{backlog.name} ({backlog.key})</option>
-        ))}
-      </select>
-    </>
   );
 }
 
@@ -477,8 +456,12 @@ function TicketPanel({
         <header className="flex items-center gap-2 border-b border-border px-4 py-3">
           <span className="text-xs text-muted-foreground">{pilot ? "Lecture seule" : "Démonstration · lecture seule"}</span>
           {pilot && ticketKey ? (
-            <Link href={ticketHref(ticketKey)} className="ml-3 text-xs text-[var(--primary)] underline">
-              Ouvrir dans le backlog
+            <Link
+              href={ticketHref(ticketKey, data.backlog.key)}
+              onClick={onClose}
+              className="ml-3 text-xs text-[var(--primary)] underline"
+            >
+              Ouvrir le ticket
             </Link>
           ) : null}
           <DialogClose asChild>

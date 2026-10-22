@@ -87,7 +87,6 @@ describe("deriveShellContext", () => {
   });
 
   it.each([
-    ["/le-point", "Le point", "le-point"],
     ["/trash", "Corbeille", "trash"],
     ["/admin", "Administration", "admin"],
     ["/aide", "Aide", null],
@@ -162,6 +161,7 @@ describe("deriveShellContext", () => {
 
   it.each([
     ["/b/PEN/releases", "Releases"],
+    ["/b/pen/le-point", "Le point"],
     ["/b/pen/roadmap", "Roadmap"],
     ["/b/pen/reports", "Rapports"],
     ["/b/PEN/reports/detail", "Rapports"],
@@ -308,8 +308,9 @@ describe("deriveShellContext — Backlog mode", () => {
 });
 
 describe("project views (sidebar)", () => {
-  it("lists the seven project views in sidebar order", () => {
+  it("lists the eight project views in sidebar order", () => {
     expect(PROJECT_VIEWS.map((view) => view.label)).toEqual([
+      "Le point",
       "Backlog",
       "Board",
       "Liste",
@@ -325,6 +326,7 @@ describe("project views (sidebar)", () => {
     ["board", "/b/CASS?view=board"],
     ["list", "/b/CASS?view=list"],
     ["tree", "/b/CASS?view=tree"],
+    ["le-point", "/b/CASS/le-point"],
     ["roadmap", "/b/CASS/roadmap"],
     ["releases", "/b/CASS/releases"],
     ["reports", "/b/CASS/reports"],
@@ -341,6 +343,7 @@ describe("project views (sidebar)", () => {
     ["/b/cass", "view=list", "list"],
     ["/b/CASS/", "view=backlog", "backlog"],
     ["/b/CASS", "view=unknown", "board"],
+    ["/b/CASS/le-point", "", "le-point"],
     ["/b/CASS/roadmap", "", "roadmap"],
     ["/b/CASS/releases", "", "releases"],
     ["/b/CASS/releases/r-1/notes", "", "releases"],
@@ -405,7 +408,7 @@ describe("deriveBreadcrumb (page header)", () => {
     ["/aide", "Pôle civil", "/b/CASS", "Aide"],
     ["/admin", "Pôle civil", "/b/CASS", "Administration"],
     ["/mine", "Pôle civil", "/b/CASS", "Mes items"],
-    ["/le-point", "Pôle civil", "/b/CASS", "Le point"],
+    ["/b/pen/le-point", "Pôle pénal", "/b/PEN", "Le point"],
     ["/trash", "Pôle civil", "/b/CASS", "Corbeille"],
   ])("links %s back to its project", (pathname, project, href, current) => {
     expect(crumbs(pathname)).toEqual([{ label: project, href }, { label: current }]);

@@ -1,7 +1,7 @@
 import { isFiltersActive, parseViewState } from "@/lib/items/filter";
 
 export type ShellMode = "Backlog" | "Board" | "Liste" | "Arbre";
-export type ShellNav = "backlogs" | "all" | "mine" | "le-point" | "trash" | "admin" | null;
+export type ShellNav = "backlogs" | "all" | "mine" | "trash" | "admin" | null;
 
 export type ShellContext = {
   activeBacklogKey?: string;
@@ -21,6 +21,9 @@ const MODE_LABELS: Record<string, ShellMode> = {
   list: "Liste",
   tree: "Arbre",
 };
+
+// A backlog's own pages beside its item views, kept in that backlog's context.
+const FEATURE_SECTIONS = { "le-point": "Le point", roadmap: "Roadmap", releases: "Releases", reports: "Rapports" } as const;
 
 // A backlog's settings pages, kept in the current backlog context.
 const SETTINGS_ROUTE = /^\/b\/([^/]+)\/settings\/(access|development|templates)\/?$/;
@@ -52,7 +55,6 @@ export function deriveShellContext({
     // The home page lists every backlog (JIR-82, Jira's Projects page).
     "/": { section: "Backlogs", activeNav: "backlogs" as const },
     "/mine": { section: "Mes items", activeNav: "mine" as const },
-    "/le-point": { section: "Le point", activeNav: "le-point" as const },
     "/trash": { section: "Corbeille", activeNav: "trash" as const },
     "/admin": { section: "Administration", activeNav: "admin" as const },
     "/aide": { section: "Aide", activeNav: null },
@@ -66,7 +68,7 @@ export function deriveShellContext({
     };
   }
 
-  const completedFeatureMatch = /^\/b\/([^/]+)\/(roadmap|releases|reports)(?:\/.*)?$/.exec(pathname);
+  const completedFeatureMatch = /^\/b\/([^/]+)\/(le-point|roadmap|releases|reports)(?:\/.*)?$/.exec(pathname);
   if (completedFeatureMatch) {
     const requestedKey = decodeURIComponent(completedFeatureMatch[1]!).toUpperCase();
     const backlog = backlogs.find(
@@ -75,7 +77,7 @@ export function deriveShellContext({
     const feature = completedFeatureMatch[2];
     return {
       ...(backlog ? { activeBacklogKey: requestedKey } : {}),
-      section: feature === "roadmap" ? "Roadmap" : feature === "releases" ? "Releases" : "Rapports",
+      section: FEATURE_SECTIONS[feature as keyof typeof FEATURE_SECTIONS],
       allItemsHref: backlog ? allItemsHrefFor(requestedKey) : allItemsHref,
       activeNav: null,
     };
@@ -139,13 +141,15 @@ export function deriveShellContext({
 // ---------------------------------------------------------------------------
 
 export type ItemViewId = "backlog" | "board" | "list" | "tree";
-export type ProjectViewId = ItemViewId | "roadmap" | "releases" | "reports";
+export type ProjectViewId = ItemViewId | "le-point" | "roadmap" | "releases" | "reports";
 
 /**
  * The project's views, in sidebar order. Item views are display modes of
- * `/b/[key]` (`?view=`); Releases and Rapports are their own routes.
+ * `/b/[key]` (`?view=`); Le point, Roadmap, Releases and Rapports are their
+ * own routes. Le point comes first, like Jira's project Summary (JIR-107).
  */
 export const PROJECT_VIEWS = [
+  { id: "le-point", label: "Le point", kind: "page" },
   { id: "backlog", label: "Backlog", kind: "item" },
   { id: "board", label: "Board", kind: "item" },
   { id: "list", label: "Liste", kind: "item" },
@@ -178,7 +182,7 @@ export function activeProjectView(
   search: URLSearchParams,
   backlogKey: string,
 ): ProjectViewId | null {
-  const match = /^\/b\/([^/]+)(?:\/(roadmap|releases|reports)(?:\/.*)?|\/?)$/.exec(pathname);
+  const match = /^\/b\/([^/]+)(?:\/(le-point|roadmap|releases|reports)(?:\/.*)?|\/?)$/.exec(pathname);
   if (!match) return null;
   if (decodeURIComponent(match[1]!).toUpperCase() !== backlogKey.toUpperCase()) return null;
   if (match[2]) return match[2] as ProjectViewId;

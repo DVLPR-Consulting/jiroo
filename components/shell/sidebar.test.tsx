@@ -102,37 +102,37 @@ describe("Sidebar", () => {
     );
   });
 
-  it("links the pilot immediately after Mes items without marking it current elsewhere", () => {
+  it("lists Le point first among the project views, marked as a pilot", () => {
     renderSidebar();
 
-    const pilot = screen.getByRole("link", { name: /Le point/ });
-    expect(pilot).toHaveAttribute("href", "/le-point");
+    const nav = screen.getByRole("navigation", { name: "Vues du projet" });
+    const pilot = within(nav).getByRole("link", { name: /Le point/ });
+    expect(pilot).toHaveAttribute("href", "/b/CASS/le-point");
     expect(pilot).not.toHaveAttribute("aria-current");
     expect(within(pilot).getByText("pilote")).toBeVisible();
-    expect(screen.getByRole("link", { name: /Mes items 7/ }).nextElementSibling).toBe(pilot);
+    expect(within(nav).getAllByRole("link")[0]).toBe(pilot);
   });
 
-  it("marks Le point current on the pilot page", () => {
-    mocks.pathname = "/le-point";
+  it("keeps the project of the page on Le point (JIR-107)", () => {
+    mocks.pathname = "/b/PEN/le-point";
     mocks.search = "";
-    renderSidebar([]);
+    render(
+      <SidebarStateProvider>
+        <ViewUrlStateProvider initialEntries={[]}>
+          <Sidebar
+            {...props}
+            backlogs={[...props.backlogs, { id: "backlog-2", key: "PEN", name: "Pôle pénal", color: "#dc2626" }]}
+          />
+        </ViewUrlStateProvider>
+      </SidebarStateProvider>,
+    );
 
-    expect(screen.getByRole("link", { name: /Le point/ })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: /Mes items 7/ })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("button", { name: "Backlog PEN — Pôle pénal" })).toBeVisible();
+    const nav = screen.getByRole("navigation", { name: "Vues du projet" });
+    expect(within(nav).getByRole("link", { name: /Le point/ })).toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("link", { name: "Roadmap" })).toHaveAttribute("href", "/b/PEN/roadmap");
   });
 
-  it("keeps the pilot accessible on the collapsed rail", () => {
-    document.documentElement.dataset.sidebar = "collapsed";
-    mocks.pathname = "/le-point";
-    renderSidebar();
-
-    const pilot = screen.getByRole("link", { name: /Le point/ });
-    expect(pilot).toHaveAttribute("href", "/le-point");
-    expect(pilot).toHaveAttribute("title", "Le point — pilote");
-    expect(pilot).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText("Le point")).toHaveClass("sr-only");
-    expect(screen.queryByText("pilote")).not.toBeInTheDocument();
-  });
 
   it("links every backlog's home, inactive off the home page (JIR-82)", () => {
     renderSidebar();
@@ -186,6 +186,7 @@ describe("Sidebar", () => {
     const nav = screen.getByRole("navigation", { name: "Vues du projet" });
     const links = within(nav).getAllByRole("link");
     expect(links.map((link) => link.textContent)).toEqual([
+      "Le pointpilote",
       "Backlog",
       "Board",
       "Liste",
