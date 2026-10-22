@@ -165,8 +165,8 @@ export function HelpGuide() {
           title="Comprendre où tu en es"
           purpose="En ouvrant Le point, tu comprends où on en est et quoi faire ensuite, sans parcourir le tableau."
           steps={[
-            <>Ouvre <Ui>Le point</Ui> dans la barre latérale, juste après <Ui>Mes items</Ui>.</>,
-            <>Choisis le backlog dans la liste en haut de page.</>,
+            <>Choisis ton projet avec le sélecteur de la barre latérale.</>,
+            <>Ouvre <Ui>Le point</Ui>, la première des vues du projet, au-dessus de <Ui>Backlog</Ui>.</>,
           ]}
         />
         <GuideTopic
@@ -187,7 +187,7 @@ export function HelpGuide() {
           steps={[
             <>Lis <Ui>Pourquoi je vois ceci</Ui> : chaque carte cite le fait qui la justifie, qu’il s’agisse d’un statut, d’une échéance, d’un lien « bloque » ou d’une mention.</>,
             <>Clique sur <Ui>Ouvrir</Ui> pour consulter le ticket dans le panneau en lecture seule.</>,
-            <>Choisis <Ui>Ouvrir dans le backlog</Ui> pour agir sur le ticket, selon tes droits.</>,
+            <>Choisis <Ui>Ouvrir le ticket</Ui> pour l’ouvrir sans quitter Le point et agir dessus, selon tes droits.</>,
           ]}
         >
           <GuideNote>

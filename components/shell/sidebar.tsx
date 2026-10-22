@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 type Backlog = { id: string; key: string; name: string; color: string; starred?: boolean };
 
 const PROJECT_VIEW_ICONS: Record<ProjectViewId, LucideIcon> = {
+  "le-point": Compass,
   backlog: Rows3,
   board: SquareKanban,
   list: List,
@@ -182,6 +183,11 @@ export function Sidebar({
                 <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
                   {view.label}
                 </span>
+                {view.id === "le-point" && !collapsed && (
+                  <Badge variant="outline" className="h-4 px-1.5 text-[10px] text-muted-foreground">
+                    pilote
+                  </Badge>
+                )}
               </NavLink>
             );
           })}
@@ -236,22 +242,6 @@ export function Sidebar({
             Mes items
           </span>
           <Count value={counts.mine} collapsed={collapsed} />
-        </NavLink>
-        <NavLink
-          href="/le-point"
-          ariaLabel={collapsed ? "Le point — pilote" : undefined}
-          collapsed={collapsed}
-          title={collapsed ? "Le point — pilote" : undefined}
-        >
-          <Compass className="size-4" aria-hidden="true" />
-          <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
-            Le point
-          </span>
-          {!collapsed && (
-            <Badge variant="outline" className="h-4 px-1.5 text-[10px] text-muted-foreground">
-              pilote
-            </Badge>
-          )}
         </NavLink>
         {!collapsed && (
           <SidebarViews

@@ -66,6 +66,17 @@ describe("BacklogSelector URL authority", () => {
     expect(mocks.push).toHaveBeenCalledWith("/b/DEMO");
   });
 
+  it("keeps Le point when switching project from it (JIR-107)", async () => {
+    const user = userEvent.setup();
+    mocks.pathname = "/b/CASS/le-point";
+    renderSelector();
+
+    await user.click(screen.getByRole("button", { name: /Backlog CASS/ }));
+    await user.click(screen.getByRole("menuitem", { name: /DEMO.*Démo/ }));
+
+    expect(mocks.push).toHaveBeenCalledWith("/b/DEMO/le-point");
+  });
+
   it("navigates to the highlighted backlog directly from a global route", async () => {
     const user = userEvent.setup();
     mocks.pathname = "/mine";
