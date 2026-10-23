@@ -22,8 +22,8 @@ const ines = { ...LE_POINT_DEMO, personas: { developer: "ines", product: "ines" 
 const headings = () => screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
 /** A tile of the summary strip, by its label. */
 const tile = (label: string) =>
-  [...document.querySelectorAll<HTMLElement>("a[href^='#'], div")].find((box) =>
-    box.firstElementChild?.tagName === "SPAN" && box.firstElementChild.textContent === label)!;
+  screen.getAllByRole("link").find((link) =>
+    link.getAttribute("href")?.startsWith("#") && link.firstElementChild?.textContent === label)!;
 const section = (name: string) => screen.getByRole("region", { name: new RegExp(`^${name}`) });
 
 describe("LePointView", () => {
@@ -39,11 +39,12 @@ describe("LePointView", () => {
     expect(screen.getByRole("radio", { name: "Développement" })).toBeChecked();
     expect(tile("En cours")).toHaveTextContent("1");
     expect(tile("Bloqués")).toHaveTextContent("1");
-    expect(tile("En retard")).toHaveTextContent("1");
+    expect(tile("À venir")).toHaveTextContent("1dont 1 en retard");
     expect(tile("Terminés ou débloqués")).toHaveTextContent("2");
     expect(tile("Bloqués")).toHaveAttribute("href", "#le-point-bloque");
-    // Late tickets sit in several sections: the figure leads nowhere in particular.
-    expect(tile("En retard").tagName).toBe("DIV");
+    // Each figure leads to the section that lists exactly its tickets.
+    expect(tile("À venir")).toHaveAttribute("href", "#le-point-ensuite");
+    expect(screen.getAllByRole("link").filter((link) => link.getAttribute("href")?.startsWith("#"))).toHaveLength(4);
     expect(headings()).toEqual([
       "À reprendre maintenant1",
       "Ce qui te bloque1",
@@ -65,10 +66,12 @@ describe("LePointView", () => {
     expect(screen.getByText("Sans échéance (1)")).toBeVisible();
   });
 
-  it("counts every late ticket of the reader, blocked ones included", () => {
+  it("counts only the late tickets of « À venir » in its figure", () => {
     const tickets = camille.tickets.map((ticket) => (ticket.key === "DEMO-15" ? { ...ticket, due: "2026-11-01" } : ticket));
     render(<LePointView data={{ ...camille, tickets }} />);
-    expect(tile("En retard")).toHaveTextContent("2");
+    // « À venir » counts its own late tickets only; DEMO-15 is listed as blocked.
+    expect(tile("À venir")).toHaveTextContent("dont 1 en retard");
+    expect(within(section("Ce qui te bloque")).getByRole("link", { name: /DEMO-15/ })).toBeVisible();
   });
 
   it("switches to the product perspective and remembers it", async () => {

@@ -171,25 +171,19 @@ function PerspectiveSwitch({ value, onChange }: { value: Perspective; onChange: 
   );
 }
 
-/**
- * One figure of the summary strip, leading to the section that lists exactly
- * those tickets; a figure spread over several sections is not a link.
- */
-function Tile({ label, value, hint, tone = "neutral", target }: {
+/** One figure of the summary strip, leading to the section that lists exactly those tickets. */
+function Tile({ label, value, hint, hintTone = "neutral", tone = "neutral", target }: {
   label: string;
   value: ReactNode;
   hint?: string;
+  hintTone?: Tone;
   tone?: Tone;
-  target?: string;
+  target: string;
 }) {
-  const Box = target ? "a" : "div";
   return (
-    <Box
-      {...(target ? { href: `#${target}` } : {})}
-      className={cn(
-        "rounded-[var(--radius)] border border-border bg-card p-3 shadow-[var(--shadow-sm)]",
-        target && "outline-none transition-colors hover:bg-[var(--muted)]/60 focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
-      )}
+    <a
+      href={`#${target}`}
+      className="rounded-[var(--radius)] border border-border bg-card p-3 shadow-[var(--shadow-sm)] outline-none transition-colors hover:bg-[var(--muted)]/60 focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
     >
       <span className="block text-xs text-muted-foreground">{label}</span>
       <span
@@ -201,8 +195,12 @@ function Tile({ label, value, hint, tone = "neutral", target }: {
       >
         {value}
       </span>
-      {hint ? <span className="mt-0.5 block truncate text-xs text-muted-foreground">{hint}</span> : null}
-    </Box>
+      {hint ? (
+        <span className={cn("mt-0.5 block truncate text-xs", hintTone === "danger" ? "text-[var(--danger)]" : "text-muted-foreground")}>
+          {hint}
+        </span>
+      ) : null}
+    </a>
   );
 }
 
@@ -291,8 +289,8 @@ function Rows({ cards, backlogKey, showAssignee = false }: {
 function DeveloperPerspective({ data, viewerId }: { data: LePointDataset; viewerId: string }) {
   const view = developerView(data, viewerId);
   const key = data.backlog.key;
-  // Every open ticket of the reader past its due date, wherever it is listed.
-  const late = [...view.resume, ...view.blocked, ...view.next].filter((card) => card.due && card.due < data.today).length;
+  // The « À venir » figure counts its own late tickets; a late one in progress says so in its tag.
+  const lateNext = view.next.filter((card) => card.due && card.due < data.today).length;
   const since = data.firstVisit ? "ces 7 derniers jours" : `depuis le ${formatDay(data.lastVisit)}`;
   return (
     <div className="space-y-6">
@@ -305,7 +303,13 @@ function DeveloperPerspective({ data, viewerId }: { data: LePointDataset; viewer
           tone={view.blocked.length > 0 ? "danger" : "neutral"}
           target="le-point-bloque"
         />
-        <Tile label="En retard" value={late} hint="échéance dépassée, toutes sections" tone={late > 0 ? "danger" : "neutral"} />
+        <Tile
+          label="À venir"
+          value={view.next.length}
+          hint={lateNext > 0 ? `dont ${lateNext} en retard` : "avec une échéance"}
+          hintTone={lateNext > 0 ? "danger" : "neutral"}
+          target="le-point-ensuite"
+        />
         <Tile label="Terminés ou débloqués" value={view.recent.length} hint={since} target="le-point-recent" />
       </Tiles>
 
