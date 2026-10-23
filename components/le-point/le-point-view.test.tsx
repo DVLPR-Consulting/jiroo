@@ -22,8 +22,8 @@ const ines = { ...LE_POINT_DEMO, personas: { developer: "ines", product: "ines" 
 const headings = () => screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
 /** A tile of the summary strip, by its label. */
 const tile = (label: string) =>
-  screen.getAllByRole("link").find((link) =>
-    link.getAttribute("href")?.startsWith("#") && link.firstElementChild?.textContent === label)!;
+  [...document.querySelectorAll<HTMLElement>("a[href^='#'], div")].find((box) =>
+    box.firstElementChild?.tagName === "SPAN" && box.firstElementChild.textContent === label)!;
 const section = (name: string) => screen.getByRole("region", { name: new RegExp(`^${name}`) });
 
 describe("LePointView", () => {
@@ -42,6 +42,8 @@ describe("LePointView", () => {
     expect(tile("En retard")).toHaveTextContent("1");
     expect(tile("Terminés ou débloqués")).toHaveTextContent("2");
     expect(tile("Bloqués")).toHaveAttribute("href", "#le-point-bloque");
+    // Late tickets sit in several sections: the figure leads nowhere in particular.
+    expect(tile("En retard").tagName).toBe("DIV");
     expect(headings()).toEqual([
       "À reprendre maintenant1",
       "Ce qui te bloque1",
@@ -55,10 +57,18 @@ describe("LePointView", () => {
     const blocked = within(section("Ce qui te bloque"));
     const link = blocked.getByRole("link", { name: /DEMO-15/ });
     expect(link).toHaveAttribute("href", "/b/DEMO/le-point?item=DEMO-15");
+    expect(link).toHaveAttribute("title", "Attend DEMO-9 « API de signature électronique », en cours chez Hugo Lefèvre.");
+    // The tag sits under the row's stretched link, not above it: clicking it opens the ticket.
     const tag = blocked.getByText("Attend DEMO-9");
-    expect(tag).toHaveAttribute("title", "Attend DEMO-9 « API de signature électronique », en cours chez Hugo Lefèvre.");
+    expect(tag.closest(".relative")).toBe(tag.closest("li"));
     expect(within(section("À venir")).getByText("En retard de 6 jours")).toBeVisible();
     expect(screen.getByText("Sans échéance (1)")).toBeVisible();
+  });
+
+  it("counts every late ticket of the reader, blocked ones included", () => {
+    const tickets = camille.tickets.map((ticket) => (ticket.key === "DEMO-15" ? { ...ticket, due: "2026-11-01" } : ticket));
+    render(<LePointView data={{ ...camille, tickets }} />);
+    expect(tile("En retard")).toHaveTextContent("2");
   });
 
   it("switches to the product perspective and remembers it", async () => {
@@ -74,7 +84,7 @@ describe("LePointView", () => {
     expect(objectives.getByRole("link", { name: /DEMO-2/ })).toHaveAttribute("href", "/b/DEMO/le-point?item=DEMO-2");
     expect(objectives.getByText("14 nov. · 1.3 · 14 nov.")).toBeVisible();
     expect(objectives.getByRole("img", { name: "5 terminés sur 9, 2 en cours, 1 bloqué" })).toBeInTheDocument();
-    expect(within(section("Ce qui met un objectif en difficulté")).getByText("Sans assigné", { selector: "span[title]" })).toBeVisible();
+    expect(within(section("Ce qui met un objectif en difficulté")).getAllByText("Sans assigné").length).toBeGreaterThan(0);
   });
 
   it("restores the remembered perspective, and still works when storage is refused", () => {

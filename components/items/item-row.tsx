@@ -187,7 +187,9 @@ function ReadOnlyStatus({ status }: { status: NonNullable<ItemRowData["status"]>
  * whole row is a focusable control, as in the Backlog) or through `href`
  * (the identity is a link stretched over the row); `leading` holds the
  * selection checkbox and the drag handle, `trailing` what only its context
- * shows (a deletion date, a restore button…).
+ * shows (a deletion date, a restore button…). `aside` is read-only context
+ * shown under the row's link, so clicking it opens the item like the rest of
+ * the row; `linkTitle` is that link's tooltip.
  */
 export function ItemRow({
   item,
@@ -199,6 +201,8 @@ export function ItemRow({
   selected = false,
   leading,
   trailing,
+  aside,
+  linkTitle,
   rowRef,
   style,
 }: {
@@ -212,6 +216,8 @@ export function ItemRow({
   selected?: boolean;
   leading?: ReactNode;
   trailing?: ReactNode;
+  aside?: ReactNode;
+  linkTitle?: string;
   rowRef?: (node: HTMLElement | null) => void;
   style?: CSSProperties;
 }) {
@@ -245,6 +251,7 @@ export function ItemRow({
           <Link
             href={href}
             onNavigate={onNavigate}
+            title={linkTitle}
             className="flex min-w-0 items-center gap-2 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-[var(--ring)]"
           >
             {identity}
@@ -360,6 +367,9 @@ export function ItemRow({
             readOnly
             compact
           />
+        ) : null}
+        {aside !== undefined ? (
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">{aside}</span>
         ) : null}
         {trailing !== undefined ? (
           <span className="relative z-[1] flex flex-wrap items-center gap-x-2 gap-y-0.5">
