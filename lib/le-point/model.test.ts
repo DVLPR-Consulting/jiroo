@@ -68,6 +68,7 @@ describe("product perspective (Inès)", () => {
         todo: 1,
         due: "2026-11-14",
         delivery: "Prévu dans la livraison 1.3, planifiée le 14 nov.",
+        deliveryTag: "1.3 · 14 nov.",
       },
       {
         key: "DEMO-3",
@@ -79,6 +80,7 @@ describe("product perspective (Inès)", () => {
         todo: 0,
         due: null,
         delivery: "Terminé — pas encore livré : la livraison 1.3 n’est pas publiée.",
+        deliveryTag: "1.3 · à publier",
       },
       {
         key: "DEMO-5",
@@ -90,6 +92,7 @@ describe("product perspective (Inès)", () => {
         todo: 2,
         due: null,
         delivery: "Aucune livraison prévue.",
+        deliveryTag: "Aucune",
       },
     ]);
   });
@@ -211,5 +214,23 @@ describe("edge cases", () => {
       releases: [{ name: "1.0", planned: "2026-10-01", released: "2026-10-01" }],
     };
     expect(productView(data, "ines").nextRelease).toBeNull();
+  });
+});
+
+describe("row tags", () => {
+  it("says each reason in a few words, coloured by urgency", () => {
+    const dev = developerView(LE_POINT_DEMO, "camille");
+    expect(dev.resume.map((card) => [card.key, card.tag, card.tone])).toEqual([["DEMO-12", "Échéance 5 nov.", "warning"]]);
+    expect(dev.blocked.map((card) => [card.tag, card.tone])).toEqual([["Attend DEMO-9", "danger"]]);
+    expect(dev.next[0]).toMatchObject({ key: "DEMO-21", tag: "En retard de 6 jours", tone: "danger" });
+    expect(dev.withoutDue[0]).toMatchObject({ tag: "Sans échéance", tone: "neutral" });
+    expect(dev.recent.map((card) => card.tag)).toEqual(["Terminé le 2 nov.", "Terminé le 30 oct."]);
+    const product = productView(LE_POINT_DEMO, "ines");
+    expect(product.decisions[0]).toMatchObject({ tag: "Demandé par Hugo L.", tone: "warning" });
+    expect(product.difficulties.map((card) => [card.key, card.tag])).toEqual([
+      ["DEMO-15", "Attend DEMO-9"],
+      ["DEMO-30", "Sans assigné"],
+      ["DEMO-33", "Attend un ticket caché"],
+    ]);
   });
 });

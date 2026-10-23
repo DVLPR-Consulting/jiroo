@@ -107,6 +107,26 @@ describe("ItemRow", () => {
     expect(screen.getByRole("button", { name: "Statut : En cours" })).toBeInTheDocument();
   });
 
+  it("keeps read-only context under the row link, and controls above it", () => {
+    render(
+      <ul>
+        <ItemRow
+          as="li"
+          href="/b/DEMO/le-point?item=DEMO-3"
+          linkTitle="Pourquoi ce ticket est là"
+          item={{ id: "i-3", key: "DEMO-3", title: "Lire", type: "tache" }}
+          aside={<span>Attend DEMO-9</span>}
+          trailing={<button type="button">Restaurer</button>}
+        />
+      </ul>,
+    );
+    const link = screen.getByRole("link", { name: /DEMO-3/ });
+    expect(link).toHaveAttribute("title", "Pourquoi ce ticket est là");
+    // Only positioned content rises above the link stretched over the row.
+    expect(screen.getByText("Attend DEMO-9").closest(".relative")).toBe(link.closest("li"));
+    expect(screen.getByRole("button", { name: "Restaurer" }).parentElement).toHaveClass("relative", "z-[1]");
+  });
+
   it("renders read-only fields without editors", () => {
     inTable(
       <ItemRow

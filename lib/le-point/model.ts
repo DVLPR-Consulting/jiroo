@@ -73,9 +73,15 @@ export type LePointCard = {
   due: Day | null;
   /** « Pourquoi je vois ceci », one verifiable fact. */
   reason: string;
+  /** The reason in a few words, for the row: « En retard de 2 jours », « Attend PORT-84 ». */
+  tag: string;
+  tone: Tone;
   /** Other tickets the reason names, to open them. */
   links: string[];
 };
+
+/** How urgent a row's tag reads. */
+export type Tone = "danger" | "warning" | "neutral" | "success";
 
 export type ObjectiveSummary = {
   key: string;
@@ -87,6 +93,8 @@ export type ObjectiveSummary = {
   todo: number;
   due: Day | null;
   delivery: string;
+  /** The delivery in a few words: « Portail 2.0 · 29 janv. », « Livré », « Aucune ». */
+  deliveryTag: string;
 };
 
 export type ReleaseSummary = {
@@ -124,6 +132,22 @@ function duePhrase(due: Day | null, today: Day): string {
   return `échéance le ${formatDay(due)}, dans ${days(delta)}`;
 }
 
+/** « Leo R. »: enough to recognise a teammate on a row. */
+function shortName(name: string): string {
+  const [first, ...rest] = name.trim().split(/\s+/);
+  const last = rest.at(-1);
+  return last ? `${first} ${last.charAt(0)}.` : first ?? name;
+}
+
+function dueTag(due: Day | null, today: Day): { tag: string; tone: Tone } {
+  if (!due) return { tag: "Sans échéance", tone: "neutral" };
+  const delta = daysFrom(today, due);
+  if (delta < 0) return { tag: `En retard de ${days(-delta)}`, tone: "danger" };
+  if (delta === 0) return { tag: "Échéance aujourd’hui", tone: "warning" };
+  if (delta === 1) return { tag: "Échéance demain", tone: "warning" };
+  return { tag: `Échéance ${formatDay(due)}`, tone: delta <= 3 ? "warning" : "neutral" };
+}
+
 function context(data: LePointDataset) {
   const tickets = new Map(data.tickets.map((ticket) => [ticket.key, ticket]));
   const people = new Map(data.people.map((person) => [person.id, person.name]));
@@ -150,7 +174,14 @@ function context(data: LePointDataset) {
       .join(" ");
   }
 
-  function card(ticket: LePointTicket, reason: string): LePointCard {
+  /** The first open blocker, in a few words. */
+  function blockedTag(ticket: LePointTicket): string {
+    const [first, ...others] = openBlockers(ticket);
+    const more = others.length > 0 ? ` +${others.length}` : "";
+    return first && "hidden" in first ? `Attend un ticket caché${more}` : `Attend ${first?.key ?? ""}${more}`;
+  }
+
+  function card(ticket: LePointTicket, reason: string, tag: string, tone: Tone): LePointCard {
     const objective = ticket.objective ? objectives.get(ticket.objective) : undefined;
     return {
       key: ticket.key,
@@ -162,6 +193,8 @@ function context(data: LePointDataset) {
       objective: objective ? { key: objective.key, title: objective.title } : null,
       due: ticket.due,
       reason,
+      tag,
+      tone,
       // Only tickets the dataset knows can be opened.
       links: openBlockers(ticket).flatMap((blocker) =>
         "hidden" in blocker || !tickets.has(blocker.key) ? [] : [blocker.key],
@@ -169,7 +202,7 @@ function context(data: LePointDataset) {
     };
   }
 
-  return { tickets, people, isBlocked, blockedReason, card };
+  return { tickets, people, isBlocked, blockedReason, blockedTag, card };
 }
 
 const byDue = (a: LePointTicket, b: LePointTicket) =>
@@ -178,25 +211,31 @@ const byDue = (a: LePointTicket, b: LePointTicket) =>
 
 /** Développement : « Que reprendre maintenant ? Qu'est-ce qui m'empêche d'avancer ? » */
 export function developerView(data: LePointDataset, viewerId: string) {
-  const { tickets, isBlocked, blockedReason, card } = context(data);
+  const { tickets, isBlocked, blockedReason, blockedTag, card } = context(data);
   const mine = data.tickets.filter((ticket) => ticket.assignee === viewerId && !ticket.external);
   const open = mine.filter((ticket) => ticket.category !== "done");
 
   const resume = open
     .filter((ticket) => ticket.category === "in_progress" && !isBlocked(ticket))
     .sort(byDue)
-    .map((ticket) => card(ticket, sentence(`En cours ; ${duePhrase(ticket.due, data.today)}`)));
+    .map((ticket) => {
+      const { tag, tone } = dueTag(ticket.due, data.today);
+      return card(ticket, sentence(`En cours ; ${duePhrase(ticket.due, data.today)}`), tag, tone);
+    });
 
-  const blocked = open.filter(isBlocked).map((ticket) => card(ticket, blockedReason(ticket)));
+  const blocked = open.filter(isBlocked).map((ticket) => card(ticket, blockedReason(ticket), blockedTag(ticket), "danger"));
 
   const waiting = open.filter((ticket) => ticket.category === "todo" && !isBlocked(ticket));
   const next = waiting
     .filter((ticket) => ticket.due !== null)
     .sort(byDue)
-    .map((ticket) => card(ticket, sentence(capitalize(duePhrase(ticket.due, data.today)))));
+    .map((ticket) => {
+      const { tag, tone } = dueTag(ticket.due, data.today);
+      return card(ticket, sentence(capitalize(duePhrase(ticket.due, data.today))), tag, tone);
+    });
   const withoutDue = waiting
     .filter((ticket) => ticket.due === null)
-    .map((ticket) => card(ticket, "Pas d’échéance."));
+    .map((ticket) => card(ticket, "Pas d’échéance.", "Sans échéance", "neutral"));
 
   // Done since the last visit, and open tickets a dependency released since.
   const events: { day: Day; card: LePointCard }[] = [];
@@ -211,7 +250,7 @@ export function developerView(data: LePointDataset, viewerId: string) {
         `Terminé le ${formatDay(ticket.done)}`,
         ...doneDependencies.map((dependency) => `${dependency.key}, qui le bloquait, est terminé`),
       ];
-      events.push({ day: ticket.done, card: card(ticket, sentence(parts.join(" ; "))) });
+      events.push({ day: ticket.done, card: card(ticket, sentence(parts.join(" ; ")), `Terminé le ${formatDay(ticket.done)}`, "success") });
     } else if (ticket.category !== "done" && !isBlocked(ticket)) {
       // Released since the last visit when its last dependency was done then.
       const day = doneDependencies.map((dependency) => dependency.done).sort().at(-1);
@@ -219,7 +258,7 @@ export function developerView(data: LePointDataset, viewerId: string) {
         const parts = [...doneDependencies]
           .sort((a, b) => a.done.localeCompare(b.done))
           .map((dependency) => `${dependency.key} terminé le ${formatDay(dependency.done)}`);
-        events.push({ day, card: card(ticket, sentence(`N’est plus bloqué : ${parts.join(", ")}`)) });
+        events.push({ day, card: card(ticket, sentence(`N’est plus bloqué : ${parts.join(", ")}`), `Débloqué le ${formatDay(day)}`, "success") });
       }
     }
   }
@@ -230,7 +269,7 @@ export function developerView(data: LePointDataset, viewerId: string) {
 
 /** Produit : « Quelle décision me revient ? Où en sont les objectifs ? » */
 export function productView(data: LePointDataset, viewerId: string) {
-  const { tickets, people, isBlocked, blockedReason, card } = context(data);
+  const { tickets, people, isBlocked, blockedReason, blockedTag, card } = context(data);
 
   // Only an explicit request makes a decision: the latest mention per open ticket.
   const asked = new Map<string, LePointDataset["mentions"][number]>();
@@ -244,7 +283,12 @@ export function productView(data: LePointDataset, viewerId: string) {
     const ticket = tickets.get(mention.ticket)!;
     const author = people.get(mention.author) ?? "quelqu’un";
     const due = ticket.due ? ` ; échéance le ${formatDay(ticket.due)}` : "";
-    return card(ticket, sentence(`Demandé par ${author} dans un commentaire du ${formatDay(mention.day)}${due}`));
+    return card(
+      ticket,
+      sentence(`Demandé par ${author} dans un commentaire du ${formatDay(mention.day)}${due}`),
+      `Demandé par ${shortName(author)}`,
+      "warning",
+    );
   });
 
   const releases = new Map(data.releases.map((release) => [release.name, release]));
@@ -254,17 +298,24 @@ export function productView(data: LePointDataset, viewerId: string) {
     const done = count((ticket) => ticket.category === "done");
     const release = objective.release ? releases.get(objective.release) : undefined;
     let delivery: string;
+    let deliveryTag: string;
     if (!release) {
       delivery = objective.partial
         ? "Livraison partielle : une partie seulement de ses tickets est dans une livraison publiée."
         : "Aucune livraison prévue.";
+      deliveryTag = objective.partial ? "Livraison partielle" : "Aucune";
     }
-    else if (release.released) delivery = sentence(`Livré dans la livraison ${release.name}, le ${formatDay(release.released)}`);
+    else if (release.released) {
+      delivery = sentence(`Livré dans la livraison ${release.name}, le ${formatDay(release.released)}`);
+      deliveryTag = `Livré · ${release.name}`;
+    }
     else if (children.length > 0 && done === children.length) {
       delivery = `Terminé — pas encore livré : la livraison ${release.name} n’est pas publiée.`;
+      deliveryTag = `${release.name} · à publier`;
     } else {
       const when = release.planned ? `planifiée le ${formatDay(release.planned)}` : "sans date planifiée";
       delivery = sentence(`Prévu dans la livraison ${release.name}, ${when}`);
+      deliveryTag = release.planned ? `${release.name} · ${formatDay(release.planned)}` : release.name;
     }
     return {
       key: objective.key,
@@ -276,17 +327,21 @@ export function productView(data: LePointDataset, viewerId: string) {
       todo: count((ticket) => ticket.category === "todo" && !isBlocked(ticket)),
       due: objective.due,
       delivery,
+      deliveryTag,
     };
   });
 
   const difficulties = data.tickets
     .filter((ticket) => ticket.objective !== null && ticket.category !== "done")
     .flatMap((ticket) => {
+      const blocked = isBlocked(ticket);
+      const unassigned = ticket.assignee === null && ticket.committed !== false;
       const reasons = [
-        ...(isBlocked(ticket) ? [`Bloqué : ${uncapitalize(blockedReason(ticket))}`] : []),
-        ...(ticket.assignee === null && ticket.committed !== false ? ["Personne n’est assigné."] : []),
+        ...(blocked ? [`Bloqué : ${uncapitalize(blockedReason(ticket))}`] : []),
+        ...(unassigned ? ["Personne n’est assigné."] : []),
       ];
-      return reasons.length > 0 ? [card(ticket, reasons.join(" "))] : [];
+      if (reasons.length === 0) return [];
+      return [card(ticket, reasons.join(" "), blocked ? blockedTag(ticket) : "Sans assigné", blocked ? "danger" : "warning")];
     });
 
   const upcoming = data.releases

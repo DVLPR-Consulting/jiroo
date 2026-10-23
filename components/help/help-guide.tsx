@@ -182,12 +182,12 @@ export function HelpGuide() {
           </GuideNote>
         </GuideTopic>
         <GuideTopic
-          title="Comprendre une carte et ouvrir un ticket"
-          purpose="Savoir pourquoi une carte apparaît et retrouver le ticket pour agir."
+          title="Lire une ligne et ouvrir un ticket"
+          purpose="Savoir pourquoi un ticket apparaît et l’ouvrir pour agir."
           steps={[
-            <>Lis <Ui>Pourquoi je vois ceci</Ui> : chaque carte cite le fait qui la justifie, qu’il s’agisse d’un statut, d’une échéance, d’un lien « bloque » ou d’une mention.</>,
-            <>Clique sur <Ui>Ouvrir</Ui> pour consulter le ticket dans le panneau en lecture seule.</>,
-            <>Choisis <Ui>Ouvrir le ticket</Ui> pour l’ouvrir sans quitter Le point et agir dessus, selon tes droits.</>,
+            <>Regarde d’abord les quatre chiffres en haut : chacun mène à sa section.</>,
+            <>Lis l’étiquette en fin de ligne : elle dit pourquoi le ticket est là (« En retard de 2 jours », « Attend PORT-84 », « Demandé par Leo R. »). Survole-la pour la phrase complète.</>,
+            <>Clique sur une ligne pour ouvrir le ticket dans son panneau habituel, sans quitter Le point, et agir dessus selon tes droits.</>,
           ]}
         >
           <GuideNote>
