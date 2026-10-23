@@ -37,7 +37,7 @@ export default async function BacklogLePointPage({
 
   return (
     <>
-      <LePointView data={data} pilot breadcrumb={<ShellBreadcrumb />} />
+      <LePointView data={data} breadcrumb={<ShellBreadcrumb />} />
       <ItemDetailDrawer
         backlogKey={data.backlog.key}
         itemKey={itemKey}

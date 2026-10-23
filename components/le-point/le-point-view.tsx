@@ -1,20 +1,19 @@
 "use client";
 
-import { X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { KindIcon } from "@/components/icons/kind-icon";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { TypeIcon } from "@/components/icons/type-icon";
-import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ItemRow } from "@/components/items/item-row";
+import { Badge } from "@/components/ui/badge";
 import {
   daysFrom,
   developerView,
   formatDay,
   productView,
-  type Category,
   type LePointCard,
   type LePointDataset,
   type ObjectiveSummary,
+  type Tone,
 } from "@/lib/le-point/model";
 import { recordVisit, VISIT_COOKIE } from "@/lib/le-point/visit";
 import { cn } from "@/lib/utils";
@@ -23,26 +22,17 @@ export type Perspective = "developer" | "product";
 
 export const PERSPECTIVE_STORAGE_KEY = "jiroo:le-point:perspective";
 
-const PERSPECTIVES: { value: Perspective; label: string; persona: string }[] = [
-  { value: "developer", label: "Développement", persona: "développeuse" },
-  { value: "product", label: "Produit", persona: "PO" },
+const PERSPECTIVES: { value: Perspective; label: string }[] = [
+  { value: "developer", label: "Développement" },
+  { value: "product", label: "Produit" },
 ];
 
-const CATEGORY_TONE: Record<Category, string> = {
-  todo: "bg-[var(--status-todo-bg)] text-foreground",
-  in_progress: "bg-[var(--status-doing-bg)] text-foreground",
-  done: "bg-[var(--status-done-bg)] text-foreground",
+const TONE_CLASS: Record<Tone, string> = {
+  danger: "text-[color-mix(in_oklch,var(--danger)_80%,var(--foreground))] bg-[color-mix(in_oklch,var(--danger)_14%,transparent)]",
+  warning: "text-[color-mix(in_oklch,var(--warning)_70%,var(--foreground))] bg-[color-mix(in_oklch,var(--warning)_18%,transparent)]",
+  neutral: "text-muted-foreground bg-[var(--muted)]",
+  success: "text-[color-mix(in_oklch,var(--status-done)_75%,var(--foreground))] bg-[var(--status-done-bg)]",
 };
-
-const LONG_DAY = new Intl.DateTimeFormat("fr-FR", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
-
-const BUTTON = "rounded-[var(--radius)] px-2 py-1 text-xs focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:outline-none";
 
 function readPerspective(): Perspective | null {
   try {
@@ -61,14 +51,8 @@ function writePerspective(perspective: Perspective) {
   }
 }
 
-/** The plain word, with Jiroo's own term beside it: « Objectif (epic) ». */
-function Term({ children, jiroo }: { children: ReactNode; jiroo: string }) {
-  return (
-    <>
-      {children}
-      <span className="ml-1 text-xs font-normal text-muted-foreground">({jiroo})</span>
-    </>
-  );
+function readCookie(name: string) {
+  return document.cookie.split("; ").find((pair) => pair.startsWith(`${name}=`))?.slice(name.length + 1);
 }
 
 /**
@@ -80,40 +64,23 @@ export function ticketHref(key: string, backlogKey: string) {
   return owner === backlogKey ? `/b/${owner}/le-point?item=${key}` : `/b/${owner}?item=${key}`;
 }
 
-function readCookie(name: string) {
-  return document.cookie.split("; ").find((pair) => pair.startsWith(`${name}=`))?.slice(name.length + 1);
+/** « Leo R. » */
+function shortName(name: string) {
+  const [first, ...rest] = name.trim().split(/\s+/);
+  const last = rest.at(-1);
+  return last ? `${first} ${last.charAt(0)}.` : first ?? name;
 }
 
 /**
- * « Le point » (JIR-107): one screen, two perspectives on the same facts.
- * It writes nothing, and the perspective is a reading preference, never a
- * permission. With `pilot`, the facts are the reader's real backlog, shown
- * as a view of that project.
+ * « Le point » (JIR-107): the project at a glance, as Jira's project Summary,
+ * through two perspectives on the same facts. A summary strip answers « where
+ * are we », then lists of tickets in the Backlog's own rows, each with the
+ * reason it is there in a few words; a row opens the real item panel. It
+ * writes nothing, and the perspective is a reading preference, never a
+ * permission.
  */
-export function LePointView({
-  data,
-  pilot = false,
-  breadcrumb,
-}: {
-  data: LePointDataset;
-  pilot?: boolean;
-  /** The shell's « Projet / Le point » trail, above the title. */
-  breadcrumb?: ReactNode;
-}) {
+export function LePointView({ data, breadcrumb }: { data: LePointDataset; breadcrumb?: ReactNode }) {
   const [perspective, setPerspective] = useState<Perspective>("developer");
-  const [openKey, setOpenKey] = useState<string | null>(null);
-  // The button that opened the panel from the page gets the focus back on close.
-  const returnFocus = useRef<HTMLElement | null>(null);
-
-  function open(key: string) {
-    // Only what the dataset knows opens: never an empty, unnamed panel.
-    const known = data.tickets.some((ticket) => ticket.key === key)
-      || data.objectives.some((objective) => objective.key === key);
-    if (!known) return;
-    const active = document.activeElement;
-    if (openKey === null && active instanceof HTMLElement) returnFocus.current = active;
-    setOpenKey(key);
-  }
 
   // The remembered choice only exists in the browser: apply it after hydration.
   useEffect(() => {
@@ -124,11 +91,10 @@ export function LePointView({
 
   // The visit is recorded once shown, so the next one knows what changed since.
   useEffect(() => {
-    if (!pilot) return;
     const value = recordVisit(readCookie(VISIT_COOKIE), data.today);
     // Every backlog's Le point shares the device's last visit.
     document.cookie = `${VISIT_COOKIE}=${value}; path=/; max-age=31536000; samesite=lax`;
-  }, [pilot, data.today]);
+  }, [data.today]);
 
   function choose(next: Perspective) {
     setPerspective(next);
@@ -136,62 +102,33 @@ export function LePointView({
   }
 
   const viewerId = perspective === "developer" ? data.personas.developer : data.personas.product;
-  const viewer = data.people.find((person) => person.id === viewerId);
-  const persona = PERSPECTIVES.find((option) => option.value === perspective)!.persona;
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:py-8">
-      {pilot ? (
-        <p role="note" className="rounded-[var(--radius)] border border-border bg-[var(--surface-2)] px-3 py-2 text-sm">
-          <strong className="font-semibold">Pilote</strong> — tes vrais tickets, en lecture seule : rien n’est modifié ici.
-          Nous sommes le {LONG_DAY.format(new Date(`${data.today}T00:00:00Z`))}.
-        </p>
-      ) : (
-        <p
-          role="note"
-          className="rounded-[var(--radius)] border border-[var(--warning)] bg-[var(--status-doing-bg)] px-3 py-2 text-sm"
-        >
-          <strong className="font-semibold">Données de démonstration</strong> — rien n’est enregistré.
-          Nous sommes le {LONG_DAY.format(new Date(`${data.today}T00:00:00Z`))}.
-        </p>
-      )}
-
+    <div className="mx-auto w-full max-w-5xl space-y-6 px-4 pt-4 pb-10 sm:px-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           {breadcrumb}
-          <h1 className="t-h1">Le point</h1>
-          {pilot ? (
-            <p className="text-sm text-muted-foreground">{data.backlog.name} · vu par {viewer?.name}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {data.backlog.name} · vu par {viewer?.name}, {persona}
-            </p>
-          )}
+          <h1 className="t-h1 flex items-center gap-2">
+            Le point
+            <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal text-muted-foreground">
+              pilote
+            </Badge>
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {perspective === "developer"
+              ? "Ce que tu reprends, ce qui te bloque et ce qui arrive."
+              : "Les décisions qu’on attend de toi, l’avancement des objectifs et la prochaine livraison."}{" "}
+            Lecture seule.
+          </p>
         </div>
         <PerspectiveSwitch value={perspective} onChange={choose} />
       </header>
 
       {perspective === "developer" ? (
-        <DeveloperPerspective data={data} viewerId={viewerId} onOpen={open} />
+        <DeveloperPerspective data={data} viewerId={viewerId} />
       ) : (
-        <ProductPerspective data={data} viewerId={viewerId} onOpen={open} />
+        <ProductPerspective data={data} viewerId={viewerId} />
       )}
-
-      <TicketPanel
-        data={data}
-        pilot={pilot}
-        ticketKey={openKey}
-        onOpen={open}
-        onClose={() => setOpenKey(null)}
-        onCloseAutoFocus={(event) => {
-          const target = returnFocus.current;
-          returnFocus.current = null;
-          if (target?.isConnected) {
-            event.preventDefault();
-            target.focus();
-          }
-        }}
-      />
     </div>
   );
 }
@@ -234,14 +171,57 @@ function PerspectiveSwitch({ value, onChange }: { value: Perspective; onChange: 
   );
 }
 
-function Zone({ title, empty, children }: { title: ReactNode; empty: string; children: ReactNode[] }) {
-  const id = useId();
-  const items = children.filter(Boolean);
+/** One figure of the summary strip, leading to its section. */
+function Tile({ label, value, hint, tone = "neutral", target }: {
+  label: string;
+  value: ReactNode;
+  hint?: string;
+  tone?: Tone;
+  target: string;
+}) {
   return (
-    <section aria-labelledby={id} className="space-y-2">
-      <h2 id={id} className="t-h3">{title}</h2>
-      {items.length > 0 ? (
-        <ul className="space-y-2">{items}</ul>
+    <a
+      href={`#${target}`}
+      className="rounded-[var(--radius)] border border-border bg-card p-3 shadow-[var(--shadow-sm)] outline-none transition-colors hover:bg-[var(--muted)]/60 focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+    >
+      <span className="block text-xs text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          "mt-1 block truncate text-xl font-semibold tabular-nums",
+          tone === "danger" && "text-[var(--danger)]",
+          tone === "warning" && "text-[color-mix(in_oklch,var(--warning)_75%,var(--foreground))]",
+        )}
+      >
+        {value}
+      </span>
+      {hint ? <span className="mt-0.5 block truncate text-xs text-muted-foreground">{hint}</span> : null}
+    </a>
+  );
+}
+
+function Tiles({ children }: { children: ReactNode }) {
+  return <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{children}</div>;
+}
+
+function Section({ id, title, count, empty, children }: {
+  id: string;
+  title: ReactNode;
+  count?: number;
+  empty: string;
+  children: ReactNode;
+}) {
+  const headingId = useId();
+  const hasContent = count === undefined ? children !== null : count > 0;
+  return (
+    <section id={id} aria-labelledby={headingId} className="scroll-mt-4 space-y-2">
+      <h2 id={headingId} className="t-h3 flex items-baseline gap-2">
+        {title}
+        {count !== undefined && count > 0 ? (
+          <span className="text-xs font-normal text-muted-foreground tabular-nums">{count}</span>
+        ) : null}
+      </h2>
+      {hasContent ? (
+        children
       ) : (
         <p className="rounded-[var(--radius)] border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">
           {empty}
@@ -251,299 +231,264 @@ function Zone({ title, empty, children }: { title: ReactNode; empty: string; chi
   );
 }
 
-function TicketCard({ card, onOpen }: { card: LePointCard; onOpen: (key: string) => void }) {
+/** The reason in a few words; the full sentence on hover. */
+function Tag({ card }: { card: LePointCard }) {
   return (
-    <li className="rounded-[var(--radius)] border border-border bg-card p-3 shadow-[var(--shadow-sm)]">
-      <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-        <span className="mt-0.5 inline-flex gap-1">
-          <TypeIcon type={card.shape === "subtask" ? "soustache" : "tache"} />
-          {card.shape === "bug" ? <KindIcon kind="bug" /> : null}
-        </span>
-        <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-sm">
-            <span className="font-mono text-xs text-muted-foreground">{card.key}</span>{" "}
-            <span className="font-medium">{card.title}</span>
-          </p>
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <span className={cn("rounded px-1.5 py-0.5", CATEGORY_TONE[card.category])}>{card.status}</span>
-            <span>{card.assigneeName ?? "Sans assigné"}</span>
-            {card.objective ? <span>Objectif : {card.objective.title}</span> : null}
-          </p>
-          <p className="text-sm">
-            <span className="text-muted-foreground">Pourquoi je vois ceci : </span>
-            {card.reason}
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          {card.links.map((key) => (
-            <button key={key} type="button" onClick={() => onOpen(key)} className={cn(BUTTON, "border border-border hover:bg-[var(--muted)]")}>
-              Ouvrir {key}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => onOpen(card.key)}
-            aria-label={`Ouvrir ${card.key} — ${card.title}`}
-            className={cn(BUTTON, "bg-[var(--primary)] font-medium text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)]")}
-          >
-            Ouvrir
-          </button>
-        </div>
-      </div>
-    </li>
+    <span
+      title={card.reason}
+      className={cn("inline-flex max-w-56 items-center truncate rounded px-1.5 py-0.5 text-[11px] font-medium", TONE_CLASS[card.tone])}
+    >
+      {card.tag}
+    </span>
   );
 }
 
-function cards(list: LePointCard[], onOpen: (key: string) => void) {
-  return list.map((card) => <TicketCard key={card.key} card={card} onOpen={onOpen} />);
+/** Tickets in the Backlog's own rows; the tag says why each is here, the row opens it. */
+function Rows({ cards, backlogKey, showAssignee = false }: {
+  cards: LePointCard[];
+  backlogKey: string;
+  showAssignee?: boolean;
+}) {
+  return (
+    <ul className="overflow-hidden rounded-[var(--radius)] border border-border bg-card">
+      {cards.map((card) => (
+        <ItemRow
+          key={card.key}
+          as="li"
+          href={ticketHref(card.key, backlogKey)}
+          item={{
+            id: card.key,
+            key: card.key,
+            title: card.title,
+            type: card.shape === "subtask" ? "soustache" : "tache",
+            kind: card.shape === "bug" ? "bug" : null,
+            status: { name: card.status, category: card.category },
+          }}
+          trailing={
+            <>
+              {showAssignee ? (
+                <span className="text-xs text-muted-foreground">
+                  {card.assigneeName ? shortName(card.assigneeName) : "Sans assigné"}
+                </span>
+              ) : null}
+              <Tag card={card} />
+            </>
+          }
+        />
+      ))}
+    </ul>
+  );
 }
 
-function DeveloperPerspective({
-  data,
-  viewerId,
-  onOpen,
-}: {
-  data: LePointDataset;
-  viewerId: string;
-  onOpen: (key: string) => void;
-}) {
+function DeveloperPerspective({ data, viewerId }: { data: LePointDataset; viewerId: string }) {
   const view = developerView(data, viewerId);
+  const key = data.backlog.key;
+  const late = [...view.resume, ...view.next].filter((card) => card.due && card.due < data.today).length;
+  const since = data.firstVisit ? "ces 7 derniers jours" : `depuis le ${formatDay(data.lastVisit)}`;
   return (
     <div className="space-y-6">
-      <Zone title="À reprendre maintenant" empty="Aucun ticket en cours. Choisis-en un dans « Ensuite ».">
-        {cards(view.resume, onOpen)}
-      </Zone>
-      <Zone title="Ce qui t’empêche d’avancer" empty="Rien ne te bloque en ce moment.">
-        {cards(view.blocked, onOpen)}
-      </Zone>
-      <Zone title="Ensuite" empty="Aucun ticket à faire avec une échéance.">
-        {cards(view.next, onOpen)}
-      </Zone>
+      <Tiles>
+        <Tile label="En cours" value={view.resume.length} hint="à reprendre maintenant" target="le-point-reprendre" />
+        <Tile
+          label="Bloqués"
+          value={view.blocked.length}
+          hint="en attente d’un autre ticket"
+          tone={view.blocked.length > 0 ? "danger" : "neutral"}
+          target="le-point-bloque"
+        />
+        <Tile label="En retard" value={late} hint="échéance dépassée" tone={late > 0 ? "danger" : "neutral"} target="le-point-ensuite" />
+        <Tile label="Terminés ou débloqués" value={view.recent.length} hint={since} target="le-point-recent" />
+      </Tiles>
+
+      <Section id="le-point-reprendre" title="À reprendre maintenant" count={view.resume.length} empty="Aucun ticket en cours. Choisis-en un dans « À venir ».">
+        <Rows cards={view.resume} backlogKey={key} />
+      </Section>
+      <Section id="le-point-bloque" title="Ce qui te bloque" count={view.blocked.length} empty="Rien ne te bloque en ce moment.">
+        <Rows cards={view.blocked} backlogKey={key} />
+      </Section>
+      <Section id="le-point-ensuite" title="À venir" count={view.next.length} empty="Aucun ticket à faire avec une échéance.">
+        <Rows cards={view.next} backlogKey={key} />
+      </Section>
       {view.withoutDue.length > 0 ? (
-        <details className="rounded-[var(--radius)] border border-border bg-card px-3 py-2">
-          <summary className="cursor-pointer text-sm font-medium">Sans échéance ({view.withoutDue.length})</summary>
-          <ul className="mt-2 space-y-2">{cards(view.withoutDue, onOpen)}</ul>
+        <details>
+          <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+            Sans échéance ({view.withoutDue.length})
+          </summary>
+          <div className="mt-2">
+            <Rows cards={view.withoutDue} backlogKey={key} />
+          </div>
         </details>
       ) : null}
-      <Zone
+      <Section
+        id="le-point-recent"
         title={data.firstVisit ? "Ces 7 derniers jours" : "Depuis ta dernière visite"}
-        empty={`Rien n’a changé pour toi depuis le ${formatDay(data.lastVisit)}.`}
+        count={view.recent.length}
+        empty={`Rien n’a changé pour toi ${since}.`}
       >
-        {cards(view.recent, onOpen)}
-      </Zone>
+        <Rows cards={view.recent} backlogKey={key} />
+      </Section>
     </div>
   );
 }
 
-function ObjectiveRow({ objective, onOpen }: { objective: ObjectiveSummary; onOpen: (key: string) => void }) {
-  const parts: { count: number; singular: string; plural: string; tone: string }[] = [
-    { count: objective.done, singular: "terminé", plural: "terminés", tone: "bg-[var(--status-done)]" },
-    { count: objective.inProgress, singular: "en cours", plural: "en cours", tone: "bg-[var(--status-doing)]" },
-    { count: objective.blocked, singular: "bloqué", plural: "bloqués", tone: "bg-[var(--danger)]" },
-    { count: objective.todo, singular: "à faire", plural: "à faire", tone: "bg-[var(--status-todo)]" },
-  ];
-  const summary = parts
-    .filter((part) => part.count > 0)
-    .map((part) => `${part.count} ${part.count > 1 ? part.plural : part.singular}`)
-    .join(", ");
+const started = (objective: ObjectiveSummary) => objective.done + objective.inProgress + objective.blocked > 0;
+
+/** One line per objective: its progress bar, its count and its delivery. */
+function ObjectiveTable({ objectives, backlogKey }: { objectives: ObjectiveSummary[]; backlogKey: string }) {
   return (
-    <li className="space-y-2 rounded-[var(--radius)] border border-border bg-card p-3 shadow-[var(--shadow-sm)]">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <p className="text-sm">
-          <TypeIcon type="epic" className="mr-1.5 inline-block align-[-2px]" />
-          <span className="font-mono text-xs text-muted-foreground">{objective.key}</span>{" "}
-          <span className="font-medium">{objective.title}</span>
-        </p>
-        <button
-          type="button"
-          onClick={() => onOpen(objective.key)}
-          aria-label={`Ouvrir ${objective.key} — ${objective.title}`}
-          className={cn(BUTTON, "border border-border hover:bg-[var(--muted)]")}
-        >
-          Ouvrir
-        </button>
-      </div>
-      <div className="flex h-2 overflow-hidden rounded-full bg-[var(--muted)]" aria-hidden>
-        {parts.map((part) =>
-          part.count > 0 ? (
-            <span key={part.singular} className={part.tone} style={{ width: `${(part.count / objective.total) * 100}%` }} />
-          ) : null,
-        )}
-      </div>
-      <p className="text-sm">{objective.total} tickets : {summary}.</p>
-      <p className="text-xs text-muted-foreground">
-        {objective.due
-          ? `Échéance planifiée le ${formatDay(objective.due)} : une date prévue, pas une garantie.`
-          : "Pas d’échéance planifiée."}{" "}
-        {objective.delivery}
-      </p>
-    </li>
+    <ul className="overflow-hidden rounded-[var(--radius)] border border-border bg-card">
+      {objectives.map((objective) => {
+        const parts = [
+          { count: objective.done, tone: "bg-[var(--status-done)]" },
+          { count: objective.inProgress, tone: "bg-[var(--status-doing)]" },
+          { count: objective.blocked, tone: "bg-[var(--danger)]" },
+        ];
+        const label = [
+          `${objective.done} terminé${objective.done > 1 ? "s" : ""} sur ${objective.total}`,
+          objective.inProgress > 0 ? `${objective.inProgress} en cours` : null,
+          objective.blocked > 0 ? `${objective.blocked} bloqué${objective.blocked > 1 ? "s" : ""}` : null,
+        ].filter(Boolean).join(", ");
+        return (
+          <li
+            key={objective.key}
+            className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-b border-border px-3 py-2 last:border-b-0 hover:bg-[var(--muted)]/60 sm:grid-cols-[minmax(0,1fr)_8rem_5.5rem_11rem]"
+          >
+            <Link
+              href={ticketHref(objective.key, backlogKey)}
+              className="flex min-w-0 items-center gap-2 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-[var(--ring)]"
+            >
+              <TypeIcon type="epic" />
+              <span className="shrink-0 font-mono text-[11.5px] font-medium text-muted-foreground">{objective.key}</span>
+              <span className="min-w-0 truncate text-sm">{objective.title}</span>
+            </Link>
+            <span
+              role="img"
+              aria-label={label}
+              title={label}
+              className="hidden h-1.5 overflow-hidden rounded-full bg-[var(--muted)] sm:flex"
+            >
+              {parts.map((part, index) =>
+                part.count > 0 ? (
+                  <span key={index} className={part.tone} style={{ width: `${(part.count / objective.total) * 100}%` }} />
+                ) : null,
+              )}
+            </span>
+            <span className="text-right text-xs tabular-nums text-muted-foreground sm:text-left">
+              {objective.done}/{objective.total}
+              {objective.blocked > 0 ? <span className="ml-1 text-[var(--danger)]">· {objective.blocked} bloqué{objective.blocked > 1 ? "s" : ""}</span> : null}
+            </span>
+            <span className="col-span-2 truncate text-xs text-muted-foreground sm:col-span-1" title={objective.delivery}>
+              {objective.due ? `${formatDay(objective.due)} · ` : ""}
+              {objective.deliveryTag}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
-function ProductPerspective({
-  data,
-  viewerId,
-  onOpen,
-}: {
-  data: LePointDataset;
-  viewerId: string;
-  onOpen: (key: string) => void;
-}) {
+function ProductPerspective({ data, viewerId }: { data: LePointDataset; viewerId: string }) {
   const view = productView(data, viewerId);
+  const key = data.backlog.key;
   const release = view.nextRelease;
   const remaining = release?.planned ? daysFrom(data.today, release.planned) : null;
+  const active = view.objectives.filter(started);
+  const waiting = view.objectives.filter((objective) => !started(objective));
   return (
     <div className="space-y-6">
-      <Zone title="Décisions qui t’attendent" empty="Personne ne t’a demandé de décision.">
-        {cards(view.decisions, onOpen)}
-      </Zone>
-      <Zone title={<Term jiroo="epics">Où en sont les objectifs</Term>} empty="Aucun objectif dans ce backlog.">
-        {view.objectives.map((objective) => <ObjectiveRow key={objective.key} objective={objective} onOpen={onOpen} />)}
-      </Zone>
-      <Zone title="Ce qui met un objectif en difficulté" empty="Aucun objectif n’est en difficulté.">
-        {cards(view.difficulties, onOpen)}
-      </Zone>
-      <Zone title={<Term jiroo="release">Prochaine livraison</Term>} empty="Aucune livraison prévue.">
-        {release
-          ? [
-              <li key={release.name} className="space-y-1 rounded-[var(--radius)] border border-border bg-card p-3 text-sm shadow-[var(--shadow-sm)]">
-                <p className="font-medium">Livraison {release.name}</p>
-                <p>
-                  {release.planned
-                    ? `Planifiée le ${formatDay(release.planned)}${remaining !== null && remaining > 0 ? `, dans ${remaining} jour${remaining > 1 ? "s" : ""}` : ""} ; pas encore publiée.`
-                    : "Sans date planifiée ; pas encore publiée."}
-                </p>
-                <p>Contient : {release.objectives.map((objective) => objective.title).join(", ") || "aucun objectif"}.</p>
-                <p className="text-muted-foreground">
-                  {release.openCount === 0
-                    ? "Tout son contenu est terminé."
-                    : `${release.openCount} ticket${release.openCount > 1 ? "s" : ""} encore ouvert${release.openCount > 1 ? "s" : ""}.`}
-                </p>
-              </li>,
-            ]
-          : []}
-      </Zone>
-    </div>
-  );
-}
+      <Tiles>
+        <Tile
+          label="Décisions à prendre"
+          value={view.decisions.length}
+          hint="demandées par une mention"
+          tone={view.decisions.length > 0 ? "warning" : "neutral"}
+          target="le-point-decisions"
+        />
+        <Tile label="Objectifs en cours" value={active.length} hint={`sur ${view.objectives.length} à livrer`} target="le-point-objectifs" />
+        <Tile
+          label="En difficulté"
+          value={view.difficulties.length}
+          hint="bloqués ou sans assigné"
+          tone={view.difficulties.length > 0 ? "danger" : "neutral"}
+          target="le-point-difficultes"
+        />
+        <Tile
+          label="Prochaine livraison"
+          value={release ? release.name : "—"}
+          hint={release?.planned
+            ? `${formatDay(release.planned)}${remaining !== null && remaining > 0 ? `, dans ${remaining} jour${remaining > 1 ? "s" : ""}` : ""}`
+            : release ? "sans date" : "aucune prévue"}
+          target="le-point-livraison"
+        />
+      </Tiles>
 
-/** The ticket or objective, read-only, presented like the item panel. */
-function TicketPanel({
-  data,
-  pilot,
-  ticketKey,
-  onOpen,
-  onClose,
-  onCloseAutoFocus,
-}: {
-  data: LePointDataset;
-  pilot: boolean;
-  ticketKey: string | null;
-  onOpen: (key: string) => void;
-  onClose: () => void;
-  onCloseAutoFocus: (event: Event) => void;
-}) {
-  const ticket = data.tickets.find((candidate) => candidate.key === ticketKey);
-  const objective = ticket ? undefined : data.objectives.find((candidate) => candidate.key === ticketKey);
-  const name = (id: string | null) => data.people.find((person) => person.id === id)?.name ?? null;
-  const title = ticket ? `${ticket.key} — ${ticket.title}` : objective ? `${objective.key} — ${objective.title}` : "";
-  const children = objective
-    ? data.tickets.filter((candidate) => candidate.objective === objective.key && !candidate.external)
-    : [];
-  const mentions = ticket ? data.mentions.filter((mention) => mention.ticket === ticket.key) : [];
+      <Section id="le-point-decisions" title="Décisions qui t’attendent" count={view.decisions.length} empty="Personne ne t’a demandé de décision.">
+        <Rows cards={view.decisions} backlogKey={key} showAssignee />
+      </Section>
 
-  return (
-    <Dialog open={ticketKey !== null} onOpenChange={(open) => (open ? undefined : onClose())}>
-      <DialogContent
-        variant="sheet-right"
-        showCloseButton={false}
-        aria-describedby={undefined}
-        className="bg-[var(--surface)] shadow-lg"
-        onCloseAutoFocus={onCloseAutoFocus}
+      <Section
+        id="le-point-objectifs"
+        title={<>Objectifs <span className="text-xs font-normal text-muted-foreground">(epics)</span></>}
+        count={view.objectives.length}
+        empty="Aucun objectif à livrer dans ce backlog."
       >
-        <DialogTitle className="sr-only">{title}</DialogTitle>
-        <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <span className="text-xs text-muted-foreground">{pilot ? "Lecture seule" : "Démonstration · lecture seule"}</span>
-          {pilot && ticketKey ? (
-            <Link
-              href={ticketHref(ticketKey, data.backlog.key)}
-              onClick={onClose}
-              className="ml-3 text-xs text-[var(--primary)] underline"
-            >
-              Ouvrir le ticket
-            </Link>
+        <div className="space-y-2">
+          {active.length > 0 ? <ObjectiveTable objectives={active} backlogKey={key} /> : null}
+          {waiting.length > 0 ? (
+            <details open={active.length === 0}>
+              <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                Pas encore commencés ({waiting.length})
+              </summary>
+              <div className="mt-2">
+                <ObjectiveTable objectives={waiting} backlogKey={key} />
+              </div>
+            </details>
           ) : null}
-          <DialogClose asChild>
-            <button type="button" aria-label="Fermer" className="ml-auto rounded p-1 text-muted-foreground hover:bg-[var(--muted)]">
-              <X className="size-4" />
-            </button>
-          </DialogClose>
-        </header>
-        <div className="space-y-4 overflow-y-auto p-5 text-sm">
-          <p aria-hidden className="t-h2">{title}</p>
-          {ticket ? (
-            <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-2">
-              <dt className="text-muted-foreground">Statut</dt>
-              <dd>{ticket.status}</dd>
-              <dt className="text-muted-foreground">Assigné</dt>
-              <dd>{name(ticket.assignee) ?? "Personne"}</dd>
-              <dt className="text-muted-foreground"><Term jiroo="epic">Objectif</Term></dt>
-              <dd>{data.objectives.find((candidate) => candidate.key === ticket.objective)?.title ?? "Aucun"}</dd>
-              <dt className="text-muted-foreground">Échéance</dt>
-              <dd>{ticket.due ? formatDay(ticket.due) : "Aucune"}</dd>
-              <dt className="text-muted-foreground">Dernière activité</dt>
-              <dd>
-                {ticket.lastActivity
-                  ? formatDay(ticket.lastActivity)
-                  : ticket.activityUnknownSince
-                    ? `Aucune activité connue depuis le ${formatDay(ticket.activityUnknownSince)}`
-                    : "Inconnue"}
-              </dd>
-              {ticket.blockedBy?.length ? (
-                <>
-                  <dt className="text-muted-foreground">Bloqué par</dt>
-                  <dd className="space-y-1">
-                    {ticket.blockedBy.map((blocker, index) =>
-                      "hidden" in blocker ? (
-                        <p key={`hidden-${index}`}>Un ticket que tu ne peux pas voir</p>
-                      ) : (
-                        <button key={blocker.key} type="button" onClick={() => onOpen(blocker.key)} className="block text-left text-[var(--primary)] underline">
-                          {blocker.key}
-                          {data.tickets.find((candidate) => candidate.key === blocker.key)?.category === "done" ? " (terminé)" : ""}
-                        </button>
-                      ),
-                    )}
-                  </dd>
-                </>
-              ) : null}
-            </dl>
-          ) : objective ? (
-            <ul className="space-y-1">
-              {children.map((child) => (
-                <li key={child.key}>
-                  <button type="button" onClick={() => onOpen(child.key)} className="text-left hover:underline">
-                    <span className="font-mono text-xs text-muted-foreground">{child.key}</span> {child.title} — {child.status}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {mentions.length > 0 ? (
-            <section className="space-y-2">
-              <h3 className="t-h3">Commentaires</h3>
-              {mentions.map((mention) => (
-                <blockquote key={`${mention.author}-${mention.day}`} className="border-l-2 border-[var(--border-strong)] pl-3">
-                  <p>{mention.text}</p>
-                  <footer className="text-xs text-muted-foreground">
-                    {name(mention.author)}, le {formatDay(mention.day)}
-                  </footer>
-                </blockquote>
-              ))}
-            </section>
-          ) : null}
+          <p className="text-xs text-muted-foreground">Les échéances sont des dates prévues, pas des garanties.</p>
         </div>
-      </DialogContent>
-    </Dialog>
+      </Section>
+
+      <Section id="le-point-difficultes" title="Ce qui met un objectif en difficulté" count={view.difficulties.length} empty="Aucun objectif n’est en difficulté.">
+        <Rows cards={view.difficulties} backlogKey={key} showAssignee />
+      </Section>
+
+      <Section
+        id="le-point-livraison"
+        title={<>Prochaine livraison <span className="text-xs font-normal text-muted-foreground">(release)</span></>}
+        empty="Aucune livraison prévue."
+      >
+        {release ? (
+          <div className="space-y-2 rounded-[var(--radius)] border border-border bg-card p-3 text-sm shadow-[var(--shadow-sm)]">
+            <p className="flex flex-wrap items-baseline gap-x-2">
+              <span className="font-medium">{release.name}</span>
+              <span className="text-muted-foreground">
+                {release.planned ? `planifiée le ${formatDay(release.planned)}` : "sans date planifiée"} · pas encore publiée
+              </span>
+            </p>
+            <p className="text-muted-foreground">
+              {release.openCount === 0
+                ? "Tout son contenu est terminé."
+                : `${release.openCount} ticket${release.openCount > 1 ? "s" : ""} encore ouvert${release.openCount > 1 ? "s" : ""}.`}
+            </p>
+            {release.objectives.length > 0 ? (
+              <ul className="flex flex-wrap gap-1.5">
+                {release.objectives.map((objective) => (
+                  <li key={objective.key}>
+                    <Link
+                      href={ticketHref(objective.key, key)}
+                      className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--accent-subtle)] px-2 py-0.5 text-xs font-medium text-[var(--accent-subtle-fg)] hover:underline"
+                    >
+                      <TypeIcon type="epic" size={11} />
+                      {objective.title}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
+      </Section>
+    </div>
   );
 }
