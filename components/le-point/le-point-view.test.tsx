@@ -1,9 +1,10 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LePointView, PERSPECTIVE_STORAGE_KEY, ticketHref } from "@/components/le-point/le-point-view";
+import { LePointView, PERSPECTIVE_STORAGE_KEY, SCOPE_STORAGE_KEY, ticketHref } from "@/components/le-point/le-point-view";
 import { ShellDataProvider } from "@/components/shell/shell-data";
 import { LE_POINT_DEMO } from "@/lib/le-point/fixtures";
+import { developerView, productView } from "@/lib/le-point/model";
 import { VISIT_COOKIE } from "@/lib/le-point/visit";
 
 vi.mock("next/navigation", () => ({
@@ -24,6 +25,8 @@ const tile = (label: string) =>
   screen.getAllByRole("link").find((link) =>
     link.getAttribute("href")?.startsWith("#") && link.firstElementChild?.textContent === label)!;
 const section = (name: string) => screen.getByRole("region", { name: new RegExp(`^${name}`) });
+/** « Moi »: the reader's own tickets, as before JIR-121. */
+const onlyMine = () => window.localStorage.setItem(SCOPE_STORAGE_KEY, "me");
 
 describe("LePointView", () => {
   beforeEach(() => {
@@ -33,6 +36,7 @@ describe("LePointView", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("opens on the developer perspective with its summary strip", () => {
+    onlyMine();
     render(<LePointView data={camille} />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Le pointpilote");
     expect(screen.getByRole("radio", { name: "Développement" })).toBeChecked();
@@ -53,6 +57,7 @@ describe("LePointView", () => {
   });
 
   it("shows each ticket in a row that says why it is there and opens it in place", () => {
+    onlyMine();
     render(<LePointView data={camille} />);
     const blocked = within(section("Ce qui te bloque"));
     const link = blocked.getByRole("link", { name: /DEMO-15/ });
@@ -66,6 +71,7 @@ describe("LePointView", () => {
   });
 
   it("counts only the late tickets of « À venir » in its figure", () => {
+    onlyMine();
     const tickets = camille.tickets.map((ticket) => (ticket.key === "DEMO-15" ? { ...ticket, due: "2026-11-01" } : ticket));
     render(<LePointView data={{ ...camille, tickets }} />);
     // « À venir » counts its own late tickets only; DEMO-15 is listed as blocked.
@@ -74,6 +80,7 @@ describe("LePointView", () => {
   });
 
   it("switches to the product perspective and remembers it", async () => {
+    onlyMine();
     render(<LePointView data={ines} />);
     await userEvent.click(screen.getByRole("radio", { name: "Produit" }));
     expect(window.localStorage.getItem(PERSPECTIVE_STORAGE_KEY)).toBe("product");
@@ -129,6 +136,62 @@ describe("LePointView", () => {
   it("records today's visit on the device, for every backlog", () => {
     render(<LePointView data={camille} />);
     expect(document.cookie).toContain(`${VISIT_COOKIE}=.2026-11-03`);
+  });
+});
+
+describe("LePointView, whole team (JIR-121)", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    document.cookie = `${VISIT_COOKIE}=; path=/; max-age=0`;
+  });
+
+  it("opens on the whole team, its controls in the toolbar under the header", () => {
+    render(<LePointView data={camille} />);
+    expect(screen.getByRole("radio", { name: "Toute l’équipe" })).toBeChecked();
+    const toolbar = document.querySelector('[data-slot="page-toolbar"]')!;
+    expect(within(toolbar as HTMLElement).getByRole("radiogroup", { name: "Perspective" })).toBeVisible();
+    expect(within(toolbar as HTMLElement).getByRole("radiogroup", { name: "Portée" })).toBeVisible();
+    expect(screen.getByText(/^Ce que l’équipe a en cours/)).toBeVisible();
+  });
+
+  it("lists every developer's tickets with who holds them, and each person's load", () => {
+    const view = developerView(camille, { kind: "team" });
+    render(<LePointView data={camille} />);
+    expect(tile("En cours")).toHaveTextContent(String(view.resume.length));
+    expect(tile("Bloqués")).toHaveTextContent(String(view.blocked.length));
+    expect(headings()).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^En cours/),
+      expect.stringMatching(/^Ce qui bloque l’équipe/),
+      expect.stringMatching(/^Charge par personne/),
+    ]));
+    // More than the reader's own: several people hold the work in progress.
+    const holders = new Set(view.resume.map((card) => card.assigneeName));
+    expect(holders.size).toBeGreaterThan(1);
+    const workload = within(section("Charge par personne")).getAllByRole("listitem");
+    expect(workload).toHaveLength(view.workload.length);
+    expect(workload[0]).toHaveTextContent(view.workload[0]!.name);
+  });
+
+  it("lists every pending decision with who it is asked of", async () => {
+    const { decisions } = productView(camille, { kind: "team" });
+    render(<LePointView data={camille} />);
+    await userEvent.click(screen.getByRole("radio", { name: "Produit" }));
+    expect(tile("Décisions en attente")).toHaveTextContent(String(decisions.length));
+    const pending = within(section("Décisions en attente"));
+    expect(pending.getAllByRole("listitem")).toHaveLength(decisions.length);
+    expect(pending.getByText(decisions[0]!.tag)).toBeVisible();
+  });
+
+  it("switches to « Moi » and remembers it", async () => {
+    render(<LePointView data={camille} />);
+    await userEvent.click(screen.getByRole("radio", { name: "Moi" }));
+    expect(window.localStorage.getItem(SCOPE_STORAGE_KEY)).toBe("me");
+    expect(headings()).toEqual([
+      "À reprendre maintenant1",
+      "Ce qui te bloque1",
+      "À venir1",
+      "Depuis ta dernière visite2",
+    ]);
   });
 });
 

@@ -5,6 +5,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemRow } from "@/components/items/item-row";
 import { PageHeader } from "@/components/shell/page-header";
+import { PageToolbar } from "@/components/shell/page-toolbar";
 import { Badge } from "@/components/ui/badge";
 import {
   daysFrom,
@@ -13,20 +14,40 @@ import {
   productView,
   type LePointCard,
   type LePointDataset,
+  type LePointScope,
   type ObjectiveSummary,
   type Tone,
+  type WorkloadRow,
 } from "@/lib/le-point/model";
 import { recordVisit, VISIT_COOKIE } from "@/lib/le-point/visit";
 import { cn } from "@/lib/utils";
 
 export type Perspective = "developer" | "product";
+export type Scope = LePointScope["kind"];
 
 export const PERSPECTIVE_STORAGE_KEY = "jiroo:le-point:perspective";
+export const SCOPE_STORAGE_KEY = "jiroo:le-point:scope";
 
 const PERSPECTIVES: { value: Perspective; label: string }[] = [
   { value: "developer", label: "Développement" },
   { value: "product", label: "Produit" },
 ];
+
+const SCOPES: { value: Scope; label: string }[] = [
+  { value: "team", label: "Toute l’équipe" },
+  { value: "me", label: "Moi" },
+];
+
+const DESCRIPTIONS: Record<Perspective, Record<Scope, string>> = {
+  developer: {
+    team: "Ce que l’équipe a en cours, ce qui la bloque et ce qui arrive.",
+    me: "Ce que tu reprends, ce qui te bloque et ce qui arrive.",
+  },
+  product: {
+    team: "Les décisions en attente, l’avancement des objectifs et la prochaine livraison.",
+    me: "Les décisions qu’on attend de toi, l’avancement des objectifs et la prochaine livraison.",
+  },
+};
 
 const TONE_CLASS: Record<Tone, string> = {
   danger: "text-[color-mix(in_oklch,var(--danger)_80%,var(--foreground))] bg-[color-mix(in_oklch,var(--danger)_14%,transparent)]",
@@ -35,18 +56,18 @@ const TONE_CLASS: Record<Tone, string> = {
   success: "text-[color-mix(in_oklch,var(--status-done)_75%,var(--foreground))] bg-[var(--status-done-bg)]",
 };
 
-function readPerspective(): Perspective | null {
+function readChoice<T extends string>(key: string, options: { value: T }[]): T | null {
   try {
-    const stored = window.localStorage.getItem(PERSPECTIVE_STORAGE_KEY);
-    return stored === "developer" || stored === "product" ? stored : null;
+    const stored = window.localStorage.getItem(key);
+    return options.find((option) => option.value === stored)?.value ?? null;
   } catch {
     return null;
   }
 }
 
-function writePerspective(perspective: Perspective) {
+function writeChoice(key: string, value: string) {
   try {
-    window.localStorage.setItem(PERSPECTIVE_STORAGE_KEY, perspective);
+    window.localStorage.setItem(key, value);
   } catch {
     // A private window keeps the choice for this visit only.
   }
@@ -76,18 +97,23 @@ function shortName(name: string) {
  * « Le point » (JIR-107): the project at a glance, as Jira's project Summary,
  * through two perspectives on the same facts. A summary strip answers « where
  * are we », then lists of tickets in the Backlog's own rows, each with the
- * reason it is there in a few words; a row opens the real item panel. It
- * writes nothing, and the perspective is a reading preference, never a
- * permission.
+ * reason it is there in a few words; a row opens the real item panel. The
+ * whole team is shown by default, as Jira's Summary; « Moi » keeps the
+ * reader's own tickets (JIR-121). It writes nothing, and perspective and scope
+ * are reading preferences, never permissions.
  */
 export function LePointView({ data }: { data: LePointDataset }) {
   const [perspective, setPerspective] = useState<Perspective>("developer");
+  const [scopeKind, setScopeKind] = useState<Scope>("team");
 
-  // The remembered choice only exists in the browser: apply it after hydration.
+  // The remembered choices only exist in the browser: apply them after hydration.
   useEffect(() => {
-    const stored = readPerspective();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (stored) setPerspective(stored);
+    const storedPerspective = readChoice(PERSPECTIVE_STORAGE_KEY, PERSPECTIVES);
+    const storedScope = readChoice(SCOPE_STORAGE_KEY, SCOPES);
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (storedPerspective) setPerspective(storedPerspective);
+    if (storedScope) setScopeKind(storedScope);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   // The visit is recorded once shown, so the next one knows what changed since.
@@ -97,12 +123,19 @@ export function LePointView({ data }: { data: LePointDataset }) {
     document.cookie = `${VISIT_COOKIE}=${value}; path=/; max-age=31536000; samesite=lax`;
   }, [data.today]);
 
-  function choose(next: Perspective) {
+  function choosePerspective(next: Perspective) {
     setPerspective(next);
-    writePerspective(next);
+    writeChoice(PERSPECTIVE_STORAGE_KEY, next);
   }
 
-  const viewerId = perspective === "developer" ? data.personas.developer : data.personas.product;
+  function chooseScope(next: Scope) {
+    setScopeKind(next);
+    writeChoice(SCOPE_STORAGE_KEY, next);
+  }
+
+  const scope: LePointScope = scopeKind === "team"
+    ? { kind: "team" }
+    : { kind: "me", viewerId: perspective === "developer" ? data.personas.developer : data.personas.product };
 
   return (
     <div className="pb-10">
@@ -115,43 +148,47 @@ export function LePointView({ data }: { data: LePointDataset }) {
             </Badge>
           </span>
         }
-        description={
-          <>
-            {perspective === "developer"
-              ? "Ce que tu reprends, ce qui te bloque et ce qui arrive."
-              : "Les décisions qu’on attend de toi, l’avancement des objectifs et la prochaine livraison."}{" "}
-            Lecture seule.
-          </>
-        }
-        actions={<PerspectiveSwitch value={perspective} onChange={choose} />}
+        description={<>{DESCRIPTIONS[perspective][scopeKind]} Lecture seule.</>}
       />
+      <PageToolbar>
+        <ChoiceSwitch label="Perspective" options={PERSPECTIVES} value={perspective} onChange={choosePerspective} />
+        <ChoiceSwitch label="Portée" options={SCOPES} value={scopeKind} onChange={chooseScope} />
+      </PageToolbar>
 
-      <div className="px-4 sm:px-6">
+      <div className="px-4 pt-4 sm:px-6">
         {perspective === "developer" ? (
-          <DeveloperPerspective data={data} viewerId={viewerId} />
+          <DeveloperPerspective data={data} scope={scope} />
         ) : (
-          <ProductPerspective data={data} viewerId={viewerId} />
+          <ProductPerspective data={data} scope={scope} />
         )}
       </div>
     </div>
   );
 }
 
-function PerspectiveSwitch({ value, onChange }: { value: Perspective; onChange: (value: Perspective) => void }) {
+/** A segmented choice; the arrow keys move between its options. */
+function ChoiceSwitch<T extends string>({ label, options, value, onChange }: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
   return (
     <div
       role="radiogroup"
-      aria-label="Perspective"
+      aria-label={label}
       className="inline-flex rounded-[var(--radius)] border border-border bg-[var(--surface-2)] p-0.5"
       onKeyDown={(event) => {
         if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
         event.preventDefault();
-        const next = value === "developer" ? "product" : "developer";
+        const index = options.findIndex((option) => option.value === value);
+        const step = event.key === "ArrowRight" ? 1 : -1;
+        const next = options[(index + step + options.length) % options.length]!.value;
         onChange(next);
         event.currentTarget.querySelector<HTMLElement>(`[data-value="${next}"]`)?.focus();
       }}
     >
-      {PERSPECTIVES.map((option) => {
+      {options.map((option) => {
         const checked = option.value === value;
         return (
           <button
@@ -259,9 +296,10 @@ function Rows({ cards, backlogKey, showAssignee = false }: {
 }) {
   return (
     <ul className="overflow-hidden rounded-[var(--radius)] border border-border bg-card">
-      {cards.map((card) => (
+      {cards.map((card, index) => (
         <ItemRow
-          key={card.key}
+          // A team's decisions may list one ticket once per person asked.
+          key={`${card.key}-${index}`}
           as="li"
           href={ticketHref(card.key, backlogKey)}
           item={{
@@ -290,8 +328,9 @@ function Rows({ cards, backlogKey, showAssignee = false }: {
   );
 }
 
-function DeveloperPerspective({ data, viewerId }: { data: LePointDataset; viewerId: string }) {
-  const view = developerView(data, { kind: "me", viewerId });
+function DeveloperPerspective({ data, scope }: { data: LePointDataset; scope: LePointScope }) {
+  const view = developerView(data, scope);
+  const team = scope.kind === "team";
   const key = data.backlog.key;
   // The « À venir » figure counts its own late tickets; a late one in progress says so in its tag.
   const lateNext = view.next.filter((card) => card.due && card.due < data.today).length;
@@ -299,7 +338,7 @@ function DeveloperPerspective({ data, viewerId }: { data: LePointDataset; viewer
   return (
     <div className="space-y-6">
       <Tiles>
-        <Tile label="En cours" value={view.resume.length} hint="à reprendre maintenant" target="le-point-reprendre" />
+        <Tile label="En cours" value={view.resume.length} hint={team ? "dans l’équipe" : "à reprendre maintenant"} target="le-point-reprendre" />
         <Tile
           label="Bloqués"
           value={view.blocked.length}
@@ -317,14 +356,24 @@ function DeveloperPerspective({ data, viewerId }: { data: LePointDataset; viewer
         <Tile label="Terminés ou débloqués" value={view.recent.length} hint={since} target="le-point-recent" />
       </Tiles>
 
-      <Section id="le-point-reprendre" title="À reprendre maintenant" count={view.resume.length} empty="Aucun ticket en cours. Choisis-en un dans « À venir ».">
-        <Rows cards={view.resume} backlogKey={key} />
+      <Section
+        id="le-point-reprendre"
+        title={team ? "En cours" : "À reprendre maintenant"}
+        count={view.resume.length}
+        empty={team ? "Aucun ticket en cours dans l’équipe." : "Aucun ticket en cours. Choisis-en un dans « À venir »."}
+      >
+        <Rows cards={view.resume} backlogKey={key} showAssignee={team} />
       </Section>
-      <Section id="le-point-bloque" title="Ce qui te bloque" count={view.blocked.length} empty="Rien ne te bloque en ce moment.">
-        <Rows cards={view.blocked} backlogKey={key} />
+      <Section
+        id="le-point-bloque"
+        title={team ? "Ce qui bloque l’équipe" : "Ce qui te bloque"}
+        count={view.blocked.length}
+        empty={team ? "Rien ne bloque l’équipe en ce moment." : "Rien ne te bloque en ce moment."}
+      >
+        <Rows cards={view.blocked} backlogKey={key} showAssignee={team} />
       </Section>
       <Section id="le-point-ensuite" title="À venir" count={view.next.length} empty="Aucun ticket à faire avec une échéance.">
-        <Rows cards={view.next} backlogKey={key} />
+        <Rows cards={view.next} backlogKey={key} showAssignee={team} />
       </Section>
       {view.withoutDue.length > 0 ? (
         <details>
@@ -332,7 +381,7 @@ function DeveloperPerspective({ data, viewerId }: { data: LePointDataset; viewer
             Sans échéance ({view.withoutDue.length})
           </summary>
           <div className="mt-2">
-            <Rows cards={view.withoutDue} backlogKey={key} />
+            <Rows cards={view.withoutDue} backlogKey={key} showAssignee={team} />
           </div>
         </details>
       ) : null}
@@ -340,11 +389,46 @@ function DeveloperPerspective({ data, viewerId }: { data: LePointDataset; viewer
         id="le-point-recent"
         title={data.firstVisit ? "Ces 7 derniers jours" : "Depuis ta dernière visite"}
         count={view.recent.length}
-        empty={`Rien n’a changé pour toi ${since}.`}
+        empty={team ? `Rien n’a changé dans le projet ${since}.` : `Rien n’a changé pour toi ${since}.`}
       >
-        <Rows cards={view.recent} backlogKey={key} />
+        <Rows cards={view.recent} backlogKey={key} showAssignee={team} />
       </Section>
+      {team ? (
+        <Section id="le-point-charge" title="Charge par personne" count={view.workload.length} empty="Aucun ticket ouvert.">
+          <Workload rows={view.workload} />
+        </Section>
+      ) : null}
     </div>
+  );
+}
+
+/** Open tickets per person, as Jira's team workload: a bar against the busiest, then the counts. */
+function Workload({ rows }: { rows: WorkloadRow[] }) {
+  const busiest = Math.max(...rows.map((row) => row.open));
+  return (
+    <ul className="overflow-hidden rounded-[var(--radius)] border border-border bg-card">
+      {rows.map((row) => {
+        const label = [
+          `${row.open} ouvert${row.open > 1 ? "s" : ""}`,
+          row.inProgress > 0 ? `${row.inProgress} en cours` : null,
+          row.blocked > 0 ? `${row.blocked} bloqué${row.blocked > 1 ? "s" : ""}` : null,
+        ].filter(Boolean).join(", ");
+        return (
+          <li
+            key={row.assignee ?? "unassigned"}
+            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-b border-border px-3 py-2 text-sm last:border-b-0 sm:grid-cols-[minmax(0,1fr)_12rem_11rem]"
+          >
+            <span className={cn("min-w-0 truncate", row.assignee === null && "text-muted-foreground")}>{row.name}</span>
+            <span aria-hidden="true" className="hidden h-1.5 overflow-hidden rounded-full bg-[var(--muted)] sm:flex">
+              <span className="bg-[var(--status-doing)]" style={{ width: `${(row.open / busiest) * 100}%` }} />
+            </span>
+            <span className="text-right text-xs tabular-nums text-muted-foreground sm:text-left">
+              {label}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -405,8 +489,9 @@ function ObjectiveTable({ objectives, backlogKey }: { objectives: ObjectiveSumma
   );
 }
 
-function ProductPerspective({ data, viewerId }: { data: LePointDataset; viewerId: string }) {
-  const view = productView(data, { kind: "me", viewerId });
+function ProductPerspective({ data, scope }: { data: LePointDataset; scope: LePointScope }) {
+  const view = productView(data, scope);
+  const team = scope.kind === "team";
   const key = data.backlog.key;
   const release = view.nextRelease;
   const remaining = release?.planned ? daysFrom(data.today, release.planned) : null;
@@ -416,7 +501,7 @@ function ProductPerspective({ data, viewerId }: { data: LePointDataset; viewerId
     <div className="space-y-6">
       <Tiles>
         <Tile
-          label="Décisions à prendre"
+          label={team ? "Décisions en attente" : "Décisions à prendre"}
           value={view.decisions.length}
           hint="demandées par une mention"
           tone={view.decisions.length > 0 ? "warning" : "neutral"}
@@ -440,7 +525,12 @@ function ProductPerspective({ data, viewerId }: { data: LePointDataset; viewerId
         />
       </Tiles>
 
-      <Section id="le-point-decisions" title="Décisions qui t’attendent" count={view.decisions.length} empty="Personne ne t’a demandé de décision.">
+      <Section
+        id="le-point-decisions"
+        title={team ? "Décisions en attente" : "Décisions qui t’attendent"}
+        count={view.decisions.length}
+        empty={team ? "Aucune décision en attente." : "Personne ne t’a demandé de décision."}
+      >
         <Rows cards={view.decisions} backlogKey={key} showAssignee />
       </Section>
 
