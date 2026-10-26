@@ -104,22 +104,27 @@ export function Sidebar({
     ? `/b/${encodeURIComponent(activeBacklog.key)}/settings`
     : null;
   const activeBacklogId = activeBacklog?.id;
-  // Asked for the active backlog only, once per backlog (JIR-122).
-  const [settingsAccess, setSettingsAccess] = useState<Record<string, boolean>>({});
+  // Asked for the active backlog only, again on each navigation so a granted
+  // or revoked right shows up without a reload (JIR-122). The last answer for
+  // this backlog stays shown while the next one is pending or failed.
+  const [settingsAccess, setSettingsAccess] = useState<{ backlogId: string; allowed: boolean } | null>(null);
   useEffect(() => {
-    if (!activeBacklogId || activeBacklogId in settingsAccess) return;
+    if (!activeBacklogId) return;
     let current = true;
     canOpenBacklogSettingsAction(activeBacklogId).then(
       (allowed) => {
-        if (current) setSettingsAccess((known) => ({ ...known, [activeBacklogId]: allowed }));
+        if (current) setSettingsAccess({ backlogId: activeBacklogId, allowed });
       },
       () => undefined,
     );
     return () => {
       current = false;
     };
-  }, [activeBacklogId, settingsAccess]);
-  const canOpenSettings = activeBacklogId !== undefined && settingsAccess[activeBacklogId] === true;
+  }, [activeBacklogId, pathname]);
+  const canOpenSettings =
+    activeBacklogId !== undefined &&
+    settingsAccess?.backlogId === activeBacklogId &&
+    settingsAccess.allowed;
 
   return (
     <div

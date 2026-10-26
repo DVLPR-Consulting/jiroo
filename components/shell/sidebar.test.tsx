@@ -238,6 +238,40 @@ describe("Sidebar", () => {
     expect(settings).toHaveAttribute("aria-current", "page");
   });
 
+  it("re-checks the settings link on navigation, without remounting (JIR-122)", async () => {
+    mocks.canOpenBacklogSettings.mockResolvedValue(true);
+    const tree = () => (
+      <SidebarStateProvider>
+        <ViewUrlStateProvider initialEntries={[]}>
+          <Sidebar {...props} />
+        </ViewUrlStateProvider>
+      </SidebarStateProvider>
+    );
+    const { rerender } = render(tree());
+    const nav = screen.getByRole("navigation", { name: "Vues du projet" });
+    await within(nav).findByRole("link", { name: "Paramètres" });
+
+    // Revoked: the next page drops the link.
+    mocks.canOpenBacklogSettings.mockResolvedValue(false);
+    mocks.pathname = "/b/CASS/roadmap";
+    rerender(tree());
+    await waitFor(() =>
+      expect(within(nav).queryByRole("link", { name: "Paramètres" })).not.toBeInTheDocument(),
+    );
+
+    // A failed check keeps the last answer; the next navigation retries.
+    mocks.canOpenBacklogSettings.mockRejectedValue(new Error("network"));
+    mocks.pathname = "/b/CASS/releases";
+    rerender(tree());
+    await waitFor(() => expect(mocks.canOpenBacklogSettings).toHaveBeenCalledTimes(3));
+    expect(within(nav).queryByRole("link", { name: "Paramètres" })).not.toBeInTheDocument();
+
+    mocks.canOpenBacklogSettings.mockResolvedValue(true);
+    mocks.pathname = "/b/CASS/reports";
+    rerender(tree());
+    await within(nav).findByRole("link", { name: "Paramètres" });
+  });
+
   it("follows the backlog of an access page, not the first backlog (JIR-85)", () => {
     mocks.pathname = "/b/PEN/settings/access";
     render(
