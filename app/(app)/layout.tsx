@@ -1,5 +1,5 @@
 import { requireAppPageSession } from "@/lib/auth/session";
-import { checkPermission } from "@/lib/auth/authorization";
+import { checkPermission, checkPermissions } from "@/lib/auth/authorization";
 import { listBacklogsWithStarsForUser } from "@/lib/services/backlogs";
 import { listVisibleViews } from "@/lib/services/views";
 import { unreadCount, listRecentNotifications } from "@/lib/services/notifications";
@@ -24,6 +24,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       checkPermission({ actorId: session.user.id, permission, scope: { type: "global" } }),
     )),
   ]);
+  // The backlogs whose settings the sidebar links (JIR-122): the same rule as
+  // the Accès page, which opens for backlog administrators and member managers.
+  const settingsBacklogKeys = (
+    await Promise.all(
+      backlogs.map(async (backlog) => {
+        const decisions = await checkPermissions({
+          actorId: session.user.id,
+          permissions: ["administer_backlog", "manage_members"],
+          scope: { type: "backlog", backlogId: backlog.id },
+        });
+        return [...decisions.values()].some((decision) => decision.allowed) ? [backlog.key] : [];
+      }),
+    )
+  ).flat();
   const role = (session.user as { role?: string }).role ?? "viewer";
   return (
     // Around the whole shell: the topbar's bell listens too.
@@ -37,6 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             user={{ name: session.user.name, email: session.user.email, role }}
             canAdminister={adminDecisions.some((decision) => decision.allowed)}
             adminHref={adminDecisions[0]?.allowed || adminDecisions[2]?.allowed ? "/admin" : "/admin?tab=users"}
+            settingsBacklogKeys={settingsBacklogKeys}
             counts={counts}
           />
         }

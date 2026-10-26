@@ -211,6 +211,31 @@ describe("Sidebar", () => {
     );
   });
 
+  it("links the active backlog's settings only for its administrators (JIR-122)", () => {
+    const { unmount } = renderSidebar([["view", "board"]]);
+    expect(
+      within(screen.getByRole("navigation", { name: "Vues du projet" })).queryByRole("link", {
+        name: "Paramètres",
+      }),
+    ).not.toBeInTheDocument();
+    unmount();
+
+    mocks.pathname = "/b/CASS/settings/templates";
+    render(
+      <SidebarStateProvider>
+        <ViewUrlStateProvider initialEntries={[]}>
+          <Sidebar {...props} settingsBacklogKeys={["CASS"]} />
+        </ViewUrlStateProvider>
+      </SidebarStateProvider>,
+    );
+    const settings = within(screen.getByRole("navigation", { name: "Vues du projet" })).getByRole(
+      "link",
+      { name: "Paramètres" },
+    );
+    expect(settings).toHaveAttribute("href", "/b/CASS/settings/access");
+    expect(settings).toHaveAttribute("aria-current", "page");
+  });
+
   it("follows the backlog of an access page, not the first backlog (JIR-85)", () => {
     mocks.pathname = "/b/PEN/settings/access";
     render(

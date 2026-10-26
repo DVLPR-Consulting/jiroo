@@ -12,6 +12,7 @@ import {
   ListTree,
   Rows3,
   Settings,
+  SlidersHorizontal,
   SquareKanban,
   Tag,
   Trash2,
@@ -57,6 +58,7 @@ export function Sidebar({
   user,
   canAdminister,
   adminHref = "/admin",
+  settingsBacklogKeys = [],
   counts,
 }: {
   backlogs: Backlog[];
@@ -65,6 +67,8 @@ export function Sidebar({
   user: { name: string; email: string; role: string };
   canAdminister: boolean;
   adminHref?: string;
+  /** Backlogs whose settings the user may open, like Jira's « Project settings ». */
+  settingsBacklogKeys?: readonly string[];
   counts: ShellCounts;
 }) {
   const { collapsed: desktopCollapsed, mobile } = useSidebarState();
@@ -97,6 +101,12 @@ export function Sidebar({
   const activeView = activeBacklog
     ? activeProjectView(pathname, new URLSearchParams(searchParams.toString()), activeBacklog.key)
     : null;
+  const settingsHref = activeBacklog
+    ? `/b/${encodeURIComponent(activeBacklog.key)}/settings`
+    : null;
+  const canOpenSettings =
+    activeBacklog !== undefined &&
+    settingsBacklogKeys.some((key) => key.toUpperCase() === activeKey);
 
   return (
     <div
@@ -191,6 +201,21 @@ export function Sidebar({
               </NavLink>
             );
           })}
+          {/* Jira's « Project settings », for the backlog's administrators (JIR-122). */}
+          {canOpenSettings && settingsHref && (
+            <NavLink
+              href={`${settingsHref}/access`}
+              active={pathname.toUpperCase().startsWith(`${settingsHref.toUpperCase()}/`)}
+              ariaLabel={collapsed ? "Paramètres du backlog" : undefined}
+              collapsed={collapsed}
+              title={collapsed ? "Paramètres du backlog" : undefined}
+            >
+              <SlidersHorizontal className="size-4" aria-hidden="true" />
+              <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>
+                Paramètres
+              </span>
+            </NavLink>
+          )}
         </nav>
       )}
 
