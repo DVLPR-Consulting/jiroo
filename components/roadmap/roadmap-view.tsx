@@ -13,6 +13,7 @@ import {
 import { ChartGantt, ChevronRight } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
+import { PageToolbar } from "@/components/shell/page-toolbar";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -339,7 +340,7 @@ export function RoadmapView({
   };
 
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6">
+    <PageToolbar>
       <div role="group" aria-label="Échelle" className="inline-flex rounded-lg border border-border bg-card p-0.5">
         {ZOOMS.map((candidate) => (
           <Button
@@ -366,7 +367,7 @@ export function RoadmapView({
         />
         Afficher les éléments terminés
       </label>
-    </div>
+    </PageToolbar>
   );
 
   if (rows.length === 0) {
@@ -387,7 +388,7 @@ export function RoadmapView({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {toolbar}
-      <div className="min-h-0 flex-1 px-3 pb-3 sm:px-4 sm:pb-4">
+      <div className="min-h-0 flex-1 px-3 py-3 sm:px-4 sm:py-4">
         <div
           ref={scroller}
           data-testid="roadmap-scroller"

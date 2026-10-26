@@ -10,6 +10,16 @@
 /** A calendar day, `YYYY-MM-DD`. */
 export type Day = string;
 export type Category = "todo" | "in_progress" | "done";
+export type LePointScope = { kind: "team" } | { kind: "me"; viewerId: string };
+
+export type WorkloadRow = {
+  /** null means unassigned. */
+  assignee: string | null;
+  name: string;
+  open: number;
+  inProgress: number;
+  blocked: number;
+};
 
 /** A dependency the reader can see, or one in a backlog they cannot browse. */
 export type Blocker = { key: string } | { hidden: true };
@@ -210,10 +220,19 @@ const byDue = (a: LePointTicket, b: LePointTicket) =>
   || a.key.localeCompare(b.key, "fr", { numeric: true });
 
 /** Développement : « Que reprendre maintenant ? Qu'est-ce qui m'empêche d'avancer ? » */
-export function developerView(data: LePointDataset, viewerId: string) {
-  const { tickets, isBlocked, blockedReason, blockedTag, card } = context(data);
-  const mine = data.tickets.filter((ticket) => ticket.assignee === viewerId && !ticket.external);
-  const open = mine.filter((ticket) => ticket.category !== "done");
+export function developerView(data: LePointDataset, scope: LePointScope): {
+  resume: LePointCard[];
+  blocked: LePointCard[];
+  next: LePointCard[];
+  withoutDue: LePointCard[];
+  recent: LePointCard[];
+  workload: WorkloadRow[];
+} {
+  const { tickets, people, isBlocked, blockedReason, blockedTag, card } = context(data);
+  const work = data.tickets.filter((ticket) =>
+    !ticket.external && (scope.kind === "team" || ticket.assignee === scope.viewerId),
+  );
+  const open = work.filter((ticket) => ticket.category !== "done");
 
   const resume = open
     .filter((ticket) => ticket.category === "in_progress" && !isBlocked(ticket))
@@ -234,12 +253,12 @@ export function developerView(data: LePointDataset, viewerId: string) {
       return card(ticket, sentence(capitalize(duePhrase(ticket.due, data.today))), tag, tone);
     });
   const withoutDue = waiting
-    .filter((ticket) => ticket.due === null)
+    .filter((ticket) => ticket.due === null && (scope.kind === "me" || ticket.committed !== false))
     .map((ticket) => card(ticket, "Pas d’échéance.", "Sans échéance", "neutral"));
 
   // Done since the last visit, and open tickets a dependency released since.
   const events: { day: Day; card: LePointCard }[] = [];
-  for (const ticket of mine) {
+  for (const ticket of work) {
     const doneDependencies = (ticket.blockedBy ?? []).flatMap((blocker) => {
       if ("hidden" in blocker) return [];
       const dependency = tickets.get(blocker.key);
@@ -264,29 +283,67 @@ export function developerView(data: LePointDataset, viewerId: string) {
   }
   const recent = events.sort((a, b) => b.day.localeCompare(a.day)).map((event) => event.card);
 
-  return { resume, blocked, next, withoutDue, recent };
+  const workloadByAssignee = new Map<string | null, WorkloadRow>();
+  if (scope.kind === "team") {
+    for (const ticket of open) {
+      if (ticket.assignee === null && ticket.committed === false) continue;
+      let row = workloadByAssignee.get(ticket.assignee);
+      if (!row) {
+        row = {
+          assignee: ticket.assignee,
+          name: ticket.assignee === null ? "Sans assigné" : people.get(ticket.assignee) ?? "Personne inconnue",
+          open: 0,
+          inProgress: 0,
+          blocked: 0,
+        };
+        workloadByAssignee.set(ticket.assignee, row);
+      }
+      row.open += 1;
+      if (ticket.category === "in_progress") row.inProgress += 1;
+      if (isBlocked(ticket)) row.blocked += 1;
+    }
+  }
+  const workload = [...workloadByAssignee.values()].sort((a, b) =>
+    Number(a.assignee === null) - Number(b.assignee === null)
+    || b.open - a.open
+    || a.name.localeCompare(b.name, "fr"),
+  );
+
+  return { resume, blocked, next, withoutDue, recent, workload };
 }
 
 /** Produit : « Quelle décision me revient ? Où en sont les objectifs ? » */
-export function productView(data: LePointDataset, viewerId: string) {
+export function productView(data: LePointDataset, scope: LePointScope): {
+  decisions: LePointCard[];
+  objectives: ObjectiveSummary[];
+  difficulties: LePointCard[];
+  nextRelease: ReleaseSummary | null;
+} {
   const { tickets, people, isBlocked, blockedReason, blockedTag, card } = context(data);
 
-  // Only an explicit request makes a decision: the latest mention per open ticket.
+  // The latest explicit request per open ticket, and per recipient in team scope.
   const asked = new Map<string, LePointDataset["mentions"][number]>();
   for (const mention of data.mentions) {
     const ticket = tickets.get(mention.ticket);
-    if (mention.mentioned !== viewerId || !ticket || ticket.category === "done") continue;
-    const previous = asked.get(mention.ticket);
-    if (!previous || previous.day < mention.day) asked.set(mention.ticket, mention);
+    if (!ticket || ticket.category === "done" || (scope.kind === "me" && mention.mentioned !== scope.viewerId)) continue;
+    const key = scope.kind === "team" ? JSON.stringify([mention.ticket, mention.mentioned]) : mention.ticket;
+    const previous = asked.get(key);
+    if (!previous || previous.day < mention.day) asked.set(key, mention);
   }
-  const decisions = [...asked.values()].map((mention) => {
+  const requests = [...asked.values()];
+  if (scope.kind === "team") {
+    requests.sort((a, b) => b.day.localeCompare(a.day) || a.ticket.localeCompare(b.ticket, "fr", { numeric: true }));
+  }
+  const decisions = requests.map((mention) => {
     const ticket = tickets.get(mention.ticket)!;
     const author = people.get(mention.author) ?? "quelqu’un";
+    const recipient = people.get(mention.mentioned) ?? "quelqu’un";
     const due = ticket.due ? ` ; échéance le ${formatDay(ticket.due)}` : "";
+    const request = scope.kind === "team" ? `Demandé à ${recipient} par ${author}` : `Demandé par ${author}`;
     return card(
       ticket,
-      sentence(`Demandé par ${author} dans un commentaire du ${formatDay(mention.day)}${due}`),
-      `Demandé par ${shortName(author)}`,
+      sentence(`${request} dans un commentaire du ${formatDay(mention.day)}${due}`),
+      scope.kind === "team" ? `Pour ${shortName(recipient)}` : `Demandé par ${shortName(author)}`,
       "warning",
     );
   });
