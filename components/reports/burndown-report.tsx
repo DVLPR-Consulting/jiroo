@@ -193,7 +193,7 @@ function BurndownChart({ report }: { report: DetailedReport }) {
   const simplified = displayedEventPoints < report.eventPoints.total;
 
   return (
-    <figure aria-labelledby="burndown-chart-title" className="space-y-3 rounded-xl border p-4">
+    <figure aria-labelledby="burndown-chart-title" className="space-y-3 rounded-xl border bg-card p-4">
       <figcaption id="burndown-chart-title" className="font-medium">
         Travail restant et trajectoire idéale
       </figcaption>
@@ -247,7 +247,7 @@ function BurndownChart({ report }: { report: DetailedReport }) {
                     cx={marker.x}
                     cy={marker.y}
                     r="5"
-                    className="fill-background"
+                    className="fill-card"
                     stroke="currentColor"
                     strokeWidth="2"
                   />
@@ -285,7 +285,7 @@ function BurndownChart({ report }: { report: DetailedReport }) {
         {hasScopeChange ? (
           <li className="flex items-center gap-2">
             <svg aria-hidden="true" width="14" height="14" className="text-foreground">
-              <circle cx="7" cy="7" r="5" className="fill-background" stroke="currentColor" strokeWidth="2" />
+              <circle cx="7" cy="7" r="5" className="fill-card" stroke="currentColor" strokeWidth="2" />
             </svg>
             Cercle évidé : changement de périmètre
           </li>
