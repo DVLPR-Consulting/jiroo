@@ -81,14 +81,14 @@ export function VelocityReportView({
           })}
         </svg>
         </div>
-        <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
+        <div className="overflow-x-auto rounded-xl border bg-card">
+        <table className="w-full border-collapse text-sm [&_td]:p-3">
           <caption className="sr-only">Valeurs exactes de vélocité</caption>
-          <thead><tr className="border-b text-left"><th>Sprint</th><th>Engagement</th><th>Terminé</th><th>Moyenne</th><th>Inclusion</th><th>Raison</th></tr></thead>
-          <tbody>
+          <thead className="text-muted-foreground"><tr className="border-b text-left [&>th]:p-3 [&>th]:font-medium"><th>Sprint</th><th>Engagement</th><th>Terminé</th><th>Moyenne</th><th>Inclusion</th><th>Raison</th></tr></thead>
+          <tbody className="divide-y">
             {report.bars.map((bar) => (
-              <tr key={bar.sprintId} className="border-b">
-                <th className="py-2 text-left font-medium"><Link href={`${path}?report=sprint&sprint=${bar.sprintId}`}>{bar.sprintName}</Link></th>
+              <tr key={bar.sprintId}>
+                <th className="p-3 text-left font-medium"><Link href={`${path}?report=sprint&sprint=${bar.sprintId}`}>{bar.sprintName}</Link></th>
                 <td>{exact(bar.committedPoints)}</td><td>{exact(bar.completedPoints)}</td><td>{exact(report.averageCompletedPoints)}</td>
                 <td>{bar.includedInAverage ? "Incluse" : "Exclue"}</td>
                 <td>{bar.excludedReason === "no_point_data" ? "Aucune donnée de points" : bar.excludedReason === "history_unavailable" ? "Historique détaillé indisponible" : "—"}</td>

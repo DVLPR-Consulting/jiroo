@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemRow } from "@/components/items/item-row";
+import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import {
   daysFrom,
@@ -79,7 +80,7 @@ function shortName(name: string) {
  * writes nothing, and the perspective is a reading preference, never a
  * permission.
  */
-export function LePointView({ data, breadcrumb }: { data: LePointDataset; breadcrumb?: ReactNode }) {
+export function LePointView({ data }: { data: LePointDataset }) {
   const [perspective, setPerspective] = useState<Perspective>("developer");
 
   // The remembered choice only exists in the browser: apply it after hydration.
@@ -104,31 +105,34 @@ export function LePointView({ data, breadcrumb }: { data: LePointDataset; breadc
   const viewerId = perspective === "developer" ? data.personas.developer : data.personas.product;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6 px-4 pt-4 pb-10 sm:px-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0 space-y-1">
-          {breadcrumb}
-          <h1 className="t-h1 flex items-center gap-2">
+    <div className="pb-10">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
             Le point
             <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal text-muted-foreground">
               pilote
             </Badge>
-          </h1>
-          <p className="text-sm text-muted-foreground">
+          </span>
+        }
+        description={
+          <>
             {perspective === "developer"
               ? "Ce que tu reprends, ce qui te bloque et ce qui arrive."
               : "Les décisions qu’on attend de toi, l’avancement des objectifs et la prochaine livraison."}{" "}
             Lecture seule.
-          </p>
-        </div>
-        <PerspectiveSwitch value={perspective} onChange={choose} />
-      </header>
+          </>
+        }
+        actions={<PerspectiveSwitch value={perspective} onChange={choose} />}
+      />
 
-      {perspective === "developer" ? (
-        <DeveloperPerspective data={data} viewerId={viewerId} />
-      ) : (
-        <ProductPerspective data={data} viewerId={viewerId} />
-      )}
+      <div className="px-4 sm:px-6">
+        {perspective === "developer" ? (
+          <DeveloperPerspective data={data} viewerId={viewerId} />
+        ) : (
+          <ProductPerspective data={data} viewerId={viewerId} />
+        )}
+      </div>
     </div>
   );
 }

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     throw new Error("not-found");
   }),
   drawerProps: vi.fn(),
+  createProps: vi.fn(),
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => ({ value: "2026-10-20.2026-10-21" }) }) }));
@@ -16,9 +17,14 @@ vi.mock("@/lib/auth/session", () => ({ requireAppPageSession: async () => ({ use
 vi.mock("@/lib/le-point/load", () => ({ loadLePoint: mocks.load }));
 vi.mock("@/lib/services/item-detail", () => ({ loadItemDetailData: mocks.detail }));
 vi.mock("@/components/le-point/le-point-view", () => ({
-  LePointView: ({ breadcrumb }: { breadcrumb?: React.ReactNode }) => <div>{breadcrumb}<p>vue</p></div>,
+  LePointView: () => <p>vue</p>,
 }));
-vi.mock("@/components/shell/shell-breadcrumb", () => ({ ShellBreadcrumb: () => <nav aria-label="Fil d’Ariane" /> }));
+vi.mock("@/components/shell/backlog-topbar-create", () => ({
+  BacklogTopbarCreate: (props: unknown) => {
+    mocks.createProps(props);
+    return null;
+  },
+}));
 vi.mock("@/components/items/item-detail-sheet", () => ({
   ItemDetailDrawer: (props: unknown) => {
     mocks.drawerProps(props);
@@ -41,7 +47,7 @@ describe("BacklogLePointPage", () => {
   it("reads the project of the address with the reader's rights and last visit", async () => {
     render(await page("PORT"));
     expect(screen.getByText("vue")).toBeVisible();
-    expect(screen.getByRole("navigation", { name: "Fil d’Ariane" })).toBeInTheDocument();
+    expect(mocks.createProps).toHaveBeenCalledWith({ userId: "reader", backlogKey: "PORT", hasItemDrawer: true });
     expect(mocks.load).toHaveBeenCalledWith(expect.objectContaining({ userId: "reader", backlogKey: "PORT", lastVisit: "2026-10-21" }));
     expect(mocks.drawerProps).toHaveBeenCalledWith(expect.objectContaining({ backlogKey: "PORT", itemKey: null }));
   });
