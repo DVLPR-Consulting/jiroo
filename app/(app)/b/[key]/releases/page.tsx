@@ -47,12 +47,10 @@ export default async function ReleasesPage({
     <>
       <Suspense fallback={null}><BacklogTopbarCreate userId={session.user.id} backlogKey={backlog.key} /></Suspense>
       <PageHeader
-        className="mx-auto w-full max-w-6xl"
         title="Releases"
         description="Planifiez les livraisons et suivez leur progression."
       />
-      <div className="mx-auto max-w-6xl space-y-6 px-4 pb-6 sm:px-6 lg:pb-8">
-        <ReleaseList
+      <ReleaseList
           actor={{ id: session.user.id, name: session.user.name }}
           backlog={{ id: backlog.id, key: backlog.key, name: backlog.name }}
           canBrowseUsers={browseUsersDecision.allowed}
@@ -62,7 +60,6 @@ export default async function ReleasesPage({
           showArchived={showArchived}
           statusIds={statusIds}
         />
-      </div>
     </>
   );
 }

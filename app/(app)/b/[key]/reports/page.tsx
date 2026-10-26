@@ -169,9 +169,9 @@ export default async function ReportsPage({
   return (
     <>
       <Suspense fallback={null}><BacklogTopbarCreate userId={session.user.id} backlogKey={backlog.key} /></Suspense>
-      <PageHeader className="mx-auto w-full max-w-7xl" />
-      <div className="mx-auto max-w-7xl space-y-6 px-4 pb-6 sm:px-6 lg:pb-8">
-        {navigation}
+      <PageHeader />
+      {navigation}
+      <div className="space-y-6 px-4 pt-4 pb-6 sm:px-6 lg:pb-8">
         {content}
       </div>
     </>
