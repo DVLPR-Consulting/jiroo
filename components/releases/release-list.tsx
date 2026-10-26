@@ -22,6 +22,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowDown, ArrowUp, GripVertical, PackageOpen } from "lucide-react";
 import { reorderReleaseAction } from "@/app/actions/releases";
+import { PageToolbar } from "@/components/shell/page-toolbar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -89,8 +90,8 @@ export function ReleaseList({
   );
   if (releases.length === 0) {
     return (
-      <div ref={container} className="space-y-4">
-        <div className="flex justify-end">{archivedToggle}</div>
+      <div ref={container}>
+        <PageToolbar className="justify-end">{archivedToggle}</PageToolbar>
         <EmptyState
           className="mx-auto py-20"
           icon={<PackageOpen className="size-5" />}
@@ -230,84 +231,86 @@ function OrderedReleaseList({
   const position = (id: string | number) => rendered.findIndex((release) => release.id === String(id)) + 1;
 
   return (
-    <div className="space-y-4">
-      {capabilities.manage ? (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {archivedToggle}
+    <>
+      <PageToolbar className={capabilities.manage ? "justify-between" : "justify-end"}>
+        {archivedToggle}
+        {capabilities.manage ? (
           <CreateReleaseDialog
             backlog={backlog}
             actor={actor}
             driverOptions={driverOptions}
             canBrowseUsers={canBrowseUsers}
           />
-        </div>
-      ) : <div className="flex justify-end">{archivedToggle}</div>}
-      {capabilities.manage && showArchived ? (
-        <p className="text-sm text-muted-foreground">
-          Masquez les versions archivées pour modifier l’ordre des versions.
-        </p>
-      ) : null}
-      <div aria-live="polite">
-        {rankError ? (
-          <p role="alert" className="rounded-lg bg-destructive/10 p-2 text-sm text-destructive">
-            {rankError}
+        ) : null}
+      </PageToolbar>
+      <div className="space-y-4 px-4 pt-4 pb-6 sm:px-6 lg:pb-8">
+        {capabilities.manage && showArchived ? (
+          <p className="text-sm text-muted-foreground">
+            Masquez les versions archivées pour modifier l’ordre des versions.
           </p>
         ) : null}
+        <div aria-live="polite">
+          {rankError ? (
+            <p role="alert" className="rounded-lg bg-destructive/10 p-2 text-sm text-destructive">
+              {rankError}
+            </p>
+          ) : null}
+        </div>
+        <DndContext
+          id={`release-order-${backlog.id}`}
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={canReorder ? onDragEnd : undefined}
+          accessibility={{
+            screenReaderInstructions: {
+              draggable:
+                "Appuyez sur espace pour saisir une version, utilisez les flèches verticales, puis espace pour déposer ou Échap pour annuler.",
+            },
+            announcements: {
+              onDragStart: ({ active }) => `${names.get(String(active.id)) ?? "Version"} saisie.`,
+              onDragOver: ({ active, over }) =>
+                over ? `${names.get(String(active.id))}, position ${position(over.id)} sur ${rendered.length}.` : undefined,
+              onDragEnd: ({ active, over }) =>
+                over
+                  ? `${names.get(String(active.id))} déposée en position ${position(over.id)} sur ${rendered.length}.`
+                  : "Réordonnancement annulé.",
+              onDragCancel: () => "Réordonnancement annulé.",
+            },
+          }}
+        >
+          <SortableContext items={rendered.map((release) => release.id)} strategy={verticalListSortingStrategy}>
+            <ul className="space-y-3">
+              {rendered.map((release, index) => (
+                <SortableReleaseCard
+                  key={release.id}
+                  backlog={backlog}
+                  release={release}
+                  releases={releases}
+                  actor={actor}
+                  driverOptions={driverOptions}
+                  canBrowseUsers={canBrowseUsers}
+                  capabilities={capabilities}
+                  statusIds={statusIds}
+                  targets={targets.filter((target) => target.id !== release.id)}
+                  onRemoved={onRemoved}
+                  reorder={
+                    canReorder
+                      ? {
+                          disabled: pending,
+                          isFirst: index === 0,
+                          isLast: index === rendered.length - 1,
+                          up: () => move(release.id, index - 1),
+                          down: () => move(release.id, index + 1),
+                        }
+                      : null
+                  }
+                />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
       </div>
-      <DndContext
-        id={`release-order-${backlog.id}`}
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={canReorder ? onDragEnd : undefined}
-        accessibility={{
-          screenReaderInstructions: {
-            draggable:
-              "Appuyez sur espace pour saisir une version, utilisez les flèches verticales, puis espace pour déposer ou Échap pour annuler.",
-          },
-          announcements: {
-            onDragStart: ({ active }) => `${names.get(String(active.id)) ?? "Version"} saisie.`,
-            onDragOver: ({ active, over }) =>
-              over ? `${names.get(String(active.id))}, position ${position(over.id)} sur ${rendered.length}.` : undefined,
-            onDragEnd: ({ active, over }) =>
-              over
-                ? `${names.get(String(active.id))} déposée en position ${position(over.id)} sur ${rendered.length}.`
-                : "Réordonnancement annulé.",
-            onDragCancel: () => "Réordonnancement annulé.",
-          },
-        }}
-      >
-        <SortableContext items={rendered.map((release) => release.id)} strategy={verticalListSortingStrategy}>
-          <ul className="space-y-3">
-            {rendered.map((release, index) => (
-              <SortableReleaseCard
-                key={release.id}
-                backlog={backlog}
-                release={release}
-                releases={releases}
-                actor={actor}
-                driverOptions={driverOptions}
-                canBrowseUsers={canBrowseUsers}
-                capabilities={capabilities}
-                statusIds={statusIds}
-                targets={targets.filter((target) => target.id !== release.id)}
-                onRemoved={onRemoved}
-                reorder={
-                  canReorder
-                    ? {
-                        disabled: pending,
-                        isFirst: index === 0,
-                        isLast: index === rendered.length - 1,
-                        up: () => move(release.id, index - 1),
-                        down: () => move(release.id, index + 1),
-                      }
-                    : null
-                }
-              />
-            ))}
-          </ul>
-        </SortableContext>
-      </DndContext>
-    </div>
+    </>
   );
 }
 

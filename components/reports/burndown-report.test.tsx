@@ -284,11 +284,54 @@ describe("BurndownReportView", () => {
     const legend = screen.getByRole("list", { name: "Légende du burndown" });
     const labels = within(legend).getAllByRole("listitem").map((item) => item.textContent);
     expect(labels).toEqual([
-      "Ligne continue : travail restant réel",
-      "Ligne pointillée grise : trajectoire idéale",
-      "Point plein : événement du sprint",
-      "Cercle évidé : changement de périmètre",
+      "Travail restant (ligne continue)",
+      "Trajectoire idéale (pointillés gris)",
+      "Événement du sprint (point plein)",
+      "Ajout ou retrait en cours de sprint (cercle évidé)",
     ]);
+  });
+
+  it("reads at a glance: round gridlines, today on a running sprint, the current value at the line's end", () => {
+    const { container, unmount } = render(<BurndownReportView backlogKey="CASS" report={active} />);
+    const svg = within(screen.getByTestId("burndown-chart-scroll")).getByText("0").closest("svg")!;
+    const axis = [...svg.querySelectorAll("text")].map((text) => text.textContent);
+    expect(axis).toContain("0");
+    // More than the two ends of the axis: intermediate gridlines are labelled.
+    expect(axis.filter((label) => /^\d+$/.test(label ?? "")).length).toBeGreaterThan(2);
+    expect(within(container).getByText("Aujourd’hui")).toBeInTheDocument();
+    unmount();
+
+    render(<BurndownReportView backlogKey="CASS" report={{ ...active, kind: "completed", statusLabel: "Historique figé" }} />);
+    expect(screen.queryByText("Aujourd’hui")).toBeNull();
+  });
+
+  it("keeps a long end value inside the chart when the line ends at its right edge", () => {
+    const lastIndex = active.displayPoints.length - 1;
+    const end = active.displayPoints.map((point, index) =>
+      index === lastIndex ? { ...point, remainingPoints: 1999.98 } : point);
+    render(<BurndownReportView backlogKey="CASS" report={{ ...active, displayPoints: end, observedAt: end[lastIndex]!.occurredAt }} />);
+    const label = screen.getByTestId("burndown-end-value");
+    expect(label).toHaveTextContent("1 999,98 pts");
+    expect(label).toHaveAttribute("text-anchor", "end");
+  });
+
+  it("keeps the moved end value clear of « Aujourd’hui » near the top of a running sprint", () => {
+    // Constant remaining work at the top of the axis, observed a minute before the target date.
+    const target = Math.max(...[...active.displayPoints, ...(active.guideline.state === "available" ? active.guideline.points : [])]
+      .map((point) => Date.parse(point.occurredAt)));
+    const observedAt = new Date(target - 60_000).toISOString();
+    const end = active.displayPoints.map((point, index, all) => ({
+      ...point,
+      remainingPoints: 1999.98,
+      ...(index === all.length - 1 ? { occurredAt: observedAt } : {}),
+    }));
+    render(<BurndownReportView backlogKey="CASS" report={{ ...active, displayPoints: end, observedAt }} />);
+    const today = screen.getByText("Aujourd’hui");
+    const label = screen.getByTestId("burndown-end-value");
+    expect(label).toHaveTextContent("1 999,98 pts");
+    expect(label).toHaveAttribute("text-anchor", "end");
+    // Under the line, well below the top band that holds « Aujourd’hui ».
+    expect(Number(label.getAttribute("y"))).toBeGreaterThan(Number(today.getAttribute("y")) + 16);
   });
 
   it("renders completed outcomes with final remaining work", () => {

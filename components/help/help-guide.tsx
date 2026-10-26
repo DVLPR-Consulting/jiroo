@@ -644,7 +644,7 @@ export function HelpGuide() {
           <ul className="t-body list-disc space-y-1 pl-5">
             <li><Ui>Rapport de sprint</Ui> : engagement au démarrage, terminés, périmètre, tickets ajoutés ou retirés après le démarrage, journal du sprint.</li>
             <li><Ui>Vélocité</Ui> : engagement et points terminés des derniers sprints (7 ou 12), avec la moyenne.</li>
-            <li><Ui>Burndown</Ui> : travail restant jour après jour face à une trajectoire idéale ; compare l’engagement au démarrage à la moyenne des sprints précédents.</li>
+            <li><Ui>Burndown</Ui> : travail restant jour après jour face à une trajectoire idéale ; compare l’engagement au démarrage à la moyenne des sprints précédents. Sur un sprint en cours, le trait <Ui>Aujourd’hui</Ui> montre où l’on en est, et la valeur au bout de la ligne donne le travail restant.</li>
           </ul>
           <GuideNote>La trajectoire idéale exige une date de fin ; c’est un repère, pas une garantie de livraison.</GuideNote>
         </GuideTopic>

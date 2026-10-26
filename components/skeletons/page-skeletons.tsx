@@ -412,12 +412,12 @@ function RoadmapSkeleton() {
 function ReleasesSkeleton() {
   return (
     <SkeletonRegion label="Chargement des releases" name="releases">
-      <PageHeaderSkeleton className="mx-auto w-full max-w-6xl" titleClassName="w-32" description />
-      <div className="mx-auto max-w-6xl space-y-4 px-4 pb-6 sm:px-6 lg:pb-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Skeleton className="h-3.5 w-36" />
-          <Skeleton className="h-8 w-36" />
-        </div>
+      <PageHeaderSkeleton titleClassName="w-32" description />
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 pb-3 sm:px-6">
+        <Skeleton className="h-3.5 w-36" />
+        <Skeleton className="h-8 w-36" />
+      </div>
+      <div className="space-y-4 px-4 pt-4 pb-6 sm:px-6 lg:pb-8">
         <div className="space-y-3">
           {Array.from({ length: 3 }, (_, index) => (
             <ReleaseCardSkeleton key={index} />
@@ -514,9 +514,11 @@ function ReleaseNotesSkeleton() {
 function ReportsSkeleton() {
   return (
     <SkeletonRegion label="Chargement des rapports…" name="reports">
-      <PageHeaderSkeleton className="mx-auto w-full max-w-7xl" titleClassName="hidden" />
-      <div className="mx-auto max-w-7xl space-y-6 px-4 pb-6 sm:px-6 lg:pb-8">
-        <Skeleton className="h-10 w-72" />
+      <PageHeaderSkeleton titleClassName="hidden" />
+      <div className="border-b border-border px-4 pb-2 sm:px-6">
+        <Skeleton className="h-7 w-72" />
+      </div>
+      <div className="space-y-6 px-4 pt-4 pb-6 sm:px-6 lg:pb-8">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }, (_, index) => (
             <Skeleton key={index} className="h-24 w-full" />
