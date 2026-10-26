@@ -721,9 +721,10 @@ export function HelpGuide() {
 
         <GuideTopic
           title="Paramètres du backlog"
-          purpose="Partager des modèles de tickets avec les personnes qui créent dans ce backlog."
+          purpose="Ouvrir les réglages d’un backlog et partager des modèles de tickets avec les personnes qui y créent."
           steps={[
-            <>Dans les paramètres du backlog, ouvrez l’onglet <Ui>Modèles</Ui>. Il est réservé aux personnes ayant la permission <Ui>Administrer le backlog</Ui>, comme les autres onglets de paramètres.</>,
+            <>Dans la barre latérale, sous les vues du projet, cliquez sur <Ui>Paramètres</Ui> : l’entrée n’apparaît qu’aux personnes qui administrent le backlog ou en gèrent les membres, et ouvre l’onglet <Ui>Accès</Ui>.</>,
+            <>Ouvrez l’onglet <Ui>Modèles</Ui>. Il est réservé aux personnes ayant la permission <Ui>Administrer le backlog</Ui>, comme les autres onglets de paramètres.</>,
             <>Cliquez sur <Ui>Nouveau modèle</Ui> et donnez-lui un nom unique dans ce backlog. Choisissez éventuellement un type, puis la nature, le titre de départ, la description, la priorité et les labels du backlog ; cliquez sur <Ui>Créer le modèle</Ui>.</>,
             <>Utilisez <Ui>Modifier</Ui> pour ajuster un modèle, ou <Ui>Supprimer</Ui> puis confirmez. Les tickets déjà créés restent inchangés. Chaque backlog peut conserver jusqu’à 50 modèles.</>,
           ]}

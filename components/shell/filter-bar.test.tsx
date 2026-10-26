@@ -39,6 +39,7 @@ vi.mock("@/app/actions/items", () => ({
 
 // The sidebar's user card imports a Server Action module.
 vi.mock("@/app/actions/account", () => ({ changeOwnPasswordAction: vi.fn() }));
+vi.mock("@/app/actions/backlogs", () => ({ canOpenBacklogSettingsAction: vi.fn(async () => false) }));
 
 /** Opens « + Filtre » and one of its facets (JIR-74). */
 async function addFilter(user: ReturnType<typeof userEvent.setup>, label: string) {
