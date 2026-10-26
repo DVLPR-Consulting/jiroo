@@ -291,7 +291,7 @@ function Rows({ cards, backlogKey, showAssignee = false }: {
 }
 
 function DeveloperPerspective({ data, viewerId }: { data: LePointDataset; viewerId: string }) {
-  const view = developerView(data, viewerId);
+  const view = developerView(data, { kind: "me", viewerId });
   const key = data.backlog.key;
   // The « À venir » figure counts its own late tickets; a late one in progress says so in its tag.
   const lateNext = view.next.filter((card) => card.due && card.due < data.today).length;
@@ -406,7 +406,7 @@ function ObjectiveTable({ objectives, backlogKey }: { objectives: ObjectiveSumma
 }
 
 function ProductPerspective({ data, viewerId }: { data: LePointDataset; viewerId: string }) {
-  const view = productView(data, viewerId);
+  const view = productView(data, { kind: "me", viewerId });
   const key = data.backlog.key;
   const release = view.nextRelease;
   const remaining = release?.planned ? daysFrom(data.today, release.planned) : null;

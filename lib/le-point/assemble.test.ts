@@ -59,7 +59,7 @@ describe("assembleLePoint", () => {
 
   it("counts a task towards its epic but not a sub-task, and shows the sub-task's shape", () => {
     const data = assembleLePoint(source());
-    const objective = productView(data, "dev").objectives.find((summary) => summary.key === "CASS-1")!;
+    const objective = productView(data, { kind: "me", viewerId: "dev" }).objectives.find((summary) => summary.key === "CASS-1")!;
     expect(objective.total).toBe(2);
     expect(data.tickets.find((ticket) => ticket.key === "CASS-4")).toMatchObject({ objective: null, shape: "bug" });
   });
@@ -91,7 +91,7 @@ describe("assembleLePoint", () => {
   it("shows a visible outside dependency without counting it as the reader's work", () => {
     const outside = row("50", { key: "DATA-50", title: "API", assigneeId: "dev", parentId: null, status: "En cours", category: "in_progress" });
     const data = assembleLePoint(source({ outside: [outside], blocks: [{ sourceId: "50", targetId: "2" }] }));
-    const view = developerView(data, "dev");
+    const view = developerView(data, { kind: "me", viewerId: "dev" });
     expect(view.blocked.map((card) => card.key)).toEqual(["CASS-2"]);
     expect(view.blocked[0]!.links).toEqual(["DATA-50"]);
     expect([...view.resume, ...view.next, ...view.withoutDue].map((card) => card.key)).not.toContain("DATA-50");
@@ -101,8 +101,8 @@ describe("assembleLePoint", () => {
     const data = assembleLePoint(source({
       comments: [{ itemId: "2", authorId: "dev", mentions: ["po"], at: new Date("2026-10-21T08:00:00Z"), body: "@Catherine arbitrer ?" }],
     }));
-    expect(productView(data, "po").decisions.map((card) => card.key)).toEqual(["CASS-2"]);
-    expect(productView(data, "dev").decisions).toEqual([]);
+    expect(productView(data, { kind: "me", viewerId: "po" }).decisions.map((card) => card.key)).toEqual(["CASS-2"]);
+    expect(productView(data, { kind: "me", viewerId: "dev" }).decisions).toEqual([]);
   });
 
   it("flags a missing assignee only on committed work", () => {
@@ -113,7 +113,7 @@ describe("assembleLePoint", () => {
       row("4", { assigneeId: null, status: "En cours", category: "in_progress" }),
     ];
     const data = assembleLePoint(source({ items, fixVersions: [], sprintItemIds: ["3"] }));
-    expect(productView(data, "po").difficulties.map((card) => card.key)).toEqual(["CASS-3", "CASS-4"]);
+    expect(productView(data, { kind: "me", viewerId: "po" }).difficulties.map((card) => card.key)).toEqual(["CASS-3", "CASS-4"]);
   });
 
   it("keeps a done objective until its delivery is known to be published", () => {
@@ -137,14 +137,14 @@ describe("assembleLePoint", () => {
         row("1", { type: "epic", parentId: null, title: "Socle", category, status: category === "done" ? "Terminé" : "À faire", assigneeId: "po" }),
         row("2"),
       ];
-      return developerView(assembleLePoint(source({ items, fixVersions: [], blocks: [{ sourceId: "1", targetId: "2" }] })), "dev");
+      return developerView(assembleLePoint(source({ items, fixVersions: [], blocks: [{ sourceId: "1", targetId: "2" }] })), { kind: "me", viewerId: "dev" });
     };
     expect(blocked("todo").blocked[0]!.reason).toBe("Attend CASS-1 « Socle », à faire chez Catherine.");
     expect(blocked("done").blocked).toEqual([]);
     expect(developerView(assembleLePoint(source({
       items: [row("1", { type: "epic", parentId: null, assigneeId: "dev" }), row("2")],
       blocks: [{ sourceId: "1", targetId: "2" }],
-    })), "dev").next.map((card) => card.key)).not.toContain("CASS-1");
+    })), { kind: "me", viewerId: "dev" }).next.map((card) => card.key)).not.toContain("CASS-1");
   });
 
   it("keeps a done objective while one of its tasks has no published delivery", () => {
@@ -156,8 +156,8 @@ describe("assembleLePoint", () => {
     ];
     const mixed = assembleLePoint(source({ items, releases, fixVersions: [{ itemId: "2", releaseId: "r1" }, { itemId: "3", releaseId: "r9" }] }));
     expect(mixed.objectives.map((o) => o.key)).toEqual(["CASS-1"]);
-    expect(productView(mixed, "po").nextRelease).toBeNull();
-    expect(productView(mixed, "po").objectives[0]!.delivery).toBe(
+    expect(productView(mixed, { kind: "me", viewerId: "po" }).nextRelease).toBeNull();
+    expect(productView(mixed, { kind: "me", viewerId: "po" }).objectives[0]!.delivery).toBe(
       "Livraison partielle : une partie seulement de ses tickets est dans une livraison publiée.",
     );
     const all = assembleLePoint(source({ items, releases, fixVersions: [{ itemId: "2", releaseId: "r1" }, { itemId: "3", releaseId: "r1" }] }));
@@ -169,13 +169,13 @@ describe("assembleLePoint", () => {
     const items = [row("1", { type: "epic", parentId: null }), row("2", done), row("3")];
     const releases = [{ id: "r1", name: "1.0", planned: "2026-09-18", released: "2026-09-18" }];
     const open = assembleLePoint(source({ items, releases, fixVersions: [{ itemId: "2", releaseId: "r1" }] }));
-    expect(productView(open, "po").objectives[0]!.delivery).not.toMatch(/^Livré/);
+    expect(productView(open, { kind: "me", viewerId: "po" }).objectives[0]!.delivery).not.toMatch(/^Livré/);
     const all = assembleLePoint(source({
       items: [row("1", { type: "epic", parentId: null }), row("2", done)],
       releases,
       fixVersions: [{ itemId: "2", releaseId: "r1" }],
     }));
-    expect(productView(all, "po").objectives[0]!.delivery).toBe("Livré dans la livraison 1.0, le 18 sept.");
+    expect(productView(all, { kind: "me", viewerId: "po" }).objectives[0]!.delivery).toBe("Livré dans la livraison 1.0, le 18 sept.");
   });
 });
 
