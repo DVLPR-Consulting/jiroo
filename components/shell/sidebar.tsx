@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -19,6 +20,7 @@ import {
   User,
   type LucideIcon,
 } from "lucide-react";
+import { canOpenBacklogSettingsAction } from "@/app/actions/backlogs";
 import { Badge } from "@/components/ui/badge";
 import { BacklogSelector } from "@/components/shell/backlog-selector";
 import { NavLink } from "@/components/shell/nav-link";
@@ -58,7 +60,6 @@ export function Sidebar({
   user,
   canAdminister,
   adminHref = "/admin",
-  settingsBacklogKeys = [],
   counts,
 }: {
   backlogs: Backlog[];
@@ -67,8 +68,6 @@ export function Sidebar({
   user: { name: string; email: string; role: string };
   canAdminister: boolean;
   adminHref?: string;
-  /** Backlogs whose settings the user may open, like Jira's « Project settings ». */
-  settingsBacklogKeys?: readonly string[];
   counts: ShellCounts;
 }) {
   const { collapsed: desktopCollapsed, mobile } = useSidebarState();
@@ -104,9 +103,23 @@ export function Sidebar({
   const settingsHref = activeBacklog
     ? `/b/${encodeURIComponent(activeBacklog.key)}/settings`
     : null;
-  const canOpenSettings =
-    activeBacklog !== undefined &&
-    settingsBacklogKeys.some((key) => key.toUpperCase() === activeKey);
+  const activeBacklogId = activeBacklog?.id;
+  // Asked for the active backlog only, once per backlog (JIR-122).
+  const [settingsAccess, setSettingsAccess] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (!activeBacklogId || activeBacklogId in settingsAccess) return;
+    let current = true;
+    canOpenBacklogSettingsAction(activeBacklogId).then(
+      (allowed) => {
+        if (current) setSettingsAccess((known) => ({ ...known, [activeBacklogId]: allowed }));
+      },
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, [activeBacklogId, settingsAccess]);
+  const canOpenSettings = activeBacklogId !== undefined && settingsAccess[activeBacklogId] === true;
 
   return (
     <div

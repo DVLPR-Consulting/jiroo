@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   authGetSession: vi.fn(),
   checkPermission: vi.fn(),
-  checkPermissions: vi.fn(),
   headers: vi.fn(),
   redirect: vi.fn(),
   listBacklogsWithStarsForUser: vi.fn(),
@@ -26,7 +25,6 @@ vi.mock("@/lib/auth", () => ({
 }));
 vi.mock("@/lib/auth/authorization", () => ({
   checkPermission: mocks.checkPermission,
-  checkPermissions: mocks.checkPermissions,
 }));
 vi.mock("@/lib/services/backlogs", () => ({
   listBacklogsWithStarsForUser: mocks.listBacklogsWithStarsForUser,
@@ -87,7 +85,6 @@ describe("AppLayout 2FA access guard", () => {
     mocks.listRecentNotifications.mockResolvedValue([]);
     mocks.getShellCounts.mockResolvedValue({});
     mocks.checkPermission.mockResolvedValue({ allowed: true });
-    mocks.checkPermissions.mockResolvedValue(new Map());
   });
 
   it("redirects direct app access to enrollment before loading app data", async () => {
@@ -107,33 +104,6 @@ describe("AppLayout 2FA access guard", () => {
     expect(mocks.checkPermission).toHaveBeenCalledWith(expect.objectContaining({ actorId: "user-1", permission: "administer_jiroo" }));
     expect(mocks.sidebar).toHaveBeenCalledWith(
       expect.objectContaining({ canAdminister: true }),
-      undefined,
-    );
-  });
-
-  it("links the settings of the backlogs the user administers or whose members they manage (JIR-122)", async () => {
-    mocks.authGetSession.mockResolvedValue(authSession(true));
-    mocks.listBacklogsWithStarsForUser.mockResolvedValue([
-      { id: "b-1", key: "CASS", name: "Civil", color: "#000", starred: false },
-      { id: "b-2", key: "PEN", name: "Pénal", color: "#000", starred: false },
-      { id: "b-3", key: "SOC", name: "Social", color: "#000", starred: false },
-    ]);
-    mocks.checkPermissions.mockImplementation(
-      async ({ scope }: { scope: { backlogId: string } }) =>
-        new Map([
-          ["administer_backlog", { allowed: scope.backlogId === "b-1" }],
-          ["manage_members", { allowed: scope.backlogId === "b-2" }],
-        ]),
-    );
-
-    render(await AppLayout({ children: null }));
-    expect(mocks.checkPermissions).toHaveBeenCalledWith({
-      actorId: "user-1",
-      permissions: ["administer_backlog", "manage_members"],
-      scope: { type: "backlog", backlogId: "b-3" },
-    });
-    expect(mocks.sidebar).toHaveBeenLastCalledWith(
-      expect.objectContaining({ settingsBacklogKeys: ["CASS", "PEN"] }),
       undefined,
     );
   });

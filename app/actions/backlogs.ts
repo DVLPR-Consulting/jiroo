@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
-import { requirePermission } from "@/lib/auth/authorization";
+import { checkPermissions, requirePermission } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
 import { invalidateBacklog } from "@/lib/realtime/publish";
 import { ZodError } from "zod";
@@ -146,5 +146,24 @@ export async function setBacklogStarAction(input: { backlogId: string; starred: 
     if (authorizationError) return authorizationError;
     if (error instanceof ZodError) return { ok: false as const, error: "Requête invalide." };
     return { ok: false as const, error: "Favori non enregistré. Réessayez." };
+  }
+}
+
+/**
+ * Whether the sidebar links this backlog's settings (JIR-122): the Accès
+ * page's own gate, for the active backlog only, never an error.
+ */
+export async function canOpenBacklogSettingsAction(backlogId: string): Promise<boolean> {
+  const session = await getSession();
+  if (!session?.user.id || typeof backlogId !== "string") return false;
+  try {
+    const decisions = await checkPermissions({
+      actorId: session.user.id,
+      permissions: ["administer_backlog", "manage_members"],
+      scope: { type: "backlog", backlogId },
+    });
+    return [...decisions.values()].some((decision) => decision.allowed);
+  } catch {
+    return false;
   }
 }

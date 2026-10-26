@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { Sidebar } from "@/components/shell/sidebar";
@@ -10,6 +10,11 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   pathname: "/b/CASS",
   search: "view=board",
+  canOpenBacklogSettings: vi.fn<(backlogId: string) => Promise<boolean>>(async () => false),
+}));
+
+vi.mock("@/app/actions/backlogs", () => ({
+  canOpenBacklogSettingsAction: mocks.canOpenBacklogSettings,
 }));
 
 // The user card's password dialog imports a Server Action module.
@@ -77,6 +82,8 @@ describe("Sidebar", () => {
     mocks.replace.mockReset();
     mocks.pathname = "/b/CASS";
     mocks.search = "view=board";
+    mocks.canOpenBacklogSettings.mockReset();
+    mocks.canOpenBacklogSettings.mockResolvedValue(false);
   });
 
   afterEach(() => {
@@ -211,8 +218,9 @@ describe("Sidebar", () => {
     );
   });
 
-  it("links the active backlog's settings only for its administrators (JIR-122)", () => {
+  it("links the active backlog's settings only for its administrators (JIR-122)", async () => {
     const { unmount } = renderSidebar([["view", "board"]]);
+    await waitFor(() => expect(mocks.canOpenBacklogSettings).toHaveBeenCalledWith("backlog-1"));
     expect(
       within(screen.getByRole("navigation", { name: "Vues du projet" })).queryByRole("link", {
         name: "Paramètres",
@@ -220,18 +228,12 @@ describe("Sidebar", () => {
     ).not.toBeInTheDocument();
     unmount();
 
+    mocks.canOpenBacklogSettings.mockResolvedValue(true);
     mocks.pathname = "/b/CASS/settings/templates";
-    render(
-      <SidebarStateProvider>
-        <ViewUrlStateProvider initialEntries={[]}>
-          <Sidebar {...props} settingsBacklogKeys={["CASS"]} />
-        </ViewUrlStateProvider>
-      </SidebarStateProvider>,
-    );
-    const settings = within(screen.getByRole("navigation", { name: "Vues du projet" })).getByRole(
-      "link",
-      { name: "Paramètres" },
-    );
+    renderSidebar([]);
+    const settings = await within(
+      screen.getByRole("navigation", { name: "Vues du projet" }),
+    ).findByRole("link", { name: "Paramètres" });
     expect(settings).toHaveAttribute("href", "/b/CASS/settings/access");
     expect(settings).toHaveAttribute("aria-current", "page");
   });

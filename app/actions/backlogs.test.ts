@@ -3,6 +3,7 @@ import { permissionDeniedError } from "@/test-utils/action-authorization-errors"
 
 const mocks = vi.hoisted(() => ({
   archiveBacklog: vi.fn(),
+  checkPermissions: vi.fn(),
   createBacklog: vi.fn(),
   getSession: vi.fn(),
   requireBacklogPermissionById: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock("@/lib/auth/action-authorization", () => ({
   requireBacklogPermissionById: mocks.requireBacklogPermissionById,
 }));
 vi.mock("@/lib/auth/authorization", () => ({
+  checkPermissions: mocks.checkPermissions,
   requirePermission: mocks.requirePermission,
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
@@ -32,6 +34,7 @@ vi.mock("@/lib/services/backlogs", () => ({
 
 import {
   archiveBacklogAction,
+  canOpenBacklogSettingsAction,
   createBacklogAction,
   setBacklogStarAction,
   updateBacklogAction,
@@ -255,5 +258,45 @@ describe("setBacklogStarAction", () => {
       ok: false,
       error: "Requête invalide.",
     });
+  });
+});
+
+describe("canOpenBacklogSettingsAction (JIR-122)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getSession.mockResolvedValue({ user: { id: "user-1" } });
+  });
+
+  it("follows the Accès page gate on the requested backlog", async () => {
+    mocks.checkPermissions.mockResolvedValue(
+      new Map([
+        ["administer_backlog", { allowed: false }],
+        ["manage_members", { allowed: true }],
+      ]),
+    );
+    await expect(canOpenBacklogSettingsAction("backlog-1")).resolves.toBe(true);
+    expect(mocks.checkPermissions).toHaveBeenCalledWith({
+      actorId: "user-1",
+      permissions: ["administer_backlog", "manage_members"],
+      scope: { type: "backlog", backlogId: "backlog-1" },
+    });
+
+    mocks.checkPermissions.mockResolvedValue(
+      new Map([
+        ["administer_backlog", { allowed: false }],
+        ["manage_members", { allowed: false }],
+      ]),
+    );
+    await expect(canOpenBacklogSettingsAction("backlog-1")).resolves.toBe(false);
+  });
+
+  it("answers no without a session or when the backlog cannot be resolved", async () => {
+    mocks.getSession.mockResolvedValue(null);
+    await expect(canOpenBacklogSettingsAction("backlog-1")).resolves.toBe(false);
+    expect(mocks.checkPermissions).not.toHaveBeenCalled();
+
+    mocks.getSession.mockResolvedValue({ user: { id: "user-1" } });
+    mocks.checkPermissions.mockRejectedValue(new Error("not found"));
+    await expect(canOpenBacklogSettingsAction("missing")).resolves.toBe(false);
   });
 });
