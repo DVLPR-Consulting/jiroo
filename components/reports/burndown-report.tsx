@@ -132,7 +132,14 @@ function SprintIdentity({
   );
 }
 
-const CHART = { width: 960, height: 320, left: 56, right: 24, top: 16, bottom: 40 };
+const CHART = { width: 960, height: 320, left: 56, right: 72, top: 24, bottom: 40 };
+
+/** A round step that cuts `max` into about four bands: 1, 2 or 5 times a power of ten. */
+function tickStep(max: number) {
+  const rough = max / 4;
+  const power = 10 ** Math.floor(Math.log10(rough));
+  return [1, 2, 5, 10].map((factor) => factor * power).find((step) => step >= rough)!;
+}
 
 function BurndownChart({ report }: { report: DetailedReport }) {
   const guideline = report.guideline.state === "available" ? report.guideline.points : null;
@@ -142,11 +149,15 @@ function BurndownChart({ report }: { report: DetailedReport }) {
   ];
   const t0 = Math.min(...times);
   const t1 = Math.max(t0 + 1, ...times);
-  const yMax = Math.max(
+  const highest = Math.max(
     1,
     ...report.displayPoints.map((point) => point.remainingPoints),
     ...(guideline ?? []).map((point) => point.remainingPoints),
   );
+  // The axis tops out on a round tick, so every gridline reads as a plain number.
+  const step = tickStep(highest);
+  const yMax = Math.ceil(highest / step) * step;
+  const ticks = Array.from({ length: yMax / step + 1 }, (_, index) => index * step);
   const plotWidth = CHART.width - CHART.left - CHART.right;
   const plotHeight = CHART.height - CHART.top - CHART.bottom;
   const x = (iso: string) => CHART.left + ((Date.parse(iso) - t0) / (t1 - t0)) * plotWidth;
@@ -171,6 +182,16 @@ function BurndownChart({ report }: { report: DetailedReport }) {
 
   const first = observed[0]!;
   const last = observed.at(-1)!;
+  // A running sprint marks today, so the line visibly stops at the present.
+  const today = report.kind === "active" && observedAt > t0 && observedAt < t1 ? x(report.observedAt) : null;
+  const lastX = x(last.occurredAt);
+  // The value at the line's end reads to its right. Short of room there, it
+  // moves left of the last point, under the line so the top band stays
+  // « Aujourd'hui »'s, or above it when the point sits on the axis floor.
+  const endLabel = pts(last.remainingPoints);
+  const endLabelInside = lastX + 10 + endLabel.length * 7.5 > CHART.width;
+  const lastY = y(last.remainingPoints);
+  const endLabelY = !endLabelInside ? lastY + 4 : lastY + 20 <= y(0) - 4 ? lastY + 20 : lastY - 8;
   const actualLineLabel = `Travail restant réel, ligne continue : de ${remainingWords(first.remainingPoints)} le ${spokenDate(first.occurredAt)} à ${remainingWords(last.remainingPoints)} le ${spokenDate(last.occurredAt)}`;
   const guidelineLabel = guideline
     ? `Trajectoire idéale, ligne pointillée : de ${remainingWords(guideline[0]!.remainingPoints)} le ${spokenDate(guideline[0]!.occurredAt)} à ${remainingWords(guideline.at(-1)!.remainingPoints)} le ${spokenDate(guideline.at(-1)!.occurredAt)}`
@@ -210,24 +231,45 @@ function BurndownChart({ report }: { report: DetailedReport }) {
           className="block h-auto w-full min-w-[640px] text-foreground"
         >
           <g aria-hidden="true" className="text-muted-foreground" fontSize="12" fill="currentColor">
-            <line
-              x1={CHART.left}
-              x2={CHART.width - CHART.right}
-              y1={y(0)}
-              y2={y(0)}
-              stroke="currentColor"
-              strokeOpacity="0.4"
-            />
-            <text x={CHART.left - 8} y={y(yMax) + 4} textAnchor="end">{number.format(yMax)}</text>
-            <text x={CHART.left - 8} y={y(0) + 4} textAnchor="end">0</text>
+            {ticks.map((tick) => (
+              <g key={tick}>
+                <line
+                  x1={CHART.left}
+                  x2={CHART.width - CHART.right}
+                  y1={y(tick)}
+                  y2={y(tick)}
+                  stroke="currentColor"
+                  strokeOpacity={tick === 0 ? 0.4 : 0.12}
+                />
+                <text x={CHART.left - 8} y={y(tick) + 4} textAnchor="end">{number.format(tick)}</text>
+              </g>
+            ))}
+            {today !== null ? (
+              <g>
+                <line x1={today} x2={today} y1={CHART.top} y2={y(0)} stroke="currentColor" strokeOpacity="0.5" strokeDasharray="2 3" />
+                <text x={today} y={CHART.top - 8} textAnchor="middle">Aujourd’hui</text>
+              </g>
+            ) : null}
             <text x={CHART.left} y={CHART.height - 12}>{shortDate.format(new Date(t0))}</text>
             <text x={CHART.width - CHART.right} y={CHART.height - 12} textAnchor="end">
               {shortDate.format(new Date(t1))}
             </text>
           </g>
           <g role="list" aria-label="Points et lignes du burndown">
-            <g role="listitem" aria-label={actualLineLabel}>
+            <g role="listitem" aria-label={actualLineLabel} className="text-primary">
               <path d={actualPath} fill="none" stroke="currentColor" strokeWidth="2" />
+              <text
+                aria-hidden="true"
+                data-testid="burndown-end-value"
+                x={endLabelInside ? lastX - 8 : lastX + 10}
+                y={endLabelY}
+                textAnchor={endLabelInside ? "end" : "start"}
+                fontSize="12"
+                fontWeight="600"
+                fill="currentColor"
+              >
+                {endLabel}
+              </text>
             </g>
             {guidelinePath && guidelineLabel ? (
               <g role="listitem" aria-label={guidelineLabel} className="text-muted-foreground">
@@ -241,7 +283,7 @@ function BurndownChart({ report }: { report: DetailedReport }) {
               </g>
             ) : null}
             {markers.map((marker) => (
-              <g key={marker.key} role="listitem" aria-label={marker.accessibleLabel}>
+              <g key={marker.key} role="listitem" aria-label={marker.accessibleLabel} className="text-primary">
                 {marker.scopeChange ? (
                   <circle
                     cx={marker.x}
@@ -261,33 +303,33 @@ function BurndownChart({ report }: { report: DetailedReport }) {
       </div>
       <ul aria-label="Légende du burndown" className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
         <li className="flex items-center gap-2">
-          <svg aria-hidden="true" width="24" height="8" className="text-foreground">
+          <svg aria-hidden="true" width="24" height="8" className="text-primary">
             <line x1="0" x2="24" y1="4" y2="4" stroke="currentColor" strokeWidth="2" />
           </svg>
-          Ligne continue : travail restant réel
+          Travail restant (ligne continue)
         </li>
         {guideline ? (
           <li className="flex items-center gap-2">
             <svg aria-hidden="true" width="24" height="8" className="text-muted-foreground">
               <line x1="0" x2="24" y1="4" y2="4" stroke="currentColor" strokeWidth="2" strokeDasharray="6 4" />
             </svg>
-            Ligne pointillée grise : trajectoire idéale
+            Trajectoire idéale (pointillés gris)
           </li>
         ) : null}
         {hasPlainMarker ? (
           <li className="flex items-center gap-2">
-            <svg aria-hidden="true" width="12" height="12" className="text-foreground">
+            <svg aria-hidden="true" width="12" height="12" className="text-primary">
               <circle cx="6" cy="6" r="3.5" fill="currentColor" />
             </svg>
-            Point plein : événement du sprint
+            Événement du sprint (point plein)
           </li>
         ) : null}
         {hasScopeChange ? (
           <li className="flex items-center gap-2">
-            <svg aria-hidden="true" width="14" height="14" className="text-foreground">
+            <svg aria-hidden="true" width="14" height="14" className="text-primary">
               <circle cx="7" cy="7" r="5" className="fill-card" stroke="currentColor" strokeWidth="2" />
             </svg>
-            Cercle évidé : changement de périmètre
+            Ajout ou retrait en cours de sprint (cercle évidé)
           </li>
         ) : null}
       </ul>
