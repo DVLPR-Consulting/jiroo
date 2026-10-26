@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { ItemDetailDrawer } from "@/components/items/item-detail-sheet";
 import { LePointView } from "@/components/le-point/le-point-view";
-import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
+import { BacklogTopbarCreate } from "@/components/shell/backlog-topbar-create";
 import { requireAppPageSession } from "@/lib/auth/session";
 import { firstSearchParam, type RawSearchParams } from "@/lib/items/view-url-params";
 import { loadLePoint } from "@/lib/le-point/load";
@@ -17,6 +18,7 @@ export const metadata: Metadata = { title: "Le point (pilote) — Jiroo" };
  * « Le point » pilot (JIR-107): a view of the project, like Jira's project
  * Summary, so the sidebar keeps the project. The backlog is read with the
  * reader's own rights, read-only; a ticket opens in the item panel in place.
+ * Its header and « + Créer » are the other project pages' own.
  */
 export default async function BacklogLePointPage({
   params,
@@ -37,7 +39,8 @@ export default async function BacklogLePointPage({
 
   return (
     <>
-      <LePointView data={data} breadcrumb={<ShellBreadcrumb />} />
+      <Suspense fallback={null}><BacklogTopbarCreate userId={session.user.id} backlogKey={data.backlog.key} hasItemDrawer /></Suspense>
+      <LePointView data={data} />
       <ItemDetailDrawer
         backlogKey={data.backlog.key}
         itemKey={itemKey}

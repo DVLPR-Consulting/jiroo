@@ -178,7 +178,7 @@ export function HelpGuide() {
           ]}
         >
           <GuideNote>
-            Le choix de la perspective ne change aucun droit. La page est en lecture seule : elle ne modifie rien dans le projet.
+            Le choix de la perspective ne change aucun droit. La page est en lecture seule : elle ne modifie rien dans le projet. Comme sur les autres vues, <Ui>+ Créer</Ui> reste en haut à droite pour ajouter un ticket.
           </GuideNote>
         </GuideTopic>
         <GuideTopic

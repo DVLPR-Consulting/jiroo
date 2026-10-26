@@ -2,7 +2,6 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LePointView, PERSPECTIVE_STORAGE_KEY, ticketHref } from "@/components/le-point/le-point-view";
-import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
 import { ShellDataProvider } from "@/components/shell/shell-data";
 import { LE_POINT_DEMO } from "@/lib/le-point/fixtures";
 import { VISIT_COOKIE } from "@/lib/le-point/visit";
@@ -113,7 +112,7 @@ describe("LePointView", () => {
   it("shows the project trail above the title, back to the project", () => {
     render(
       <ShellDataProvider backlogs={[{ id: "b-demo", key: "DEMO", name: "DÉMO — Portail des décisions" }]} views={[]}>
-        <LePointView data={camille} breadcrumb={<ShellBreadcrumb />} />
+        <LePointView data={camille} />
       </ShellDataProvider>,
     );
     const trail = screen.getByRole("navigation", { name: "Fil d’Ariane" });
