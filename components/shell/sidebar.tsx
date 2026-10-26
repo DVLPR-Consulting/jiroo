@@ -104,7 +104,8 @@ export function Sidebar({
     ? `/b/${encodeURIComponent(activeBacklog.key)}/settings`
     : null;
   const activeBacklogId = activeBacklog?.id;
-  // Asked for the active backlog only, again on each navigation so a granted
+  // Asked for the active backlog only, again on each navigation (path or item
+  // view, since Board, Backlog, Liste and Arbre share `/b/<key>`) so a granted
   // or revoked right shows up without a reload (JIR-122). The last answer for
   // this backlog stays shown while the next one is pending or failed.
   const [settingsAccess, setSettingsAccess] = useState<{ backlogId: string; allowed: boolean } | null>(null);
@@ -120,7 +121,7 @@ export function Sidebar({
     return () => {
       current = false;
     };
-  }, [activeBacklogId, pathname]);
+  }, [activeBacklogId, pathname, activeView]);
   const canOpenSettings =
     activeBacklogId !== undefined &&
     settingsAccess?.backlogId === activeBacklogId &&

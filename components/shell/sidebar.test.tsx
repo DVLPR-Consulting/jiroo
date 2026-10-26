@@ -272,6 +272,26 @@ describe("Sidebar", () => {
     await within(nav).findByRole("link", { name: "Paramètres" });
   });
 
+  it("re-checks the settings link when switching item views on the same path (JIR-122)", async () => {
+    mocks.canOpenBacklogSettings.mockResolvedValue(false);
+    const tree = () => (
+      <SidebarStateProvider>
+        <ViewUrlStateProvider initialEntries={[]}>
+          <Sidebar {...props} />
+        </ViewUrlStateProvider>
+      </SidebarStateProvider>
+    );
+    const { rerender } = render(tree());
+    await waitFor(() => expect(mocks.canOpenBacklogSettings).toHaveBeenCalledTimes(1));
+    const nav = screen.getByRole("navigation", { name: "Vues du projet" });
+
+    mocks.canOpenBacklogSettings.mockResolvedValue(true);
+    mocks.search = "view=list";
+    rerender(tree());
+    await within(nav).findByRole("link", { name: "Paramètres" });
+    expect(mocks.canOpenBacklogSettings).toHaveBeenCalledTimes(2);
+  });
+
   it("follows the backlog of an access page, not the first backlog (JIR-85)", () => {
     mocks.pathname = "/b/PEN/settings/access";
     render(
