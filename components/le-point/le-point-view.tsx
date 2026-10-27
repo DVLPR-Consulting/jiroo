@@ -487,7 +487,7 @@ function HealthTile({ value, unit, line, tone = "neutral", onClick, expanded = f
       aria-expanded={expanded}
       className={cn(
         className,
-        "w-full text-left outline-none transition-colors hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+        "flex w-full flex-col items-stretch justify-start text-left outline-none transition-colors hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
         expanded && "bg-[var(--muted)] ring-1 ring-inset ring-foreground",
       )}
     >
@@ -527,9 +527,10 @@ function ScopePanel({ data, light }: { data: LePointDataset; light: SprintLight 
   const start = commitment
     ? `${countLabel(commitment.tickets, "ticket embarqué", "tickets embarqués")} au démarrage ; ${since}.`
     : `Engagement initial inconnu, le sprint a démarré avant que ces faits soient gardés ; ${since}.`;
-  const points = (value: number) => countLabel(value, "point", "points", formatPoints);
+  // Rounded to the hundredth before it is worded, so the agreement follows the figure shown.
+  const points = (value: number) => countLabel(Math.round(value * 100) / 100, "point", "points", formatPoints);
   const verdict = velocity === null
-    ? " Pas encore de vélocité : aucun sprint clos."
+    ? " Pas encore de vélocité calculable sur les derniers sprints clos."
     : light.unit !== "points" || !commitment
       ? ""
       : commitment.points > velocity
@@ -550,10 +551,10 @@ function ScopePanel({ data, light }: { data: LePointDataset; light: SprintLight 
           {bars.map((bar) => (
             <Fragment key={bar.label}>
               <span className="text-muted-foreground">{bar.label}</span>
-              <span role="img" aria-label={`${bar.label} : ${formatPoints(bar.value)} pts`} className="flex h-2 overflow-hidden rounded-full bg-[var(--muted)]">
+              <span role="img" aria-label={`${bar.label} : ${countLabel(bar.value, "pt", "pts", formatPoints)}`} className="flex h-2 overflow-hidden rounded-full bg-[var(--muted)]">
                 <span className={bar.className} style={{ width: `${(bar.value / scale) * 100}%` }} />
               </span>
-              <span className="font-medium tabular-nums">{formatPoints(bar.value)} pts</span>
+              <span className="font-medium tabular-nums">{countLabel(bar.value, "pt", "pts", formatPoints)}</span>
             </Fragment>
           ))}
         </div>
@@ -569,10 +570,11 @@ function ScopePanel({ data, light }: { data: LePointDataset; light: SprintLight 
               <Link href={ticketHref(change.key, data.backlog.key)} className="font-mono text-[11.5px] font-medium text-muted-foreground hover:underline">
                 {change.key}
               </Link>
-              <span className="min-w-0 flex-1 truncate">{change.title}</span>
+              {/* The title keeps a readable width; the facts wrap under it when the row is narrow. */}
+              <span className="min-w-[10rem] flex-1 truncate">{change.title}</span>
               <span className="text-xs text-muted-foreground">
                 {change.points === null ? "non estimé" : countLabel(change.points, "pt", "pts", formatPoints)} · le {formatDay(change.day)}
-                {change.actor ? ` par ${people.get(change.actor) ?? "quelqu’un"}` : ""}
+                {` par ${(change.actor && people.get(change.actor)) ?? "quelqu’un"}`}
               </span>
             </li>
           ))}
@@ -678,6 +680,22 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
   const changes = sprint.changes ?? [];
   const added = changes.filter((change) => change.kind === "added").length;
   const removed = changes.length - added;
+  // The journal stays reachable even once the last ticket left the sprint: that is what explains the empty scope.
+  const scopeTile = (
+    <HealthTile
+      tone={light.added.percent > SPRINT_THRESHOLDS.scopeAdded ? "warning" : "neutral"}
+      value={added > 0 && removed > 0 ? `+${added} · −${removed}` : removed > 0 ? `−${removed}` : `+${added}`}
+      unit={added > 0 && removed > 0 ? undefined : removed > 0 ? frenchPlural(removed, "retiré", "retirés") : frenchPlural(added, "ajouté", "ajoutés")}
+      line={changes.length > 0 ? (
+        <>
+          {added > 0 && removed > 0 ? "de périmètre, " : ""}{light.added.percent} % de l’engagement initial ·{" "}
+          <span className="text-[var(--primary)] underline">{scopeOpen ? "fermer" : "voir"}</span>
+        </>
+      ) : "aucun changement depuis le début du sprint"}
+      onClick={changes.length > 0 ? () => setScopeOpen((value) => !value) : undefined}
+      expanded={scopeOpen}
+    />
+  );
   return (
     <section
       aria-labelledby={headingId}
@@ -706,7 +724,11 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
         </p>
       ) : null}
       {light.color === "none" ? (
-        <p className="text-sm text-muted-foreground">{light.summary}</p>
+        <>
+          <p className="text-sm text-muted-foreground">{light.summary}</p>
+          {changes.length > 0 ? <div className="grid grid-cols-2 gap-2.5 @xl:grid-cols-4">{scopeTile}</div> : null}
+          {scopeOpen ? <ScopePanel data={data} light={light} /> : null}
+        </>
       ) : (
         <>
           <SprintBar light={light} />
@@ -726,19 +748,7 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
               unit={frenchPlural(light.blocked.length, "bloqué", "bloqués")}
               line={light.blocked.length > 0 ? light.blocked.join(", ") : "aucun ticket n’attend un autre ticket"}
             />
-            <HealthTile
-              tone={light.added.percent > SPRINT_THRESHOLDS.scopeAdded ? "warning" : "neutral"}
-              value={removed > 0 ? `+${added} · −${removed}` : `+${added}`}
-              unit={removed > 0 ? undefined : frenchPlural(added, "ajouté", "ajoutés")}
-              line={changes.length > 0 ? (
-                <>
-                  {removed > 0 ? "de périmètre, " : ""}{light.added.percent} % de l’engagement initial ·{" "}
-                  <span className="text-[var(--primary)] underline">{scopeOpen ? "fermer" : "voir"}</span>
-                </>
-              ) : "aucun changement depuis le début du sprint"}
-              onClick={changes.length > 0 ? () => setScopeOpen((value) => !value) : undefined}
-              expanded={scopeOpen}
-            />
+            {scopeTile}
             {forecast?.overdue ? (
               <HealthTile tone="danger" value={`+${position - span} j`} line="au-delà de la fin prévue" />
             ) : (

@@ -257,6 +257,33 @@ describe("LePointView, whole team (JIR-121)", () => {
     expect(within(sprint).queryByRole("link", { name: "Voir le rapport de sprint" })).toBeNull();
   });
 
+  it("keeps the scope's journal reachable once the last ticket left the sprint, and names an unknown author", async () => {
+    const emptied = {
+      ...camille,
+      tickets: camille.tickets.map((ticket) => ({ ...ticket, inSprint: false })),
+      sprint: {
+        ...camille.sprint!,
+        commitment: { points: 5, tickets: 1 },
+        changes: [{ kind: "removed" as const, key: "DEMO-12", title: "Générer le PDF signé d’un arrêt", points: 5, day: "2026-11-02", actor: null }],
+      },
+    };
+    render(<LePointView data={emptied} />);
+    const sprint = section("Santé du sprint");
+    expect(sprint).toHaveTextContent("Le sprint ne contient aucun ticket.");
+    await userEvent.click(within(sprint).getByRole("button", { name: /^−1retiré/ }));
+    expect(sprint).toHaveTextContent("1 ticket embarqué au démarrage ; depuis, 1 retiré.");
+    expect(sprint).toHaveTextContent("RetiréDEMO-12Générer le PDF signé d’un arrêt5 pts · le 2 nov. par quelqu’un");
+  });
+
+  it("words the gap between commitment and velocity on the figure it shows", async () => {
+    const close = { ...camille, sprint: { ...camille.sprint!, commitment: { points: 2.3, tickets: 10 }, velocity: 0.3 } };
+    render(<LePointView data={close} />);
+    const sprint = section("Santé du sprint");
+    await userEvent.click(within(sprint).getByRole("button", { name: /^\+1ajouté/ }));
+    expect(within(sprint).getByRole("img", { name: "Vélocité moyenne, 3 derniers sprints : 0,3 pt" })).toBeInTheDocument();
+    expect(sprint).toHaveTextContent("L’engagement dépasse de 2 points la vélocité moyenne.");
+  });
+
   it("explains its rules on request, in a dialog, and gives the focus back to its button", async () => {
     render(<LePointView data={camille} />);
     const button = within(section("Santé du sprint")).getByRole("button", { name: "Comment est-ce calculé ?" });
