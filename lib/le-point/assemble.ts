@@ -19,6 +19,7 @@ export type LePointRow = {
   assigneeId: string | null;
   dueDate: Day | null;
   closedAt: Date | null;
+  estimatePoints: number | null;
 };
 
 export type LePointSource = {
@@ -43,6 +44,8 @@ export type LePointSource = {
   sprint: { name: string; start: Day; end: Day } | null;
   /** The items in the active sprint; null without one. */
   sprintItemIds: string[] | null;
+  /** Those of `sprintItemIds` that joined after the sprint started: scope added mid-sprint (JIR-124). */
+  sprintAddedItemIds?: string[];
   people: { id: string; name: string }[];
 };
 
@@ -54,6 +57,7 @@ export function assembleLePoint(source: LePointSource): LePointDataset {
   const lastActivity = new Map(source.lastActivity.map((row) => [row.itemId, dayInZone(row.at)]));
   const releaseById = new Map(source.releases.map((release) => [release.id, release]));
   const inSprint = source.sprintItemIds ? new Set(source.sprintItemIds) : null;
+  const addedToSprint = new Set(source.sprintAddedItemIds ?? []);
   const versionsOf = new Map<string, string[]>();
   for (const { itemId, releaseId } of source.fixVersions) {
     if (releaseById.has(releaseId)) versionsOf.set(itemId, [...(versionsOf.get(itemId) ?? []), releaseId]);
@@ -82,6 +86,9 @@ export function assembleLePoint(source: LePointSource): LePointDataset {
       due: row.dueDate,
       ...(row.category === "done" && row.closedAt ? { done: dayInZone(row.closedAt) } : {}),
       lastActivity: lastActivity.get(row.id) ?? null,
+      points: row.estimatePoints,
+      ...(inSprint?.has(row.id) ? { inSprint: true } : {}),
+      ...(addedToSprint.has(row.id) ? { addedAfterStart: true } : {}),
     };
   }
 

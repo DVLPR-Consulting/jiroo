@@ -14,6 +14,7 @@ const row = (id: string, over: Partial<LePointRow> = {}): LePointRow => ({
   assigneeId: "dev",
   dueDate: null,
   closedAt: null,
+  estimatePoints: null,
   ...over,
 });
 

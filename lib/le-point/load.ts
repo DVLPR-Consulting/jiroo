@@ -59,6 +59,7 @@ export async function loadLePoint(input: {
       assigneeId: items.assigneeId,
       dueDate: items.dueDate,
       closedAt: items.closedAt,
+      estimatePoints: items.estimatePoints,
     })
     .from(items)
     .innerJoin(statuses, eq(statuses.id, items.statusId))
@@ -84,6 +85,7 @@ export async function loadLePoint(input: {
             assigneeId: sourceItem.assigneeId,
             dueDate: sourceItem.dueDate,
             closedAt: sourceItem.closedAt,
+            estimatePoints: sourceItem.estimatePoints,
           })
           .from(itemLinks)
           .innerJoin(sourceItem, eq(sourceItem.id, itemLinks.sourceId))
@@ -147,6 +149,7 @@ export async function loadLePoint(input: {
         assigneeId: link.assigneeId,
         dueDate: link.dueDate,
         closedAt: link.closedAt,
+        estimatePoints: link.estimatePoints,
       });
       blocks.push({ sourceId, targetId });
     } else if (link.category !== "done") {
@@ -163,13 +166,18 @@ export async function loadLePoint(input: {
   const people = await db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, [...peopleIds]));
 
   const sprint = sprintRows[0];
-  const sprintItemIds = sprint
-    ? (await db
-        .select({ itemId: sprintItems.itemId })
-        .from(sprintItems)
-        .where(and(eq(sprintItems.sprintId, sprint.id), isNull(sprintItems.leftAt)))).map((row) => row.itemId)
-    : null;
   const sprintStart = sprint?.startedAt ?? sprint?.plannedStartAt;
+  const sprintMembers = sprint
+    ? await db
+        .select({ itemId: sprintItems.itemId, joinedAt: sprintItems.joinedAt })
+        .from(sprintItems)
+        .where(and(eq(sprintItems.sprintId, sprint.id), isNull(sprintItems.leftAt)))
+    : null;
+  const sprintItemIds = sprintMembers?.map((row) => row.itemId) ?? null;
+  // Joined after the start: scope added mid-sprint (JIR-124).
+  const sprintAddedItemIds = sprintMembers && sprintStart
+    ? sprintMembers.filter((row) => row.joinedAt > sprintStart).map((row) => row.itemId)
+    : [];
   return assembleLePoint({
     viewerId: input.userId,
     today,
@@ -193,6 +201,7 @@ export async function loadLePoint(input: {
       ? { name: sprint.name, start: dayInZone(sprintStart), end: dayInZone(sprint.plannedEndAt) }
       : null,
     sprintItemIds,
+    sprintAddedItemIds,
     people,
   });
 }
