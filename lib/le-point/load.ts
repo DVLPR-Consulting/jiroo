@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, eq, inArray, isNull, max, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { checkPermission, listAssignableUsersForBacklog } from "@/lib/auth/authorization";
 import { listAccessibleBacklogs } from "@/lib/auth/accessible-backlogs";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -12,6 +13,7 @@ import {
   itemLinks,
   items,
   releases,
+  sprintEvents,
   sprintItems,
   sprints,
   statuses,
@@ -19,7 +21,9 @@ import {
 import { assembleLePoint, type LePointSource } from "@/lib/le-point/assemble";
 import type { Day, LePointDataset } from "@/lib/le-point/model";
 import { dayInZone } from "@/lib/roadmap/days";
+import { calculatePreviousSprintsVelocity } from "@/lib/reports/sprint-calculations";
 import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
+import { getVelocityReport } from "@/lib/services/sprint-reports";
 
 /**
  * « Le point » pilot (JIR-107): the read-only facts of one real backlog, as
@@ -68,7 +72,7 @@ export async function loadLePoint(input: {
   const ids = rows.map((row) => row.id);
   const liveIds = sql`(select ${items.id} from ${items} where ${items.backlogId} = ${backlog.id} and ${items.deletedAt} is null)`;
 
-  const [links, commentRows, activityRows, releaseRows, versionRows, sprintRows, accessible] = await Promise.all([
+  const [links, commentRows, activityRows, releaseRows, versionRows, sprintRows, accessible, directoryAccess] = await Promise.all([
     ids.length === 0
       ? []
       : db
@@ -117,12 +121,13 @@ export async function loadLePoint(input: {
       .from(itemFixVersions)
       .where(eq(itemFixVersions.backlogId, backlog.id)),
     db
-      .select({ id: sprints.id, name: sprints.name, startedAt: sprints.startedAt, plannedStartAt: sprints.plannedStartAt, plannedEndAt: sprints.plannedEndAt })
+      .select({ id: sprints.id, name: sprints.name, goal: sprints.goal, startedAt: sprints.startedAt, plannedStartAt: sprints.plannedStartAt, plannedEndAt: sprints.plannedEndAt })
       .from(sprints)
       .where(and(eq(sprints.backlogId, backlog.id), eq(sprints.state, "active")))
       .limit(1),
     // Archived backlogs cannot be opened: their tickets stay hidden.
     listAccessibleBacklogs(input.userId),
+    checkPermission({ actorId: input.userId, permission: "browse_users", scope: { type: "global" } }),
   ]);
 
   // Outside dependencies: everything when the reader may browse their
@@ -157,38 +162,78 @@ export async function loadLePoint(input: {
     }
   }
 
-  const peopleIds = new Set<string>([input.userId]);
-  for (const row of [...rows, ...outside.values()]) if (row.assigneeId) peopleIds.add(row.assigneeId);
-  for (const comment of commentRows) {
-    peopleIds.add(comment.authorId);
-    for (const id of comment.mentions) peopleIds.add(id);
-  }
-  const people = await db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, [...peopleIds]));
-
   const sprint = sprintRows[0];
   const sprintStart = sprint?.startedAt ?? sprint?.plannedStartAt;
   // Every membership of the sprint, left ones included (JIR-124). Added after
   // the start, as the burndown reads it: the membership has an « item_added »
   // sprint event, which only a join into a started sprint writes; a backdated
   // start never makes the initial scope look added.
-  const sprintMembers = sprint
-    ? await db
-        .select({
-          itemId: sprintItems.itemId,
-          leftAt: sprintItems.leftAt,
-          doneAtStart: sprintItems.doneAtStart,
-          estimateAtStart: sprintItems.estimateAtStart,
-          addedAfterStart: sql<boolean>`exists (
-            select 1 from sprint_events added_event
-            where added_event.backlog_id = ${backlog.id}
-              and added_event.sprint_id = ${sprint.id}
-              and added_event.source_membership_id = ${sprintItems.id}
-              and added_event.event_type = 'item_added'
-          )`,
-        })
-        .from(sprintItems)
-        .where(eq(sprintItems.sprintId, sprint.id))
+  const [sprintMembers, sprintChanges, velocityReport, members] = await Promise.all([
+    sprint
+      ? db
+          .select({
+            itemId: sprintItems.itemId,
+            leftAt: sprintItems.leftAt,
+            doneAtStart: sprintItems.doneAtStart,
+            estimateAtStart: sprintItems.estimateAtStart,
+            addedAfterStart: sql<boolean>`exists (
+              select 1 from sprint_events added_event
+              where added_event.backlog_id = ${backlog.id}
+                and added_event.sprint_id = ${sprint.id}
+                and added_event.source_membership_id = ${sprintItems.id}
+                and added_event.event_type = 'item_added'
+            )`,
+          })
+          .from(sprintItems)
+          .where(eq(sprintItems.sprintId, sprint.id))
+      : null,
+    sprint
+      ? db
+          .select({
+            kind: sql<"added" | "removed">`case when ${sprintEvents.eventType} = 'item_added' then 'added' else 'removed' end`,
+            // The journal owns the identity, including after deletion or purge.
+            key: sql<string>`coalesce(${sprintEvents.itemKey}, ${items.key})`,
+            title: sql<string>`coalesce(${sprintEvents.itemTitle}, ${items.title})`,
+            // Zero is known; only an unknown event estimate falls back to the current item.
+            points: sql<number | null>`coalesce(case when ${sprintEvents.eventType} = 'item_added'
+              then ${sprintEvents.nextEstimate} else ${sprintEvents.previousEstimate} end, ${items.estimatePoints})`.mapWith(items.estimatePoints),
+            at: sprintEvents.occurredAt,
+            actor: sprintEvents.actorId,
+          })
+          .from(sprintEvents)
+          .leftJoin(items, and(eq(items.id, sprintEvents.itemId), eq(items.backlogId, backlog.id)))
+          .where(and(
+            eq(sprintEvents.backlogId, backlog.id), eq(sprintEvents.sprintId, sprint.id),
+            inArray(sprintEvents.eventType, ["item_added", "item_removed"]),
+          ))
+          .orderBy(asc(sprintEvents.occurredAt), asc(sprintEvents.sequence))
+      : [],
+    // The report reads at most seven headers. Reuse its inclusion rules, with a three-sprint window below.
+    sprint ? getVelocityReport(backlog.id, 7) : null,
+    directoryAccess.allowed ? listAssignableUsersForBacklog(backlog.id) : [],
+  ]);
+  const sprintVelocity = velocityReport && sprint
+    ? calculatePreviousSprintsVelocity(
+        [...velocityReport.bars].reverse().map((bar) => ({
+          sprintId: bar.sprintId,
+          hasSnapshot: bar.excludedReason !== "history_unavailable",
+          committedPoints: bar.committedPoints,
+          completedPoints: bar.completedPoints,
+        })),
+        sprint.id,
+        3,
+      ).averageCompletedPoints
     : null;
+
+  const peopleIds = new Set<string>([input.userId]);
+  for (const row of [...rows, ...outside.values()]) if (row.assigneeId) peopleIds.add(row.assigneeId);
+  for (const comment of commentRows) {
+    peopleIds.add(comment.authorId);
+    for (const id of comment.mentions) peopleIds.add(id);
+  }
+  for (const change of sprintChanges) peopleIds.add(change.actor);
+  const people = await db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, [...peopleIds]));
+
   const current = sprintMembers?.filter((row) => row.leftAt === null) ?? null;
   const sprintItemIds = current?.map((row) => row.itemId) ?? null;
   const sprintAddedItemIds = current?.filter((row) => row.addedAfterStart).map((row) => row.itemId) ?? [];
@@ -222,11 +267,15 @@ export async function loadLePoint(input: {
     sprint: sprint && sprintStart && sprint.plannedEndAt
       ? {
           name: sprint.name,
+          goal: sprint.goal,
           start: dayInZone(sprintStart),
           end: dayInZone(sprint.plannedEndAt),
           ...(commitment ? { commitment } : {}),
         }
       : null,
+    sprintChanges,
+    sprintVelocity,
+    members,
     sprintItemIds,
     sprintAddedItemIds,
     people,

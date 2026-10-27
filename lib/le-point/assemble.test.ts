@@ -54,6 +54,43 @@ function source(over: Partial<LePointSource> = {}): LePointSource {
 }
 
 describe("assembleLePoint", () => {
+  it("copies sprint facts, retaining every scope change and dating it in Paris", () => {
+    const data = assembleLePoint(source({
+      sprint: { name: "Sprint 1", start: "2026-10-20", end: "2026-11-03", goal: "  Publier la recherche  " },
+      sprintItemIds: ["2"],
+      sprintChanges: [
+        { kind: "added", key: "CASS-2", title: "Titre au moment de l’ajout", points: 0, at: new Date("2026-10-20T22:30:00Z"), actor: "dev" },
+        { kind: "removed", key: "CASS-2", title: "Titre au moment du retrait", points: null, at: new Date("2026-10-21T22:30:00Z"), actor: null },
+      ],
+      sprintVelocity: 7.25,
+      members: [{ id: "dev", name: "Paul" }, { id: "idle", name: "Sans ticket" }],
+    }));
+
+    expect(data.sprint).toEqual({
+      name: "Sprint 1", start: "2026-10-20", end: "2026-11-03", goal: "Publier la recherche", velocity: 7.25,
+      changes: [
+        { kind: "added", key: "CASS-2", title: "Titre au moment de l’ajout", points: 0, day: "2026-10-21", actor: "dev" },
+        { kind: "removed", key: "CASS-2", title: "Titre au moment du retrait", points: null, day: "2026-10-22", actor: null },
+      ],
+    });
+    expect(data.members).toEqual([{ id: "dev", name: "Paul" }, { id: "idle", name: "Sans ticket" }]);
+  });
+
+  it("keeps empty sprint facts explicit, including a real zero velocity", () => {
+    const sprint = { name: "Sprint 1", start: "2026-10-20", end: "2026-11-03", goal: "   " };
+    expect(assembleLePoint(source({ sprint, sprintVelocity: 0 })).sprint).toEqual({
+      ...sprint, goal: null, changes: [], velocity: 0,
+    });
+    expect(assembleLePoint(source({ sprint })).sprint).toMatchObject({ goal: null, changes: [], velocity: null });
+  });
+
+  it("keeps members without an active sprint, without inventing any from referenced people", () => {
+    expect(assembleLePoint(source({ members: [{ id: "idle", name: "Sans ticket" }] }))).toMatchObject({
+      sprint: null, members: [{ id: "idle", name: "Sans ticket" }],
+    });
+    expect(assembleLePoint(source()).members).toEqual([]);
+  });
+
   it("makes the reader the viewer of both perspectives", () => {
     expect(assembleLePoint(source()).personas).toEqual({ developer: "dev", product: "dev" });
   });
