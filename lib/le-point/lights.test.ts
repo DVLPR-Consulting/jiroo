@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LE_POINT_DEMO } from "@/lib/le-point/fixtures";
-import { personLight, sprintLight, workingDaysBetween } from "@/lib/le-point/lights";
+import { personLight, sprintLight, workingDaysBetween, workloadTickets } from "@/lib/le-point/lights";
 import type { LePointDataset, LePointTicket } from "@/lib/le-point/model";
 
 // Tuesday 3 November 2026, day 8 of a sprint running from 27 October to 7 November: 64 % of the time gone.
@@ -32,6 +32,8 @@ const ticket = (key: string, over: Partial<LePointTicket> = {}): LePointTicket =
 const done = (key: string, points: number): LePointTicket =>
   ticket(key, { status: "Terminé", category: "done", done: "2026-11-01", points });
 const todo = (key: string, points: number): LePointTicket => ticket(key, { points });
+const doing = (key: string, lastActivity: string | null, over: Partial<LePointTicket> = {}) =>
+  ticket(key, { status: "En cours", category: "in_progress", lastActivity, ...over });
 const data = (tickets: LePointTicket[], over: Partial<LePointDataset> = {}): LePointDataset => ({ ...base, tickets, ...over });
 
 describe("workingDaysBetween", () => {
@@ -216,9 +218,6 @@ describe("sprintLight", () => {
 });
 
 describe("personLight", () => {
-  const doing = (key: string, lastActivity: string | null, over: Partial<LePointTicket> = {}) =>
-    ticket(key, { status: "En cours", category: "in_progress", lastActivity, ...over });
-
   it("is green while the tickets in progress move", () => {
     expect(personLight(data([doing("T-1", "2026-11-02"), todo("T-2", 3)]), "ana")).toEqual({
       color: "green",
@@ -233,34 +232,44 @@ describe("personLight", () => {
     const light = personLight(data([doing("T-1", "2026-10-28"), doing("T-2", "2026-11-02")]), "ana");
     expect(light).toMatchObject({
       color: "amber",
-      label: "À surveiller",
-      summary: "1 ticket en cours sans activité depuis 3 jours ouvrés.",
+      label: "1 inactif depuis 4 j ouvrés",
+      summary: "1 ticket en cours sans activité depuis 4 jours ouvrés.",
       details: ["2 tickets en cours, 0 à faire.", "T-1 en cours sans activité depuis 4 jours ouvrés."],
     });
   });
 
   it("is amber on a blocked ticket, even one still to do", () => {
     const light = personLight(data([ticket("T-1", { blockedBy: [{ hidden: true }] }), doing("T-2", "2026-11-02")]), "ana");
-    expect(light).toMatchObject({ color: "amber", summary: "1 ticket bloqué.", details: ["1 ticket en cours, 1 à faire.", "T-1 bloqué."] });
+    expect(light).toMatchObject({ color: "amber", label: "1 bloqué", summary: "1 ticket bloqué.", details: ["1 ticket en cours, 1 à faire.", "T-1 bloqué."] });
+  });
+
+  it("names both the idle and the blocked tickets, the days then in its summary only", () => {
+    const light = personLight(data([doing("T-1", "2026-10-28"), doing("T-2", "2026-10-29"), ticket("T-3", { blockedBy: [{ hidden: true }] })]), "ana");
+    expect(light).toMatchObject({
+      color: "amber",
+      label: "2 inactifs, 1 bloqué",
+      summary: "2 tickets en cours sans activité depuis 3 jours ouvrés, 1 ticket bloqué.",
+    });
+    expect(personLight(data([doing("T-1", "2026-10-28"), doing("T-2", "2026-10-29")]), "ana").label).toBe("2 inactifs depuis 3 j ouvrés");
   });
 
   it("is red when nothing in progress moved for 5 working days", () => {
     const stuck = personLight(data([doing("T-1", "2026-10-26"), doing("T-2", "2026-10-23")]), "ana");
-    expect(stuck).toMatchObject({ color: "red", label: "En difficulté", summary: "Plus rien n’a bougé depuis 5 jours ouvrés.", tone: "danger" });
+    expect(stuck).toMatchObject({ color: "red", label: "Rien ne bouge depuis 6 j ouvrés", summary: "Plus rien n’a bougé depuis 6 jours ouvrés.", tone: "danger" });
     // One ticket still moving: a warning, not a red light.
     const moving = personLight(data([doing("T-1", "2026-10-26"), doing("T-2", "2026-11-03")]), "ana");
-    expect(moving).toMatchObject({ color: "amber", summary: "1 ticket en cours sans activité depuis 3 jours ouvrés." });
+    expect(moving).toMatchObject({ color: "amber", label: "1 inactif depuis 6 j ouvrés", summary: "1 ticket en cours sans activité depuis 6 jours ouvrés." });
   });
 
   it("is red with 4 tickets in progress at once", () => {
     const tickets = ["T-1", "T-2", "T-3", "T-4"].map((key) => doing(key, "2026-11-03"));
-    expect(personLight(data(tickets), "ana")).toMatchObject({ color: "red", summary: "4 tickets en cours en même temps." });
+    expect(personLight(data(tickets), "ana")).toMatchObject({ color: "red", label: "4 en cours", summary: "4 tickets en cours en même temps." });
   });
 
-  it("is « Disponible » without any ticket in progress", () => {
+  it("says « Rien en cours » without any ticket in progress", () => {
     expect(personLight(data([todo("T-1", 2), todo("T-2", 2)]), "ana")).toEqual({
       color: "none",
-      label: "Disponible",
+      label: "Rien en cours",
       summary: "Aucun ticket en cours.",
       details: ["0 ticket en cours, 2 à faire."],
       tone: "neutral",
@@ -285,6 +294,50 @@ describe("personLight", () => {
   it("gives each person of the demo backlog a different light", () => {
     const colors = Object.fromEntries(["camille", "lea", "hugo", "ines"].map((id) => [id, personLight(LE_POINT_DEMO, id).color]));
     expect(colors).toEqual({ camille: "amber", lea: "amber", hugo: "green", ines: "none" });
-    expect(personLight(LE_POINT_DEMO, "camille").details).toEqual(["1 ticket en cours, 2 à faire.", "DEMO-15 bloqué."]);
+    expect(personLight(LE_POINT_DEMO, "camille")).toMatchObject({ label: "1 bloqué", details: ["1 ticket en cours, 2 à faire.", "DEMO-15 bloqué."] });
+  });
+});
+
+describe("workloadTickets", () => {
+  it("lists the tickets behind a row, trouble first and the sprint's before the rest", () => {
+    const cards = workloadTickets(LE_POINT_DEMO, "camille");
+    expect(cards.map((card) => [card.key, card.tag, card.tone])).toEqual([
+      ["DEMO-15", "Attend DEMO-9", "danger"],
+      ["DEMO-12", "Échéance 5 nov.", "warning"],
+      ["DEMO-21", "En retard de 6 jours", "danger"],
+      ["DEMO-22", "Hors sprint", "neutral"],
+    ]);
+    expect(cards[1]!.reason).toBe("En cours ; échéance le 5 nov., dans 2 jours ; dernière activité le 2 nov.");
+    expect(cards[2]!.reason).toBe("Échéance dépassée de 6 jours (28 oct.).");
+    expect(cards[3]!.reason).toBe("À faire, en dehors du sprint actif.");
+    // The unassigned row: what the team has committed to and nobody holds.
+    expect(workloadTickets(LE_POINT_DEMO, null).map((card) => card.key)).toEqual(["DEMO-30"]);
+  });
+
+  it("says how long a ticket in progress has been idle, the longest first", () => {
+    const cards = workloadTickets(data([doing("T-1", "2026-10-28"), doing("T-2", "2026-10-23"), doing("T-3", null)]), "ana");
+    expect(cards.map((card) => [card.key, card.tag, card.tone])).toEqual([
+      ["T-2", "Inactif depuis 7 j ouvrés", "danger"],
+      ["T-1", "Inactif depuis 4 j ouvrés", "warning"],
+      ["T-3", "En cours", "success"],
+    ]);
+    expect(cards[1]!.reason).toBe("En cours, sans activité depuis 4 jours ouvrés (dernière activité le 28 oct.).");
+    expect(cards[2]!.reason).toBe("En cours ; pas d’échéance ; aucune activité connue.");
+  });
+
+  it("keeps the tickets to do by due date, whatever their last activity", () => {
+    const cards = workloadTickets(data([
+      ticket("T-1", { due: "2026-11-04", lastActivity: "2026-11-03" }),
+      ticket("T-2", { due: "2026-12-15", lastActivity: "2026-10-01" }),
+      ticket("T-3", { due: "2026-11-20", lastActivity: "2026-09-01", inSprint: false }),
+    ]), "ana");
+    expect(cards.map((card) => card.key)).toEqual(["T-1", "T-2", "T-3"]);
+  });
+
+  it("orders the blocked tickets by due date, idle or not, whatever the dataset's order", () => {
+    const idle = doing("T-1", "2026-10-01", { due: "2026-12-15", blockedBy: [{ hidden: true }] });
+    const fresh = ticket("T-2", { due: "2026-11-04", lastActivity: "2026-11-03", blockedBy: [{ hidden: true }] });
+    expect(workloadTickets(data([idle, fresh]), "ana").map((card) => card.key)).toEqual(["T-2", "T-1"]);
+    expect(workloadTickets(data([fresh, idle]), "ana").map((card) => card.key)).toEqual(["T-2", "T-1"]);
   });
 });
