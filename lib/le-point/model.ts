@@ -47,6 +47,12 @@ export type LePointTicket = {
   lastActivity: Day | null;
   /** No activity is known for this ticket since that day. */
   activityUnknownSince?: Day;
+  /** Story points, when estimated (JIR-124). */
+  points?: number | null;
+  /** In the active sprint (JIR-124). */
+  inSprint?: boolean;
+  /** Joined the active sprint after it started: scope added mid-sprint (JIR-124). */
+  addedAfterStart?: boolean;
 };
 
 export type LePointDataset = {
@@ -58,7 +64,16 @@ export type LePointDataset = {
   backlog: { key: string; name: string };
   people: { id: string; name: string }[];
   personas: { developer: string; product: string };
-  sprint: { name: string; start: Day; end: Day } | null;
+  sprint: {
+    name: string;
+    start: Day;
+    end: Day;
+    /**
+     * The scope frozen when the sprint started, removed tickets included
+     * (JIR-124). Unknown for a sprint started before those facts were kept.
+     */
+    commitment?: { points: number; tickets: number };
+  } | null;
   releases: { name: string; planned: Day | null; released: Day | null }[];
   objectives: {
     key: string;
@@ -158,17 +173,19 @@ function dueTag(due: Day | null, today: Day): { tag: string; tone: Tone } {
   return { tag: `Échéance ${formatDay(due)}`, tone: delta <= 3 ? "warning" : "neutral" };
 }
 
+/** The blockers still open: a done dependency no longer blocks. */
+export function openBlockersOf(ticket: LePointTicket, tickets: Map<string, LePointTicket>): Blocker[] {
+  return (ticket.blockedBy ?? []).filter((blocker) =>
+    "hidden" in blocker ? true : tickets.get(blocker.key)?.category !== "done",
+  );
+}
+
 function context(data: LePointDataset) {
   const tickets = new Map(data.tickets.map((ticket) => [ticket.key, ticket]));
   const people = new Map(data.people.map((person) => [person.id, person.name]));
   const objectives = new Map(data.objectives.map((objective) => [objective.key, objective]));
 
-  /** The blockers still open: a done dependency no longer blocks. */
-  function openBlockers(ticket: LePointTicket): Blocker[] {
-    return (ticket.blockedBy ?? []).filter((blocker) =>
-      "hidden" in blocker ? true : tickets.get(blocker.key)?.category !== "done",
-    );
-  }
+  const openBlockers = (ticket: LePointTicket) => openBlockersOf(ticket, tickets);
   const isBlocked = (ticket: LePointTicket) => openBlockers(ticket).length > 0;
 
   function blockedReason(ticket: LePointTicket): string {
