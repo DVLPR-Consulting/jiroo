@@ -174,8 +174,9 @@ export function HelpGuide() {
           title="Choisir ta perspective"
           purpose="Retrouver les informations utiles à ce que tu fais sur le projet."
           steps={[
-            <>Choisis <Ui>Développement</Ui> pour voir ce qui est en cours, ce qui bloque, ce qui arrive ensuite et ce qui a changé depuis ta dernière visite. Pour toute l’équipe, chaque ligne nomme qui tient le ticket, et <Ui>Charge par personne</Ui> compte les tickets ouverts de chacun.</>,
+            <>Choisis <Ui>Développement</Ui> pour voir ce qui est en cours, ce qui bloque, ce qui arrive ensuite et ce qui a changé depuis ta dernière visite. Pour toute l’équipe, chaque ligne nomme qui tient le ticket.</>,
             <>Choisis <Ui>Produit</Ui> pour retrouver les décisions demandées par une mention (à qui, pour toute l’équipe), l’avancement des objectifs (epics), ce qui les met en difficulté et la prochaine livraison (release).</>,
+            <>Pour toute l’équipe, <Ui>Charge par personne</Ui>, en haut de la page dans les deux perspectives, compte les tickets ouverts de chacun. Clique sur une personne pour déplier ses tickets ; <Ui>Voir dans la Liste</Ui> ouvre la Liste filtrée sur elle.</>,
           ]}
         >
           <GuideNote>

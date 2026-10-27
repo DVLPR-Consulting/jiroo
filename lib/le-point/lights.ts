@@ -1,9 +1,16 @@
 import { countLabel, formatPoints } from "@/lib/format/plural";
 import {
+  byDue,
   daysFrom,
+  duePhrase,
+  dueTag,
   formatDay,
+  inWorkload,
   openBlockersOf,
+  sentence,
+  ticketContext,
   type Day,
+  type LePointCard,
   type LePointDataset,
   type LePointTicket,
   type Tone,
@@ -21,7 +28,7 @@ export type LightColor = "green" | "amber" | "red" | "none";
 
 export type Light = {
   color: LightColor;
-  /** « En bonne voie », « À surveiller »… */
+  /** The sprint's verdict (« En bonne voie », « À surveiller »), a person's fact (« 1 bloqué », « Rien en cours »). */
   label: string;
   /** Why this colour, in one sentence. */
   summary: string;
@@ -156,11 +163,14 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
   return { ...light(color, ahead ? "En avance" : SPRINT_LABEL[color], summary, details), elapsedPercent, donePercent, unit };
 }
 
+const workingDays = (count: number) => countLabel(count, "jour ouvré", "jours ouvrés");
+
 /**
  * One person's light: a load, never a verdict on their work. Read on their
  * open tickets of the active sprint (plus anything of theirs in progress), or
  * on all their committed open tickets without a sprint. A ticket without any
- * known activity is never called idle.
+ * known activity is never called idle. The label is the fact (« 1 bloqué »,
+ * « Rien en cours »); the colour says how much it matters.
  */
 export function personLight(data: LePointDataset, assignee: string): Light {
   const byKey = new Map(data.tickets.map((ticket) => [ticket.key, ticket]));
@@ -176,29 +186,90 @@ export function personLight(data: LePointDataset, assignee: string): Light {
   const stale = inProgress.filter((ticket) => idleDays(ticket) >= PERSON_THRESHOLDS.idleDays);
   const stuck = inProgress.length > 0 && inProgress.every((ticket) => idleDays(ticket) >= PERSON_THRESHOLDS.stuckDays);
   const todo = work.length - inProgress.length;
+  // « Since N working days »: every one of these tickets has been idle at least that long.
+  const idleSince = (tickets: LePointTicket[]) => Math.min(...tickets.map(idleDays));
 
   const details = [
     `${countLabel(inProgress.length, "ticket en cours", "tickets en cours")}, ${todo} à faire.`,
-    ...stale.map((ticket) =>
-      `${ticket.key} en cours sans activité depuis ${countLabel(idleDays(ticket), "jour ouvré", "jours ouvrés")}.`),
+    ...stale.map((ticket) => `${ticket.key} en cours sans activité depuis ${workingDays(idleDays(ticket))}.`),
     ...blocked.map((ticket) => `${ticket.key} bloqué.`),
   ];
 
   if (stuck) {
-    return light("red", "En difficulté", `Plus rien n’a bougé depuis ${PERSON_THRESHOLDS.stuckDays} jours ouvrés.`, details);
+    const since = idleSince(inProgress);
+    return light("red", `Rien ne bouge depuis ${since} j ouvrés`, `Plus rien n’a bougé depuis ${workingDays(since)}.`, details);
   }
   if (inProgress.length >= PERSON_THRESHOLDS.wip) {
-    return light("red", "En difficulté", `${inProgress.length} tickets en cours en même temps.`, details);
+    return light("red", `${inProgress.length} en cours`, `${inProgress.length} tickets en cours en même temps.`, details);
   }
   if (stale.length > 0 || blocked.length > 0) {
+    const since = stale.length > 0 ? idleSince(stale) : 0;
+    // The days stay on the pill while it says one thing only; the summary always keeps them.
+    const facts = [
+      stale.length > 0
+        ? `${countLabel(stale.length, "inactif", "inactifs")}${blocked.length === 0 ? ` depuis ${since} j ouvrés` : ""}`
+        : null,
+      blocked.length > 0 ? countLabel(blocked.length, "bloqué", "bloqués") : null,
+    ].filter(present);
     const concerns = [
       stale.length > 0
-        ? `${countLabel(stale.length, "ticket en cours", "tickets en cours")} sans activité depuis ${PERSON_THRESHOLDS.idleDays} jours ouvrés`
+        ? `${countLabel(stale.length, "ticket en cours", "tickets en cours")} sans activité depuis ${workingDays(since)}`
         : null,
       blocked.length > 0 ? countLabel(blocked.length, "ticket bloqué", "tickets bloqués") : null,
     ].filter(present);
-    return light("amber", "À surveiller", `${capitalize(concerns.join(", "))}.`, details);
+    return light("amber", facts.join(", "), `${capitalize(concerns.join(", "))}.`, details);
   }
-  if (inProgress.length === 0) return light("none", "Disponible", "Aucun ticket en cours.", details);
+  if (inProgress.length === 0) return light("none", "Rien en cours", "Aucun ticket en cours.", details);
   return light("green", "En rythme", "Ses tickets en cours avancent.", details);
+}
+
+/**
+ * The tickets behind a workload row, as cards: what each one waits for, how
+ * long it has been idle, how late it is. The blocked first, then the idle
+ * (the longest first), the work under way, what is still to do by due date,
+ * and last what is still to do outside the active sprint, counted in the
+ * load but not in the light. The unassigned row lists the tickets the team
+ * has committed to.
+ */
+export function workloadTickets(data: LePointDataset, assignee: string | null): LePointCard[] {
+  const { isBlocked, blockedReason, blockedTag, card } = ticketContext(data);
+  const idleDays = (ticket: LePointTicket) => (ticket.lastActivity ? workingDaysBetween(ticket.lastActivity, data.today) : 0);
+  const stale = (ticket: LePointTicket) => ticket.category === "in_progress" && idleDays(ticket) >= PERSON_THRESHOLDS.idleDays;
+  const outside = (ticket: LePointTicket) => data.sprint !== null && !ticket.inSprint && ticket.category !== "in_progress";
+  const IDLE = 1;
+  const rank = (ticket: LePointTicket) =>
+    isBlocked(ticket) ? 0 : stale(ticket) ? IDLE : ticket.category === "in_progress" ? 2 : outside(ticket) ? 4 : 3;
+  const activity = (ticket: LePointTicket) =>
+    ticket.lastActivity ? `dernière activité le ${formatDay(ticket.lastActivity)}` : "aucune activité connue";
+
+  // Within a group, only the idle ones are told apart by how long they sat still; the rest by due date.
+  return data.tickets
+    .filter((ticket) => inWorkload(ticket, assignee))
+    .sort((a, b) => {
+      const group = rank(a);
+      return group - rank(b) || (group === IDLE ? idleDays(b) - idleDays(a) : 0) || byDue(a, b);
+    })
+    .map((ticket) => {
+      if (isBlocked(ticket)) return card(ticket, blockedReason(ticket), blockedTag(ticket), "danger");
+      if (stale(ticket)) {
+        const idle = idleDays(ticket);
+        return card(
+          ticket,
+          `En cours, sans activité depuis ${workingDays(idle)} (${activity(ticket)}).`,
+          `Inactif depuis ${idle} j ouvrés`,
+          idle >= PERSON_THRESHOLDS.stuckDays ? "danger" : "warning",
+        );
+      }
+      if (ticket.category === "in_progress") {
+        const reason = sentence(`En cours ; ${duePhrase(ticket.due, data.today)} ; ${activity(ticket)}`);
+        if (ticket.due) {
+          const { tag, tone } = dueTag(ticket.due, data.today);
+          return card(ticket, reason, tag, tone);
+        }
+        return card(ticket, reason, ticket.lastActivity ? `Actif le ${formatDay(ticket.lastActivity)}` : "En cours", "success");
+      }
+      if (outside(ticket)) return card(ticket, "À faire, en dehors du sprint actif.", "Hors sprint", "neutral");
+      const { tag, tone } = dueTag(ticket.due, data.today);
+      return card(ticket, sentence(capitalize(duePhrase(ticket.due, data.today))), tag, tone);
+    });
 }

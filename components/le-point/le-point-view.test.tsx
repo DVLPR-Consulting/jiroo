@@ -183,11 +183,46 @@ describe("LePointView, whole team (JIR-121)", () => {
     expect(within(sprint).getByRole("img", { name: "Points terminés : 42 %" })).toBeVisible();
     expect(within(sprint).getByRole("link", { name: "Voir le burndown" })).toHaveAttribute("href", "/b/DEMO/reports?report=burndown");
     const row = (name: string) => within(section("Charge par personne")).getByText(name).closest("li")!;
-    expect(row("Camille Morel")).toHaveTextContent("À surveiller");
+    // The pill says the fact; the facts behind an amber light sit in the row, not only in its tooltip.
+    expect(row("Camille Morel")).toHaveTextContent("1 bloqué : 1 ticket bloqué.");
+    expect(row("Camille Morel")).toHaveTextContent("DEMO-15 bloqué.");
     expect(row("Camille Morel").querySelector("[title]")).toHaveAttribute("title", "1 ticket bloqué.\n1 ticket en cours, 2 à faire.\nDEMO-15 bloqué.");
     expect(row("Hugo Lefèvre")).toHaveTextContent("En rythme");
-    expect(row("Inès Garnier")).toHaveTextContent("Disponible");
-    expect(row("Sans assigné")).not.toHaveTextContent(/En rythme|À surveiller|Disponible/);
+    expect(row("Inès Garnier")).toHaveTextContent("Rien en cours");
+    expect(row("Sans assigné")).not.toHaveTextContent(/En rythme|bloqué|Rien en cours/);
+  });
+
+  it("opens a person's tickets, each with why it counts, and leads to the Liste filtered on them (JIR-124)", async () => {
+    render(<LePointView data={camille} />);
+    const charge = section("Charge par personne");
+    // Right under the sprint's health, before the figures.
+    expect(charge.compareDocumentPosition(tile("En cours")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const person = within(charge).getByRole("button", { name: /^Camille Morel/ });
+    expect(person).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(person);
+    expect(person).toHaveAttribute("aria-expanded", "true");
+    const panel = within(person.closest("li")!);
+    expect(panel.getAllByRole("link", { name: /DEMO-\d+/ }).map((link) => link.getAttribute("href"))).toEqual([
+      "/b/DEMO/le-point?item=DEMO-15",
+      "/b/DEMO/le-point?item=DEMO-12",
+      "/b/DEMO/le-point?item=DEMO-21",
+      "/b/DEMO/le-point?item=DEMO-22",
+    ]);
+    expect(panel.getByText("Attend DEMO-9")).toBeVisible();
+    expect(panel.getByText("Hors sprint")).toBeVisible();
+    expect(panel.getByText("28 oct. 2026")).toBeVisible();
+    expect(panel.getByRole("link", { name: "Voir dans la Liste" })).toHaveAttribute("href", "/b/DEMO?view=list&assignee=camille");
+    await userEvent.click(person);
+    expect(person).toHaveAttribute("aria-expanded", "false");
+    expect(panel.queryByRole("link", { name: "Voir dans la Liste" })).toBeNull();
+  });
+
+  it("shows the team's load in the product perspective too, right under the sprint's health", async () => {
+    render(<LePointView data={camille} />);
+    expect(headings().slice(0, 2)).toEqual(["Santé du sprint", "Charge par personne5"]);
+    await userEvent.click(screen.getByRole("radio", { name: "Produit" }));
+    expect(headings().slice(0, 2)).toEqual(["Santé du sprint", "Charge par personne5"]);
+    expect(within(section("Charge par personne")).getByRole("button", { name: /^Sans assigné/ })).toBeVisible();
   });
 
   it("says so without an active sprint", () => {

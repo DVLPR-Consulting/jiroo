@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemRow } from "@/components/items/item-row";
 import { PageHeader } from "@/components/shell/page-header";
 import { PageToolbar } from "@/components/shell/page-toolbar";
 import { Badge } from "@/components/ui/badge";
-import { personLight, sprintLight, type Light, type LightColor } from "@/lib/le-point/lights";
+import { personLight, sprintLight, workloadTickets, type Light, type LightColor } from "@/lib/le-point/lights";
 import {
   daysFrom,
   developerView,
   formatDay,
   productView,
+  teamWorkload,
   type LePointCard,
   type LePointDataset,
   type LePointScope,
@@ -290,10 +292,11 @@ function Tag({ card }: { card: LePointCard }) {
 }
 
 /** Tickets in the Backlog's own rows; the tag says why each is here, the row opens it. */
-function Rows({ cards, backlogKey, showAssignee = false }: {
+function Rows({ cards, backlogKey, showAssignee = false, showDue = false }: {
   cards: LePointCard[];
   backlogKey: string;
   showAssignee?: boolean;
+  showDue?: boolean;
 }) {
   return (
     <ul className="overflow-hidden rounded-[var(--radius)] border border-border bg-card">
@@ -310,6 +313,7 @@ function Rows({ cards, backlogKey, showAssignee = false }: {
             type: card.shape === "subtask" ? "soustache" : "tache",
             kind: card.shape === "bug" ? "bug" : null,
             status: { name: card.status, category: card.category },
+            ...(showDue ? { dueDate: card.due } : {}),
           }}
           linkTitle={card.reason}
           // Under the row's link: clicking the tag or the name opens the ticket too.
@@ -455,9 +459,10 @@ function SprintLightCard({ data }: { data: LePointDataset }) {
             quand le travail terminé devance le temps de plus de 10 points.
           </p>
           <p>
-            Par personne : Disponible sans ticket en cours ; À surveiller après 3 jours ouvrés sans activité sur un
-            ticket en cours, ou avec un ticket bloqué ; En difficulté quand plus rien n’a bougé depuis 5 jours ouvrés,
-            ou avec 4 tickets en cours à la fois.
+            Par personne, la pastille dit le fait et sa couleur le niveau : rien en cours ; orange dès qu’un ticket en
+            cours est sans activité depuis 3 jours ouvrés, ou qu’un ticket est bloqué ; rouge quand plus rien n’a bougé
+            depuis 5 jours ouvrés, ou avec 4 tickets en cours à la fois ; en rythme sinon. Les tickets à faire hors du
+            sprint actif comptent dans les ouverts, pas dans la pastille ; un ticket en cours y compte même hors sprint.
           </p>
         </div>
       </details>
@@ -484,6 +489,7 @@ function DeveloperPerspective({ data, scope }: { data: LePointDataset; scope: Le
   return (
     <div className="space-y-6">
       <SprintLightCard data={data} />
+      {team ? <WorkloadSection data={data} /> : null}
       <Tiles>
         <Tile label="En cours" value={view.resume.length} hint={team ? "dans l’équipe" : "à reprendre maintenant"} target="le-point-reprendre" />
         <Tile
@@ -540,12 +546,17 @@ function DeveloperPerspective({ data, scope }: { data: LePointDataset; scope: Le
       >
         <Rows cards={view.recent} backlogKey={key} showAssignee={team} />
       </Section>
-      {team ? (
-        <Section id="le-point-charge" title="Charge par personne" count={view.workload.length} empty="Aucun ticket ouvert.">
-          <Workload rows={view.workload} data={data} />
-        </Section>
-      ) : null}
     </div>
+  );
+}
+
+/** The team's load, right under the sprint's health in both perspectives: who holds what, and what exactly (JIR-124). */
+function WorkloadSection({ data }: { data: LePointDataset }) {
+  const rows = teamWorkload(data);
+  return (
+    <Section id="le-point-charge" title="Charge par personne" count={rows.length} empty="Aucun ticket ouvert.">
+      <Workload rows={rows} data={data} />
+    </Section>
   );
 }
 
@@ -559,30 +570,65 @@ function Workload({ rows, data }: { rows: WorkloadRow[]; data: LePointDataset })
   const busiest = Math.max(...rows.map((row) => row.open));
   return (
     <ul className="@container overflow-hidden rounded-[var(--radius)] border border-border bg-card">
-      {rows.map((row) => {
-        const label = [
-          `${row.open} ouvert${row.open > 1 ? "s" : ""}`,
-          row.inProgress > 0 ? `${row.inProgress} en cours` : null,
-          row.blocked > 0 ? `${row.blocked} bloqué${row.blocked > 1 ? "s" : ""}` : null,
-        ].filter(Boolean).join(", ");
-        const light = row.assignee === null ? null : personLight(data, row.assignee);
-        return (
-          <li
-            key={row.assignee ?? "unassigned"}
-            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-b border-border px-3 py-2 text-sm last:border-b-0 @2xl:grid-cols-[minmax(0,1fr)_7.5rem_12rem_11rem]"
-          >
-            <span className={cn("min-w-0 truncate", row.assignee === null && "text-muted-foreground")}>{row.name}</span>
-            <span className="justify-self-end @2xl:justify-self-start">{light ? <LightTag light={light} /> : null}</span>
-            <span aria-hidden="true" className="hidden h-1.5 overflow-hidden rounded-full bg-[var(--muted)] @2xl:flex">
-              <span className="bg-[var(--status-doing)]" style={{ width: `${(row.open / busiest) * 100}%` }} />
-            </span>
-            <span className="col-span-2 text-xs tabular-nums text-muted-foreground @2xl:col-span-1">
-              {label}
-            </span>
-          </li>
-        );
-      })}
+      {rows.map((row) => (
+        <WorkloadPerson key={row.assignee ?? "unassigned"} row={row} busiest={busiest} data={data} />
+      ))}
     </ul>
+  );
+}
+
+/**
+ * One person of the workload. The facts behind an amber or red light stay in
+ * the row, nobody has to hover to know; the row itself opens the tickets
+ * behind its figures, and leads to the Liste filtered on that person, as a
+ * click on an avatar filters Jira's board.
+ */
+function WorkloadPerson({ row, busiest, data }: { row: WorkloadRow; busiest: number; data: LePointDataset }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const label = [
+    `${row.open} ouvert${row.open > 1 ? "s" : ""}`,
+    row.inProgress > 0 ? `${row.inProgress} en cours` : null,
+    row.blocked > 0 ? `${row.blocked} bloqué${row.blocked > 1 ? "s" : ""}` : null,
+  ].filter(Boolean).join(", ");
+  const light = row.assignee === null ? null : personLight(data, row.assignee);
+  const facts = light && (light.color === "amber" || light.color === "red")
+    ? (light.details.length > 1 ? light.details.slice(1).join(" ") : light.summary)
+    : null;
+  const listHref = `/b/${data.backlog.key}?view=list&assignee=${encodeURIComponent(row.assignee ?? "none")}`;
+  return (
+    <li className="border-b border-border last:border-b-0">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((value) => !value)}
+        className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-3 py-2 text-left text-sm outline-none transition-colors hover:bg-[var(--muted)]/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)] @2xl:grid-cols-[minmax(0,1fr)_14rem_7rem_11rem]"
+      >
+        <span className={cn("flex min-w-0 items-center gap-1.5", row.assignee === null && "text-muted-foreground")}>
+          <ChevronRight aria-hidden="true" className={cn("size-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")} />
+          <span className="min-w-0 truncate">{row.name}</span>
+        </span>
+        <span className="justify-self-end @2xl:justify-self-start">{light ? <LightTag light={light} /> : null}</span>
+        <span aria-hidden="true" className="hidden h-1.5 overflow-hidden rounded-full bg-[var(--muted)] @2xl:flex">
+          <span className="bg-[var(--status-doing)]" style={{ width: `${(row.open / busiest) * 100}%` }} />
+        </span>
+        <span className="col-span-2 text-xs tabular-nums text-muted-foreground @2xl:col-span-1">
+          {label}
+        </span>
+        {facts ? (
+          <span className="col-span-2 pl-[1.375rem] text-xs text-muted-foreground @2xl:col-span-4">{facts}</span>
+        ) : null}
+      </button>
+      {open ? (
+        <div id={panelId} className="space-y-2 border-t border-border bg-[var(--surface-2)] px-3 py-2">
+          <Rows cards={workloadTickets(data, row.assignee)} backlogKey={data.backlog.key} showDue />
+          <Link href={listHref} className="inline-block text-xs text-[var(--primary)] underline">
+            Voir dans la Liste
+          </Link>
+        </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -654,6 +700,7 @@ function ProductPerspective({ data, scope }: { data: LePointDataset; scope: LePo
   return (
     <div className="space-y-6">
       <SprintLightCard data={data} />
+      {team ? <WorkloadSection data={data} /> : null}
       <Tiles>
         <Tile
           label={team ? "Décisions en attente" : "Décisions à prendre"}

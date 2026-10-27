@@ -143,12 +143,12 @@ export function daysFrom(from: Day, to: Day): number {
 
 const days = (count: number) => `${count} jour${count > 1 ? "s" : ""}`;
 /** Ends a sentence, without doubling an abbreviation's dot (« nov. »). */
-const sentence = (text: string) => (text.endsWith(".") ? text : `${text}.`);
+export const sentence = (text: string) => (text.endsWith(".") ? text : `${text}.`);
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const uncapitalize = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
 
 /** The due phrase, lowercase: « échéance le 5 nov., dans 2 jours ». */
-function duePhrase(due: Day | null, today: Day): string {
+export function duePhrase(due: Day | null, today: Day): string {
   if (!due) return "pas d’échéance";
   const delta = daysFrom(today, due);
   if (delta < 0) return `échéance dépassée de ${days(-delta)} (${formatDay(due)})`;
@@ -164,7 +164,8 @@ function shortName(name: string): string {
   return last ? `${first} ${last.charAt(0)}.` : first ?? name;
 }
 
-function dueTag(due: Day | null, today: Day): { tag: string; tone: Tone } {
+/** The due date in a few words, and how urgent it reads. */
+export function dueTag(due: Day | null, today: Day): { tag: string; tone: Tone } {
   if (!due) return { tag: "Sans échéance", tone: "neutral" };
   const delta = daysFrom(today, due);
   if (delta < 0) return { tag: `En retard de ${days(-delta)}`, tone: "danger" };
@@ -180,7 +181,8 @@ export function openBlockersOf(ticket: LePointTicket, tickets: Map<string, LePoi
   );
 }
 
-function context(data: LePointDataset) {
+/** The tickets and people by id, and the words for a block or a card: shared by every rule, the lights' too. */
+export function ticketContext(data: LePointDataset) {
   const tickets = new Map(data.tickets.map((ticket) => [ticket.key, ticket]));
   const people = new Map(data.people.map((person) => [person.id, person.name]));
   const objectives = new Map(data.objectives.map((objective) => [objective.key, objective]));
@@ -232,9 +234,49 @@ function context(data: LePointDataset) {
   return { tickets, people, isBlocked, blockedReason, blockedTag, card };
 }
 
-const byDue = (a: LePointTicket, b: LePointTicket) =>
+/** Earliest due date first, then by key. */
+export const byDue = (a: LePointTicket, b: LePointTicket) =>
   (a.due ?? END_OF_TIME).localeCompare(b.due ?? END_OF_TIME)
   || a.key.localeCompare(b.key, "fr", { numeric: true });
+
+/** Counted in someone's load: open, nobody's dependency elsewhere; unassigned only once the team has committed to it. */
+export function inWorkload(ticket: LePointTicket, assignee: string | null): boolean {
+  return !ticket.external
+    && ticket.category !== "done"
+    && ticket.assignee === assignee
+    && (assignee !== null || ticket.committed !== false);
+}
+
+/**
+ * Open tickets per person, as Jira's team workload: the busiest first, the
+ * unassigned last. The whole backlog's, whatever the perspective (JIR-124).
+ */
+export function teamWorkload(data: LePointDataset): WorkloadRow[] {
+  const { people, isBlocked } = ticketContext(data);
+  const rows = new Map<string | null, WorkloadRow>();
+  for (const ticket of data.tickets) {
+    if (!inWorkload(ticket, ticket.assignee)) continue;
+    let row = rows.get(ticket.assignee);
+    if (!row) {
+      row = {
+        assignee: ticket.assignee,
+        name: ticket.assignee === null ? "Sans assigné" : people.get(ticket.assignee) ?? "Personne inconnue",
+        open: 0,
+        inProgress: 0,
+        blocked: 0,
+      };
+      rows.set(ticket.assignee, row);
+    }
+    row.open += 1;
+    if (ticket.category === "in_progress") row.inProgress += 1;
+    if (isBlocked(ticket)) row.blocked += 1;
+  }
+  return [...rows.values()].sort((a, b) =>
+    Number(a.assignee === null) - Number(b.assignee === null)
+    || b.open - a.open
+    || a.name.localeCompare(b.name, "fr"),
+  );
+}
 
 /** Développement : « Que reprendre maintenant ? Qu'est-ce qui m'empêche d'avancer ? » */
 export function developerView(data: LePointDataset, scope: LePointScope): {
@@ -245,7 +287,7 @@ export function developerView(data: LePointDataset, scope: LePointScope): {
   recent: LePointCard[];
   workload: WorkloadRow[];
 } {
-  const { tickets, people, isBlocked, blockedReason, blockedTag, card } = context(data);
+  const { tickets, isBlocked, blockedReason, blockedTag, card } = ticketContext(data);
   const work = data.tickets.filter((ticket) =>
     !ticket.external && (scope.kind === "team" || ticket.assignee === scope.viewerId),
   );
@@ -300,31 +342,7 @@ export function developerView(data: LePointDataset, scope: LePointScope): {
   }
   const recent = events.sort((a, b) => b.day.localeCompare(a.day)).map((event) => event.card);
 
-  const workloadByAssignee = new Map<string | null, WorkloadRow>();
-  if (scope.kind === "team") {
-    for (const ticket of open) {
-      if (ticket.assignee === null && ticket.committed === false) continue;
-      let row = workloadByAssignee.get(ticket.assignee);
-      if (!row) {
-        row = {
-          assignee: ticket.assignee,
-          name: ticket.assignee === null ? "Sans assigné" : people.get(ticket.assignee) ?? "Personne inconnue",
-          open: 0,
-          inProgress: 0,
-          blocked: 0,
-        };
-        workloadByAssignee.set(ticket.assignee, row);
-      }
-      row.open += 1;
-      if (ticket.category === "in_progress") row.inProgress += 1;
-      if (isBlocked(ticket)) row.blocked += 1;
-    }
-  }
-  const workload = [...workloadByAssignee.values()].sort((a, b) =>
-    Number(a.assignee === null) - Number(b.assignee === null)
-    || b.open - a.open
-    || a.name.localeCompare(b.name, "fr"),
-  );
+  const workload = scope.kind === "team" ? teamWorkload(data) : [];
 
   return { resume, blocked, next, withoutDue, recent, workload };
 }
@@ -336,7 +354,7 @@ export function productView(data: LePointDataset, scope: LePointScope): {
   difficulties: LePointCard[];
   nextRelease: ReleaseSummary | null;
 } {
-  const { tickets, people, isBlocked, blockedReason, blockedTag, card } = context(data);
+  const { tickets, people, isBlocked, blockedReason, blockedTag, card } = ticketContext(data);
 
   // The latest explicit request per open ticket, and per recipient in team scope.
   const asked = new Map<string, LePointDataset["mentions"][number]>();
