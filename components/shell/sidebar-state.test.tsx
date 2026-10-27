@@ -89,6 +89,17 @@ describe("SidebarStateProvider", () => {
     });
   });
 
+  it("clips the shell frame so focus cannot scroll the whole grid (JIR-125)", () => {
+    const { container } = render(
+      <AppShell sidebar={<Probe />} topbar={<header>Topbar</header>}>
+        Contenu
+      </AppShell>,
+    );
+
+    expect(container.firstElementChild).toHaveClass("overflow-clip");
+    expect(container.firstElementChild).not.toHaveClass("overflow-hidden");
+  });
+
   it("does not place the collapse control on the sidebar boundary", () => {
     render(
       <AppShell sidebar={<Probe />} topbar={<header>Topbar</header>}>
