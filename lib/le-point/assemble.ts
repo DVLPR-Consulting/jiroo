@@ -28,7 +28,7 @@ export type LePointSource = {
   today: Day;
   lastVisit: Day;
   firstVisit: boolean;
-  backlog: { key: string; name: string };
+  backlog: { key: string; name: string; id?: string };
   /** The backlog's live items, in backlog order. */
   items: LePointRow[];
   /** « source blocks target », the target being one of `items`; a null source is in a backlog the reader cannot browse. */
@@ -58,7 +58,8 @@ export type LePointSource = {
   sprintVelocity?: number | null;
   members?: { id: string; name: string }[];
   /** Declared absences touching the period around today, `YYYY-MM-DD` both ends included (JIR-124). */
-  absences?: { userId: string; startDate: string; endDate: string }[];
+  absences?: { id: string; userId: string; startDate: string; endDate: string }[];
+  canManageAbsences?: boolean;
 };
 
 const LAST_DAY = "9999-12-31";
@@ -196,7 +197,8 @@ export function assembleLePoint(source: LePointSource): LePointDataset {
         }
       : null,
     members: source.members ?? [],
-    absences: (source.absences ?? []).map((absence) => ({ user: absence.userId, start: absence.startDate, end: absence.endDate })),
+    absences: (source.absences ?? []).map((absence) => ({ id: absence.id, user: absence.userId, start: absence.startDate, end: absence.endDate })),
+    ...(source.canManageAbsences ? { canManageAbsences: true } : {}),
     releases: source.releases
       .filter((release) => !release.archived || release.released)
       .map(({ name, planned, released }) => ({ name, planned, released })),

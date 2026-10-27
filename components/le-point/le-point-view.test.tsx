@@ -14,6 +14,8 @@ vi.mock("next/navigation", () => ({
 }));
 // The shared row's inline editors import Server Actions; Le point shows them read-only.
 vi.mock("@/app/actions/items", () => ({ updateItemAction: vi.fn() }));
+const absenceActions = vi.hoisted(() => ({ declareAbsenceAction: vi.fn(), removeAbsenceAction: vi.fn() }));
+vi.mock("@/app/actions/absences", () => absenceActions);
 
 // Camille reads both perspectives, as the reader does on a real backlog.
 const camille = { ...LE_POINT_DEMO, personas: { developer: "camille", product: "camille" } };
@@ -332,6 +334,27 @@ describe("LePointView, whole team (JIR-121)", () => {
     await userEvent.click(within(sprint).getByRole("button", { name: /^\+1ajouté/ }));
     expect(within(sprint).getByRole("img", { name: "Vélocité moyenne, 3 derniers sprints : 0,3 pt" })).toBeInTheDocument();
     expect(sprint).toHaveTextContent("L’engagement dépasse de 2 points la vélocité moyenne.");
+  });
+
+  it("says who is away and until when, and lets the reader declare their own absence (JIR-124)", async () => {
+    const backlog = { ...camille.backlog, id: "11111111-1111-4111-8111-111111111111" };
+    const away = { ...camille, backlog, absences: [{ id: "a1", user: "hugo", start: "2026-11-03", end: "2026-11-06" }] };
+    absenceActions.declareAbsenceAction.mockResolvedValue({ ok: true });
+    render(<LePointView data={away} />);
+    const sprint = section("Santé du sprint");
+    const hugo = within(sprint).getByRole("button", { name: "Hugo Lefèvre, En congé jusqu’au 6 nov., 1 ticket ouvert" });
+    expect(hugo).toHaveTextContent("en congé jusqu’au 6 nov.");
+    // Three of the four people are there today, and Hugo's four days are off the person-days.
+    expect(sprint).toHaveTextContent("12 jours-personne, 3 personnes présentes");
+    await userEvent.click(hugo);
+    expect(within(sprint).getByText("Absent du 3 nov. au 6 nov.")).toBeVisible();
+    expect(within(sprint).queryByRole("button", { name: "Retirer" })).toBeNull();
+    expect(within(sprint).queryByRole("button", { name: "Déclarer une absence" })).toBeNull();
+    // The reader declares their own, whole days both included, from today by default.
+    await userEvent.click(within(sprint).getByRole("button", { name: /^Camille Morel/ }));
+    await userEvent.click(within(sprint).getByRole("button", { name: "Déclarer une absence" }));
+    await userEvent.click(within(sprint).getByRole("button", { name: "Enregistrer" }));
+    expect(absenceActions.declareAbsenceAction).toHaveBeenCalledWith({ userId: "camille", backlogId: backlog.id, startDate: "2026-11-03", endDate: "2026-11-03" });
   });
 
   it("explains its rules on request, in a dialog, and gives the focus back to its button", async () => {

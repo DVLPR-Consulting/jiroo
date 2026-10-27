@@ -61,7 +61,8 @@ export type LePointDataset = {
   lastVisit: Day;
   /** No previous visit is known: `lastVisit` is then a week ago, and the page says so. */
   firstVisit?: boolean;
-  backlog: { key: string; name: string };
+  /** The id is what the actions need; the prototype's fixtures have none. */
+  backlog: { key: string; name: string; id?: string };
   people: { id: string; name: string }[];
   personas: { developer: string; product: string };
   sprint: {
@@ -101,7 +102,9 @@ export type LePointDataset = {
   /** Assignable backlog members, only when the reader may browse users. */
   members?: { id: string; name: string }[];
   /** Declared absences of the people above, whole days both included, around today (JIR-124). */
-  absences?: { user: string; start: Day; end: Day }[];
+  absences?: { id?: string; user: string; start: Day; end: Day }[];
+  /** The reader may declare the members' absences: they administer the backlog or manage its members. */
+  canManageAbsences?: boolean;
 };
 
 export type LePointCard = {
