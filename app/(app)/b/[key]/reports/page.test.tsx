@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getBurndownReport: vi.fn(),
   getBacklogByKeyForUser: vi.fn(),
   getBacklogCapabilities: vi.fn(),
+  getSprintsReview: vi.fn(),
   getSprintReport: vi.fn(),
   getVelocityReport: vi.fn(),
   listReportableSprints: vi.fn(),
@@ -31,6 +32,7 @@ vi.mock("@/lib/services/backlogs", () => ({
   getBacklogByKeyForUser: mocks.getBacklogByKeyForUser,
 }));
 vi.mock("@/lib/services/sprint-reports", () => ({
+  getSprintsReview: mocks.getSprintsReview,
   getSprintReport: mocks.getSprintReport,
   getVelocityReport: mocks.getVelocityReport,
   listReportableSprints: mocks.listReportableSprints,
@@ -578,4 +580,18 @@ describe("reports route", () => {
       },
     );
   });
+});
+
+it("loads the team review for the signed-in reader without unbounded selector or detail reads", async () => {
+  vi.clearAllMocks();
+  mocks.requireSession.mockResolvedValue({ user: { id: "actor-1" } });
+  mocks.getBacklogByKeyForUser.mockResolvedValue(backlog);
+  mocks.getBacklogCapabilities.mockResolvedValue({ browse: true });
+  mocks.getSprintsReview.mockResolvedValue({ rows: [], limited: false });
+  render(await ReportsPage({ params: Promise.resolve({ key: "CASS" }), searchParams: Promise.resolve({ report: "bilan" }) }));
+  expect(mocks.getSprintsReview).toHaveBeenCalledWith(backlog.id, "actor-1");
+  expect(mocks.listReportableSprints).not.toHaveBeenCalled();
+  expect(mocks.getSprintReport).not.toHaveBeenCalled();
+  expect(mocks.getVelocityReport).not.toHaveBeenCalled();
+  expect(screen.getByRole("heading", { name: "Bilan des sprints" })).toBeVisible();
 });

@@ -633,18 +633,20 @@ export function HelpGuide() {
           title="Ouvrir un rapport"
           purpose="Mesurer ce qui a été engagé et livré."
           steps={[
-            <>Barre latérale → <Ui>Rapports</Ui>, puis <Ui>Rapport de sprint</Ui>, <Ui>Vélocité</Ui> ou <Ui>Burndown</Ui>.</>,
+            <>Barre latérale → <Ui>Rapports</Ui>, puis <Ui>Rapport de sprint</Ui>, <Ui>Vélocité</Ui>, <Ui>Burndown</Ui> ou <Ui>Bilan des sprints</Ui>.</>,
+            <>Pour <Ui>Bilan des sprints</Ui>, le tableau regroupe les sprints sans sélection supplémentaire.</>,
             <>Pour <Ui>Rapport de sprint</Ui> et <Ui>Burndown</Ui>, choisissez le <Ui>Sprint</Ui> puis <Ui>Afficher</Ui>. Pour <Ui>Vélocité</Ui>, choisissez <Ui>7 sprints</Ui> ou <Ui>12 sprints</Ui>.</>,
           ]}
         >
           <GuideNote>
-            <Ui>Données en cours</Ui> : sprint actif. <Ui>Historique figé</Ui> : sprint clôturé, les chiffres ne bougent plus.
+            <Ui>Données en cours</Ui> : sprint actif. <Ui>Historique figé</Ui> : sprint clôturé, les chiffres des tickets ne bougent plus.
           </GuideNote>
         </GuideTopic>
 
         <GuideTopic title="Lire les rapports" purpose="Savoir ce que montre chaque rapport.">
           <ul className="t-body list-disc space-y-1 pl-5">
             <li><Ui>Rapport de sprint</Ui> : engagement au démarrage, terminés, périmètre, tickets ajoutés ou retirés après le démarrage, journal du sprint.</li>
+            <li><Ui>Bilan des sprints</Ui> : le sprint actif en tête, puis les 50 derniers sprints clos au plus. Comparez l’engagement, les ajouts et retraits, les terminés, les points et les bugs. La présence couvre les jours ouvrés du sprint, avec l’effectif assignable actuel et hors absences déclarées ; elle est recalculée même après clôture et demande l’accès à l’annuaire. Les chiffres des tickets clos restent figés. Les seuils rouges sont des repères à discuter, sans classement individuel.</li>
             <li><Ui>Vélocité</Ui> : engagement et points terminés des derniers sprints (7 ou 12), avec la moyenne.</li>
             <li><Ui>Burndown</Ui> : travail restant jour après jour face à une trajectoire idéale ; compare l’engagement au démarrage à la moyenne des sprints précédents. Sur un sprint en cours, le trait <Ui>Aujourd’hui</Ui> montre où l’on en est, et la valeur au bout de la ligne donne le travail restant.</li>
           </ul>
