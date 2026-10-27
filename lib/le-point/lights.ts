@@ -21,7 +21,7 @@ export type LightColor = "green" | "amber" | "red" | "none";
 
 export type Light = {
   color: LightColor;
-  /** « Vert », « À surveiller »… */
+  /** « En bonne voie », « À surveiller »… */
   label: string;
   /** Why this colour, in one sentence. */
   summary: string;
@@ -44,7 +44,12 @@ export const SPRINT_THRESHOLDS = { red: 25, amber: 10, scopeAdded: 20 } as const
 export const PERSON_THRESHOLDS = { idleDays: 3, stuckDays: 5, wip: 4 } as const;
 
 const TONE: Record<LightColor, Tone> = { green: "success", amber: "warning", red: "danger", none: "neutral" };
-const SPRINT_LABEL: Record<LightColor, string> = { green: "Vert", amber: "Orange", red: "Rouge", none: "Pas de feu" };
+const SPRINT_LABEL: Record<LightColor, string> = {
+  green: "En bonne voie",
+  amber: "À surveiller",
+  red: "En retard",
+  none: "Rien à évaluer",
+};
 
 const light = (color: LightColor, label: string, summary: string, details: string[]): Light =>
   ({ color, label, summary, details, tone: TONE[color] });
@@ -131,7 +136,7 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
     unestimated > 0
       ? `${countLabel(unestimated, "ticket sans estimation", "tickets sans estimation")}, non ${unestimated > 1 ? "comptés" : "compté"}.`
       : null,
-    unit === "tickets" ? "Aucun ticket estimé : le feu compte les tickets." : null,
+    unit === "tickets" ? "Aucun ticket estimé : les tickets sont comptés à la place des points." : null,
   ].filter(present);
 
   const concerns = [
@@ -141,14 +146,14 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
   ].filter(present);
 
   const color: LightColor = gap > SPRINT_THRESHOLDS.red ? "red" : concerns.length > 0 ? "amber" : "green";
-  const summary = color === "red"
-    ? `En retard : ${concerns.join(", ")}.`
-    : color === "amber"
-      ? `À surveiller : ${concerns.join(", ")}.`
-      : gap < -SPRINT_THRESHOLDS.amber
-        ? `En avance : ${progress}.`
-        : "Le travail terminé suit le temps écoulé.";
-  return { ...light(color, SPRINT_LABEL[color], summary, details), elapsedPercent, donePercent, unit };
+  // The verdict is the label; the summary keeps to the facts behind it.
+  const ahead = color === "green" && gap < -SPRINT_THRESHOLDS.amber;
+  const summary = concerns.length > 0
+    ? `${capitalize(concerns.join(", "))}.`
+    : ahead
+      ? `${capitalize(progress)}.`
+      : "Le travail terminé suit le temps écoulé.";
+  return { ...light(color, ahead ? "En avance" : SPRINT_LABEL[color], summary, details), elapsedPercent, donePercent, unit };
 }
 
 /**

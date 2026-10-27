@@ -49,7 +49,7 @@ describe("LePointView", () => {
     expect(tile("À venir")).toHaveAttribute("href", "#le-point-ensuite");
     expect(screen.getAllByRole("link").filter((link) => link.getAttribute("href")?.startsWith("#"))).toHaveLength(4);
     expect(headings()).toEqual([
-      "Feu du sprint",
+      "Santé du sprint",
       "À reprendre maintenant1",
       "Ce qui te bloque1",
       "À venir1",
@@ -175,8 +175,9 @@ describe("LePointView, whole team (JIR-121)", () => {
 
   it("shows the sprint's light with its reasons and the burndown, and a light per person (JIR-124)", () => {
     render(<LePointView data={camille} />);
-    const sprint = section("Feu du sprint");
-    expect(sprint).toHaveTextContent("Orange · Sprint 8. À surveiller : 64 % du temps écoulé pour 42 % des points terminés, 2 tickets bloqués.");
+    const sprint = section("Santé du sprint");
+    expect(within(sprint).getByText("À surveiller")).toBeVisible();
+    expect(sprint).toHaveTextContent("Sprint 8 · 64 % du temps écoulé pour 42 % des points terminés, 2 tickets bloqués.");
     expect(within(sprint).getByText("2 tickets bloqués : DEMO-15, DEMO-33.")).toBeVisible();
     expect(within(sprint).getByRole("img", { name: "Temps écoulé : 64 %" })).toBeVisible();
     expect(within(sprint).getByRole("img", { name: "Points terminés : 42 %" })).toBeVisible();
@@ -191,7 +192,7 @@ describe("LePointView, whole team (JIR-121)", () => {
 
   it("says so without an active sprint", () => {
     render(<LePointView data={{ ...camille, sprint: null }} />);
-    expect(section("Feu du sprint")).toHaveTextContent("Aucun sprint actif : pas de feu.");
+    expect(section("Santé du sprint")).toHaveTextContent("Aucun sprint actif : rien à évaluer.");
     expect(screen.queryByRole("link", { name: "Voir le burndown" })).toBeNull();
   });
 
@@ -210,7 +211,7 @@ describe("LePointView, whole team (JIR-121)", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Moi" }));
     expect(window.localStorage.getItem(SCOPE_STORAGE_KEY)).toBe("me");
     expect(headings()).toEqual([
-      "Feu du sprint",
+      "Santé du sprint",
       "À reprendre maintenant1",
       "Ce qui te bloque1",
       "À venir1",
