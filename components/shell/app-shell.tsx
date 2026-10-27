@@ -38,7 +38,7 @@ function AppShellFrame({
 
   return (
     <div
-      className="grid h-screen grid-rows-[minmax(0,1fr)] overflow-hidden transition-[grid-template-columns] duration-150"
+      className="grid h-screen grid-rows-[minmax(0,1fr)] overflow-clip transition-[grid-template-columns] duration-150"
       style={{
         gridTemplateColumns: mobile
           ? "minmax(0,1fr)"

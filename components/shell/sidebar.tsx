@@ -130,7 +130,7 @@ export function Sidebar({
   return (
     <div
       className={cn(
-        "flex h-full flex-col gap-1 overflow-hidden border-r border-border bg-[var(--surface-2)]",
+        "flex h-full flex-col gap-1 overflow-x-hidden overflow-y-auto border-r border-border bg-[var(--surface-2)]",
         collapsed ? "p-2" : "p-3",
       )}
     >
@@ -238,7 +238,8 @@ export function Sidebar({
         </nav>
       )}
 
-      <div className="mt-2 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
+      {/* Keep filters usable; short windows scroll the whole sidebar instead. */}
+      <div className="mt-2 flex min-h-32 flex-1 flex-col gap-0.5 overflow-y-auto">
         <div
           className={cn(
             "t-meta px-2 pb-1 font-medium uppercase tracking-wide text-muted-foreground",
