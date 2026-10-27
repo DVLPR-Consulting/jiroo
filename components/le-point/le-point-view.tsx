@@ -336,9 +336,35 @@ const DOT_CLASS: Record<LightColor, string> = {
   none: "border border-border bg-[var(--surface-2)]",
 };
 
+/** The card's left edge takes the sprint's colour, so the verdict is seen before it is read. */
+const EDGE_CLASS: Record<LightColor, string> = {
+  green: "border-l-[var(--status-done)]",
+  amber: "border-l-[var(--warning)]",
+  red: "border-l-[var(--danger)]",
+  none: "border-l-border",
+};
+
 /** The light itself: a dot in its colour; the text beside it carries the meaning. */
 function LightDot({ color, className = "size-2.5" }: { color: LightColor; className?: string }) {
   return <span aria-hidden="true" className={cn("inline-block shrink-0 rounded-full", className, DOT_CLASS[color])} />;
+}
+
+/** The verdict in words, in a pill of its colour: the sprint's in large, a person's in small. */
+function Verdict({ light, size = "sm", title, children }: { light: Light; size?: "sm" | "lg"; title?: string; children?: ReactNode }) {
+  return (
+    <span
+      title={title}
+      className={cn(
+        "inline-flex items-center rounded-full ring-1 ring-inset ring-[color-mix(in_oklch,currentColor_25%,transparent)]",
+        size === "lg" ? "gap-2 px-3 py-1 text-sm font-semibold" : "gap-1.5 px-2 py-0.5 text-xs font-medium",
+        TONE_CLASS[light.tone],
+      )}
+    >
+      <LightDot color={light.color} className={size === "lg" ? "size-3" : "size-2"} />
+      {light.label}
+      {children}
+    </span>
+  );
 }
 
 /** A thin bar with its figure, for the sprint's two percentages. */
@@ -363,9 +389,8 @@ function SprintLightCard({ data }: { data: LePointDataset }) {
   const headingId = useId();
   const light = sprintLight(data);
   const title = (
-    <h2 id={headingId} className="t-h3 flex items-center gap-2">
-      <LightDot color={light?.color ?? "none"} className="size-3" />
-      Feu du sprint
+    <h2 id={headingId} className="t-h3">
+      Santé du sprint
     </h2>
   );
   const prototype = (
@@ -381,24 +406,28 @@ function SprintLightCard({ data }: { data: LePointDataset }) {
       >
         {title}
         {prototype}
-        <span className="text-sm text-muted-foreground">Aucun sprint actif : pas de feu.</span>
+        <span className="text-sm text-muted-foreground">Aucun sprint actif : rien à évaluer.</span>
       </section>
     );
   }
   return (
     <section
       aria-labelledby={headingId}
-      className="@container space-y-2 rounded-[var(--radius)] border border-border bg-card p-3 shadow-[var(--shadow-sm)]"
+      className={cn(
+        "@container space-y-2 rounded-[var(--radius)] border border-border border-l-4 bg-card p-3 shadow-[var(--shadow-sm)]",
+        EDGE_CLASS[light.color],
+      )}
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {title}
+        <Verdict light={light} size="lg" />
         {prototype}
         <Link href={`/b/${data.backlog.key}/reports?report=burndown`} className="ml-auto text-xs text-[var(--primary)] underline">
           Voir le burndown
         </Link>
       </div>
       <p className="text-sm">
-        <span className="font-semibold">{light.label}</span> · {data.sprint.name}. {light.summary}
+        <span className="font-medium">{data.sprint.name}</span> · {light.summary}
       </p>
       {light.color !== "none" ? (
         <div className="grid gap-x-6 gap-y-1 @xl:grid-cols-2">
@@ -414,15 +443,16 @@ function SprintLightCard({ data }: { data: LePointDataset }) {
         {light.details.map((detail) => <li key={detail}>{detail}</li>)}
       </ul>
       <details className="text-xs text-muted-foreground">
-        <summary className="cursor-pointer font-medium hover:text-foreground">Comment est calculé ce feu ?</summary>
+        <summary className="cursor-pointer font-medium hover:text-foreground">Comment est-ce calculé ?</summary>
         <div className="mt-1 space-y-1">
           <p>
             Écart = % du temps écoulé (jours calendaires du sprint) − % des points terminés sur le périmètre actuel ;
             en tickets si rien n’est estimé.
           </p>
           <p>
-            Rouge au-delà de 25 points d’écart. Orange au-delà de 10, ou si plus de 20 % de l’engagement initial a été
-            ajouté en cours de sprint, ou dès qu’un ticket est bloqué. Vert sinon.
+            En retard au-delà de 25 points d’écart. À surveiller au-delà de 10, ou si plus de 20 % de l’engagement
+            initial a été ajouté en cours de sprint, ou dès qu’un ticket est bloqué. En bonne voie sinon, et en avance
+            quand le travail terminé devance le temps de plus de 10 points.
           </p>
           <p>
             Par personne : Disponible sans ticket en cours ; À surveiller après 3 jours ouvrés sans activité sur un
@@ -435,17 +465,12 @@ function SprintLightCard({ data }: { data: LePointDataset }) {
   );
 }
 
-/** A person's light in the workload row: the label in a tag, the facts in its tooltip. */
+/** A person's light in the workload row: the verdict in a pill, the facts in its tooltip. */
 function LightTag({ light }: { light: Light }) {
   return (
-    <span
-      title={[light.summary, ...light.details].join("\n")}
-      className={cn("inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] font-medium", TONE_CLASS[light.tone])}
-    >
-      <LightDot color={light.color} />
-      {light.label}
+    <Verdict light={light} title={[light.summary, ...light.details].join("\n")}>
       <span className="sr-only"> : {light.summary}</span>
-    </span>
+    </Verdict>
   );
 }
 
