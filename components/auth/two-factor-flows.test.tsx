@@ -144,6 +144,7 @@ describe("parcours 2FA", () => {
     const interaction = userEvent.setup();
     mocks.enableTwoFactor.mockResolvedValue({
       data: {
+        method: "totp",
         totpURI: "otpauth://totp/Jiroo:marie%40example.test?secret=ABCDEF&issuer=Jiroo",
         backupCodes: Array.from({ length: 10 }, (_, index) => `CODE-${index}`),
       },

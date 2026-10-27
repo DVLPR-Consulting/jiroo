@@ -228,6 +228,56 @@ describe("LePointView, whole team (JIR-121)", () => {
     expect(rows[0]).toHaveTextContent("DEMO-15 bloqué.");
   });
 
+  it("shows a member without an open ticket and counts them present (JIR-124 C)", async () => {
+    const leo = { id: "leo", name: "Léo Bernard" };
+    render(<LePointView data={{ ...camille, members: [...camille.members!, leo] }} />);
+    const sprint = section("Santé du sprint");
+    expect(within(sprint).getByRole("heading", { name: "Charge par personne 6" })).toBeVisible();
+    const person = within(sprint).getByRole("button", { name: "Léo Bernard, Rien en cours, aucun ticket ouvert" });
+    expect(person).toHaveTextContent("rien d’assigné");
+    const chips = within(sprint).getAllByRole("button", { name: /ticket[s]? ouvert[s]?$/ });
+    expect(chips.map((chip) => chip.getAttribute("aria-label"))).toEqual([
+      "Camille Morel, 1 bloqué, 4 tickets ouverts", "Léa Martin, 1 bloqué, 3 tickets ouverts",
+      "Hugo Lefèvre, En rythme, 1 ticket ouvert", "Inès Garnier, Rien en cours, 1 ticket ouvert",
+      "Léo Bernard, Rien en cours, aucun ticket ouvert", "Sans assigné, 1 ticket ouvert",
+    ]);
+    expect(sprint).toHaveTextContent("Reste 25 pts pour 4 jours ouvrés et 5 personnes présentes : il faudrait 1,3 pt par jour-personne, contre 0,7 pt jusqu’ici.");
+    expect(sprint).toHaveTextContent("20 jours-personne, 5 personnes présentes");
+    await userEvent.click(person);
+    expect(person).toHaveAttribute("aria-expanded", "true");
+    expect(within(sprint).getByText("Aucun ticket ouvert.")).toBeVisible();
+    expect(within(sprint).getByRole("link", { name: "Voir dans la Liste" })).toHaveAttribute("href", "/b/DEMO?view=list&assignee=leo");
+    await userEvent.click(within(sprint).getByRole("button", { name: "Tout voir" }));
+    const rows = within(sprint).getAllByRole("listitem");
+    expect(rows).toHaveLength(6);
+    expect(rows[4]).toHaveTextContent("Léo Bernard");
+    expect(rows[4]).toHaveTextContent("aucun ticket ouvert");
+    expect(rows[5]).toHaveTextContent("Sans assigné");
+    await userEvent.click(within(rows[4]!).getByRole("button"));
+    expect(within(rows[4]!).getByText("Aucun ticket ouvert.")).toBeVisible();
+  });
+
+  it("keeps the existing load and projection when the directory is unavailable", () => {
+    render(<LePointView data={{ ...camille, members: [], people: [...camille.people, { id: "leo", name: "Léo Bernard" }] }} />);
+    const sprint = section("Santé du sprint");
+    expect(within(sprint).queryByRole("button", { name: /^Léo Bernard/ })).toBeNull();
+    expect(within(sprint).getByRole("heading", { name: "Charge par personne 5" })).toBeVisible();
+    expect(sprint).toHaveTextContent("Reste 25 pts pour 4 jours ouvrés et 4 personnes présentes : il faudrait 1,6 pt par jour-personne, contre 0,9 pt jusqu’ici.");
+  });
+
+  it("lets a known member with no ticket open their detail even without an active sprint", async () => {
+    render(<LePointView data={{ ...camille, sprint: null, tickets: [], members: [{ id: "leo", name: "Léo Bernard" }] }} />);
+    const sprint = section("Santé du sprint");
+    expect(sprint).toHaveTextContent("Aucun sprint actif");
+    const person = within(sprint).getByRole("button", { name: "Léo Bernard, Rien en cours, aucun ticket ouvert" });
+    await userEvent.click(person);
+    expect(within(sprint).getByText("Aucun ticket ouvert.")).toBeVisible();
+    await userEvent.click(within(sprint).getByRole("button", { name: "Tout voir" }));
+    const row = within(sprint).getByRole("listitem");
+    expect(row).toHaveTextContent("Léo Bernard");
+    expect(row).toHaveTextContent("aucun ticket ouvert");
+  });
+
   it("keeps the same card for everyone, whatever the perspective or the scope", async () => {
     render(<LePointView data={camille} />);
     const chips = () => within(section("Santé du sprint")).getAllByRole("button", { name: /tickets? ouverts?$/ }).length;
@@ -237,6 +287,51 @@ describe("LePointView, whole team (JIR-121)", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Moi" }));
     expect(chips()).toBe(5);
     expect(headings()[0]).toBe("Santé du sprint");
+  });
+
+  it("shows the sprint's goal, and opens its scope: the commitment against the velocity, then every change (JIR-124)", async () => {
+    render(<LePointView data={camille} />);
+    const sprint = section("Santé du sprint");
+    expect(sprint).toHaveTextContent("Objectif : Publier les arrêts et préparer la recherche avancée");
+    const tile = within(sprint).getByRole("button", { name: /^\+1ajouté/ });
+    expect(tile).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(tile);
+    expect(within(sprint).getByRole("img", { name: "Engagement au démarrage : 41 pts" })).toBeInTheDocument();
+    expect(within(sprint).getByRole("img", { name: "Vélocité moyenne, 3 derniers sprints : 38 pts" })).toBeInTheDocument();
+    expect(within(sprint).getByRole("img", { name: "Périmètre aujourd’hui : 43 pts" })).toBeInTheDocument();
+    expect(sprint).toHaveTextContent("10 tickets embarqués au démarrage ; depuis, 1 ajouté. L’engagement dépasse de 3 points la vélocité moyenne.");
+    expect(sprint).toHaveTextContent("AjoutéDEMO-33Habilitations greffe2 pts · le 29 oct. par Léa Martin");
+    expect(within(sprint).getByRole("link", { name: "DEMO-33" })).toHaveAttribute("href", "/b/DEMO/le-point?item=DEMO-33");
+    expect(within(sprint).getByRole("link", { name: "Voir le rapport de sprint" })).toHaveAttribute("href", "/b/DEMO/reports?report=sprint");
+    await userEvent.click(tile);
+    expect(within(sprint).queryByRole("link", { name: "Voir le rapport de sprint" })).toBeNull();
+  });
+
+  it("keeps the scope's journal reachable once the last ticket left the sprint, and names an unknown author", async () => {
+    const emptied = {
+      ...camille,
+      tickets: camille.tickets.map((ticket) => ({ ...ticket, inSprint: false })),
+      sprint: {
+        ...camille.sprint!,
+        commitment: { points: 5, tickets: 1 },
+        changes: [{ kind: "removed" as const, key: "DEMO-12", title: "Générer le PDF signé d’un arrêt", points: 5, day: "2026-11-02", actor: null }],
+      },
+    };
+    render(<LePointView data={emptied} />);
+    const sprint = section("Santé du sprint");
+    expect(sprint).toHaveTextContent("Le sprint ne contient aucun ticket.");
+    await userEvent.click(within(sprint).getByRole("button", { name: /^−1retiré/ }));
+    expect(sprint).toHaveTextContent("1 ticket embarqué au démarrage ; depuis, 1 retiré.");
+    expect(sprint).toHaveTextContent("RetiréDEMO-12Générer le PDF signé d’un arrêt5 pts · le 2 nov. par quelqu’un");
+  });
+
+  it("words the gap between commitment and velocity on the figure it shows", async () => {
+    const close = { ...camille, sprint: { ...camille.sprint!, commitment: { points: 2.3, tickets: 10 }, velocity: 0.3 } };
+    render(<LePointView data={close} />);
+    const sprint = section("Santé du sprint");
+    await userEvent.click(within(sprint).getByRole("button", { name: /^\+1ajouté/ }));
+    expect(within(sprint).getByRole("img", { name: "Vélocité moyenne, 3 derniers sprints : 0,3 pt" })).toBeInTheDocument();
+    expect(sprint).toHaveTextContent("L’engagement dépasse de 2 points la vélocité moyenne.");
   });
 
   it("explains its rules on request, in a dialog, and gives the focus back to its button", async () => {
