@@ -618,7 +618,8 @@ function RulesDialog() {
           <p>
             <strong className="font-medium text-foreground">Va-t-on finir ?</strong> Ce qui reste, rapporté aux jours ouvrés
             restants et aux personnes présentes ; le rythme jusqu’ici est le terminé rapporté aux jours-personne écoulés.
-            Tant que les absences ne sont pas déclarées, est présente toute personne qui tient un ticket ouvert du sprint.
+            Sans absences déclarées, chaque membre du backlog est présent ; sans la liste des membres, est présente
+            toute personne qui tient un ticket ouvert du sprint.
           </p>
           <p>
             <strong className="font-medium text-foreground">Par personne.</strong> La pastille dit le fait et sa couleur le
@@ -846,6 +847,7 @@ function hueFor(value: string): LabelHue {
 
 /** « 3 ouverts, 1 en cours, 1 bloqué » */
 function countsLabel(row: WorkloadRow) {
+  if (row.open === 0) return "aucun ticket ouvert";
   return [
     `${row.open} ouvert${row.open > 1 ? "s" : ""}`,
     row.inProgress > 0 ? `${row.inProgress} en cours` : null,
@@ -859,7 +861,19 @@ function countsLabel(row: WorkloadRow) {
  * tickets. Nothing is open at first; a chip opens the person, « Tout voir »
  * gives the full table.
  */
-function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDataset }) {
+function WorkloadStrip({ rows: assignedRows, data }: { rows: WorkloadRow[]; data: LePointDataset }) {
+  // The directory can include members with no open work; keep the existing
+  // load order, then these members by name, and the unassigned tickets last.
+  const holders = new Set(assignedRows.map((row) => row.assignee));
+  const withoutTickets: WorkloadRow[] = (data.members ?? [])
+    .filter((member) => !holders.has(member.id))
+    .map((member) => ({ assignee: member.id, name: member.name, open: 0, inProgress: 0, blocked: 0 }))
+    .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  const rows = [
+    ...assignedRows.filter((row) => row.assignee !== null),
+    ...withoutTickets,
+    ...assignedRows.filter((row) => row.assignee === null),
+  ];
   const [open, setOpen] = useState<string | null>(null);
   const [table, setTable] = useState(false);
   const panelId = useId();
@@ -893,22 +907,24 @@ function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDatas
                   type="button"
                   aria-expanded={isOpen}
                   aria-controls={panelId}
-                  aria-label={`${row.name}, ${light ? `${light.label}, ` : ""}${countLabel(row.open, "ticket ouvert", "tickets ouverts")}`}
+                  aria-label={`${row.name}, ${light ? `${light.label}, ` : ""}${row.open === 0 ? "aucun ticket ouvert" : countLabel(row.open, "ticket ouvert", "tickets ouverts")}`}
                   onClick={() => setOpen(isOpen ? null : id)}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full border border-border bg-[var(--surface)] py-1 pr-3 pl-1 text-[13px] outline-none transition-colors hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+                    "inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-[var(--surface)] py-1 pr-3 pl-1 text-[13px] outline-none transition-colors hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
                     isOpen && "bg-[var(--muted)] ring-1 ring-inset ring-foreground",
-                    row.assignee === null && "border-dashed text-muted-foreground",
+                    (row.assignee === null || row.open === 0) && "border-dashed text-muted-foreground",
                   )}
                 >
                   {row.assignee ? (
-                    <InitialsAvatar name={row.name} hue={hueFor(row.assignee)} size={24} />
+                    <span className={cn("shrink-0", row.open === 0 && "opacity-50")}>
+                      <InitialsAvatar name={row.name} hue={hueFor(row.assignee)} size={24} />
+                    </span>
                   ) : (
                     <span aria-hidden="true" className="inline-grid size-6 place-items-center rounded-full bg-[var(--muted)] text-xs">?</span>
                   )}
-                  <span>{row.assignee ? shortName(row.name) : row.name}</span>
+                  <span className="min-w-0 truncate">{row.assignee ? shortName(row.name) : row.name}</span>
                   {light ? <LightDot color={light.color} className="size-2" /> : null}
-                  <span className="text-muted-foreground tabular-nums">{row.open}</span>
+                  <span className="shrink-0 text-muted-foreground tabular-nums">{row.open === 0 ? "rien d’assigné" : row.open}</span>
                 </button>
               );
             })}
@@ -938,7 +954,11 @@ function PersonDetail({ row, data }: { row: WorkloadRow; data: LePointDataset })
           Voir dans la Liste
         </Link>
       </div>
-      <Rows cards={workloadTickets(data, row.assignee)} backlogKey={data.backlog.key} showDue />
+      {row.open === 0 ? (
+        <p className="text-xs text-muted-foreground">Aucun ticket ouvert.</p>
+      ) : (
+        <Rows cards={workloadTickets(data, row.assignee)} backlogKey={data.backlog.key} showDue />
+      )}
     </div>
   );
 }
@@ -950,7 +970,7 @@ function PersonDetail({ row, data }: { row: WorkloadRow; data: LePointDataset })
  * the counts take a second line and the bar goes.
  */
 function Workload({ rows, data }: { rows: WorkloadRow[]; data: LePointDataset }) {
-  const busiest = Math.max(...rows.map((row) => row.open));
+  const busiest = Math.max(1, ...rows.map((row) => row.open));
   return (
     <ul className="@container overflow-hidden rounded-[var(--radius)] border border-border bg-card">
       {rows.map((row) => (
@@ -985,9 +1005,11 @@ function WorkloadPerson({ row, busiest, data }: { row: WorkloadRow; busiest: num
           <span className="min-w-0 truncate">{row.name}</span>
         </span>
         <span className="justify-self-end @2xl:justify-self-start">{light ? <LightTag light={light} /> : null}</span>
-        <span aria-hidden="true" className="hidden h-1.5 overflow-hidden rounded-full bg-[var(--muted)] @2xl:flex">
-          <span className="bg-[var(--status-doing)]" style={{ width: `${(row.open / busiest) * 100}%` }} />
-        </span>
+        {row.open > 0 ? (
+          <span aria-hidden="true" className="hidden h-1.5 overflow-hidden rounded-full bg-[var(--muted)] @2xl:flex">
+            <span className="bg-[var(--status-doing)]" style={{ width: `${(row.open / busiest) * 100}%` }} />
+          </span>
+        ) : <span aria-hidden="true" className="hidden @2xl:block" />}
         <span className="col-span-2 text-xs tabular-nums text-muted-foreground @2xl:col-span-1">
           {countsLabel(row)}
         </span>

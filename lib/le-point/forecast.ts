@@ -33,11 +33,12 @@ const shift = (day: Day, days: number): Day => new Date(Date.parse(`${day}T00:00
 const inSprint = (ticket: LePointTicket) => !ticket.external && ticket.inSprint === true;
 
 /**
- * Who is there to do the sprint's work, until absences are known: everyone
- * holding an open ticket of the active sprint. Someone whose only open
- * tickets sit outside the sprint is not counted.
+ * Until absences are known, every known backlog member is present. Without
+ * the directory, fall back to distinct holders of open sprint tickets;
+ * someone whose only open tickets sit outside the sprint is not counted.
  */
 export function presentInSprint(data: LePointDataset): number {
+  if (data.members?.length) return data.members.length;
   const holders = data.tickets
     .filter((ticket) => inSprint(ticket) && ticket.category !== "done" && ticket.assignee !== null)
     .map((ticket) => ticket.assignee);
