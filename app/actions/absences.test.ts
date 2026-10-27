@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { permissionDeniedError } from "@/test-utils/action-authorization-errors";
 
 const mocks = vi.hoisted(() => ({
+  carveAbsence: vi.fn(),
   declareAbsence: vi.fn(),
   getAbsenceOwner: vi.fn(),
   getSession: vi.fn(),
@@ -18,12 +19,13 @@ vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/services/absences", () => ({
   ABSENCE_NOT_FOUND_MESSAGE: "Absence introuvable.",
   ABSENCE_OVERLAP_MESSAGE: "Cette période chevauche une absence déjà déclarée.",
+  carveAbsence: mocks.carveAbsence,
   declareAbsence: mocks.declareAbsence,
   getAbsenceOwner: mocks.getAbsenceOwner,
   removeAbsence: mocks.removeAbsence,
 }));
 
-import { declareAbsenceAction, removeAbsenceAction } from "./absences";
+import { carveAbsenceAction, declareAbsenceAction, removeAbsenceAction } from "./absences";
 
 const backlogId = "11111111-1111-4111-8111-111111111111";
 const otherBacklogId = "22222222-2222-4222-8222-222222222222";
@@ -138,5 +140,31 @@ describe("removeAbsenceAction", () => {
     expect(await removeAbsenceAction({ id: "not-an-id", backlogId })).toEqual({ ok: false, error: NOT_FOUND });
     expect(mocks.removeAbsence).not.toHaveBeenCalled();
     expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
+  });
+});
+
+describe("carveAbsenceAction", () => {
+  const halfDay = { startDate: "2026-11-03", startHalf: "pm", endDate: "2026-11-03", endHalf: "pm" };
+
+  it("takes half-days off one's own absence, with the removal's rights, then refreshes the backlog", async () => {
+    grant(["browse_backlog"]);
+    mocks.getAbsenceOwner.mockResolvedValue("camille");
+    mocks.carveAbsence.mockResolvedValue([{ id: absenceId, userId: "camille", startDate: "2026-11-03", startHalf: "am", endDate: "2026-11-03", endHalf: "am", createdBy: "camille" }]);
+    const result = await carveAbsenceAction({ id: absenceId, backlogId, ...halfDay });
+    expect(result).toMatchObject({ ok: true, absences: [{ startHalf: "am", endHalf: "am" }] });
+    expect(mocks.carveAbsence).toHaveBeenCalledWith({ id: absenceId, backlogId, ...halfDay }, "camille");
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", { kind: "backlog", backlogId, itemIds: [], actorId: "camille" });
+  });
+
+  it("answers « introuvable » alike for an unknown absence and one the reader may not touch, and refuses half-days out of order", async () => {
+    grant(["browse_backlog"]);
+    mocks.getAbsenceOwner.mockResolvedValue("hugo");
+    expect(await carveAbsenceAction({ id: absenceId, backlogId, ...halfDay })).toEqual({ ok: false, error: NOT_FOUND });
+    mocks.getAbsenceOwner.mockResolvedValue(null);
+    expect(await carveAbsenceAction({ id: unknownId, backlogId, ...halfDay })).toEqual({ ok: false, error: NOT_FOUND });
+    expect(await carveAbsenceAction({ id: absenceId, backlogId, ...halfDay, endHalf: "am" })).toEqual({ ok: false, error: "La fin de l’absence précède son début." });
+    grant([]);
+    expect(await carveAbsenceAction({ id: absenceId, backlogId, ...halfDay })).toMatchObject({ ok: false, error: expect.stringContaining("Vous n’avez pas la permission") });
+    expect(mocks.carveAbsence).not.toHaveBeenCalled();
   });
 });
