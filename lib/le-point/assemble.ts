@@ -57,6 +57,8 @@ export type LePointSource = {
   }[];
   sprintVelocity?: number | null;
   members?: { id: string; name: string }[];
+  /** Declared absences touching the period around today, `YYYY-MM-DD` both ends included (JIR-124). */
+  absences?: { userId: string; startDate: string; endDate: string }[];
 };
 
 const LAST_DAY = "9999-12-31";
@@ -194,6 +196,7 @@ export function assembleLePoint(source: LePointSource): LePointDataset {
         }
       : null,
     members: source.members ?? [],
+    absences: (source.absences ?? []).map((absence) => ({ user: absence.userId, start: absence.startDate, end: absence.endDate })),
     releases: source.releases
       .filter((release) => !release.archived || release.released)
       .map(({ name, planned, released }) => ({ name, planned, released })),

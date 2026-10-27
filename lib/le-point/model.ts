@@ -100,6 +100,8 @@ export type LePointDataset = {
   mentions: { ticket: string; author: string; mentioned: string; day: Day; text: string }[];
   /** Assignable backlog members, only when the reader may browse users. */
   members?: { id: string; name: string }[];
+  /** Declared absences of the people above, whole days both included, around today (JIR-124). */
+  absences?: { user: string; start: Day; end: Day }[];
 };
 
 export type LePointCard = {

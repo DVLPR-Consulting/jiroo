@@ -22,6 +22,7 @@ import { assembleLePoint, type LePointSource } from "@/lib/le-point/assemble";
 import type { Day, LePointDataset } from "@/lib/le-point/model";
 import { dayInZone } from "@/lib/roadmap/days";
 import { calculatePreviousSprintsVelocity } from "@/lib/reports/sprint-calculations";
+import { listAbsences } from "@/lib/services/absences";
 import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
 import { getVelocityReport } from "@/lib/services/sprint-reports";
 
@@ -234,6 +235,16 @@ export async function loadLePoint(input: {
   for (const change of sprintChanges) peopleIds.add(change.actor);
   const people = await db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, [...peopleIds]));
 
+  // Declared absences of everyone shown, from three months back (idle days
+  // skip them) to two months past the sprint's end (« en congé jusqu'au »).
+  const dayShift = (days: number) => dayInZone(new Date(Date.parse(`${today}T12:00:00Z`) + days * 86_400_000));
+  const sprintEnd = sprint?.plannedEndAt ? dayInZone(sprint.plannedEndAt) : today;
+  const absenceRows = await listAbsences({
+    userIds: [...new Set([...peopleIds, ...members.map((member) => member.id)])],
+    startDate: dayShift(-90),
+    endDate: dayShift(60) > sprintEnd ? dayShift(60) : sprintEnd,
+  });
+
   const current = sprintMembers?.filter((row) => row.leftAt === null) ?? null;
   const sprintItemIds = current?.map((row) => row.itemId) ?? null;
   const sprintAddedItemIds = current?.filter((row) => row.addedAfterStart).map((row) => row.itemId) ?? [];
@@ -276,6 +287,7 @@ export async function loadLePoint(input: {
     sprintChanges,
     sprintVelocity,
     members,
+    absences: absenceRows,
     sprintItemIds,
     sprintAddedItemIds,
     people,
