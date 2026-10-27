@@ -386,10 +386,10 @@ describeDb("server-only authorization resolver", () => {
     });
   });
 
-  it("resolves assignable users in two queries for a significant directory", async () => {
+  it("resolves assignable users in one grouped query for a significant directory", async () => {
     const executeSpy = vi.spyOn(db, "execute");
     const candidates = await listAssignableUsersForBacklog(backlogAId);
-    expect(executeSpy).toHaveBeenCalledTimes(2);
+    expect(executeSpy).toHaveBeenCalledTimes(1);
     executeSpy.mockRestore();
 
     const fixtureCandidateIds = new Set(
