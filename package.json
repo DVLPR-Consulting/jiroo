@@ -21,7 +21,7 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@better-auth/core": "1.6.33",
+    "@better-auth/core": "1.7.14",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
@@ -35,7 +35,7 @@
     "@tiptap/react": "^3.31.4",
     "@tiptap/starter-kit": "^3.31.4",
     "@tiptap/suggestion": "^3.31.4",
-    "better-auth": "1.6.33",
+    "better-auth": "1.7.14",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
@@ -85,8 +85,8 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.22.4",
     "typescript": "^5",
-    "vitest": "^4.1.12",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "vitest": "^4.1.12"
   },
   "packageManager": "pnpm@10.34.5",
   "engines": {
