@@ -167,17 +167,26 @@ export async function loadLePoint(input: {
 
   const sprint = sprintRows[0];
   const sprintStart = sprint?.startedAt ?? sprint?.plannedStartAt;
+  // Added after the start, as the burndown reads it: the membership has an
+  // « item_added » sprint event, which only a join into a started sprint
+  // writes; a backdated start never makes the initial scope look added (JIR-124).
   const sprintMembers = sprint
     ? await db
-        .select({ itemId: sprintItems.itemId, joinedAt: sprintItems.joinedAt })
+        .select({
+          itemId: sprintItems.itemId,
+          addedAfterStart: sql<boolean>`exists (
+            select 1 from sprint_events added_event
+            where added_event.backlog_id = ${backlog.id}
+              and added_event.sprint_id = ${sprint.id}
+              and added_event.source_membership_id = ${sprintItems.id}
+              and added_event.event_type = 'item_added'
+          )`,
+        })
         .from(sprintItems)
         .where(and(eq(sprintItems.sprintId, sprint.id), isNull(sprintItems.leftAt)))
     : null;
   const sprintItemIds = sprintMembers?.map((row) => row.itemId) ?? null;
-  // Joined after the start: scope added mid-sprint (JIR-124).
-  const sprintAddedItemIds = sprintMembers && sprintStart
-    ? sprintMembers.filter((row) => row.joinedAt > sprintStart).map((row) => row.itemId)
-    : [];
+  const sprintAddedItemIds = sprintMembers?.filter((row) => row.addedAfterStart).map((row) => row.itemId) ?? [];
   return assembleLePoint({
     viewerId: input.userId,
     today,
