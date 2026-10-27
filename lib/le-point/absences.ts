@@ -35,8 +35,9 @@ export function absentOn(absences: Absence[], user: string, day: Day): boolean {
  * there.
  */
 export function absentUntil(absences: Absence[], user: string, day: Day): Day | null {
-  if (!absentOn(absences, user, day)) return null;
-  let last = day;
+  // Asked on a weekend or a holiday, the answer reads from the next working day.
+  let last = isWorkingDay(day) ? day : nextWorkingDay(day);
+  if (!absentOn(absences, user, last)) return null;
   for (;;) {
     const next = nextWorkingDay(last);
     if (!absentOn(absences, user, next)) return last;

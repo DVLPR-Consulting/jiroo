@@ -38,6 +38,10 @@ describe("absentUntil", () => {
     // Thursday 12 to Friday 13 across the Armistice: still one absence.
     expect(absentUntil([{ user: "ana", start: "2026-11-09", end: "2026-11-10" }, { user: "ana", start: "2026-11-12", end: "2026-11-13" }], "ana", "2026-11-09")).toBe("2026-11-13");
     expect(absentUntil(absences, "ana", "2026-11-02")).toBeNull();
+    // Asked on the Saturday: never a weekend day; the Monday when it is away, nothing when it is not.
+    expect(absentUntil(absences, "ana", "2026-11-07")).toBe("2026-11-10");
+    expect(absentUntil([{ user: "bo", start: "2026-11-06", end: "2026-11-08" }], "bo", "2026-11-07")).toBeNull();
+    expect(absentUntil([{ user: "bo", start: "2026-11-11", end: "2026-11-12" }], "bo", "2026-11-11")).toBe("2026-11-12");
     expect(absentUntil(halves, "cy", "2026-11-03")).toBeNull();
     expect(absentUntil(halves, "cy", "2026-11-04")).toBe("2026-11-04");
   });
