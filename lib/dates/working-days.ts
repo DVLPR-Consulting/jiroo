@@ -62,9 +62,9 @@ export function publicHoliday(day: Day): string | null {
   return holidaysOf(Number(day.slice(0, 4))).get(day) ?? null;
 }
 
-/** Saturday or Sunday; day 0 (1970-01-01) was a Thursday. */
+/** Saturday or Sunday; day 0 (1970-01-01) was a Thursday, and a day before it has a negative number. */
 export function isWeekend(day: Day): boolean {
-  const weekday = (dayNumber(day) + 4) % 7;
+  const weekday = (((dayNumber(day) + 4) % 7) + 7) % 7;
   return weekday === 0 || weekday === 6;
 }
 

@@ -58,7 +58,7 @@ export function SprintsReviewView({ backlogKey, report }: { backlogKey: string; 
         </div>
       )}
       <div className="space-y-2 text-sm text-muted-foreground">
-        <p>Présence : jours ouvrés du sprint (lundi à vendredi, bornes incluses) × effectif assignable actuel, moins les absences déclarées. Elle est recalculée, même pour les sprints clos ; les jours fériés ne sont pas déduits. Sans accès à l’annuaire ou sans date de fin, elle reste inconnue.</p>
+        <p>Présence : jours ouvrés du sprint (lundi à vendredi hors jours fériés français, bornes incluses) × effectif assignable actuel, moins les absences déclarées, en demi-journées. Elle est recalculée, même pour les sprints clos. Sans accès à l’annuaire ou sans date de fin, elle reste inconnue.</p>
         <p>% terminés : tickets terminés sur le périmètre final (embarqués + ajoutés − retirés). Les ajouts et retraits comptent chaque mouvement du journal, y compris les réentrées. Bugs : tickets de nature « bug » sur le périmètre final.</p>
         <p>Rouge sous 60 % de terminés ou au-delà d’un tiers de bugs, seuils à discuter. Les chiffres des tickets sont figés à la clôture ; le sprint en cours reste provisoire. « — » indique une donnée inconnue ou un ratio sans dénominateur.</p>
         {report.limited ? <p>Ce bilan est limité aux 50 derniers sprints clos, plus le sprint actif.</p> : null}

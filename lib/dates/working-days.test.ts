@@ -34,6 +34,8 @@ describe("the French working calendar", () => {
     expect(isWorkingDay("2026-11-01")).toBe(false); // Sunday, and Toussaint
     expect(isWorkingDay("2026-11-11")).toBe(false); // Wednesday, Armistice
     expect(isWorkingDay("2026-12-25")).toBe(false); // Friday, Noël
+    expect(isWorkingDay("1969-12-27")).toBe(false); // a Saturday before 1970
+    expect(isWorkingDay("1969-12-29")).toBe(true);
   });
 
   it("counts working days both ends included, holidays off", () => {

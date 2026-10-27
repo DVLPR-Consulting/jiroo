@@ -1153,7 +1153,9 @@ export async function getSprintsReview(backlogId: string, actorId: string): Prom
       userIds: members.slice(index * 500, (index + 1) * 500), startDate: starts[0], endDate: ends.at(-1),
     })))).flat()
     : [];
-  const absences = absenceRows.map((row) => ({ user: row.userId, start: row.startDate, end: row.endDate }));
+  const absences = absenceRows.map((row) => ({
+    user: row.userId, start: row.startDate, startHalf: row.startHalf, end: row.endDate, endHalf: row.endHalf,
+  }));
   return {
     limited: result.limited,
     rows: result.rows.map((row) => ({
