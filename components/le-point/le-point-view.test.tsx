@@ -228,6 +228,56 @@ describe("LePointView, whole team (JIR-121)", () => {
     expect(rows[0]).toHaveTextContent("DEMO-15 bloqué.");
   });
 
+  it("shows a member without an open ticket and counts them present (JIR-124 C)", async () => {
+    const leo = { id: "leo", name: "Léo Bernard" };
+    render(<LePointView data={{ ...camille, members: [...camille.members!, leo] }} />);
+    const sprint = section("Santé du sprint");
+    expect(within(sprint).getByRole("heading", { name: "Charge par personne 6" })).toBeVisible();
+    const person = within(sprint).getByRole("button", { name: "Léo Bernard, Rien en cours, aucun ticket ouvert" });
+    expect(person).toHaveTextContent("rien d’assigné");
+    const chips = within(sprint).getAllByRole("button", { name: /ticket[s]? ouvert[s]?$/ });
+    expect(chips.map((chip) => chip.getAttribute("aria-label"))).toEqual([
+      "Camille Morel, 1 bloqué, 4 tickets ouverts", "Léa Martin, 1 bloqué, 3 tickets ouverts",
+      "Hugo Lefèvre, En rythme, 1 ticket ouvert", "Inès Garnier, Rien en cours, 1 ticket ouvert",
+      "Léo Bernard, Rien en cours, aucun ticket ouvert", "Sans assigné, 1 ticket ouvert",
+    ]);
+    expect(sprint).toHaveTextContent("Reste 25 pts pour 4 jours ouvrés et 5 personnes présentes : il faudrait 1,3 pt par jour-personne, contre 0,7 pt jusqu’ici.");
+    expect(sprint).toHaveTextContent("20 jours-personne, 5 personnes présentes");
+    await userEvent.click(person);
+    expect(person).toHaveAttribute("aria-expanded", "true");
+    expect(within(sprint).getByText("Aucun ticket ouvert.")).toBeVisible();
+    expect(within(sprint).getByRole("link", { name: "Voir dans la Liste" })).toHaveAttribute("href", "/b/DEMO?view=list&assignee=leo");
+    await userEvent.click(within(sprint).getByRole("button", { name: "Tout voir" }));
+    const rows = within(sprint).getAllByRole("listitem");
+    expect(rows).toHaveLength(6);
+    expect(rows[4]).toHaveTextContent("Léo Bernard");
+    expect(rows[4]).toHaveTextContent("aucun ticket ouvert");
+    expect(rows[5]).toHaveTextContent("Sans assigné");
+    await userEvent.click(within(rows[4]!).getByRole("button"));
+    expect(within(rows[4]!).getByText("Aucun ticket ouvert.")).toBeVisible();
+  });
+
+  it("keeps the existing load and projection when the directory is unavailable", () => {
+    render(<LePointView data={{ ...camille, members: [], people: [...camille.people, { id: "leo", name: "Léo Bernard" }] }} />);
+    const sprint = section("Santé du sprint");
+    expect(within(sprint).queryByRole("button", { name: /^Léo Bernard/ })).toBeNull();
+    expect(within(sprint).getByRole("heading", { name: "Charge par personne 5" })).toBeVisible();
+    expect(sprint).toHaveTextContent("Reste 25 pts pour 4 jours ouvrés et 4 personnes présentes : il faudrait 1,6 pt par jour-personne, contre 0,9 pt jusqu’ici.");
+  });
+
+  it("lets a known member with no ticket open their detail even without an active sprint", async () => {
+    render(<LePointView data={{ ...camille, sprint: null, tickets: [], members: [{ id: "leo", name: "Léo Bernard" }] }} />);
+    const sprint = section("Santé du sprint");
+    expect(sprint).toHaveTextContent("Aucun sprint actif");
+    const person = within(sprint).getByRole("button", { name: "Léo Bernard, Rien en cours, aucun ticket ouvert" });
+    await userEvent.click(person);
+    expect(within(sprint).getByText("Aucun ticket ouvert.")).toBeVisible();
+    await userEvent.click(within(sprint).getByRole("button", { name: "Tout voir" }));
+    const row = within(sprint).getByRole("listitem");
+    expect(row).toHaveTextContent("Léo Bernard");
+    expect(row).toHaveTextContent("aucun ticket ouvert");
+  });
+
   it("keeps the same card for everyone, whatever the perspective or the scope", async () => {
     render(<LePointView data={camille} />);
     const chips = () => within(section("Santé du sprint")).getAllByRole("button", { name: /tickets? ouverts?$/ }).length;

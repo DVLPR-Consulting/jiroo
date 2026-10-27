@@ -168,7 +168,7 @@ export function HelpGuide() {
             <>Choisis ton projet avec le sélecteur de la barre latérale.</>,
             <>Ouvre <Ui>Le point</Ui>, la première des vues du projet, au-dessus de <Ui>Backlog</Ui>.</>,
             <>En haut, <Ui>Santé du sprint</Ui> dit en un mot où en est le sprint, le montre sur une barre avec le trait « aujourd’hui », dit s’il peut finir à temps, et donne quatre chiffres : terminés, bloqués, ajoutés, jours restants. L’objectif du sprint est rappelé sous le verdict ; un clic sur les ajoutés ouvre le périmètre, l’engagement de départ face à la vélocité moyenne et chaque ticket ajouté ou retiré, daté et signé. Le petit <Ui>i</Ui> explique le calcul.</>,
-            <>Dessous, <Ui>Charge par personne</Ui> donne une pastille par personne, avec la couleur de sa situation et ses tickets ouverts. Clique dessus pour voir ses tickets ; <Ui>Voir dans la Liste</Ui> ouvre la Liste filtrée sur elle, <Ui>Tout voir</Ui> affiche le tableau complet. Cette carte est la même pour tout le monde.</>,
+            <>Dessous, <Ui>Charge par personne</Ui> donne une pastille par personne, avec la couleur de sa situation et ses tickets ouverts. Les membres sans ticket apparaissent avec « rien d’assigné ». Clique dessus pour voir ses tickets ; <Ui>Voir dans la Liste</Ui> ouvre la Liste filtrée sur elle, <Ui>Tout voir</Ui> affiche le tableau complet. Cette carte est la même pour tout le monde.</>,
             <>Par défaut, la page montre <Ui>Toute l’équipe</Ui>. Choisis <Ui>Moi</Ui> dans la barre sous le titre pour ne garder que tes tickets et les décisions qu’on te demande ; ton choix est mémorisé sur ton appareil.</>,
           ]}
         />

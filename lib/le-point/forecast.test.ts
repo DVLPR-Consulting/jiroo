@@ -74,6 +74,26 @@ describe("sprintForecast", () => {
     expect(forecast.sentence).toBe("Reste 21 pts pour 4 jours ouvrés et 1 personne présente : il faudrait 5,3 pts par jour-personne, contre 0,4 pt jusqu’ici.");
   });
 
+  it("counts known members as present even when they have no ticket", () => {
+    const input = data([todo("T-1", 20)], {
+      members: [{ id: "ana", name: "Ana Roux" }, { id: "bo", name: "Bo Martin" }],
+    });
+    expect(presentInSprint(input)).toBe(2);
+    expect(sprintForecast(input, presentInSprint(input))).toMatchObject({ present: 2, needed: 2.5 });
+    expect(sprintForecast({ ...input, sprint: null }, presentInSprint(input))).toBeNull();
+  });
+
+  it("falls back to distinct open sprint assignees when the member list is empty", () => {
+    const input = data([
+      todo("T-1", 12), todo("T-2", 8),
+      ticket("T-3", { assignee: "bo", inSprint: false }),
+      ticket("T-4", { assignee: "cy", category: "done" }),
+      ticket("T-5", { assignee: "di", external: true }),
+      ticket("T-6", { assignee: null }),
+    ], { members: [] });
+    expect(presentInSprint(input)).toBe(1);
+  });
+
   it("says so once the planned end is past, or when everything is done", () => {
     const over = sprintForecast(data([done("T-1", 8), todo("T-2", 2)], { today: "2026-11-10" }), 3)!;
     expect(over).toMatchObject({ overdue: true, daysLeft: 0, needed: null });
