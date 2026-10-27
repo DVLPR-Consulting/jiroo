@@ -961,7 +961,7 @@ function PersonDetail({ row, data }: { row: WorkloadRow; data: LePointDataset })
           Voir dans la Liste
         </Link>
       </div>
-      <AbsencePanel row={row} data={data} />
+      <AbsencePanel key={row.assignee ?? "unassigned"} row={row} data={data} />
       {row.open === 0 ? (
         <p className="text-xs text-muted-foreground">Aucun ticket ouvert.</p>
       ) : (

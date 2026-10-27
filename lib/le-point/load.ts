@@ -237,18 +237,19 @@ export async function loadLePoint(input: {
 
   // Declared absences of everyone shown, from three months back (idle days
   // skip them) to two months past the sprint's end (« en congé jusqu'au »).
-  const dayShift = (days: number) => dayInZone(new Date(Date.parse(`${today}T12:00:00Z`) + days * 86_400_000));
+  const after = (day: Day, days: number) => dayInZone(new Date(Date.parse(`${day}T12:00:00Z`) + days * 86_400_000));
   const sprintEnd = sprint?.plannedEndAt ? dayInZone(sprint.plannedEndAt) : today;
-  const [absenceRows, administers, managesMembers] = await Promise.all([
-    listAbsences({
-      userIds: [...new Set([...peopleIds, ...members.map((member) => member.id)])],
-      startDate: dayShift(-90),
-      endDate: dayShift(60) > sprintEnd ? dayShift(60) : sprintEnd,
-    }),
+  const window = { startDate: after(today, -90), endDate: [after(today, 60), after(sprintEnd, 60)].sort().at(-1)! };
+  // Read by batches of 500 identities: the service's contract, never a page that fails on a big team.
+  const absentees = [...new Set([...peopleIds, ...members.map((member) => member.id)])];
+  const batches = Array.from({ length: Math.ceil(absentees.length / 500) }, (_, index) => absentees.slice(index * 500, (index + 1) * 500));
+  const [absenceBatches, administers, managesMembers] = await Promise.all([
+    Promise.all(batches.map((userIds) => listAbsences({ ...window, userIds }))),
     // Declaring someone else's absence takes the same right as opening the backlog's settings.
     checkPermission({ actorId: input.userId, permission: "administer_backlog", scope: { type: "backlog", backlogId: backlog.id } }),
     checkPermission({ actorId: input.userId, permission: "manage_members", scope: { type: "backlog", backlogId: backlog.id } }),
   ]);
+  const absenceRows = absenceBatches.flat();
   const canManageAbsences = administers.allowed || managesMembers.allowed;
 
   const current = sprintMembers?.filter((row) => row.leftAt === null) ?? null;

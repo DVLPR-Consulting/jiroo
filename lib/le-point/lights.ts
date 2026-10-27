@@ -275,7 +275,12 @@ export function personLight(data: LePointDataset, assignee: string): Light {
  */
 export function workloadTickets(data: LePointDataset, assignee: string | null): LePointCard[] {
   const { isBlocked, blockedReason, blockedTag, card } = ticketContext(data);
-  const idleDays = (ticket: LePointTicket) => (ticket.lastActivity ? workingDaysBetween(ticket.lastActivity, data.today) : 0);
+  const absences = data.absences ?? [];
+  // The same idle days as the person's light: a day away is never an idle day.
+  const idleDays = (ticket: LePointTicket) => (ticket.lastActivity
+    ? workingDaysBetween(ticket.lastActivity, data.today)
+      - (assignee === null ? 0 : absentWorkingDays(absences, assignee, dayAfter(ticket.lastActivity), data.today))
+    : 0);
   const stale = (ticket: LePointTicket) => ticket.category === "in_progress" && idleDays(ticket) >= PERSON_THRESHOLDS.idleDays;
   const outside = (ticket: LePointTicket) => data.sprint !== null && !ticket.inSprint && ticket.category !== "in_progress";
   const IDLE = 1;

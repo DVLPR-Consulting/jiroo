@@ -1,10 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
 import { requireBacklogPermissionById } from "@/lib/auth/action-authorization";
-import { listAssignableUsersForBacklog, ResourceNotFoundError } from "@/lib/auth/authorization";
+import { listAssignableUsersForBacklog } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
 import { invalidateBacklog } from "@/lib/realtime/publish";
 import {
@@ -65,9 +64,19 @@ async function authorize(actorId: string, backlogId: string, userId: string): Pr
   return backlogKey;
 }
 
-/** Re-renders the backlog's pages, Le point first, and tells its open tabs; no item changed. */
+/** Whether the actor may act on this person's absences from the backlog, as a plain answer. */
+async function mayManage(actorId: string, backlogId: string, userId: string): Promise<boolean> {
+  try {
+    await authorize(actorId, backlogId, userId);
+    return true;
+  } catch (error) {
+    if (mapActionAuthorizationError(error) || (error instanceof Error && error.message === NOT_A_MEMBER_MESSAGE)) return false;
+    throw error;
+  }
+}
+
+/** Re-renders the backlog's pages, Le point among them, and tells its open tabs; no item changed. */
 async function publish(backlogKey: string, backlogId: string, actorId: string) {
-  revalidatePath(`/b/${backlogKey}/le-point`);
   await invalidateBacklog(backlogKey, { kind: "backlog", backlogId, itemIds: [], actorId });
 }
 
@@ -93,9 +102,11 @@ export async function removeAbsenceAction(input: { id: string; backlogId: string
   const parsed = absenceIdInput.safeParse(input);
   if (!parsed.success) return NOT_FOUND;
   try {
+    // The backlog's own right comes first, before any absence is read.
+    const { backlogKey } = await requireBacklogPermissionById({ actorId, backlogId: parsed.data.backlogId, permission: "browse_backlog" });
     const owner = await getAbsenceOwner(parsed.data.id);
-    if (!owner) throw new ResourceNotFoundError("absence", parsed.data.id);
-    const backlogKey = await authorize(actorId, parsed.data.backlogId, owner);
+    // An absence one may not touch answers like one that does not exist: its existence never leaks.
+    if (!owner || !(await mayManage(actorId, parsed.data.backlogId, owner))) return NOT_FOUND;
     await removeAbsence(parsed.data, actorId);
     await publish(backlogKey, parsed.data.backlogId, actorId);
     return { ok: true };

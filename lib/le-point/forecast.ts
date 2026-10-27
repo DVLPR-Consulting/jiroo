@@ -97,9 +97,12 @@ export function sprintForecast(data: LePointDataset, who: number | string[]): Fo
   } else if (overdue) {
     sentence = `Reste ${amount(remaining)} après la fin prévue : à terminer, ou à reporter au sprint suivant.`;
   } else if (needed === null) {
-    sentence = present === 0
+    const nobody = typeof who === "number" ? who === 0 : people.length === 0;
+    sentence = nobody
       ? `Reste ${amount(remaining)} pour ${countLabel(daysLeft, "jour ouvré", "jours ouvrés")}, et personne n’a de ticket dans le sprint.`
-      : `Reste ${amount(remaining)}, sans jour ouvré avant la fin prévue.`;
+      : daysLeft === 0
+        ? `Reste ${amount(remaining)}, sans jour ouvré avant la fin prévue.`
+        : `Reste ${amount(remaining)} pour ${countLabel(daysLeft, "jour ouvré", "jours ouvrés")}, et personne n’est présent d’ici la fin prévue.`;
   } else {
     const rhythm = pace === null ? " ; premier jour, pas encore de rythme." : `, contre ${amount(pace)} jusqu’ici.`;
     sentence = `Reste ${amount(remaining)} pour ${countLabel(daysLeft, "jour ouvré", "jours ouvrés")} et ${countLabel(present, "personne présente", "personnes présentes")} : il faudrait ${amount(needed)} par jour-personne${rhythm}`;

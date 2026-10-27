@@ -116,6 +116,10 @@ describe("sprintForecast", () => {
     const today = sprintForecast(data([todo("T-1", 20)], { absences: [{ user: "ana", start: "2026-11-03", end: "2026-11-06" }] }), ["ana", "bo"])!;
     expect(today).toMatchObject({ present: 1, personDaysLeft: 4, needed: 5 });
     expect(presentInSprint(data([todo("T-1", 20)], { members: [{ id: "ana", name: "Ana" }, { id: "bo", name: "Bo" }], absences: [{ user: "ana", start: "2026-11-03", end: "2026-11-06" }] }))).toBe(1);
+    // Everyone away until the end: no person-day, and the sentence says so rather than blaming the tickets.
+    const nobody = sprintForecast(data([todo("T-1", 20)], { absences: [{ user: "ana", start: "2026-11-03", end: "2026-11-06" }] }), ["ana"])!;
+    expect(nobody).toMatchObject({ present: 0, personDaysLeft: 0, needed: null });
+    expect(nobody.sentence).toBe("Reste 20 pts pour 4 jours ouvrés, et personne n’est présent d’ici la fin prévue.");
   });
 
   it("reads the demo backlog: 25 points left for four people over four working days", () => {

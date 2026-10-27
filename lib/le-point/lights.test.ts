@@ -304,6 +304,9 @@ describe("personLight", () => {
     });
     // Someone else's absence changes nothing.
     expect(personLight(data([doing("T-1", "2026-10-27")], { absences: [{ user: "bo", start: "2026-10-28", end: "2026-11-06" }] }), "ana")).toMatchObject({ color: "red" });
+    // The person's tickets read the same idle days as their light.
+    expect(workloadTickets(data([doing("T-1", "2026-10-27")], { absences: away }), "ana").map((card) => [card.tag, card.tone])).toEqual([["Actif le 27 oct.", "success"]]);
+    expect(workloadTickets(data([doing("T-1", "2026-10-27")]), "ana").map((card) => card.tag)).toEqual(["Inactif depuis 5 j ouvrés"]);
   });
 
   it("gives each person of the demo backlog a different light", () => {
