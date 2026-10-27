@@ -388,7 +388,7 @@ function SprintLightCard({ data }: { data: LePointDataset }) {
   return (
     <section
       aria-labelledby={headingId}
-      className="space-y-2 rounded-[var(--radius)] border border-border bg-card p-3 shadow-[var(--shadow-sm)]"
+      className="@container space-y-2 rounded-[var(--radius)] border border-border bg-card p-3 shadow-[var(--shadow-sm)]"
     >
       <div className="flex flex-wrap items-center gap-2">
         {title}
@@ -401,7 +401,7 @@ function SprintLightCard({ data }: { data: LePointDataset }) {
         <span className="font-semibold">{light.label}</span> · {data.sprint.name}. {light.summary}
       </p>
       {light.color !== "none" ? (
-        <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+        <div className="grid gap-x-6 gap-y-1 @xl:grid-cols-2">
           <Meter label="Temps écoulé" percent={light.elapsedPercent} className="bg-[var(--muted-foreground)]" />
           <Meter
             label={light.unit === "points" ? "Points terminés" : "Tickets terminés"}
@@ -524,11 +524,16 @@ function DeveloperPerspective({ data, scope }: { data: LePointDataset; scope: Le
   );
 }
 
-/** Open tickets per person, as Jira's team workload: a light (JIR-124), a bar against the busiest, then the counts. */
+/**
+ * Open tickets per person, as Jira's team workload: a light (JIR-124), a bar
+ * against the busiest, then the counts. The four columns need the list itself
+ * to be wide enough (a container query, since the sidebar eats the viewport);
+ * narrower, the counts take a second line and the bar goes.
+ */
 function Workload({ rows, data }: { rows: WorkloadRow[]; data: LePointDataset }) {
   const busiest = Math.max(...rows.map((row) => row.open));
   return (
-    <ul className="overflow-hidden rounded-[var(--radius)] border border-border bg-card">
+    <ul className="@container overflow-hidden rounded-[var(--radius)] border border-border bg-card">
       {rows.map((row) => {
         const label = [
           `${row.open} ouvert${row.open > 1 ? "s" : ""}`,
@@ -539,14 +544,14 @@ function Workload({ rows, data }: { rows: WorkloadRow[]; data: LePointDataset })
         return (
           <li
             key={row.assignee ?? "unassigned"}
-            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-b border-border px-3 py-2 text-sm last:border-b-0 sm:grid-cols-[minmax(0,1fr)_7.5rem_12rem_11rem]"
+            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-b border-border px-3 py-2 text-sm last:border-b-0 @2xl:grid-cols-[minmax(0,1fr)_7.5rem_12rem_11rem]"
           >
             <span className={cn("min-w-0 truncate", row.assignee === null && "text-muted-foreground")}>{row.name}</span>
-            <span className="justify-self-end sm:justify-self-start">{light ? <LightTag light={light} /> : null}</span>
-            <span aria-hidden="true" className="hidden h-1.5 overflow-hidden rounded-full bg-[var(--muted)] sm:flex">
+            <span className="justify-self-end @2xl:justify-self-start">{light ? <LightTag light={light} /> : null}</span>
+            <span aria-hidden="true" className="hidden h-1.5 overflow-hidden rounded-full bg-[var(--muted)] @2xl:flex">
               <span className="bg-[var(--status-doing)]" style={{ width: `${(row.open / busiest) * 100}%` }} />
             </span>
-            <span className="col-span-2 text-xs tabular-nums text-muted-foreground sm:col-span-1">
+            <span className="col-span-2 text-xs tabular-nums text-muted-foreground @2xl:col-span-1">
               {label}
             </span>
           </li>
