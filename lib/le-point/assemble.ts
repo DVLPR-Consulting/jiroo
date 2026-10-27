@@ -47,6 +47,16 @@ export type LePointSource = {
   /** Those of `sprintItemIds` that joined after the sprint started: scope added mid-sprint (JIR-124). */
   sprintAddedItemIds?: string[];
   people: { id: string; name: string }[];
+  sprintChanges?: {
+    kind: "added" | "removed";
+    key: string;
+    title: string;
+    points: number | null;
+    at: Date;
+    actor: string | null;
+  }[];
+  sprintVelocity?: number | null;
+  members?: { id: string; name: string }[];
 };
 
 const LAST_DAY = "9999-12-31";
@@ -175,7 +185,15 @@ export function assembleLePoint(source: LePointSource): LePointDataset {
     backlog: source.backlog,
     people: source.people,
     personas: { developer: source.viewerId, product: source.viewerId },
-    sprint: source.sprint,
+    sprint: source.sprint
+      ? {
+          ...source.sprint,
+          goal: source.sprint.goal?.trim() || null,
+          changes: (source.sprintChanges ?? []).map(({ at, ...change }) => ({ ...change, day: dayInZone(at) })),
+          velocity: source.sprintVelocity ?? null,
+        }
+      : null,
+    members: source.members ?? [],
     releases: source.releases
       .filter((release) => !release.archived || release.released)
       .map(({ name, planned, released }) => ({ name, planned, released })),

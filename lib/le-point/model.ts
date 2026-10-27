@@ -73,6 +73,19 @@ export type LePointDataset = {
      * (JIR-124). Unknown for a sprint started before those facts were kept.
      */
     commitment?: { points: number; tickets: number };
+    /** The active sprint's goal; null when empty (JIR-124). */
+    goal?: string | null;
+    /** Scope changes since the sprint started, in journal order. */
+    changes?: {
+      kind: "added" | "removed";
+      key: string;
+      title: string;
+      points: number | null;
+      day: Day;
+      actor: string | null;
+    }[];
+    /** Average completed points within the three latest closed sprints; null without eligible history. */
+    velocity?: number | null;
   } | null;
   releases: { name: string; planned: Day | null; released: Day | null }[];
   objectives: {
@@ -85,6 +98,8 @@ export type LePointDataset = {
   }[];
   tickets: LePointTicket[];
   mentions: { ticket: string; author: string; mentioned: string; day: Day; text: string }[];
+  /** Assignable backlog members, only when the reader may browse users. */
+  members?: { id: string; name: string }[];
 };
 
 export type LePointCard = {
