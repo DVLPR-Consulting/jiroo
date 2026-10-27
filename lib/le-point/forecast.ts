@@ -1,4 +1,5 @@
 import { countLabel, formatPoints } from "@/lib/format/plural";
+import { absentOn, absentWorkingDays } from "@/lib/le-point/absences";
 import { workingDaysBetween } from "@/lib/le-point/lights";
 import type { Day, LePointDataset, LePointTicket } from "@/lib/le-point/model";
 
@@ -18,6 +19,8 @@ export type Forecast = {
   /** Working days from the start to yesterday. */
   daysGone: number;
   present: number;
+  /** Person-days left before the planned end, declared absences taken off. */
+  personDaysLeft: number;
   /** Per person-day, to finish on time; null when nothing is left or nobody has a day left. */
   needed: number | null;
   /** Per person-day so far; null on the first day. */
@@ -33,23 +36,37 @@ const shift = (day: Day, days: number): Day => new Date(Date.parse(`${day}T00:00
 const inSprint = (ticket: LePointTicket) => !ticket.external && ticket.inSprint === true;
 
 /**
- * Until absences are known, every known backlog member is present. Without
- * the directory, fall back to distinct holders of open sprint tickets;
- * someone whose only open tickets sit outside the sprint is not counted.
+ * Who does the sprint's work: every known backlog member, or, without the
+ * directory, the distinct holders of open sprint tickets. Someone whose only
+ * open tickets sit outside the sprint is not counted.
  */
-export function presentInSprint(data: LePointDataset): number {
-  if (data.members?.length) return data.members.length;
+export function sprintPeople(data: LePointDataset): string[] {
+  if (data.members?.length) return data.members.map((member) => member.id);
   const holders = data.tickets
     .filter((ticket) => inSprint(ticket) && ticket.category !== "done" && ticket.assignee !== null)
-    .map((ticket) => ticket.assignee);
-  return new Set(holders).size;
+    .map((ticket) => ticket.assignee as string);
+  return [...new Set(holders)];
 }
 
-export function sprintForecast(data: LePointDataset, present: number): Forecast | null {
+/** Those of the sprint's people not away today. */
+export function presentInSprint(data: LePointDataset): number {
+  const absences = data.absences ?? [];
+  return sprintPeople(data).filter((person) => !absentOn(absences, person, data.today)).length;
+}
+
+/**
+ * `who` is the sprint's people, their declared absences taken off their
+ * days; a plain number stands for that many people there every day.
+ */
+export function sprintForecast(data: LePointDataset, who: number | string[]): Forecast | null {
   const sprint = data.sprint;
   if (!sprint) return null;
   const scope = data.tickets.filter(inSprint);
   if (scope.length === 0) return null;
+  const absences = data.absences ?? [];
+  const people = typeof who === "number" ? [] : who;
+  const present = typeof who === "number" ? who : people.filter((person) => !absentOn(absences, person, data.today)).length;
+  const lost = (from: Day, to: Day) => sum(people.map((person) => absentWorkingDays(absences, person, from, to)));
 
   const points = (ticket: LePointTicket) => (typeof ticket.points === "number" ? ticket.points : null);
   const unit = sum(scope.map((ticket) => points(ticket) ?? 0)) > 0 ? "points" : "tickets";
@@ -61,8 +78,12 @@ export function sprintForecast(data: LePointDataset, present: number): Forecast 
   const overdue = sprint.end < data.today;
   const daysLeft = overdue ? 0 : workingDaysBetween(shift(data.today, -1), sprint.end);
   const daysGone = data.today <= sprint.start ? 0 : workingDaysBetween(shift(sprint.start, -1), shift(data.today, -1));
-  const capacityLeft = daysLeft * present;
-  const capacityGone = daysGone * present;
+  const capacityLeft = typeof who === "number"
+    ? daysLeft * who
+    : overdue ? 0 : daysLeft * people.length - lost(data.today, sprint.end);
+  const capacityGone = typeof who === "number"
+    ? daysGone * who
+    : daysGone === 0 ? 0 : daysGone * people.length - lost(sprint.start, shift(data.today, -1));
   const needed = remaining > 0 && capacityLeft > 0 ? round(remaining / capacityLeft) : null;
   const pace = capacityGone > 0 ? round(done / capacityGone) : null;
 
@@ -84,5 +105,5 @@ export function sprintForecast(data: LePointDataset, present: number): Forecast 
     sentence = `Reste ${amount(remaining)} pour ${countLabel(daysLeft, "jour ouvré", "jours ouvrés")} et ${countLabel(present, "personne présente", "personnes présentes")} : il faudrait ${amount(needed)} par jour-personne${rhythm}`;
   }
 
-  return { unit, remaining, daysLeft, daysGone, present, needed, pace, overdue, sentence };
+  return { unit, remaining, daysLeft, daysGone, present, personDaysLeft: capacityLeft, needed, pace, overdue, sentence };
 }

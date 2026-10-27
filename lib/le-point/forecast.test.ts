@@ -107,6 +107,17 @@ describe("sprintForecast", () => {
     expect(forecast.sentence).toBe("Reste 5 pts pour 4 jours ouvrés, et personne n’a de ticket dans le sprint.");
   });
 
+  it("takes the declared absences off the person-days, and off the people present today", () => {
+    // Ana is away from Wednesday 4 to Friday 6: three of the eight person-days left are lost.
+    const away = sprintForecast(data([todo("T-1", 20)], { absences: [{ user: "ana", start: "2026-11-04", end: "2026-11-06" }] }), ["ana", "bo"])!;
+    expect(away).toMatchObject({ daysLeft: 4, present: 2, personDaysLeft: 5, needed: 4 });
+    expect(away.sentence).toBe("Reste 20 pts pour 4 jours ouvrés et 2 personnes présentes : il faudrait 4 pts par jour-personne, contre 0 pt jusqu’ici.");
+    // Away from today: not present, and one person-day left for the other.
+    const today = sprintForecast(data([todo("T-1", 20)], { absences: [{ user: "ana", start: "2026-11-03", end: "2026-11-06" }] }), ["ana", "bo"])!;
+    expect(today).toMatchObject({ present: 1, personDaysLeft: 4, needed: 5 });
+    expect(presentInSprint(data([todo("T-1", 20)], { members: [{ id: "ana", name: "Ana" }, { id: "bo", name: "Bo" }], absences: [{ user: "ana", start: "2026-11-03", end: "2026-11-06" }] }))).toBe(1);
+  });
+
   it("reads the demo backlog: 25 points left for four people over four working days", () => {
     expect(sprintForecast(LE_POINT_DEMO, 4)!.sentence).toBe(
       "Reste 25 pts pour 4 jours ouvrés et 4 personnes présentes : il faudrait 1,6 pt par jour-personne, contre 0,9 pt jusqu’ici.",

@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LABEL_HUES, type LabelHue } from "@/lib/design/constants";
 import { countLabel, formatPoints, frenchPlural } from "@/lib/format/plural";
-import { presentInSprint, sprintForecast } from "@/lib/le-point/forecast";
+import { sprintForecast, sprintPeople } from "@/lib/le-point/forecast";
 import { personLight, sprintLight, SPRINT_THRESHOLDS, workloadTickets, type Light, type LightColor, type SprintLight } from "@/lib/le-point/lights";
 import {
   daysFrom,
@@ -646,7 +646,7 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
   const [scopeOpen, setScopeOpen] = useState(false);
   const light = sprintLight(data);
   const rows = teamWorkload(data);
-  const forecast = sprintForecast(data, presentInSprint(data));
+  const forecast = sprintForecast(data, sprintPeople(data));
   const title = <h2 id={headingId} className="sr-only">Santé du sprint</h2>;
   const prototype = (
     <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal text-muted-foreground">
@@ -757,7 +757,7 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
                 value={forecast ? `${forecast.daysLeft} j` : "—"}
                 unit={forecast ? frenchPlural(forecast.daysLeft, "ouvré restant", "ouvrés restants") : "ouvré restant"}
                 line={forecast
-                  ? `${countLabel(forecast.daysLeft * forecast.present, "jour-personne", "jours-personne")}, ${countLabel(forecast.present, "personne présente", "personnes présentes")}`
+                  ? `${countLabel(forecast.personDaysLeft, "jour-personne", "jours-personne")}, ${countLabel(forecast.present, "personne présente", "personnes présentes")}`
                   : "aucun ticket dans le sprint"}
               />
             )}
