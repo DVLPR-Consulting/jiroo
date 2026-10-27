@@ -1,7 +1,7 @@
 import { isFiltersActive, parseViewState } from "@/lib/items/filter";
 
 export type ShellMode = "Backlog" | "Board" | "Liste" | "Arbre";
-export type ShellNav = "backlogs" | "all" | "mine" | "trash" | "admin" | null;
+export type ShellNav = "backlogs" | "all" | "mine" | "presences" | "trash" | "admin" | null;
 
 export type ShellContext = {
   activeBacklogKey?: string;
@@ -55,6 +55,8 @@ export function deriveShellContext({
     // The home page lists every backlog (JIR-82, Jira's Projects page).
     "/": { section: "Backlogs", activeNav: "backlogs" as const },
     "/mine": { section: "Mes items", activeNav: "mine" as const },
+    // The team's absences, outside any backlog (JIR-124).
+    "/presences": { section: "Absences et congés", activeNav: "presences" as const },
     "/trash": { section: "Corbeille", activeNav: "trash" as const },
     "/admin": { section: "Administration", activeNav: "admin" as const },
     "/aide": { section: "Aide", activeNav: null },

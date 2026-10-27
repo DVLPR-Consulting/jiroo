@@ -20,10 +20,10 @@ export type PresenceTicket = {
   id: string;
   key: string;
   title: string;
-  type: "tache" | "soustache";
-  kind: "feature" | "bug";
+  type: "composant" | "epic" | "tache" | "soustache";
+  kind?: "feature" | "bug";
   points: number | null;
-  statusName: string;
+  statusName?: string;
   statusCategory: Category;
   assigneeId: string;
   backlogId: string;

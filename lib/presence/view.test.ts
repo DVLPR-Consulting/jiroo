@@ -17,7 +17,7 @@ import {
 } from "@/lib/presence/view";
 
 const ticket = (over: Partial<PresenceTicket> & { id: string; startedAt: string }): PresenceTicket => ({
-  key: `DATA-${over.id}`, title: over.id, type: "tache", kind: "feature", points: 3, statusName: "En cours", statusCategory: "in_progress",
+  key: `DATA-${over.id}`, title: over.id, type: "tache", points: 3, statusCategory: "in_progress",
   assigneeId: "hugo", backlogId: "data", backlogKey: "DATA", doneAt: null, ...over,
 });
 

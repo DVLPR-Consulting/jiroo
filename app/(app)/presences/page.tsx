@@ -1,0 +1,40 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { PresencesView } from "@/components/presence/presences-view";
+import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
+import { requireAppPageSession } from "@/lib/auth/session";
+import { firstSearchParam, type RawSearchParams } from "@/lib/items/view-url-params";
+import { loadPresencePage } from "@/lib/presence/load";
+import type { View } from "@/lib/presence/view";
+import { isDay } from "@/lib/roadmap/days";
+
+export const metadata: Metadata = { title: "Absences et congés — Jiroo" };
+
+const VIEWS: Record<string, View> = { mois: "month", sprint: "sprint", annee: "year" };
+
+/**
+ * « Absences et congés » (JIR-124, lot B2): the team's page, outside any
+ * backlog. The URL says what is shown (`backlog`, `vue`, `date`, `sprint`);
+ * the server reads that period with the reader's rights.
+ */
+export default async function PresencesPage({ searchParams }: { searchParams?: Promise<RawSearchParams> }) {
+  const query = (await searchParams) ?? {};
+  const session = await requireAppPageSession();
+  const date = firstSearchParam(query.date);
+  const page = await loadPresencePage({
+    userId: session.user.id,
+    scopeKey: firstSearchParam(query.backlog) ?? null,
+    view: VIEWS[firstSearchParam(query.vue) ?? "mois"] ?? "month",
+    anchor: isDay(date) ? date : null,
+    sprintId: firstSearchParam(query.sprint) ?? null,
+  });
+  if (!page) notFound();
+  return (
+    <div className="mx-auto max-w-[1240px] p-4 sm:p-8">
+      <div className="mb-4">
+        <ShellBreadcrumb />
+      </div>
+      <PresencesView page={page} />
+    </div>
+  );
+}
