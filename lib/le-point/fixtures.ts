@@ -18,7 +18,8 @@ export const LE_POINT_DEMO: LePointDataset = {
     { id: "lea", name: "Léa Martin" },
   ],
   personas: { developer: "camille", product: "ines" },
-  sprint: { name: "Sprint 8", start: "2026-10-27", end: "2026-11-07" },
+  // Frozen at the start: every sprint ticket below but DEMO-33, added since.
+  sprint: { name: "Sprint 8", start: "2026-10-27", end: "2026-11-07", commitment: { points: 41, tickets: 10 } },
   releases: [
     { name: "1.2", planned: "2026-10-20", released: "2026-10-20" },
     { name: "1.3", planned: "2026-11-14", released: null },

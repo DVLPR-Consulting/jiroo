@@ -153,6 +153,53 @@ describe("sprintLight", () => {
     expect(light.donePercent).toBe(50);
   });
 
+  it("measures the scope added against the commitment frozen at the start, not the scope still here", () => {
+    const halfway = { name: "Sprint 2", start: "2026-10-20", end: "2026-11-03" };
+    // 100 points committed, 80 of them removed since, 5 added: 5 % of the commitment.
+    const removed = sprintLight(data(
+      [done("T-1", 20), ticket("T-2", { points: 5, addedAfterStart: true })],
+      { today: "2026-10-27", sprint: { ...halfway, commitment: { points: 100, tickets: 6 } } },
+    ))!;
+    expect(removed).toMatchObject({ color: "green", summary: "En avance : 50 % du temps écoulé pour 80 % des points terminés." });
+    expect(removed.details[1]).toBe("1 ticket ajouté depuis le début du sprint : 5 points, 5 % de l’engagement initial.");
+    // 20 points committed, re-estimated to 100 since, 10 added: half of the commitment.
+    const reestimated = sprintLight(data(
+      [done("T-1", 100), ticket("T-2", { points: 10, addedAfterStart: true })],
+      { today: "2026-10-27", sprint: { ...halfway, commitment: { points: 20, tickets: 1 } } },
+    ))!;
+    expect(reestimated).toMatchObject({ color: "amber", summary: "À surveiller : périmètre ajouté de 50 %." });
+    // Counting tickets, the commitment is its number of tickets.
+    const tickets = sprintLight(data(
+      [ticket("T-1", { status: "Terminé", category: "done" }), ticket("T-2"), ticket("T-3", { addedAfterStart: true })],
+      { today: "2026-10-27", sprint: { ...halfway, commitment: { points: 0, tickets: 4 } } },
+    ))!;
+    expect(tickets.details[1]).toBe("1 ticket ajouté depuis le début du sprint : 1 ticket, 25 % de l’engagement initial.");
+  });
+
+  it("compares the raw ratios to the thresholds and rounds only what it shows", () => {
+    const halfway = { today: "2026-10-27", sprint: { name: "Sprint 2", start: "2026-10-20", end: "2026-11-03" } };
+    // 39,6 % done at 50 % of the time: a gap of 10,4, shown as 50 − 40.
+    expect(sprintLight(data([done("T-1", 99), todo("T-2", 151)], halfway))).toMatchObject({ color: "amber", donePercent: 40 });
+    expect(sprintLight(data([done("T-1", 40), todo("T-2", 60)], halfway))).toMatchObject({ color: "green", donePercent: 40 });
+    // 24,6 % done: a gap of 25,4, shown as 50 − 25.
+    expect(sprintLight(data([done("T-1", 123), todo("T-2", 377)], halfway))).toMatchObject({ color: "red", donePercent: 25 });
+    expect(sprintLight(data([done("T-1", 25), todo("T-2", 75)], halfway))).toMatchObject({ color: "amber", donePercent: 25 });
+    // 20,4 points added on a commitment of 100.
+    const added = sprintLight(data(
+      [done("T-1", 50), todo("T-2", 50), ticket("T-3", { points: 20.4, addedAfterStart: true })],
+      { ...halfway, sprint: { ...halfway.sprint, commitment: { points: 100, tickets: 2 } } },
+    ))!;
+    expect(added).toMatchObject({ color: "amber", summary: "À surveiller : périmètre ajouté de 20 %." });
+    expect(added.details[1]).toBe("1 ticket ajouté depuis le début du sprint : 20,4 points, 20 % de l’engagement initial.");
+  });
+
+  it("agrees the unit of the scope added with its figure", () => {
+    const one = sprintLight(data([done("T-1", 7), todo("T-2", 3), ticket("T-3", { points: 1, addedAfterStart: true })]))!;
+    expect(one.details[1]).toBe("1 ticket ajouté depuis le début du sprint : 1 point, 10 % de l’engagement initial.");
+    const half = sprintLight(data([done("T-1", 7), todo("T-2", 3), ticket("T-3", { points: 1.5, addedAfterStart: true })]))!;
+    expect(half.details[1]).toBe("1 ticket ajouté depuis le début du sprint : 1,5 point, 15 % de l’engagement initial.");
+  });
+
   it("reads the demo backlog as amber, with its reasons", () => {
     expect(sprintLight(LE_POINT_DEMO)).toMatchObject({
       color: "amber",

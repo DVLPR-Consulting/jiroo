@@ -167,13 +167,17 @@ export async function loadLePoint(input: {
 
   const sprint = sprintRows[0];
   const sprintStart = sprint?.startedAt ?? sprint?.plannedStartAt;
-  // Added after the start, as the burndown reads it: the membership has an
-  // « item_added » sprint event, which only a join into a started sprint
-  // writes; a backdated start never makes the initial scope look added (JIR-124).
+  // Every membership of the sprint, left ones included (JIR-124). Added after
+  // the start, as the burndown reads it: the membership has an « item_added »
+  // sprint event, which only a join into a started sprint writes; a backdated
+  // start never makes the initial scope look added.
   const sprintMembers = sprint
     ? await db
         .select({
           itemId: sprintItems.itemId,
+          leftAt: sprintItems.leftAt,
+          doneAtStart: sprintItems.doneAtStart,
+          estimateAtStart: sprintItems.estimateAtStart,
           addedAfterStart: sql<boolean>`exists (
             select 1 from sprint_events added_event
             where added_event.backlog_id = ${backlog.id}
@@ -183,10 +187,19 @@ export async function loadLePoint(input: {
           )`,
         })
         .from(sprintItems)
-        .where(and(eq(sprintItems.sprintId, sprint.id), isNull(sprintItems.leftAt)))
+        .where(eq(sprintItems.sprintId, sprint.id))
     : null;
-  const sprintItemIds = sprintMembers?.map((row) => row.itemId) ?? null;
-  const sprintAddedItemIds = sprintMembers?.filter((row) => row.addedAfterStart).map((row) => row.itemId) ?? [];
+  const current = sprintMembers?.filter((row) => row.leftAt === null) ?? null;
+  const sprintItemIds = current?.map((row) => row.itemId) ?? null;
+  const sprintAddedItemIds = current?.filter((row) => row.addedAfterStart).map((row) => row.itemId) ?? [];
+  // The scope frozen at the start: the start facts are written for every
+  // membership present then, removed since or not. A sprint started before
+  // those facts were kept has none, and its commitment stays unknown.
+  const initial = sprintMembers?.filter((row) => row.doneAtStart !== null) ?? [];
+  const legacy = initial.length === 0 && (current ?? []).some((row) => !row.addedAfterStart);
+  const commitment = legacy
+    ? undefined
+    : { points: initial.reduce((total, row) => total + (row.estimateAtStart ?? 0), 0), tickets: initial.length };
   return assembleLePoint({
     viewerId: input.userId,
     today,
@@ -207,7 +220,12 @@ export async function loadLePoint(input: {
     })),
     fixVersions: versionRows,
     sprint: sprint && sprintStart && sprint.plannedEndAt
-      ? { name: sprint.name, start: dayInZone(sprintStart), end: dayInZone(sprint.plannedEndAt) }
+      ? {
+          name: sprint.name,
+          start: dayInZone(sprintStart),
+          end: dayInZone(sprint.plannedEndAt),
+          ...(commitment ? { commitment } : {}),
+        }
       : null,
     sprintItemIds,
     sprintAddedItemIds,

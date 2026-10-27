@@ -64,7 +64,16 @@ export type LePointDataset = {
   backlog: { key: string; name: string };
   people: { id: string; name: string }[];
   personas: { developer: string; product: string };
-  sprint: { name: string; start: Day; end: Day } | null;
+  sprint: {
+    name: string;
+    start: Day;
+    end: Day;
+    /**
+     * The scope frozen when the sprint started, removed tickets included
+     * (JIR-124). Unknown for a sprint started before those facts were kept.
+     */
+    commitment?: { points: number; tickets: number };
+  } | null;
   releases: { name: string; planned: Day | null; released: Day | null }[];
   objectives: {
     key: string;

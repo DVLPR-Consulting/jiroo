@@ -1,3 +1,4 @@
+import { countLabel, formatPoints } from "@/lib/format/plural";
 import {
   daysFrom,
   formatDay,
@@ -47,10 +48,9 @@ const SPRINT_LABEL: Record<LightColor, string> = { green: "Vert", amber: "Orange
 
 const light = (color: LightColor, label: string, summary: string, details: string[]): Light =>
   ({ color, label, summary, details, tone: TONE[color] });
-const count = (n: number, singular: string, plural = `${singular}s`) => `${n} ${n > 1 ? plural : singular}`;
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
-/** « 12 », « 7,5 ». */
-const figure = (value: number) => value.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+/** A ratio as a percentage kept to two decimals: compared to the thresholds as is, rounded only to be shown. */
+const percent = (ratio: number) => Math.round(ratio * 10_000) / 100;
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const present = (line: string | null): line is string => line !== null;
 
@@ -78,11 +78,12 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
 
   const span = daysFrom(sprint.start, sprint.end);
   const position = daysFrom(sprint.start, data.today);
-  const elapsedPercent = span <= 0 ? 100 : Math.round(Math.min(Math.max(position / span, 0), 1) * 100);
+  const elapsed = percent(span <= 0 ? 1 : Math.min(Math.max(position / span, 0), 1));
+  const elapsedPercent = Math.round(elapsed);
   const timing = position < 0
     ? `commence le ${formatDay(sprint.start)}`
     : position > span
-      ? `fin prévue le ${formatDay(sprint.end)}, dépassée de ${count(position - span, "jour")}`
+      ? `fin prévue le ${formatDay(sprint.end)}, dépassée de ${countLabel(position - span, "jour", "jours")}`
       : `jour ${position + 1} sur ${span + 1}`;
 
   if (scope.length === 0) {
@@ -99,31 +100,44 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
   const weight = (ticket: LePointTicket) => (unit === "points" ? points(ticket) ?? 0 : 1);
   const total = sum(scope.map(weight));
   const done = sum(scope.filter((ticket) => ticket.category === "done").map(weight));
-  const donePercent = Math.round((done / total) * 100);
+  const completed = percent(done / total);
+  const donePercent = Math.round(completed);
   const added = scope.filter((ticket) => ticket.addedAfterStart);
   const addedWeight = sum(added.map(weight));
-  const initial = total - addedWeight;
-  const addedPercent = initial > 0 ? Math.round((addedWeight / initial) * 100) : addedWeight > 0 ? 100 : 0;
+  // Against the scope frozen at the start when it is known, removed tickets
+  // included; otherwise against the initial tickets still here.
+  const commitment = sprint.commitment
+    ? (unit === "points" ? sprint.commitment.points : sprint.commitment.tickets)
+    : total - addedWeight;
+  const addedShare = percent(commitment > 0 ? addedWeight / commitment : addedWeight > 0 ? 1 : 0);
+  const addedPercent = Math.round(addedShare);
   const blocked = scope.filter((ticket) => ticket.category !== "done" && openBlockersOf(ticket, byKey).length > 0);
   const unestimated = unit === "points" ? scope.filter((ticket) => points(ticket) === null).length : 0;
-  const gap = elapsedPercent - donePercent;
+  const gap = elapsed - completed;
   const unitLabel = unit === "points" ? "des points" : "des tickets";
   const progress = `${elapsedPercent} % du temps écoulé pour ${donePercent} % ${unitLabel} terminés`;
+  const addedLabel = unit === "points"
+    ? countLabel(addedWeight, "point", "points", formatPoints)
+    : countLabel(addedWeight, "ticket", "tickets");
 
   const details = [
-    `${elapsedPercent} % du temps écoulé (${timing}), ${donePercent} % ${unitLabel} terminés (${figure(done)} sur ${figure(total)}).`,
+    `${elapsedPercent} % du temps écoulé (${timing}), ${donePercent} % ${unitLabel} terminés (${formatPoints(done)} sur ${formatPoints(total)}).`,
     added.length > 0
-      ? `${count(added.length, "ticket ajouté", "tickets ajoutés")} depuis le début du sprint : ${figure(addedWeight)} ${unit}, ${addedPercent} % de l’engagement initial.`
+      ? `${countLabel(added.length, "ticket ajouté", "tickets ajoutés")} depuis le début du sprint : ${addedLabel}, ${addedPercent} % de l’engagement initial.`
       : null,
-    blocked.length > 0 ? `${count(blocked.length, "ticket bloqué", "tickets bloqués")} : ${blocked.map((ticket) => ticket.key).join(", ")}.` : null,
-    unestimated > 0 ? `${count(unestimated, "ticket sans estimation", "tickets sans estimation")}, non ${unestimated > 1 ? "comptés" : "compté"}.` : null,
+    blocked.length > 0
+      ? `${countLabel(blocked.length, "ticket bloqué", "tickets bloqués")} : ${blocked.map((ticket) => ticket.key).join(", ")}.`
+      : null,
+    unestimated > 0
+      ? `${countLabel(unestimated, "ticket sans estimation", "tickets sans estimation")}, non ${unestimated > 1 ? "comptés" : "compté"}.`
+      : null,
     unit === "tickets" ? "Aucun ticket estimé : le feu compte les tickets." : null,
   ].filter(present);
 
   const concerns = [
     gap > SPRINT_THRESHOLDS.amber ? progress : null,
-    addedPercent > SPRINT_THRESHOLDS.scopeAdded ? `périmètre ajouté de ${addedPercent} %` : null,
-    blocked.length > 0 ? count(blocked.length, "ticket bloqué", "tickets bloqués") : null,
+    addedShare > SPRINT_THRESHOLDS.scopeAdded ? `périmètre ajouté de ${addedPercent} %` : null,
+    blocked.length > 0 ? countLabel(blocked.length, "ticket bloqué", "tickets bloqués") : null,
   ].filter(present);
 
   const color: LightColor = gap > SPRINT_THRESHOLDS.red ? "red" : concerns.length > 0 ? "amber" : "green";
@@ -159,8 +173,9 @@ export function personLight(data: LePointDataset, assignee: string): Light {
   const todo = work.length - inProgress.length;
 
   const details = [
-    `${count(inProgress.length, "ticket en cours", "tickets en cours")}, ${todo} à faire.`,
-    ...stale.map((ticket) => `${ticket.key} en cours sans activité depuis ${count(idleDays(ticket), "jour ouvré", "jours ouvrés")}.`),
+    `${countLabel(inProgress.length, "ticket en cours", "tickets en cours")}, ${todo} à faire.`,
+    ...stale.map((ticket) =>
+      `${ticket.key} en cours sans activité depuis ${countLabel(idleDays(ticket), "jour ouvré", "jours ouvrés")}.`),
     ...blocked.map((ticket) => `${ticket.key} bloqué.`),
   ];
 
@@ -173,9 +188,9 @@ export function personLight(data: LePointDataset, assignee: string): Light {
   if (stale.length > 0 || blocked.length > 0) {
     const concerns = [
       stale.length > 0
-        ? `${count(stale.length, "ticket en cours", "tickets en cours")} sans activité depuis ${PERSON_THRESHOLDS.idleDays} jours ouvrés`
+        ? `${countLabel(stale.length, "ticket en cours", "tickets en cours")} sans activité depuis ${PERSON_THRESHOLDS.idleDays} jours ouvrés`
         : null,
-      blocked.length > 0 ? count(blocked.length, "ticket bloqué", "tickets bloqués") : null,
+      blocked.length > 0 ? countLabel(blocked.length, "ticket bloqué", "tickets bloqués") : null,
     ].filter(present);
     return light("amber", "À surveiller", `${capitalize(concerns.join(", "))}.`, details);
   }

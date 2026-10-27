@@ -41,7 +41,7 @@ export type LePointSource = {
   /** Archived ones included: they only date a delivery, they are never the next one. */
   releases: { id: string; name: string; planned: Day | null; released: Day | null; archived?: boolean }[];
   fixVersions: { itemId: string; releaseId: string }[];
-  sprint: { name: string; start: Day; end: Day } | null;
+  sprint: LePointDataset["sprint"];
   /** The items in the active sprint; null without one. */
   sprintItemIds: string[] | null;
   /** Those of `sprintItemIds` that joined after the sprint started: scope added mid-sprint (JIR-124). */
