@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { and, eq, exists, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import {
   evaluatePermission,
   type GrantMatch,
@@ -425,8 +425,8 @@ export async function checkPermissions(
 export type AssignableUserIdentity = { id: string; name: string };
 
 function backlogPermissionMatchSql(input: {
-  backlogId: string;
-  permissionSchemeId: string | null;
+  backlogId: string | SQL;
+  permissionSchemeId: string | SQL | null;
   permission: "browse_backlog" | "assignable_user";
 }) {
   return sql`exists (
@@ -475,34 +475,28 @@ function backlogPermissionMatchSql(input: {
   )`;
 }
 
-export async function listAssignableUsersForBacklog(
-  backlogId: string,
-): Promise<AssignableUserIdentity[]> {
-  const contextResult = await db.execute<{ permissionSchemeId: string | null }>(sql`
-    select backlog_permission_configs.permission_scheme_id as "permissionSchemeId"
-    from backlogs
-    left join backlog_permission_configs
-      on backlog_permission_configs.backlog_id = backlogs.id
-    where backlogs.id = ${backlogId}
-    limit 1
-  `);
-  const context = contextResult.rows[0];
-  if (!context) return [];
+type AuthorizationExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-  const browseMatch = backlogPermissionMatchSql({
-    backlogId,
-    permissionSchemeId: context.permissionSchemeId,
-    permission: "browse_backlog",
-  });
-  const assignableMatch = backlogPermissionMatchSql({
-    backlogId,
-    permissionSchemeId: context.permissionSchemeId,
-    permission: "assignable_user",
-  });
-  const candidateResult = await db.execute<AssignableUserIdentity>(sql`
-    select directory_user.id, directory_user.name
-    from "user" as directory_user
-    where directory_user.role = 'admin'
+/** The same assignable directory in one grouped read, including administrator bypass. */
+export async function listAssignableUsersForBacklogs(
+  backlogIds: readonly string[],
+  executor: AuthorizationExecutor = db,
+): Promise<(AssignableUserIdentity & { backlogId: string })[]> {
+  const ids = [...new Set(backlogIds)];
+  if (ids.length === 0) return [];
+  const context = {
+    backlogId: sql`backlogs.id`,
+    permissionSchemeId: sql`backlog_permission_configs.permission_scheme_id`,
+  };
+  const browseMatch = backlogPermissionMatchSql({ ...context, permission: "browse_backlog" });
+  const assignableMatch = backlogPermissionMatchSql({ ...context, permission: "assignable_user" });
+  const result = await executor.execute<AssignableUserIdentity & { backlogId: string }>(sql`
+    select backlogs.id as "backlogId", directory_user.id, directory_user.name
+    from backlogs
+    left join backlog_permission_configs on backlog_permission_configs.backlog_id = backlogs.id
+    cross join "user" as directory_user
+    where ${inArray(backlogs.id, ids)} and (
+      directory_user.role = 'admin'
       or exists (
         select 1
         from permission_grants as administrator_grant
@@ -526,13 +520,19 @@ export async function listAssignableUsersForBacklog(
           )
       )
       or (
-        cast(${context.permissionSchemeId} as uuid) is not null
-        and ${browseMatch}
-        and ${assignableMatch}
+        backlog_permission_configs.permission_scheme_id is not null
+        and ${browseMatch} and ${assignableMatch}
       )
-    order by lower(directory_user.name), directory_user.id
+    )
+    order by backlogs.id, lower(directory_user.name), directory_user.id
   `);
-  return candidateResult.rows;
+  return result.rows;
+}
+
+export async function listAssignableUsersForBacklog(
+  backlogId: string,
+): Promise<AssignableUserIdentity[]> {
+  return (await listAssignableUsersForBacklogs([backlogId])).map(({ id, name }) => ({ id, name }));
 }
 
 export function explainPermission(input: CheckPermissionInput): Promise<AuthorizationDecision> {
