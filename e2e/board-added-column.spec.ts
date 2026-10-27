@@ -1,58 +1,63 @@
 import "dotenv/config";
 
-import { expect, test } from "@playwright/test";
-import { and, eq, sql } from "drizzle-orm";
+import { expect, test, type Page } from "@playwright/test";
+import { asc, eq } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
-import { backlogs, items, sprints, statuses } from "../lib/db/schema/domain";
+import { items, statuses } from "../lib/db/schema/domain";
+import { archiveBacklog, createBacklog } from "../lib/services/backlogs";
 import { createItem } from "../lib/services/items";
 import { startSprint } from "../lib/services/sprint-lifecycle";
-import { createStatus } from "../lib/services/statuses";
 import { createSprint } from "../lib/services/sprints";
+import { createStatus, reorderStatuses } from "../lib/services/statuses";
 
-/** JIR-123: a column added from the board receives cards and is a real status everywhere. */
+/**
+ * JIR-123: a column added to the board is a real status everywhere — every way
+ * of moving a ticket offers it, and the card then shows in that column.
+ *
+ * Each test gets its own backlog, archived afterwards (archived backlogs are
+ * hidden everywhere). Starting a sprint writes append-only events, so the
+ * backlog is archived rather than deleted and no other fixture is touched.
+ */
 
 const COLUMN = "Validation PO";
 const TITLE = "Colonne ajoutée — carte déplacée";
 const SPRINT = "Sprint colonnes";
 
-async function labsFixture() {
-  const [backlog] = await db.select({ id: backlogs.id }).from(backlogs).where(eq(backlogs.key, "CASS"));
-  const [actor] = await db.select({ id: user.id }).from(user).where(eq(user.email, "platform-admin@jiroo.local"));
-  if (!backlog || !actor) throw new Error("Fixture CASS incomplète.");
-  const [todo] = await db
-    .select({ id: statuses.id })
-    .from(statuses)
-    .where(and(eq(statuses.backlogId, backlog.id), eq(statuses.category, "todo")))
-    .limit(1);
-  const [epic] = await db
-    .select({ id: items.id })
-    .from(items)
-    .where(and(eq(items.backlogId, backlog.id), eq(items.type, "epic")))
-    .limit(1);
-  if (!todo || !epic) throw new Error("Statut initial ou epic CASS introuvable.");
-  return { backlog, actor, todo, epic };
+let backlogId: string | null = null;
+
+function uniqueKey() {
+  const letters = Array.from({ length: 3 }, () =>
+    String.fromCharCode(65 + Math.floor(Math.random() * 26)),
+  ).join("");
+  return `COL${letters}`;
 }
 
-async function cleanup() {
-  const { backlog } = await labsFixture();
-  await db.delete(items).where(and(eq(items.backlogId, backlog.id), eq(items.title, TITLE)));
-  await db.execute(sql.raw(
-    "TRUNCATE TABLE sprint_report_items, sprint_report_snapshots, sprint_events RESTART IDENTITY CASCADE",
-  ));
-  await db.delete(sprints).where(and(eq(sprints.backlogId, backlog.id), eq(sprints.name, SPRINT)));
-  await db.delete(statuses).where(and(eq(statuses.backlogId, backlog.id), eq(statuses.name, COLUMN)));
+async function adminId() {
+  const [admin] = await db.select({ id: user.id }).from(user)
+    .where(eq(user.email, "platform-admin@jiroo.local"));
+  if (!admin) throw new Error("Compte administrateur Playwright introuvable.");
+  return admin.id;
 }
 
-test.beforeEach(cleanup);
-test.afterAll(cleanup);
-
-test("une carte déposée sur une colonne ajoutée y reste et le ticket propose ce statut", async ({ page }) => {
-  const { backlog, actor, todo, epic } = await labsFixture();
-  const sprint = await createSprint({ backlogId: backlog.id }, actor.id);
+/** A fresh backlog with a task in « À faire » inside a started sprint. */
+async function boardFixture() {
+  const actorId = await adminId();
+  const backlog = await createBacklog({ key: uniqueKey(), name: "Flux PO E2E", color: "#7c3aed" }, actorId);
+  backlogId = backlog.id;
+  const ordered = await db.select({ id: statuses.id, category: statuses.category }).from(statuses)
+    .where(eq(statuses.backlogId, backlog.id)).orderBy(asc(statuses.order));
+  const todo = ordered.find((status) => status.category === "todo");
+  if (!todo) throw new Error("Statut « À faire » introuvable.");
+  const composant = await createItem({ backlogId: backlog.id, type: "composant", title: "Portail" }, actorId);
+  const epic = await createItem(
+    { backlogId: backlog.id, type: "epic", parentId: composant.id, title: "Dépôt" },
+    actorId,
+  );
+  const sprint = await createSprint({ backlogId: backlog.id }, actorId);
   const task = await createItem(
     { backlogId: backlog.id, type: "tache", parentId: epic.id, title: TITLE, statusId: todo.id, sprintId: sprint.id },
-    actor.id,
+    actorId,
   );
   await startSprint(
     {
@@ -64,21 +69,62 @@ test("une carte déposée sur une colonne ajoutée y reste et le ticket propose 
       endAt: "2026-11-03T18:00:00.000Z",
       capacityPoints: 13,
     },
-    actor.id,
+    actorId,
   );
+  return { backlog, task, todo, ordered };
+}
 
-  await page.goto("/b/CASS?view=board");
+/** Same fixture, with the column added through the status service. */
+async function boardWithAddedColumn() {
+  const fixture = await boardFixture();
+  const column = await createStatus({
+    backlogId: fixture.backlog.id,
+    name: COLUMN,
+    category: "in_progress",
+    color: "#7c3aed",
+  });
+  return { ...fixture, column };
+}
+
+function columnGroup(page: Page) {
+  return page.getByRole("group", { name: new RegExp(`^${COLUMN}, `) });
+}
+
+async function expectOnBoard(page: Page, key: string) {
+  await page.goto(`/b/${key}?view=board`);
+  await expect(columnGroup(page).getByText(TITLE)).toBeVisible();
+}
+
+async function addColumnFromDialog(page: Page) {
   await page.getByRole("button", { name: "Colonnes" }).click();
   await page.getByRole("button", { name: "Ajouter une colonne" }).click();
   await page.getByLabel("Nom").fill(COLUMN);
   await page.getByRole("button", { name: "Ajouter la colonne" }).click();
   await expect(page.getByRole("dialog").getByText(COLUMN)).toBeVisible();
   await page.keyboard.press("Escape");
+  await expect(columnGroup(page)).toBeVisible();
+}
 
-  const target = page.getByRole("group", { name: new RegExp(`^${COLUMN}, `) });
-  await expect(target).toBeVisible();
+test.beforeEach(async ({ page }) => {
+  // Wide enough for five columns side by side, so the drag needs no autoscroll.
+  await page.setViewportSize({ width: 1920, height: 1000 });
+});
 
+test.afterEach(async () => {
+  if (backlogId) await archiveBacklog(backlogId);
+  backlogId = null;
+});
+
+test("une carte déposée sur une colonne ajoutée y reste et le ticket propose ce statut", async ({ page }) => {
+  const { backlog, task } = await boardFixture();
+
+  await page.goto(`/b/${backlog.key}?view=board`);
+  await addColumnFromDialog(page);
+
+  const target = columnGroup(page);
   const handle = page.getByRole("button", { name: `Déplacer ${task.key}` });
+  await target.scrollIntoViewIfNeeded();
+  await handle.scrollIntoViewIfNeeded();
   const from = await handle.boundingBox();
   const to = await target.boundingBox();
   if (!from || !to) throw new Error("Carte ou colonne hors écran.");
@@ -101,7 +147,7 @@ test("une carte déposée sur une colonne ajoutée y reste et le ticket propose 
     .toBe(COLUMN);
 
   await page.reload();
-  await expect(page.getByRole("group", { name: new RegExp(`^${COLUMN}, `) }).getByText(TITLE)).toBeVisible();
+  await expect(columnGroup(page).getByText(TITLE)).toBeVisible();
 
   await page.getByText(TITLE).click();
   const status = page.getByRole("combobox", { name: "Statut" });
@@ -110,34 +156,10 @@ test("une carte déposée sur une colonne ajoutée y reste et le ticket propose 
 });
 
 test("un ticket passé dans la colonne ajoutée depuis sa fiche apparaît dans cette colonne", async ({ page }) => {
-  const { backlog, actor, todo, epic } = await labsFixture();
-  const sprint = await createSprint({ backlogId: backlog.id }, actor.id);
-  await createItem(
-    { backlogId: backlog.id, type: "tache", parentId: epic.id, title: TITLE, statusId: todo.id, sprintId: sprint.id },
-    actor.id,
-  );
-  await startSprint(
-    {
-      id: sprint.id,
-      backlogId: backlog.id,
-      name: SPRINT,
-      goal: "Prouver JIR-123",
-      startAt: "2026-10-20T09:00:00.000Z",
-      endAt: "2026-11-03T18:00:00.000Z",
-      capacityPoints: 13,
-    },
-    actor.id,
-  );
+  const { backlog } = await boardFixture();
 
-  await page.goto("/b/CASS?view=board");
-  await page.getByRole("button", { name: "Colonnes" }).click();
-  await page.getByRole("button", { name: "Ajouter une colonne" }).click();
-  await page.getByLabel("Nom").fill(COLUMN);
-  await page.getByRole("button", { name: "Ajouter la colonne" }).click();
-  await expect(page.getByRole("dialog").getByText(COLUMN)).toBeVisible();
-  await page.keyboard.press("Escape");
-  const target = page.getByRole("group", { name: new RegExp(`^${COLUMN}, `) });
-  await expect(target).toBeVisible();
+  await page.goto(`/b/${backlog.key}?view=board`);
+  await addColumnFromDialog(page);
 
   await page.getByText(TITLE).click();
   const status = page.getByRole("combobox", { name: "Statut" });
@@ -146,71 +168,41 @@ test("un ticket passé dans la colonne ajoutée depuis sa fiche apparaît dans c
   await expect(status.locator("option:checked")).toHaveText(COLUMN);
   await page.keyboard.press("Escape");
 
-  await expect(target.getByText(TITLE)).toBeVisible();
+  await expect(columnGroup(page).getByText(TITLE)).toBeVisible();
 });
 
-async function boardWithAddedColumn() {
-  const { backlog, actor, todo, epic } = await labsFixture();
-  const sprint = await createSprint({ backlogId: backlog.id }, actor.id);
-  const task = await createItem(
-    { backlogId: backlog.id, type: "tache", parentId: epic.id, title: TITLE, statusId: todo.id, sprintId: sprint.id },
-    actor.id,
-  );
-  await startSprint(
-    {
-      id: sprint.id,
-      backlogId: backlog.id,
-      name: SPRINT,
-      goal: "Prouver JIR-123",
-      startAt: "2026-10-20T09:00:00.000Z",
-      endAt: "2026-11-03T18:00:00.000Z",
-      capacityPoints: 13,
-    },
-    actor.id,
-  );
-  const column = await createStatus({ backlogId: backlog.id, name: COLUMN, category: "in_progress", color: "#7c3aed" });
-  return { task, column };
-}
-
-async function expectOnBoard(page: import("@playwright/test").Page) {
-  await page.goto("/b/CASS?view=board");
-  await expect(page.getByRole("group", { name: new RegExp(`^${COLUMN}, `) }).getByText(TITLE)).toBeVisible();
-}
-
 test("le statut en ligne de la Liste propose la colonne ajoutée et y range le ticket", async ({ page }) => {
-  const { task } = await boardWithAddedColumn();
-  await page.goto(`/b/CASS?view=list&q=${encodeURIComponent(TITLE)}`);
+  const { backlog, task } = await boardWithAddedColumn();
+  await page.goto(`/b/${backlog.key}?view=list`);
   const row = page.getByRole("listitem", { name: new RegExp(`^${task.key} —`) });
   await row.getByRole("button", { name: /^Statut : / }).click();
   await page.getByRole("menuitem", { name: COLUMN }).click();
   await expect(row.getByRole("button", { name: `Statut : ${COLUMN}` })).toBeVisible();
-  await expectOnBoard(page);
+  await expectOnBoard(page, backlog.key);
 });
 
-test("le bouton « statut suivant » mène à la colonne ajoutée en fin de flux", async ({ page }) => {
-  const { task } = await boardWithAddedColumn();
-  const ordered = await db
-    .select({ id: statuses.id, name: statuses.name })
-    .from(statuses)
-    .where(eq(statuses.backlogId, task.backlogId))
-    .orderBy(statuses.order);
-  const beforeLast = ordered.at(-2)!;
-  await db.update(items).set({ statusId: beforeLast.id }).where(eq(items.id, task.id));
+test("le bouton « statut suivant » mène à la colonne ajoutée", async ({ page }) => {
+  const { backlog, todo, ordered, column } = await boardWithAddedColumn();
+  // Place the added column right after « À faire », as a PO would in the dialog.
+  await reorderStatuses({
+    backlogId: backlog.id,
+    statusIds: [todo.id, column.id, ...ordered.filter((status) => status.id !== todo.id).map((status) => status.id)],
+  });
 
-  await page.goto("/b/CASS?view=board");
+  await page.goto(`/b/${backlog.key}?view=board`);
   await page.getByText(TITLE).click();
   await page.getByRole("button", { name: `Passer au statut ${COLUMN}` }).click();
   await expect(page.getByRole("combobox", { name: "Statut" }).locator("option:checked")).toHaveText(COLUMN);
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("group", { name: new RegExp(`^${COLUMN}, `) }).getByText(TITLE)).toBeVisible();
+  await expect(columnGroup(page).getByText(TITLE)).toBeVisible();
 });
 
 test("la modification groupée du statut propose la colonne ajoutée", async ({ page }) => {
-  const { task } = await boardWithAddedColumn();
-  await page.goto(`/b/CASS?view=list&q=${encodeURIComponent(TITLE)}`);
+  const { backlog, task } = await boardWithAddedColumn();
+  await page.goto(`/b/${backlog.key}?view=list`);
   await page.getByRole("checkbox", { name: `Sélectionner ${task.key}`, exact: true }).click();
   await page.getByRole("button", { name: "Modifier le statut" }).click();
   await page.getByRole("menuitem", { name: COLUMN }).click();
   await expect(page.getByRole("listitem", { name: new RegExp(`^${task.key} —`) })).toContainText(COLUMN);
-  await expectOnBoard(page);
+  await expectOnBoard(page, backlog.key);
 });
