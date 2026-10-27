@@ -17,9 +17,20 @@ export const LE_POINT_DEMO: LePointDataset = {
     { id: "hugo", name: "Hugo Lefèvre" },
     { id: "lea", name: "Léa Martin" },
   ],
+  members: [
+    { id: "camille", name: "Camille Morel" },
+    { id: "ines", name: "Inès Garnier" },
+    { id: "hugo", name: "Hugo Lefèvre" },
+    { id: "lea", name: "Léa Martin" },
+  ],
   personas: { developer: "camille", product: "ines" },
   // Frozen at the start: every sprint ticket below but DEMO-33, added since.
-  sprint: { name: "Sprint 8", start: "2026-10-27", end: "2026-11-07", commitment: { points: 41, tickets: 10 } },
+  sprint: {
+    name: "Sprint 8", start: "2026-10-27", end: "2026-11-07", commitment: { points: 41, tickets: 10 },
+    goal: "Publier les arrêts et préparer la recherche avancée",
+    changes: [{ kind: "added", key: "DEMO-33", title: "Habilitations greffe", points: 2, day: "2026-10-29", actor: "lea" }],
+    velocity: 38,
+  },
   releases: [
     { name: "1.2", planned: "2026-10-20", released: "2026-10-20" },
     { name: "1.3", planned: "2026-11-14", released: null },
