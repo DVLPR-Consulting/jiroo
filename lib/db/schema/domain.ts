@@ -811,6 +811,30 @@ export const itemTemplates = pgTable(
   ],
 );
 
+/**
+ * A person's declared absence (JIR-124): whole calendar days, both ends
+ * included. It is the person's, not a backlog's: every backlog they belong
+ * to reads it. Presence is derived from it: working days minus absences.
+ */
+export const absences = pgTable(
+  "absences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    startDate: date("start_date", { mode: "string" }).notNull(),
+    endDate: date("end_date", { mode: "string" }).notNull(),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("absences_user_start_idx").on(t.userId, t.startDate),
+    check("absences_dates_order", sql`${t.endDate} >= ${t.startDate}`),
+  ],
+);
+
 export const itemLabels = pgTable(
   "item_labels",
   {
