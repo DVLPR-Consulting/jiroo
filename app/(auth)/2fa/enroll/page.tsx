@@ -35,6 +35,11 @@ export default function EnrollPage() {
       setError("Mot de passe incorrect.");
       return;
     }
+    // Better Auth 1.7 may answer with a one-time code instead; Jiroo only enrols authenticator apps.
+    if (data.method !== "totp") {
+      setError("L’enrôlement par application d’authentification n’est pas disponible.");
+      return;
+    }
     try {
       const totpURI = data.totpURI;
       const secret = /secret=([^&]+)/.exec(totpURI ?? "")?.[1] ?? "";
