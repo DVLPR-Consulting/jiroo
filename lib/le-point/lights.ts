@@ -42,7 +42,18 @@ export type SprintLight = Light & {
   elapsedPercent: number;
   /** Share of the sprint's current scope done, 0–100, in `unit`. */
   donePercent: number;
+  /** Share of the sprint's current scope under way, 0–100, in `unit`. */
+  doingPercent: number;
   unit: "points" | "tickets";
+  /** The figures behind the percentages, in `unit`. */
+  done: number;
+  total: number;
+  /** In tickets whatever the unit; `unestimated` only counts when points are the unit. */
+  tickets: { done: number; total: number; unestimated: number };
+  /** Keys of the open tickets waiting on another one. */
+  blocked: string[];
+  /** Joined since the start: tickets, their weight in `unit`, and that weight in % of the initial commitment. */
+  added: { tickets: number; weight: number; percent: number };
 };
 
 /** Percentage points between time elapsed and work done; scope added, in % of the initial commitment. */
@@ -103,7 +114,13 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
       ...light("none", SPRINT_LABEL.none, "Le sprint ne contient aucun ticket.", [`${capitalize(timing)}.`]),
       elapsedPercent,
       donePercent: 0,
+      doingPercent: 0,
       unit: "tickets",
+      done: 0,
+      total: 0,
+      tickets: { done: 0, total: 0, unestimated: 0 },
+      blocked: [],
+      added: { tickets: 0, weight: 0, percent: 0 },
     };
   }
 
@@ -112,8 +129,10 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
   const weight = (ticket: LePointTicket) => (unit === "points" ? points(ticket) ?? 0 : 1);
   const total = sum(scope.map(weight));
   const done = sum(scope.filter((ticket) => ticket.category === "done").map(weight));
+  const doing = sum(scope.filter((ticket) => ticket.category === "in_progress").map(weight));
   const completed = percent(done / total);
   const donePercent = Math.round(completed);
+  const doingPercent = Math.round(percent(doing / total));
   const added = scope.filter((ticket) => ticket.addedAfterStart);
   const addedWeight = sum(added.map(weight));
   // Against the scope frozen at the start when it is known, removed tickets
@@ -160,7 +179,18 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
     : ahead
       ? `${capitalize(progress)}.`
       : "Le travail terminé suit le temps écoulé.";
-  return { ...light(color, ahead ? "En avance" : SPRINT_LABEL[color], summary, details), elapsedPercent, donePercent, unit };
+  return {
+    ...light(color, ahead ? "En avance" : SPRINT_LABEL[color], summary, details),
+    elapsedPercent,
+    donePercent,
+    doingPercent,
+    unit,
+    done,
+    total,
+    tickets: { done: scope.filter((ticket) => ticket.category === "done").length, total: scope.length, unestimated },
+    blocked: blocked.map((ticket) => ticket.key),
+    added: { tickets: added.length, weight: addedWeight, percent: addedPercent },
+  };
 }
 
 const workingDays = (count: number) => countLabel(count, "jour ouvré", "jours ouvrés");
