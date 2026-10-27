@@ -7,6 +7,8 @@
  * permission-filtered read of a real backlog (`load.ts`) feed the same rules.
  */
 
+import type { Half } from "@/lib/dates/half-days";
+
 /** A calendar day, `YYYY-MM-DD`. */
 export type Day = string;
 export type Category = "todo" | "in_progress" | "done";
@@ -101,8 +103,12 @@ export type LePointDataset = {
   mentions: { ticket: string; author: string; mentioned: string; day: Day; text: string }[];
   /** Assignable backlog members, only when the reader may browse users. */
   members?: { id: string; name: string }[];
-  /** Declared absences of the people above, whole days both included, around today (JIR-124). */
-  absences?: { id?: string; user: string; start: Day; end: Day }[];
+  /**
+   * Declared absences of the people above, around today (JIR-124): from the
+   * morning (`am`) or afternoon (`pm`) of `start` to that of `end`, both
+   * included; a missing half means a whole day.
+   */
+  absences?: { id?: string; user: string; start: Day; end: Day; startHalf?: Half; endHalf?: Half }[];
   /** The reader may declare the members' absences: they administer the backlog or manage its members. */
   canManageAbsences?: boolean;
 };

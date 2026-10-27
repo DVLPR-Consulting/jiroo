@@ -1,3 +1,4 @@
+import type { Half } from "@/lib/dates/half-days";
 import type { Blocker, Category, Day, LePointDataset, LePointTicket } from "@/lib/le-point/model";
 import { dayInZone } from "@/lib/roadmap/days";
 
@@ -58,7 +59,7 @@ export type LePointSource = {
   sprintVelocity?: number | null;
   members?: { id: string; name: string }[];
   /** Declared absences touching the period around today, `YYYY-MM-DD` both ends included (JIR-124). */
-  absences?: { id: string; userId: string; startDate: string; endDate: string }[];
+  absences?: { id: string; userId: string; startDate: string; endDate: string; startHalf?: Half; endHalf?: Half }[];
   canManageAbsences?: boolean;
 };
 
@@ -197,7 +198,10 @@ export function assembleLePoint(source: LePointSource): LePointDataset {
         }
       : null,
     members: source.members ?? [],
-    absences: (source.absences ?? []).map((absence) => ({ id: absence.id, user: absence.userId, start: absence.startDate, end: absence.endDate })),
+    absences: (source.absences ?? []).map((absence) => ({
+      id: absence.id, user: absence.userId, start: absence.startDate, end: absence.endDate,
+      startHalf: absence.startHalf ?? "am", endHalf: absence.endHalf ?? "pm",
+    })),
     ...(source.canManageAbsences ? { canManageAbsences: true } : {}),
     releases: source.releases
       .filter((release) => !release.archived || release.released)

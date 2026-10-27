@@ -53,6 +53,12 @@ describe("sprintForecast", () => {
     expect(forecast.sentence).toBe("Reste 10 pts pour 9 jours ouvrés et 2 personnes présentes : il faudrait 0,6 pt par jour-personne ; premier jour, pas encore de rythme.");
   });
 
+  it("leaves the public holidays out of the working days", () => {
+    // Monday 9 to Friday 20 November: ten weekdays, less the Armistice on Wednesday the 11th.
+    const forecast = sprintForecast(data([todo("T-1", 10)], { today: "2026-11-09", sprint: { name: "Sprint 2", start: "2026-11-09", end: "2026-11-20" } }), 2)!;
+    expect(forecast).toMatchObject({ daysLeft: 9, daysGone: 0, needed: 0.6 });
+  });
+
   it("never calls the sprint done while a ticket without weight stays open", () => {
     const unestimated = sprintForecast(data([done("T-1", 8), ticket("T-2")]), 2)!;
     expect(unestimated).toMatchObject({ remaining: 0, needed: null });

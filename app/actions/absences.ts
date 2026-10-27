@@ -9,12 +9,13 @@ import { invalidateBacklog } from "@/lib/realtime/publish";
 import {
   ABSENCE_NOT_FOUND_MESSAGE,
   ABSENCE_OVERLAP_MESSAGE,
+  carveAbsence,
   declareAbsence,
   getAbsenceOwner,
   removeAbsence,
   type AbsenceDto,
 } from "@/lib/services/absences";
-import { absenceIdInput, declareAbsenceInput } from "@/lib/validation/absence";
+import { absenceIdInput, carveAbsenceInput, declareAbsenceInput } from "@/lib/validation/absence";
 
 /**
  * Declared absences (JIR-124). Anyone declares their own from a backlog they

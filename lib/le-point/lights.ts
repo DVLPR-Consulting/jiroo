@@ -213,9 +213,10 @@ export function personLight(data: LePointDataset, assignee: string): Light {
   );
   const inProgress = work.filter((ticket) => ticket.category === "in_progress");
   const blocked = work.filter((ticket) => openBlockersOf(ticket, byKey).length > 0);
+  // Whole days: a half-day away is not an idle half-day either.
   const idleDays = (ticket: LePointTicket) => (ticket.lastActivity
-    ? workingDaysBetween(ticket.lastActivity, data.today)
-      - absentWorkingDays(absences, assignee, dayAfter(ticket.lastActivity), data.today)
+    ? Math.floor(workingDaysBetween(ticket.lastActivity, data.today)
+      - absentWorkingDays(absences, assignee, dayAfter(ticket.lastActivity), data.today))
     : 0);
   const stale = inProgress.filter((ticket) => idleDays(ticket) >= PERSON_THRESHOLDS.idleDays);
   const stuck = inProgress.length > 0 && inProgress.every((ticket) => idleDays(ticket) >= PERSON_THRESHOLDS.stuckDays);
@@ -274,8 +275,8 @@ export function workloadTickets(data: LePointDataset, assignee: string | null): 
   const absences = data.absences ?? [];
   // The same idle days as the person's light: a day away is never an idle day.
   const idleDays = (ticket: LePointTicket) => (ticket.lastActivity
-    ? workingDaysBetween(ticket.lastActivity, data.today)
-      - (assignee === null ? 0 : absentWorkingDays(absences, assignee, dayAfter(ticket.lastActivity), data.today))
+    ? Math.floor(workingDaysBetween(ticket.lastActivity, data.today)
+      - (assignee === null ? 0 : absentWorkingDays(absences, assignee, dayAfter(ticket.lastActivity), data.today)))
     : 0);
   const stale = (ticket: LePointTicket) => ticket.category === "in_progress" && idleDays(ticket) >= PERSON_THRESHOLDS.idleDays;
   const outside = (ticket: LePointTicket) => data.sprint !== null && !ticket.inSprint && ticket.category !== "in_progress";

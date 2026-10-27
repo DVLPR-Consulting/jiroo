@@ -53,7 +53,7 @@ describe("declareAbsenceAction", () => {
     grant(["browse_backlog"]);
     const result = await declareAbsenceAction({ userId: "camille", backlogId, ...period });
     expect(result).toMatchObject({ ok: true, absence: { id: absenceId, userId: "camille" } });
-    expect(mocks.declareAbsence).toHaveBeenCalledWith({ userId: "camille", backlogId, ...period }, "camille");
+    expect(mocks.declareAbsence).toHaveBeenCalledWith({ userId: "camille", backlogId, ...period, startHalf: "am", endHalf: "pm" }, "camille");
     expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", { kind: "backlog", backlogId, itemIds: [], actorId: "camille" });
   });
 

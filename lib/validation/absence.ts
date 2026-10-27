@@ -1,9 +1,12 @@
 import { z } from "zod";
+import { halfKey, type Half } from "@/lib/dates/half-days";
 
 /**
- * A declared absence (JIR-124): whole calendar days, both ends included,
- * `YYYY-MM-DD` in the team's calendar. A year at a time at most.
+ * A declared absence (JIR-124): from the morning or the afternoon of a day
+ * to that of another, both ends included, `YYYY-MM-DD` in the team's
+ * calendar. A year at a time at most.
  */
+export const halfInput = z.enum(["am", "pm"]);
 export const ABSENCE_MAX_DAYS = 366;
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -20,9 +23,10 @@ export const daysSpan = (from: string, to: string) =>
 
 const END_BEFORE_START = { message: "La fin de l’absence précède son début.", path: ["endDate"] };
 const TOO_LONG = { message: "Une absence dure au plus un an.", path: ["endDate"] };
-const ordered = (value: { startDate: string; endDate: string }) => value.endDate >= value.startDate;
-const withinAYear = (value: { startDate: string; endDate: string }) =>
-  !ordered(value) || daysSpan(value.startDate, value.endDate) <= ABSENCE_MAX_DAYS;
+type Span = { startDate: string; endDate: string; startHalf?: Half; endHalf?: Half };
+const ordered = (value: Span) =>
+  halfKey(value.endDate, value.endHalf ?? "pm") >= halfKey(value.startDate, value.startHalf ?? "am");
+const withinAYear = (value: Span) => !ordered(value) || daysSpan(value.startDate, value.endDate) <= ABSENCE_MAX_DAYS;
 
 export const declareAbsenceInput = z
   .object({
@@ -31,12 +35,27 @@ export const declareAbsenceInput = z
     /** The backlog it is declared from: its rights apply, and its pages are told. */
     backlogId: z.uuid(),
     startDate: dayInput,
+    /** The absence starts with the morning or the afternoon of `startDate`; whole days by default. */
+    startHalf: halfInput.default("am"),
     endDate: dayInput,
+    endHalf: halfInput.default("pm"),
   })
   .refine(ordered, END_BEFORE_START)
   .refine(withinAYear, TOO_LONG);
 
 export const absenceIdInput = z.object({ id: z.uuid(), backlogId: z.uuid() });
+
+/** The half-days to take off an absence, from one to another, both included. */
+export const carveAbsenceInput = z
+  .object({
+    id: z.uuid(),
+    backlogId: z.uuid(),
+    startDate: dayInput,
+    startHalf: halfInput,
+    endDate: dayInput,
+    endHalf: halfInput,
+  })
+  .refine(ordered, END_BEFORE_START);
 
 export const listAbsencesInput = z
   .object({
