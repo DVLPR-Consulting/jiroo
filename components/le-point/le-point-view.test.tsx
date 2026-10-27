@@ -239,12 +239,16 @@ describe("LePointView, whole team (JIR-121)", () => {
     expect(headings()[0]).toBe("Santé du sprint");
   });
 
-  it("explains its rules on request, in a dialog", async () => {
+  it("explains its rules on request, in a dialog, and gives the focus back to its button", async () => {
     render(<LePointView data={camille} />);
-    await userEvent.click(within(section("Santé du sprint")).getByRole("button", { name: "Comment est-ce calculé ?" }));
+    const button = within(section("Santé du sprint")).getByRole("button", { name: "Comment est-ce calculé ?" });
+    await userEvent.click(button);
     const dialog = screen.getByRole("dialog", { name: "Comment est-ce calculé ?" });
     expect(dialog).toHaveTextContent("En retard au-delà de 25 points d’écart.");
     expect(dialog).toHaveTextContent("Va-t-on finir ?");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(button).toHaveFocus();
   });
 
   it("says so without an active sprint", () => {

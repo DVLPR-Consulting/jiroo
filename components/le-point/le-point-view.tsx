@@ -9,10 +9,10 @@ import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { PageHeader } from "@/components/shell/page-header";
 import { PageToolbar } from "@/components/shell/page-toolbar";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LABEL_HUES, type LabelHue } from "@/lib/design/constants";
 import { countLabel, formatPoints, frenchPlural } from "@/lib/format/plural";
-import { sprintForecast } from "@/lib/le-point/forecast";
+import { presentInSprint, sprintForecast } from "@/lib/le-point/forecast";
 import { personLight, sprintLight, SPRINT_THRESHOLDS, workloadTickets, type Light, type LightColor, type SprintLight } from "@/lib/le-point/lights";
 import {
   daysFrom,
@@ -431,10 +431,16 @@ function SprintBar({ light }: { light: SprintLight }) {
           style={{ left: `${light.elapsedPercent}%` }}
         />
       </div>
+      {/* The label hangs from the mark: centred, or flush with it near either edge, so it never leaves the bar. */}
       <div className="relative h-4">
         <span
-          className={cn("absolute -translate-x-1/2 whitespace-nowrap text-[11px] font-semibold", MARKER_TEXT[light.color])}
-          style={{ left: `${Math.min(Math.max(light.elapsedPercent, 9), 91)}%` }}
+          className={cn(
+            "absolute whitespace-nowrap text-[11px] font-semibold",
+            light.elapsedPercent > 25 && light.elapsedPercent < 75 && "-translate-x-1/2",
+            light.elapsedPercent >= 75 && "-translate-x-full",
+            MARKER_TEXT[light.color],
+          )}
+          style={{ left: `${light.elapsedPercent}%` }}
         >
           Aujourd’hui · {light.elapsedPercent} % du temps
         </span>
@@ -467,24 +473,24 @@ function HealthTile({ value, unit, line, tone = "neutral" }: { value: ReactNode;
   );
 }
 
-function RulesButton({ onClick }: { onClick: () => void }) {
+/**
+ * The rules behind the card, on request, behind a small « i »: the sprint's
+ * verdict, the forecast, each person's light. The button is the dialog's
+ * trigger, so the focus comes back to it on close.
+ */
+function RulesDialog() {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="Comment est-ce calculé ?"
-      title="Comment est-ce calculé ?"
-      className="inline-grid size-[18px] place-items-center rounded-full border border-border bg-[var(--surface)] text-[11px] font-semibold leading-none text-muted-foreground outline-none hover:border-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-    >
-      <span aria-hidden="true">i</span>
-    </button>
-  );
-}
-
-/** The rules behind the card, on request: the sprint's verdict, the forecast, each person's light. */
-function RulesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          aria-label="Comment est-ce calculé ?"
+          title="Comment est-ce calculé ?"
+          className="inline-grid size-[18px] place-items-center rounded-full border border-border bg-[var(--surface)] text-[11px] font-semibold leading-none text-muted-foreground outline-none hover:border-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        >
+          <span aria-hidden="true">i</span>
+        </button>
+      </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Comment est-ce calculé ?</DialogTitle>
@@ -501,7 +507,7 @@ function RulesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (ope
           <p>
             <strong className="font-medium text-foreground">Va-t-on finir ?</strong> Ce qui reste, rapporté aux jours ouvrés
             restants et aux personnes présentes ; le rythme jusqu’ici est le terminé rapporté aux jours-personne écoulés.
-            Tant que les absences ne sont pas déclarées, est présente toute personne qui tient un ticket ouvert.
+            Tant que les absences ne sont pas déclarées, est présente toute personne qui tient un ticket ouvert du sprint.
           </p>
           <p>
             <strong className="font-medium text-foreground">Par personne.</strong> La pastille dit le fait et sa couleur le
@@ -525,20 +531,16 @@ function RulesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (ope
  */
 function SprintHealthCard({ data }: { data: LePointDataset }) {
   const headingId = useId();
-  const [rulesOpen, setRulesOpen] = useState(false);
   const light = sprintLight(data);
   const rows = teamWorkload(data);
-  // Present, until absences are known: everyone holding an open ticket.
-  const present = rows.filter((row) => row.assignee !== null).length;
-  const forecast = sprintForecast(data, present);
+  const forecast = sprintForecast(data, presentInSprint(data));
   const title = <h2 id={headingId} className="sr-only">Santé du sprint</h2>;
   const prototype = (
     <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal text-muted-foreground">
       prototype
     </Badge>
   );
-  const rules = <RulesButton onClick={() => setRulesOpen(true)} />;
-  const dialog = <RulesDialog open={rulesOpen} onOpenChange={setRulesOpen} />;
+  const rules = <RulesDialog />;
   const sprint = data.sprint;
   if (!light || !sprint) {
     return (
@@ -551,7 +553,6 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
           {rules}
         </div>
         <WorkloadStrip rows={rows} data={data} />
-        {dialog}
       </section>
     );
   }
@@ -562,7 +563,6 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
     : position > span
       ? `fin prévue le ${formatDay(sprint.end)}, dépassée de ${countLabel(position - span, "jour", "jours")}`
       : `jour ${position + 1} sur ${span + 1} · fin le ${formatDay(sprint.end)}`;
-  const unit = light.unit === "points" ? "pts" : "tickets";
   const figureTone: Tone = light.tone === "danger" || light.tone === "warning" ? light.tone : "neutral";
   return (
     <section
@@ -596,9 +596,9 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
             <HealthTile
               tone={figureTone}
               value={formatPoints(light.done)}
-              unit={`/ ${formatPoints(light.total)} ${unit}`}
+              unit={`/ ${formatPoints(light.total)} ${light.unit === "points" ? frenchPlural(light.total, "pt", "pts") : frenchPlural(light.total, "ticket", "tickets")}`}
               line={light.unit === "points"
-                ? `${light.tickets.done} sur ${light.tickets.total} tickets${light.tickets.unestimated > 0 ? ` · ${countLabel(light.tickets.unestimated, "non estimé", "non estimés")}` : ""}`
+                ? `${light.tickets.done} sur ${countLabel(light.tickets.total, "ticket", "tickets")}${light.tickets.unestimated > 0 ? ` · ${countLabel(light.tickets.unestimated, "non estimé", "non estimés")}` : ""}`
                 : "aucun ticket estimé : comptés en tickets"}
             />
             <HealthTile
@@ -618,9 +618,9 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
             ) : (
               <HealthTile
                 value={forecast ? `${forecast.daysLeft} j` : "—"}
-                unit="ouvrés restants"
+                unit={forecast ? frenchPlural(forecast.daysLeft, "ouvré restant", "ouvrés restants") : "ouvré restant"}
                 line={forecast
-                  ? `${forecast.daysLeft * forecast.present} jours-personne, ${countLabel(forecast.present, "personne présente", "personnes présentes")}`
+                  ? `${countLabel(forecast.daysLeft * forecast.present, "jour-personne", "jours-personne")}, ${countLabel(forecast.present, "personne présente", "personnes présentes")}`
                   : "aucun ticket dans le sprint"}
               />
             )}
@@ -628,7 +628,6 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
         </>
       )}
       <WorkloadStrip rows={rows} data={data} />
-      {dialog}
     </section>
   );
 }

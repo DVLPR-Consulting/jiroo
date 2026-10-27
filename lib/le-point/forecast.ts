@@ -30,16 +30,31 @@ const sum = (values: number[]) => values.reduce((total, value) => total + value,
 const round = (value: number) => Math.round(value * 10) / 10;
 const shift = (day: Day, days: number): Day => new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
+const inSprint = (ticket: LePointTicket) => !ticket.external && ticket.inSprint === true;
+
+/**
+ * Who is there to do the sprint's work, until absences are known: everyone
+ * holding an open ticket of the active sprint. Someone whose only open
+ * tickets sit outside the sprint is not counted.
+ */
+export function presentInSprint(data: LePointDataset): number {
+  const holders = data.tickets
+    .filter((ticket) => inSprint(ticket) && ticket.category !== "done" && ticket.assignee !== null)
+    .map((ticket) => ticket.assignee);
+  return new Set(holders).size;
+}
+
 export function sprintForecast(data: LePointDataset, present: number): Forecast | null {
   const sprint = data.sprint;
   if (!sprint) return null;
-  const scope = data.tickets.filter((ticket) => !ticket.external && ticket.inSprint);
+  const scope = data.tickets.filter(inSprint);
   if (scope.length === 0) return null;
 
   const points = (ticket: LePointTicket) => (typeof ticket.points === "number" ? ticket.points : null);
   const unit = sum(scope.map((ticket) => points(ticket) ?? 0)) > 0 ? "points" : "tickets";
   const weight = (ticket: LePointTicket) => (unit === "points" ? points(ticket) ?? 0 : 1);
-  const remaining = sum(scope.filter((ticket) => ticket.category !== "done").map(weight));
+  const open = scope.filter((ticket) => ticket.category !== "done");
+  const remaining = sum(open.map(weight));
   const done = sum(scope.filter((ticket) => ticket.category === "done").map(weight));
 
   const overdue = sprint.end < data.today;
@@ -53,8 +68,10 @@ export function sprintForecast(data: LePointDataset, present: number): Forecast 
   const amount = (value: number) =>
     unit === "points" ? countLabel(value, "pt", "pts", formatPoints) : countLabel(value, "ticket", "tickets", formatPoints);
   let sentence: string;
-  if (remaining === 0) {
+  if (open.length === 0) {
     sentence = "Tout le périmètre est terminé.";
+  } else if (remaining === 0) {
+    sentence = `Tout ce qui est estimé est terminé, mais ${countLabel(open.length, "ticket reste ouvert", "tickets restent ouverts")}, sans estimation ou à zéro.`;
   } else if (overdue) {
     sentence = `Reste ${amount(remaining)} après la fin prévue : à terminer, ou à reporter au sprint suivant.`;
   } else if (needed === null) {
