@@ -49,6 +49,7 @@ describe("LePointView", () => {
     expect(tile("À venir")).toHaveAttribute("href", "#le-point-ensuite");
     expect(screen.getAllByRole("link").filter((link) => link.getAttribute("href")?.startsWith("#"))).toHaveLength(4);
     expect(headings()).toEqual([
+      "Feu du sprint",
       "À reprendre maintenant1",
       "Ce qui te bloque1",
       "À venir1",
@@ -172,6 +173,28 @@ describe("LePointView, whole team (JIR-121)", () => {
     expect(workload[0]).toHaveTextContent(view.workload[0]!.name);
   });
 
+  it("shows the sprint's light with its reasons and the burndown, and a light per person (JIR-124)", () => {
+    render(<LePointView data={camille} />);
+    const sprint = section("Feu du sprint");
+    expect(sprint).toHaveTextContent("Orange · Sprint 8. À surveiller : 64 % du temps écoulé pour 42 % des points terminés, 2 tickets bloqués.");
+    expect(within(sprint).getByText("2 tickets bloqués : DEMO-15, DEMO-33.")).toBeVisible();
+    expect(within(sprint).getByRole("img", { name: "Temps écoulé : 64 %" })).toBeVisible();
+    expect(within(sprint).getByRole("img", { name: "Points terminés : 42 %" })).toBeVisible();
+    expect(within(sprint).getByRole("link", { name: "Voir le burndown" })).toHaveAttribute("href", "/b/DEMO/reports?report=burndown");
+    const row = (name: string) => within(section("Charge par personne")).getByText(name).closest("li")!;
+    expect(row("Camille Morel")).toHaveTextContent("À surveiller");
+    expect(row("Camille Morel").querySelector("[title]")).toHaveAttribute("title", "1 ticket bloqué.\n1 ticket en cours, 2 à faire.\nDEMO-15 bloqué.");
+    expect(row("Hugo Lefèvre")).toHaveTextContent("En rythme");
+    expect(row("Inès Garnier")).toHaveTextContent("Disponible");
+    expect(row("Sans assigné")).not.toHaveTextContent(/En rythme|À surveiller|Disponible/);
+  });
+
+  it("says so without an active sprint", () => {
+    render(<LePointView data={{ ...camille, sprint: null }} />);
+    expect(section("Feu du sprint")).toHaveTextContent("Aucun sprint actif : pas de feu.");
+    expect(screen.queryByRole("link", { name: "Voir le burndown" })).toBeNull();
+  });
+
   it("lists every pending decision with who it is asked of", async () => {
     const { decisions } = productView(camille, { kind: "team" });
     render(<LePointView data={camille} />);
@@ -187,6 +210,7 @@ describe("LePointView, whole team (JIR-121)", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Moi" }));
     expect(window.localStorage.getItem(SCOPE_STORAGE_KEY)).toBe("me");
     expect(headings()).toEqual([
+      "Feu du sprint",
       "À reprendre maintenant1",
       "Ce qui te bloque1",
       "À venir1",

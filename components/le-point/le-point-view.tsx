@@ -7,6 +7,7 @@ import { ItemRow } from "@/components/items/item-row";
 import { PageHeader } from "@/components/shell/page-header";
 import { PageToolbar } from "@/components/shell/page-toolbar";
 import { Badge } from "@/components/ui/badge";
+import { personLight, sprintLight, type Light, type LightColor } from "@/lib/le-point/lights";
 import {
   daysFrom,
   developerView,
@@ -328,6 +329,126 @@ function Rows({ cards, backlogKey, showAssignee = false }: {
   );
 }
 
+const DOT_CLASS: Record<LightColor, string> = {
+  green: "bg-[var(--status-done)]",
+  amber: "bg-[var(--warning)]",
+  red: "bg-[var(--danger)]",
+  none: "border border-border bg-[var(--surface-2)]",
+};
+
+/** The light itself: a dot in its colour; the text beside it carries the meaning. */
+function LightDot({ color, className = "size-2.5" }: { color: LightColor; className?: string }) {
+  return <span aria-hidden="true" className={cn("inline-block shrink-0 rounded-full", className, DOT_CLASS[color])} />;
+}
+
+/** A thin bar with its figure, for the sprint's two percentages. */
+function Meter({ label, percent, className }: { label: string; percent: number; className: string }) {
+  return (
+    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)_3rem] items-center gap-2 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span role="img" aria-label={`${label} : ${percent} %`} className="flex h-1.5 overflow-hidden rounded-full bg-[var(--muted)]">
+        <span className={className} style={{ width: `${percent}%` }} />
+      </span>
+      <span className="text-right tabular-nums">{percent} %</span>
+    </div>
+  );
+}
+
+/**
+ * The sprint's light (JIR-124 proof of concept): time elapsed against work
+ * done, scope added and blocked tickets, as Jira's « Sprint health » gadget
+ * reads them, with the facts behind the colour and the rules on request.
+ */
+function SprintLightCard({ data }: { data: LePointDataset }) {
+  const headingId = useId();
+  const light = sprintLight(data);
+  const title = (
+    <h2 id={headingId} className="t-h3 flex items-center gap-2">
+      <LightDot color={light?.color ?? "none"} className="size-3" />
+      Feu du sprint
+    </h2>
+  );
+  const prototype = (
+    <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal text-muted-foreground">
+      prototype
+    </Badge>
+  );
+  if (!light || !data.sprint) {
+    return (
+      <section
+        aria-labelledby={headingId}
+        className="flex flex-wrap items-center gap-2 rounded-[var(--radius)] border border-dashed border-border px-3 py-2"
+      >
+        {title}
+        {prototype}
+        <span className="text-sm text-muted-foreground">Aucun sprint actif : pas de feu.</span>
+      </section>
+    );
+  }
+  return (
+    <section
+      aria-labelledby={headingId}
+      className="space-y-2 rounded-[var(--radius)] border border-border bg-card p-3 shadow-[var(--shadow-sm)]"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        {title}
+        {prototype}
+        <Link href={`/b/${data.backlog.key}/reports?report=burndown`} className="ml-auto text-xs text-[var(--primary)] underline">
+          Voir le burndown
+        </Link>
+      </div>
+      <p className="text-sm">
+        <span className="font-semibold">{light.label}</span> · {data.sprint.name}. {light.summary}
+      </p>
+      {light.color !== "none" ? (
+        <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+          <Meter label="Temps écoulé" percent={light.elapsedPercent} className="bg-[var(--muted-foreground)]" />
+          <Meter
+            label={light.unit === "points" ? "Points terminés" : "Tickets terminés"}
+            percent={light.donePercent}
+            className="bg-[var(--status-done)]"
+          />
+        </div>
+      ) : null}
+      <ul className="space-y-0.5 text-xs text-muted-foreground">
+        {light.details.map((detail) => <li key={detail}>{detail}</li>)}
+      </ul>
+      <details className="text-xs text-muted-foreground">
+        <summary className="cursor-pointer font-medium hover:text-foreground">Comment est calculé ce feu ?</summary>
+        <div className="mt-1 space-y-1">
+          <p>
+            Écart = % du temps écoulé (jours calendaires du sprint) − % des points terminés sur le périmètre actuel ;
+            en tickets si rien n’est estimé.
+          </p>
+          <p>
+            Rouge au-delà de 25 points d’écart. Orange au-delà de 10, ou si plus de 20 % de l’engagement initial a été
+            ajouté en cours de sprint, ou dès qu’un ticket est bloqué. Vert sinon.
+          </p>
+          <p>
+            Par personne : Disponible sans ticket en cours ; À surveiller après 3 jours ouvrés sans activité sur un
+            ticket en cours, ou avec un ticket bloqué ; En difficulté quand plus rien n’a bougé depuis 5 jours ouvrés,
+            ou avec 4 tickets en cours à la fois.
+          </p>
+        </div>
+      </details>
+    </section>
+  );
+}
+
+/** A person's light in the workload row: the label in a tag, the facts in its tooltip. */
+function LightTag({ light }: { light: Light }) {
+  return (
+    <span
+      title={[light.summary, ...light.details].join("\n")}
+      className={cn("inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] font-medium", TONE_CLASS[light.tone])}
+    >
+      <LightDot color={light.color} />
+      {light.label}
+      <span className="sr-only"> : {light.summary}</span>
+    </span>
+  );
+}
+
 function DeveloperPerspective({ data, scope }: { data: LePointDataset; scope: LePointScope }) {
   const view = developerView(data, scope);
   const team = scope.kind === "team";
@@ -337,6 +458,7 @@ function DeveloperPerspective({ data, scope }: { data: LePointDataset; scope: Le
   const since = data.firstVisit ? "ces 7 derniers jours" : `depuis le ${formatDay(data.lastVisit)}`;
   return (
     <div className="space-y-6">
+      <SprintLightCard data={data} />
       <Tiles>
         <Tile label="En cours" value={view.resume.length} hint={team ? "dans l’équipe" : "à reprendre maintenant"} target="le-point-reprendre" />
         <Tile
@@ -395,15 +517,15 @@ function DeveloperPerspective({ data, scope }: { data: LePointDataset; scope: Le
       </Section>
       {team ? (
         <Section id="le-point-charge" title="Charge par personne" count={view.workload.length} empty="Aucun ticket ouvert.">
-          <Workload rows={view.workload} />
+          <Workload rows={view.workload} data={data} />
         </Section>
       ) : null}
     </div>
   );
 }
 
-/** Open tickets per person, as Jira's team workload: a bar against the busiest, then the counts. */
-function Workload({ rows }: { rows: WorkloadRow[] }) {
+/** Open tickets per person, as Jira's team workload: a light (JIR-124), a bar against the busiest, then the counts. */
+function Workload({ rows, data }: { rows: WorkloadRow[]; data: LePointDataset }) {
   const busiest = Math.max(...rows.map((row) => row.open));
   return (
     <ul className="overflow-hidden rounded-[var(--radius)] border border-border bg-card">
@@ -413,16 +535,18 @@ function Workload({ rows }: { rows: WorkloadRow[] }) {
           row.inProgress > 0 ? `${row.inProgress} en cours` : null,
           row.blocked > 0 ? `${row.blocked} bloqué${row.blocked > 1 ? "s" : ""}` : null,
         ].filter(Boolean).join(", ");
+        const light = row.assignee === null ? null : personLight(data, row.assignee);
         return (
           <li
             key={row.assignee ?? "unassigned"}
-            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-b border-border px-3 py-2 text-sm last:border-b-0 sm:grid-cols-[minmax(0,1fr)_12rem_11rem]"
+            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-b border-border px-3 py-2 text-sm last:border-b-0 sm:grid-cols-[minmax(0,1fr)_7.5rem_12rem_11rem]"
           >
             <span className={cn("min-w-0 truncate", row.assignee === null && "text-muted-foreground")}>{row.name}</span>
+            <span className="justify-self-end sm:justify-self-start">{light ? <LightTag light={light} /> : null}</span>
             <span aria-hidden="true" className="hidden h-1.5 overflow-hidden rounded-full bg-[var(--muted)] sm:flex">
               <span className="bg-[var(--status-doing)]" style={{ width: `${(row.open / busiest) * 100}%` }} />
             </span>
-            <span className="text-right text-xs tabular-nums text-muted-foreground sm:text-left">
+            <span className="col-span-2 text-xs tabular-nums text-muted-foreground sm:col-span-1">
               {label}
             </span>
           </li>
@@ -499,6 +623,7 @@ function ProductPerspective({ data, scope }: { data: LePointDataset; scope: LePo
   const waiting = view.objectives.filter((objective) => !started(objective));
   return (
     <div className="space-y-6">
+      <SprintLightCard data={data} />
       <Tiles>
         <Tile
           label={team ? "Décisions en attente" : "Décisions à prendre"}
