@@ -291,6 +291,21 @@ describe("personLight", () => {
     expect(personLight(data(tickets, { sprint: null }), "ana").details).toEqual(["1 ticket en cours, 1 à faire."]);
   });
 
+  it("never counts a day away as idle, and says until when someone is away", () => {
+    // Idle since Tuesday 27 October: five working days, four of them away.
+    const away = [{ user: "ana", start: "2026-10-28", end: "2026-11-02" }];
+    expect(personLight(data([doing("T-1", "2026-10-27")]), "ana")).toMatchObject({ color: "red" });
+    expect(personLight(data([doing("T-1", "2026-10-27")], { absences: away }), "ana")).toMatchObject({ color: "green", label: "En rythme" });
+    const today = [{ user: "ana", start: "2026-11-02", end: "2026-11-06" }];
+    expect(personLight(data([doing("T-1", "2026-10-27")], { absences: today }), "ana")).toMatchObject({
+      color: "none",
+      label: "En congé jusqu’au 6 nov.",
+      summary: "Absence déclarée jusqu’au 6 nov.",
+    });
+    // Someone else's absence changes nothing.
+    expect(personLight(data([doing("T-1", "2026-10-27")], { absences: [{ user: "bo", start: "2026-10-28", end: "2026-11-06" }] }), "ana")).toMatchObject({ color: "red" });
+  });
+
   it("gives each person of the demo backlog a different light", () => {
     const colors = Object.fromEntries(["camille", "lea", "hugo", "ines"].map((id) => [id, personLight(LE_POINT_DEMO, id).color]));
     expect(colors).toEqual({ camille: "amber", lea: "amber", hugo: "green", ines: "none" });

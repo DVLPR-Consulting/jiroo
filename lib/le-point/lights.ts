@@ -1,4 +1,5 @@
 import { countLabel, formatPoints } from "@/lib/format/plural";
+import { absentUntil, absentWorkingDays } from "@/lib/le-point/absences";
 import {
   byDue,
   daysFrom,
@@ -195,15 +196,19 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
 
 const workingDays = (count: number) => countLabel(count, "jour ouvré", "jours ouvrés");
 
+const dayAfter = (day: Day): Day => new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+
 /**
  * One person's light: a load, never a verdict on their work. Read on their
  * open tickets of the active sprint (plus anything of theirs in progress), or
  * on all their committed open tickets without a sprint. A ticket without any
- * known activity is never called idle. The label is the fact (« 1 bloqué »,
+ * known activity is never called idle, and a day away is never an idle day;
+ * away today, the pill says until when. The label is the fact (« 1 bloqué »,
  * « Rien en cours »); the colour says how much it matters.
  */
 export function personLight(data: LePointDataset, assignee: string): Light {
   const byKey = new Map(data.tickets.map((ticket) => [ticket.key, ticket]));
+  const absences = data.absences ?? [];
   const work = data.tickets.filter((ticket) =>
     !ticket.external
     && ticket.assignee === assignee
@@ -212,7 +217,10 @@ export function personLight(data: LePointDataset, assignee: string): Light {
   );
   const inProgress = work.filter((ticket) => ticket.category === "in_progress");
   const blocked = work.filter((ticket) => openBlockersOf(ticket, byKey).length > 0);
-  const idleDays = (ticket: LePointTicket) => (ticket.lastActivity ? workingDaysBetween(ticket.lastActivity, data.today) : 0);
+  const idleDays = (ticket: LePointTicket) => (ticket.lastActivity
+    ? workingDaysBetween(ticket.lastActivity, data.today)
+      - absentWorkingDays(absences, assignee, dayAfter(ticket.lastActivity), data.today)
+    : 0);
   const stale = inProgress.filter((ticket) => idleDays(ticket) >= PERSON_THRESHOLDS.idleDays);
   const stuck = inProgress.length > 0 && inProgress.every((ticket) => idleDays(ticket) >= PERSON_THRESHOLDS.stuckDays);
   const todo = work.length - inProgress.length;
@@ -225,6 +233,10 @@ export function personLight(data: LePointDataset, assignee: string): Light {
     ...blocked.map((ticket) => `${ticket.key} bloqué.`),
   ];
 
+  const away = absentUntil(absences, assignee, data.today);
+  if (away) {
+    return light("none", `En congé jusqu’au ${formatDay(away)}`, sentence(`Absence déclarée jusqu’au ${formatDay(away)}`), details);
+  }
   if (stuck) {
     const since = idleSince(inProgress);
     return light("red", `Rien ne bouge depuis ${since} j ouvrés`, `Plus rien n’a bougé depuis ${workingDays(since)}.`, details);
