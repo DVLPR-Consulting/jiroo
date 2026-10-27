@@ -5,10 +5,15 @@ import { ChevronRight } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemRow } from "@/components/items/item-row";
+import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { PageHeader } from "@/components/shell/page-header";
 import { PageToolbar } from "@/components/shell/page-toolbar";
 import { Badge } from "@/components/ui/badge";
-import { personLight, sprintLight, workloadTickets, type Light, type LightColor } from "@/lib/le-point/lights";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { LABEL_HUES, type LabelHue } from "@/lib/design/constants";
+import { countLabel, formatPoints, frenchPlural } from "@/lib/format/plural";
+import { sprintForecast } from "@/lib/le-point/forecast";
+import { personLight, sprintLight, SPRINT_THRESHOLDS, workloadTickets, type Light, type LightColor, type SprintLight } from "@/lib/le-point/lights";
 import {
   daysFrom,
   developerView,
@@ -153,7 +158,11 @@ export function LePointView({ data }: { data: LePointDataset }) {
         }
         description={<>{DESCRIPTIONS[perspective][scopeKind]} Lecture seule.</>}
       />
-      <PageToolbar>
+      {/* The sprint's card is everyone's: above the controls, which only drive the lists below. */}
+      <div className="px-4 pb-4 sm:px-6">
+        <SprintHealthCard data={data} />
+      </div>
+      <PageToolbar className="border-t pt-3">
         <ChoiceSwitch label="Perspective" options={PERSPECTIVES} value={perspective} onChange={choosePerspective} />
         <ChoiceSwitch label="Portée" options={SCOPES} value={scopeKind} onChange={chooseScope} />
       </PageToolbar>
@@ -371,111 +380,256 @@ function Verdict({ light, size = "sm", title, children }: { light: Light; size?:
   );
 }
 
-/** A thin bar with its figure, for the sprint's two percentages. */
-function Meter({ label, percent, className }: { label: string; percent: number; className: string }) {
-  return (
-    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)_3rem] items-center gap-2 text-xs">
-      <span className="text-muted-foreground">{label}</span>
-      <span role="img" aria-label={`${label} : ${percent} %`} className="flex h-1.5 overflow-hidden rounded-full bg-[var(--muted)]">
-        <span className={className} style={{ width: `${percent}%` }} />
-      </span>
-      <span className="text-right tabular-nums">{percent} %</span>
-    </div>
-  );
-}
-
-/**
- * The sprint's light (JIR-124 proof of concept): time elapsed against work
- * done, scope added and blocked tickets, as Jira's « Sprint health » gadget
- * reads them, with the facts behind the colour and the rules on request.
- */
-function SprintLightCard({ data }: { data: LePointDataset }) {
-  const headingId = useId();
-  const light = sprintLight(data);
-  const title = (
-    <h2 id={headingId} className="t-h3">
-      Santé du sprint
-    </h2>
-  );
-  const prototype = (
-    <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal text-muted-foreground">
-      prototype
-    </Badge>
-  );
-  if (!light || !data.sprint) {
-    return (
-      <section
-        aria-labelledby={headingId}
-        className="flex flex-wrap items-center gap-2 rounded-[var(--radius)] border border-dashed border-border px-3 py-2"
-      >
-        {title}
-        {prototype}
-        <span className="text-sm text-muted-foreground">Aucun sprint actif : rien à évaluer.</span>
-      </section>
-    );
-  }
-  return (
-    <section
-      aria-labelledby={headingId}
-      className={cn(
-        "@container space-y-2 rounded-[var(--radius)] border border-border border-l-4 bg-card p-3 shadow-[var(--shadow-sm)]",
-        EDGE_CLASS[light.color],
-      )}
-    >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        {title}
-        <Verdict light={light} size="lg" />
-        {prototype}
-        <Link href={`/b/${data.backlog.key}/reports?report=burndown`} className="ml-auto text-xs text-[var(--primary)] underline">
-          Voir le burndown
-        </Link>
-      </div>
-      <p className="text-sm">
-        <span className="font-medium">{data.sprint.name}</span> · {light.summary}
-      </p>
-      {light.color !== "none" ? (
-        <div className="grid gap-x-6 gap-y-1 @xl:grid-cols-2">
-          <Meter label="Temps écoulé" percent={light.elapsedPercent} className="bg-[var(--muted-foreground)]" />
-          <Meter
-            label={light.unit === "points" ? "Points terminés" : "Tickets terminés"}
-            percent={light.donePercent}
-            className="bg-[var(--status-done)]"
-          />
-        </div>
-      ) : null}
-      <ul className="space-y-0.5 text-xs text-muted-foreground">
-        {light.details.map((detail) => <li key={detail}>{detail}</li>)}
-      </ul>
-      <details className="text-xs text-muted-foreground">
-        <summary className="cursor-pointer font-medium hover:text-foreground">Comment est-ce calculé ?</summary>
-        <div className="mt-1 space-y-1">
-          <p>
-            Écart = % du temps écoulé (jours calendaires du sprint) − % des points terminés sur le périmètre actuel ;
-            en tickets si rien n’est estimé.
-          </p>
-          <p>
-            En retard au-delà de 25 points d’écart. À surveiller au-delà de 10, ou si plus de 20 % de l’engagement
-            initial a été ajouté en cours de sprint, ou dès qu’un ticket est bloqué. En bonne voie sinon, et en avance
-            quand le travail terminé devance le temps de plus de 10 points.
-          </p>
-          <p>
-            Par personne, la pastille dit le fait et sa couleur le niveau : rien en cours ; orange dès qu’un ticket en
-            cours est sans activité depuis 3 jours ouvrés, ou qu’un ticket est bloqué ; rouge quand plus rien n’a bougé
-            depuis 5 jours ouvrés, ou avec 4 tickets en cours à la fois ; en rythme sinon. Les tickets à faire hors du
-            sprint actif comptent dans les ouverts, pas dans la pastille ; un ticket en cours y compte même hors sprint.
-          </p>
-        </div>
-      </details>
-    </section>
-  );
-}
-
-/** A person's light in the workload row: the verdict in a pill, the facts in its tooltip. */
+/** A person's light in the workload row: the fact in a pill, the details in its tooltip. */
 function LightTag({ light }: { light: Light }) {
   return (
     <Verdict light={light} title={[light.summary, ...light.details].join("\n")}>
       <span className="sr-only"> : {light.summary}</span>
     </Verdict>
+  );
+}
+
+/** Today's mark on the bar takes the verdict's colour. */
+const MARKER_CLASS: Record<LightColor, string> = {
+  green: "bg-[var(--status-done)]",
+  amber: "bg-[var(--warning)]",
+  red: "bg-[var(--danger)]",
+  none: "bg-border",
+};
+const MARKER_TEXT: Record<LightColor, string> = {
+  green: "text-[color-mix(in_oklch,var(--status-done)_75%,var(--foreground))]",
+  amber: "text-[color-mix(in_oklch,var(--warning)_70%,var(--foreground))]",
+  red: "text-[var(--danger)]",
+  none: "text-muted-foreground",
+};
+
+function Swatch({ className }: { className: string }) {
+  return <i aria-hidden="true" className={cn("mr-1.5 inline-block size-2.5 rounded-[3px] align-[-1px]", className)} />;
+}
+
+/**
+ * The sprint's scope as one bar, done then under way, with today's mark in
+ * the verdict's colour: Jira's sprint progress bar, the time elapsed drawn on
+ * it. The mark's label stays within the bar's edges.
+ */
+function SprintBar({ light }: { light: SprintLight }) {
+  const todo = Math.max(0, 100 - light.donePercent - light.doingPercent);
+  return (
+    <div className="space-y-1">
+      <div className="relative h-3.5">
+        <div
+          role="img"
+          aria-label={`${light.donePercent} % terminé, ${light.doingPercent} % en cours, ${todo} % à faire ; ${light.elapsedPercent} % du temps écoulé`}
+          className="absolute inset-0 flex overflow-hidden rounded-full bg-[var(--surface)] shadow-[inset_0_0_0_1px_var(--border)]"
+        >
+          <span className="h-full bg-[var(--status-done)]" style={{ width: `${light.donePercent}%` }} />
+          <span className="h-full bg-[var(--status-doing)]" style={{ width: `${light.doingPercent}%` }} />
+        </div>
+        <span
+          aria-hidden="true"
+          className={cn("absolute -top-1.5 -bottom-1.5 -ml-[1.5px] w-[3px] rounded-sm", MARKER_CLASS[light.color])}
+          style={{ left: `${light.elapsedPercent}%` }}
+        />
+      </div>
+      <div className="relative h-4">
+        <span
+          className={cn("absolute -translate-x-1/2 whitespace-nowrap text-[11px] font-semibold", MARKER_TEXT[light.color])}
+          style={{ left: `${Math.min(Math.max(light.elapsedPercent, 9), 91)}%` }}
+        >
+          Aujourd’hui · {light.elapsedPercent} % du temps
+        </span>
+      </div>
+      <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span><Swatch className="bg-[var(--status-done)]" />Terminé {light.donePercent} %</span>
+        <span><Swatch className="bg-[var(--status-doing)]" />En cours {light.doingPercent} %</span>
+        <span><Swatch className="bg-[var(--surface)] shadow-[inset_0_0_0_1px_var(--border)]" />À faire {todo} %</span>
+      </p>
+    </div>
+  );
+}
+
+/** One figure of the card: the number, its unit beside it, one line under it. */
+function HealthTile({ value, unit, line, tone = "neutral" }: { value: ReactNode; unit?: string; line: ReactNode; tone?: Tone }) {
+  return (
+    <div className="rounded-[var(--radius)] border border-border bg-[var(--surface-2)] px-3 py-2.5">
+      <span
+        className={cn(
+          "block text-[22px] font-semibold leading-tight tracking-tight tabular-nums",
+          tone === "danger" && "text-[var(--danger)]",
+          tone === "warning" && "text-[color-mix(in_oklch,var(--warning)_75%,var(--foreground))]",
+        )}
+      >
+        {value}
+        {unit ? <span className="ml-1 text-[13px] font-medium text-muted-foreground">{unit}</span> : null}
+      </span>
+      <span className="mt-0.5 block text-xs text-muted-foreground">{line}</span>
+    </div>
+  );
+}
+
+function RulesButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Comment est-ce calculé ?"
+      title="Comment est-ce calculé ?"
+      className="inline-grid size-[18px] place-items-center rounded-full border border-border bg-[var(--surface)] text-[11px] font-semibold leading-none text-muted-foreground outline-none hover:border-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+    >
+      <span aria-hidden="true">i</span>
+    </button>
+  );
+}
+
+/** The rules behind the card, on request: the sprint's verdict, the forecast, each person's light. */
+function RulesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Comment est-ce calculé ?</DialogTitle>
+          <DialogDescription className="sr-only">Les règles de la santé du sprint et de la charge par personne.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            <strong className="font-medium text-foreground">Sprint.</strong> Écart = % du temps écoulé (jours calendaires du
+            sprint) − % des points terminés sur le périmètre actuel ; en tickets si rien n’est estimé. En retard au-delà de
+            25 points d’écart. À surveiller au-delà de 10, ou si plus de 20 % de l’engagement initial a été ajouté en cours
+            de sprint, ou dès qu’un ticket est bloqué. En bonne voie sinon, et en avance quand le travail terminé devance le
+            temps de plus de 10 points.
+          </p>
+          <p>
+            <strong className="font-medium text-foreground">Va-t-on finir ?</strong> Ce qui reste, rapporté aux jours ouvrés
+            restants et aux personnes présentes ; le rythme jusqu’ici est le terminé rapporté aux jours-personne écoulés.
+            Tant que les absences ne sont pas déclarées, est présente toute personne qui tient un ticket ouvert.
+          </p>
+          <p>
+            <strong className="font-medium text-foreground">Par personne.</strong> La pastille dit le fait et sa couleur le
+            niveau : rien en cours ; orange dès qu’un ticket en cours est sans activité depuis 3 jours ouvrés, ou qu’un
+            ticket est bloqué ; rouge quand plus rien n’a bougé depuis 5 jours ouvrés, ou avec 4 tickets en cours à la
+            fois ; en rythme sinon. Les tickets à faire hors du sprint actif comptent dans les ouverts, pas dans la
+            pastille ; un ticket en cours y compte même hors sprint.
+          </p>
+          <p>Un ticket sans activité connue n’est jamais compté comme inactif. Prototype : les seuils sont fixés dans le code.</p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * « Santé du sprint » (JIR-124): the sprint at a glance, as Jira's Sprint
+ * health gadget, read top to bottom: the verdict, the scope on a bar with
+ * today's mark, whether it can finish, four figures, then the team's load.
+ * The same card for everyone, whatever the perspective or the scope.
+ */
+function SprintHealthCard({ data }: { data: LePointDataset }) {
+  const headingId = useId();
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const light = sprintLight(data);
+  const rows = teamWorkload(data);
+  // Present, until absences are known: everyone holding an open ticket.
+  const present = rows.filter((row) => row.assignee !== null).length;
+  const forecast = sprintForecast(data, present);
+  const title = <h2 id={headingId} className="sr-only">Santé du sprint</h2>;
+  const prototype = (
+    <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal text-muted-foreground">
+      prototype
+    </Badge>
+  );
+  const rules = <RulesButton onClick={() => setRulesOpen(true)} />;
+  const dialog = <RulesDialog open={rulesOpen} onOpenChange={setRulesOpen} />;
+  const sprint = data.sprint;
+  if (!light || !sprint) {
+    return (
+      <section aria-labelledby={headingId} className="@container space-y-3 rounded-[var(--radius)] border border-dashed border-border px-3 py-2">
+        {title}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="t-h3">Santé du sprint</span>
+          {prototype}
+          <span className="text-sm text-muted-foreground">Aucun sprint actif : rien à évaluer.</span>
+          {rules}
+        </div>
+        <WorkloadStrip rows={rows} data={data} />
+        {dialog}
+      </section>
+    );
+  }
+  const span = daysFrom(sprint.start, sprint.end);
+  const position = daysFrom(sprint.start, data.today);
+  const timing = position < 0
+    ? `commence le ${formatDay(sprint.start)}`
+    : position > span
+      ? `fin prévue le ${formatDay(sprint.end)}, dépassée de ${countLabel(position - span, "jour", "jours")}`
+      : `jour ${position + 1} sur ${span + 1} · fin le ${formatDay(sprint.end)}`;
+  const unit = light.unit === "points" ? "pts" : "tickets";
+  const figureTone: Tone = light.tone === "danger" || light.tone === "warning" ? light.tone : "neutral";
+  return (
+    <section
+      aria-labelledby={headingId}
+      className={cn(
+        "@container space-y-3 rounded-[var(--radius)] border border-border border-l-4 bg-card p-3 shadow-[var(--shadow-sm)]",
+        EDGE_CLASS[light.color],
+      )}
+    >
+      {title}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Verdict light={light} size="lg" title={light.summary}>
+          <span className="sr-only"> : {light.summary}</span>
+        </Verdict>
+        <span className="text-sm">
+          <span className="font-medium">{sprint.name}</span> <span className="text-muted-foreground">· {timing}</span>
+        </span>
+        {prototype}
+        {rules}
+        <Link href={`/b/${data.backlog.key}/reports?report=burndown`} className="ml-auto text-xs text-[var(--primary)] underline">
+          Voir le burndown
+        </Link>
+      </div>
+      {light.color === "none" ? (
+        <p className="text-sm text-muted-foreground">{light.summary}</p>
+      ) : (
+        <>
+          <SprintBar light={light} />
+          {forecast ? <p className="text-sm">{forecast.sentence}</p> : null}
+          <div className="grid grid-cols-2 gap-2.5 @xl:grid-cols-4">
+            <HealthTile
+              tone={figureTone}
+              value={formatPoints(light.done)}
+              unit={`/ ${formatPoints(light.total)} ${unit}`}
+              line={light.unit === "points"
+                ? `${light.tickets.done} sur ${light.tickets.total} tickets${light.tickets.unestimated > 0 ? ` · ${countLabel(light.tickets.unestimated, "non estimé", "non estimés")}` : ""}`
+                : "aucun ticket estimé : comptés en tickets"}
+            />
+            <HealthTile
+              tone={light.blocked.length > 0 ? "danger" : "neutral"}
+              value={light.blocked.length}
+              unit={frenchPlural(light.blocked.length, "bloqué", "bloqués")}
+              line={light.blocked.length > 0 ? light.blocked.join(", ") : "aucun ticket n’attend un autre ticket"}
+            />
+            <HealthTile
+              tone={light.added.percent > SPRINT_THRESHOLDS.scopeAdded ? "warning" : "neutral"}
+              value={`+${light.added.tickets}`}
+              unit={frenchPlural(light.added.tickets, "ajouté", "ajoutés")}
+              line={light.added.tickets > 0 ? `${light.added.percent} % de l’engagement initial` : "aucun ajout depuis le début du sprint"}
+            />
+            {forecast?.overdue ? (
+              <HealthTile tone="danger" value={`+${position - span} j`} line="au-delà de la fin prévue" />
+            ) : (
+              <HealthTile
+                value={forecast ? `${forecast.daysLeft} j` : "—"}
+                unit="ouvrés restants"
+                line={forecast
+                  ? `${forecast.daysLeft * forecast.present} jours-personne, ${countLabel(forecast.present, "personne présente", "personnes présentes")}`
+                  : "aucun ticket dans le sprint"}
+              />
+            )}
+          </div>
+        </>
+      )}
+      <WorkloadStrip rows={rows} data={data} />
+      {dialog}
+    </section>
   );
 }
 
@@ -488,8 +642,6 @@ function DeveloperPerspective({ data, scope }: { data: LePointDataset; scope: Le
   const since = data.firstVisit ? "ces 7 derniers jours" : `depuis le ${formatDay(data.lastVisit)}`;
   return (
     <div className="space-y-6">
-      <SprintLightCard data={data} />
-      {team ? <WorkloadSection data={data} /> : null}
       <Tiles>
         <Tile label="En cours" value={view.resume.length} hint={team ? "dans l’équipe" : "à reprendre maintenant"} target="le-point-reprendre" />
         <Tile
@@ -550,21 +702,116 @@ function DeveloperPerspective({ data, scope }: { data: LePointDataset; scope: Le
   );
 }
 
-/** The team's load, right under the sprint's health in both perspectives: who holds what, and what exactly (JIR-124). */
-function WorkloadSection({ data }: { data: LePointDataset }) {
-  const rows = teamWorkload(data);
+function hueFor(value: string): LabelHue {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) hash = (hash * 31 + value.charCodeAt(index)) | 0;
+  return LABEL_HUES[Math.abs(hash) % LABEL_HUES.length]!;
+}
+
+/** « 3 ouverts, 1 en cours, 1 bloqué » */
+function countsLabel(row: WorkloadRow) {
+  return [
+    `${row.open} ouvert${row.open > 1 ? "s" : ""}`,
+    row.inProgress > 0 ? `${row.inProgress} en cours` : null,
+    row.blocked > 0 ? `${row.blocked} bloqué${row.blocked > 1 ? "s" : ""}` : null,
+  ].filter(Boolean).join(", ");
+}
+
+/**
+ * The team's load inside the card, as Jira's Sprint health lists the
+ * assignees: one chip per person, the colour of their light and their open
+ * tickets. Nothing is open at first; a chip opens the person, « Tout voir »
+ * gives the full table.
+ */
+function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDataset }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const [table, setTable] = useState(false);
+  const panelId = useId();
+  const current = open === null ? null : rows.find((row) => (row.assignee ?? "unassigned") === open) ?? null;
   return (
-    <Section id="le-point-charge" title="Charge par personne" count={rows.length} empty="Aucun ticket ouvert.">
-      <Workload rows={rows} data={data} />
-    </Section>
+    <div className="space-y-2 border-t border-border pt-3">
+      <div className="flex items-center gap-2">
+        <h3 className="text-[13px] font-semibold">
+          Charge par personne <span className="text-xs font-normal text-muted-foreground tabular-nums">{rows.length}</span>
+        </h3>
+        {rows.length > 0 ? (
+          <button type="button" onClick={() => setTable((value) => !value)} className="ml-auto text-xs text-[var(--primary)] underline">
+            {table ? "Réduire" : "Tout voir"}
+          </button>
+        ) : null}
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Aucun ticket ouvert.</p>
+      ) : table ? (
+        <Workload rows={rows} data={data} />
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {rows.map((row) => {
+              const id = row.assignee ?? "unassigned";
+              const light = row.assignee === null ? null : personLight(data, row.assignee);
+              const isOpen = open === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-expanded={isOpen}
+                  aria-controls={panelId}
+                  aria-label={`${row.name}, ${light ? `${light.label}, ` : ""}${countLabel(row.open, "ticket ouvert", "tickets ouverts")}`}
+                  onClick={() => setOpen(isOpen ? null : id)}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full border border-border bg-[var(--surface)] py-1 pr-3 pl-1 text-[13px] outline-none transition-colors hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+                    isOpen && "bg-[var(--muted)] ring-1 ring-inset ring-foreground",
+                    row.assignee === null && "border-dashed text-muted-foreground",
+                  )}
+                >
+                  {row.assignee ? (
+                    <InitialsAvatar name={row.name} hue={hueFor(row.assignee)} size={24} />
+                  ) : (
+                    <span aria-hidden="true" className="inline-grid size-6 place-items-center rounded-full bg-[var(--muted)] text-xs">?</span>
+                  )}
+                  <span>{row.assignee ? shortName(row.name) : row.name}</span>
+                  {light ? <LightDot color={light.color} className="size-2" /> : null}
+                  <span className="text-muted-foreground tabular-nums">{row.open}</span>
+                </button>
+              );
+            })}
+          </div>
+          {current ? (
+            <div id={panelId}>
+              <PersonDetail row={current} data={data} />
+            </div>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** A person's tickets, each with why it counts, and the way to the Liste filtered on them. */
+function PersonDetail({ row, data }: { row: WorkloadRow; data: LePointDataset }) {
+  const light = row.assignee === null ? null : personLight(data, row.assignee);
+  const listHref = `/b/${data.backlog.key}?view=list&assignee=${encodeURIComponent(row.assignee ?? "none")}`;
+  return (
+    <div className="space-y-2 rounded-[var(--radius)] border border-border bg-[var(--surface-2)] px-3 py-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+        <span className="font-medium">{row.name}</span>
+        {light ? <LightTag light={light} /> : null}
+        <span className="text-xs text-muted-foreground">{countsLabel(row)}</span>
+        <Link href={listHref} className="ml-auto text-xs text-[var(--primary)] underline">
+          Voir dans la Liste
+        </Link>
+      </div>
+      <Rows cards={workloadTickets(data, row.assignee)} backlogKey={data.backlog.key} showDue />
+    </div>
   );
 }
 
 /**
- * Open tickets per person, as Jira's team workload: a light (JIR-124), a bar
- * against the busiest, then the counts. The four columns need the list itself
- * to be wide enough (a container query, since the sidebar eats the viewport);
- * narrower, the counts take a second line and the bar goes.
+ * The full table, as Jira's team workload: a light, a bar against the
+ * busiest, then the counts. The four columns need the list itself to be wide
+ * enough (a container query, since the sidebar eats the viewport); narrower,
+ * the counts take a second line and the bar goes.
  */
 function Workload({ rows, data }: { rows: WorkloadRow[]; data: LePointDataset }) {
   const busiest = Math.max(...rows.map((row) => row.open));
@@ -578,24 +825,16 @@ function Workload({ rows, data }: { rows: WorkloadRow[]; data: LePointDataset })
 }
 
 /**
- * One person of the workload. The facts behind an amber or red light stay in
- * the row, nobody has to hover to know; the row itself opens the tickets
- * behind its figures, and leads to the Liste filtered on that person, as a
- * click on an avatar filters Jira's board.
+ * One row of the table. The facts behind an amber or red light stay in the
+ * row, nobody has to hover to know; the row itself opens the person.
  */
 function WorkloadPerson({ row, busiest, data }: { row: WorkloadRow; busiest: number; data: LePointDataset }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
-  const label = [
-    `${row.open} ouvert${row.open > 1 ? "s" : ""}`,
-    row.inProgress > 0 ? `${row.inProgress} en cours` : null,
-    row.blocked > 0 ? `${row.blocked} bloqué${row.blocked > 1 ? "s" : ""}` : null,
-  ].filter(Boolean).join(", ");
   const light = row.assignee === null ? null : personLight(data, row.assignee);
   const facts = light && (light.color === "amber" || light.color === "red")
     ? (light.details.length > 1 ? light.details.slice(1).join(" ") : light.summary)
     : null;
-  const listHref = `/b/${data.backlog.key}?view=list&assignee=${encodeURIComponent(row.assignee ?? "none")}`;
   return (
     <li className="border-b border-border last:border-b-0">
       <button
@@ -614,18 +853,15 @@ function WorkloadPerson({ row, busiest, data }: { row: WorkloadRow; busiest: num
           <span className="bg-[var(--status-doing)]" style={{ width: `${(row.open / busiest) * 100}%` }} />
         </span>
         <span className="col-span-2 text-xs tabular-nums text-muted-foreground @2xl:col-span-1">
-          {label}
+          {countsLabel(row)}
         </span>
         {facts ? (
           <span className="col-span-2 pl-[1.375rem] text-xs text-muted-foreground @2xl:col-span-4">{facts}</span>
         ) : null}
       </button>
       {open ? (
-        <div id={panelId} className="space-y-2 border-t border-border bg-[var(--surface-2)] px-3 py-2">
-          <Rows cards={workloadTickets(data, row.assignee)} backlogKey={data.backlog.key} showDue />
-          <Link href={listHref} className="inline-block text-xs text-[var(--primary)] underline">
-            Voir dans la Liste
-          </Link>
+        <div id={panelId} className="border-t border-border px-3 py-2">
+          <PersonDetail row={row} data={data} />
         </div>
       ) : null}
     </li>
@@ -699,8 +935,6 @@ function ProductPerspective({ data, scope }: { data: LePointDataset; scope: LePo
   const waiting = view.objectives.filter((objective) => !started(objective));
   return (
     <div className="space-y-6">
-      <SprintLightCard data={data} />
-      {team ? <WorkloadSection data={data} /> : null}
       <Tiles>
         <Tile
           label={team ? "Décisions en attente" : "Décisions à prendre"}
