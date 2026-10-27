@@ -239,6 +239,51 @@ describe("LePointView, whole team (JIR-121)", () => {
     expect(headings()[0]).toBe("Santé du sprint");
   });
 
+  it("shows the sprint's goal, and opens its scope: the commitment against the velocity, then every change (JIR-124)", async () => {
+    render(<LePointView data={camille} />);
+    const sprint = section("Santé du sprint");
+    expect(sprint).toHaveTextContent("Objectif : Publier les arrêts et préparer la recherche avancée");
+    const tile = within(sprint).getByRole("button", { name: /^\+1ajouté/ });
+    expect(tile).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(tile);
+    expect(within(sprint).getByRole("img", { name: "Engagement au démarrage : 41 pts" })).toBeInTheDocument();
+    expect(within(sprint).getByRole("img", { name: "Vélocité moyenne, 3 derniers sprints : 38 pts" })).toBeInTheDocument();
+    expect(within(sprint).getByRole("img", { name: "Périmètre aujourd’hui : 43 pts" })).toBeInTheDocument();
+    expect(sprint).toHaveTextContent("10 tickets embarqués au démarrage ; depuis, 1 ajouté. L’engagement dépasse de 3 points la vélocité moyenne.");
+    expect(sprint).toHaveTextContent("AjoutéDEMO-33Habilitations greffe2 pts · le 29 oct. par Léa Martin");
+    expect(within(sprint).getByRole("link", { name: "DEMO-33" })).toHaveAttribute("href", "/b/DEMO/le-point?item=DEMO-33");
+    expect(within(sprint).getByRole("link", { name: "Voir le rapport de sprint" })).toHaveAttribute("href", "/b/DEMO/reports?report=sprint");
+    await userEvent.click(tile);
+    expect(within(sprint).queryByRole("link", { name: "Voir le rapport de sprint" })).toBeNull();
+  });
+
+  it("keeps the scope's journal reachable once the last ticket left the sprint, and names an unknown author", async () => {
+    const emptied = {
+      ...camille,
+      tickets: camille.tickets.map((ticket) => ({ ...ticket, inSprint: false })),
+      sprint: {
+        ...camille.sprint!,
+        commitment: { points: 5, tickets: 1 },
+        changes: [{ kind: "removed" as const, key: "DEMO-12", title: "Générer le PDF signé d’un arrêt", points: 5, day: "2026-11-02", actor: null }],
+      },
+    };
+    render(<LePointView data={emptied} />);
+    const sprint = section("Santé du sprint");
+    expect(sprint).toHaveTextContent("Le sprint ne contient aucun ticket.");
+    await userEvent.click(within(sprint).getByRole("button", { name: /^−1retiré/ }));
+    expect(sprint).toHaveTextContent("1 ticket embarqué au démarrage ; depuis, 1 retiré.");
+    expect(sprint).toHaveTextContent("RetiréDEMO-12Générer le PDF signé d’un arrêt5 pts · le 2 nov. par quelqu’un");
+  });
+
+  it("words the gap between commitment and velocity on the figure it shows", async () => {
+    const close = { ...camille, sprint: { ...camille.sprint!, commitment: { points: 2.3, tickets: 10 }, velocity: 0.3 } };
+    render(<LePointView data={close} />);
+    const sprint = section("Santé du sprint");
+    await userEvent.click(within(sprint).getByRole("button", { name: /^\+1ajouté/ }));
+    expect(within(sprint).getByRole("img", { name: "Vélocité moyenne, 3 derniers sprints : 0,3 pt" })).toBeInTheDocument();
+    expect(sprint).toHaveTextContent("L’engagement dépasse de 2 points la vélocité moyenne.");
+  });
+
   it("explains its rules on request, in a dialog, and gives the focus back to its button", async () => {
     render(<LePointView data={camille} />);
     const button = within(section("Santé du sprint")).getByRole("button", { name: "Comment est-ce calculé ?" });
