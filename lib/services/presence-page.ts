@@ -13,6 +13,7 @@ import { dayInZone } from "@/lib/roadmap/days";
 import { dayInput } from "@/lib/validation/absence";
 
 const period = z.object({ from: dayInput, to: dayInput }).refine((value) => value.from <= value.to, { message: "La fin précède le début de la période.", path: ["to"] });
+const sprintCommand = period.safeExtend({ actorId: z.string().min(1), backlogId: z.uuid() });
 const timelineCommand = period.safeExtend({ actorId: z.string().min(1), backlogIds: z.array(z.uuid()) });
 const TICKET_LIMIT = 2_000;
 
@@ -154,3 +155,33 @@ export async function loadPresenceScope(actorId: string): Promise<PresenceBacklo
 }
 
 
+export type PresenceSprint = {
+  id: string;
+  name: string;
+  state: "planned" | "active" | "completed";
+  start: string;
+  end: string | null;
+};
+
+/** Actual dates take precedence, as in the sprint review. Unknown ends stay open. */
+export async function loadSprintsForPeriod(input: {
+  actorId: string;
+  backlogId: string;
+  from: string;
+  to: string;
+}): Promise<PresenceSprint[]> {
+  const command = sprintCommand.parse(input);
+  const result = await db.execute<PresenceSprint>(sql`
+    with dated_sprints as (
+      select sprints.id, sprints.name, sprints.state,
+        ((coalesce(sprints.started_at, sprints.planned_start_at) at time zone 'Europe/Paris')::date)::text as start,
+        ((coalesce(sprints.completed_at, sprints.planned_end_at) at time zone 'Europe/Paris')::date)::text as "end"
+      from sprints join backlogs on backlogs.id = sprints.backlog_id
+      where backlogs.id = ${command.backlogId} and backlogs.archived_at is null and ${browseAccessPredicate(command.actorId)}
+    )
+    select * from dated_sprints
+    where start <= ${command.to} and ("end" is null or "end" >= ${command.from})
+    order by start, id
+  `);
+  return result.rows;
+}
