@@ -1,5 +1,6 @@
 import { countLabel, formatPoints } from "@/lib/format/plural";
 import { absentUntil, absentWorkingDays } from "@/lib/le-point/absences";
+import { presentInSprint } from "@/lib/le-point/people";
 import {
   byDue,
   daysFrom,
@@ -56,10 +57,22 @@ export type SprintLight = Light & {
   blocked: string[];
   /** Joined since the start: tickets, their weight in `unit`, and that weight in % of the initial commitment. */
   added: { tickets: number; weight: number; percent: number };
+  /** The sprint's people not away today. */
+  present: number;
+  /** Work expected done by today (time elapsed × scope) minus work done, in `unit`; negative when ahead. */
+  lag: number;
+  /** The lag the team may carry before « À surveiller »: one per person present; null when nobody is known. */
+  lagThreshold: number | null;
 };
 
-/** Percentage points between time elapsed and work done; scope added, in % of the initial commitment. */
-export const SPRINT_THRESHOLDS = { red: 25, amber: 10, scopeAdded: 20 } as const;
+/**
+ * `red`: percentage points between time elapsed and work done. `lagPerPerson`:
+ * the work (in the sprint's unit) each person present may be late by on the
+ * date before the sprint is « À surveiller » (Léo's rule, JIR-124); `amber`
+ * is the percentage-point fallback when nobody is known. `scopeAdded`: in %
+ * of the initial commitment.
+ */
+export const SPRINT_THRESHOLDS = { red: 25, amber: 10, lagPerPerson: 1, scopeAdded: 20 } as const;
 /** Working days without activity, and tickets in progress at once. */
 export const PERSON_THRESHOLDS = { idleDays: 3, stuckDays: 5, wip: 4 } as const;
 
@@ -98,7 +111,8 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
 
   const span = daysFrom(sprint.start, sprint.end);
   const position = daysFrom(sprint.start, data.today);
-  const elapsed = percent(span <= 0 ? 1 : Math.min(Math.max(position / span, 0), 1));
+  const elapsedRatio = span <= 0 ? 1 : Math.min(Math.max(position / span, 0), 1);
+  const elapsed = percent(elapsedRatio);
   const elapsedPercent = Math.round(elapsed);
   const timing = position < 0
     ? `commence le ${formatDay(sprint.start)}`
@@ -118,6 +132,9 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
       tickets: { done: 0, total: 0, unestimated: 0 },
       blocked: [],
       added: { tickets: 0, weight: 0, percent: 0 },
+      present: presentInSprint(data),
+      lag: 0,
+      lagThreshold: null,
     };
   }
 
@@ -142,7 +159,18 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
   const blocked = scope.filter((ticket) => ticket.category !== "done" && openBlockersOf(ticket, byKey).length > 0);
   const unestimated = unit === "points" ? scope.filter((ticket) => points(ticket) === null).length : 0;
   const gap = elapsed - completed;
+  // Léo's rule: the work expected by today, less the work done, measured
+  // against the people present; a team of three may be three points late.
+  // Without anyone known, the gap in percentage points decides, as before.
+  const peoplePresent = presentInSprint(data);
+  const lagRaw = elapsedRatio * total - done;
+  const lag = Math.round(lagRaw * 100) / 100;
+  const lagThreshold = peoplePresent > 0 ? peoplePresent * SPRINT_THRESHOLDS.lagPerPerson : null;
+  const behind = lagThreshold === null ? gap > SPRINT_THRESHOLDS.amber : lagRaw > lagThreshold;
   const unitLabel = unit === "points" ? "des points" : "des tickets";
+  const lagLabel = unit === "points"
+    ? countLabel(lag, "point", "points", formatPoints)
+    : countLabel(lag, "ticket", "tickets", formatPoints);
   const progress = `${elapsedPercent} % du temps écoulé pour ${donePercent} % ${unitLabel} terminés`;
   const addedLabel = unit === "points"
     ? countLabel(addedWeight, "point", "points", formatPoints)
@@ -150,6 +178,9 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
 
   const details = [
     `${elapsedPercent} % du temps écoulé (${timing}), ${donePercent} % ${unitLabel} terminés (${formatPoints(done)} sur ${formatPoints(total)}).`,
+    behind && lagThreshold !== null
+      ? `Retard de ${lagLabel} sur la date, pour ${countLabel(peoplePresent, "personne présente", "personnes présentes")} (seuil : ${formatPoints(lagThreshold)}).`
+      : null,
     added.length > 0
       ? `${countLabel(added.length, "ticket ajouté", "tickets ajoutés")} depuis le début du sprint : ${addedLabel}, ${addedPercent} % de l’engagement initial.`
       : null,
@@ -163,7 +194,7 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
   ].filter(present);
 
   const concerns = [
-    gap > SPRINT_THRESHOLDS.amber ? progress : null,
+    behind ? progress : null,
     addedShare > SPRINT_THRESHOLDS.scopeAdded ? `périmètre ajouté de ${addedPercent} %` : null,
     blocked.length > 0 ? countLabel(blocked.length, "ticket bloqué", "tickets bloqués") : null,
   ].filter(present);
@@ -187,6 +218,9 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
     tickets: { done: scope.filter((ticket) => ticket.category === "done").length, total: scope.length, unestimated },
     blocked: blocked.map((ticket) => ticket.key),
     added: { tickets: added.length, weight: addedWeight, percent: addedPercent },
+    present: peoplePresent,
+    lag,
+    lagThreshold,
   };
 }
 

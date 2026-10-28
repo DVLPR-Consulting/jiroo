@@ -84,7 +84,7 @@ describe("sprintLight", () => {
     });
   });
 
-  it("turns amber beyond 10 points of gap and red beyond 25", () => {
+  it("turns amber once the lag on the date exceeds one point per person present, and red beyond 25 points of gap", () => {
     expect(sprintLight(data([done("T-1", 4), todo("T-2", 6)]))).toMatchObject({
       color: "amber",
       label: "À surveiller",
@@ -100,7 +100,9 @@ describe("sprintLight", () => {
   });
 
   it("turns amber when more than 20 % of the initial commitment was added since the start", () => {
-    const light = sprintLight(data([done("T-1", 7), todo("T-2", 3), ticket("T-3", { points: 3, addedAfterStart: true })]))!;
+    // Two people present: 1.27 points late on the date is no concern of its own.
+    const two = [{ id: "ana", name: "Ana Roux" }, { id: "bo", name: "Bo Lenoir" }];
+    const light = sprintLight(data([done("T-1", 7), todo("T-2", 3), ticket("T-3", { points: 3, addedAfterStart: true })], { members: two }))!;
     expect(light).toMatchObject({ color: "amber", summary: "Périmètre ajouté de 30 %.", donePercent: 54 });
     expect(light.details[1]).toBe("1 ticket ajouté depuis le début du sprint : 3 points, 30 % de l’engagement initial.");
   });
@@ -124,14 +126,15 @@ describe("sprintLight", () => {
 
   it("counts tickets when nothing is estimated, and names the unestimated ones otherwise", () => {
     const tickets = sprintLight(data([done("T-1", 0), ticket("T-2"), ticket("T-3"), ticket("T-4", { status: "Terminé", category: "done" })]))!;
-    expect(tickets).toMatchObject({ unit: "tickets", donePercent: 50, color: "amber" });
+    // 2.55 tickets expected done, 2 done: half a ticket late for one person, no concern.
+    expect(tickets).toMatchObject({ unit: "tickets", donePercent: 50, color: "green", lag: 0.55, lagThreshold: 1 });
     expect(tickets.details).toEqual([
       "64 % du temps écoulé (jour 8 sur 12), 50 % des tickets terminés (2 sur 4).",
       "Aucun ticket estimé : les tickets sont comptés à la place des points.",
     ]);
     const mixed = sprintLight(data([done("T-1", 5), todo("T-2", 5), ticket("T-3")]))!;
     expect(mixed).toMatchObject({ unit: "points", donePercent: 50 });
-    expect(mixed.details[1]).toBe("1 ticket sans estimation, non compté.");
+    expect(mixed.details).toContain("1 ticket sans estimation, non compté.");
   });
 
   it("counts the whole time once the planned end is past", () => {
@@ -181,15 +184,16 @@ describe("sprintLight", () => {
 
   it("compares the raw ratios to the thresholds and rounds only what it shows", () => {
     const halfway = { today: "2026-10-27", sprint: { name: "Sprint 2", start: "2026-10-20", end: "2026-11-03" } };
-    // 39,6 % done at 50 % of the time: a gap of 10,4, shown as 50 − 40.
-    expect(sprintLight(data([done("T-1", 99), todo("T-2", 151)], halfway))).toMatchObject({ color: "amber", donePercent: 40 });
-    expect(sprintLight(data([done("T-1", 40), todo("T-2", 60)], halfway))).toMatchObject({ color: "green", donePercent: 40 });
+    // One person present: 11 points expected done at 50 % of the time; 10 done is one point late, no more.
+    expect(sprintLight(data([done("T-1", 10), todo("T-2", 12)], halfway))).toMatchObject({ color: "green", lag: 1, lagThreshold: 1 });
+    // 9,996 done: a lag of 1,004, shown as 1, is beyond the threshold.
+    expect(sprintLight(data([done("T-1", 9.996), todo("T-2", 12.004)], halfway))).toMatchObject({ color: "amber", lag: 1, lagThreshold: 1 });
     // 24,6 % done: a gap of 25,4, shown as 50 − 25.
     expect(sprintLight(data([done("T-1", 123), todo("T-2", 377)], halfway))).toMatchObject({ color: "red", donePercent: 25 });
     expect(sprintLight(data([done("T-1", 25), todo("T-2", 75)], halfway))).toMatchObject({ color: "amber", donePercent: 25 });
     // 20,4 points added on a commitment of 100.
     const added = sprintLight(data(
-      [done("T-1", 50), todo("T-2", 50), ticket("T-3", { points: 20.4, addedAfterStart: true })],
+      [done("T-1", 60), todo("T-2", 40), ticket("T-3", { points: 20.4, addedAfterStart: true })],
       { ...halfway, sprint: { ...halfway.sprint, commitment: { points: 100, tickets: 2 } } },
     ))!;
     expect(added).toMatchObject({ color: "amber", summary: "Périmètre ajouté de 20 %." });
@@ -210,12 +214,48 @@ describe("sprintLight", () => {
       summary: "64 % du temps écoulé pour 42 % des points terminés, 2 tickets bloqués.",
       details: [
         "64 % du temps écoulé (jour 8 sur 12), 42 % des points terminés (18 sur 43).",
+        "Retard de 9,36 points sur la date, pour 4 personnes présentes (seuil : 4).",
         "1 ticket ajouté depuis le début du sprint : 2 points, 5 % de l’engagement initial.",
         "2 tickets bloqués : DEMO-15, DEMO-33.",
       ],
     });
   });
 });
+
+  it("lets a team of three run three points late before it worries, two once one of them is away (JIR-124, Léo)", () => {
+    const members = [{ id: "ana", name: "Ana Roux" }, { id: "bo", name: "Bo Lenoir" }, { id: "cy", name: "Cy Morel" }];
+    // Day 8 of 12: 6.36 points expected done out of 10, 4 done, a lag of 2.36.
+    const tickets = [done("T-1", 4), todo("T-2", 6)];
+    expect(sprintLight(data(tickets, { members }))).toMatchObject({
+      color: "green",
+      summary: "Le travail terminé suit le temps écoulé.",
+      present: 3,
+      lag: 2.36,
+      lagThreshold: 3,
+    });
+    const away = sprintLight(data(tickets, { members, absences: [{ user: "cy", start: "2026-11-02", end: "2026-11-04" }] }))!;
+    expect(away).toMatchObject({ color: "amber", label: "À surveiller", present: 2, lagThreshold: 2 });
+    expect(away.summary).toBe("64 % du temps écoulé pour 40 % des points terminés.");
+    expect(away.details[1]).toBe("Retard de 2,36 points sur la date, pour 2 personnes présentes (seuil : 2).");
+  });
+
+  it("falls back to ten points of gap when nobody is known to carry the sprint", () => {
+    const nobody = (tickets: LePointTicket[]) => data(tickets.map((item) => ({ ...item, assignee: null })));
+    expect(sprintLight(nobody([done("T-1", 4), todo("T-2", 6)]))).toMatchObject({
+      color: "amber",
+      present: 0,
+      lagThreshold: null,
+      details: ["64 % du temps écoulé (jour 8 sur 12), 40 % des points terminés (4 sur 10)."],
+    });
+    expect(sprintLight(nobody([done("T-1", 6), todo("T-2", 4)]))!.color).toBe("green");
+  });
+
+  it("measures the lag in tickets when nothing is estimated", () => {
+    const tickets = [...Array.from({ length: 4 }, (_, i) => ticket(`D-${i}`, { status: "Terminé", category: "done" })), ...Array.from({ length: 6 }, (_, i) => ticket(`T-${i}`))];
+    const light = sprintLight(data(tickets, { members: [{ id: "ana", name: "Ana Roux" }, { id: "bo", name: "Bo Lenoir" }] }))!;
+    expect(light).toMatchObject({ color: "amber", unit: "tickets", present: 2, lag: 2.36, lagThreshold: 2 });
+    expect(light.details[1]).toBe("Retard de 2,36 tickets sur la date, pour 2 personnes présentes (seuil : 2).");
+  });
 
 describe("personLight", () => {
   it("is green while the tickets in progress move", () => {
