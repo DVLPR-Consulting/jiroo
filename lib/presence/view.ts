@@ -54,6 +54,8 @@ export type PresenceDataset = {
 
 export type Scope = "all" | string;
 export type View = "month" | "sprint" | "year";
+/** What the grid shows under the half-days: the developers' tickets, or nothing. */
+export type Display = "all" | "absences";
 export type HalfState = "free" | "away" | "future" | "off";
 export type Selection = { personId: string; from: HalfDay; to: HalfDay };
 
