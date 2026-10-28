@@ -42,6 +42,7 @@ describe("searchBacklogItemsAction", () => {
         q: "conn",
         types: ["epic"],
         excludeIds: [epic.id],
+        excludeLinksOf: "1f1e1d1c-1b1a-4c09-8807-060504030201",
       }),
     ).resolves.toEqual({ ok: true, items: [epic], limit: 20 });
     expect(mocks.getBacklogByKeyForUser).toHaveBeenCalledWith("CASS", "viewer-1");
@@ -49,6 +50,7 @@ describe("searchBacklogItemsAction", () => {
       q: "conn",
       types: ["epic"],
       excludeIds: [epic.id],
+      excludeLinksOf: "1f1e1d1c-1b1a-4c09-8807-060504030201",
     });
   });
 
@@ -73,6 +75,7 @@ describe("searchBacklogItemsAction", () => {
       { backlogKey: "CASS", types: ["story"] },
       { backlogKey: "CASS", excludeIds: ["not-a-uuid"] },
       { backlogKey: "CASS", excludeIds: Array.from({ length: 51 }, () => epic.id) },
+      { backlogKey: "CASS", excludeLinksOf: "item-1" },
     ];
     for (const input of malformed) {
       await expect(

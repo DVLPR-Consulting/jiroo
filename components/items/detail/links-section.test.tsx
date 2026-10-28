@@ -16,9 +16,11 @@ vi.mock("@/components/shell/view-url-state", () => ({
 
 vi.mock("@/app/actions/items", () => ({ updateItemAction: vi.fn() }));
 
-vi.mock("@/app/actions/item-choices", () => ({
-  searchBacklogItemsAction: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
+const mocks = vi.hoisted(() => ({
+  search: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
 }));
+
+vi.mock("@/app/actions/item-choices", () => ({ searchBacklogItemsAction: mocks.search }));
 
 vi.mock("@/app/actions/links", () => ({
   addLinkAction: vi.fn(),
@@ -50,7 +52,7 @@ describe("LinksSection", () => {
             },
           },
         ]}
-       
+
       />,
     );
 
@@ -77,6 +79,12 @@ describe("LinksSection", () => {
     await user.click(screen.getByRole("button", { name: /\+ Lier un item/ }));
     expect(screen.getByRole("combobox", { name: "Type de relation" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "Rechercher un item à lier" })).toHaveFocus();
+    // The server leaves out the item and its links, however many (JIR-118).
+    await user.click(screen.getByRole("combobox", { name: "Rechercher un item à lier" }));
+    expect(mocks.search).toHaveBeenCalledWith(
+      expect.objectContaining({ backlogKey: "CASS", excludeLinksOf: "item-1" }),
+    );
+    expect(mocks.search).not.toHaveBeenCalledWith(expect.objectContaining({ excludeIds: expect.anything() }));
     await user.click(screen.getByRole("button", { name: "Annuler" }));
     expect(screen.queryByRole("combobox", { name: "Rechercher un item à lier" })).not.toBeInTheDocument();
   });

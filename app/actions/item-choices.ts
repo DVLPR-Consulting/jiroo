@@ -15,6 +15,8 @@ const inputSchema = z.object({
   q: z.string().max(100).optional(),
   types: z.array(z.enum(ITEM_TYPES)).max(ITEM_TYPES.length).optional(),
   excludeIds: z.array(z.string().uuid()).max(50).optional(),
+  /** Leaves out this item and everything linked to it (« Lier un item »). */
+  excludeLinksOf: z.string().uuid().optional(),
 });
 
 export type { ItemChoice };
@@ -37,11 +39,11 @@ export async function searchBacklogItemsAction(
   if (!session) throw new Error("Forbidden");
   const parsed = inputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Recherche impossible." };
-  const { backlogKey, q, types, excludeIds } = parsed.data;
+  const { backlogKey, q, types, excludeIds, excludeLinksOf } = parsed.data;
   try {
     const backlog = await getBacklogByKeyForUser(backlogKey, session.user.id);
     if (!backlog || backlog.archivedAt) return { ok: false, error: "Recherche impossible." };
-    const found = await searchBacklogItems(backlog.id, { q, types, excludeIds });
+    const found = await searchBacklogItems(backlog.id, { q, types, excludeIds, excludeLinksOf });
     return { ok: true, items: found, limit: ITEM_CHOICE_LIMIT };
   } catch {
     return { ok: false, error: "Recherche impossible." };

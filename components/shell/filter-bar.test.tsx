@@ -1085,7 +1085,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-         
+
         />
       </ViewUrlStateProvider>,
     );
@@ -1122,7 +1122,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-         
+
         />
       </ViewUrlStateProvider>,
     );
@@ -1144,7 +1144,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-         
+
         />
       </ViewUrlStateProvider>,
     );
@@ -1156,7 +1156,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-         
+
         />
       </ViewUrlStateProvider>,
     );
@@ -1178,7 +1178,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-         
+
         />
       </>
     );
@@ -1230,7 +1230,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-         
+
         />
       </>
     );
@@ -1281,7 +1281,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-         
+
         />
       </ViewUrlStateProvider>,
     );

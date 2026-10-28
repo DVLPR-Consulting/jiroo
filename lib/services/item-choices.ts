@@ -1,8 +1,8 @@
 import "server-only";
-import { and, asc, eq, ilike, inArray, isNull, notInArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, isNull, ne, notExists, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { binaryTextOrder } from "@/lib/db/order";
-import { items } from "@/lib/db/schema/domain";
+import { itemLinks, items } from "@/lib/db/schema/domain";
 import type { ItemType } from "@/lib/design/constants";
 import { toPrefixTsQuery } from "@/lib/items/search";
 
@@ -59,12 +59,18 @@ export function listBacklogStructure(backlogId: string): Promise<ItemChoice[]> {
  * (or carrying its number) first, then the items whose words start with it
  * (the global search's prefix query on the title and description), each
  * group in hierarchy order. `types` narrows to the levels a field accepts;
- * `excludeIds` leaves out the item itself and what it is already linked to.
- * The caller has checked the backlog is browsable.
+ * `excludeIds` leaves out a few given items (the item itself); `excludeLinksOf`
+ * leaves out that item and everything it is linked to, in either direction,
+ * however many links it has. The caller has checked the backlog is browsable.
  */
 export function searchBacklogItems(
   backlogId: string,
-  options: { q?: string; types?: readonly ItemType[]; excludeIds?: readonly string[] } = {},
+  options: {
+    q?: string;
+    types?: readonly ItemType[];
+    excludeIds?: readonly string[];
+    excludeLinksOf?: string;
+  } = {},
 ): Promise<ItemChoice[]> {
   const conditions: SQL[] = [eq(items.backlogId, backlogId), isNull(items.deletedAt)];
   if (options.types && options.types.length > 0) {
@@ -72,6 +78,23 @@ export function searchBacklogItems(
   }
   if (options.excludeIds && options.excludeIds.length > 0) {
     conditions.push(notInArray(items.id, [...options.excludeIds]));
+  }
+  if (options.excludeLinksOf) {
+    const source = options.excludeLinksOf;
+    conditions.push(
+      ne(items.id, source),
+      notExists(
+        db
+          .select({ id: itemLinks.id })
+          .from(itemLinks)
+          .where(
+            or(
+              and(eq(itemLinks.sourceId, source), eq(itemLinks.targetId, items.id)),
+              and(eq(itemLinks.targetId, source), eq(itemLinks.sourceId, items.id)),
+            ),
+          ),
+      ),
+    );
   }
   const raw = (options.q ?? "").trim();
   if (raw === "") {

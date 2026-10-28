@@ -183,4 +183,62 @@ describe("ItemPicker", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.getAllByRole("option")).toHaveLength(1);
   });
+
+  it("offers nothing to pick until the answer to the current text arrives", async () => {
+    const user = userEvent.setup();
+    type Result = Awaited<ReturnType<ItemPickerSearch>>;
+    const pending = new Map<string, (result: Result) => void>();
+    const search: ItemPickerSearch = vi.fn(({ q = "" }: { q?: string }) =>
+      new Promise<Result>((resolve) => {
+        pending.set(q, resolve);
+      }),
+    );
+    const { onChange } = renderPicker({ search, debounceMs: 150 });
+    const input = screen.getByRole("combobox", { name: "Parent" });
+    await user.click(input);
+    // Typed before the first answer, which lands during the pause before the next request.
+    await user.type(input, "notif");
+    pending.get("")!({ ok: true, items: epics, limit: 20 });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryAllByRole("option")).toHaveLength(0);
+    expect(input).toHaveAttribute("aria-busy", "true");
+    expect(screen.getAllByText("Recherche en cours.").length).toBeGreaterThan(0);
+    await user.keyboard("{Enter}");
+    expect(onChange).not.toHaveBeenCalled();
+    // The request for the typed text goes out after the pause and its answer shows.
+    await waitFor(() => expect(pending.has("notif")).toBe(true));
+    expect(screen.queryAllByRole("option")).toHaveLength(0);
+    pending.get("notif")!({ ok: true, items: [epics[2]!], limit: 20 });
+    await screen.findByRole("option", { name: /CASS-9/ });
+    await user.keyboard("{Enter}");
+    expect(onChange).toHaveBeenCalledWith(epics[2]);
+  });
+
+  it("starts again from the first result when the answer changes, and keeps the active one in view", async () => {
+    const user = userEvent.setup();
+    const scrolled: Element[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
+    try {
+      const { onChange } = renderPicker();
+      const input = screen.getByRole("combobox", { name: "Parent" });
+      await user.click(input);
+      await screen.findAllByRole("option");
+      await user.keyboard("{End}");
+      const last = screen.getByRole("option", { name: /CASS-9/ });
+      expect(input).toHaveAttribute("aria-activedescendant", last.id);
+      expect(scrolled.at(-1)).toBe(last);
+      // A narrower answer: the first of it is active, Entrée picks it.
+      await user.type(input, "Rech");
+      const only = await screen.findByRole("option", { name: /CASS-3/ });
+      expect(screen.getAllByRole("option")).toHaveLength(1);
+      expect(only).toHaveAttribute("aria-selected", "true");
+      await user.keyboard("{Enter}");
+      expect(onChange).toHaveBeenCalledWith(epics[1]);
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
 });

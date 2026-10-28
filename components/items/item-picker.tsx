@@ -36,8 +36,10 @@ export type ItemPickerProps = {
   backlogKey: string;
   /** The levels offered (a parent's type, for instance); every level otherwise. */
   types?: readonly ItemType[];
-  /** Left out of the choices: the item itself, what it is already linked to. */
+  /** A few items left out of the choices (the item itself). */
   excludeIds?: readonly string[];
+  /** Leaves out this item and everything it is linked to, however many links. */
+  excludeLinksOf?: string;
   value: ItemChoice | null;
   onChange: (next: ItemChoice | null) => void;
   placeholder?: string;
@@ -64,6 +66,12 @@ export type ItemPickerProps = {
 };
 
 const SEARCH_FAILED = "Recherche impossible.";
+const SEARCHING = "Recherche en cours.";
+const SEPARATOR = "\u001f";
+
+/** What a search answered, tied to what was asked: only that is shown. */
+type Answer = { identity: string; items: ItemChoice[]; limit: number };
+type Failure = { identity: string; message: string };
 
 /**
  * A combobox that picks one item of a backlog by searching it on the server
@@ -76,6 +84,7 @@ export function ItemPicker({
   backlogKey,
   types,
   excludeIds,
+  excludeLinksOf,
   value,
   onChange,
   placeholder,
@@ -99,23 +108,28 @@ export function ItemPicker({
   // The input shows the value's label until the user types their own text.
   const [query, setQuery] = useState(() => (value ? itemChoiceLabel(value) : ""));
   const [typed, setTyped] = useState(false);
-  const [results, setResults] = useState<ItemChoice[] | null>(null);
-  const [limit, setLimit] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [answer, setAnswer] = useState<Answer | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
   const [active, setActive] = useState(0);
   const ownInputRef = useRef<HTMLInputElement | null>(null);
   const requestSeq = useRef(0);
   // Callers hand fresh arrays and callbacks on every render: the search
   // depends on their content only, read when it runs (kept in sync before
   // the effects below, which React runs in order).
-  const latest = useRef({ types, excludeIds, onEmptyChange });
+  const latest = useRef({ types, excludeIds, excludeLinksOf, onEmptyChange });
   useEffect(() => {
-    latest.current = { types, excludeIds, onEmptyChange };
+    latest.current = { types, excludeIds, excludeLinksOf, onEmptyChange };
   });
-  const typesKey = types?.join("\u001f") ?? "";
-  const excludeKey = excludeIds?.join("\u001f") ?? "";
+  // What a search is asked about: the answers of another scope or text are
+  // never shown, whenever they arrive.
+  const scopeKey = [
+    backlogKey,
+    types?.join(SEPARATOR) ?? "",
+    excludeIds?.join(SEPARATOR) ?? "",
+    excludeLinksOf ?? "",
+  ].join(SEPARATOR);
   const effectiveQuery = typed ? query.trim() : "";
+  const identity = `${scopeKey}${SEPARATOR}${effectiveQuery}`;
 
   // The caller's ref sees the input itself (to focus it after an error).
   useImperativeHandle(inputRef, () => ownInputRef.current as HTMLInputElement, []);
@@ -131,38 +145,34 @@ export function ItemPicker({
   const runSearch = useCallback(
     (q: string) => {
       const seq = ++requestSeq.current;
-      const { types: currentTypes, excludeIds: currentExcludes } = latest.current;
-      setLoading(true);
+      const asked = `${scopeKey}${SEPARATOR}${q}`;
+      const { types: currentTypes, excludeIds: currentExcludes, excludeLinksOf: currentLinksOf } = latest.current;
       search({
         backlogKey,
         q,
         ...(currentTypes && currentTypes.length > 0 ? { types: [...currentTypes] } : {}),
         ...(currentExcludes && currentExcludes.length > 0 ? { excludeIds: [...currentExcludes] } : {}),
+        ...(currentLinksOf ? { excludeLinksOf: currentLinksOf } : {}),
       })
         .then((result) => {
           // A later request answers for the field: an earlier one is stale.
           if (seq !== requestSeq.current) return;
           if (result.ok) {
-            setResults(result.items);
-            setLimit(result.limit);
-            setError(null);
+            setAnswer({ identity: asked, items: result.items, limit: result.limit });
+            setFailure(null);
+            // A new list starts again from its first result.
+            setActive(0);
             if (q === "") latest.current.onEmptyChange?.(result.items.length === 0);
           } else {
-            setResults([]);
-            setError(result.error);
+            setFailure({ identity: asked, message: result.error });
           }
         })
         .catch(() => {
           if (seq !== requestSeq.current) return;
-          setResults([]);
-          setError(SEARCH_FAILED);
-        })
-        .finally(() => {
-          if (seq === requestSeq.current) setLoading(false);
+          setFailure({ identity: asked, message: SEARCH_FAILED });
         });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- typesKey and excludeKey stand for the arrays' content
-    [backlogKey, search, typesKey, excludeKey],
+    [backlogKey, scopeKey, search],
   );
 
   // The field learns at once whether there is anything to pick, when asked to.
@@ -176,6 +186,22 @@ export function ItemPicker({
     const timer = setTimeout(() => runSearch(effectiveQuery), effectiveQuery === "" ? 0 : debounceMs);
     return () => clearTimeout(timer);
   }, [open, effectiveQuery, runSearch, debounceMs]);
+
+  // Only the answer to what is asked now is shown and selectable; until it
+  // arrives, the list says it is searching.
+  const answered = open && answer?.identity === identity ? answer : null;
+  const failed = open && failure?.identity === identity ? failure.message : null;
+  const shown = answered?.items ?? null;
+  const pending = open && !answered && !failed;
+  const count = shown?.length ?? 0;
+  const effectiveActive = count > 0 ? Math.min(active, count - 1) : 0;
+  const activeId = count > 0 ? `${listId}-${effectiveActive}` : undefined;
+
+  // The active result stays in view as the keyboard moves through the list.
+  useEffect(() => {
+    if (!activeId) return;
+    document.getElementById(activeId)?.scrollIntoView?.({ block: "nearest" });
+  }, [activeId]);
 
   function select(item: ItemChoice) {
     onChange(item);
@@ -202,16 +228,15 @@ export function ItemPicker({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    const count = results?.length ?? 0;
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
         if (!open) setOpen(true);
-        else if (count > 0) setActive((index) => Math.min(index + 1, count - 1));
+        else if (count > 0) setActive(Math.min(effectiveActive + 1, count - 1));
         return;
       case "ArrowUp":
         event.preventDefault();
-        if (open && count > 0) setActive((index) => Math.max(index - 1, 0));
+        if (open && count > 0) setActive(Math.max(effectiveActive - 1, 0));
         return;
       case "Home":
         if (open && count > 0) {
@@ -229,7 +254,7 @@ export function ItemPicker({
         if (!open) return;
         // The list is open: Entrée picks, it never submits the form around.
         event.preventDefault();
-        if (results?.[active]) select(results[active]);
+        if (shown?.[effectiveActive]) select(shown[effectiveActive]);
         return;
       case "Escape":
         if (!open) return;
@@ -246,28 +271,24 @@ export function ItemPicker({
     }
   }
 
-  const shown = open ? results : null;
-  const activeId = open && shown && shown.length > 0 ? `${listId}-${Math.min(active, shown.length - 1)}` : undefined;
   const message = !open
     ? null
-    : error
-      ? error
-      : shown === null
-        ? null
-        : shown.length === 0
+    : pending
+      ? SEARCHING
+      : failed
+        ? failed
+        : count === 0
           ? effectiveQuery === ""
             ? emptyLabel
             : `Aucun résultat pour « ${effectiveQuery} ».`
-          : limit !== null && shown.length >= limit
+          : answered !== null && count >= answered.limit
             ? "Affinez la recherche pour voir d’autres items."
             : null;
-  const status = loading
-    ? "Recherche en cours."
-    : !open || shown === null
-      ? ""
-      : shown.length === 0
-        ? (message ?? "")
-        : `${shown.length} ${shown.length > 1 ? "résultats" : "résultat"}.`;
+  const status = !open
+    ? ""
+    : count > 0
+      ? `${count} ${count > 1 ? "résultats" : "résultat"}.`
+      : (message ?? "");
 
   return (
     // While the list is open, Échap is the picker's (the drawer and the
@@ -296,7 +317,7 @@ export function ItemPicker({
           aria-controls={open ? listId : undefined}
           aria-autocomplete="list"
           aria-activedescendant={activeId}
-          aria-busy={loading || undefined}
+          aria-busy={pending || undefined}
           className={clearable && value ? "pr-8" : undefined}
           onChange={(event) => {
             setQuery(event.target.value);
@@ -340,7 +361,7 @@ export function ItemPicker({
             role="listbox"
             id={listId}
             aria-label={ariaLabel ? `${ariaLabel} : choix` : "Choix"}
-            className={cn("max-h-64 overflow-y-auto", shown && shown.length > 0 ? "py-1" : "")}
+            className={cn("max-h-64 overflow-y-auto", count > 0 ? "py-1" : "")}
           >
             {(shown ?? []).map((item, index) => (
               <li
@@ -348,14 +369,14 @@ export function ItemPicker({
                 id={`${listId}-${index}`}
                 role="option"
                 aria-label={itemChoiceLabel(item)}
-                aria-selected={index === active}
+                aria-selected={index === effectiveActive}
                 onMouseMove={() => {
-                  if (index !== active) setActive(index);
+                  if (index !== effectiveActive) setActive(index);
                 }}
                 onClick={() => select(item)}
                 className={cn(
                   "flex cursor-default items-center gap-2 px-2.5 py-1.5 text-sm",
-                  index === active && "bg-[var(--muted)]",
+                  index === effectiveActive && "bg-[var(--muted)]",
                 )}
               >
                 <span aria-hidden className="flex shrink-0 items-center">

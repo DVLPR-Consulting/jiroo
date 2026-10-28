@@ -1,11 +1,11 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
-import { backlogs, items, statuses } from "@/lib/db/schema/domain";
+import { backlogs, itemLinks, items, statuses } from "@/lib/db/schema/domain";
 import type { ItemType } from "@/lib/design/constants";
 import {
   ITEM_CHOICE_LIMIT,
@@ -176,6 +176,35 @@ describeDb("item choices", () => {
     ]);
     const indexed = await searchBacklogItems(backlogId, { q: "indexation" });
     expect(indexed).toHaveLength(ITEM_CHOICE_LIMIT);
+  });
+
+  it("leaves out an item and everything linked to it in either direction, however many links", async () => {
+    const page = byTitle.get("Page de connexion")!;
+    const linked = [
+      byTitle.get("Connexion")!,
+      byTitle.get("Portail")!,
+      ...[...byTitle.values()].filter((item) => item.title.startsWith("Indexation ")),
+    ];
+    expect(linked.length).toBeGreaterThan(ITEM_CHOICE_LIMIT);
+    await db.insert(itemLinks).values(
+      linked.map((other, index) =>
+        index % 2 === 0
+          ? { sourceId: page.id, targetId: other.id, type: "relates" as const, createdBy: reporterId }
+          : { sourceId: other.id, targetId: page.id, type: "blocks" as const, createdBy: reporterId },
+      ),
+    );
+    try {
+      const rows = await searchBacklogItems(backlogId, { excludeLinksOf: page.id });
+      expect(titles(rows)).toEqual(["Recherche documentaire", "Récupération du mot de passe", "Formulaire"]);
+      expect(titles(await searchBacklogItems(backlogId, { q: "connexion", excludeLinksOf: page.id }))).toEqual([]);
+      // An item without links sees everything but itself.
+      const recovery = byTitle.get("Récupération du mot de passe")!;
+      const fromRecovery = await searchBacklogItems(backlogId, { excludeLinksOf: recovery.id });
+      expect(titles(fromRecovery)).toContain("Page de connexion");
+      expect(titles(fromRecovery)).not.toContain("Récupération du mot de passe");
+    } finally {
+      await db.delete(itemLinks).where(or(eq(itemLinks.sourceId, page.id), eq(itemLinks.targetId, page.id)));
+    }
   });
 
   it("treats LIKE wildcards and tsquery operators as plain text", async () => {

@@ -61,10 +61,6 @@ export function LinksSection({
     setSelected(null);
   }
 
-  // The item itself and what it is already linked to (any direction) are
-  // left out of the choices.
-  const excludeIds = [itemId, ...links.map((l) => l.other.id)];
-
   // Group existing links for display
   const groups = groupLinksForDisplay(links, itemId);
 
@@ -195,11 +191,12 @@ export function LinksSection({
           ))}
         </select>
 
-        {/* The item to link, searched in the backlog (JIR-118). */}
+        {/* The item to link, searched in the backlog (JIR-118); the server
+            leaves out this item and what it is already linked to. */}
         <ItemPicker
           inputRef={inputRef}
           backlogKey={backlogKey}
-          excludeIds={excludeIds}
+          excludeLinksOf={itemId}
           value={selected}
           onChange={setSelected}
           disabled={pending}
