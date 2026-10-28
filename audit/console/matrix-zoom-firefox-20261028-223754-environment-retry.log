@@ -1,0 +1,8 @@
+browserType.launch: Timeout 30000ms exceeded.
+Call log:
+  - <launching> /Users/nkrmnr/Library/Caches/ms-playwright/firefox-1538/firefox/Nightly.app/Contents/MacOS/firefox -no-remote -headless -profile /var/folders/v5/j9rb_5597j5c8ry51z8gbsbc0000gn/T/playwright_firefoxdev_profile-MRekEJ -juggler-pipe -silent
+  - <launched> pid=3930
+  - [pid=3930][err] *** You are running in headless mode.
+  - [pid=3930][err] sandbox_extension_issue_file_to_process failed for /Users/nkrmnr/Library/Caches/ms-playwright/firefox-1538/firefox/Nightly.app/Contents/MacOS/plugin-container.app: 1 (Operation not permitted)
+  - [pid=3930][out] Crash Annotation GraphicsCriticalError: |[0][GFX1-]: RenderCompositorSWGL failed mapping default framebuffer, no dt (t=0.381368) [GFX1-]: RenderCompositorSWGL failed mapping default framebuffer, no dt
+

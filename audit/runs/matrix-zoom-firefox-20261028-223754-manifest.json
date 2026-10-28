@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "runId": "matrix-zoom-firefox-20261028-223754",
+  "timestamps": {
+    "startedAt": "2026-10-28T23:19:24.388Z",
+    "databaseVerifiedAt": "2026-10-28T23:19:24.401Z",
+    "manifestWrittenAt": "2026-10-28T23:19:24.525Z"
+  },
+  "runtime": {
+    "node": "v24.18.1",
+    "pnpm": "10.34.5"
+  },
+  "source": {
+    "gitSha": "282463d59644fb557e956e0bfe66cb6310b4354b"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:a70637732c622ead8e1bfe57c5fec658fda1cab995b41489e3222926ed8fc919"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "corepack pnpm exec playwright test --project=matrix-zoom-firefox",
+    "scenarios": "matrice matrix-zoom-firefox"
+  },
+  "result": {
+    "junitReport": "audit/runs/matrix-zoom-firefox-20261028-223754-junit.xml"
+  },
+  "artifacts": [
+    {
+      "path": ".playwright/test-results/matrix-zoom-firefox-20261028-223754/.last-run.json",
+      "size": 50,
+      "sha256": "1a7281262a1426ac837fe9b61ce6b843b45093c204769011f34ad6eafcf2763d"
+    },
+    {
+      "path": "audit/console/matrix-zoom-firefox-20261028-223754-environment-original.log",
+      "size": 828,
+      "sha256": "782002e5f97746f54744635bb69093e4e6da9cec4fa8c7c9c3f90c8d48dc47bd"
+    },
+    {
+      "path": "audit/console/matrix-zoom-firefox-20261028-223754-environment-retry.log",
+      "size": 825,
+      "sha256": "49e1b321c76bb8bdcfdf457ff60f67891ca8ce6d87e598cd5045477690703156"
+    },
+    {
+      "path": "audit/runs/matrix-zoom-firefox-20261028-223754-firefox-environment.json",
+      "size": 525,
+      "sha256": "66c71e8f440e4b517ae38867c3b983e99ad0cc8871cec993d6c925b9ce69cfec"
+    },
+    {
+      "path": "audit/runs/matrix-zoom-firefox-20261028-223754-junit.xml",
+      "size": 102,
+      "sha256": "ec4416aaab74565f185d4f946823260059e1fb0b478bd5b4f44bd33835abecc6"
+    }
+  ]
+}
