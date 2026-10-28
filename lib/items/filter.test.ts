@@ -223,7 +223,7 @@ describe("writeViewState ⇄ parseViewState round-trip", () => {
 });
 
 const item = (over: Partial<FilterItem> = {}): FilterItem => ({
-  id: "i1", key: "CASS-1", type: "tache", kind: "feature", title: "Générer le QR code", description: "scan",
+  id: "i1", key: "CASS-1", type: "tache", kind: "feature", title: "Générer le QR code",
   statusId: "s1", priority: 2, assigneeId: "u1", parentId: "p1", path: "aa.bb",
   depth: 0,
   dueDate: null, createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-02"), rank: "a1",
@@ -290,7 +290,7 @@ describe("matchItem", () => {
   });
 
   it.each([
-    ["text", { q: "qr" }, { title: "Générer le QR", description: null }, { title: "Sans correspondance", description: null }],
+    ["text", { q: "qr" }, { title: "Générer le QR" }, { title: "Sans correspondance" }],
     ["type", { types: ["tache"] }, { type: "tache" }, { type: "epic" }],
     ["status", { statusIds: ["s1"] }, { statusId: "s1" }, { statusId: "s2" }],
     ["priority", { priorities: [2] }, { priority: 2 }, { priority: 4 }],
@@ -336,7 +336,7 @@ describe("matchItem", () => {
 
     expect(matchItem(matching, filters)).toBe(true);
     expect([
-      item({ ...matching, title: "Sans correspondance", description: null }),
+      item({ ...matching, title: "Sans correspondance" }),
       item({ ...matching, type: "composant" }),
       item({ ...matching, statusId: "s2" }),
       item({ ...matching, priority: 1 }),
@@ -353,8 +353,9 @@ describe("matchItem", () => {
   it("text is case- and accent-insensitive over title+key only", () => {
     expect(matchItem(item({ title: "Générer" }), f({ q: "gener" }))).toBe(true);
     expect(matchItem(item({ title: "X", key: "CASS-1042" }), f({ q: "cass-1042" }))).toBe(true);
-    expect(matchItem(item({ title: "X", description: "Récupération" }), f({ q: "recup" }))).toBe(false);
-    expect(matchItem(item({ title: "X", description: null }), f({ q: "zzz" }))).toBe(false);
+    const fullRow = { ...item({ title: "X" }), description: "Récupération" };
+    expect(matchItem(fullRow, f({ q: "recup" }))).toBe(false);
+    expect(matchItem(item({ title: "X" }), f({ q: "zzz" }))).toBe(false);
   });
   it("assignee filter supports the 'none' (unassigned) token", () => {
     expect(matchItem(item({ assigneeId: null }), f({ assignees: ["none"] }))).toBe(true);

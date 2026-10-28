@@ -121,7 +121,6 @@ export type FilterItem = {
   type: ItemType;
   kind: ItemKind;
   title: string;
-  description: string | null;
   statusId: string;
   priority: number;
   assigneeId: string | null;
@@ -264,7 +263,6 @@ export function isHiddenByFilters(created: CreatedItem, filters: Filters | undef
     type: created.type,
     kind: created.kind,
     title: created.title,
-    description: null,
     statusId: created.statusId,
     priority: created.priority,
     assigneeId: created.assigneeId,
