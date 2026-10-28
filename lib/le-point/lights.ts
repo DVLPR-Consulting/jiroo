@@ -1,5 +1,6 @@
 import { countLabel, formatPoints } from "@/lib/format/plural";
 import { absentUntil, absentWorkingDays } from "@/lib/le-point/absences";
+import { presentInSprint } from "@/lib/le-point/people";
 import {
   byDue,
   daysFrom,
@@ -30,7 +31,7 @@ export type LightColor = "green" | "amber" | "red" | "none";
 
 export type Light = {
   color: LightColor;
-  /** The sprint's verdict (« En bonne voie », « À surveiller »), a person's fact (« 1 bloqué », « Rien en cours »). */
+  /** The sprint's verdict (« En bonne voie », « À surveiller »), a person's fact (« 1 bloqué · 1 en cours · 5 pts », « Aucun ticket en cours »). */
   label: string;
   /** Why this colour, in one sentence. */
   summary: string;
@@ -56,10 +57,22 @@ export type SprintLight = Light & {
   blocked: string[];
   /** Joined since the start: tickets, their weight in `unit`, and that weight in % of the initial commitment. */
   added: { tickets: number; weight: number; percent: number };
+  /** The sprint's people not away today. */
+  present: number;
+  /** Work expected done by today (time elapsed × scope) minus work done, in `unit`; negative when ahead. */
+  lag: number;
+  /** The lag the team may carry before « À surveiller »: one per person present; null when nobody is known. */
+  lagThreshold: number | null;
 };
 
-/** Percentage points between time elapsed and work done; scope added, in % of the initial commitment. */
-export const SPRINT_THRESHOLDS = { red: 25, amber: 10, scopeAdded: 20 } as const;
+/**
+ * `red`: percentage points between time elapsed and work done. `lagPerPerson`:
+ * the work (in the sprint's unit) each person present may be late by on the
+ * date before the sprint is « À surveiller » (Léo's rule, JIR-124); `amber`
+ * is the percentage-point fallback when nobody is known. `scopeAdded`: in %
+ * of the initial commitment.
+ */
+export const SPRINT_THRESHOLDS = { red: 25, amber: 10, lagPerPerson: 1, scopeAdded: 20 } as const;
 /** Working days without activity, and tickets in progress at once. */
 export const PERSON_THRESHOLDS = { idleDays: 3, stuckDays: 5, wip: 4 } as const;
 
@@ -74,6 +87,10 @@ const SPRINT_LABEL: Record<LightColor, string> = {
 const light = (color: LightColor, label: string, summary: string, details: string[]): Light =>
   ({ color, label, summary, details, tone: TONE[color] });
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+/** Points shown and compared for their plural: binary noise off, so 0.12 + 1.14 + 0.74 reads « 2 pts ». */
+const round2 = (value: number) => Math.round(value * 100) / 100;
+/** Points are stored to the hundredth: as integers, their sums and products are exact. */
+const hundredths = (value: number) => Math.round(value * 100);
 /** A ratio as a percentage kept to two decimals: compared to the thresholds as is, rounded only to be shown. */
 const percent = (ratio: number) => Math.round(ratio * 10_000) / 100;
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -98,7 +115,8 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
 
   const span = daysFrom(sprint.start, sprint.end);
   const position = daysFrom(sprint.start, data.today);
-  const elapsed = percent(span <= 0 ? 1 : Math.min(Math.max(position / span, 0), 1));
+  const elapsedRatio = span <= 0 ? 1 : Math.min(Math.max(position / span, 0), 1);
+  const elapsed = percent(elapsedRatio);
   const elapsedPercent = Math.round(elapsed);
   const timing = position < 0
     ? `commence le ${formatDay(sprint.start)}`
@@ -118,6 +136,9 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
       tickets: { done: 0, total: 0, unestimated: 0 },
       blocked: [],
       added: { tickets: 0, weight: 0, percent: 0 },
+      present: presentInSprint(data),
+      lag: 0,
+      lagThreshold: null,
     };
   }
 
@@ -142,14 +163,50 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
   const blocked = scope.filter((ticket) => ticket.category !== "done" && openBlockersOf(ticket, byKey).length > 0);
   const unestimated = unit === "points" ? scope.filter((ticket) => points(ticket) === null).length : 0;
   const gap = elapsed - completed;
+  // Léo's rule: the work expected by today, less the work done, measured
+  // against the people present; a team of three may be three points late.
+  // Without anyone known, the gap in percentage points decides, as before.
+  const peoplePresent = presentInSprint(data);
+  // The lag in exact integers: (elapsed days × total − done × span) / span,
+  // in hundredths, so a sum of a thousand tickets at the threshold is still
+  // the threshold, while 1.01 still exceeds 1. Strict: a team of four may be
+  // four points late.
+  const [elapsedDays, spanDays] = span <= 0 ? [1, 1] : [Math.min(Math.max(position, 0), span), span];
+  const lagNumerator = elapsedDays * sum(scope.map((ticket) => hundredths(weight(ticket))))
+    - spanDays * sum(scope.filter((ticket) => ticket.category === "done").map((ticket) => hundredths(weight(ticket))));
+  const lag = round2(lagNumerator / spanDays / 100);
+  const lagThreshold = peoplePresent > 0 ? peoplePresent * SPRINT_THRESHOLDS.lagPerPerson : null;
+  const behind = lagThreshold === null
+    ? gap > SPRINT_THRESHOLDS.amber
+    : lagNumerator > hundredths(lagThreshold) * spanDays;
+  const late = gap > SPRINT_THRESHOLDS.red;
   const unitLabel = unit === "points" ? "des points" : "des tickets";
+  const lagLabel = unit === "points"
+    ? countLabel(lag, "point", "points", formatPoints)
+    : countLabel(lag, "ticket", "tickets", formatPoints);
+  const unitOne = unit === "points" ? "1 point" : "1 ticket";
+  const thresholdLabel = lagThreshold === null
+    ? ""
+    : unit === "points"
+      ? countLabel(lagThreshold, "point", "points", formatPoints)
+      : countLabel(lagThreshold, "ticket", "tickets", formatPoints);
   const progress = `${elapsedPercent} % du temps écoulé pour ${donePercent} % ${unitLabel} terminés`;
+  const gapSentence = (threshold: string) =>
+    `${elapsedPercent} % du temps écoulé, ${donePercent} % ${unitLabel} terminés : ${formatPoints(Math.round(gap))} points d’écart entre ces pourcentages (${threshold}).`;
   const addedLabel = unit === "points"
     ? countLabel(addedWeight, "point", "points", formatPoints)
     : countLabel(addedWeight, "ticket", "tickets");
 
   const details = [
     `${elapsedPercent} % du temps écoulé (${timing}), ${donePercent} % ${unitLabel} terminés (${formatPoints(done)} sur ${formatPoints(total)}).`,
+    behind && lagThreshold !== null
+      ? `Retard de ${lagLabel} sur la date, pour ${countLabel(peoplePresent, "personne présente", "personnes présentes")} (seuil : ${unitOne} par personne, soit ${thresholdLabel}).`
+      : null,
+    late
+      ? gapSentence(`En retard au-delà de ${SPRINT_THRESHOLDS.red}`)
+      : behind && lagThreshold === null
+        ? gapSentence(`seuil de repli : plus de ${SPRINT_THRESHOLDS.amber}, sans personne présente connue`)
+        : null,
     added.length > 0
       ? `${countLabel(added.length, "ticket ajouté", "tickets ajoutés")} depuis le début du sprint : ${addedLabel}, ${addedPercent} % de l’engagement initial.`
       : null,
@@ -163,12 +220,13 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
   ].filter(present);
 
   const concerns = [
-    gap > SPRINT_THRESHOLDS.amber ? progress : null,
+    // The red verdict is explained whatever the relative threshold says.
+    behind || late ? progress : null,
     addedShare > SPRINT_THRESHOLDS.scopeAdded ? `périmètre ajouté de ${addedPercent} %` : null,
     blocked.length > 0 ? countLabel(blocked.length, "ticket bloqué", "tickets bloqués") : null,
   ].filter(present);
 
-  const color: LightColor = gap > SPRINT_THRESHOLDS.red ? "red" : concerns.length > 0 ? "amber" : "green";
+  const color: LightColor = late ? "red" : concerns.length > 0 ? "amber" : "green";
   // The verdict is the label; the summary keeps to the facts behind it.
   const ahead = color === "green" && gap < -SPRINT_THRESHOLDS.amber;
   const summary = concerns.length > 0
@@ -187,6 +245,9 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
     tickets: { done: scope.filter((ticket) => ticket.category === "done").length, total: scope.length, unestimated },
     blocked: blocked.map((ticket) => ticket.key),
     added: { tickets: added.length, weight: addedWeight, percent: addedPercent },
+    present: peoplePresent,
+    lag,
+    lagThreshold,
   };
 }
 
@@ -200,7 +261,7 @@ const dayAfter = (day: Day): Day => new Date(Date.parse(`${day}T00:00:00Z`) + 86
  * on all their committed open tickets without a sprint. A ticket without any
  * known activity is never called idle, and a day away is never an idle day;
  * away today, the pill says until when. The label is the fact (« 1 bloqué »,
- * « Rien en cours »); the colour says how much it matters.
+ * « Aucun ticket en cours »); the colour says how much it matters.
  */
 export function personLight(data: LePointDataset, assignee: string): Light {
   const byKey = new Map(data.tickets.map((ticket) => [ticket.key, ticket]));
@@ -224,42 +285,70 @@ export function personLight(data: LePointDataset, assignee: string): Light {
   // « Since N working days »: every one of these tickets has been idle at least that long.
   const idleSince = (tickets: LePointTicket[]) => Math.min(...tickets.map(idleDays));
 
+  // The points of the tickets in progress, since Léo counts in points
+  // (JIR-124): « 8 pts », « 5 pts connus » when some are not estimated,
+  // « sans estimation » when none is; a known sum of zero stays « 0 pt ».
+  const estimated = inProgress.filter((ticket) => typeof ticket.points === "number");
+  const pointsInProgress = round2(sum(estimated.map((ticket) => ticket.points as number)));
+  const points = inProgress.length === 0
+    ? null
+    : estimated.length === 0
+      ? "sans estimation"
+      : estimated.length < inProgress.length
+        ? countLabel(pointsInProgress, "pt connu", "pts connus", formatPoints)
+        : countLabel(pointsInProgress, "pt", "pts", formatPoints);
+  // « 3 en cours · 8 pts », or « aucun ticket en cours » after a fact.
+  const load = inProgress.length === 0
+    ? "aucun ticket en cours"
+    : `${inProgress.length} en cours${points ? ` · ${points}` : ""}`;
+  // After a fact that already names every ticket in progress: « · 8 pts en cours ».
+  const trail = points === null ? "" : estimated.length === 0 ? ` · ${points}` : ` · ${points} en cours`;
+  const idleLabel = (count: number) => countLabel(count, "ticket sans activité", "tickets sans activité");
+
   const details = [
     `${countLabel(inProgress.length, "ticket en cours", "tickets en cours")}, ${todo} à faire.`,
+    inProgress.length > 0 && estimated.length === 0
+      ? (inProgress.length === 1 ? "Le ticket en cours n’est pas estimé." : `Aucun des ${inProgress.length} tickets en cours n’est estimé.`)
+      : null,
+    estimated.length > 0 && estimated.length < inProgress.length
+      ? `${countLabel(pointsInProgress, "point", "points", formatPoints)} sur les tickets estimés ; ${countLabel(inProgress.length - estimated.length, "ticket en cours sans estimation", "tickets en cours sans estimation")}.`
+      : null,
     ...stale.map((ticket) => `${ticket.key} en cours sans activité depuis ${workingDays(idleDays(ticket))}.`),
     ...blocked.map((ticket) => `${ticket.key} bloqué.`),
-  ];
+  ].filter(present);
 
   const away = absentUntil(absences, assignee, data.today);
   if (away) {
-    return light("none", `En congé jusqu’au ${formatDay(away)}`, sentence(`Absence déclarée jusqu’au ${formatDay(away)}`), details);
+    const awayTrail = estimated.length > 0 ? ` · ${points} en cours` : "";
+    return light("none", `En congé jusqu’au ${formatDay(away)}${awayTrail}`, sentence(`Absence déclarée jusqu’au ${formatDay(away)}`), details);
   }
   if (stuck) {
     const since = idleSince(inProgress);
-    return light("red", `Rien ne bouge depuis ${since} j ouvrés`, `Plus rien n’a bougé depuis ${workingDays(since)}.`, details);
+    return light("red", `${idleLabel(inProgress.length)}${trail}`, `Plus rien n’a bougé depuis ${workingDays(since)}.`, details);
   }
   if (inProgress.length >= PERSON_THRESHOLDS.wip) {
-    return light("red", `${inProgress.length} en cours`, `${inProgress.length} tickets en cours en même temps.`, details);
+    return light("red", load, `${inProgress.length} tickets en cours en même temps.`, details);
   }
   if (stale.length > 0 || blocked.length > 0) {
     const since = stale.length > 0 ? idleSince(stale) : 0;
-    // The days stay on the pill while it says one thing only; the summary always keeps them.
     const facts = [
-      stale.length > 0
-        ? `${countLabel(stale.length, "inactif", "inactifs")}${blocked.length === 0 ? ` depuis ${since} j ouvrés` : ""}`
-        : null,
+      stale.length > 0 ? idleLabel(stale.length) : null,
       blocked.length > 0 ? countLabel(blocked.length, "bloqué", "bloqués") : null,
     ].filter(present);
+    // Every ticket in progress already named: only their points follow.
+    const label = stale.length === inProgress.length && inProgress.length > 0
+      ? `${facts.join(" · ")}${trail}`
+      : `${facts.join(" · ")} · ${load}`;
     const concerns = [
       stale.length > 0
         ? `${countLabel(stale.length, "ticket en cours", "tickets en cours")} sans activité depuis ${workingDays(since)}`
         : null,
       blocked.length > 0 ? countLabel(blocked.length, "ticket bloqué", "tickets bloqués") : null,
     ].filter(present);
-    return light("amber", facts.join(", "), `${capitalize(concerns.join(", "))}.`, details);
+    return light("amber", label, `${capitalize(concerns.join(", "))}.`, details);
   }
-  if (inProgress.length === 0) return light("none", "Rien en cours", "Aucun ticket en cours.", details);
-  return light("green", "En rythme", "Ses tickets en cours avancent.", details);
+  if (inProgress.length === 0) return light("none", "Aucun ticket en cours", "Aucun ticket en cours.", details);
+  return light("green", load, "Ses tickets en cours avancent.", details);
 }
 
 /**

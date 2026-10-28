@@ -248,11 +248,12 @@ describe("team scope", () => {
 
   it("counts open work by assignee and leaves unassigned work last", () => {
     expect(developerView(LE_POINT_DEMO, { kind: "team" }).workload).toEqual([
-      { assignee: "camille", name: "Camille Morel", open: 4, inProgress: 1, blocked: 1 },
-      { assignee: "lea", name: "Léa Martin", open: 3, inProgress: 1, blocked: 1 },
-      { assignee: "hugo", name: "Hugo Lefèvre", open: 1, inProgress: 1, blocked: 0 },
-      { assignee: "ines", name: "Inès Garnier", open: 1, inProgress: 0, blocked: 0 },
-      { assignee: null, name: "Sans assigné", open: 1, inProgress: 0, blocked: 0 },
+      // Points: the open tickets' estimates, null when none is estimated (JIR-124, Léo).
+      { assignee: "camille", name: "Camille Morel", open: 4, inProgress: 1, blocked: 1, points: 9, inProgressPoints: 5 },
+      { assignee: "lea", name: "Léa Martin", open: 3, inProgress: 1, blocked: 1, points: 7, inProgressPoints: 3 },
+      { assignee: "hugo", name: "Hugo Lefèvre", open: 1, inProgress: 1, blocked: 0, points: 8, inProgressPoints: 8 },
+      { assignee: "ines", name: "Inès Garnier", open: 1, inProgress: 0, blocked: 0, points: 1, inProgressPoints: null },
+      { assignee: null, name: "Sans assigné", open: 1, inProgress: 0, blocked: 0, points: null, inProgressPoints: null },
     ]);
     expect(developerView(LE_POINT_DEMO, { kind: "me", viewerId: "camille" }).workload).toEqual([]);
   });
@@ -269,7 +270,7 @@ describe("team scope", () => {
     const team = developerView(data, { kind: "team" });
     expect(keys(team.withoutDue)).toEqual(["DEMO-30"]);
     expect(team.workload.find((row) => row.assignee === null)).toEqual(
-      { assignee: null, name: "Sans assigné", open: 1, inProgress: 0, blocked: 0 },
+      { assignee: null, name: "Sans assigné", open: 1, inProgress: 0, blocked: 0, points: null, inProgressPoints: null },
     );
     expect(team.workload.find((row) => row.assignee === "lea")!.open).toBe(3);
     expect(keys(developerView(data, { kind: "me", viewerId: "camille" }).withoutDue)).toEqual(["DEMO-22"]);
@@ -296,7 +297,7 @@ describe("team scope", () => {
         ? { ...ticket, category: "in_progress", status: "En cours" } : ticket),
     };
     expect(developerView(data, { kind: "team" }).workload.find((row) => row.assignee === "lea"))
-      .toEqual({ assignee: "lea", name: "Léa Martin", open: 3, inProgress: 2, blocked: 1 });
+      .toEqual({ assignee: "lea", name: "Léa Martin", open: 3, inProgress: 2, blocked: 1, points: 7, inProgressPoints: 5 });
   });
 
   it("breaks equal workloads by French names", () => {

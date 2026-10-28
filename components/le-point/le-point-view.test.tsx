@@ -170,7 +170,7 @@ describe("LePointView, whole team (JIR-121)", () => {
     const holders = new Set(view.resume.map((card) => card.assigneeName));
     expect(holders.size).toBeGreaterThan(1);
     // The team's load sits in the sprint's card: one chip per person, the busiest first.
-    const chips = within(section("Santé du sprint")).getAllByRole("button", { name: /tickets? ouverts?$/ });
+    const chips = within(section("Santé du sprint")).getAllByRole("button", { name: /tickets? ouverts?(, \d+ points?)?$/ });
     expect(chips).toHaveLength(view.workload.length);
     expect(chips[0]).toHaveAccessibleName(new RegExp(`^${view.workload[0]!.name}`));
   });
@@ -179,6 +179,13 @@ describe("LePointView, whole team (JIR-121)", () => {
     render(<LePointView data={camille} />);
     const sprint = section("Santé du sprint");
     expect(within(sprint).getByText("À surveiller")).toBeVisible();
+    // The reasons behind the verdict are written under the forecast, the lag on the date included.
+    expect(sprint).toHaveTextContent("Retard de 9,36 points sur la date, pour 4 personnes présentes (seuil : 1 point par personne, soit 4 points).");
+    // The verdict carries the facts behind it, the lag on the date included (R2).
+    expect(within(sprint).getByText("À surveiller")).toHaveAttribute(
+      "title",
+      expect.stringContaining("Retard de 9,36 points sur la date, pour 4 personnes présentes (seuil : 1 point par personne, soit 4 points)."),
+    );
     expect(sprint).toHaveTextContent("Sprint 8 · jour 8 sur 12 · fin le 7 nov.");
     // The scope on one bar, done then under way, with today's mark.
     expect(within(sprint).getByRole("img", { name: "42 % terminé, 37 % en cours, 21 % à faire ; 64 % du temps écoulé" })).toBeInTheDocument();
@@ -192,9 +199,9 @@ describe("LePointView, whole team (JIR-121)", () => {
     expect(within(sprint).getByRole("link", { name: "Voir le burndown" })).toHaveAttribute("href", "/b/DEMO/reports?report=burndown");
     // One chip per person: the fact in its name, the colour in its dot, nothing open yet.
     const chip = (name: string) => within(sprint).getByRole("button", { name: new RegExp(`^${name}`) });
-    expect(chip("Camille Morel")).toHaveAccessibleName("Camille Morel, 1 bloqué, 4 tickets ouverts");
-    expect(chip("Hugo Lefèvre")).toHaveAccessibleName("Hugo Lefèvre, En rythme, 1 ticket ouvert");
-    expect(chip("Inès Garnier")).toHaveAccessibleName("Inès Garnier, Rien en cours, 1 ticket ouvert");
+    expect(chip("Camille Morel")).toHaveAccessibleName("Camille Morel, 1 bloqué · 1 en cours · 5 pts, 4 tickets ouverts, 9 points");
+    expect(chip("Hugo Lefèvre")).toHaveAccessibleName("Hugo Lefèvre, 1 en cours · 8 pts, 1 ticket ouvert, 8 points");
+    expect(chip("Inès Garnier")).toHaveAccessibleName("Inès Garnier, Aucun ticket en cours, 1 ticket ouvert, 1 point");
     expect(chip("Sans assigné")).toHaveAccessibleName("Sans assigné, 1 ticket ouvert");
     expect(within(sprint).queryByRole("link", { name: "Voir dans la Liste" })).toBeNull();
   });
@@ -238,12 +245,12 @@ describe("LePointView, whole team (JIR-121)", () => {
     expect(sprint).toHaveTextContent("Reste 25 pts pour 4 jours ouvrés et 5 personnes présentes : il faudrait 1,3 pt par jour-personne, contre 0,7 pt jusqu’ici.");
     expect(sprint).toHaveTextContent("20 jours-personne, 5 personnes présentes");
     // …but neither a chip nor a row: the strip only lists the people holding an open ticket.
-    expect(within(sprint).getByRole("heading", { name: "Charge par personne 5" })).toBeVisible();
+    expect(within(sprint).getByRole("heading", { name: "Tickets par personne 5" })).toBeVisible();
     expect(within(sprint).queryByRole("button", { name: /^Léo Bernard/ })).toBeNull();
     expect(sprint).not.toHaveTextContent("rien d’assigné");
-    expect(within(sprint).getAllByRole("button", { name: /ticket[s]? ouvert[s]?$/ }).map((chip) => chip.getAttribute("aria-label"))).toEqual([
-      "Camille Morel, 1 bloqué, 4 tickets ouverts", "Léa Martin, 1 bloqué, 3 tickets ouverts",
-      "Hugo Lefèvre, En rythme, 1 ticket ouvert", "Inès Garnier, Rien en cours, 1 ticket ouvert",
+    expect(within(sprint).getAllByRole("button", { name: /ticket[s]? ouvert[s]?(, \d+ points?)?$/ }).map((chip) => chip.getAttribute("aria-label"))).toEqual([
+      "Camille Morel, 1 bloqué · 1 en cours · 5 pts, 4 tickets ouverts, 9 points", "Léa Martin, 1 bloqué · 1 en cours · 3 pts, 3 tickets ouverts, 7 points",
+      "Hugo Lefèvre, 1 en cours · 8 pts, 1 ticket ouvert, 8 points", "Inès Garnier, Aucun ticket en cours, 1 ticket ouvert, 1 point",
       "Sans assigné, 1 ticket ouvert",
     ]);
     await userEvent.click(within(sprint).getByRole("button", { name: "Tout voir" }));
@@ -257,7 +264,7 @@ describe("LePointView, whole team (JIR-121)", () => {
     render(<LePointView data={{ ...camille, members: [], people: [...camille.people, { id: "leo", name: "Léo Bernard" }] }} />);
     const sprint = section("Santé du sprint");
     expect(within(sprint).queryByRole("button", { name: /^Léo Bernard/ })).toBeNull();
-    expect(within(sprint).getByRole("heading", { name: "Charge par personne 5" })).toBeVisible();
+    expect(within(sprint).getByRole("heading", { name: "Tickets par personne 5" })).toBeVisible();
     expect(sprint).toHaveTextContent("Reste 25 pts pour 4 jours ouvrés et 4 personnes présentes : il faudrait 1,6 pt par jour-personne, contre 0,9 pt jusqu’ici.");
   });
 
@@ -265,7 +272,7 @@ describe("LePointView, whole team (JIR-121)", () => {
     render(<LePointView data={{ ...camille, sprint: null, tickets: [], members: [{ id: "leo", name: "Léo Bernard" }] }} />);
     const sprint = section("Santé du sprint");
     expect(sprint).toHaveTextContent("Aucun sprint actif");
-    expect(within(sprint).getByRole("heading", { name: "Charge par personne 0" })).toBeVisible();
+    expect(within(sprint).getByRole("heading", { name: "Tickets par personne 0" })).toBeVisible();
     expect(within(sprint).queryByRole("button", { name: /^Léo Bernard/ })).toBeNull();
     expect(within(sprint).queryByRole("button", { name: "Tout voir" })).toBeNull();
     expect(within(sprint).getByText("Aucun ticket ouvert.")).toBeVisible();
@@ -273,7 +280,7 @@ describe("LePointView, whole team (JIR-121)", () => {
 
   it("keeps the same card for everyone, whatever the perspective or the scope", async () => {
     render(<LePointView data={camille} />);
-    const chips = () => within(section("Santé du sprint")).getAllByRole("button", { name: /tickets? ouverts?$/ }).length;
+    const chips = () => within(section("Santé du sprint")).getAllByRole("button", { name: /tickets? ouverts?(, \d+ points?)?$/ }).length;
     expect(chips()).toBe(5);
     await userEvent.click(screen.getByRole("radio", { name: "Produit" }));
     expect(chips()).toBe(5);
@@ -339,7 +346,7 @@ describe("LePointView, whole team (JIR-121)", () => {
     absenceActions.declareAbsenceAction.mockResolvedValue({ ok: true });
     render(<LePointView data={away} />);
     const sprint = section("Santé du sprint");
-    const hugo = within(sprint).getByRole("button", { name: "Hugo Lefèvre, En congé jusqu’au 6 nov., 1 ticket ouvert" });
+    const hugo = within(sprint).getByRole("button", { name: "Hugo Lefèvre, En congé jusqu’au 6 nov. · 8 pts en cours, 1 ticket ouvert, 8 points" });
     expect(hugo).toHaveTextContent("en congé jusqu’au 6 nov.");
     // Three of the four people are there today, and Hugo's four days are off the person-days.
     expect(sprint).toHaveTextContent("12 jours-personne, 3 personnes présentes");

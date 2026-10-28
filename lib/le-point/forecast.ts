@@ -2,6 +2,8 @@ import { countLabel, formatPoints } from "@/lib/format/plural";
 import { absentOn, absentWorkingDays } from "@/lib/le-point/absences";
 import { workingDaysBetween } from "@/lib/le-point/lights";
 import type { Day, LePointDataset, LePointTicket } from "@/lib/le-point/model";
+// The sprint's people live apart so the lights can read them without a cycle.
+export { presentInSprint, sprintPeople } from "@/lib/le-point/people";
 
 /**
  * « Va-t-on finir ? » (JIR-124): what is left, against the working days left
@@ -34,25 +36,6 @@ const round = (value: number) => Math.round(value * 10) / 10;
 const shift = (day: Day, days: number): Day => new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
 const inSprint = (ticket: LePointTicket) => !ticket.external && ticket.inSprint === true;
-
-/**
- * Who does the sprint's work: every known backlog member, or, without the
- * directory, the distinct holders of open sprint tickets. Someone whose only
- * open tickets sit outside the sprint is not counted.
- */
-export function sprintPeople(data: LePointDataset): string[] {
-  if (data.members?.length) return data.members.map((member) => member.id);
-  const holders = data.tickets
-    .filter((ticket) => inSprint(ticket) && ticket.category !== "done" && ticket.assignee !== null)
-    .map((ticket) => ticket.assignee as string);
-  return [...new Set(holders)];
-}
-
-/** Those of the sprint's people not away today. */
-export function presentInSprint(data: LePointDataset): number {
-  const absences = data.absences ?? [];
-  return sprintPeople(data).filter((person) => !absentOn(absences, person, data.today)).length;
-}
 
 /**
  * `who` is the sprint's people, their declared absences taken off their

@@ -606,18 +606,23 @@ function RulesDialog() {
           <span aria-hidden="true">i</span>
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Comment est-ce calculé ?</DialogTitle>
-          <DialogDescription className="sr-only">Les règles de la santé du sprint et de la charge par personne.</DialogDescription>
+          <DialogDescription className="sr-only">Les règles de la santé du sprint et des tickets par personne.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 text-sm text-muted-foreground">
           <p>
-            <strong className="font-medium text-foreground">Sprint.</strong> Écart = % du temps écoulé (jours calendaires du
-            sprint) − % des points terminés sur le périmètre actuel ; en tickets si rien n’est estimé. En retard au-delà de
-            25 points d’écart. À surveiller au-delà de 10, ou si plus de 20 % de l’engagement initial a été ajouté en cours
-            de sprint, ou dès qu’un ticket est bloqué. En bonne voie sinon, et en avance quand le travail terminé devance le
-            temps de plus de 10 points.
+            <strong className="font-medium text-foreground">Sprint.</strong> À surveiller quand le retard à cette date
+            dépasse un point par personne présente. Par exemple, au jour 5, avec 4 personnes présentes, 12 points attendus
+            et 7 terminés, le retard est de 5 points : le seuil de 4 points est dépassé. L’écart entre pourcentages est la
+            différence entre la part du temps écoulé (jours calendaires du sprint) et la part des points terminés sur le
+            périmètre actuel : 64 % contre 40 % donnent 24 points d’écart. En retard au-delà de 25 points d’écart. À
+            surveiller aussi si plus de 20 % de l’engagement initial a été ajouté en cours de sprint, ou dès qu’un ticket
+            est bloqué. En bonne voie sinon, et en avance quand le travail terminé devance le temps de plus de 10 points.
+            Sans aucune estimation, on compte les tickets à la place des points : À surveiller au-delà d’un ticket de
+            retard par personne présente. Sans personne présente connue, l’alerte utilise le seuil de repli : plus de
+            10 points d’écart entre les pourcentages.
           </p>
           <p>
             <strong className="font-medium text-foreground">Va-t-on finir ?</strong> Ce qui reste, rapporté aux jours ouvrés
@@ -627,10 +632,11 @@ function RulesDialog() {
             est présente toute personne qui tient un ticket ouvert du sprint.
           </p>
           <p>
-            <strong className="font-medium text-foreground">Par personne.</strong> La pastille dit le fait et sa couleur le
-            niveau : rien en cours ; orange dès qu’un ticket en cours est sans activité depuis 3 jours ouvrés, ou qu’un
-            ticket est bloqué ; rouge quand plus rien n’a bougé depuis 5 jours ouvrés, ou avec 4 tickets en cours à la
-            fois ; en rythme sinon. Les tickets à faire hors du sprint actif comptent dans les ouverts, pas dans la
+            <strong className="font-medium text-foreground">Par personne.</strong> La pastille dit le fait, le nombre de
+            tickets en cours et leurs points, et sa couleur le niveau : aucun ticket en cours ; orange dès qu’un ticket
+            en cours est sans activité depuis 3 jours ouvrés, ou qu’un ticket est bloqué ; rouge quand plus rien n’a
+            bougé depuis 5 jours ouvrés, ou avec 4 tickets en cours à la fois ; vert sinon. « Sans estimation » quand
+            aucun ticket en cours n’est estimé, « pts connus » quand certains ne le sont pas. Les tickets à faire hors du sprint actif comptent dans les ouverts, pas dans la
             pastille ; un ticket en cours y compte même hors sprint. Les jours ouvrés vont du lundi au vendredi, hors
             jours fériés français. Les absences déclarées, en demi-journées, ne comptent ni dans l’inactivité d’un ticket
             ni dans les jours-personne du sprint ; une personne absente une demi-journée reste présente ce jour-là.
@@ -714,8 +720,8 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
     >
       {title}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Verdict light={light} size="lg" title={light.summary}>
-          <span className="sr-only"> : {light.summary}</span>
+        <Verdict light={light} size="lg" title={[light.summary, ...light.details].join("\n")}>
+          <span className="sr-only"> : {[light.summary, ...light.details].join(" ")}</span>
         </Verdict>
         <span className="text-sm">
           <span className="font-medium">{sprint.name}</span> <span className="text-muted-foreground">· {timing}</span>
@@ -741,6 +747,9 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
         <>
           <SprintBar light={light} />
           {forecast ? <p className="text-sm">{forecast.sentence}</p> : null}
+          {light.details.length > 1 ? (
+            <p className="text-xs text-muted-foreground">{light.details.slice(1).join(" ")}</p>
+          ) : null}
           <div className="grid grid-cols-2 gap-2.5 @xl:grid-cols-4">
             <HealthTile
               tone={figureTone}
@@ -877,7 +886,7 @@ function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDatas
     <div className="space-y-2 border-t border-border pt-3">
       <div className="flex items-center gap-2">
         <h3 className="text-[13px] font-semibold">
-          Charge par personne <span className="text-xs font-normal text-muted-foreground tabular-nums">{rows.length}</span>
+          Tickets par personne <span className="text-xs font-normal text-muted-foreground tabular-nums">{rows.length}</span>
         </h3>
         <Link href={`/presences?backlog=${encodeURIComponent(data.backlog.key)}`} className="ml-auto text-xs text-[var(--primary)] underline">
           Calendrier d’équipe
@@ -906,7 +915,7 @@ function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDatas
                   type="button"
                   aria-expanded={isOpen}
                   aria-controls={panelId}
-                  aria-label={`${row.name}, ${light ? `${light.label}, ` : ""}${countLabel(row.open, "ticket ouvert", "tickets ouverts")}`}
+                  aria-label={`${row.name}, ${light ? `${light.label}, ` : ""}${countLabel(row.open, "ticket ouvert", "tickets ouverts")}${row.points === null ? "" : `, ${countLabel(row.points, "point", "points", formatPoints)}`}`}
                   onClick={() => setOpen(isOpen ? null : id)}
                   className={cn(
                     "inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-[var(--surface)] py-1 pr-3 pl-1 text-[13px] outline-none transition-colors hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
@@ -924,7 +933,9 @@ function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDatas
                   <span className="min-w-0 truncate">{row.assignee ? shortName(row.name) : row.name}</span>
                   {light ? <LightDot color={light.color} className="size-2" /> : null}
                   <span className="shrink-0 text-muted-foreground tabular-nums">
-                    {away ? `en congé jusqu’au ${formatDay(away)}` : row.open}
+                    {away
+                      ? `en congé jusqu’au ${formatDay(away)}`
+                      : row.points === null ? row.open : `${row.open} · ${countLabel(row.points, "pt", "pts", formatPoints)}`}
                   </span>
                 </button>
               );
