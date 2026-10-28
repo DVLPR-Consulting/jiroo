@@ -186,8 +186,8 @@ describe("sprintLight", () => {
     const halfway = { today: "2026-10-27", sprint: { name: "Sprint 2", start: "2026-10-20", end: "2026-11-03" } };
     // One person present: 11 points expected done at 50 % of the time; 10 done is one point late, no more.
     expect(sprintLight(data([done("T-1", 10), todo("T-2", 12)], halfway))).toMatchObject({ color: "green", lag: 1, lagThreshold: 1 });
-    // 9,996 done: a lag of 1,004, shown as 1, is beyond the threshold.
-    expect(sprintLight(data([done("T-1", 9.996), todo("T-2", 12.004)], halfway))).toMatchObject({ color: "amber", lag: 1, lagThreshold: 1 });
+    // 9,99 done: a lag of 1,01 is beyond the threshold.
+    expect(sprintLight(data([done("T-1", 9.99), todo("T-2", 12.01)], halfway))).toMatchObject({ color: "amber", lag: 1.01, lagThreshold: 1 });
     // 24,6 % done: a gap of 25,4, shown as 50 − 25.
     expect(sprintLight(data([done("T-1", 123), todo("T-2", 377)], halfway))).toMatchObject({ color: "red", donePercent: 25 });
     expect(sprintLight(data([done("T-1", 25), todo("T-2", 75)], halfway))).toMatchObject({ color: "amber", donePercent: 25 });
@@ -279,6 +279,16 @@ describe("sprintLight", () => {
       { today: "2026-10-02", sprint: { name: "Sprint 0", start: "2026-10-01", end: "2026-10-06" } },
     ))!;
     expect(light).toMatchObject({ color: "green", lag: 1, lagThreshold: 1, summary: "Le travail terminé suit le temps écoulé." });
+    // A thousand two-decimal estimates summing to exactly one point of lag at mid-sprint: still green.
+    const many = [
+      ...Array.from({ length: 499 }, (_, i) => done(`D-${i}`, 500.01)),
+      done("D-last", 499.01),
+      ...Array.from({ length: 499 }, (_, i) => todo(`T-${i}`, 500.01)),
+      todo("T-last", 501.01),
+    ];
+    const big = sprintLight(data(many, { today: "2026-10-06", sprint: { name: "Sprint 0", start: "2026-10-01", end: "2026-10-11" } }))!;
+    // The float sums carry their noise (500010.0000000062); the lag, in hundredths, does not.
+    expect(big).toMatchObject({ color: "green", lag: 1, lagThreshold: 1, elapsedPercent: 50, donePercent: 50 });
   });
 
 describe("personLight", () => {

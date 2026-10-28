@@ -747,6 +747,9 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
         <>
           <SprintBar light={light} />
           {forecast ? <p className="text-sm">{forecast.sentence}</p> : null}
+          {light.details.length > 1 ? (
+            <p className="text-xs text-muted-foreground">{light.details.slice(1).join(" ")}</p>
+          ) : null}
           <div className="grid grid-cols-2 gap-2.5 @xl:grid-cols-4">
             <HealthTile
               tone={figureTone}

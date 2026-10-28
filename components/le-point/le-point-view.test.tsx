@@ -179,6 +179,8 @@ describe("LePointView, whole team (JIR-121)", () => {
     render(<LePointView data={camille} />);
     const sprint = section("Santé du sprint");
     expect(within(sprint).getByText("À surveiller")).toBeVisible();
+    // The reasons behind the verdict are written under the forecast, the lag on the date included.
+    expect(sprint).toHaveTextContent("Retard de 9,36 points sur la date, pour 4 personnes présentes (seuil : 1 point par personne, soit 4 points).");
     // The verdict carries the facts behind it, the lag on the date included (R2).
     expect(within(sprint).getByText("À surveiller")).toHaveAttribute(
       "title",

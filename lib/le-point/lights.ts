@@ -89,8 +89,8 @@ const light = (color: LightColor, label: string, summary: string, details: strin
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 /** Points shown and compared for their plural: binary noise off, so 0.12 + 1.14 + 0.74 reads « 2 pts ». */
 const round2 = (value: number) => Math.round(value * 100) / 100;
-/** A difference below this is the noise of binary floats, not an excess: 1/5 × 6 − 0.2 equals 1. */
-const EPSILON = 1e-9;
+/** Points are stored to the hundredth: as integers, their sums and products are exact. */
+const hundredths = (value: number) => Math.round(value * 100);
 /** A ratio as a percentage kept to two decimals: compared to the thresholds as is, rounded only to be shown. */
 const percent = (ratio: number) => Math.round(ratio * 10_000) / 100;
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -167,12 +167,18 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
   // against the people present; a team of three may be three points late.
   // Without anyone known, the gap in percentage points decides, as before.
   const peoplePresent = presentInSprint(data);
-  const lagRaw = elapsedRatio * total - done;
-  const lag = round2(lagRaw);
+  // The lag in exact integers: (elapsed days × total − done × span) / span,
+  // in hundredths, so a sum of a thousand tickets at the threshold is still
+  // the threshold, while 1.01 still exceeds 1. Strict: a team of four may be
+  // four points late.
+  const [elapsedDays, spanDays] = span <= 0 ? [1, 1] : [Math.min(Math.max(position, 0), span), span];
+  const lagNumerator = elapsedDays * sum(scope.map((ticket) => hundredths(weight(ticket))))
+    - spanDays * sum(scope.filter((ticket) => ticket.category === "done").map((ticket) => hundredths(weight(ticket))));
+  const lag = round2(lagNumerator / spanDays / 100);
   const lagThreshold = peoplePresent > 0 ? peoplePresent * SPRINT_THRESHOLDS.lagPerPerson : null;
-  // Strict: a team of four may be four points late; the raw lag is compared,
-  // short of the floating-point noise of an exact equality.
-  const behind = lagThreshold === null ? gap > SPRINT_THRESHOLDS.amber : lagRaw - lagThreshold > EPSILON;
+  const behind = lagThreshold === null
+    ? gap > SPRINT_THRESHOLDS.amber
+    : lagNumerator > hundredths(lagThreshold) * spanDays;
   const late = gap > SPRINT_THRESHOLDS.red;
   const unitLabel = unit === "points" ? "des points" : "des tickets";
   const lagLabel = unit === "points"
