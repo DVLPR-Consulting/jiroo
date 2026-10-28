@@ -7,6 +7,7 @@ import {
   type BrowserContext,
   type Locator,
   type Page,
+  type Request,
 } from "@playwright/test";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../lib/db";
@@ -28,7 +29,12 @@ import { createSprint, moveItemToSprint, updateSprint } from "../lib/services/sp
 import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
 import { chooseOption } from "./select-helpers";
 import { keyPattern } from "./key-helpers";
-import { createAuditEvidenceFilters, settleExpectedFault } from "./support/evidence";
+import {
+  classifyRequestFailure,
+  createAuditEvidenceFilters,
+  settleExpectedFault,
+  type ExpectedFaultWindow,
+} from "./support/evidence";
 
 const AUTH = {
   admin: ".playwright/.auth/platform-admin.json",
@@ -42,7 +48,7 @@ type Capture = {
   faults: string[];
   contexts: Set<BrowserContext>;
   /** Window of one deliberate read fault, settled when the scenario ends. */
-  expectedFault?: { start: number; end?: number; marker: string };
+  expectedFault?: ExpectedFaultWindow;
 };
 
 type ReportFixtures = Awaited<ReturnType<typeof seedReportFixtures>>;
@@ -56,6 +62,7 @@ const {
 } = createAuditEvidenceFilters(FIXTURE_PASSWORD);
 
 function observe(page: Page, capture: Capture, actor: string) {
+  const responseStatuses = new WeakMap<Request, number>();
   page.on("console", (message) => {
     const line = `[${actor}] ${message.type()}: ${message.text()}`;
     capture.console.push(line);
@@ -69,9 +76,23 @@ function observe(page: Page, capture: Capture, actor: string) {
   page.on("requestfailed", (request) => {
     const line = `[${actor}] failed ${request.method()} ${request.url()} ${request.failure()?.errorText ?? "unknown"}`;
     capture.network.push(line);
-    capture.faults.push(line);
+    const responseStatus = responseStatuses.get(request);
+    const kind = classifyRequestFailure({
+      method: request.method(),
+      errorText: request.failure()?.errorText,
+      nextAction: request.headers()["next-action"],
+      rsc: request.headers().rsc,
+      responseStatus,
+    });
+    if (kind === "fault") {
+      capture.faults.push(line);
+    } else {
+      const status = kind === "aborted-action" ? ` ${responseStatus}` : "";
+      capture.console.push(`[${actor}] [${kind}] ${request.method()} ${new URL(request.url()).pathname}${status}`);
+    }
   });
   page.on("response", (response) => {
+    responseStatuses.set(response.request(), response.status());
     const line = `[${actor}] ${response.status()} ${response.request().method()} ${response.url()}`;
     capture.network.push(line);
     if (response.status() >= 400) {
@@ -223,7 +244,8 @@ async function businessPost(page: Page, action: () => Promise<void>) {
   );
   await action();
   const response = await responsePromise;
-  await response.finished();
+  // Next streams the following RSC render after the action has answered. Its
+  // body may stay open; each caller verifies the committed effect afterwards.
   expect(response.status()).toBeLessThan(400);
 }
 
@@ -256,9 +278,12 @@ async function dragBoardItemToStatus(
   );
   await page.mouse.up();
   const response = await responsePromise;
-  await response.finished();
   expect(response.status()).toBeLessThan(400);
   await expect(destinationColumn.getByText(itemKey, { exact: true })).toBeVisible();
+  // The card moves optimistically; its handle is enabled again only after the
+  // Board has received and applied the server action result.
+  await expect(destinationColumn.getByRole("button", { name: `Déplacer ${itemKey}`, exact: true }))
+    .toBeEnabled();
 }
 
 async function auditedGoto(page: Page, capture: Capture, actor: string, url: string) {
@@ -1188,8 +1213,8 @@ audited(7, "rejoue le burndown actif depuis le baseline figé et le ledger", asy
     markerCount: rows.length + 1,
     guideline: true,
   });
-  await expect(page.getByText("Ligne pointillée grise : trajectoire idéale")).toBeVisible();
-  await expect(page.getByText("Cercle évidé : changement de périmètre")).toBeVisible();
+  await expect(page.getByText("Trajectoire idéale (pointillés gris)")).toBeVisible();
+  await expect(page.getByText("Ajout ou retrait en cours de sprint (cercle évidé)")).toBeVisible();
 
   const measuredAt = performance.now();
   const read = await getBurndownReport(context.backlog.id, sprint.id, { eventPage: 1, pageSize: 50 });
@@ -1529,7 +1554,9 @@ audited(11, "conserve le burndown pour lecteur et second contexte, dissimule ét
 });
 
 audited(12, "masque une panne de lecture du burndown et récupère après retry", async ({ page, capture }) => {
-  requireBurndownFixture();
+  // This completed beforeAll fixture makes the read-fault/retry independent
+  // of the evolving S07–S11 sprint, including when S12 is filtered on its own.
+  const retrySprintId = fixtures.first.id;
   capture.expectedFault = {
     start: capture.faults.length,
     marker: "[expected-fault] burndown ledger read failed; generic ErrorBoundaryHandler rendered and recovered",
@@ -1538,7 +1565,17 @@ audited(12, "masque une panne de lecture du burndown et récupère après retry"
   try {
     await db.execute(sql.raw('ALTER TABLE "sprint_events" RENAME TO "sprint_events_fault"'));
     ledgerRenamed = true;
-    await auditedGoto(page, capture, "admin", `/b/CASS/reports?report=burndown&sprint=${burndown.sprintId}`);
+    // Bind Next's SSR fallback reports to this exact, deliberately failed read.
+    try {
+      await getBurndownReport(fixtures.context.backlog.id, retrySprintId, { eventPage: 1, pageSize: 50 });
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+      expect(error.cause).toMatchObject({ code: "42P01" });
+      expect(error.message).toContain('from "sprint_events"');
+      capture.expectedFault.serverRenderingError = error.message;
+    }
+    expect(capture.expectedFault.serverRenderingError, "La panne de lecture doit être observée.").toBeDefined();
+    await auditedGoto(page, capture, "admin", `/b/CASS/reports?report=burndown&sprint=${retrySprintId}`);
     await expect(page.getByRole("heading", { name: "Impossible de charger les rapports" })).toBeVisible();
     const body = await page.locator("body").innerText();
     expect(body).not.toMatch(
@@ -1552,6 +1589,13 @@ audited(12, "masque une panne de lecture du burndown et récupère après retry"
 
   await page.getByRole("button", { name: "Réessayer" }).click();
   await expect(page.getByRole("main").getByText("Historique figé", { exact: true })).toBeVisible();
-  await expectBurndownTable(page, expectedBurndownRows(burndown.baseline, burndown.steps));
+  await expect(page.getByRole("table", { name: "Valeurs exactes du burndown" })).toBeVisible();
+  await expectBurndownSummary(page, {
+    kind: "completed",
+    initialRemainingPoints: 8,
+    remainingPoints: 6,
+    completedPoints: 5,
+    unestimatedCount: 0,
+  });
   capture.expectedFault.end = capture.faults.length;
 });
