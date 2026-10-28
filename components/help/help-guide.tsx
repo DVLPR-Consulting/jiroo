@@ -83,7 +83,7 @@ export function HelpGuide() {
           purpose="Un backlog regroupe les tickets d’une équipe ou d’un projet, avec ses statuts, sprints, releases et vues."
           steps={[
             <>Changez de backlog avec le sélecteur en haut de la barre latérale.</>,
-            <>Dans la section <Ui>Filtres</Ui> de la barre latérale, <Ui>Tous les items</Ui> affiche la liste de tous les tickets du backlog courant, sans filtre (vue <Ui>Liste</Ui> ; le compteur en donne le nombre) ; <Ui>Mes items</Ui> liste les tickets qui vous sont assignés, tous backlogs confondus.</>,
+            <>Dans la section <Ui>Filtres</Ui> de la barre latérale, <Ui>Tous les items</Ui> affiche la liste de tous les tickets du backlog courant, sans filtre (vue <Ui>Liste</Ui> ; le compteur en donne le nombre) ; <Ui>Mes items</Ui> liste les tickets qui vous sont assignés, tous backlogs confondus ; <Ui>Calendrier d’équipe</Ui> ouvre le tableau des absences et du travail de l’équipe dans le temps (voir la section Le point).</>,
             <>Depuis n’importe quelle page (Aide, Administration, Releases…), cliquez sur le logo <Ui>Jiroo</Ui> ou sur le nom du backlog dans le fil d’Ariane, au-dessus du titre de la page, pour revenir à l’accueil du backlog.</>,
           ]}
         >
@@ -198,6 +198,17 @@ export function HelpGuide() {
             La première fois, tu vois les 7 derniers jours.
           </GuideNote>
         </GuideTopic>
+        <GuideTopic
+          title="Déclarer les absences et voir le travail dans le temps"
+          purpose="Savoir qui est là, qui ne l’est pas, et ce que chaque développeur a en cours ou a terminé, jour par jour."
+          steps={[
+            <>Ouvre <Ui>Calendrier d’équipe</Ui> dans la barre latérale (ou depuis la carte de Le point). La page montre tous les backlogs que tu peux consulter ; le sélecteur en tête la limite à un backlog, qui affiche alors ses sprints et la vue <Ui>Sprint</Ui>. <Ui>Mois</Ui> et <Ui>Année</Ui> valent pour toute portée.</>,
+            <>Chaque ligne est une personne, Développement puis Produit ; chaque case un jour, en deux demi-journées (matin à gauche, après-midi à droite). Les week-ends et les jours fériés français sont grisés et ne comptent jamais.</>,
+            <>Pour déclarer une absence, clique une demi-case et glisse jusqu’à la dernière, puis <Ui>Enregistrer</Ui>, ou ouvre <Ui>Déclarer une absence</Ui> pour saisir la personne et les demi-journées au clavier ; les cases absentes passent en rouge, hachurées tant qu’elles sont à venir. Un clic sur une case rouge retire la demi-journée, la journée ou toute l’absence ; glisser sur des cases rouges retire la sélection. Chacun déclare les siennes ; un administrateur d’un backlog, celles de ses membres.</>,
+            <>Sous les demi-cases, les barres sont les tickets d’un développeur, du jour où ils passent « En cours » (bleu) au jour « Terminé » (vert). Clique une case pour les tickets du jour, un nom pour ceux de la période, un sprint pour tous les tickets du sprint : ils s’affichent comme dans la Liste et s’ouvrent au clic. « Dates approximatives » signale un journal incomplet.</>,
+            <><Ui>Exporter la période</Ui> et <Ui>Exporter les absences</Ui> donnent deux fichiers CSV qu’Excel ouvre tels quels. Le petit <Ui>i</Ui> rappelle les règles, les mêmes que dans Le point et le Bilan des sprints.</>,
+          ]}
+        />
       </GuideSection>
 
       <GuideSection id="vues">

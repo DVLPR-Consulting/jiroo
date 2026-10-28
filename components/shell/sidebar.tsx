@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
+  CalendarDays,
   ChartColumn,
   ChartGantt,
   Compass,
@@ -287,6 +288,20 @@ export function Sidebar({
             Mes items
           </span>
           <Count value={counts.mine} collapsed={collapsed} />
+        </NavLink>
+        <NavLink
+          href="/presences"
+          active={context.activeNav === "presences"}
+          ariaLabel="Calendrier d’équipe"
+          collapsed={collapsed}
+          title={collapsed ? "Calendrier d’équipe" : undefined}
+        >
+          <CalendarDays className="size-4" />
+          <span
+            className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}
+          >
+            Calendrier d’équipe
+          </span>
         </NavLink>
         {!collapsed && (
           <SidebarViews

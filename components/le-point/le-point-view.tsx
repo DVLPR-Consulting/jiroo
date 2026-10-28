@@ -878,8 +878,11 @@ function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDatas
         <h3 className="text-[13px] font-semibold">
           Charge par personne <span className="text-xs font-normal text-muted-foreground tabular-nums">{rows.length}</span>
         </h3>
+        <Link href={`/presences?backlog=${encodeURIComponent(data.backlog.key)}`} className="ml-auto text-xs text-[var(--primary)] underline">
+          Calendrier d’équipe
+        </Link>
         {rows.length > 0 ? (
-          <button type="button" onClick={() => setTable((value) => !value)} className="ml-auto text-xs text-[var(--primary)] underline">
+          <button type="button" onClick={() => setTable((value) => !value)} className="text-xs text-[var(--primary)] underline">
             {table ? "Réduire" : "Tout voir"}
           </button>
         ) : null}
