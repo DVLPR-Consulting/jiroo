@@ -53,6 +53,35 @@ export function listBacklogStructure(backlogId: string): Promise<ItemChoice[]> {
 }
 
 /**
+ * The live items of a backlog among `ids`, for their labels (a parent, the
+ * items a history cites), in hierarchy order. A deleted one is left out: the
+ * history then says it was deleted.
+ */
+export function listItemChoicesByIds(
+  backlogId: string,
+  ids: readonly (string | null | undefined)[],
+): Promise<ItemChoice[]> {
+  const uniqueIds = [...new Set(ids.filter((id): id is string => typeof id === "string"))];
+  if (uniqueIds.length === 0) return Promise.resolve([]);
+  return db
+    .select(choiceColumns)
+    .from(items)
+    .where(and(eq(items.backlogId, backlogId), isNull(items.deletedAt), inArray(items.id, uniqueIds)))
+    .orderBy(...hierarchyOrder());
+}
+
+export type ChildItem = ItemChoice & { statusId: string };
+
+/** The live children of an item, in the backlog's order (depth, rank, key). */
+export function listChildItems(backlogId: string, parentId: string): Promise<ChildItem[]> {
+  return db
+    .select({ ...choiceColumns, statusId: items.statusId })
+    .from(items)
+    .where(and(eq(items.backlogId, backlogId), eq(items.parentId, parentId), isNull(items.deletedAt)))
+    .orderBy(...hierarchyOrder());
+}
+
+/**
  * The live items of a backlog a picker offers, at most `ITEM_CHOICE_LIMIT`:
  * without a query the first ones in hierarchy order, so an empty answer
  * means the backlog has no such item; with one, the keys starting with it
