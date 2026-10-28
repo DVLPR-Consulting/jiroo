@@ -836,7 +836,7 @@ JIROO_E2E_PERSIST_AUDIT=1 \
 pnpm --ignore-workspace test:e2e -- --project=chromium
 ```
 
-After the run exits, finalize its artifact inventory with `corepack pnpm e2e:inventory <runId>` ([procedure](../docs/e2e-audit.md)).
+Une fois le run terminé, finaliser l’inventaire de ses artefacts avec `corepack pnpm e2e:inventory <runId>` ([procédure](../docs/e2e-audit.md)).
 
 Le flag unique `JIROO_E2E_PERSIST_AUDIT=1` maintient ensemble le JUnit, le
 manifeste, les journaux et les captures ; une configuration partielle n’est
