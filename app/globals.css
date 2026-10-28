@@ -69,6 +69,10 @@
   --danger: oklch(0.56 0.205 27);
   --info: oklch(0.6 0.11 240);
 
+  /* Current calendar day/month: copper, distinct from absences and selection. */
+  --today: oklch(0.575 0.12 45);
+  --today-foreground: #fff;
+
   /* Type icon colors */
   --type-info: oklch(0.600 0.110 240);
   --type-composant: oklch(0.560 0.055 255);
@@ -122,6 +126,8 @@
   --primary: var(--garnet-400);
   --primary-hover: oklch(0.685 0.122 18);
   --primary-foreground: oklch(0.155 0.02 22);
+  --today: oklch(0.575 0.12 45);
+  --today-foreground: #fff;
   --accent-subtle: oklch(0.305 0.06 20);
   --accent-subtle-fg: oklch(0.84 0.08 22);
 

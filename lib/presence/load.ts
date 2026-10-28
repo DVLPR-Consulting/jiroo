@@ -1,7 +1,7 @@
 import "server-only";
 
 import { checkPermissions } from "@/lib/auth/authorization";
-import { chooseSprint, type PresenceDataset, type PresencePerson, type PresenceSprint, type PresenceTicket, type Scope, type View } from "@/lib/presence/view";
+import { chooseSprint, type Display, type PresenceDataset, type PresencePerson, type PresenceSprint, type PresenceTicket, type Scope, type View } from "@/lib/presence/view";
 import { addDays, dayInZone, startOfMonth, type Day } from "@/lib/roadmap/days";
 import { listAbsences } from "@/lib/services/absences";
 import { loadPresenceScope, loadSprintsForPeriod, loadTicketTimeline } from "@/lib/services/presence-page";
@@ -24,6 +24,8 @@ export type PresencePage = {
   sprints: PresenceSprint[];
   /** The timeline was cut at its limit: the figures are partial. */
   limited: boolean;
+  /** Absences and tickets, or the absences alone. */
+  display: Display;
 };
 
 const DIRECTORY_BATCH = 500;
@@ -42,6 +44,7 @@ export async function loadPresencePage(input: {
   view: View;
   anchor: Day | null;
   sprintId: string | null;
+  display: Display;
 }): Promise<PresencePage | null> {
   const today = dayInZone(new Date());
   const anchor = input.anchor ?? today;
@@ -116,6 +119,6 @@ export async function loadPresencePage(input: {
       sprints: scoped ? { [scoped.id]: sprints } : {},
       managedBacklogIds: managed.flat(),
     },
-    scope, view, anchor, period, sprint, sprints, limited: timeline.limited,
+    scope, view, anchor, period, sprint, sprints, limited: timeline.limited, display: input.display,
   };
 }

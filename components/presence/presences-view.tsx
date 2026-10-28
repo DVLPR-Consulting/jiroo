@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
@@ -9,12 +10,12 @@ import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { PageHeader } from "@/components/shell/page-header";
 import { PageToolbar } from "@/components/shell/page-toolbar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { halfKey, halfName, type Half, type HalfDay } from "@/lib/dates/half-days";
 import { isWorkingDay, nextWorkingDay, publicHoliday } from "@/lib/dates/working-days";
 import { LABEL_HUES, type LabelHue } from "@/lib/design/constants";
 import { countLabel, formatPoints } from "@/lib/format/plural";
-import { absentWorkingDays } from "@/lib/le-point/absences";
+import { absentHalf, absentWorkingDays } from "@/lib/le-point/absences";
 import { formatDay } from "@/lib/le-point/model";
 import { csvDocument, registerRows, yearRows } from "@/lib/presence/csv";
 import type { PresencePage } from "@/lib/presence/load";
@@ -38,6 +39,7 @@ import {
   ticketWorkingDays,
   toAbsences,
   visiblePeople,
+  type Display,
   type PresenceBacklog,
   type PresencePerson,
   type PresenceSprint,
@@ -68,6 +70,10 @@ const LINK = "text-xs text-[var(--primary)] underline";
 const PRIMARY = "border-[var(--primary)] bg-[var(--primary)] font-medium text-white hover:bg-[var(--primary)]";
 const FIELD = "h-[30px] rounded-[var(--radius)] border border-border bg-[var(--surface)] px-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
 const CELL_BORDER = "border-b border-r border-border";
+// Keep rails and overflowing ticket labels in the same stacking context:
+// labels at 1, rails at 2, sticky names at 3 and headers at 4 (corner at 5).
+const TODAY_EDGES = "before:pointer-events-none before:absolute before:-top-px before:-bottom-px before:-left-px before:z-[2] before:w-0.5 before:bg-[var(--today)] before:content-[''] after:pointer-events-none after:absolute after:-top-px after:-bottom-px after:-right-px after:z-[2] after:w-0.5 after:bg-[var(--today)] after:content-['']";
+
 
 type Panel = { kind: "person"; personId: string; from: Day; to: Day; label: string } | { kind: "sprint"; sprint: PresenceSprint };
 type Drag = { personId: string; from: HalfDay; to: HalfDay; x: number; y: number; moved: boolean };
@@ -90,7 +96,7 @@ function spanLabel(from: HalfDay, to: HalfDay): string {
 }
 
 /** The page's URL for another scope, view or period. */
-export function hrefFor(page: PresencePage, over: { scopeKey?: string | null; view?: View; anchor?: Day; sprintId?: string | null } = {}): string {
+export function hrefFor(page: PresencePage, over: { scopeKey?: string | null; view?: View; anchor?: Day; sprintId?: string | null; display?: Display } = {}): string {
   const scopeKey = over.scopeKey === undefined ? scopeBacklog(page.data, page.scope)?.key ?? null : over.scopeKey;
   const requested = over.view ?? page.view;
   const view: View = requested === "sprint" && !scopeKey ? "month" : requested;
@@ -100,6 +106,7 @@ export function hrefFor(page: PresencePage, over: { scopeKey?: string | null; vi
   params.set("date", over.anchor ?? page.anchor);
   const sprintId = over.sprintId === undefined ? page.sprint?.id ?? null : over.sprintId;
   if (view === "sprint" && sprintId) params.set("sprint", sprintId);
+  if ((over.display ?? page.display) === "absences") params.set("affichage", "absences");
   return `/presences?${params.toString()}`;
 }
 
@@ -317,13 +324,6 @@ export function PresencesView({ page }: { page: PresencePage }) {
           </span>
         }
         description="Qui est là, les tickets de chacun dans le temps, et vos absences à déclarer."
-        actions={
-          <>
-            <button type="button" onClick={exportPeriod} className={BUTTON}>Exporter la période (CSV)</button>
-            <button type="button" onClick={exportRegister} className={BUTTON}>Exporter les absences (CSV)</button>
-            <RulesDialog />
-          </>
-        }
       />
       <PageToolbar>
         <DropdownMenu>
@@ -381,17 +381,48 @@ export function PresencesView({ page }: { page: PresencePage }) {
           error={declaring ? error : null}
           onDeclare={(input) => run(() => declareAbsenceAction(input), () => setDeclaring(false))}
         />
+        <div className="ml-auto inline-flex flex-wrap items-center gap-2">
+          <div className="inline-flex h-[30px] overflow-hidden rounded-[var(--radius)] border border-border bg-[var(--surface)]" role="group" aria-label="Afficher">
+            {([["all", "Absences et tickets"], ["absences", "Absences"]] as const).map(([candidate, label]) => (
+              <Link
+                key={candidate}
+                href={hrefFor(page, { display: candidate })}
+                aria-current={page.display === candidate ? "page" : undefined}
+                className={cn("px-3 text-[13px] leading-[28px]", page.display === candidate ? "bg-foreground text-background" : "text-muted-foreground hover:bg-[var(--surface-2)]")}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger className={cn(BUTTON, "gap-1.5")}>
+              Exporter
+              <ChevronDown aria-hidden="true" className="size-3.5 text-muted-foreground" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => exportPeriod()}>Exporter la période (CSV)</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => exportRegister()}>Exporter les absences (CSV)</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <RulesDialog />
+        </div>
       </PageToolbar>
 
       {/* 16 px a side, the Board's and the Liste's margins on desktop. */}
       <div className="space-y-3 px-4 pt-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <Legend swatch="border-[var(--today)] bg-[color-mix(in_oklch,var(--today)_8%,var(--surface))]">aujourd’hui</Legend>
         <Legend swatch="bg-[var(--danger)]">absent</Legend>
         <Legend swatch="bg-[linear-gradient(90deg,var(--danger)_0_50%,var(--surface)_50%)] ring-1 ring-[var(--danger)]">demi-journée (matin | après-midi)</Legend>
         <Legend swatch="bg-[repeating-linear-gradient(135deg,color-mix(in_oklch,var(--danger)_25%,transparent)_0_3px,transparent_3px_6px)] ring-1 ring-[var(--danger)]">absence à venir</Legend>
         <Legend swatch="bg-[color-mix(in_oklch,var(--status-doing)_45%,var(--surface))] ring-1 ring-[var(--status-doing)]">sélection</Legend>
-        <Legend swatch="h-2.5 w-5 bg-[var(--info)]">ticket en cours</Legend>
-        <Legend swatch="h-2.5 w-5 bg-[var(--status-done)]">ticket terminé</Legend>
+        {page.display === "all" ? (
+          <>
+            <Legend swatch="h-2.5 w-5 bg-[var(--info)]">ticket en cours</Legend>
+            <Legend swatch="h-2.5 w-5 bg-[var(--status-done)]">ticket terminé</Legend>
+            <Legend swatch="h-2.5 w-5 bg-[var(--info)] opacity-25">ticket en pause (absence, week-end, férié)</Legend>
+          </>
+        ) : null}
         <Legend swatch="bg-[var(--muted)]">week-end et jour férié</Legend>
       </div>
 
@@ -414,14 +445,16 @@ export function PresencesView({ page }: { page: PresencePage }) {
                   <th
                     key={day}
                     scope="col"
+                    data-today={day === data.today || undefined}
                     title={publicHoliday(day) ?? undefined}
                     className={cn(
                       CELL_BORDER,
                       "sticky top-0 z-[4] h-9 bg-[var(--surface-2)] text-[11px] font-medium leading-tight text-muted-foreground",
                       !isWorkingDay(day) && "bg-[var(--muted)]",
+                      day === data.today && [TODAY_EDGES, "bg-[var(--today)] text-[var(--today-foreground)]"],
                     )}
                   >
-                    <span className={cn("block text-[13px] text-foreground", day === data.today && "font-semibold text-[var(--primary)]")}>{Number(day.slice(8))}</span>
+                    <span className={cn("block text-[13px]", day === data.today ? "font-bold text-[var(--today-foreground)]" : "text-foreground")}>{Number(day.slice(8))}</span>
                     {wide ? `${monthShort(day)} ` : ""}{weekdayLetter(day)}
                   </th>
                 ))}
@@ -464,12 +497,12 @@ export function PresencesView({ page }: { page: PresencePage }) {
               ) : null}
               {(
                 [
-                  ["Développement", groups.developers, true],
+                  ["Développement", groups.developers, page.display === "all"],
                   ["Produit", groups.product, false],
                 ] as const
               ).map(([label, members, withLanes]) => (
                 members.length === 0 ? null : (
-                  <GroupRows key={label} label={label} members={members} withLanes={withLanes} columns={days.length + 2}>
+                  <GroupRows key={label} label={label} members={members} withLanes={withLanes} columns={days} today={data.today}>
                     {(person) => (
                       <PersonRow
                         key={person.id}
@@ -542,19 +575,28 @@ function Legend({ swatch, children }: { swatch: string; children: ReactNode }) {
   );
 }
 
-function GroupRows({ label, members, columns, children }: {
+function GroupRows({ label, members, columns, today, children }: {
   label: string;
   members: PresencePerson[];
   withLanes: boolean;
-  columns: number;
+  columns: readonly string[];
+  today: string;
   children: (person: PresencePerson) => ReactNode;
 }) {
   return (
     <>
       <tr>
-        <td colSpan={columns} className={cn(CELL_BORDER, "border-r-0 bg-[var(--surface-2)] py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground")}>
-          <span className="sticky left-0 inline-block px-2">{label}</span>
+        <td className={cn(CELL_BORDER, "sticky left-0 z-[3] bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground")}>
+          {label}
         </td>
+        {columns.map((column) => (
+          <td
+            key={column}
+            data-today={column === today || undefined}
+            className={cn(CELL_BORDER, "bg-[var(--surface-2)]", column === today && [TODAY_EDGES, "relative bg-[color-mix(in_oklch,var(--today)_8%,var(--surface-2))]"])}
+          />
+        ))}
+        <td className={cn(CELL_BORDER, "border-r-0 bg-[var(--surface-2)]")} />
       </tr>
       {members.map(children)}
     </>
@@ -596,8 +638,9 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
             key={day}
             data-day={day}
             data-person={person.id}
+            data-today={day === data.today || undefined}
             title={publicHoliday(day) ?? undefined}
-            className={cn(CELL_BORDER, "cursor-pointer align-top hover:bg-[var(--surface-2)]", !working && "bg-[var(--muted)]", day === data.today && "shadow-[inset_0_0_0_2px_color-mix(in_oklch,var(--primary)_45%,transparent)]")}
+            className={cn(CELL_BORDER, "cursor-pointer align-top", !working && "bg-[var(--muted)]", day === data.today ? [TODAY_EDGES, "relative bg-[color-mix(in_oklch,var(--today)_8%,var(--surface))]"] : "hover:bg-[var(--surface-2)]")}
           >
             <div className={cn("flex", withLanes ? "h-[22px]" : "h-[30px]")}>
               {(["am", "pm"] as const).map((half) => {
@@ -611,12 +654,15 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
                     data-day={day}
                     data-person={person.id}
                     data-state={state}
+                    data-today={day === data.today || undefined}
                     data-editable={editable ? "true" : "false"}
                     aria-label={`${person.name}, ${formatDay(day)} ${halfName(half)}${away ? ", absent" : ""}`}
                     className={cn(
                       "min-w-0 flex-1 border-0 p-0",
                       half === "pm" && "border-l border-dashed border-border",
+                      half === "pm" && day === data.today && "border-l-[color-mix(in_oklch,var(--today)_35%,var(--border))]",
                       editable && working ? "cursor-crosshair" : "cursor-default",
+                      state === "free" && editable && "hover:shadow-[inset_0_0_0_1px_var(--status-doing)]",
                       state === "away" && "bg-[var(--danger)]",
                       state === "future" && "bg-[repeating-linear-gradient(135deg,color-mix(in_oklch,var(--danger)_25%,transparent)_0_3px,transparent_3px_6px)] shadow-[inset_0_0_0_1px_var(--danger)]",
                       highlighted(person.id, day, half) && "bg-[color-mix(in_oklch,var(--status-doing)_45%,var(--surface))] shadow-[inset_0_0_0_1px_var(--status-doing)]",
@@ -626,10 +672,13 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
               })}
             </div>
             {withLanes ? (
-              <div className="flex flex-col gap-[3px] py-[3px]">
+              // The tickets run in a lane of their own, tinted and ruled off from the half-days.
+              <div className={cn("flex flex-col gap-[3px] border-t border-border py-1", day === data.today ? "border-t-[color-mix(in_oklch,var(--today)_35%,var(--border))] bg-[color-mix(in_oklch,var(--today)_14%,var(--surface))]" : working ? "bg-[color-mix(in_oklch,var(--info)_7%,var(--surface))]" : "bg-[var(--muted)]")}>
                 {segments.map((segment, lane) => {
                   if (!segment) return <i key={lane} aria-hidden="true" className="block h-3" />;
                   const span = daysOf(segment.ticket.startedAt, ticketUntil(segment.ticket, data.today) < period.to ? ticketUntil(segment.ticket, data.today) : period.to).length;
+                  // A bar is drawn by half-days: it pales when nobody works, the person away or the day off, the ticket open but paused.
+                  const pale = { am: !working || absentHalf(absences, person.id, day, "am"), pm: !working || absentHalf(absences, person.id, day, "pm") };
                   return (
                     <button
                       key={lane}
@@ -637,16 +686,23 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
                       title={`${segment.ticket.key} · ${segment.ticket.title}`}
                       aria-label={`${segment.ticket.key}, ${segment.ticket.title}, ${segment.ticket.doneAt ? "terminé" : "en cours"}`}
                       className={cn(
-                        "relative block h-3 border-0 p-0 text-left",
-                        segment.ticket.doneAt ? "bg-[var(--status-done)]" : "bg-[var(--info)]",
+                        "relative flex h-3 border-0 p-0 text-left",
                         segment.starts || segment.ends ? "w-[calc(100%-2px)]" : "w-full",
                         segment.starts && "ml-0.5",
                         segment.starts && segment.ends && "w-[calc(100%-4px)]",
                         segment.goesOn && "after:absolute after:-right-0.5 after:top-0 after:border-y-[6px] after:border-l-[7px] after:border-y-transparent after:border-l-[var(--surface)]",
                       )}
                     >
+                      {(["am", "pm"] as const).map((half) => (
+                        <span
+                          key={half}
+                          aria-hidden="true"
+                          data-half-bar={half}
+                          className={cn("block h-3 min-w-0 flex-1", segment.ticket.doneAt ? "bg-[var(--status-done)]" : "bg-[var(--info)]", pale[half] && "opacity-25")}
+                        />
+                      ))}
                       {segment.starts && span >= 2 ? (
-                        <span className="pointer-events-none absolute left-0.5 top-0 z-[2] overflow-hidden whitespace-nowrap text-[9.5px] font-semibold leading-3 text-white" style={{ maxWidth: `calc(${span} * 100% - 8px)` }}>
+                        <span className="pointer-events-none absolute left-0.5 top-0 z-[1] overflow-hidden whitespace-nowrap text-[9.5px] font-semibold leading-3 text-white" style={{ maxWidth: `calc(${span} * 100% - 8px)` }}>
                           {segment.ticket.key}
                         </span>
                       ) : null}
@@ -683,7 +739,7 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
           <tr>
             <th style={{ width: CELL.name }} className={cn(CELL_BORDER, "sticky left-0 top-0 z-[5] bg-[var(--surface-2)]")} />
             {months.map((month) => (
-              <th key={month.from} scope="col" className={cn(CELL_BORDER, "sticky top-0 z-[4] h-9 bg-[var(--surface-2)] text-[13px] font-medium", month.from.slice(0, 7) === data.today.slice(0, 7) && "text-[var(--primary)]")}>
+              <th key={month.from} scope="col" data-today={month.from.slice(0, 7) === data.today.slice(0, 7) || undefined} className={cn(CELL_BORDER, "sticky top-0 z-[4] h-9 bg-[var(--surface-2)] text-[13px] font-medium", month.from.slice(0, 7) === data.today.slice(0, 7) && [TODAY_EDGES, "bg-[var(--today)] font-bold text-[var(--today-foreground)]"])}>
                 {monthShort(month.from)}
               </th>
             ))}
@@ -692,7 +748,7 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
         </thead>
         <tbody>
           {groups.map(([label, members]) => members.length === 0 ? null : (
-            <GroupRows key={label} label={label} members={members} withLanes={false} columns={months.length + 2}>
+            <GroupRows key={label} label={label} members={members} withLanes={false} columns={months.map((month) => month.from.slice(0, 7))} today={data.today.slice(0, 7)}>
               {(person) => {
                 const year = personSummary(data, scope, person.id, period.from, period.to);
                 return (
@@ -703,17 +759,17 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
                     {months.map((month) => {
                       const summary = personSummary(data, scope, person.id, month.from, month.to);
                       return (
-                        <td key={month.from} className={cn(CELL_BORDER, "p-0")}>
+                        <td key={month.from} data-today={month.from.slice(0, 7) === data.today.slice(0, 7) || undefined} className={cn(CELL_BORDER, "p-0", month.from.slice(0, 7) === data.today.slice(0, 7) && [TODAY_EDGES, "relative bg-[color-mix(in_oklch,var(--today)_8%,var(--surface))]"])}>
                           <Link href={hrefFor(page, { view: "month", anchor: month.from })} aria-label={`${person.name}, ${MONTH.format(at(month.from))}`} className="flex h-11 flex-col items-center justify-center gap-0.5 hover:bg-[var(--surface-2)]">
                             {summary.away ? <span className={cn("px-1.5 text-[11px] font-semibold leading-4 text-white", month.from > data.today ? "bg-[color-mix(in_oklch,var(--danger)_30%,var(--surface))] text-[var(--danger)]" : "bg-[var(--danger)]")}>{formatPoints(summary.away)} j</span> : null}
-                            {person.profile === "developer" && summary.done ? <span className="text-[11px] font-semibold text-[var(--status-done)]">{summary.done} ✓</span> : null}
+                            {page.display === "all" && person.profile === "developer" && summary.done ? <span className="text-[11px] font-semibold text-[var(--status-done)]">{summary.done} ✓</span> : null}
                           </Link>
                         </td>
                       );
                     })}
                     <td className={cn(CELL_BORDER, "border-r-0 px-2 text-[11px] leading-[1.35] text-muted-foreground")}>
                       <b className="font-semibold text-[var(--danger)]">{formatPoints(year.away)} j</b> absent
-                      {person.profile === "developer" ? <><br /><b className="font-semibold text-[var(--status-done)]">{year.done}</b> terminés</> : null}
+                      {page.display === "all" && person.profile === "developer" ? <><br /><b className="font-semibold text-[var(--status-done)]">{year.done}</b> terminés</> : null}
                     </td>
                   </tr>
                 );
@@ -965,8 +1021,8 @@ function RulesDialog() {
         <ul className="list-disc space-y-1.5 pl-5 text-sm">
           <li>Une absence va d’une demi-journée ouvrée à une autre, bornes incluses ; chaque demi-journée ouvrée compte 0,5 j. Les week-ends et les jours fériés français ne comptent jamais. Deux absences ne se chevauchent pas.</li>
           <li>Une absence vaut pour tous les backlogs de la personne ; elle est hachurée tant qu’elle n’est pas passée. Chacun déclare les siennes ; un administrateur d’un backlog, celles de ses membres.</li>
-          <li>Un ticket commence le jour où il passe « En cours » et finit le jour où il passe « Terminé », pour la personne à qui il est assigné aujourd’hui ; il traverse les absences, les week-ends et les fériés sans s’interrompre. La catégorie actuelle d’un statut vaut pour tout son historique ; « dates approximatives » signale un journal incomplet.</li>
-          <li>Développement : une personne assignée à un ticket aujourd’hui ou au cours des douze derniers mois ; Produit sinon. Rien n’est réglé à la main.</li>
+          <li>Un ticket commence le jour où il passe « En cours » et finit le jour où il passe « Terminé », pour la personne à qui il est assigné aujourd’hui ; il traverse les week-ends, les fériés et les absences sans s’interrompre, mais sa barre y pâlit : il reste ouvert, personne n’y travaille. La catégorie actuelle d’un statut vaut pour tout son historique ; « dates approximatives » signale un journal incomplet.</li>
+          <li>L’équipe regroupe les personnes rattachées au backlog par ses rôles ou son schéma de droits ; à défaut, celles qui peuvent recevoir un ticket. Développement : une personne assignée à un ticket aujourd’hui ou au cours des douze derniers mois ; Produit sinon. Rien n’est réglé à la main.</li>
           <li>Les totaux comptent les demi-journées ouvrées d’absence et les tickets terminés dans la période, sur la portée affichée.</li>
         </ul>
       </DialogContent>

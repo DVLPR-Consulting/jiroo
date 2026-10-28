@@ -13,7 +13,7 @@ const VIEWS: Record<string, View> = { mois: "month", sprint: "sprint", annee: "y
 
 /**
  * « Calendrier d’équipe » (JIR-124, lot B2): the team's page, outside any
- * backlog. The URL says what is shown (`backlog`, `vue`, `date`, `sprint`);
+ * backlog. The URL says what is shown (`backlog`, `vue`, `date`, `sprint`, `affichage`);
  * the server reads that period with the reader's rights.
  */
 export default async function PresencesPage({ searchParams }: { searchParams?: Promise<RawSearchParams> }) {
@@ -26,6 +26,7 @@ export default async function PresencesPage({ searchParams }: { searchParams?: P
     view: VIEWS[firstSearchParam(query.vue) ?? "mois"] ?? "month",
     anchor: isDay(date) ? date : null,
     sprintId: firstSearchParam(query.sprint) ?? null,
+    display: firstSearchParam(query.affichage) === "absences" ? "absences" : "all",
   });
   if (!page) notFound();
   return <PresencesView page={page} />;
