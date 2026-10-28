@@ -49,6 +49,7 @@ const mocks = vi.hoisted(() => ({
   updateItem: vi.fn(),
 }));
 
+vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/realtime/publish", () => ({
   invalidateBacklog: mocks.invalidateBacklog,

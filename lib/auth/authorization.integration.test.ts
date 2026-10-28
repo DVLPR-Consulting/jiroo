@@ -12,6 +12,7 @@ import {
   requirePermission,
   ResourceNotFoundError,
 } from "@/lib/auth/authorization";
+import { withRequestCache } from "@/lib/auth/request-cache";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
@@ -585,6 +586,40 @@ describeDb("server-only authorization resolver", () => {
             .toEqual(sortReasons(single));
         }
       }
+    }
+  });
+
+  it("decides exactly the same through one request's cache (JIR-119)", async () => {
+    const backlogPermissions = [
+      "browse_backlog",
+      "manage_releases",
+      "assignable_user",
+      "edit_items",
+      "manage_workflows",
+      "create_backlogs",
+      "not_a_permission",
+    ];
+    const globalPermissions = ["create_backlogs", "browse_users", "bulk_change_items", "browse_backlog"];
+    const questions = [
+      ...[backlogAId, backlogBId, backlogCId, unconfiguredBacklogId, randomUUID()].flatMap((backlogId) =>
+        backlogPermissions.map((permission) => ({ permission, scope: { type: "backlog" as const, backlogId } })),
+      ),
+      ...globalPermissions.map((permission) => ({ permission, scope: { type: "global" as const } })),
+    ];
+    const ask = async (actorId: string) => {
+      const decisions = [];
+      for (const { permission, scope } of questions) {
+        decisions.push(await checkPermission({ actorId, permission, scope }));
+      }
+      return decisions;
+    };
+
+    for (const actorId of [...Object.values(ids), `auth-missing-${fixtureId}`]) {
+      // One cache per actor, as an action opens one for its own request: every
+      // boundary of that request asks through it, the decisions never change.
+      const direct = await ask(actorId);
+      const cached = await withRequestCache(() => ask(actorId));
+      expect(cached, actorId).toEqual(direct);
     }
   });
 });
