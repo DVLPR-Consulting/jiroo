@@ -274,7 +274,6 @@ export async function BacklogViewContent({
     key: i.key,
     type: i.type,
     title: i.title,
-    description: i.description,
     statusId: i.statusId,
     priority: i.priority,
     assigneeId: i.assigneeId,
@@ -655,7 +654,7 @@ export async function BacklogViewContent({
         users={referencedUsers}
         labels={backlogLabelRows.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
         releases={releaseFilterOptions}
-        hierarchy={items.map((item) => ({
+        hierarchy={items.filter((item) => item.type === "composant" || item.type === "epic").map((item) => ({
           id: item.id,
           key: item.key,
           title: item.title,

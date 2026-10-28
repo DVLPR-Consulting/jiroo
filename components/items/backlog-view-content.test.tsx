@@ -596,7 +596,6 @@ describe("BacklogViewContent read boundary", () => {
       type: "tache",
       kind: "story",
       title: key,
-      description: null,
       statusId,
       priority: 2,
       estimatePoints: null,
@@ -736,7 +735,6 @@ describe("BacklogViewContent read boundary", () => {
       type,
       kind: "story",
       title: key,
-      description: null,
       statusId: "status-1",
       priority: 2,
       estimatePoints: null,
@@ -834,7 +832,6 @@ describe("BacklogViewContent read boundary", () => {
       type: "tache",
       kind: "feature",
       title: "Toujours visible",
-      description: null,
       statusId: "status-1",
       priority: 2,
       estimatePoints: null,
@@ -917,7 +914,6 @@ describe("BacklogViewContent read boundary", () => {
         type,
         kind: "feature",
         title: id,
-        description: null,
         statusId: "status-1",
         priority: 2,
         estimatePoints: null,
@@ -1330,7 +1326,6 @@ describe("BacklogViewContent read boundary", () => {
       type,
       kind: "story",
       title: key,
-      description: null,
       statusId: "status-1",
       priority: 2,
       estimatePoints: null,
@@ -1472,4 +1467,42 @@ describe("BacklogViewContent read boundary", () => {
       expect(barProps.actions.props.filters.sprintIds).toEqual([S1]);
     });
   });
+
+  it("sends only parent types to the hierarchy facet and no documents to the List", async () => {
+    mocks.getBacklogByKeyForUser.mockResolvedValue({
+      id: "backlog-1", key: "DEMO", name: "Demo", color: "#2563eb", archivedAt: null,
+    });
+    mocks.getBacklogCapabilities.mockResolvedValue({
+      createItems: false, editItems: false, transitionItems: false, scheduleItems: false,
+      assignItems: false, manageSprints: false, manageWorkflow: false,
+      manageMembers: false, bulkChangeItems: false,
+    });
+    mocks.listItems.mockResolvedValue([
+      { id: "component", type: "composant", parentId: null, path: "root.component", depth: 0 },
+      { id: "epic", type: "epic", parentId: "component", path: "root.component.epic", depth: 1 },
+      { id: "task", type: "tache", parentId: "epic", path: "root.component.epic.task", depth: 2 },
+      { id: "subtask", type: "soustache", parentId: "task", path: "root.component.epic.task.subtask", depth: 3 },
+    ].map((row, index) => ({
+      ...row, key: `DEMO-${index + 1}`, kind: "feature", title: row.id,
+      backlogId: "backlog-1", statusId: "status-1", priority: 0,
+      assigneeId: null, reporterId: "viewer-1", rank: `a${index}`,
+      estimatePoints: null, startDate: null, dueDate: null,
+      createdAt: new Date(0), updatedAt: new Date(0), closedAt: null, deletedAt: null,
+    })));
+    render(await BacklogViewContent({
+      paramsPromise: Promise.resolve({ key: "DEMO" }),
+      searchParamsPromise: Promise.resolve({ view: "list" }),
+    }));
+
+    const facet = mocks.filterBarProps.mock.calls[0]![0] as { hierarchy: { id: string }[] };
+    expect(facet.hierarchy.map(({ id }) => id)).toEqual(["component", "epic"]);
+    const list = mocks.itemListProps.mock.calls[0]![0] as { groups: { items: object[] }[] };
+    const rows = list.groups.flatMap((group) => group.items);
+    expect(rows).toHaveLength(4);
+    for (const row of rows) {
+      expect(row).not.toHaveProperty("description");
+      expect(row).not.toHaveProperty("search");
+    }
+  });
+
 });
