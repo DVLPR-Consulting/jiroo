@@ -20,6 +20,8 @@ import {
 } from "@/lib/db/schema/domain";
 import {
   createItem,
+  getItemByIdForBacklog,
+  getItemByKeyForBacklog,
   listItems,
   listItemsWithAncestors,
   listLiveParentCandidates,
@@ -1661,6 +1663,62 @@ describeDb("item revision (updatedAt) ordering", () => {
         .where(eq(items.id, fixture.item.id));
       expect(Number(row!.micros) % 1000).toBe(0);
       expect(updated!.updatedAt.getTime()).toBeGreaterThan(fixture.item.updatedAt.getTime());
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
+
+
+describeDb("item view projection", () => {
+  it("omits documents from ordered live rows and their ancestors, keeping full detail reads", async () => {
+    const fixture = await createUpdateFixture();
+    const siblingId = randomUUID();
+    const epicId = randomUUID();
+    const taskId = randomUUID();
+    const deletedId = randomUUID();
+    const prefix = fixture.item.key.split("-")[0]!;
+    const description = "Description réservée au panneau, absente des vues.";
+    const rootPath = fixture.item.path;
+    const epicPath = `${rootPath}.${epicId.replaceAll("-", "")}`;
+    try {
+      await db.update(items).set({ description }).where(eq(items.id, fixture.item.id));
+      await db.insert(items).values([
+        {
+          id: epicId, key: `${prefix}-2`, type: "epic", title: "Epic",
+          parentId: fixture.item.id, path: epicPath, depth: 1, rank: "a1",
+        },
+        {
+          id: taskId, key: `${prefix}-3`, type: "tache", title: "Task",
+          parentId: epicId, path: `${epicPath}.${taskId.replaceAll("-", "")}`, depth: 2, rank: "a2",
+        },
+        {
+          id: siblingId, key: `${prefix}-4`, type: "composant", title: "First root by binary rank",
+          parentId: null, path: `root.${siblingId.replaceAll("-", "")}`, depth: 0, rank: "Z",
+        },
+        {
+          id: deletedId, key: `${prefix}-5`, type: "composant", title: "Deleted",
+          parentId: null, path: `root.${deletedId.replaceAll("-", "")}`, depth: 0, rank: "a3",
+          deletedAt: new Date(),
+        },
+      ].map((row) => ({
+        ...row, type: row.type as "composant" | "epic" | "tache",
+        backlogId: fixture.backlogId, statusId: fixture.item.statusId,
+        reporterId: fixture.actorId, description,
+      })));
+
+      const rows = await listItems(fixture.backlogId);
+      const ancestors = await listItemsWithAncestors(fixture.backlogId, [taskId, taskId]);
+      expect(rows.map(({ id }) => id)).toEqual([siblingId, fixture.item.id, epicId, taskId]);
+      expect(ancestors.map(({ id }) => id)).toEqual([fixture.item.id, epicId, taskId]);
+      for (const row of [...rows, ...ancestors]) {
+        expect(row).not.toHaveProperty("description");
+        expect(row).not.toHaveProperty("search");
+      }
+      await expect(getItemByIdForBacklog(fixture.item.id, fixture.backlogId))
+        .resolves.toMatchObject({ id: fixture.item.id, description });
+      await expect(getItemByKeyForBacklog(fixture.item.key, fixture.backlogId))
+        .resolves.toMatchObject({ id: fixture.item.id, description });
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
     }

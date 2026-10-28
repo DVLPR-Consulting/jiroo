@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, exists, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, getTableColumns, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { randomUUID } from "node:crypto";
 import { browseAccessPredicate } from "@/lib/auth/accessible-backlogs";
@@ -25,6 +25,14 @@ import { createItemSchema, idInputSchema, moveItemSchema, rankBacklogItemSchema,
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // ---- reads (no tx) ----
+
+// Views need the complete item shape except its large document fields.
+// Derive the projection so future view columns are included automatically.
+const { description, search, ...itemViewColumns } = getTableColumns(items);
+void description;
+void search;
+export { itemViewColumns };
+export type ItemViewRow = Awaited<ReturnType<typeof listItems>>[number];
 
 /** A soft-deleted item row enriched with backlog and status info, for the Trash page. */
 export type TrashedItem = Awaited<ReturnType<typeof listTrashedItems>>[number];
@@ -80,7 +88,7 @@ export function listItems(backlogId: string, options: { releaseIds?: string[] } 
       );
 
   return db
-    .select()
+    .select(itemViewColumns)
     .from(items)
     .where(and(eq(items.backlogId, backlogId), isNull(items.deletedAt), releaseFilter))
     .orderBy(asc(items.depth), asc(binaryTextOrder(items.rank)), asc(items.key));
@@ -129,7 +137,7 @@ export function listItemsWithAncestors(backlogId: string, itemIds: string[]) {
 
   const matchedItems = alias(items, "matched_release_items");
   return db
-    .select()
+    .select(itemViewColumns)
     .from(items)
     .where(
       and(

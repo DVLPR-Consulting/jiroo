@@ -650,7 +650,7 @@ describe("NewItemButton", () => {
           [created],
         ).get(created.id) ?? [];
         const [row] = enrichHierarchy([{
-          ...created, key: "DEMO-9", kind: "feature", title: "x", description: null,
+          ...created, key: "DEMO-9", kind: "feature", title: "x",
           statusId: statuses[0]!.id, priority: 0, assigneeId: null, path: "root.i", depth: 0,
           dueDate: null, createdAt: new Date(0), updatedAt: new Date(0), rank: "a",
           labelIds: [], fixVersionIds: [], sprintIds, statusOrder: 0,

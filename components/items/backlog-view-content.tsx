@@ -287,7 +287,6 @@ export async function BacklogViewContent({
     key: i.key,
     type: i.type,
     title: i.title,
-    description: i.description,
     statusId: i.statusId,
     priority: i.priority,
     assigneeId: i.assigneeId,

@@ -13,7 +13,6 @@ function row(
     type: "tache",
     kind: "feature",
     title,
-    description: null,
     statusId: "todo",
     priority: 2,
     assigneeId: null,
