@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { formatAxeViolations, type AxeScan } from "../e2e/support/axe-results";
+import { assertAxeEvidenceSafe, formatAxeViolations, type AxeScan } from "../e2e/support/axe-results";
 
 type Violation = AxeScan["violations"][number];
 function violation(id: string, impact: Violation["impact"]): Violation {
@@ -49,5 +49,21 @@ describe("axe evidence formatting", () => {
 
   it("writes an empty JSON array for a clean scan", () => {
     expect(JSON.parse(formatAxeViolations({ violations: [] }))).toEqual([]);
+  });
+});
+
+describe("axe evidence credential checks", () => {
+  it("accepts safe evidence when setup uses its default synthetic password", () => {
+    expect(() => assertAxeEvidenceSafe(formatAxeViolations({ violations: [] }), undefined)).not.toThrow();
+  });
+
+  it.each([
+    [undefined, "Audit-Local-2026!"],
+    ["Synthetic.[password]+2026!", "Synthetic.[password]+2026!"],
+  ])("rejects the password actually used by setup (override %s)", (override, password) => {
+    const result = violation("synthetic", "serious");
+    result.nodes[0]!.failureSummary = password;
+    expect(() => assertAxeEvidenceSafe(formatAxeViolations({ violations: [result] }), override))
+      .toThrow("Credentials refused in axe evidence.");
   });
 });
