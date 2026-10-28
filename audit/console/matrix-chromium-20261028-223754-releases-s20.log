@@ -1,0 +1,12 @@
+[specialist] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[specialist] log: [HMR] connected
+[specialist] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[specialist] log: [HMR] connected
+[specialist] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[specialist] log: [HMR] connected
+[defect] BUG-JIR-047 Erreurs navigateur inattendues:
+[failed] [specialist] GET http://localhost:3100/b/CASS/releases?_rsc=NiP3ZOoeZkYWv_Kg net::ERR_ABORTED
+[failed] [specialist] POST http://localhost:3100/b/CASS/releases/9085c460-eeee-40c3-bcba-28fecceb7023 net::ERR_ABORTED
+[failed] [specialist] POST http://localhost:3100/b/CASS/releases/9085c460-eeee-40c3-bcba-28fecceb7023 net::ERR_ABORTED
+[failed] [specialist] POST http://localhost:3100/b/CASS/releases/4cdc72c1-1a9b-4c13-94a9-8dc29dd37bd3 net::ERR_ABORTED
+[duration] scenario 20: 2479ms

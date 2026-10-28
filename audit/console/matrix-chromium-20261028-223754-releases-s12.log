@@ -1,0 +1,16 @@
+[editor-capture] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[editor-capture] log: [HMR] connected
+[expected] interruption volontaire du prochain POST /b/CASS
+[editor-capture] error: Failed to load resource: net::ERR_FAILED
+[defect] BUG-JIR-039 [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+Locator: getByRole('alert')
+Expected substring: [32m"Mise à jour impossible"[39m
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+[2m  - Expect "toContainText" with timeout 5000ms[22m
+[2m  - waiting for getByRole('alert')[22m
+
+[duration] scenario 12: 6256ms

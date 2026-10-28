@@ -1,0 +1,2973 @@
+{
+  "schemaVersion": 1,
+  "runId": "matrix-chromium-20261028-223754",
+  "timestamps": {
+    "startedAt": "2026-10-28T22:37:58.040Z",
+    "databaseVerifiedAt": "2026-10-28T22:37:58.056Z",
+    "manifestWrittenAt": "2026-10-28T22:37:58.184Z"
+  },
+  "runtime": {
+    "node": "v24.18.1",
+    "pnpm": "10.34.5"
+  },
+  "source": {
+    "gitSha": "282463d59644fb557e956e0bfe66cb6310b4354b"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:a70637732c622ead8e1bfe57c5fec658fda1cab995b41489e3222926ed8fc919"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "corepack pnpm exec playwright test --project=matrix-chromium",
+    "scenarios": "matrice matrix-chromium"
+  },
+  "result": {
+    "junitReport": "audit/runs/matrix-chromium-20261028-223754-junit.xml"
+  },
+  "artifacts": [
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/.last-run.json",
+      "size": 3771,
+      "sha256": "4c948768ad37409592f7ce45717362705bc03c5d5e006876332107f0573faf03"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/all-items-ouvre-la-Liste-n-6f32f-même-nombre-que-le-compteur-matrix-chromium/jir94-tous-les-items-liste.png",
+      "size": 112662,
+      "sha256": "2393df05c81739be6cd216e57a70e5f6f450a75e97d449302445ebf1d70cb350"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-access-aligne-la-b-93d2b-le-backlog-de-la-page-Accès-matrix-chromium/jir85-access-shell.png",
+      "size": 116468,
+      "sha256": "65bd5b533f247faf746d87b92f35be3c3eb536668e8a243a7b06a6bef89ba2c9"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-access-retire-un-o-11412-f-le-dernier-administrateur-matrix-chromium/jir85-access-simple-remove.png",
+      "size": 121692,
+      "sha256": "e1b481cbd1585f7a4756ee04d6ebf5a9fd68eb7bd3a5a15dc58e79db5992c33b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-matrix-chromium/error-context.md",
+      "size": 9731,
+      "sha256": "2cecbcb2f4e7cba76ac8cc8ba926c39659852c931bb9d1f28fe6d0456649da0f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-matrix-chromium/test-failed-1.png",
+      "size": 100936,
+      "sha256": "60a2784c5c1594d3481948a00ccc2d775e46550f6df47f03da4cd3859da4b57e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-matrix-chromium/trace.zip",
+      "size": 2598476,
+      "sha256": "bd84a2bc563cf10dd56cf707b850f4a3ee8c4a384d589a82b5b2f000e0c7e14b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-matrix-chromium/video.webm",
+      "size": 678446,
+      "sha256": "6a7759a4dd6bd57344ac2be6807850533f5679a5e44bb13064fbfecc1145f6c0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-désacti-f5f82-et-conserve-le-mode-Backlog-matrix-chromium/error-context.md",
+      "size": 21226,
+      "sha256": "7c3774a4f90825b644995bfae4f7290a51741e6baa10dbb59b367cb91b1669a0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-désacti-f5f82-et-conserve-le-mode-Backlog-matrix-chromium/test-failed-1.png",
+      "size": 106822,
+      "sha256": "530e0d0c770f3fd746282751d3eeb8d8d5415f600d57e53496d669095e9ae386"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-désacti-f5f82-et-conserve-le-mode-Backlog-matrix-chromium/trace.zip",
+      "size": 1635482,
+      "sha256": "d43af1120701b22008cd517de3ca88dc1df87c81dad940db5f09c4813ecc781d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-désacti-f5f82-et-conserve-le-mode-Backlog-matrix-chromium/video.webm",
+      "size": 75892,
+      "sha256": "c1725725d649ca7692145200ccd35b32d52bf0a1d0e08d78e841a8e9d2f1becf"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-garde-l-a197d-iste-lisibles-à-390-par-844-matrix-chromium/error-context.md",
+      "size": 14500,
+      "sha256": "a87ead2cc966a310ddfae959e733d49c727b9b433c4071b74f36870948268a66"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-garde-l-a197d-iste-lisibles-à-390-par-844-matrix-chromium/test-failed-1.png",
+      "size": 67073,
+      "sha256": "350cb6b88e51bef2bf7291eb63af3d1971226e5c2821d6da62108dc29bf692cb"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-garde-l-a197d-iste-lisibles-à-390-par-844-matrix-chromium/trace.zip",
+      "size": 995111,
+      "sha256": "378b0ecef4da286c8b76730f10abfab3be5e83f78fd584fb9737a45a6253b8b0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-garde-l-a197d-iste-lisibles-à-390-par-844-matrix-chromium/video.webm",
+      "size": 46371,
+      "sha256": "3febb1612c23cdf6289f4f3f9c07db7e869bd63d9fbce5d9d3856987198911c5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-isole-l-4a7fa-ialise-au-changement-de-vue-matrix-chromium/error-context.md",
+      "size": 20530,
+      "sha256": "36ba2a70965beafadb780bb3a34bdfe007cd503718aa812150a42ad44d0e906c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-isole-l-4a7fa-ialise-au-changement-de-vue-matrix-chromium/test-failed-1.png",
+      "size": 100777,
+      "sha256": "aef8d33b6e566603d653258c57647b3d7891b3457854fbcd7ccc1ba6b2df64ed"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-isole-l-4a7fa-ialise-au-changement-de-vue-matrix-chromium/trace.zip",
+      "size": 2026875,
+      "sha256": "23b691b7a19327b7b15f7737c9e2b5b67a1d3ef638e6b4e1a4dbf2e82450d901"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-isole-l-4a7fa-ialise-au-changement-de-vue-matrix-chromium/video.webm",
+      "size": 85358,
+      "sha256": "edcbf124488bc64d93e43f1b730c11da509b7f19fabd7e63698a68b06a2aac66"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-matrix-chromium/error-context.md",
+      "size": 11052,
+      "sha256": "12e5607eef6520e894f36316d7098e5bce53d0e91d95fc9ddce1a62641b33f63"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-matrix-chromium/test-failed-1.png",
+      "size": 117424,
+      "sha256": "dde87c2f33bfe4cbf80b07644fbb522d78db1f76cef1f5d833ceea6de36ed56d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-matrix-chromium/trace.zip",
+      "size": 6880162,
+      "sha256": "03b37bd1397c22d26596e32d43f1739c5e96067cf3f011c6abf422cfdb8d8bbc"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-matrix-chromium/video.webm",
+      "size": 636006,
+      "sha256": "eeda728f6260aa8bf9de1038531b886f8d334497633959c28aacf5f465617eee"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-guide-u-44396-posant-puis-Epic-puis-Tâche-matrix-chromium/error-context.md",
+      "size": 10288,
+      "sha256": "0d6f959ee12924fd116d621ea27e31d8fc904e38db048fe45c82948b3a2cae35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-guide-u-44396-posant-puis-Epic-puis-Tâche-matrix-chromium/jir88-1-liste-composant.png",
+      "size": 86408,
+      "sha256": "28046016fb0205f2c89d2b51c19f9f01c53b1164ebc7e104db112021adfa46ba"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-guide-u-44396-posant-puis-Epic-puis-Tâche-matrix-chromium/jir88-2-arbre-epic.png",
+      "size": 79546,
+      "sha256": "7129dc858bd015e63ddb904291ca98d9aab66e93a00e4a54b0e6e529548b568c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-guide-u-44396-posant-puis-Epic-puis-Tâche-matrix-chromium/test-failed-1.png",
+      "size": 149891,
+      "sha256": "0bd24fe74914e3024a0a15b8c1dc9e760a7ec64a2714095ff8a428a9f7e682fd"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-guide-u-44396-posant-puis-Epic-puis-Tâche-matrix-chromium/trace.zip",
+      "size": 2150215,
+      "sha256": "aed7c9113590a5af9b819370fd23cc1a1b12b3bd6ce005d8863bc9167c1ec52c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-guide-u-44396-posant-puis-Epic-puis-Tâche-matrix-chromium/video.webm",
+      "size": 273859,
+      "sha256": "c5cc92168111b7ecc480b5a02d63771767807fb7ff8304f01b07e2ad2c70106d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-matrix-chromium/error-context.md",
+      "size": 10299,
+      "sha256": "c742d8c6f03f78b080882fa6defdde9f5bff194e92ded526671696739f26d7f5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-matrix-chromium/jir88-4-backlog-composant.png",
+      "size": 94784,
+      "sha256": "5b51b27a8dd2239efd54dff50e9412b2f8075324e7481cc9f5f5438c89cdfd37"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-matrix-chromium/jir88-5-backlog-epic.png",
+      "size": 96169,
+      "sha256": "56fdec0a0c38e7e849060cc02e98304fc7fb6c2b4efaf4d720e54a8c647d7347"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-matrix-chromium/jir88-7-backlog-version-vide.png",
+      "size": 91092,
+      "sha256": "d0f23181d2b930285bf5b9f2e8e93ada0c9a8b95a4d37da9eb03952b8633f34f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-matrix-chromium/test-failed-1.png",
+      "size": 157328,
+      "sha256": "cb02f7ab84a9268a764820ff513dbb11d7bfccd4bc5608578c66921eeb4a01d3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-matrix-chromium/trace.zip",
+      "size": 2613341,
+      "sha256": "f961a1b4f88c5dacc85d81e1558ceabc4e16f82842f4181f97714ffd5ec8b292"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-matrix-chromium/video.webm",
+      "size": 287200,
+      "sha256": "f3eb9fca03250133da9f450a47c4f92fe4eafa309fb6c21ed46c4998b9e1ca8c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium/error-context.md",
+      "size": 18225,
+      "sha256": "09e307e30967dee9e5f36bb12b62b6800cc6516029a24dbdf30c44cbac113103"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium/test-failed-1.png",
+      "size": 100776,
+      "sha256": "7ed7cfd37a182d5c628af97c84a321fed940d5c59c743ab5dea0777cdfc46aba"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium/trace.zip",
+      "size": 2981967,
+      "sha256": "f26c162c91192dc0f822794a1052d0db09d783275c1077900ba6330cf54cc2b4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium/video.webm",
+      "size": 189397,
+      "sha256": "e15f38b36261da97e17cbdebe5e2febc4264917e5fd1918079099af771ca6e73"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium/error-context.md",
+      "size": 25767,
+      "sha256": "e3fc25827513042f58d96630177d7bdc7622e18d88251ebf7911a644a3ba8d38"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium/test-failed-1.png",
+      "size": 159510,
+      "sha256": "01f7c6e37caddd17a8c5f159219fb3585eed6eca1ac6cb6dae63aa1665fa0394"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium/trace.zip",
+      "size": 4390654,
+      "sha256": "3c30b066a93aa849f4d65ed1e364a61f3e14ffd749a8df7a99809932a0b4672f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium/video.webm",
+      "size": 777584,
+      "sha256": "77c1d1943a8831ea1f68b4a90a6c4cb6abcd31f4101663f9273c264c44e0790b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium/error-context.md",
+      "size": 28890,
+      "sha256": "577397805e6c7d823da41a5ec7a88533793bcf3db49e4e00e6e8d209e827cda8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium/test-failed-1.png",
+      "size": 174230,
+      "sha256": "7fd73f4134356eb8aae605676e7595813ab823c21cca2b9c0530182c5887b8a6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium/trace.zip",
+      "size": 7934517,
+      "sha256": "809f3e99b8b6917da89020b6aa58cea7e9646179967ed180470fe70daa686103"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium/video.webm",
+      "size": 841336,
+      "sha256": "f1e7b9940a59c5caac454b5a811d1f238a0bf65c76c24dbe5c490d443592d69e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlogs-home-affiche-le-r-dc358-hoisi-dans-l’administration-matrix-chromium/jir82-home-lead-desktop-1440.png",
+      "size": 68374,
+      "sha256": "48da197c9863ddb3f1077b54cda4fe0c08b72d2d1cf0180f188380e65df51dec"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlogs-home-liste-les-ba-1aeb4-rgement-et-ouvre-le-backlog-matrix-chromium/jir82-home-desktop-1440.png",
+      "size": 66369,
+      "sha256": "45522865b4c9ccf6051831b845c5d7e0cde7058d838d285daa5363e8e2412a89"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/backlogs-home-reste-lisible-sans-débordement-à-390-par-844-matrix-chromium/jir82-home-mobile-390.png",
+      "size": 25494,
+      "sha256": "6756f4b2a3228226f5335f0839c7e49b5896bfcf212321649f50ca774d0b9995"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/board-empty-columns-affich-a0931-e-bandeau-sans-sprint-actif-matrix-chromium/jir89-board-no-sprint-desktop.png",
+      "size": 82914,
+      "sha256": "c246d6feaf3c56c35033bde1bdb5314e886ebc34af7c7c813f8ee0dd57cdc01d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/board-empty-columns-affich-a0931-e-bandeau-sans-sprint-actif-matrix-chromium/jir89-board-no-sprint-phone.png",
+      "size": 39527,
+      "sha256": "01cb519785610d684ac794d71b6223fd8240ece95f42ecebf62ba014c14e693a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/browse-users-browsing-user-14097--permission-and-persists-it-matrix-chromium/error-context.md",
+      "size": 12431,
+      "sha256": "94f8e13262306d85caeb885fa81571760d8dfa5b78f4c8d708086919ba534768"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/browse-users-browsing-user-14097--permission-and-persists-it-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/browse-users-browsing-user-14097--permission-and-persists-it-matrix-chromium/test-failed-2.png",
+      "size": 196147,
+      "sha256": "bfb0cdff24393644d6f44a77c69f92b1ec310abfd831f1c8395843490dd7ac5b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/browse-users-browsing-user-14097--permission-and-persists-it-matrix-chromium/trace.zip",
+      "size": 204580,
+      "sha256": "2eb65787f83824e2ee5f216f4c68f91bd3afe6201353eed6b9eb0c88b9835841"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium/error-context.md",
+      "size": 10575,
+      "sha256": "6748ea91aeac5a76f939e1107736f02106bd704ec35d03b2b9036a0534da5d7f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium/test-failed-1.png",
+      "size": 170213,
+      "sha256": "5c89537564a7f3465c293dd918f9c457162637a8947c3d74e58b76869397b174"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium/trace.zip",
+      "size": 2661867,
+      "sha256": "ea58e4a88ea5350e38e42899b86ccc486c5bbd4e44ac87e3b271a26775e5629c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium/video.webm",
+      "size": 280457,
+      "sha256": "6466b178bc71d7eb8d65f54c212fe99ea72e65d2b47fae71ff96b5bf2c49e896"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium/error-context.md",
+      "size": 10515,
+      "sha256": "f666207009bb737ea989c1ab79d8d442bcae18ebf29befdb4e25c4df942c97e1"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium/test-failed-1.png",
+      "size": 169754,
+      "sha256": "be87bdcc3121a1cacfcba1451b28d6c7216686802183ff55a3a2f136e0600162"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium/trace.zip",
+      "size": 2266513,
+      "sha256": "82d44821e1ac77983643a4c321405bebd71466bac7b5f3d39f0c18e6f227526b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium/video.webm",
+      "size": 189649,
+      "sha256": "ecc3cc6f0066d332238d297e620d3328bc023de86d2e47e5b8a290ff66dd8fe0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium/error-context.md",
+      "size": 10339,
+      "sha256": "9b6c9f0eb08d597857474da665cf7b4b727ee54a5af926e59b122d0d3cdb79fb"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium/test-failed-1.png",
+      "size": 173299,
+      "sha256": "9ddbf5be8bef76385382a2318983fd508075e05f7bc3d15c58b0f3783f2b871f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium/trace.zip",
+      "size": 2215708,
+      "sha256": "c07ca1722909249c0dd9fbc9cbc80a6439ab711add109046669f8758471319c9"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium/video.webm",
+      "size": 207323,
+      "sha256": "cc969c4739d8aec2e8ddf36215ebc5ba2075f15c7dbb16ecbb4209dd48f2ed56"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium/error-context.md",
+      "size": 10431,
+      "sha256": "a69c7aac9398172ad875537c5fac4d554bf275e9c7a3d26bd42bf1672fe8e3ab"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium/test-failed-1.png",
+      "size": 75954,
+      "sha256": "9198908eb6a97979f9a9b9dd30c785a27d7d3e6292375debbb29057b459403f3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium/trace.zip",
+      "size": 1265491,
+      "sha256": "86c10a3b59f5b4ec41817aec26d5795bf357f70bf6b878c7e468f3a1234250b2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium/video.webm",
+      "size": 61180,
+      "sha256": "b842ef2fcc1ce414674bff28f00e382c270d563bfbe7d097debd48dbe2d28864"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-chromium/jir92-1-inline-epic-masquee.png",
+      "size": 92094,
+      "sha256": "e136e81c15715e2c4e207e5d2d7d997125954b3ef30a045f32b3856c1c95c3c3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-chromium/jir92-2-inline-cree-masquee.png",
+      "size": 98162,
+      "sha256": "19aed94bd50b0d6a584da3b41718842a3c4f1141e92532c2b50f339c9fa95d26"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-chromium/jir92-3-dialog-composant.png",
+      "size": 161585,
+      "sha256": "db68916478b3336aa32907060e38cc5309f57b2dd65ca62d1053d7307f6e898c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-chromium/jir92-4-dialog-epic.png",
+      "size": 162149,
+      "sha256": "4f3fc2bf9020b2fb258a5d0636fd797b9cb3a9d47a62e48377c4969d6a98b2bf"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-chromium/jir92-5-dialog-cree-masquee.png",
+      "size": 99287,
+      "sha256": "27fb975b64b8149cb7f7355d2386e2e3dd2962c739a660269e5bd52bc76f8eb5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/help-guide-ouvre-le-guide--c63ac-en-tête-et-suit-le-sommaire-matrix-chromium/jir67-desktop-1440.png",
+      "size": 230164,
+      "sha256": "8a879552315acf142b22ff52c09ba5da032d3359b71c27dba113040628f3b3e8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/help-guide-reste-lisible-sans-débordement-à-390-par-844-matrix-chromium/jir67-mobile-390.png",
+      "size": 87344,
+      "sha256": "a939b93dc7368fc87aa59f88a3615b1a64e96448875a69fb6feeb1f6b57e35ab"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium/error-context.md",
+      "size": 31404,
+      "sha256": "5c5d360ed4b11528c0753f9d6ef8bffc8d5d72f70e0f24d110a8e4b205583975"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium/test-failed-1.png",
+      "size": 173896,
+      "sha256": "7a357bbe336546a6cd05260f430ab3931fae7c08f8c6c56048c213a10e2b8d8b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium/trace.zip",
+      "size": 2257666,
+      "sha256": "d557e33de69af3824e986fb785c591e7b497ef4421ce5f8487612c48fec93971"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium/video.webm",
+      "size": 124449,
+      "sha256": "824370d9c24f9b1b654cbb5fcf91fbdc6d645bb4ee0732dc3b19d75982cec3d3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium/error-context.md",
+      "size": 16071,
+      "sha256": "5881cb141af2fb21c30cc9ac3f5224d41aad857d7ebb67ee3e46c9db82a345e9"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium/jir43-settings-1440.png",
+      "size": 93116,
+      "sha256": "304f1c137ecd3042027c8b47a96745c8d1d4c16441de4425c8982915414503ab"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium/jir43-settings-390.png",
+      "size": 51383,
+      "sha256": "5035d283d3de3424b968dc81da2b122fb943550ba66634227a409853b2b37c5d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium/jir43-template-editor-1440.png",
+      "size": 151494,
+      "sha256": "4e917a74ebaffa8aaf70a675fd0e62814cba3d3b632dbd788be8693b2ead826c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium/jir43-template-editor-390.png",
+      "size": 65679,
+      "sha256": "fdc6c506a5f59355bd8af27c0b5607914e29992dff842bf95821753679efce48"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium/test-failed-1.png",
+      "size": 93116,
+      "sha256": "304f1c137ecd3042027c8b47a96745c8d1d4c16441de4425c8982915414503ab"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium/test-failed-2.png",
+      "size": 56635,
+      "sha256": "b3bebbf6840f8d0bc7b8f38ca6e6e988875504893371a72424b904cf365110f5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium/trace.zip",
+      "size": 3867781,
+      "sha256": "eec7df7edfb6b3cbe712d14dcdbbc1adc9e0e599e614eec0b659c1566ed538a6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium/video.webm",
+      "size": 305948,
+      "sha256": "91ebec82f0ff042ec69fdd015a0239f50817c943799b8427d203b872544c853c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/le-point-390px-keeps-both--7748b-e-card-text-and-no-overflow-matrix-chromium/error-context.md",
+      "size": 12531,
+      "sha256": "35cddcf04fc0f3ae7d86042067fff113f1944c76d6c104dd25fd00097f2cece1"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/le-point-390px-keeps-both--7748b-e-card-text-and-no-overflow-matrix-chromium/test-failed-1.png",
+      "size": 64221,
+      "sha256": "4279a36d6c013d6443e9c656934f822a5e8b12e29e0df38a4bfa56657595fc88"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/le-point-390px-keeps-both--7748b-e-card-text-and-no-overflow-matrix-chromium/trace.zip",
+      "size": 761172,
+      "sha256": "0cbfae410a34e0e98f949f221e154727ebe0c05aa3f9b5c355e2a41155fa4f96"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/le-point-390px-keeps-both--7748b-e-card-text-and-no-overflow-matrix-chromium/video.webm",
+      "size": 114572,
+      "sha256": "b48468b0aeb33c57e7902999f2f93478615bbb432e649a7fb7ee780f16c05381"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/le-point-keyboard-journey--77675-ocus-after-closing-a-ticket-matrix-chromium/error-context.md",
+      "size": 13515,
+      "sha256": "c6b67e7369c439f86ee7e51d4413400538144b8ab5c9bf5295ee88406e719a5e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/le-point-keyboard-journey--77675-ocus-after-closing-a-ticket-matrix-chromium/test-failed-1.png",
+      "size": 117044,
+      "sha256": "b15c683cdac1f75b5ec6a2561d894cc8e6d4879ca49ea0e4db2be2c8a2eaf14b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/le-point-keyboard-journey--77675-ocus-after-closing-a-ticket-matrix-chromium/trace.zip",
+      "size": 1267364,
+      "sha256": "dfcf40022c08dc82f253830f0edf1d0d8a20fd394ec20b46b1311cfe9679e4d9"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/le-point-keyboard-journey--77675-ocus-after-closing-a-ticket-matrix-chromium/video.webm",
+      "size": 191940,
+      "sha256": "2b61b65a3ec23d40fed5f18a6f7200d0c8d3a11df2844d78f13a76472d383fe8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/content-admin.png",
+      "size": 105858,
+      "sha256": "f1ed1abe2374bf4a4b1a5eafd6f02b23d6ab76c9ca2a68bb2b87c0181fabd729"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/content-backlog-from-releases.png",
+      "size": 250134,
+      "sha256": "3c42d5a53e2e11132556ea1690abace6ee8635f11bc3a16d0f31954cc64fda37"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/content-backlog.png",
+      "size": 250134,
+      "sha256": "3c42d5a53e2e11132556ea1690abace6ee8635f11bc3a16d0f31954cc64fda37"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/content-board.png",
+      "size": 84435,
+      "sha256": "f9b3c87f3f208bd3022edb1ba825a52a734b74cd87eff784165798551e688630"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/content-home.png",
+      "size": 68600,
+      "sha256": "3b4d13694579a0711ab6c203b6e29effd0c2ac59ac8771c3f4157508aba18fa3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/content-list.png",
+      "size": 225486,
+      "sha256": "bf1f292f8b95330bbb443a892c56efad560c0b9a813b09203bc109e03c138da4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/content-mine.png",
+      "size": 80005,
+      "sha256": "c870148c614369358f7d0a57445dff499adfbbd69081d43a5c2c9d7dd05d7e54"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/content-releases.png",
+      "size": 98514,
+      "sha256": "0e756c682406145ae55dc5b0e1f9b7dd397ae699ff58197e956232c5f93a1dea"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/content-roadmap.png",
+      "size": 110860,
+      "sha256": "7cff70963f794534e4d7b0a511cdb74260f4427258517f0b564eaf32b2d3a92a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/content-trash.png",
+      "size": 67587,
+      "sha256": "8141d1c03d10b26b7f74799812081a99269d8c4f6a395e45d598a50b054b32c9"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/content-tree.png",
+      "size": 199561,
+      "sha256": "d98d17ad0b4f5db57d7c7ae6a31a5f7e2205e1a149e457f51063313224d177f3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/skeleton-admin.png",
+      "size": 52477,
+      "sha256": "bffaf64d9495733b3ff3c692c4bdf5e74d20e8e22236c44277e32db4d70e0cb5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/skeleton-backlog-from-releases.png",
+      "size": 61659,
+      "sha256": "97395b5c0f14ffac844299a41a386ceac72045194039ff9a9624a6844fdb37bd"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/skeleton-backlog.png",
+      "size": 61492,
+      "sha256": "829fcfefea33baca6bb002b13607bc33eb9a010916f84462a6ff7dbb7a928f78"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/skeleton-board.png",
+      "size": 59290,
+      "sha256": "7118c7c72c0ebb7ca0d992a981c374f4e97b1c011d2201b69a64ac47cb7618a7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/skeleton-home.png",
+      "size": 54347,
+      "sha256": "7aae3503a9c8caf2ec40ac9635f42c3581ee6fc080450c950d83d03580f7b9c6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/skeleton-list.png",
+      "size": 61984,
+      "sha256": "0410af8817ac4829d5da6a5115f67a5cc98a678f88b340eaa97c48baf9ed834d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/skeleton-mine.png",
+      "size": 56055,
+      "sha256": "7d3fc92e628737ce3db0a748666cc7ca2bbf1af39e2eac79183275527e4c4517"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/skeleton-releases.png",
+      "size": 56702,
+      "sha256": "75c818633f9ab820f414285532b62bcd52d278fc23fda6c78e693c2a2c7c4f10"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/skeleton-roadmap.png",
+      "size": 53573,
+      "sha256": "d1a5a7f2d69cfa2268cb82b4f845e2e2b7e2dd5f8bb8ef5bb3039781c7fb8c3f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/skeleton-trash.png",
+      "size": 54547,
+      "sha256": "b0d796dddc6e1b1e396f0ab17bb2787a9406218f4a3beb2a6a29702787b94da7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium/skeleton-tree.png",
+      "size": 54595,
+      "sha256": "249c0fc14b5dfa07b7af6cf548829754793a0455f83b5c3f3b245def1485dade"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/markdown-editor-éditeur-Ma-1df82-en-lecture-seule-au-lecteur-matrix-chromium/jir71-read-only.png",
+      "size": 345292,
+      "sha256": "06c431395bb30f882f2de28e792a9fdc3738bfe69c045607f959e0e22f4c84bc"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-matrix-chromium/jir71-bubble-menu.png",
+      "size": 224199,
+      "sha256": "61cc3114922fc7728b4cbed38d0dcbf8e668fbc46aa8e0ccf79043dd33564e87"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-matrix-chromium/jir71-focus-slash-menu.png",
+      "size": 221135,
+      "sha256": "6ceeea1bce0c541cf2cd782f3e4406fb4aabe934a07c68a0d3bc4cbbd795db51"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-matrix-chromium/jir71-rest-empty.png",
+      "size": 218524,
+      "sha256": "17714acafc05844cf5a8e64eb050210bbfc825fa8a4ef4899368c0d4f3acfd35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-matrix-chromium/jir71-rest.png",
+      "size": 221133,
+      "sha256": "ff14aab4aea93f3d6e52692f650f4b24ade8d68c9d8ef6cf56b09294087bc2c3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/markdown-editor-éditeur-Ma-b7056-vec-mention-puis-le-modifie-matrix-chromium/comment-editor.png",
+      "size": 213914,
+      "sha256": "d199dc0b6b046286e3293bba8d356a803bccd64e79f8ae3c4c9e654b841c06bd"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/markdown-editor-éditeur-Ma-fb20c-gistré-comme-dans-l’éditeur-matrix-chromium/comment-heading.png",
+      "size": 8163,
+      "sha256": "83a01376182bbfa43bd9fe79a6afb4136f2b13c1bd90377781472cececbcb92c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p1-accueil-matrix-chromium/error-context.md",
+      "size": 6501,
+      "sha256": "22d64c07cca0097ff7ce37de11beb3419f72df6563944f63c9e81c691c39e4dd"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p1-accueil-matrix-chromium/test-failed-1.png",
+      "size": 68619,
+      "sha256": "4978c31ebc4f7c5de7712eb43d16b0e614fe2a5a2df506531bb86c74329131bc"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p1-accueil-matrix-chromium/trace.zip",
+      "size": 1604226,
+      "sha256": "d6701220ccb97628c487bfa85155b208f406826c357530e8b441e73070d8ddc0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p1-accueil-matrix-chromium/video-1.webm",
+      "size": 2039,
+      "sha256": "c2ae3011e6a8dc3b09909db056aea346fce3687a4c55f45d4e4fdba5100a71c0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p1-accueil-matrix-chromium/video.webm",
+      "size": 56688,
+      "sha256": "a75b19aad48604e40852e33875fb837cb9960ce341fb0f225bcdc551b236abc4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p2-board-matrix-chromium/error-context.md",
+      "size": 7764,
+      "sha256": "b02dc20297cd256df38b4f622f0bcb8d4617a517e9c782ef6350e935b5a9f7e4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p2-board-matrix-chromium/test-failed-1.png",
+      "size": 84451,
+      "sha256": "8686e5ce59e4ea8e752a234b5bbe5bffce597577cf05417ff68aeafe4ded7aa1"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p2-board-matrix-chromium/trace.zip",
+      "size": 2276189,
+      "sha256": "f12715adcd00588f2436f836ecdf49eb2366de6722f12c7332513c1b64d22974"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p2-board-matrix-chromium/video-1.webm",
+      "size": 2039,
+      "sha256": "9df18f4f42025a3e53f453d94cbd0c6877d1d8f4da3d4ae27e1f21bf7cde3c16"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p2-board-matrix-chromium/video.webm",
+      "size": 74836,
+      "sha256": "783f92e6899f48d3ef078cfb10fe6772706123a5e9152b7646abba251370e934"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p3-liste-matrix-chromium/error-context.md",
+      "size": 40418,
+      "sha256": "7a36955933876a36f068cb873af7b1dc956c0030191d8bdf2186accbb774294a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p3-liste-matrix-chromium/test-failed-1.png",
+      "size": 225292,
+      "sha256": "90f32456d4aa0dfcbb2734accebb80238fcaec2c01e71809d888c3a32f5c8148"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p3-liste-matrix-chromium/trace.zip",
+      "size": 4762406,
+      "sha256": "fb9ef248c9a56d70818266b450ee65ffdaf913269202addfd984de033360b72f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p3-liste-matrix-chromium/video-1.webm",
+      "size": 2039,
+      "sha256": "ab21997e93c7b4b900e36098e817d496adf2d406b442cf7e983092904b7e929d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p3-liste-matrix-chromium/video.webm",
+      "size": 125299,
+      "sha256": "b1bc9f865a9d964bc832ddccdd45f80eee92d0014648839166ffc43b27756ebf"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p4-tiroir-matrix-chromium/error-context.md",
+      "size": 38339,
+      "sha256": "e60a61d3390ef67fdccb19dc82ad542204828a892b2e3fd04f50bfba06259ea7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p4-tiroir-matrix-chromium/test-failed-1.png",
+      "size": 209185,
+      "sha256": "3c3bb1de898ceba5b7803ab9ebcbb76c857791e12a4e8cb0be165d060da1bdf0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p4-tiroir-matrix-chromium/trace.zip",
+      "size": 5811901,
+      "sha256": "49171f7bdfb408640711bb7fd6340c9548f5ab733ac9963a5e60dfbabc0d7a9e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p4-tiroir-matrix-chromium/video-1.webm",
+      "size": 2039,
+      "sha256": "d56e011e37425a161f092d466ebf01d6d846dafcc45c8156a124a58e1140ed21"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p4-tiroir-matrix-chromium/video.webm",
+      "size": 164227,
+      "sha256": "a88b905c795c3b91399375aa79a51786924f20dc4f349b74eba25481aee22115"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p5-le-point-matrix-chromium/error-context.md",
+      "size": 9994,
+      "sha256": "0021fd19c2ee06ddb3d5c23e4610df2bd397620de099fefc3eabd50423e6e396"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p5-le-point-matrix-chromium/test-failed-1.png",
+      "size": 133498,
+      "sha256": "65d857c0346f2c349d814e7d36e11c165d844dd25842e7d2a58c7f7532fcc6bd"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p5-le-point-matrix-chromium/trace.zip",
+      "size": 1932258,
+      "sha256": "eeaa4db9ca67cf10abde679b4df20aebc7ba2546ef82509a5fe553a11b45af44"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p5-le-point-matrix-chromium/video-1.webm",
+      "size": 2039,
+      "sha256": "3a7647e017a4d818ca520c7414c00ddd9ca2b76a6b7c965a5eb7ef9535b667f3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p5-le-point-matrix-chromium/video.webm",
+      "size": 83238,
+      "sha256": "b10212d17f7659b1d8879e6b11bddf7eebc8db1cf59a6d88a3767bf500062830"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p6-aide-matrix-chromium/error-context.md",
+      "size": 151795,
+      "sha256": "a01240887609fb8c4e63b43bbe35ee97613f0b77aca0b45e2a023dc92841b84a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p6-aide-matrix-chromium/test-failed-1.png",
+      "size": 230101,
+      "sha256": "56ffabe97f355a7479b1976b5dac85a622a5bdcbdfd0f72d25a40b2e05e354ec"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p6-aide-matrix-chromium/trace.zip",
+      "size": 2610391,
+      "sha256": "ca82aec6adfc1f130bf1b1a397a8cf84b705bf9b90fa51d1d74caa08c88f5011"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p6-aide-matrix-chromium/video-1.webm",
+      "size": 2039,
+      "sha256": "befbe9574bb50bb6ab089f1a995a3d751c9c3629956e6485c5817db96e69525b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p6-aide-matrix-chromium/video.webm",
+      "size": 146512,
+      "sha256": "367e54d016df93121a2b5f9397d9db2e33ead0c133ca4a050f7ef7ffcf9ba34f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p7-reglages-matrix-chromium/error-context.md",
+      "size": 18125,
+      "sha256": "cb63a434975f4aa8db68af7804a2796d93fdee631e62cc85a909ec592c346c8d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p7-reglages-matrix-chromium/test-failed-1.png",
+      "size": 129656,
+      "sha256": "4c54248c2e715dac3b94f7837e933ceb55f4d3bc1267139e66ea1948043a56db"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p7-reglages-matrix-chromium/trace.zip",
+      "size": 2231586,
+      "sha256": "88c24ea49ea060490edbf7a673a906e8a5e5207898ff0323c745c38e1a9df8fb"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p7-reglages-matrix-chromium/video-1.webm",
+      "size": 2039,
+      "sha256": "ad37f3f31b34ba29d3ad8535dca242537e0a6fd87aefbe242e84d9bd69b216f6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/matrix-a11y-WCAG-A-AA-—-p7-reglages-matrix-chromium/video.webm",
+      "size": 70240,
+      "sha256": "649e45a1af425b0198ee0198e79daead9185b5ba4c48352259fe8026e39ff7db"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-matrix-chromium/jir91-1-epic-sans-composant.png",
+      "size": 149838,
+      "sha256": "86461f8b736eb95dc56e7f9ef4d50af6ba422078485dce8a431350c01f2f383a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-matrix-chromium/jir91-2-bascule-composant.png",
+      "size": 140550,
+      "sha256": "67ee6cb29a18603768b12b4d0f042d7b3be0714de4fa5c393d594dbb9445f954"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-matrix-chromium/jir91-3-filtre-version.png",
+      "size": 144269,
+      "sha256": "9d7391de77996f2ec05106e56bbdedff90fddc92821af6a1e2f341a0edf0631e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-matrix-chromium/jir91-4-epic-avec-composant.png",
+      "size": 162084,
+      "sha256": "b585e5a7515f17d21fd3c2afe4486cda730b73cbe896008c44c8769c806ac13e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/new-item-required-parent-«-1b045-igatoire-puis-crée-la-Tâche-matrix-chromium/jir69-1-parent-manquant.png",
+      "size": 160916,
+      "sha256": "76aba5085592ec04a7b3f1f9b0cd19226bf6b6745f03a43ec2bcbc016f51ee5b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/new-item-required-parent-«-1b045-igatoire-puis-crée-la-Tâche-matrix-chromium/jir69-2-parent-choisi.png",
+      "size": 161873,
+      "sha256": "924b5102a03ed698fc319638e4fce8621ad42637f72fd870beb57c59160338c0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-matrix-chromium/error-context.md",
+      "size": 29638,
+      "sha256": "35a05e064da1a58b9b057d34821852391c1dc3a7f7c9eb304638f70e72fb4eb8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-matrix-chromium/test-failed-1.png",
+      "size": 147251,
+      "sha256": "161521f87874092926cd21e499b107e8fd45197567741ab69297376048af8a94"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-matrix-chromium/test-failed-2.png",
+      "size": 132032,
+      "sha256": "7ec6f50eafa650987e113692c82a58c8a33b5a13fe049e5347e349a105b947f3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-matrix-chromium/trace.zip",
+      "size": 5101793,
+      "sha256": "788d8ec32e5135d2dddec63607cbe6d0d14f11e242afa803f6ff70fc4b81c18d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-1-crée--c87bd-alisé-et-un-clone-de-schéma-matrix-chromium/video.webm",
+      "size": 221584,
+      "sha256": "8c1af90b2eb0d47d95ce3877ec1f591e86043b11fa948df33a840e7431c241b4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-10-pers-7e6cd-second-contexte-utilisateur-matrix-chromium/error-context.md",
+      "size": 28859,
+      "sha256": "afe14ab8d92f43d9cf392f159c227f7286893a171ca5dfa1112493403bdfc689"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-10-pers-7e6cd-second-contexte-utilisateur-matrix-chromium/test-failed-1.png",
+      "size": 129687,
+      "sha256": "ef0d8aed74cb73d8979540b95e1f90855447ed4634623fb11ad23eb5877a3e95"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-10-pers-7e6cd-second-contexte-utilisateur-matrix-chromium/test-failed-2.png",
+      "size": 246934,
+      "sha256": "25a23bb44b87213ff128b5da4892e783d62b11b020f4b3a776fdb4aeba6c7ae0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-10-pers-7e6cd-second-contexte-utilisateur-matrix-chromium/trace.zip",
+      "size": 2762493,
+      "sha256": "773d4f0d85bbbfa3017f8d28285d881e801567bc04e5132265711e9d3114d5b8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-10-pers-7e6cd-second-contexte-utilisateur-matrix-chromium/video.webm",
+      "size": 88846,
+      "sha256": "0172797a798bafc4283d4970558574628488e1017068523e7a9aa10ecf5b2e2d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-matrix-chromium/error-context.md",
+      "size": 28676,
+      "sha256": "ac152c2dad8c04e3dfdc8069c184dc103d1c1911852c8fbec5f6e830bf2b8c0d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-matrix-chromium/test-failed-1.png",
+      "size": 117148,
+      "sha256": "f24a98086a7738bbf5758776ff994a9c74810d2d040becf488835c1a1e5f9c99"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-matrix-chromium/trace.zip",
+      "size": 1972312,
+      "sha256": "6ed83f881a9691425c41561c204cbe4322f60ca9ae4ce9ea109aa3f3d4f995c3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-matrix-chromium/video.webm",
+      "size": 79642,
+      "sha256": "1bfb0948166501cadd8360ab8d195715204e37d9910a1edd2fd41f53258f209b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-4-rejet-1a056-ction-forgée-par-le-lecteur-matrix-chromium/error-context.md",
+      "size": 27491,
+      "sha256": "e3a4ab4388c703077043e402cf171ebd35abc712849483e33933529be6a29ecf"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-4-rejet-1a056-ction-forgée-par-le-lecteur-matrix-chromium/test-failed-1.png",
+      "size": 136101,
+      "sha256": "85319ab99cd9b5a5edc60014716fa3da1d109d7d09990b39e230817452e22137"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-4-rejet-1a056-ction-forgée-par-le-lecteur-matrix-chromium/trace.zip",
+      "size": 1317598,
+      "sha256": "4d7dbd9d616313b458bebfc5100785d924b5eb418e664e7026f147e8b9181c8c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-4-rejet-1a056-ction-forgée-par-le-lecteur-matrix-chromium/video.webm",
+      "size": 44439,
+      "sha256": "b03f528f2b429bef659b894df53861edb2ff70a2f461aa282128b8cb1e3497fa"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-6-relie-bcb6f-ace-Releases-du-spécialiste-matrix-chromium/error-context.md",
+      "size": 28825,
+      "sha256": "6964e500647980287844cba2dd23b3758ac7a5eebb0fd85c53be3ae46cf39a0f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-6-relie-bcb6f-ace-Releases-du-spécialiste-matrix-chromium/test-failed-1.png",
+      "size": 117154,
+      "sha256": "7ad0ccd204dc621345be6502f79f34aacf40d204ab2d8810433238f782d8104d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-6-relie-bcb6f-ace-Releases-du-spécialiste-matrix-chromium/test-failed-2.png",
+      "size": 92700,
+      "sha256": "bf3b2a5c81d60375f35483bb0c1b2729f3e0724ef5d63d9279ea4d9209629af3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-6-relie-bcb6f-ace-Releases-du-spécialiste-matrix-chromium/trace.zip",
+      "size": 2397521,
+      "sha256": "486420c85072252d2459b95aa56ecdd3bb4e040a99ebfa34032ef07f6e2333fe"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-6-relie-bcb6f-ace-Releases-du-spécialiste-matrix-chromium/video.webm",
+      "size": 93179,
+      "sha256": "5bba213878c2a200d2406d2a0d6b64b3722b1210f88869cac7970713024d677c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-7-retir-b52fa-écents-notifications-et-URL-matrix-chromium/error-context.md",
+      "size": 11017,
+      "sha256": "8dc618ccb322928b2febdb4f26e612693bd584d7d4802dd2bd290ea9912b09c9"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-7-retir-b52fa-écents-notifications-et-URL-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-7-retir-b52fa-écents-notifications-et-URL-matrix-chromium/test-failed-2.png",
+      "size": 36795,
+      "sha256": "cdffc4717bfe505811b67ad2c5847b2b5660201860a5cf5eef59f8ae897e6bdf"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-7-retir-b52fa-écents-notifications-et-URL-matrix-chromium/test-failed-3.png",
+      "size": 225246,
+      "sha256": "6792525f267126457e8de14ddac5aef372266a62d1d38e7db4b79a1001d48d48"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-7-retir-b52fa-écents-notifications-et-URL-matrix-chromium/trace.zip",
+      "size": 4753810,
+      "sha256": "2edfd4bdc3f27210be639e27ddab4055eed3b5a74ab92e71525e3869387e361c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-7-retir-b52fa-écents-notifications-et-URL-matrix-chromium/video.webm",
+      "size": 6435,
+      "sha256": "461d6a5f941c25cfa64f8adcff9ed876f631a1a008c633262fcf7959fe61dfd7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-8-détec-26f58--version-sur-schéma-partagé-matrix-chromium/error-context.md",
+      "size": 11004,
+      "sha256": "f07a48513ca3624b1061d7be1a02c0ce1977e6802cfa6ed31c2974bea54101e4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-8-détec-26f58--version-sur-schéma-partagé-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-8-détec-26f58--version-sur-schéma-partagé-matrix-chromium/test-failed-2.png",
+      "size": 236142,
+      "sha256": "e573a68b507510c62010fcff07392ce91e963c6bd8682f431d101ac611a65cda"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-8-détec-26f58--version-sur-schéma-partagé-matrix-chromium/test-failed-3.png",
+      "size": 233432,
+      "sha256": "16db0cb179b28ef86bc307f31f36ed8940033457cb1d5899838db91f59e570dd"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-8-détec-26f58--version-sur-schéma-partagé-matrix-chromium/trace.zip",
+      "size": 4424452,
+      "sha256": "a84ef7cfe7c9a395a47906c95e4aa3001af7bd964288aeee7d4e847b3177f911"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/permission-schemes-8-détec-26f58--version-sur-schéma-partagé-matrix-chromium/video.webm",
+      "size": 5269,
+      "sha256": "9dada1974cb264ba659e3b7428acdde0f8e9528b486f582f20e08103a9edcc39"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium/error-context.md",
+      "size": 9880,
+      "sha256": "778ba143aa897e7853a432624646e97e294ae51ead700a7f6038cee0ad156cc7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium/test-failed-1.png",
+      "size": 222610,
+      "sha256": "bd24834a44841c9eb0cd8f3dbacfbb0a75763858ac9550047560dc7923e0997a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium/test-failed-2.png",
+      "size": 215892,
+      "sha256": "161c2d5fbd50e845531abe380c635704ce2e1599a07f084a7bc06186cba510fa"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium/trace.zip",
+      "size": 433811,
+      "sha256": "2bff2c802aa184967f1246d8859691462440f420b346199202c274fd32de1ae2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium/error-context.md",
+      "size": 9816,
+      "sha256": "669a5fa836fba1d7f5497d4b311649dac6b50cc64b3c3a44dbafef8a62382d3f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium/test-failed-1.png",
+      "size": 225254,
+      "sha256": "8970e841959da7d521dadcaa1d1470dfac51acd67688fc558bc85dbd0d8753a6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium/test-failed-2.png",
+      "size": 219942,
+      "sha256": "226e033129f29a5c03170eb1d8f1c91fb73c85551d3342940626f009a0d21202"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium/trace.zip",
+      "size": 439588,
+      "sha256": "eb8ca35e48dee1990fc30de7b891af49bd58c4c439659d7631549d4b984ce6d2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium/error-context.md",
+      "size": 9818,
+      "sha256": "a299cc48e2e006e834197b22040eb5644566cfdf958e06871f9169288491a09c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium/test-failed-1.png",
+      "size": 218761,
+      "sha256": "7486c2bfd97f9981bfb88aae200871eb78f64ffd608d7e3294c9c709e0598dca"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium/test-failed-2.png",
+      "size": 222513,
+      "sha256": "bac35f7474ecd4827ea41591a56d719a5183a6efc71b90e4638ce372ebcfd3e9"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium/trace.zip",
+      "size": 439787,
+      "sha256": "20f21e5b6409cd83c2345f14a8a344f5f27889862d3f7eb8ea381bbeb76e97c8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-01-—-crée-puis-modifie-une-version-matrix-chromium/error-context.md",
+      "size": 19108,
+      "sha256": "c3665943254c305f672c10e1951812763c921b174dc82286b05c2cf4988f8889"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-01-—-crée-puis-modifie-une-version-matrix-chromium/test-failed-1.png",
+      "size": 129280,
+      "sha256": "d015ac32eef2e543e6919cadacd3086991b0c7d8b822a090382b5385bc608bef"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-01-—-crée-puis-modifie-une-version-matrix-chromium/trace.zip",
+      "size": 4490786,
+      "sha256": "9b4d1ffe01a9ef5ca4a4bd5b99e9e9d2b73d801cceb160a084ebf83617a07b7a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-01-—-crée-puis-modifie-une-version-matrix-chromium/video.webm",
+      "size": 712440,
+      "sha256": "fac683d936aa597cc40e9ed102a93aa92bf061e77d47cf8e561f3c3872ec4eb2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-02-—-persiste-deu-84533-ation-puis-depuis-le-détail-matrix-chromium/error-context.md",
+      "size": 52151,
+      "sha256": "b4273e6819d654bfcea379cd0817bdbe62e75761cf7dca18b28da593f79ed48e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-02-—-persiste-deu-84533-ation-puis-depuis-le-détail-matrix-chromium/test-failed-1.png",
+      "size": 223938,
+      "sha256": "f39eea2a3e1d87e59a1340a5c19af96cb89acb6a1ebf652029ae28ecd1f1ff7b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-02-—-persiste-deu-84533-ation-puis-depuis-le-détail-matrix-chromium/trace.zip",
+      "size": 3377208,
+      "sha256": "f225c22730386c7695a7b1cbf2ec0803d47eeafd2d0bfc09950cdc65c24f9b70"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-02-—-persiste-deu-84533-ation-puis-depuis-le-détail-matrix-chromium/video.webm",
+      "size": 1057767,
+      "sha256": "fefb80459ddc9d1b66de254ed19e4af8447fa07d01a0723f0983d05159583ee3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-03-—-ajoute-rempl-1a149-etire-des-versions-en-masse-matrix-chromium/error-context.md",
+      "size": 45810,
+      "sha256": "dfc814d8db6eafa8ec32898471d389585c797de91bba0a08621f51ea87236441"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-03-—-ajoute-rempl-1a149-etire-des-versions-en-masse-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-03-—-ajoute-rempl-1a149-etire-des-versions-en-masse-matrix-chromium/test-failed-2.png",
+      "size": 268666,
+      "sha256": "f0ae5261dd8cd8f7a0bb7ca3959322a3e5cebea505fcebc9091249b79094ab4b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-03-—-ajoute-rempl-1a149-etire-des-versions-en-masse-matrix-chromium/trace.zip",
+      "size": 8380322,
+      "sha256": "c1404f924c5746d96a6e4ab1219bb94c393b555c0b665cf24f5d49976c7b44e5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-03-—-ajoute-rempl-1a149-etire-des-versions-en-masse-matrix-chromium/video.webm",
+      "size": 32636,
+      "sha256": "364055fe2fd7d743db3eb4c23cebe4ca390f2c82fc4fb58bf72c630b9c4f35ec"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-04-—-conserve-le--a0bab-et-dans-une-vue-enregistrée-matrix-chromium/error-context.md",
+      "size": 17692,
+      "sha256": "6ed25d8b54f51841d7812b2ca1210c5d64e982e6c4553573c53b2f7495dcf69e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-04-—-conserve-le--a0bab-et-dans-une-vue-enregistrée-matrix-chromium/test-failed-1.png",
+      "size": 105146,
+      "sha256": "9461ae8c548f5735cff4a2d199a11fd7915cc72bb30dde7ebcc48cce7aa5c7fb"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-04-—-conserve-le--a0bab-et-dans-une-vue-enregistrée-matrix-chromium/trace.zip",
+      "size": 6757234,
+      "sha256": "f7acb4bbb597328d2e189c707a71cef3bddebfe44943539400015a53f2d5879f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-04-—-conserve-le--a0bab-et-dans-une-vue-enregistrée-matrix-chromium/video.webm",
+      "size": 256954,
+      "sha256": "36cf88cccfd78b04f4c3debabe57bae4a736b00fddb5e32ff4ea33320897393f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-06-—-permet-au-sp-c4158-n-conservant-les-incomplets-matrix-chromium/error-context.md",
+      "size": 9278,
+      "sha256": "14f330d3d90320181aed38c136a2b48304ec53eecb627ff2390a83abfdfe06cf"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-06-—-permet-au-sp-c4158-n-conservant-les-incomplets-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-06-—-permet-au-sp-c4158-n-conservant-les-incomplets-matrix-chromium/test-failed-2.png",
+      "size": 151239,
+      "sha256": "d38baeea9903ad933ea7038f104a1bef558140a556af1b20d960eba918a3186b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-06-—-permet-au-sp-c4158-n-conservant-les-incomplets-matrix-chromium/trace.zip",
+      "size": 1683909,
+      "sha256": "7dc9d92ad9c827abbbe073da67d2faffaf37d25b1626821de66a93f9ec0ba420"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-06-—-permet-au-sp-c4158-n-conservant-les-incomplets-matrix-chromium/video.webm",
+      "size": 3671,
+      "sha256": "fcd108cf0f4dc41225937213c8ee7c84fadc951c69c0845d14378ef4cbeef4ad"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-07-—-refuse-un-pu-7f098-ve-forgé-par-le-spécialiste-matrix-chromium/error-context.md",
+      "size": 20009,
+      "sha256": "242b3adb0d7ea7c36148dd8a1ad6ad52c67dd6bb770ff4cfcdd574dfc898adc1"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-07-—-refuse-un-pu-7f098-ve-forgé-par-le-spécialiste-matrix-chromium/test-failed-1.png",
+      "size": 147195,
+      "sha256": "a7fd11dacdc2f5dfa2088daa494eb22ded47acaf31269143b84d483cd7077156"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-07-—-refuse-un-pu-7f098-ve-forgé-par-le-spécialiste-matrix-chromium/trace.zip",
+      "size": 3669400,
+      "sha256": "db62940c48360810bff2aa1c9573e5ca056f14a2896ccf41f1aada2b4a011c40"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-07-—-refuse-un-pu-7f098-ve-forgé-par-le-spécialiste-matrix-chromium/video.webm",
+      "size": 262581,
+      "sha256": "43e7db1e9f1edeb260bd150b6924449a7ab7ffe7a2b8a619c8bcd4ff81240d46"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-08-—-conserve-deu-337d1-ublication-et-republication-matrix-chromium/error-context.md",
+      "size": 21398,
+      "sha256": "f48b229693da391ae196b786d7ae5df4127c9e3f57c2a216858c2f35c50bc20d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-08-—-conserve-deu-337d1-ublication-et-republication-matrix-chromium/test-failed-1.png",
+      "size": 154562,
+      "sha256": "78d85d5084726a36b7b4338d4c92aea179b4aaadb8e6e30080d9f3e89cef105e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-08-—-conserve-deu-337d1-ublication-et-republication-matrix-chromium/trace.zip",
+      "size": 2741840,
+      "sha256": "936c011d22b85645c9c6ca891f8bd3683086bedda4684ac5699e1a97631d620f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-08-—-conserve-deu-337d1-ublication-et-republication-matrix-chromium/video.webm",
+      "size": 712192,
+      "sha256": "5d0756d553373532e8cd33d650f941dccdeb01024a6f4bd3c6f3fc3c3a2fd4a3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-09-—-déplace-les--d6c09-leurs-versions-sans-rapport-matrix-chromium/error-context.md",
+      "size": 22308,
+      "sha256": "33a706064f2856849204ca65bb9201536df0b804b11be837b54806525ed56098"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-09-—-déplace-les--d6c09-leurs-versions-sans-rapport-matrix-chromium/test-failed-1.png",
+      "size": 157035,
+      "sha256": "c56d7354041b045e6e5b9927c589aa24156a819a0f68ac74e66a82e4f8b393f4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-09-—-déplace-les--d6c09-leurs-versions-sans-rapport-matrix-chromium/trace.zip",
+      "size": 1915333,
+      "sha256": "9ffd05be3d96a7cc613eb93225689b1834dd6dc4f7d6653668959149760bebcc"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-09-—-déplace-les--d6c09-leurs-versions-sans-rapport-matrix-chromium/video.webm",
+      "size": 131241,
+      "sha256": "00097b2158b0ce62fa870c5b5572b19a978bf1711a7777ec28c1c703ec7e5a57"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-10-—-masque-une-v-1fd77-dant-l’affectation-courante-matrix-chromium/error-context.md",
+      "size": 20007,
+      "sha256": "9002f1c0d917be27b6145825a1f82e6ef401aafa67f9ce35fd49bb855459a3c0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-10-—-masque-une-v-1fd77-dant-l’affectation-courante-matrix-chromium/test-failed-1.png",
+      "size": 148576,
+      "sha256": "8d01b143c8795b7c344192284b71059b6e09911f4c620b818ddc73c1fd63183e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-10-—-masque-une-v-1fd77-dant-l’affectation-courante-matrix-chromium/trace.zip",
+      "size": 3811955,
+      "sha256": "5d18e988c6356b9b92d32d0ce970a67f291c2c590615a63759681704dcc4a816"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-10-—-masque-une-v-1fd77-dant-l’affectation-courante-matrix-chromium/video.webm",
+      "size": 734885,
+      "sha256": "f93ea8eca56be94995d84c23f7a8253116f4f5df3a46c64108322d6e4e197d66"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-11-—-autorise-l’é-71c4b-ans-exposer-le-cycle-de-vie-matrix-chromium/error-context.md",
+      "size": 42199,
+      "sha256": "34f5b68b53f679a4c98824c673bb6f923c12c57b650a1ac372af7153ceea7a6b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-11-—-autorise-l’é-71c4b-ans-exposer-le-cycle-de-vie-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-11-—-autorise-l’é-71c4b-ans-exposer-le-cycle-de-vie-matrix-chromium/test-failed-2.png",
+      "size": 240621,
+      "sha256": "9df745f043d609916960b36b57ea0946a528f75b3c56616f944dfbce56efea19"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-11-—-autorise-l’é-71c4b-ans-exposer-le-cycle-de-vie-matrix-chromium/trace.zip",
+      "size": 3725601,
+      "sha256": "edd654a04ea9d072895746d699398e0d5fb713c980691438f770d5574a3d5316"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-11-—-autorise-l’é-71c4b-ans-exposer-le-cycle-de-vie-matrix-chromium/video.webm",
+      "size": 32670,
+      "sha256": "1bb266118a9265cc1bb803c382a98bba8fd93fc09bff031b3bb405e15c43256b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-12-—-refuse-la-re-d62c1-ns-changer-DB-ni-historique-matrix-chromium/error-context.md",
+      "size": 19171,
+      "sha256": "c9a992aa630eeee25f28d9b6ef7c148560a38e9a33d51de535e720ab9bbb809e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-12-—-refuse-la-re-d62c1-ns-changer-DB-ni-historique-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-12-—-refuse-la-re-d62c1-ns-changer-DB-ni-historique-matrix-chromium/test-failed-2.png",
+      "size": 242838,
+      "sha256": "03dc7dfdbaed5efbf3a2a3ed3412c5a7925d8798fb74ae96fe09bcd49037e39d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-12-—-refuse-la-re-d62c1-ns-changer-DB-ni-historique-matrix-chromium/trace.zip",
+      "size": 3653979,
+      "sha256": "0542b1e0f2e99ffa8ae16765677c0110aa987a35a91a8d8948a3c135a1743cd8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-12-—-refuse-la-re-d62c1-ns-changer-DB-ni-historique-matrix-chromium/video.webm",
+      "size": 8951,
+      "sha256": "565d84dac77dde9bfef2e1c982a4bef573480a0fbefffc025d44c4b9080551bf"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-13-—-détecte-une-édition-stale-entre-deux-contextes-matrix-chromium/error-context.md",
+      "size": 9092,
+      "sha256": "abb53e06d5455c2fef59e7ed327d40baf8a547418661dbab2ed3ae479f4c6af8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-13-—-détecte-une-édition-stale-entre-deux-contextes-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-13-—-détecte-une-édition-stale-entre-deux-contextes-matrix-chromium/test-failed-2.png",
+      "size": 141947,
+      "sha256": "91302538a7cb60169de8efb5c520880f6e0df6302859de16497c7ac53a9ed2fc"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-13-—-détecte-une-édition-stale-entre-deux-contextes-matrix-chromium/test-failed-3.png",
+      "size": 136055,
+      "sha256": "8e7df59b3350ff0ef1b0ae54c4e340e4c220a46a6e7ea938ae89a50ebd2c7fcc"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-13-—-détecte-une-édition-stale-entre-deux-contextes-matrix-chromium/trace.zip",
+      "size": 2133575,
+      "sha256": "e1d1c492444d6ddae1815e0beeea3977bf345f823a5d3f60ac34831536a9c581"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-13-—-détecte-une-édition-stale-entre-deux-contextes-matrix-chromium/video.webm",
+      "size": 32636,
+      "sha256": "d0abbd42617ab685fe877508636572b11c30f42b53ca8436622a812acf517ad0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-14-—-garde-le-dia-3404f-ck-après-publish-intercepté-matrix-chromium/error-context.md",
+      "size": 20861,
+      "sha256": "0c7753333e3b0868dede62f11acb9fc7faf0fb955b9409b17621c67a4d7edb5b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-14-—-garde-le-dia-3404f-ck-après-publish-intercepté-matrix-chromium/test-failed-1.png",
+      "size": 153370,
+      "sha256": "9967fee77f4960d273b7215a56277972b017aab26aca11cbd6bfdeb698382710"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-14-—-garde-le-dia-3404f-ck-après-publish-intercepté-matrix-chromium/trace.zip",
+      "size": 2483865,
+      "sha256": "59362f28a5c1d40d438d652245bddf4135768cd6b8e30ebb66cae7e5fd6105dc"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-14-—-garde-le-dia-3404f-ck-après-publish-intercepté-matrix-chromium/video.webm",
+      "size": 266392,
+      "sha256": "ffa7a8ff561862a6339264290dd042bd7778ac2a0c4bc7c15c6a4881410d9335"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-15-—-rend-la-rele-c207a-ateur-et-isole-CASS-de-LABS-matrix-chromium/error-context.md",
+      "size": 12876,
+      "sha256": "4df48c5c8c49f5d006ba1639cd5cca86de3309a7237a44582264985dbe3fef8d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-15-—-rend-la-rele-c207a-ateur-et-isole-CASS-de-LABS-matrix-chromium/test-failed-1.png",
+      "size": 53151,
+      "sha256": "79e82ed3d9b109a278def2029d01ca2bdb48d14b628929706da96d620f674707"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-15-—-rend-la-rele-c207a-ateur-et-isole-CASS-de-LABS-matrix-chromium/test-failed-2.png",
+      "size": 36172,
+      "sha256": "ea440cab6a618dae288aaaaa9bbecca3dbf217d85f1f6938b483591922dea127"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-15-—-rend-la-rele-c207a-ateur-et-isole-CASS-de-LABS-matrix-chromium/trace.zip",
+      "size": 1827472,
+      "sha256": "af72a8b548f262b3b11258cb27d760cdfcb9b16701e390db12c066b50836a73a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-15-—-rend-la-rele-c207a-ateur-et-isole-CASS-de-LABS-matrix-chromium/video.webm",
+      "size": 38190,
+      "sha256": "55f24fd9650c866c0ed3ed3d39cbe0205a3d74c03f0b66f46fbbf19f3059d466"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-16-—-refuse-un-pu-c06e1-change-entre-deux-contextes-matrix-chromium/error-context.md",
+      "size": 10448,
+      "sha256": "236072626ce3e6165397c33fd498179420b7d259f41386b9bb61177dce9c9e00"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-16-—-refuse-un-pu-c06e1-change-entre-deux-contextes-matrix-chromium/test-failed-1.png",
+      "size": 234769,
+      "sha256": "5502a8a8eead2f42feb97fd2c6440bf37ef2e0488338e70c808ce8217c3a5959"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-16-—-refuse-un-pu-c06e1-change-entre-deux-contextes-matrix-chromium/test-failed-2.png",
+      "size": 252507,
+      "sha256": "9dc9581811944cd534db8d7c3fb6eea0a48937a905b14c691de68485e86297d2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-16-—-refuse-un-pu-c06e1-change-entre-deux-contextes-matrix-chromium/trace.zip",
+      "size": 5927384,
+      "sha256": "e31078b9acaa459e41c7a4ac56e8497cb2a5264cb7f36a97e1df0c312680d9c6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-16-—-refuse-un-pu-c06e1-change-entre-deux-contextes-matrix-chromium/video.webm",
+      "size": 573218,
+      "sha256": "39f6db6120ea6fb5cb7b1fb1d4262e4df4385329016b593b1a9f503f4da5b7f7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-17-—-fusionne-une-ce6fd--liens-et-la-retire-partout-matrix-chromium/error-context.md",
+      "size": 72925,
+      "sha256": "a16d2712e0ad7e2f35a717f1637457f7e82a5b9c255f4a7de00cca1905c3b36c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-17-—-fusionne-une-ce6fd--liens-et-la-retire-partout-matrix-chromium/test-failed-1.png",
+      "size": 142128,
+      "sha256": "6e8305e11c41b7df12b3e91f127e43483e42b7a7a5741e42086b501cb6f3b333"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-17-—-fusionne-une-ce6fd--liens-et-la-retire-partout-matrix-chromium/trace.zip",
+      "size": 2127939,
+      "sha256": "e21bf77085d60de799daec9a83dd35b757e55236dd2f1da1cbb9c53a1574092f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-17-—-fusionne-une-ce6fd--liens-et-la-retire-partout-matrix-chromium/video.webm",
+      "size": 704293,
+      "sha256": "94208b3d540eae50e0cf255f521c48e12d26a803c4c618c612766f930e0fa334"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-18-—-fusionne-une-b5631-snapshots-ni-leurs-libellés-matrix-chromium/error-context.md",
+      "size": 20971,
+      "sha256": "04693d5c94ecd803fe7e9877f98567131f12b8c7f15f70ca94ba0c06337f2d61"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-18-—-fusionne-une-b5631-snapshots-ni-leurs-libellés-matrix-chromium/test-failed-1.png",
+      "size": 144783,
+      "sha256": "29bbbc1dccba47fc9c1244f93bd897740a0e16a6f72d5f8ae05713a7675bd72a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-18-—-fusionne-une-b5631-snapshots-ni-leurs-libellés-matrix-chromium/trace.zip",
+      "size": 2233733,
+      "sha256": "b4bb06c3bc8c58d7e599acc37425422899a40bd8423d335a478baae386f063e2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-18-—-fusionne-une-b5631-snapshots-ni-leurs-libellés-matrix-chromium/video.webm",
+      "size": 114963,
+      "sha256": "dd09f59c3f455a2e5ecec7a33cccdef9e7e5ab7e85da81aae6916bd1b607db40"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-19-—-supprime-ave-9bc66-en-journalisant-chaque-item-matrix-chromium/error-context.md",
+      "size": 87083,
+      "sha256": "75f7a4cd01b7e7bf5bcb4087b25162c654a4962f89aee493f465daea9af701eb"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-19-—-supprime-ave-9bc66-en-journalisant-chaque-item-matrix-chromium/test-failed-1.png",
+      "size": 145026,
+      "sha256": "2da12a1ff7baf0eb4084e14f7b2498735720437f66d7e2fd5eb6eba27b0c09b4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-19-—-supprime-ave-9bc66-en-journalisant-chaque-item-matrix-chromium/trace.zip",
+      "size": 2198443,
+      "sha256": "ffd3ec4e39b6f7224024bdd6e137419a8cf26acc75800b3a292b6040e5be488f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-19-—-supprime-ave-9bc66-en-journalisant-chaque-item-matrix-chromium/video.webm",
+      "size": 785588,
+      "sha256": "2b866e2faedb7164971bca0bb229fa21b1fea6a5df8db831e09b4584bb0becab"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-20-—-laisse-le-sp-2d2c1--sans-edit-items-comme-Jira-matrix-chromium/error-context.md",
+      "size": 9609,
+      "sha256": "8d38edf00b0319835a97687d6b1c6037009fa30c19aae17f0cbaf3ecbc166476"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-20-—-laisse-le-sp-2d2c1--sans-edit-items-comme-Jira-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-20-—-laisse-le-sp-2d2c1--sans-edit-items-comme-Jira-matrix-chromium/test-failed-2.png",
+      "size": 54963,
+      "sha256": "52981962f4dba88cb243b73986fbf71d24e730596d79e1307abb54f949e3629f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-20-—-laisse-le-sp-2d2c1--sans-edit-items-comme-Jira-matrix-chromium/trace.zip",
+      "size": 3678665,
+      "sha256": "3658170d1a63ebb01216da7e48f1d411c57682e526436c01a599000cc614977a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-20-—-laisse-le-sp-2d2c1--sans-edit-items-comme-Jira-matrix-chromium/video.webm",
+      "size": 5031,
+      "sha256": "aafa9f121a3d37fca6b676fa8aab8e7829c90eca16797854d2f3ee554bce9928"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-21-—-masque-fusio-026db-fuse-leurs-requêtes-forgées-matrix-chromium/error-context.md",
+      "size": 57406,
+      "sha256": "e3a43fe8ebffca56d49c89bafd6f5634e4e79e19ed009b14e11c1fd875b28b8e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-21-—-masque-fusio-026db-fuse-leurs-requêtes-forgées-matrix-chromium/test-failed-1.png",
+      "size": 150875,
+      "sha256": "83e0b42c75b5108a822d7d901961cb1a4bc65879e5cdfae9764f94d36e8ac89f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-21-—-masque-fusio-026db-fuse-leurs-requêtes-forgées-matrix-chromium/trace.zip",
+      "size": 2482593,
+      "sha256": "377dcd03fc270af9bd6a4a23fe448d4173e4c727677912985da90c75fb2d3dcc"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-21-—-masque-fusio-026db-fuse-leurs-requêtes-forgées-matrix-chromium/video.webm",
+      "size": 231405,
+      "sha256": "2bc23a27c2e3b37160b1557da71c56af3ddcc3f95519e339f40cba24e4a410ff"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-22-—-refuse-une-s-c4e79-u-d’impact-est-devenu-stale-matrix-chromium/error-context.md",
+      "size": 19211,
+      "sha256": "e3d54bd34179bc2f5f1fabfde59636cba2f0d3f54506f8915387a03f11d809a1"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-22-—-refuse-une-s-c4e79-u-d’impact-est-devenu-stale-matrix-chromium/test-failed-1.png",
+      "size": 227960,
+      "sha256": "07393e711c405756e5e1bb092a2baaa6c994f868338cc2beb31884f9cb62fcff"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-22-—-refuse-une-s-c4e79-u-d’impact-est-devenu-stale-matrix-chromium/trace.zip",
+      "size": 1577330,
+      "sha256": "1747f9b4d83bf51d6263fba9184c02d88eb142106410a3144552b634956472fc"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-22-—-refuse-une-s-c4e79-u-d’impact-est-devenu-stale-matrix-chromium/video.webm",
+      "size": 551482,
+      "sha256": "0aa0ff3bb32064e211a3aae724845f0f35f79bf6b8efe7522f631c949bb4b171"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-23-—-garde-le-dia-6d8f9-une-suppression-interceptée-matrix-chromium/error-context.md",
+      "size": 60054,
+      "sha256": "e27c49a4ea284c48df3b11a99ca5af3ead7c2a1dd969f13fa9f3d1168259fd1f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-23-—-garde-le-dia-6d8f9-une-suppression-interceptée-matrix-chromium/test-failed-1.png",
+      "size": 150907,
+      "sha256": "d90cd0efe8aad49a33f6b202caa7ff2b08eb39757bf97066d5b63bbea53e2b18"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-23-—-garde-le-dia-6d8f9-une-suppression-interceptée-matrix-chromium/trace.zip",
+      "size": 3201807,
+      "sha256": "4dd42b90fefc2844a85f5bec1b2e5690fe90d72b17edf756895dc6bf9bc6b540"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-23-—-garde-le-dia-6d8f9-une-suppression-interceptée-matrix-chromium/video.webm",
+      "size": 229426,
+      "sha256": "2b1a50d713d0944ee794bf0d79df1138baf714a32ffc5e51ee7696c4e80eaa91"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-24-—-réordonne-pa-fcbf4--pour-un-second-utilisateur-matrix-chromium/error-context.md",
+      "size": 78985,
+      "sha256": "4b92251a739ce33f979cafe5e9f1e9a474a993a43d45829100fd33d72b41a7f3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-24-—-réordonne-pa-fcbf4--pour-un-second-utilisateur-matrix-chromium/test-failed-1.png",
+      "size": 241002,
+      "sha256": "2f94130dbcc06622970c2a40f765b7c7c2707fa1035b494879acd3100066c288"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-24-—-réordonne-pa-fcbf4--pour-un-second-utilisateur-matrix-chromium/test-failed-2.png",
+      "size": 119278,
+      "sha256": "f3dc30941f09856da0d43951c47713f4ec52daf8ca6a0cf79a1c43e1b6192f14"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-24-—-réordonne-pa-fcbf4--pour-un-second-utilisateur-matrix-chromium/trace.zip",
+      "size": 14814740,
+      "sha256": "1076be2e72ae2ba8e9f29ec6dfb2954f8f9f8c225c8923fd1f2f021f5f4bb90c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-24-—-réordonne-pa-fcbf4--pour-un-second-utilisateur-matrix-chromium/video.webm",
+      "size": 670923,
+      "sha256": "64be4350e3083c5e96b661a64afc2eb5f122d5fdd30195b54eb69d1c7e171070"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-25-—-génère-les-n-c2721-état-courant-publiée-ou-non-matrix-chromium/error-context.md",
+      "size": 16791,
+      "sha256": "834e4cf72fea6a1486d43d10b02df237893a98835e54800643ca40e55bedd1b6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-25-—-génère-les-n-c2721-état-courant-publiée-ou-non-matrix-chromium/test-failed-1.png",
+      "size": 121870,
+      "sha256": "5c9e8ec570d545743358833821178919029624d2477e605646d5940f0a7a4548"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-25-—-génère-les-n-c2721-état-courant-publiée-ou-non-matrix-chromium/trace.zip",
+      "size": 4970693,
+      "sha256": "9408316234795be771b491fd8aa914314ebf5435508e3f0383f8ec6df1cfc16d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-25-—-génère-les-n-c2721-état-courant-publiée-ou-non-matrix-chromium/video.webm",
+      "size": 223008,
+      "sha256": "b1f76c568894adf1ba709cca35660f85fc717ec30a4cc764a22b53a50ea4c5ec"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-27-—-ignore-une-v-c7e88-gistrée-et-reste-responsive-matrix-chromium/error-context.md",
+      "size": 16306,
+      "sha256": "ab0bb3cb15d2108adde7175e38b2a134b4955b80e07c700cdf769eed1952b857"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-27-—-ignore-une-v-c7e88-gistrée-et-reste-responsive-matrix-chromium/test-failed-1.png",
+      "size": 105163,
+      "sha256": "dd3a3d149556cccba64f50b4866ffcb5bb4d9849fb9af599b76216df74f4d1b8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-27-—-ignore-une-v-c7e88-gistrée-et-reste-responsive-matrix-chromium/trace.zip",
+      "size": 6674541,
+      "sha256": "b64b33665f18dcc84b174b55ed1087a8cf5204a2ff8b1c84a11c15d34a0a300b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/releases-27-—-ignore-une-v-c7e88-gistrée-et-reste-responsive-matrix-chromium/video.webm",
+      "size": 454949,
+      "sha256": "12a8a15a0870ad7987f5abbcc890448c9e559c0a1d2c219734a96de303b115fd"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-43034-the-reader-s-bars-read-only-matrix-chromium/error-context.md",
+      "size": 9970,
+      "sha256": "d865ae2bc43b2fe947eee92bdd716a7e922ba01dfb2cd77b0d8db34d76e7f439"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-43034-the-reader-s-bars-read-only-matrix-chromium/test-failed-1.png",
+      "size": 135009,
+      "sha256": "b62529f18e3cb7e5283d1df09720b3c96d25d4866a99462ed8aabe544a6c60e8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-43034-the-reader-s-bars-read-only-matrix-chromium/test-failed-2.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-43034-the-reader-s-bars-read-only-matrix-chromium/trace.zip",
+      "size": 139400,
+      "sha256": "2728da206dd46c81079c92226d642254f8403a21b9ae216813f771f86f8e0936"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-5838a--two-one-day-keyboard-moves-matrix-chromium/error-context.md",
+      "size": 10038,
+      "sha256": "11428bfd03583752fe11f46e67d9889c4b5d5fed66c92803342541988e4b813a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-5838a--two-one-day-keyboard-moves-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-5838a--two-one-day-keyboard-moves-matrix-chromium/test-failed-2.png",
+      "size": 135988,
+      "sha256": "a7fab877267e43b022919b9e16ace98bed21e77c3cf7b63aae252ba89d5014ce"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-5838a--two-one-day-keyboard-moves-matrix-chromium/trace.zip",
+      "size": 140225,
+      "sha256": "a2a45272a2cf046c0c86de801dfdb67a9e132cbc9c8a8233cf6ae05a30598254"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-6818d--selected-zoom-after-reload-matrix-chromium/error-context.md",
+      "size": 9911,
+      "sha256": "2c1e36be46b0ecb0c1691fe04abd6b5396827268759a190848c4e0b94eebf533"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-6818d--selected-zoom-after-reload-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-6818d--selected-zoom-after-reload-matrix-chromium/test-failed-2.png",
+      "size": 145135,
+      "sha256": "35ad223708755af2ba69ef53d173c78df515ecd1bab8f1837e1d41d5ed1c199e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-6818d--selected-zoom-after-reload-matrix-chromium/trace.zip",
+      "size": 149625,
+      "sha256": "741db45e27cb5740af0edfe4bab2eca75d2228893ebd6dd940e4ff44484d7c93"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-d67a7-an-empty-row-and-keeps-them-matrix-chromium/error-context.md",
+      "size": 10129,
+      "sha256": "94619a6fb0100e1881b81e6ed6fa2d7cbe44d89b5f60f949b4a747d9df37f3a7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-d67a7-an-empty-row-and-keeps-them-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-d67a7-an-empty-row-and-keeps-them-matrix-chromium/test-failed-2.png",
+      "size": 136041,
+      "sha256": "c82b3c4b053aed2bb94b47e6d41e98ad1bad779c5e3d0421a8721e2ae8492785"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-d67a7-an-empty-row-and-keeps-them-matrix-chromium/trace.zip",
+      "size": 139923,
+      "sha256": "7cd383b136e9ee92ea39218da9eecc8d4bf353e2bc13eccfc3ad7004214f997f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-fe81f-atching-dates-in-its-drawer-matrix-chromium/error-context.md",
+      "size": 10065,
+      "sha256": "fe56a76af73ad10032cac7cbd4bf4d8cda544d02822c292c9dbb5147d2921bf3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-fe81f-atching-dates-in-its-drawer-matrix-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-fe81f-atching-dates-in-its-drawer-matrix-chromium/test-failed-2.png",
+      "size": 222026,
+      "sha256": "ad24ce7a7e0b9f1676b5caafe50a28c59f051746aa606bf3e7a628c34706fd71"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/roadmap-planning-on-the-Ro-fe81f-atching-dates-in-its-drawer-matrix-chromium/trace.zip",
+      "size": 228877,
+      "sha256": "624b32da773e231a4183fd6c8791b69c2edfd37398d05f3072cfd6456d00ee95"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-matrix-chromium/jir74-desktop-dark.png",
+      "size": 268230,
+      "sha256": "13717f56796227778223a6296f602f1178a45d7d8495e994b8961115d64c0b15"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-matrix-chromium/jir74-desktop-light.png",
+      "size": 263314,
+      "sha256": "53b94360dbd29e7da1bba7df7c95658ae5de1dd39ecb4d825d6ed1bc6c0068c4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-matrix-chromium/jir74-mobile-drawer.png",
+      "size": 117648,
+      "sha256": "210156ad2e8149576d4aa7c2bbd9cdc0cc295a466258630d36593c127dfaeb22"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-matrix-chromium/jir74-mobile.png",
+      "size": 88020,
+      "sha256": "dcee91b3345f3cd5aca59568b861e1f5cd110fb0564e894cc5f04b04ce5fab86"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-dates-démarre-un-sp-0c3ac-es-dates-saisies-sans-heure-matrix-chromium/jir87-start-prefilled.png",
+      "size": 30495,
+      "sha256": "069e8947bd6a3b9d987820b0cf0fc8d6546c730a318f51cf37c46a2a3fb88358"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-dates-enregistre-de-6c711-ique-une-fin-avant-le-début-matrix-chromium/jir87-edit-date-only.png",
+      "size": 29079,
+      "sha256": "a5938e3e4a4d8711eb0c0a358192d4123f25f2630026ae2d6724542f3f1a9b6f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-dates-enregistre-de-6c711-ique-une-fin-avant-le-début-matrix-chromium/jir87-edit-end-before-start.png",
+      "size": 33957,
+      "sha256": "e8a7115562257b1b50c533c5b59e6d5c300f04014e9e7ce4d6c547163c192e0b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-dates-enregistre-un-e858d--l’arrondi-flottant-JIR-90--matrix-chromium/jir90-capacity-two-decimals.png",
+      "size": 28637,
+      "sha256": "c0ebb7338185f677c36692ae1a264be12d977c018548872ce8cee076cae56293"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-filter-filtre-la-Li-c4fd7-et-le-garde-au-rechargement-matrix-chromium/jir81-liste-filtre-sprint-termine.png",
+      "size": 99134,
+      "sha256": "418a43d97ca93fc42cef477eea5078acb199c0c097be1772a63e2b74fe3f3e30"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-filter-filtre-la-Li-c4fd7-et-le-garde-au-rechargement-matrix-chromium/jir81-menu-sprint.png",
+      "size": 126217,
+      "sha256": "6d1b1610118bf6f7f681738511a42f6c266dce4baab28acddb25aaec4b361c85"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-matrix-chromium/error-context.md",
+      "size": 109012,
+      "sha256": "ec1f0ca0390c4a169a177564bb902f5e25f27d3398284b69c6c0f336bfbd74ae"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-matrix-chromium/test-failed-1.png",
+      "size": 266894,
+      "sha256": "228cc8011143db85a1605cbf6e8fff7a51e66f11dbb7f731913a0c52ff3b9f01"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-matrix-chromium/trace.zip",
+      "size": 7859311,
+      "sha256": "55cc42eaab35c88846e20343d245c4573021d357c874bdeb6d4ebdd0d2e32218"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-matrix-chromium/video.webm",
+      "size": 2822466,
+      "sha256": "7610afc00fd3a6b53fbd0787486f2668552c9458e69f518e97a8fa6947e8f028"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-matrix-chromium/error-context.md",
+      "size": 77883,
+      "sha256": "f84bd78433f50d2d269982017cf139427000fc3760482e2bd9bf9d167c5ef56d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-matrix-chromium/test-failed-1.png",
+      "size": 320153,
+      "sha256": "d90dce0b64ddd2e98806d9ee6ecbb399ca3e35d703149793c7d6e473a348d0cf"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-matrix-chromium/trace.zip",
+      "size": 6793932,
+      "sha256": "fbb8ce1661689b2e9049af17acb387e2461c0dce3abeb6971c681df326c496c2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-matrix-chromium/video.webm",
+      "size": 355746,
+      "sha256": "c1bfdd845a22ac8530f34c83753add2409a49036859983249c6a6ec0028b7f84"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-démarre-u-a4a3e-bjectif-et-ses-dates-à-jour-matrix-chromium/error-context.md",
+      "size": 15689,
+      "sha256": "74ec14c31f0c131141239d6c4fa3e11c8ad7920ef9d884e16a24908bed041250"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-démarre-u-a4a3e-bjectif-et-ses-dates-à-jour-matrix-chromium/test-failed-1.png",
+      "size": 94252,
+      "sha256": "93e0f48f52c61edb0e38d6f4bb5d441dc072961d1c5a51e86885f11ccd51380b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-démarre-u-a4a3e-bjectif-et-ses-dates-à-jour-matrix-chromium/trace.zip",
+      "size": 7085982,
+      "sha256": "4a82001188c5ba5b8f170c01358c10cdca1e8e3f369ba045b78124b142b5f9e6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-démarre-u-a4a3e-bjectif-et-ses-dates-à-jour-matrix-chromium/video.webm",
+      "size": 643611,
+      "sha256": "6527e1715673ed9075f45c9cc93391db6f7ad978ccfc57addf4a4f1ce185e8d5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-matrix-chromium/error-context.md",
+      "size": 111849,
+      "sha256": "5f11bf85b7d1b628de215440832dade8273a344cc51afbeb8536ba5fe54a2d27"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-matrix-chromium/test-failed-1.png",
+      "size": 218582,
+      "sha256": "a767b04abaacd8486fceb43f284bffb6ef82d09645a539c1f4b0c91ed85eff89"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-matrix-chromium/trace.zip",
+      "size": 5369906,
+      "sha256": "06dca39e12fe17de0e4f9342a77bfbe71a030d6b67766d5a02145f26576dc642"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-matrix-chromium/video.webm",
+      "size": 951033,
+      "sha256": "aeec1fe145b2a801654db4c2bdaad65fe8d1739a9e021fe61708dd66338f167f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-matrix-chromium/error-context.md",
+      "size": 116751,
+      "sha256": "6faa66f6d29acef913413da244b2b18a1c784366918efd56ae472aadad15e7f9"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-matrix-chromium/test-failed-1.png",
+      "size": 238491,
+      "sha256": "5696e6a7727a77a5c539eea7feb2269424a8e11d33abf46df770d6de0aab4045"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-matrix-chromium/trace.zip",
+      "size": 32069033,
+      "sha256": "0e1c81071dd1a08d7d708d9ea436e3a8081ce6db26fd1a89266ab3228bcb7405"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-matrix-chromium/video.webm",
+      "size": 3430988,
+      "sha256": "293b07876ba77c1da8dfb661887ae345f049bfd643615247710afb644c069a46"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-planifie--4debb--section-après-rechargement-matrix-chromium/error-context.md",
+      "size": 112300,
+      "sha256": "1b4107e5c2ad861fbeb3e378d3f95313a73e2157599470daaa20f7d0e6012c86"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-planifie--4debb--section-après-rechargement-matrix-chromium/test-failed-1.png",
+      "size": 246412,
+      "sha256": "61f60a6872a0cf4f1c169470fa2156cf4522e00ed1c4a733b466d7a8539b7ac0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-planifie--4debb--section-après-rechargement-matrix-chromium/trace.zip",
+      "size": 20485669,
+      "sha256": "b7b2384d7a7e7dc40370af1e94987c77756f8a7dc279c881ec6bb5968f5386e4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-planifie--4debb--section-après-rechargement-matrix-chromium/video.webm",
+      "size": 591548,
+      "sha256": "f58b50ec57945a601213514207435510693fb415013f22a89aa1ed8986d4851e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-matrix-chromium/error-context.md",
+      "size": 109193,
+      "sha256": "d4dd8dced43bee49203172ed698a039a8aa4760bf3ca8ef2bd0d15c9fd1ca4c8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-matrix-chromium/test-failed-1.png",
+      "size": 265401,
+      "sha256": "371d7e1562f4067e82f23b703d6d88b14d787230f9ac20a35d5a1b15d38a1c20"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-matrix-chromium/trace.zip",
+      "size": 1512867,
+      "sha256": "8472c96b2e319ecb5ceef711d24da520cdd8457ffd578ed383e551aeb14b4546"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-matrix-chromium/video.webm",
+      "size": 130764,
+      "sha256": "371a0e5536ce9b3cb3ce0f73d0d43fb11e8adcbff86b040cf1ec569ba9d8e6dc"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-reports-06-—-relie--d86a8-rd-et-clôture-UI-au-rapport-matrix-chromium/error-context.md",
+      "size": 18424,
+      "sha256": "dedc6db5ea084c4f99c3bd4fe06837d5dd412f261d1070549808d1de0d7b0d6e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-reports-06-—-relie--d86a8-rd-et-clôture-UI-au-rapport-matrix-chromium/test-failed-1.png",
+      "size": 135053,
+      "sha256": "36ffa39f9837fa4c561111f8e70e6a52cb94760d783f1ff8e8a1866560801485"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-reports-06-—-relie--d86a8-rd-et-clôture-UI-au-rapport-matrix-chromium/trace.zip",
+      "size": 29061055,
+      "sha256": "b61f6393806f265e922fb700c785ffe5855cbe3ba31a28dd0641bc28ca00da05"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/sprint-reports-06-—-relie--d86a8-rd-et-clôture-UI-au-rapport-matrix-chromium/video.webm",
+      "size": 1251946,
+      "sha256": "97abd7a656a9209ed2c31771bdb3b4b9b5424e6f4853db07ffb7bc838036164d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium/error-context.md",
+      "size": 12562,
+      "sha256": "e8c35e1a8ee140c6e08ca2420f1e8eb4fe0d8ac0c63d6b2db5e3aa89f6a19c6d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium/test-failed-1.png",
+      "size": 210611,
+      "sha256": "bfcd65666e8b397309546be904cddf60910cdd67a227d0b61025b73cac876feb"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium/trace.zip",
+      "size": 2700323,
+      "sha256": "7e96e281b27381115d8f2a928edac5062ad42656c59e22e4fb1d9322b090f00e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium/video.webm",
+      "size": 262756,
+      "sha256": "7a236f4e1dc50ff1bb2fac15970667ec30e50c064f18af7daf06c04d2c64308a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--matrix-chromium/jir80-create-dialog-contextual.png",
+      "size": 279814,
+      "sha256": "758b0cce5cd7a73ec42d2aa08613bd8b62a7e2e09c0f76a1726c8fae512b1b95"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--matrix-chromium/jir80-create-dialog-short.png",
+      "size": 136000,
+      "sha256": "c88b27e9086270f89ab557dd16f36248d8fff768ce6b62b121417f5064293acd"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--matrix-chromium/jir80-create-dialog-type-open.png",
+      "size": 248343,
+      "sha256": "d6019fa5e13e44b9b0b911b146d891f42fb58b304a7c0e5491a41aac813a2c1b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--matrix-chromium/jir80-create-dialog.png",
+      "size": 244294,
+      "sha256": "c9b4d7d3b8e9c6e9e1d40b854fe537c98227d0ad95f4ce928dfecaf2124d2a93"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium/error-context.md",
+      "size": 14748,
+      "sha256": "3b8213502f53e78e1eaafd67a6c1252fecca7c0ec1e48d89bbaa205a2a8878b7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium/test-failed-1.png",
+      "size": 243558,
+      "sha256": "7b51ec03533fdcf9ad2547f902a47f51131731ece1d425ce0edf8b7a8d06d1a7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium/trace.zip",
+      "size": 4291573,
+      "sha256": "403c04c9e2001a1a1d4d3f75153cdfe2ac6e3b07c426ee68577a04bc00633a54"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium/video.webm",
+      "size": 323016,
+      "sha256": "070ab0b0c69ae32d834be2f0c427710e3241948829b2c1c5758534c0a223e25b"
+    },
+    {
+      "path": "audit/a11y/matrix-chromium-20261028-223754-axe-p1-accueil.json",
+      "size": 2354,
+      "sha256": "f5ca442616a45ccb6a92d87f4441b8ff9dfc261e93b382fab8cc39dceab615b7"
+    },
+    {
+      "path": "audit/a11y/matrix-chromium-20261028-223754-axe-p2-board.json",
+      "size": 3781,
+      "sha256": "b3ca035a32f5db43ba27401a84de49e58eea788cd82e2cb1925ab2a81d0bd041"
+    },
+    {
+      "path": "audit/a11y/matrix-chromium-20261028-223754-axe-p3-liste.json",
+      "size": 4222,
+      "sha256": "f4470fe50c3bdd0e7ef8b37cf4199f12af843b3130d8dd25f4233445da714c76"
+    },
+    {
+      "path": "audit/a11y/matrix-chromium-20261028-223754-axe-p4-tiroir.json",
+      "size": 3998,
+      "sha256": "2dbe39175515ae630cafcddc439d89c7c1a1b536be9df729d69c7787130ff9ff"
+    },
+    {
+      "path": "audit/a11y/matrix-chromium-20261028-223754-axe-p5-le-point.json",
+      "size": 3092,
+      "sha256": "4cf093f8a59e36d14f5d2c6e5f3074694986181041d0514fb7c6ee87e5dfbb97"
+    },
+    {
+      "path": "audit/a11y/matrix-chromium-20261028-223754-axe-p6-aide.json",
+      "size": 2354,
+      "sha256": "f5ca442616a45ccb6a92d87f4441b8ff9dfc261e93b382fab8cc39dceab615b7"
+    },
+    {
+      "path": "audit/a11y/matrix-chromium-20261028-223754-axe-p7-reglages.json",
+      "size": 2354,
+      "sha256": "f5ca442616a45ccb6a92d87f4441b8ff9dfc261e93b382fab8cc39dceab615b7"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-2026-08-05-session-06-backlog-foundation-failure-console.log",
+      "size": 350,
+      "sha256": "36391d1160ba0670e44abea9573dad3cfe04c8c0843f4052234a15cb05f7fa21"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-2026-08-05-session-08-sprint-capacity-console.log",
+      "size": 261,
+      "sha256": "7e7f73ea4ef91bc21228e5aed8ad82c73ab9ac75ea8fc95057f83c8b2b69dd37"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-2026-08-05-session-08-sprint-lifecycle-failure-console.log",
+      "size": 576,
+      "sha256": "8704ffe361ef9ddebdabfc5e765ade3344a587d9a68625c740357caef3a82e90"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-2026-08-05-session-08-sprint-planning-console.log",
+      "size": 593,
+      "sha256": "ac2c8adf55a73bfab4843bfb07615edf489d550d4e0e1e0cbbc43d55e0cd16ca"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-browse-users-assigns-another-user-with-only-the-default-global-permission-and-persists-it.log",
+      "size": 331,
+      "sha256": "eed6f7328da8230639c1c080375cbb549e2ab2a14c5557a770a5af5b47c64f90"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-board-sans-sprint-sans-appartenance-de-sprint.log",
+      "size": 151,
+      "sha256": "cc84a3eaee3f5ad82cab4cf42c8487c4e9199a1300ef1460c85ba1448a90e129"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-releases-sans-appartenance-de-sprint.log",
+      "size": 151,
+      "sha256": "cc84a3eaee3f5ad82cab4cf42c8487c4e9199a1300ef1460c85ba1448a90e129"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-roadmap-sans-appartenance-de-sprint.log",
+      "size": 151,
+      "sha256": "cc84a3eaee3f5ad82cab4cf42c8487c4e9199a1300ef1460c85ba1448a90e129"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-create-everywhere-le-lecteur-ne-voit-pas-de-bouton-cr-er-sur-les-trois-pages.log",
+      "size": 453,
+      "sha256": "e794615f09865fa72315ac80c0d475da536948603f476d1c7e7fb7a3921bc680"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-le-point-390px-keeps-both-perspectives-in-one-column-with-complete-card-text-and-no-overflow.log",
+      "size": 338,
+      "sha256": "68f5f47603df6eb71f3e59df1361970a0f167c8c7d4757ecf9f50edefcef7fcc"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-le-point-keyboard-journey-remembers-the-perspective-and-restores-focus-after-closing-a-ticket.log",
+      "size": 405,
+      "sha256": "81a7486d35c201f870e10c6698ec3ccac42c660fb7717d9c3e25dd610c2d8693"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-permission-schemes-01-create-group-role-scheme-console.log",
+      "size": 720,
+      "sha256": "dce68e57da17e585070942c3e19fbd8fa4b7f5e9f592a0bb2d59add66db8fd0c"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-permission-schemes-02-backlog-isolation-console.log",
+      "size": 360,
+      "sha256": "d12d7dd153eceab7584eb2ea39bd1a27751953cc362fa24daac35d28966f5fa3"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-permission-schemes-03-permission-helper-console.log",
+      "size": 219,
+      "sha256": "7c27d20e3c6074731c3e4cdc77d3faa6738c3f5b83eeb5d6ae91d96682b4c3c4"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-permission-schemes-04-reader-forged-action-console.log",
+      "size": 192,
+      "sha256": "b9b382903cbd2a30ec4ae46c3b80e973aebb113e267d63d284bf2bf8e75bb587"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-permission-schemes-05-specialist-controls-console.log",
+      "size": 213,
+      "sha256": "386332ac4603709d66b1030892fef573137cc43588cb4bf4f67c3aa507ab5b94"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-permission-schemes-06-release-permission-interface-console.log",
+      "size": 409,
+      "sha256": "142b329d2a6c85be6049ea2d2c12d28b14da615987964ab38b675915b0bfbd99"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-permission-schemes-07-browse-removal-console.log",
+      "size": 879,
+      "sha256": "8a1640e9b3fe07f0f14601102865f872e236809840b856d9396900632684b4ff"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-permission-schemes-08-stale-shared-scheme-console.log",
+      "size": 524,
+      "sha256": "15c2ebecf5f5255dd16c81c74fe3c88ca97d18ca6fc93d0890be3399cb353746"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-permission-schemes-09-security-history-console.log",
+      "size": 209,
+      "sha256": "7bc3881bbab147e51aa9baa4a1bad87f849ce22d502f1ba88e09ec14ad0ea46d"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-permission-schemes-10-reload-second-user-console.log",
+      "size": 560,
+      "sha256": "20f38004caa31f9c3abdbbde5408e657684400159aa18993f2b9cc594f14bb26"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-realtime-increments-the-other-user-s-bell-after-a-mention.log",
+      "size": 338,
+      "sha256": "05a6479370fb010e16b446e14ce16fd841c502fba598f7fc392da59574c8f197"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-realtime-offers-a-list-refresh-to-the-other-user-only.log",
+      "size": 338,
+      "sha256": "05a6479370fb010e16b446e14ce16fd841c502fba598f7fc392da59574c8f197"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-realtime-refreshes-the-other-user-s-open-item-automatically.log",
+      "size": 338,
+      "sha256": "05a6479370fb010e16b446e14ce16fd841c502fba598f7fc392da59574c8f197"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s01.log",
+      "size": 416,
+      "sha256": "017f803b444301581869f4da09f903f7245e081f29737bf01103de28344afb4d"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s02.log",
+      "size": 251,
+      "sha256": "78240c2923f8ab473446b529e2d691514d72d5b454efce61eb95b15d0cfe521f"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s03.log",
+      "size": 231,
+      "sha256": "34c983ee1825b7c847bd9d970c4d951988e87ae14b21d247816302070481190c"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s04.log",
+      "size": 1625,
+      "sha256": "197d6ea8b7f223fed3c75dec1e82ce57bff1b8a2aa53a175050ee559d8ff2c15"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s05.log",
+      "size": 194,
+      "sha256": "ef29a6be0efaa372f748cd7065dc4f58323fd33e6756cfd9747952b3347398c3"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s06.log",
+      "size": 397,
+      "sha256": "018a18238c5643d47d918b4b64759343e1e4ebb8b3f94b4aab5bac35189f7d54"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s07.log",
+      "size": 833,
+      "sha256": "37e34dd91b47888ba562e19cb60713fb4ce55461167641da6951f2eb83106b79"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s08.log",
+      "size": 251,
+      "sha256": "532c3244c6c23cefa0b0d349bfdae4bab8482f11ef5a1085be47625eff1f8448"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s09.log",
+      "size": 496,
+      "sha256": "7bd69bb0f1f0a237f647267f0bf0b61761cd58cc1145672160cbaf5af56bb623"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s10.log",
+      "size": 252,
+      "sha256": "b6389789f2b07e3790b3d06986da56af6e5935e6715ad9944bd966c59f3d91e1"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s11.log",
+      "size": 232,
+      "sha256": "c18ed0454f0b3e74080706410ae48b5b6cec3fe145f7dd58f762cca8aad9fa75"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s12.log",
+      "size": 704,
+      "sha256": "8b0fc97015d7fecb98c4c289207472e310fdbf79001c270a891fb4d45e364d4e"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s13.log",
+      "size": 419,
+      "sha256": "8ec6327beb2605e458d90a61455b8dd18b4e0d297d37dfe0ab7ba0d897ec861e"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s14.log",
+      "size": 839,
+      "sha256": "a20f31bc66f4195f1b6a236e3a47c41efc209723ba13f278827c74d256879a81"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s15.log",
+      "size": 1472,
+      "sha256": "c0869356da999a011847d5922ef9306eba27188723fb678f8ebb886490ae0a8e"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s16.log",
+      "size": 421,
+      "sha256": "154c5aad2cc34d75b66cded18e18ea03b83f1d46d9b53a49773f8261f3b90cc7"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s17.log",
+      "size": 252,
+      "sha256": "ed5893ebc8aacf493ff50b6e5c1fe2c2f5beafdc1c6e4ce332d7e6253c8b9101"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s18.log",
+      "size": 703,
+      "sha256": "3962208d44dab6a8962fb324b6979583c6c12c2cc1c691a5efd0e4ca62dcbdf6"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s19.log",
+      "size": 252,
+      "sha256": "02414ae72d851ff750085df6709ce5b84a415b27343efbd596ebe22886db6ff3"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s20.log",
+      "size": 1069,
+      "sha256": "6aad292069495c71e78d1f80c45667d8cd7fdca04c8d5b734ccb910e03bea497"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s21.log",
+      "size": 821,
+      "sha256": "b009a2e279529d4f97a11c7e903fd83bdd2e64a5f0ffe3f4fc579faa94341ae9"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s22.log",
+      "size": 252,
+      "sha256": "2f27da40c199442fafee31232ed51c933f2df5a0ca3afe03a4ba5846592f3551"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s23.log",
+      "size": 835,
+      "sha256": "c8d68f2ed8c002575ae0b6edb417266e69695fd490a974d9664fbdbe9d2fbd3e"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s24.log",
+      "size": 1525,
+      "sha256": "8e3f4d951719dd35b9bebf2501fb1e21bec038c75e9b0c05765a315e12470018"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s25.log",
+      "size": 1589,
+      "sha256": "7f7b1702093f7503e5dcaf7ce3207ed1f492004f580adff6d1cee47a24e0f9d9"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s26.log",
+      "size": 195,
+      "sha256": "d7178430b177632b7687786942ca67bbd8be3ef872282768a4d9dd2b38c99b83"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-releases-s27.log",
+      "size": 2011,
+      "sha256": "93137f1f5a78c8c173d03c36174ad265b66105e05be739aa5554a1255945c919"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-reports-s01.log",
+      "size": 798,
+      "sha256": "bcd1706b115e0fb4c7a79ffb432316aeda9073ac6ed15ae931750833456080f8"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-reports-s02.log",
+      "size": 1876,
+      "sha256": "875d728821e28d1d7ee99a71939977a09dfc3e0ee2e93a245555375f58118784"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-reports-s03.log",
+      "size": 2820,
+      "sha256": "1b0cd545dadab4dedf9603ae452e258c1c2eb8b962b2f7f7a52f6c6bca457e1b"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-reports-s04.log",
+      "size": 674,
+      "sha256": "a3025709a4474614619e62599bd5cb400b7133f0e15690118da10b2fb90d2569"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-reports-s05.log",
+      "size": 333,
+      "sha256": "1a348b525e670eeb01c566696fbaec790cfbcb257db5c6f513031f7f8eb42221"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-reports-s06.log",
+      "size": 3465,
+      "sha256": "f85f2e317f73c7a764853029bdaf7c7ec3ccf41d29c9ccfba8692fc57ae43035"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-roadmap-keeps-the-reader-s-bars-read-only.log",
+      "size": 316,
+      "sha256": "0a148c3ec523a7901e1508bf641778f9de40ea755d81e8e05af18d73d7a2065b"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-roadmap-persists-a-dragged-epic-and-opens-matching-dates-in-its-drawer.log",
+      "size": 316,
+      "sha256": "c703220e7231fa6d5452cc3ee5da17cc7b93b03eda3eb9445d0789a72ccdc4ce"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-roadmap-persists-two-one-day-keyboard-moves.log",
+      "size": 316,
+      "sha256": "c703220e7231fa6d5452cc3ee5da17cc7b93b03eda3eb9445d0789a72ccdc4ce"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-roadmap-plans-seven-days-from-a-click-on-an-empty-row-and-keeps-them.log",
+      "size": 316,
+      "sha256": "c703220e7231fa6d5452cc3ee5da17cc7b93b03eda3eb9445d0789a72ccdc4ce"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-roadmap-remembers-the-selected-zoom-after-reload.log",
+      "size": 316,
+      "sha256": "c703220e7231fa6d5452cc3ee5da17cc7b93b03eda3eb9445d0789a72ccdc4ce"
+    },
+    {
+      "path": "audit/console/matrix-chromium-20261028-223754-roadmap-shows-the-hierarchy-and-calendar-on-desktop-and-mobile.log",
+      "size": 165,
+      "sha256": "d64f0ec4539d00c9908da229e6bc649295dcbf7b039031cd4e45c4407036dec1"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-2026-08-05-session-06-backlog-foundation-failure-requests.log",
+      "size": 4502,
+      "sha256": "5c2c9e165cea6560de197de0731cc7631d1840ab9d5e0c6d033dedcf23e52c9e"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-2026-08-05-session-08-sprint-capacity-requests.log",
+      "size": 4362,
+      "sha256": "a49e6caff7e39b52811692a6b8a6f8a67a34fe34513c44af665190d37744eba2"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-2026-08-05-session-08-sprint-lifecycle-failure-requests.log",
+      "size": 9401,
+      "sha256": "d418da7276e558c32a2183d743f7f2aeb5a91607d0e4608968df1e29c7549115"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-2026-08-05-session-08-sprint-planning-requests.log",
+      "size": 13471,
+      "sha256": "7d4f9c6105e2255b08480716f3853e31ecb4829af2e3e8a26b76690197ec23e5"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-browse-users-assigns-another-user-with-only-the-default-global-permission-and-persists-it.log",
+      "size": 9903,
+      "sha256": "7739f7ec9bd91b5c88a1c63445f0a48c02da4085e3a1040dc037f8f1d99737fd"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-board-sans-sprint-sans-appartenance-de-sprint.log",
+      "size": 5209,
+      "sha256": "922199d6806a7344c11577cbe592fb12f3650206e6abfa58f4053adf8698ba9e"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-releases-sans-appartenance-de-sprint.log",
+      "size": 7221,
+      "sha256": "710da19d907928f12e202bbffeafb59b065cd9a54a554b2d3c695edde052e4c3"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-roadmap-sans-appartenance-de-sprint.log",
+      "size": 4265,
+      "sha256": "b30f832eb5e5868a95258e8b3a400364fdff344bdfe57b60791272d5c8e59ab3"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-create-everywhere-le-lecteur-ne-voit-pas-de-bouton-cr-er-sur-les-trois-pages.log",
+      "size": 10624,
+      "sha256": "8311b3c3ebd72ffdcd46082052b841d3a3b11dff353cba8c7fa4703ac785c45a"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-le-point-390px-keeps-both-perspectives-in-one-column-with-complete-card-text-and-no-overflow.log",
+      "size": 11960,
+      "sha256": "d6c990d710bd2f364ca6af799edc630c5dcc6c3cd9c163c0b7f5c834c71382fd"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-le-point-keyboard-journey-remembers-the-perspective-and-restores-focus-after-closing-a-ticket.log",
+      "size": 12340,
+      "sha256": "b74a471c8171118da22f841dcf1b6312a910edaecc392f2131b58cb7ea1459cf"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-permission-schemes-01-create-group-role-scheme-network.log",
+      "size": 11352,
+      "sha256": "ea91a2ea24ecc50a3d0daef0f6251f00569f7d96955d50f527fe5f25c9ccfd1a"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-permission-schemes-02-backlog-isolation-network.log",
+      "size": 8490,
+      "sha256": "439c29cb15c3a6deb2a08eb596a212697de4819a80757656626f5044c76a4ce2"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-permission-schemes-03-permission-helper-network.log",
+      "size": 3432,
+      "sha256": "6da805c01046c835166d7b9d716dfd10beac224fbf5e660f22b8dada55c5bf40"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-permission-schemes-04-reader-forged-action-network.log",
+      "size": 2820,
+      "sha256": "9e06ffa3590de34f865d7b80485d6529c9975655ad57ae3e21df1e5f0471f207"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-permission-schemes-05-specialist-controls-network.log",
+      "size": 4334,
+      "sha256": "7cc68ffd7e89545a45c6428cfdfb6f318c77b11c478736b0d74f89e4e9422156"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-permission-schemes-06-release-permission-interface-network.log",
+      "size": 8293,
+      "sha256": "17eb29daa0766a6b271790371f695e50e894b078a95b8c10b10867613d36924a"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-permission-schemes-07-browse-removal-network.log",
+      "size": 18736,
+      "sha256": "2d93e59a35c1b6721f2c85da0a9b2c12479cd25e17784bd7b998854b3a045f74"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-permission-schemes-08-stale-shared-scheme-network.log",
+      "size": 9323,
+      "sha256": "042d7f3a5301557fc6faeb0ad46b4ea2e1547050f96ed1f07db6c28a45be1a09"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-permission-schemes-09-security-history-network.log",
+      "size": 2908,
+      "sha256": "fb6f562c12f6e6bb29940b3f0163ba02c3b67ce16804a724ccc972927837713a"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-permission-schemes-10-reload-second-user-network.log",
+      "size": 10525,
+      "sha256": "588fbfe2d20a08fdac9f3f57303f10f3d919597acbc033be3d6b0bd907259cff"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-realtime-increments-the-other-user-s-bell-after-a-mention.log",
+      "size": 9555,
+      "sha256": "631a84d2ae38ff8380d2af2043a9004558daabced8b39175c18151f451cf4fd6"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-realtime-offers-a-list-refresh-to-the-other-user-only.log",
+      "size": 9575,
+      "sha256": "c9f410fbe97e8af236d6a5de8c5d373dbb260036fda41349bc4325e34a8c664c"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-realtime-refreshes-the-other-user-s-open-item-automatically.log",
+      "size": 9608,
+      "sha256": "f10bf774d3d999e68adea752e05465121228fc2724b72030f7fe3adb4ff67a5b"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s01.log",
+      "size": 19457,
+      "sha256": "69c4ddce20ccd8bcd538c005729e4a2ea3e80f0a0e215dd36da56b8a28eebfa9"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s02.log",
+      "size": 11575,
+      "sha256": "e591df3f7632143e4795393724193b3873a67af972533d469f82b2de1fc24c12"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s03.log",
+      "size": 11000,
+      "sha256": "f45246a2fad61ea2976f597958126f6950ea5820a0acf48fc63ec6315955882a"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s04.log",
+      "size": 54191,
+      "sha256": "3a50d550a50cfd7504fc8f3bb60665946963685f76be2ffd7a521c67fe860798"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s05.log",
+      "size": 6587,
+      "sha256": "bef7ded75723282fd44e45c951cd2aba0d4eec92e7450c98393e853396495340"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s06.log",
+      "size": 8150,
+      "sha256": "4f2f2a2aab8d86a8499bc96b39d0a43fa90a9c09789ee57861d5a9967facd7ee"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s07.log",
+      "size": 7931,
+      "sha256": "726f8ea9e8ddc280088236accee5c6abcde21f44a23a251f8a14fcbff5bf2bd0"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s08.log",
+      "size": 7899,
+      "sha256": "28bdf5944f0e3543044fd288969d3630bf748570a4a9970fc1f82a3c298237d6"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s09.log",
+      "size": 8056,
+      "sha256": "353359c26c537511c54a3e86afa48905988d6f3d2a813fe5c63432d07d827762"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s10.log",
+      "size": 8170,
+      "sha256": "d20146ca0731fa8544b0256dc1f305c134e5da6624f21ca068c318c6cac3094f"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s11.log",
+      "size": 12063,
+      "sha256": "60c43d333b5addef14fc713e98eff10e5a83ef824a575045e843326964954b25"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s12.log",
+      "size": 13085,
+      "sha256": "f3b242e36a8ff7059bc2499210e41f99bb350ae1adbe02c0d13d480061ac9d23"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s13.log",
+      "size": 16197,
+      "sha256": "0be736a9bb2c4ffe60c9fa4b8c168e13c835e81b2f80c8e651380dd606c68c64"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s14.log",
+      "size": 7909,
+      "sha256": "99d2e06927c1f3f73ca5c8811ebe278bdc8fac4c54c71a29099e1dc3b6757060"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s15.log",
+      "size": 36500,
+      "sha256": "edc88f06af2696348d48e65e42fcdd7843ea8394d7c627cfbb9e7fd60d3fc0a4"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s16.log",
+      "size": 20637,
+      "sha256": "d57f985cd07815708d04c452d2a9930c630439b2627f10dc6a5b985b853a8615"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s17.log",
+      "size": 7455,
+      "sha256": "d69eb100ab28de46551cd495f503857e1d0599b880e8a8c2f690dc1262368b0a"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s18.log",
+      "size": 15645,
+      "sha256": "44b7a18b3d6f738f0d88f7be46a176515c94bbe74a7011a45eb99165c670f08e"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s19.log",
+      "size": 7455,
+      "sha256": "8b802bc5bac14bd842c76236db9a1abfd54df437fd71e38aefd1078e04e40741"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s20.log",
+      "size": 26386,
+      "sha256": "79e7a9b58a2ff2e185a8bd9c7f6f6f0f727a80247575e4b59d8528d5b77e8eec"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s21.log",
+      "size": 9097,
+      "sha256": "63b020e62bdc1e9d07f0fe4bc71d20aa47fe91da558c45338a47766aea396f34"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s22.log",
+      "size": 7635,
+      "sha256": "07c0f20d4fc293b773033d66d09b1439783c3b85b771c258e4124a6310062068"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s23.log",
+      "size": 9368,
+      "sha256": "45b988e02168266a52de8e69d61aadb7d7e9b9a18ff891729f49baef98788f11"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s24.log",
+      "size": 56245,
+      "sha256": "1504be3dca471227f7daff66a64a7102b0d867a34008253f90edde6212827aff"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s25.log",
+      "size": 39157,
+      "sha256": "e259d7db04b2d9ded203b0193ecb8e553e98db2ff574e531172b557c49af03a2"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s26.log",
+      "size": 8805,
+      "sha256": "2aa5b0f998791dd209a0cc612ba74f8f2360d18e3ed8d9d850a0612cd490869b"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-releases-s27.log",
+      "size": 81205,
+      "sha256": "9b1aacef6ef54cb77e9c3adfcb75e95228cbfa8c2a5df3874c889cbf1261b2f0"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-reports-s01.log",
+      "size": 7658,
+      "sha256": "2a273115c06bd6e42208d0234f49b049b2d7bc412dae1199f7dcdef30f37f51c"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-reports-s02.log",
+      "size": 30262,
+      "sha256": "3af986bf6d51a57411d41da7750c9bd8127f700c7d635fe593253cdc031c0100"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-reports-s03.log",
+      "size": 48274,
+      "sha256": "8b4aa5a4c497e1528cc69472c6d34a5094dc177a8eac4baa205ff42bfbdc7716"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-reports-s04.log",
+      "size": 10337,
+      "sha256": "80119f4cc51d994d5d7270a47a9760ffe1b409d57c2d8ab2045703fb55d45fb7"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-reports-s05.log",
+      "size": 3910,
+      "sha256": "eaeecb56e553c5e6fe77ab8664de3f17306270438f52e73e05fbde60889ab2c8"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-reports-s06.log",
+      "size": 59483,
+      "sha256": "bd90e8bd0b475f6bd5d0965969a78ac8c1cc648e1b631a85547cbcf885752e8f"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-roadmap-keeps-the-reader-s-bars-read-only.log",
+      "size": 7181,
+      "sha256": "910f343c435bf7da2ab8108be4d4d90ba02d3f3f7099c5492b9359edda5511b1"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-roadmap-persists-a-dragged-epic-and-opens-matching-dates-in-its-drawer.log",
+      "size": 7686,
+      "sha256": "2cdb954f31ec5befe02d40798317217047e20fc062849671d0bf7977a4aaf184"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-roadmap-persists-two-one-day-keyboard-moves.log",
+      "size": 7223,
+      "sha256": "b14a000cd93606442159a3484c4500e4261067293ff84d52b5cbf5733d8dd74a"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-roadmap-plans-seven-days-from-a-click-on-an-empty-row-and-keeps-them.log",
+      "size": 7282,
+      "sha256": "8f8b6a5315af98ce744095b8591e28ba124dca84090c82bb69dcae7e88e5ad57"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-roadmap-remembers-the-selected-zoom-after-reload.log",
+      "size": 7011,
+      "sha256": "667b85b5068127d8ab77439b13daa33dcdf81c1810feb540c2f25df778386875"
+    },
+    {
+      "path": "audit/network/matrix-chromium-20261028-223754-roadmap-shows-the-hierarchy-and-calendar-on-desktop-and-mobile.log",
+      "size": 3483,
+      "sha256": "38ca98020b4ff818c0dc8b92e923f8cfc42455cf891c03dcd99d5d642fbab34b"
+    },
+    {
+      "path": "audit/runs/matrix-chromium-20261028-223754-junit.xml",
+      "size": 385390,
+      "sha256": "0100be2a08161f1da50176a6365b0ae19485eae02faeb59b36daf67b6920276d"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-031-releases-s04.png",
+      "size": 105146,
+      "sha256": "9461ae8c548f5735cff4a2d199a11fd7915cc72bb30dde7ebcc48cce7aa5c7fb"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-033-releases-s06.png",
+      "size": 151258,
+      "sha256": "45d980c917699201933ee5aa91b0c3d182f869cc99a083e1a27d830b6d27bf00"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-034-releases-s07.png",
+      "size": 147195,
+      "sha256": "a7fd11dacdc2f5dfa2088daa494eb22ded47acaf31269143b84d483cd7077156"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-036-releases-s09.png",
+      "size": 157243,
+      "sha256": "6db1116f9065032033d96ba84a5346126add4e596a7ca91d03743bf68fb23401"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-039-releases-s12.png",
+      "size": 242838,
+      "sha256": "03dc7dfdbaed5efbf3a2a3ed3412c5a7925d8798fb74ae96fe09bcd49037e39d"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-041-releases-s14.png",
+      "size": 153370,
+      "sha256": "9967fee77f4960d273b7215a56277972b017aab26aca11cbd6bfdeb698382710"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-042-releases-s15.png",
+      "size": 53151,
+      "sha256": "79e82ed3d9b109a278def2029d01ca2bdb48d14b628929706da96d620f674707"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-045-releases-s18.png",
+      "size": 144783,
+      "sha256": "29bbbc1dccba47fc9c1244f93bd897740a0e16a6f72d5f8ae05713a7675bd72a"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-047-releases-s20.png",
+      "size": 264041,
+      "sha256": "219d4cebc1d869a34cf2e310ee0c2c1bb4736c7eee4eacb3a97c87bab63977e1"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-048-releases-s21.png",
+      "size": 150875,
+      "sha256": "83e0b42c75b5108a822d7d901961cb1a4bc65879e5cdfae9764f94d36e8ac89f"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-050-releases-s23.png",
+      "size": 150907,
+      "sha256": "d90cd0efe8aad49a33f6b202caa7ff2b08eb39757bf97066d5b63bbea53e2b18"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-051-releases-s24.png",
+      "size": 252544,
+      "sha256": "72d8015890c37b9448912998216eb250dcdee311361494aee0c3209409281b7f"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-052-releases-s25.png",
+      "size": 121870,
+      "sha256": "5c9e8ec570d545743358833821178919029624d2477e605646d5940f0a7a4548"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-BUG-JIR-054-releases-s27.png",
+      "size": 105163,
+      "sha256": "dd3a3d149556cccba64f50b4866ffcb5bb4d9849fb9af599b76216df74f4d1b8"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-EXPECTED-backlog-bulk-network-selection-retained.png",
+      "size": 124967,
+      "sha256": "2104bd2bb36572fc9638ec920b190d9b6ca386c75bfb6e8fa7180c6cef56dfee"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-EXPECTED-backlog-rank-network-rollback.png",
+      "size": 103853,
+      "sha256": "22a47fe4740157ce214dfcc6c02a66e60c5ae512f035fab89825af95b55dda42"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-EXPECTED-sprint-complete-network-error.png",
+      "size": 335566,
+      "sha256": "5335b850b1d38eeeed3995b86a047c4ad467cfb7797ef126a6345f0b3bdfcdec"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-EXPECTED-sprint-start-network-error.png",
+      "size": 323440,
+      "sha256": "b4a17fa4ab1f646b867d81d179033640e46e1497d446042c63d5dd4e4923d2d4"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-FIXED-BUG-JIR-024-protected-admin-group-membership-controls.png",
+      "size": 132032,
+      "sha256": "7ec6f50eafa650987e113692c82a58c8a33b5a13fe049e5347e349a105b947f3"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-FIXED-BUG-JIR-025-project-role-blockers-clean-console.png",
+      "size": 37452,
+      "sha256": "4feaab5309bb6ef5685ae595847a918660e889d22ac6f171b2d28af8cd3c94f1"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-FIXED-PARTIAL-BUG-JIR-015-board-sans-sprint-actif.png",
+      "size": 91999,
+      "sha256": "5ad08cf43e88871f7d289b1967cb080c2743d7bd454eb282128ad49db4450276"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-FIXED-PARTIAL-BUG-JIR-015-capacite-depassee.png",
+      "size": 354338,
+      "sha256": "03b83e84f529294a2374348c802faef1f4f4362e7a974a42a0709d68ba089390"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-FIXED-PARTIAL-BUG-JIR-015-planification-sprint-bulk.png",
+      "size": 260147,
+      "sha256": "42ca30ca42182619ba016aadef7e8938162c4735911ae5bbe979ca0ced4ad3f0"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-browse-users-assigns-another-user-with-only-the-default-global-permission-and-persists-it-failure.png",
+      "size": 196147,
+      "sha256": "bfb0cdff24393644d6f44a77c69f92b1ec310abfd831f1c8395843490dd7ac5b"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-create-everywhere-board.png",
+      "size": 88598,
+      "sha256": "612d7023e5372357358676e3bde19558b034aa970f6362d8b4f8f9eb94c021c5"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-board-sans-sprint-sans-appartenance-de-sprint-failure.png",
+      "size": 169754,
+      "sha256": "be87bdcc3121a1cacfcba1451b28d6c7216686802183ff55a3a2f136e0600162"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-releases-sans-appartenance-de-sprint-failure.png",
+      "size": 170213,
+      "sha256": "5c89537564a7f3465c293dd918f9c457162637a8947c3d74e58b76869397b174"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-roadmap-sans-appartenance-de-sprint-failure.png",
+      "size": 173299,
+      "sha256": "9ddbf5be8bef76385382a2318983fd508075e05f7bc3d15c58b0f3783f2b871f"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-create-everywhere-le-lecteur-ne-voit-pas-de-bouton-cr-er-sur-les-trois-pages-failure.png",
+      "size": 75954,
+      "sha256": "9198908eb6a97979f9a9b9dd30c785a27d7d3e6292375debbb29057b459403f3"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-create-everywhere-releases-opened.png",
+      "size": 169689,
+      "sha256": "0a6713206f4a1f63f11872b8371133de5df73b026069c51c1bc00f3e72a151f9"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-create-everywhere-releases.png",
+      "size": 80602,
+      "sha256": "391b152d87edf84d59f3b45c2f3d37db16af00057435d69607a0b6aef23aa303"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-create-everywhere-roadmap.png",
+      "size": 78890,
+      "sha256": "b8c7aefdf0891d87f0a552b1e740ff236b8789fb4c0426428b23d2edf540ee4e"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-le-point-390px-keeps-both-perspectives-in-one-column-with-complete-card-text-and-no-overflow-failure.png",
+      "size": 64221,
+      "sha256": "4279a36d6c013d6443e9c656934f822a5e8b12e29e0df38a4bfa56657595fc88"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-le-point-keyboard-journey-remembers-the-perspective-and-restores-focus-after-closing-a-ticket-failure.png",
+      "size": 117044,
+      "sha256": "b15c683cdac1f75b5ec6a2561d894cc8e6d4879ca49ea0e4db2be2c8a2eaf14b"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-realtime-bell.png",
+      "size": 225254,
+      "sha256": "8970e841959da7d521dadcaa1d1470dfac51acd67688fc558bc85dbd0d8753a6"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-realtime-drawer.png",
+      "size": 218761,
+      "sha256": "7486c2bfd97f9981bfb88aae200871eb78f64ffd608d7e3294c9c709e0598dca"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-realtime-list-banner.png",
+      "size": 224752,
+      "sha256": "c21987cd316a1f7610e93624952e0388205c53780c9516d6e92e4bcc3eae6ce7"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-reports-active-desktop.png",
+      "size": 156244,
+      "sha256": "ccfe8e7dcf260156a7f4fbbd3276f1bd7d6112c208b864e63b46069e488c1059"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-reports-active-mobile.png",
+      "size": 61166,
+      "sha256": "387374fbbb124210e04d6affbff05fb0dc81fc0a58b096790c01007b47ebae69"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-reports-completed-desktop.png",
+      "size": 143438,
+      "sha256": "4297ffb6a521676440a3598d66e785b541a617f4796a4c54389c4978d3469268"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-reports-completed-mobile.png",
+      "size": 64179,
+      "sha256": "2ffe49eb6a7e6dc82262399555a7eaab676b681dc6b53a22965ca28d974fe68c"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-reports-s06-failure.png",
+      "size": 135053,
+      "sha256": "36ffa39f9837fa4c561111f8e70e6a52cb94760d783f1ff8e8a1866560801485"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-reports-velocity-desktop.png",
+      "size": 98602,
+      "sha256": "bcf120dee4285e401be2f7eff62426ef9ed707ce6c61c893b6ab5b0cdde44f88"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-reports-velocity-mobile.png",
+      "size": 47693,
+      "sha256": "95c39f4b32483214fbd870149ffa8bbb530cdbb8a5c32ee2abcf6d8a89a7d622"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-roadmap-desktop-1440.png",
+      "size": 126584,
+      "sha256": "3b59a00c911f60376a78b0bf7b6eaa0bcccdceace356790f82a59d9aeda89137"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-roadmap-keeps-the-reader-s-bars-read-only-failure.png",
+      "size": 135009,
+      "sha256": "b62529f18e3cb7e5283d1df09720b3c96d25d4866a99462ed8aabe544a6c60e8"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-roadmap-mobile-390.png",
+      "size": 51898,
+      "sha256": "f7ad2c12ed06f9c9798a9b9182041d4fe5c0185c7cc7dac6c75b61545771e124"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-roadmap-persists-a-dragged-epic-and-opens-matching-dates-in-its-drawer-failure.png",
+      "size": 227508,
+      "sha256": "02d28ed2f3cc6e3e821864993c1410f76512d10f1b02bd8a30859b717f822c44"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-roadmap-persists-two-one-day-keyboard-moves-failure.png",
+      "size": 142367,
+      "sha256": "775a3563fa1b17b3c411bb74efe1a0f0fa71d35ede0fa9eca3d76d99384d2ece"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-roadmap-plans-seven-days-from-a-click-on-an-empty-row-and-keeps-them-failure.png",
+      "size": 144032,
+      "sha256": "2d3a97a06914c9bfb8dbcba23a9417ca3522ae3a7610bb9bc5f39cf334c5fcd3"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-20261028-223754-roadmap-remembers-the-selected-zoom-after-reload-failure.png",
+      "size": 145247,
+      "sha256": "4d30e059c6f1634911ec695ebdba0ff3b506038dd34337510b6af17bcc7bd37e"
+    }
+  ]
+}

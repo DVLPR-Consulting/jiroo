@@ -1,0 +1,4 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[defect] BUG-JIR-044 Test timeout of 30000ms exceeded.
+[duration] scenario 17: 30520ms
