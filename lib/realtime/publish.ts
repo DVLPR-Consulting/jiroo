@@ -28,6 +28,7 @@ export async function invalidateBacklog(backlogKey: string, change: BacklogChang
   revalidatePath(`/b/${backlogKey}`);
   revalidatePath(`/b/${backlogKey}/roadmap`);
   revalidatePath(`/b/${backlogKey}/reports`);
+  revalidatePath(`/b/${backlogKey}/le-point`);
   await publishBacklogChange(change);
 }
 

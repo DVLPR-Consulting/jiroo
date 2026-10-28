@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { Fragment, useEffect, useId, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useState, useTransition, type ReactNode } from "react";
+import { declareAbsenceAction, removeAbsenceAction } from "@/app/actions/absences";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { ItemRow } from "@/components/items/item-row";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
@@ -12,7 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LABEL_HUES, type LabelHue } from "@/lib/design/constants";
 import { countLabel, formatPoints, frenchPlural } from "@/lib/format/plural";
-import { presentInSprint, sprintForecast } from "@/lib/le-point/forecast";
+import { absentUntil } from "@/lib/le-point/absences";
+import { sprintForecast, sprintPeople } from "@/lib/le-point/forecast";
 import { personLight, sprintLight, SPRINT_THRESHOLDS, workloadTickets, type Light, type LightColor, type SprintLight } from "@/lib/le-point/lights";
 import {
   daysFrom,
@@ -626,7 +629,8 @@ function RulesDialog() {
             niveau : rien en cours ; orange dès qu’un ticket en cours est sans activité depuis 3 jours ouvrés, ou qu’un
             ticket est bloqué ; rouge quand plus rien n’a bougé depuis 5 jours ouvrés, ou avec 4 tickets en cours à la
             fois ; en rythme sinon. Les tickets à faire hors du sprint actif comptent dans les ouverts, pas dans la
-            pastille ; un ticket en cours y compte même hors sprint.
+            pastille ; un ticket en cours y compte même hors sprint. Les jours d’absence déclarés ne comptent ni dans
+            l’inactivité d’un ticket ni dans les jours-personne du sprint.
           </p>
           <p>Un ticket sans activité connue n’est jamais compté comme inactif. Prototype : les seuils sont fixés dans le code.</p>
         </div>
@@ -646,7 +650,7 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
   const [scopeOpen, setScopeOpen] = useState(false);
   const light = sprintLight(data);
   const rows = teamWorkload(data);
-  const forecast = sprintForecast(data, presentInSprint(data));
+  const forecast = sprintForecast(data, sprintPeople(data));
   const title = <h2 id={headingId} className="sr-only">Santé du sprint</h2>;
   const prototype = (
     <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal text-muted-foreground">
@@ -757,7 +761,7 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
                 value={forecast ? `${forecast.daysLeft} j` : "—"}
                 unit={forecast ? frenchPlural(forecast.daysLeft, "ouvré restant", "ouvrés restants") : "ouvré restant"}
                 line={forecast
-                  ? `${countLabel(forecast.daysLeft * forecast.present, "jour-personne", "jours-personne")}, ${countLabel(forecast.present, "personne présente", "personnes présentes")}`
+                  ? `${countLabel(forecast.personDaysLeft, "jour-personne", "jours-personne")}, ${countLabel(forecast.present, "personne présente", "personnes présentes")}`
                   : "aucun ticket dans le sprint"}
               />
             )}
@@ -889,6 +893,7 @@ function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDatas
               const id = row.assignee ?? "unassigned";
               const light = row.assignee === null ? null : personLight(data, row.assignee);
               const isOpen = open === id;
+              const away = row.assignee === null ? null : absentUntil(data.absences ?? [], row.assignee, data.today);
               return (
                 <button
                   key={id}
@@ -900,7 +905,7 @@ function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDatas
                   className={cn(
                     "inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-[var(--surface)] py-1 pr-3 pl-1 text-[13px] outline-none transition-colors hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
                     isOpen && "bg-[var(--muted)] ring-1 ring-inset ring-foreground",
-                    row.assignee === null && "border-dashed text-muted-foreground",
+                    (row.assignee === null || away !== null) && "border-dashed text-muted-foreground",
                   )}
                 >
                   {row.assignee ? (
@@ -912,7 +917,9 @@ function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDatas
                   )}
                   <span className="min-w-0 truncate">{row.assignee ? shortName(row.name) : row.name}</span>
                   {light ? <LightDot color={light.color} className="size-2" /> : null}
-                  <span className="shrink-0 text-muted-foreground tabular-nums">{row.open}</span>
+                  <span className="shrink-0 text-muted-foreground tabular-nums">
+                    {away ? `en congé jusqu’au ${formatDay(away)}` : row.open}
+                  </span>
                 </button>
               );
             })}
@@ -942,7 +949,95 @@ function PersonDetail({ row, data }: { row: WorkloadRow; data: LePointDataset })
           Voir dans la Liste
         </Link>
       </div>
+      <AbsencePanel key={row.assignee ?? "unassigned"} row={row} data={data} />
       <Rows cards={workloadTickets(data, row.assignee)} backlogKey={data.backlog.key} showDue />
+    </div>
+  );
+}
+
+const DATE_INPUT_CLASS = "rounded border border-border bg-[var(--surface)] px-1.5 py-0.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
+
+/**
+ * The person's absences from today on, and the way to declare one
+ * (JIR-124): one's own from any backlog one may browse, a member's for the
+ * backlog's administrators. Whole days, both ends included; the page
+ * reloads its facts once the server has them.
+ */
+function AbsencePanel({ row, data }: { row: WorkloadRow; data: LePointDataset }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [declaring, setDeclaring] = useState(false);
+  const [startDate, setStartDate] = useState(data.today);
+  const [endDate, setEndDate] = useState(data.today);
+  const person = row.assignee;
+  const backlogId = data.backlog.id;
+  if (!person || !backlogId) return null;
+  const mine = person === data.personas.developer;
+  const allowed = mine || data.canManageAbsences === true;
+  const upcoming = (data.absences ?? []).filter((absence) => absence.user === person && absence.end >= data.today);
+  if (!allowed && upcoming.length === 0) return null;
+  const run = (action: () => Promise<{ ok: true } | { ok: false; error: string }>) =>
+    startTransition(async () => {
+      setError(null);
+      const result = await action();
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setDeclaring(false);
+      router.refresh();
+    });
+  return (
+    <div className="space-y-1.5 text-xs">
+      {upcoming.length > 0 ? (
+        <ul className="flex flex-wrap gap-x-3 gap-y-1">
+          {upcoming.map((absence) => (
+            <li key={absence.id ?? `${absence.start}-${absence.end}`} className="inline-flex items-center gap-1.5 text-muted-foreground">
+              {absence.start === absence.end
+                ? `Absent le ${formatDay(absence.start)}`
+                : `Absent du ${formatDay(absence.start)} au ${formatDay(absence.end)}`}
+              {allowed && absence.id ? (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => run(() => removeAbsenceAction({ id: absence.id!, backlogId }))}
+                  className="text-[var(--primary)] underline disabled:opacity-60"
+                >
+                  Retirer
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {allowed ? (
+        declaring ? (
+          <form
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              run(() => declareAbsenceAction({ userId: person, backlogId, startDate, endDate }));
+            }}
+          >
+            <span>{mine ? "Mon absence, du" : `Absence de ${row.name}, du`}</span>
+            <input type="date" required aria-label="Premier jour" value={startDate} onChange={(event) => setStartDate(event.target.value)} className={DATE_INPUT_CLASS} />
+            <span>au</span>
+            <input type="date" required aria-label="Dernier jour" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} className={DATE_INPUT_CLASS} />
+            <button type="submit" disabled={pending} className="rounded bg-[var(--primary)] px-2 py-0.5 font-medium text-white disabled:opacity-60">
+              Enregistrer
+            </button>
+            <button type="button" onClick={() => setDeclaring(false)} className="text-muted-foreground underline">
+              Annuler
+            </button>
+          </form>
+        ) : (
+          <button type="button" onClick={() => setDeclaring(true)} className="text-[var(--primary)] underline">
+            Déclarer une absence
+          </button>
+        )
+      ) : null}
+      {error ? <p role="alert" className="text-[var(--danger)]">{error}</p> : null}
     </div>
   );
 }
