@@ -260,6 +260,27 @@ describe("sprintLight", () => {
     expect(light.details[1]).toBe("Retard de 2,36 tickets sur la date, pour 2 personnes présentes (seuil : 1 ticket par personne, soit 2 tickets).");
   });
 
+  it("explains a red verdict even when the team's lag is within its tolerance (R1)", () => {
+    // 64 % of the time gone, nothing done of one point: a gap of 64, a lag of 0.64 for one person.
+    const red = sprintLight(data([todo("T-1", 1)]))!;
+    expect(red).toMatchObject({ color: "red", label: "En retard", summary: "64 % du temps écoulé pour 0 % des points terminés." });
+    expect(red.details).toEqual([
+      "64 % du temps écoulé (jour 8 sur 12), 0 % des points terminés (0 sur 1).",
+      "64 % du temps écoulé, 0 % des points terminés : 64 points d’écart entre ces pourcentages (En retard au-delà de 25).",
+    ]);
+    const withBlock = sprintLight(data([todo("T-1", 1), ticket("T-2", { points: 1, blockedBy: [{ hidden: true }] })]))!;
+    expect(withBlock).toMatchObject({ color: "red", summary: "64 % du temps écoulé pour 0 % des points terminés, 1 ticket bloqué." });
+  });
+
+  it("reads an exact equality with the threshold as green, whatever the floating-point noise (R3)", () => {
+    // 1/5 of a six-point sprint gone, 0.2 done: a lag of exactly 1 for one person, computed as 1.0000000000000002.
+    const light = sprintLight(data(
+      [done("T-1", 0.2), todo("T-2", 5.8)],
+      { today: "2026-10-02", sprint: { name: "Sprint 0", start: "2026-10-01", end: "2026-10-06" } },
+    ))!;
+    expect(light).toMatchObject({ color: "green", lag: 1, lagThreshold: 1, summary: "Le travail terminé suit le temps écoulé." });
+  });
+
 describe("personLight", () => {
   it("is green while the tickets in progress move", () => {
     expect(personLight(data([doing("T-1", "2026-11-02", { points: 3 }), todo("T-2", 3)]), "ana")).toEqual({
@@ -361,6 +382,25 @@ describe("personLight", () => {
     const colors = Object.fromEntries(["camille", "lea", "hugo", "ines"].map((id) => [id, personLight(LE_POINT_DEMO, id).color]));
     expect(colors).toEqual({ camille: "amber", lea: "amber", hugo: "green", ines: "none" });
     expect(personLight(LE_POINT_DEMO, "camille")).toMatchObject({ label: "1 bloqué · 1 en cours · 5 pts", details: ["1 ticket en cours, 2 à faire.", "DEMO-15 bloqué."] });
+  });
+
+  it("names the points known, zero included, and keeps the fact first in every state (S1)", () => {
+    const active = (key: string, points?: number) => doing(key, "2026-11-03", points === undefined ? {} : { points });
+    const label = (tickets: LePointTicket[], over: Partial<LePointDataset> = {}) => personLight(data(tickets, over), "ana").label;
+    expect(label([active("T-1", 1), active("T-2")])).toBe("2 en cours · 1 pt connu");
+    expect(personLight(data([active("T-1", 1), active("T-2")]), "ana").details).toContain("1 point sur les tickets estimés ; 1 ticket en cours sans estimation.");
+    expect(label([active("T-1", 5), active("T-2")])).toBe("2 en cours · 5 pts connus");
+    expect(label([active("T-1", 0)])).toBe("1 en cours · 0 pt");
+    expect(label([active("T-1", 0), active("T-2")])).toBe("2 en cours · 0 pt connu");
+    expect(label([active("T-1", 5)], { absences: [{ user: "ana", start: "2026-11-02", end: "2026-11-06" }] })).toBe("En congé jusqu’au 6 nov. · 5 pts en cours");
+    expect(label([ticket("T-1", { blockedBy: [{ hidden: true }] })])).toBe("1 bloqué · aucun ticket en cours");
+    expect(label(["T-1", "T-2", "T-3", "T-4"].map((key) => active(key, 2)))).toBe("4 en cours · 8 pts");
+  });
+
+  it("shows a decimal sum with the plural of the figure shown (M1)", () => {
+    // 0.12 + 1.14 + 0.74 is 1.9999999999999998 in binary: shown as 2, so « 2 pts ».
+    const tickets = [["T-1", 0.12], ["T-2", 1.14], ["T-3", 0.74]].map(([key, points]) => doing(key as string, "2026-11-03", { points: points as number }));
+    expect(personLight(data(tickets), "ana").label).toBe("3 en cours · 2 pts");
   });
 });
 

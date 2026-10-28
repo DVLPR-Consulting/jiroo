@@ -87,6 +87,10 @@ const SPRINT_LABEL: Record<LightColor, string> = {
 const light = (color: LightColor, label: string, summary: string, details: string[]): Light =>
   ({ color, label, summary, details, tone: TONE[color] });
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+/** Points shown and compared for their plural: binary noise off, so 0.12 + 1.14 + 0.74 reads « 2 pts ». */
+const round2 = (value: number) => Math.round(value * 100) / 100;
+/** A difference below this is the noise of binary floats, not an excess: 1/5 × 6 − 0.2 equals 1. */
+const EPSILON = 1e-9;
 /** A ratio as a percentage kept to two decimals: compared to the thresholds as is, rounded only to be shown. */
 const percent = (ratio: number) => Math.round(ratio * 10_000) / 100;
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -164,9 +168,12 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
   // Without anyone known, the gap in percentage points decides, as before.
   const peoplePresent = presentInSprint(data);
   const lagRaw = elapsedRatio * total - done;
-  const lag = Math.round(lagRaw * 100) / 100;
+  const lag = round2(lagRaw);
   const lagThreshold = peoplePresent > 0 ? peoplePresent * SPRINT_THRESHOLDS.lagPerPerson : null;
-  const behind = lagThreshold === null ? gap > SPRINT_THRESHOLDS.amber : lagRaw > lagThreshold;
+  // Strict: a team of four may be four points late; the raw lag is compared,
+  // short of the floating-point noise of an exact equality.
+  const behind = lagThreshold === null ? gap > SPRINT_THRESHOLDS.amber : lagRaw - lagThreshold > EPSILON;
+  const late = gap > SPRINT_THRESHOLDS.red;
   const unitLabel = unit === "points" ? "des points" : "des tickets";
   const lagLabel = unit === "points"
     ? countLabel(lag, "point", "points", formatPoints)
@@ -178,6 +185,8 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
       ? countLabel(lagThreshold, "point", "points", formatPoints)
       : countLabel(lagThreshold, "ticket", "tickets", formatPoints);
   const progress = `${elapsedPercent} % du temps écoulé pour ${donePercent} % ${unitLabel} terminés`;
+  const gapSentence = (threshold: string) =>
+    `${elapsedPercent} % du temps écoulé, ${donePercent} % ${unitLabel} terminés : ${formatPoints(Math.round(gap))} points d’écart entre ces pourcentages (${threshold}).`;
   const addedLabel = unit === "points"
     ? countLabel(addedWeight, "point", "points", formatPoints)
     : countLabel(addedWeight, "ticket", "tickets");
@@ -186,8 +195,11 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
     `${elapsedPercent} % du temps écoulé (${timing}), ${donePercent} % ${unitLabel} terminés (${formatPoints(done)} sur ${formatPoints(total)}).`,
     behind && lagThreshold !== null
       ? `Retard de ${lagLabel} sur la date, pour ${countLabel(peoplePresent, "personne présente", "personnes présentes")} (seuil : ${unitOne} par personne, soit ${thresholdLabel}).`
-      : behind
-        ? `${elapsedPercent} % du temps écoulé, ${donePercent} % ${unitLabel} terminés : ${formatPoints(Math.round(gap))} points d’écart entre ces pourcentages (seuil de repli : plus de ${SPRINT_THRESHOLDS.amber}, sans personne présente connue).`
+      : null,
+    late
+      ? gapSentence(`En retard au-delà de ${SPRINT_THRESHOLDS.red}`)
+      : behind && lagThreshold === null
+        ? gapSentence(`seuil de repli : plus de ${SPRINT_THRESHOLDS.amber}, sans personne présente connue`)
         : null,
     added.length > 0
       ? `${countLabel(added.length, "ticket ajouté", "tickets ajoutés")} depuis le début du sprint : ${addedLabel}, ${addedPercent} % de l’engagement initial.`
@@ -202,12 +214,13 @@ export function sprintLight(data: LePointDataset): SprintLight | null {
   ].filter(present);
 
   const concerns = [
-    behind ? progress : null,
+    // The red verdict is explained whatever the relative threshold says.
+    behind || late ? progress : null,
     addedShare > SPRINT_THRESHOLDS.scopeAdded ? `périmètre ajouté de ${addedPercent} %` : null,
     blocked.length > 0 ? countLabel(blocked.length, "ticket bloqué", "tickets bloqués") : null,
   ].filter(present);
 
-  const color: LightColor = gap > SPRINT_THRESHOLDS.red ? "red" : concerns.length > 0 ? "amber" : "green";
+  const color: LightColor = late ? "red" : concerns.length > 0 ? "amber" : "green";
   // The verdict is the label; the summary keeps to the facts behind it.
   const ahead = color === "green" && gap < -SPRINT_THRESHOLDS.amber;
   const summary = concerns.length > 0
@@ -270,7 +283,7 @@ export function personLight(data: LePointDataset, assignee: string): Light {
   // (JIR-124): « 8 pts », « 5 pts connus » when some are not estimated,
   // « sans estimation » when none is; a known sum of zero stays « 0 pt ».
   const estimated = inProgress.filter((ticket) => typeof ticket.points === "number");
-  const pointsInProgress = sum(estimated.map((ticket) => ticket.points as number));
+  const pointsInProgress = round2(sum(estimated.map((ticket) => ticket.points as number)));
   const points = inProgress.length === 0
     ? null
     : estimated.length === 0

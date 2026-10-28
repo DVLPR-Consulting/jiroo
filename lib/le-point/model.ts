@@ -300,11 +300,12 @@ export function teamWorkload(data: LePointDataset): WorkloadRow[] {
       rows.set(ticket.assignee, row);
     }
     row.open += 1;
+    // Sums kept to the hundredth: shown as they are, with the right plural.
     const points = typeof ticket.points === "number" ? ticket.points : null;
-    if (points !== null) row.points = (row.points ?? 0) + points;
+    if (points !== null) row.points = Math.round(((row.points ?? 0) + points) * 100) / 100;
     if (ticket.category === "in_progress") {
       row.inProgress += 1;
-      if (points !== null) row.inProgressPoints = (row.inProgressPoints ?? 0) + points;
+      if (points !== null) row.inProgressPoints = Math.round(((row.inProgressPoints ?? 0) + points) * 100) / 100;
     }
     if (isBlocked(ticket)) row.blocked += 1;
   }

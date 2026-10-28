@@ -179,6 +179,11 @@ describe("LePointView, whole team (JIR-121)", () => {
     render(<LePointView data={camille} />);
     const sprint = section("Santé du sprint");
     expect(within(sprint).getByText("À surveiller")).toBeVisible();
+    // The verdict carries the facts behind it, the lag on the date included (R2).
+    expect(within(sprint).getByText("À surveiller")).toHaveAttribute(
+      "title",
+      expect.stringContaining("Retard de 9,36 points sur la date, pour 4 personnes présentes (seuil : 1 point par personne, soit 4 points)."),
+    );
     expect(sprint).toHaveTextContent("Sprint 8 · jour 8 sur 12 · fin le 7 nov.");
     // The scope on one bar, done then under way, with today's mark.
     expect(within(sprint).getByRole("img", { name: "42 % terminé, 37 % en cours, 21 % à faire ; 64 % du temps écoulé" })).toBeInTheDocument();

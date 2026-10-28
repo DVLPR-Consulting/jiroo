@@ -606,7 +606,7 @@ function RulesDialog() {
           <span aria-hidden="true">i</span>
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Comment est-ce calculé ?</DialogTitle>
           <DialogDescription className="sr-only">Les règles de la santé du sprint et des tickets par personne.</DialogDescription>
@@ -720,8 +720,8 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
     >
       {title}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Verdict light={light} size="lg" title={light.summary}>
-          <span className="sr-only"> : {light.summary}</span>
+        <Verdict light={light} size="lg" title={[light.summary, ...light.details].join("\n")}>
+          <span className="sr-only"> : {[light.summary, ...light.details].join(" ")}</span>
         </Verdict>
         <span className="text-sm">
           <span className="font-medium">{sprint.name}</span> <span className="text-muted-foreground">· {timing}</span>
