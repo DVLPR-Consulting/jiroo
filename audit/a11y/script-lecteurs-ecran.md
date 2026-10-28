@@ -37,10 +37,11 @@ Ces couples sont ceux de la base de référence du RGAA 4.1.2 pour un ordinateur
      pour que `Espace` et les flèches aillent au contrôle ; revenir au mode
      navigation pour lire. Les régions se listent en mode navigation (`D` et
      `Maj+D`).
-   - VoiceOver : désactiver la navigation rapide (flèches gauche et droite
-     ensemble) et la navigation rapide par touche unique avant ces mêmes
-     phases ; placer le focus clavier réel (`Tab`) sur la poignée ; le rotor
-     (`VO+U`) sert à lister les régions.
+   - VoiceOver : désactiver la navigation rapide par flèches (`VO+Maj+Q`, ou
+     flèches gauche et droite ensemble selon les réglages) et la navigation
+     rapide par touche unique (`VO+Q`) avant ces mêmes phases ; placer le
+     focus clavier réel (`Tab`) sur la poignée ; le rotor (`VO+U`) sert à
+     lister les régions.
    Vérifier ces commandes dans la version installée et noter les réglages
    utilisés dans la fiche.
 5. Copier ce fichier en `audit/a11y/<AAAAMMJJ>-voiceover.md` ou
@@ -110,9 +111,9 @@ Point de départ : le Board ou la Liste.
 | -- | -- | -- | -- | -- |
 | 3.1 | Depuis le Board, activer le bouton d'identité de la carte « <CLÉ> — <titre> » (pas la poignée « Déplacer <CLÉ> », qui lance un déplacement) | Le tiroir s'ouvre comme une boîte de dialogue nommée « <CLÉ> — <titre> » ; le focus entre dans le tiroir | | **capture** |
 | 3.2 | Parcourir le tiroir avec `Tab` | Le titre est un bouton (dans l'en-tête de niveau 1) ; les champs en ligne (statut, assigné, estimation, échéance…) et les boutons sont nommés ; le bouton « Fermer (Échap) » est atteignable | | |
-| 3.3 | Activer le bouton du titre, puis `Échap` | Un champ « Titre de l'item » prend le focus avec le titre courant ; `Échap` annule l'édition sans fermer le tiroir, le focus revient sur le bouton du titre | | |
+| 3.3 | Activer le bouton du titre, puis `Échap` | Un champ « Titre de l'item » prend le focus avec le titre courant ; `Échap` annule l'édition sans fermer le tiroir. Relever où se trouve alors le focus : le retour sur le bouton du titre est le comportement attendu pour l'accessibilité, mais le code ne le garantit pas aujourd'hui ; s'il manque, le noter comme constat | | |
 | 3.4 | Modifier le statut depuis le tiroir | Le nouveau statut est annoncé après validation ; aucune annonce technique | | |
-| 3.5 | Aller dans « Description », taper un mot, attendre une seconde | L'éditeur est annoncé avec son rôle ; la sauvegarde est automatique (après une pause de saisie ou en quittant l'éditeur) et le message d'état « Enregistré » est annoncé. Le bouton « Enregistrer » n'existe que dans le mode Markdown brut de secours | | |
+| 3.5 | Aller dans « Description », taper un mot, puis attendre l'annonce « Enregistré » | L'éditeur est annoncé avec son rôle ; la sauvegarde est automatique (après une pause de saisie ou en quittant l'éditeur) et le message d'état « Enregistré » est annoncé, sans action de l'utilisateur. Le bouton « Enregistrer » n'existe que dans le mode Markdown brut de secours | | |
 | 3.6 | Quitter l'éditeur (`Échap` une fois, ou `Tab`), puis activer « Fermer (Échap) » ou appuyer sur `Échap` | Le tiroir se ferme ; le focus revient sur le bouton « <CLÉ> — <titre> » de la carte qui l'avait ouvert, s'il existe encore | | **capture** |
 
 ## S4 — Le point (parcours P5)
