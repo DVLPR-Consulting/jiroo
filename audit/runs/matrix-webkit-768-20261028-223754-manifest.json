@@ -1,0 +1,533 @@
+{
+  "schemaVersion": 1,
+  "runId": "matrix-webkit-768-20261028-223754",
+  "timestamps": {
+    "startedAt": "2026-10-28T23:15:00.856Z",
+    "databaseVerifiedAt": "2026-10-28T23:15:00.868Z",
+    "manifestWrittenAt": "2026-10-28T23:15:00.995Z"
+  },
+  "runtime": {
+    "node": "v24.18.1",
+    "pnpm": "10.34.5"
+  },
+  "source": {
+    "gitSha": "282463d59644fb557e956e0bfe66cb6310b4354b"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:a70637732c622ead8e1bfe57c5fec658fda1cab995b41489e3222926ed8fc919"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "corepack pnpm exec playwright test --project=matrix-webkit-768",
+    "scenarios": "matrice matrix-webkit-768"
+  },
+  "result": {
+    "junitReport": "audit/runs/matrix-webkit-768-20261028-223754-junit.xml"
+  },
+  "artifacts": [
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/.last-run.json",
+      "size": 488,
+      "sha256": "340548b93fe5c964fc4d64c92296658693a412799eb3b1c182d089d8517ba159"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-webkit-768/error-context.md",
+      "size": 15138,
+      "sha256": "ec675ad186dfc8ee29aa4967b7b440303d310b5fbd99f2ad00bbdb6f5e50c931"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-webkit-768/test-failed-1.png",
+      "size": 285699,
+      "sha256": "bc5d70beca61df381e65d3b2aae63f0c205a4bec628ceff73778d4d885819bcb"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-webkit-768/trace.zip",
+      "size": 2197781,
+      "sha256": "ba5c715930135b104d990ed7a4b04ca1e0cd0bdb22c358cf9528c0ef549d044c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-webkit-768/video.webm",
+      "size": 190492,
+      "sha256": "e1e3f7d2c595fe98f7d7d911008e9a9ca729a5c34680e979c8b13ea4c2245513"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/board-empty-columns-affich-a0931-e-bandeau-sans-sprint-actif-matrix-webkit-768/jir89-board-no-sprint-desktop.png",
+      "size": 250254,
+      "sha256": "ad153b4b2114b35abeb7298178e5bfe143b2cfc29fd50c9df0d1de51e6b63da5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/board-empty-columns-affich-a0931-e-bandeau-sans-sprint-actif-matrix-webkit-768/jir89-board-no-sprint-phone.png",
+      "size": 117001,
+      "sha256": "5e25b83154fa22dd55800e0acabcf05f18848ea82621690378434cf0626c7574"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-webkit-768/error-context.md",
+      "size": 10692,
+      "sha256": "51802899cad14b53ee105326063b8261cfc15f4c82001a85cfd5cfcf82f68c6a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-webkit-768/test-failed-1.png",
+      "size": 229830,
+      "sha256": "782cf16f37c6fb36133002462c960ab7c4af2abcd9b08843688557a7f28d429b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-webkit-768/trace.zip",
+      "size": 844260,
+      "sha256": "caf6705b779e1d354aca778f12491c1a1cdf25cfe797d8955d8447e95bdd02dc"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-webkit-768/video.webm",
+      "size": 86072,
+      "sha256": "f28c3a5a88cc89ab7150929f3d0305effca04ac1197b4651cdb2353ecb2cb989"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-webkit-768/jir92-1-inline-epic-masquee.png",
+      "size": 314830,
+      "sha256": "9b9222512808e3aec022e31b4effed159fcca348c3ab5a87be8e010563a06064"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-webkit-768/jir92-2-inline-cree-masquee.png",
+      "size": 329904,
+      "sha256": "8bca5597c5ed286453c9318e16ce4ed7ac84ccaf7a116f776ac83fe133e12753"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-webkit-768/jir92-3-dialog-composant.png",
+      "size": 383380,
+      "sha256": "9dd183dc19310e90513b16c926cc3b80e8417af16952833ff7aea86e45f95d95"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-webkit-768/jir92-4-dialog-epic.png",
+      "size": 384702,
+      "sha256": "2dc16f30a6f55504834edb214d42197757cfb17bfa075c317e0bdd0eb4c27f07"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-webkit-768/jir92-5-dialog-cree-masquee.png",
+      "size": 313618,
+      "sha256": "381eee8a02ddaeaf2c6bbf2611fbd4e44caf5565c419ad95360bd97b8367e3f7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/help-guide-ouvre-le-guide--c63ac-en-tête-et-suit-le-sommaire-matrix-webkit-768/jir67-desktop-1440.png",
+      "size": 603315,
+      "sha256": "fde40e9c998ec306e45947ed49c0986eb648edb9a038fa1fcdde005d167d8780"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/help-guide-reste-lisible-sans-débordement-à-390-par-844-matrix-webkit-768/jir67-mobile-390.png",
+      "size": 232847,
+      "sha256": "506d280cbe24200f8b0bb7ae5e502ee3e86f5f2e69a94ca6757c9ba8cfaa4d50"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-webkit-768/error-context.md",
+      "size": 28007,
+      "sha256": "e3a77db379289358dfa90fd5476c76bb271f4d7b82fd7f922429902ef065031a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-webkit-768/test-failed-1.png",
+      "size": 532853,
+      "sha256": "7f91f2316475ab735ea0b620e00fc16dbaf23a3423801aa1dc308002f0d52d05"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-webkit-768/trace.zip",
+      "size": 1418450,
+      "sha256": "cc845f7dd8f368ec99d0247cf452dece9b2f2ae095b1ff28234f3dd23c6f255e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-webkit-768/video.webm",
+      "size": 121317,
+      "sha256": "a52c3122bd0d1cfd207155374bb382a311c05def34c2403cf2ca852e7fb3e9b4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-webkit-768/error-context.md",
+      "size": 15684,
+      "sha256": "d5edf9d36923b8302bbb41955b981139167445e6fab5bb60f04e05161b1545a9"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-webkit-768/jir43-settings-1440.png",
+      "size": 315561,
+      "sha256": "a6c5382c457fdf5d2f53203665518293bda3b273368cd7273b76f2b248ec5ab3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-webkit-768/jir43-settings-390.png",
+      "size": 144078,
+      "sha256": "664388acb68cfcbaef9728398ce8c18d3a4f512f80b0ad11f3deeff119e5faf1"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-webkit-768/jir43-template-editor-1440.png",
+      "size": 385303,
+      "sha256": "583cba68b815a02f47e012e1f66a8c89c6f41bb0e2ca3b80daf2dabdde70297d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-webkit-768/jir43-template-editor-390.png",
+      "size": 176865,
+      "sha256": "da63e3222df1003245e100ef91b2007fc42b2335887a71647fa362419e54f68f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-webkit-768/test-failed-1.png",
+      "size": 315561,
+      "sha256": "a6c5382c457fdf5d2f53203665518293bda3b273368cd7273b76f2b248ec5ab3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-webkit-768/test-failed-2.png",
+      "size": 241693,
+      "sha256": "919308b9a4136fd77b59e044dfb88e9d02f32d1d6e481955c70dc2a45f381450"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-webkit-768/trace.zip",
+      "size": 2633299,
+      "sha256": "cf1ba32c7b4078793b78e783587c02ed2f34a9122341c33765bf9f4d06e733be"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-webkit-768/video.webm",
+      "size": 325971,
+      "sha256": "bae49caa8752c855aae0c19aa898b0d18149adf3d001e1ed95280b8553cfb658"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/keyboard-shortcuts-«-j-»-«-bd43e--j-»-«-k-»-«-m-»-puis-«-i-»-matrix-webkit-768/error-context.md",
+      "size": 12260,
+      "sha256": "04b4b2675145157e057b0c7c528bbaa0cec540d07516f0b0b85000c3c68c21c5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/keyboard-shortcuts-«-j-»-«-bd43e--j-»-«-k-»-«-m-»-puis-«-i-»-matrix-webkit-768/test-failed-1.png",
+      "size": 558817,
+      "sha256": "c9e11af5cd76f2e453f92bce375904f9af132f69798c00fb9fb6f39532eafc71"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/keyboard-shortcuts-«-j-»-«-bd43e--j-»-«-k-»-«-m-»-puis-«-i-»-matrix-webkit-768/trace.zip",
+      "size": 2666685,
+      "sha256": "760faf6aac6875014823b54e3b4e6526cabe8c30023645a93c19a3c2494b1ba2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/keyboard-shortcuts-«-j-»-«-bd43e--j-»-«-k-»-«-m-»-puis-«-i-»-matrix-webkit-768/video.webm",
+      "size": 275758,
+      "sha256": "a542ff875f2a29d31251f60f3c307c0f55b22886b8728e147a7bb56b545894ca"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-webkit-768/error-context.md",
+      "size": 8902,
+      "sha256": "5d0c0d83a3362d640950b5adf331b8a3fccf529c644d3d37f05d058f7d8547f6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-webkit-768/test-failed-1.png",
+      "size": 296120,
+      "sha256": "fb96a44c01f0941417ad3f652ab9d12b5f8fc7ba957cc40eb1a5648f838fd50d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-webkit-768/trace.zip",
+      "size": 3681056,
+      "sha256": "ee89df7a2204d2412aa4e891753741b0b28fd11e3e71f9a327bc9d04e1cfded7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-webkit-768/video.webm",
+      "size": 457942,
+      "sha256": "9b5bd6ed666827bac3ebede487077c1d878dd9f6509883b17d61fa3c7031652e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/markdown-editor-éditeur-Ma-1df82-en-lecture-seule-au-lecteur-matrix-webkit-768/jir71-read-only.png",
+      "size": 625126,
+      "sha256": "2edcffbf18bcd0bcdd932386161a1f1b7b9fc244b09b58d8f39609beb9ac2a96"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-matrix-webkit-768/jir71-bubble-menu.png",
+      "size": 661594,
+      "sha256": "87d73df5be75f9b2df6e66e728183d94224c18e229a174c64b4997866c3ad580"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-matrix-webkit-768/jir71-focus-slash-menu.png",
+      "size": 654327,
+      "sha256": "352a0ef1492fa5a096e7c55d3ddaa8fb7f0386e80ed5655bc22501316bab8d8d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-matrix-webkit-768/jir71-rest-empty.png",
+      "size": 645556,
+      "sha256": "a1147b3c84664ab0e64559305d7b9c305c5e5027ee09846768c09a64273af878"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-matrix-webkit-768/jir71-rest.png",
+      "size": 651901,
+      "sha256": "844e6fcb94e26f7e517b84f647a83b804e693b3eb84a9425e3e2a932b78840e6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/markdown-editor-éditeur-Ma-b7056-vec-mention-puis-le-modifie-matrix-webkit-768/comment-editor.png",
+      "size": 653242,
+      "sha256": "5a6719eaa2faf0f8cde0c1c14dc2a3ea30f358be69fe8033825c220f85ebaa88"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/markdown-editor-éditeur-Ma-fb20c-gistré-comme-dans-l’éditeur-matrix-webkit-768/comment-heading.png",
+      "size": 22639,
+      "sha256": "80fd676425f5f8d188d3ee818ff888dd6c9fc49e5178c74e6e029f8b8bb46d2f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-matrix-webkit-768/jir91-1-epic-sans-composant.png",
+      "size": 375869,
+      "sha256": "67fdb811bc8890895dc0a46d2cc19246cfd91ec7bd057b8ee69419233123589a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-matrix-webkit-768/jir91-2-bascule-composant.png",
+      "size": 355626,
+      "sha256": "184ccd52239b77a75532af988ed21049e9b249d814218cab1857612e62560403"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-matrix-webkit-768/jir91-3-filtre-version.png",
+      "size": 366911,
+      "sha256": "4f8760489c00f7395b120d783946e6ed0cff24293ddbd129ee37b53238b9d6d3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-matrix-webkit-768/jir91-4-epic-avec-composant.png",
+      "size": 390978,
+      "sha256": "05368ea1ea7ae7e603a503893fbac62945423a80ee30a1078588d5dbc4b58edf"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/new-item-required-parent-«-1b045-igatoire-puis-crée-la-Tâche-matrix-webkit-768/jir69-1-parent-manquant.png",
+      "size": 390414,
+      "sha256": "4968250f128002e7d38008c5eacf60f82ec92b6d77b81a605ffc9308b8cd554d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/new-item-required-parent-«-1b045-igatoire-puis-crée-la-Tâche-matrix-webkit-768/jir69-2-parent-choisi.png",
+      "size": 393136,
+      "sha256": "cc4fa07456bda444106111bc8e226473de7d841b6c0e7517be7cba590bba8c9c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-matrix-webkit-768/jir74-desktop-dark.png",
+      "size": 713253,
+      "sha256": "a07781cdbea8a2e51d4c2c775863c941d2610918bef53c15e846ef6876f4ef59"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-matrix-webkit-768/jir74-desktop-light.png",
+      "size": 752331,
+      "sha256": "cb0474fcd5499acb74a0be0ef31a40ab39b1c18871b02d5c43e6a01fc2c23c22"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-matrix-webkit-768/jir74-mobile-drawer.png",
+      "size": 204106,
+      "sha256": "5abc01b672264ec8d1fe866a2826f2eed46de45cbd6c13454d80b149a6e64ef6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-matrix-webkit-768/jir74-mobile.png",
+      "size": 254594,
+      "sha256": "987293ca00ea852ab7eadfb890a986dc66b4556a77932e2ecfabf4c3f1af76ac"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/sprint-filter-filtre-la-Li-c4fd7-et-le-garde-au-rechargement-matrix-webkit-768/jir81-liste-filtre-sprint-termine.png",
+      "size": 287860,
+      "sha256": "003e2593cbaa62f24bc8bdda037e34c29e3dc912e518529b936c1852544254a4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/sprint-filter-filtre-la-Li-c4fd7-et-le-garde-au-rechargement-matrix-webkit-768/jir81-menu-sprint.png",
+      "size": 331462,
+      "sha256": "4e82f9c59138e3654d8cffdce097be7f3f5aee1777b1b476bec1a8196e02330d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-webkit-768/error-context.md",
+      "size": 12592,
+      "sha256": "ae4cd44175dff8eb51377dd8bd89a079ad39cdc4e5f040bdf9c3c86c13c5dd85"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-webkit-768/test-failed-1.png",
+      "size": 520997,
+      "sha256": "be5c30efeefe8c07008e8b9727241403da2296184ab94b92ea046b75e6582fef"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-webkit-768/trace.zip",
+      "size": 1632296,
+      "sha256": "acb13fdd1caa1ebd48fbc8fd43abfe011ba1c3113d665ca74666e460d228683a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-webkit-768/video.webm",
+      "size": 300523,
+      "sha256": "a1edfd31cb587f34ef8f82327b6d61e3a178a48b9d4fdb1498edae71cd3b2f3f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--matrix-webkit-768/jir80-create-dialog-contextual.png",
+      "size": 568398,
+      "sha256": "c6cfef232e9814dc7bf0f306feb97bc4728ef5a62b0d9eecc52eadd62133a045"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--matrix-webkit-768/jir80-create-dialog-short.png",
+      "size": 312519,
+      "sha256": "401531c49164dc29274524f7f9a4d2a8a5e97115beeb867338a570078bef027b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--matrix-webkit-768/jir80-create-dialog-type-open.png",
+      "size": 570444,
+      "sha256": "198b58cffa2e162e255e09872f3c42a3e68a125e8491c3dc43867e670e97bb6e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--matrix-webkit-768/jir80-create-dialog.png",
+      "size": 560287,
+      "sha256": "f17f8a1ed66f852ac7b75b993ad71f7595e88641a40b0ca20de8bae24c73899a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-webkit-768/error-context.md",
+      "size": 14778,
+      "sha256": "417a0a6ffa2dc66007f6bcb4ff820765d893a6f6f67fb657af4b6785e2d1db58"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-webkit-768/test-failed-1.png",
+      "size": 565760,
+      "sha256": "420cb6a0d94d45b454f98d3e460f98211a5f25a2fbe546e32f467ef9b13dbcd0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-webkit-768/trace.zip",
+      "size": 3362703,
+      "sha256": "8a0e1afef58c4adf70a0afdc0cf31059c1ce9747b2d861fcfe4e18a3abc45c87"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-webkit-768/video.webm",
+      "size": 294523,
+      "sha256": "051ab277f0b9ca08cfc85d9be3657f9c643e4ba09a58d4a360034bf505e1003a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-panneau-de-t-2148a-nche-dans-le-presse-papiers-matrix-webkit-768/error-context.md",
+      "size": 13686,
+      "sha256": "72d3152cb9e69bd5d4c6760660bcbb1f668f634da07eccacf16dccf68f16bbab"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-panneau-de-t-2148a-nche-dans-le-presse-papiers-matrix-webkit-768/test-failed-1.png",
+      "size": 95061,
+      "sha256": "b7c50b5fdfb4dc2702107b86f2edbbb1b2ae368633cc6b24125bc47645cf35ac"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-panneau-de-t-2148a-nche-dans-le-presse-papiers-matrix-webkit-768/trace.zip",
+      "size": 17037,
+      "sha256": "22127ca5d460007c2950ba54fcec788bf223d1cfd572851d6ab75b1ec089ccd0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-webkit-768-20261028-223754/ticket-drawer-panneau-de-t-2148a-nche-dans-le-presse-papiers-matrix-webkit-768/video.webm",
+      "size": 5345,
+      "sha256": "4b521f557e622a37e28401994a2d9468c8ecdaafad103f97d428e462b4a16120"
+    },
+    {
+      "path": "audit/console/matrix-webkit-768-20261028-223754-2026-08-05-session-06-backlog-ranking-smoke-console.log",
+      "size": 311,
+      "sha256": "d1161f7997542f05e6260435ed89eadde062cd0bd30e711d04b4b8dd64f4aaf2"
+    },
+    {
+      "path": "audit/console/matrix-webkit-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-board-sans-sprint-sans-appartenance-de-sprint.log",
+      "size": 22,
+      "sha256": "c45aa5acd6bd15a180800a66b3721e6b6d75968da392a6c25a798a36173a96ed"
+    },
+    {
+      "path": "audit/console/matrix-webkit-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-releases-sans-appartenance-de-sprint.log",
+      "size": 22,
+      "sha256": "c45aa5acd6bd15a180800a66b3721e6b6d75968da392a6c25a798a36173a96ed"
+    },
+    {
+      "path": "audit/console/matrix-webkit-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-roadmap-sans-appartenance-de-sprint.log",
+      "size": 22,
+      "sha256": "c45aa5acd6bd15a180800a66b3721e6b6d75968da392a6c25a798a36173a96ed"
+    },
+    {
+      "path": "audit/console/matrix-webkit-768-20261028-223754-create-everywhere-le-lecteur-ne-voit-pas-de-bouton-cr-er-sur-les-trois-pages.log",
+      "size": 66,
+      "sha256": "ef9e08952f59f27f15f10e555599b03c08b8042bdd8e47b427355e02d83a175c"
+    },
+    {
+      "path": "audit/console/matrix-webkit-768-20261028-223754-realtime-increments-the-other-user-s-bell-after-a-mention.log",
+      "size": 80,
+      "sha256": "1a35f02d80e5ee40d44bd46a9cc7a6bdb15299cf5d0f3be5554fa578f7832db1"
+    },
+    {
+      "path": "audit/console/matrix-webkit-768-20261028-223754-realtime-offers-a-list-refresh-to-the-other-user-only.log",
+      "size": 214,
+      "sha256": "9ac27a3cd698e5b61eb238fc96c1ccb7e119c94381210cbc3396b98613ca6f82"
+    },
+    {
+      "path": "audit/console/matrix-webkit-768-20261028-223754-realtime-refreshes-the-other-user-s-open-item-automatically.log",
+      "size": 80,
+      "sha256": "1a35f02d80e5ee40d44bd46a9cc7a6bdb15299cf5d0f3be5554fa578f7832db1"
+    },
+    {
+      "path": "audit/network/matrix-webkit-768-20261028-223754-2026-08-05-session-06-backlog-ranking-smoke-requests.log",
+      "size": 13567,
+      "sha256": "9800a899079ce5bc3b5044fac3e6a2a393120702764a0ea72a908ea78e472c7d"
+    },
+    {
+      "path": "audit/network/matrix-webkit-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-board-sans-sprint-sans-appartenance-de-sprint.log",
+      "size": 5058,
+      "sha256": "842c655f75a62f2cbe7de47df9ef874b3e42bc8125edebe5608ca558476ac0d6"
+    },
+    {
+      "path": "audit/network/matrix-webkit-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-releases-sans-appartenance-de-sprint.log",
+      "size": 7008,
+      "sha256": "34310e3a5c6db3fcdf27a8af1e88fdb94ca6f140315ff95fcea4526d79c9ee92"
+    },
+    {
+      "path": "audit/network/matrix-webkit-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-roadmap-sans-appartenance-de-sprint.log",
+      "size": 4266,
+      "sha256": "afeecf636b95037784d5e5b5e3ae7a315599cb8068a3c060ae793beb9476f7b4"
+    },
+    {
+      "path": "audit/network/matrix-webkit-768-20261028-223754-create-everywhere-le-lecteur-ne-voit-pas-de-bouton-cr-er-sur-les-trois-pages.log",
+      "size": 10715,
+      "sha256": "ef0a19dbc550638160e242f3f5c105133b863cb456367f258081a23440ec4e7b"
+    },
+    {
+      "path": "audit/network/matrix-webkit-768-20261028-223754-realtime-increments-the-other-user-s-bell-after-a-mention.log",
+      "size": 9448,
+      "sha256": "ebbb589cf57d7a097f131027926197a63872b70e2aaa8877c8dfcdf6657cc357"
+    },
+    {
+      "path": "audit/network/matrix-webkit-768-20261028-223754-realtime-offers-a-list-refresh-to-the-other-user-only.log",
+      "size": 9469,
+      "sha256": "5e9ec136f2d7b7e22396b56e9f7de7369f61e7113a1af39f76b2541a323fd97d"
+    },
+    {
+      "path": "audit/network/matrix-webkit-768-20261028-223754-realtime-refreshes-the-other-user-s-open-item-automatically.log",
+      "size": 9563,
+      "sha256": "8c7ca988e9cb3e95c799608fdf07ece3d293fdafd4e3fea4de6bc3ec2e139ab6"
+    },
+    {
+      "path": "audit/runs/matrix-webkit-768-20261028-223754-junit.xml",
+      "size": 58570,
+      "sha256": "92da999ae9b8840ecdaf420f4e18282592ee648e79e536e8c15c53753cf7e171"
+    },
+    {
+      "path": "audit/screenshots/matrix-webkit-768-20261028-223754-FIXED-PARTIAL-BUG-JIR-015-backlog-ranked.png",
+      "size": 227574,
+      "sha256": "2acdcacd8cf62e3a4233b4ea48c496d589308db43e87e2e2fd11dc9ba2683e06"
+    },
+    {
+      "path": "audit/screenshots/matrix-webkit-768-20261028-223754-create-everywhere-board.png",
+      "size": 260233,
+      "sha256": "a47c5fa64f3693b2830cb70c90c7cebe3e1efa56f40fdc5ca51bad80bf91dedd"
+    },
+    {
+      "path": "audit/screenshots/matrix-webkit-768-20261028-223754-create-everywhere-le-lecteur-ne-voit-pas-de-bouton-cr-er-sur-les-trois-pages-failure.png",
+      "size": 229830,
+      "sha256": "782cf16f37c6fb36133002462c960ab7c4af2abcd9b08843688557a7f28d429b"
+    },
+    {
+      "path": "audit/screenshots/matrix-webkit-768-20261028-223754-create-everywhere-releases-opened.png",
+      "size": 272496,
+      "sha256": "67b37bd799182a12603a094ec345806375b7d5b8531f551e6954ed325f65ceae"
+    },
+    {
+      "path": "audit/screenshots/matrix-webkit-768-20261028-223754-create-everywhere-releases.png",
+      "size": 239064,
+      "sha256": "940a98c935fb6cd990f997e1f526aa8595910d7d418342bd11e28e4ed1234989"
+    },
+    {
+      "path": "audit/screenshots/matrix-webkit-768-20261028-223754-create-everywhere-roadmap.png",
+      "size": 240040,
+      "sha256": "b73dd29c0db6fc0e5ecb10bacc7f26f84c02650fe417e76b40402cd13e9bc21b"
+    },
+    {
+      "path": "audit/screenshots/matrix-webkit-768-20261028-223754-realtime-bell.png",
+      "size": 679210,
+      "sha256": "d536e4bfd770f67c1ce2f858009aa758ca48f4d007bf5bc2e8423beb64e43385"
+    },
+    {
+      "path": "audit/screenshots/matrix-webkit-768-20261028-223754-realtime-drawer.png",
+      "size": 632105,
+      "sha256": "a2bc30a2008ff08c0f943d72f212b00affbfe50488836a3bd6f64b748cc7f1f0"
+    },
+    {
+      "path": "audit/screenshots/matrix-webkit-768-20261028-223754-realtime-list-banner.png",
+      "size": 678597,
+      "sha256": "0e3435553d967ca3c7a3a2cdc03cade6c4be54657e4dde9eed5238dd744e732a"
+    }
+  ]
+}

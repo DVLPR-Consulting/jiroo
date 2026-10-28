@@ -1,0 +1,7 @@
+[log] [HMR] connected
+[log] [HMR] connected
+[pageerror] Load failed
+[pageerror] /localhost:3100/__nextjs_original-stack-frames due to access control checks.
+[log] [HMR] connected
+[performance] {"domContentLoadedMs":276,"loadMs":296,"responseStartMs":232}
+[result] CASS-9003 persisted then restored after reload
