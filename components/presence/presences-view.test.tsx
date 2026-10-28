@@ -61,6 +61,7 @@ const page: PresencePage = {
   sprint: null,
   sprints: [],
   limited: false,
+  display: "all",
 };
 const scoped: PresencePage = { ...page, scope: "data", sprints, data: { ...page.data, sprints: { data: sprints } } };
 
@@ -219,10 +220,49 @@ describe("PresencesView", () => {
     render(<PresencesView page={{ ...page, view: "year", period: { from: "2026-01-01", to: "2026-12-31" } }} />);
     const november = screen.getByRole("link", { name: "Hugo Lefèvre, novembre 2026" });
     expect(november).toHaveTextContent("5 j");
+    expect(november).toHaveTextContent("1 ✓");
+    expect(november.closest("tr")).toHaveTextContent("1 terminés");
     expect(november).toHaveAttribute("href", "/presences?vue=mois&date=2026-11-01");
   });
 
+  it("keeps the year to the absences when asked", () => {
+    render(<PresencesView page={{ ...page, view: "year", period: { from: "2026-01-01", to: "2026-12-31" }, display: "absences" }} />);
+    const november = screen.getByRole("link", { name: "Hugo Lefèvre, novembre 2026" });
+    expect(november).toHaveTextContent("5 j");
+    expect(november).not.toHaveTextContent("✓");
+    expect(november.closest("tr")).not.toHaveTextContent("terminés");
+    expect(november).toHaveAttribute("href", "/presences?vue=mois&date=2026-11-01&affichage=absences");
+  });
+
+  it("shows the absences alone when asked, with the tickets' lane gone", () => {
+    render(<PresencesView page={{ ...page, display: "absences" }} />);
+    expect(screen.queryByRole("button", { name: /^DATA-/ })).toBeNull();
+    expect(rowOf("Hugo Lefèvre")).not.toHaveTextContent("terminé");
+    const choice = screen.getByRole("group", { name: "Afficher" });
+    expect(within(choice).getByRole("link", { name: "Absences" })).toHaveAttribute("aria-current", "page");
+    expect(within(choice).getByRole("link", { name: "Absences et tickets" })).toHaveAttribute("href", "/presences?vue=mois&date=2026-11-03");
+  });
+
+  it("pales a ticket's bar on the half-days its holder is away, and offers the exports in one menu", async () => {
+    render(<PresencesView page={page} />);
+    // Hugo is away on the 3rd: DATA-2 is open, both halves pale; on the 2nd it is plain.
+    const away = within(half("Hugo Lefèvre, 3 nov. matin, absent").closest("td")!).getByRole("button", { name: /^DATA-2/ });
+    expect(away.querySelector('[data-half-bar="am"]')).toHaveClass("opacity-25");
+    expect(away.querySelector('[data-half-bar="pm"]')).toHaveClass("opacity-25");
+    const here = within(half("Hugo Lefèvre, 2 nov. matin").closest("td")!).getByRole("button", { name: /^DATA-2/ });
+    expect(here.querySelector('[data-half-bar="am"]')).not.toHaveClass("opacity-25");
+    // Sunday the 1st: open, paused.
+    const weekend = within(half("Hugo Lefèvre, 1 nov. matin").closest("td")!).getByRole("button", { name: /^DATA-2/ });
+    expect(weekend.querySelector('[data-half-bar="pm"]')).toHaveClass("opacity-25");
+    expect(screen.queryByRole("button", { name: "Exporter la période (CSV)" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Exporter" }));
+    expect(await screen.findByRole("menuitem", { name: "Exporter les absences (CSV)" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Exporter la période (CSV)" })).toBeVisible();
+  });
+
   it("builds the page's URLs", () => {
+    expect(hrefFor(page, { display: "absences" })).toBe("/presences?vue=mois&date=2026-11-03&affichage=absences");
+    expect(hrefFor({ ...page, display: "absences" }, { view: "year" })).toBe("/presences?vue=annee&date=2026-11-03&affichage=absences");
     expect(hrefFor(page, { scopeKey: "DATA", view: "sprint" })).toBe("/presences?backlog=DATA&vue=sprint&date=2026-11-03");
     expect(hrefFor(page, { view: "sprint" })).toBe("/presences?vue=mois&date=2026-11-03");
     expect(hrefFor({ ...scoped, view: "sprint", sprint: sprints[0]! }, { sprintId: "s9", anchor: "2026-11-10" })).toBe("/presences?backlog=DATA&vue=sprint&date=2026-11-10&sprint=s9");

@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
@@ -9,12 +10,12 @@ import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { PageHeader } from "@/components/shell/page-header";
 import { PageToolbar } from "@/components/shell/page-toolbar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { halfKey, halfName, type Half, type HalfDay } from "@/lib/dates/half-days";
 import { isWorkingDay, nextWorkingDay, publicHoliday } from "@/lib/dates/working-days";
 import { LABEL_HUES, type LabelHue } from "@/lib/design/constants";
 import { countLabel, formatPoints } from "@/lib/format/plural";
-import { absentWorkingDays } from "@/lib/le-point/absences";
+import { absentHalf, absentWorkingDays } from "@/lib/le-point/absences";
 import { formatDay } from "@/lib/le-point/model";
 import { csvDocument, registerRows, yearRows } from "@/lib/presence/csv";
 import type { PresencePage } from "@/lib/presence/load";
@@ -38,6 +39,7 @@ import {
   ticketWorkingDays,
   toAbsences,
   visiblePeople,
+  type Display,
   type PresenceBacklog,
   type PresencePerson,
   type PresenceSprint,
@@ -90,7 +92,7 @@ function spanLabel(from: HalfDay, to: HalfDay): string {
 }
 
 /** The page's URL for another scope, view or period. */
-export function hrefFor(page: PresencePage, over: { scopeKey?: string | null; view?: View; anchor?: Day; sprintId?: string | null } = {}): string {
+export function hrefFor(page: PresencePage, over: { scopeKey?: string | null; view?: View; anchor?: Day; sprintId?: string | null; display?: Display } = {}): string {
   const scopeKey = over.scopeKey === undefined ? scopeBacklog(page.data, page.scope)?.key ?? null : over.scopeKey;
   const requested = over.view ?? page.view;
   const view: View = requested === "sprint" && !scopeKey ? "month" : requested;
@@ -100,6 +102,7 @@ export function hrefFor(page: PresencePage, over: { scopeKey?: string | null; vi
   params.set("date", over.anchor ?? page.anchor);
   const sprintId = over.sprintId === undefined ? page.sprint?.id ?? null : over.sprintId;
   if (view === "sprint" && sprintId) params.set("sprint", sprintId);
+  if ((over.display ?? page.display) === "absences") params.set("affichage", "absences");
   return `/presences?${params.toString()}`;
 }
 
@@ -317,13 +320,6 @@ export function PresencesView({ page }: { page: PresencePage }) {
           </span>
         }
         description="Qui est là, les tickets de chacun dans le temps, et vos absences à déclarer."
-        actions={
-          <>
-            <button type="button" onClick={exportPeriod} className={BUTTON}>Exporter la période (CSV)</button>
-            <button type="button" onClick={exportRegister} className={BUTTON}>Exporter les absences (CSV)</button>
-            <RulesDialog />
-          </>
-        }
       />
       <PageToolbar>
         <DropdownMenu>
@@ -381,6 +377,31 @@ export function PresencesView({ page }: { page: PresencePage }) {
           error={declaring ? error : null}
           onDeclare={(input) => run(() => declareAbsenceAction(input), () => setDeclaring(false))}
         />
+        <div className="ml-auto inline-flex flex-wrap items-center gap-2">
+          <div className="inline-flex h-[30px] overflow-hidden rounded-[var(--radius)] border border-border bg-[var(--surface)]" role="group" aria-label="Afficher">
+            {([["all", "Absences et tickets"], ["absences", "Absences"]] as const).map(([candidate, label]) => (
+              <Link
+                key={candidate}
+                href={hrefFor(page, { display: candidate })}
+                aria-current={page.display === candidate ? "page" : undefined}
+                className={cn("px-3 text-[13px] leading-[28px]", page.display === candidate ? "bg-foreground text-background" : "text-muted-foreground hover:bg-[var(--surface-2)]")}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger className={cn(BUTTON, "gap-1.5")}>
+              Exporter
+              <ChevronDown aria-hidden="true" className="size-3.5 text-muted-foreground" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => exportPeriod()}>Exporter la période (CSV)</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => exportRegister()}>Exporter les absences (CSV)</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <RulesDialog />
+        </div>
       </PageToolbar>
 
       {/* 16 px a side, the Board's and the Liste's margins on desktop. */}
@@ -390,8 +411,13 @@ export function PresencesView({ page }: { page: PresencePage }) {
         <Legend swatch="bg-[linear-gradient(90deg,var(--danger)_0_50%,var(--surface)_50%)] ring-1 ring-[var(--danger)]">demi-journée (matin | après-midi)</Legend>
         <Legend swatch="bg-[repeating-linear-gradient(135deg,color-mix(in_oklch,var(--danger)_25%,transparent)_0_3px,transparent_3px_6px)] ring-1 ring-[var(--danger)]">absence à venir</Legend>
         <Legend swatch="bg-[color-mix(in_oklch,var(--status-doing)_45%,var(--surface))] ring-1 ring-[var(--status-doing)]">sélection</Legend>
-        <Legend swatch="h-2.5 w-5 bg-[var(--info)]">ticket en cours</Legend>
-        <Legend swatch="h-2.5 w-5 bg-[var(--status-done)]">ticket terminé</Legend>
+        {page.display === "all" ? (
+          <>
+            <Legend swatch="h-2.5 w-5 bg-[var(--info)]">ticket en cours</Legend>
+            <Legend swatch="h-2.5 w-5 bg-[var(--status-done)]">ticket terminé</Legend>
+            <Legend swatch="h-2.5 w-5 bg-[var(--info)] opacity-25">ticket en pause (absence, week-end, férié)</Legend>
+          </>
+        ) : null}
         <Legend swatch="bg-[var(--muted)]">week-end et jour férié</Legend>
       </div>
 
@@ -464,7 +490,7 @@ export function PresencesView({ page }: { page: PresencePage }) {
               ) : null}
               {(
                 [
-                  ["Développement", groups.developers, true],
+                  ["Développement", groups.developers, page.display === "all"],
                   ["Produit", groups.product, false],
                 ] as const
               ).map(([label, members, withLanes]) => (
@@ -617,6 +643,7 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
                       "min-w-0 flex-1 border-0 p-0",
                       half === "pm" && "border-l border-dashed border-border",
                       editable && working ? "cursor-crosshair" : "cursor-default",
+                      state === "free" && editable && "hover:shadow-[inset_0_0_0_1px_var(--status-doing)]",
                       state === "away" && "bg-[var(--danger)]",
                       state === "future" && "bg-[repeating-linear-gradient(135deg,color-mix(in_oklch,var(--danger)_25%,transparent)_0_3px,transparent_3px_6px)] shadow-[inset_0_0_0_1px_var(--danger)]",
                       highlighted(person.id, day, half) && "bg-[color-mix(in_oklch,var(--status-doing)_45%,var(--surface))] shadow-[inset_0_0_0_1px_var(--status-doing)]",
@@ -626,10 +653,13 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
               })}
             </div>
             {withLanes ? (
-              <div className="flex flex-col gap-[3px] py-[3px]">
+              // The tickets run in a lane of their own, tinted and ruled off from the half-days.
+              <div className={cn("flex flex-col gap-[3px] border-t border-border py-1", working ? "bg-[color-mix(in_oklch,var(--info)_7%,var(--surface))]" : "bg-[var(--muted)]")}>
                 {segments.map((segment, lane) => {
                   if (!segment) return <i key={lane} aria-hidden="true" className="block h-3" />;
                   const span = daysOf(segment.ticket.startedAt, ticketUntil(segment.ticket, data.today) < period.to ? ticketUntil(segment.ticket, data.today) : period.to).length;
+                  // A bar is drawn by half-days: it pales when nobody works, the person away or the day off, the ticket open but paused.
+                  const pale = { am: !working || absentHalf(absences, person.id, day, "am"), pm: !working || absentHalf(absences, person.id, day, "pm") };
                   return (
                     <button
                       key={lane}
@@ -637,14 +667,21 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
                       title={`${segment.ticket.key} · ${segment.ticket.title}`}
                       aria-label={`${segment.ticket.key}, ${segment.ticket.title}, ${segment.ticket.doneAt ? "terminé" : "en cours"}`}
                       className={cn(
-                        "relative block h-3 border-0 p-0 text-left",
-                        segment.ticket.doneAt ? "bg-[var(--status-done)]" : "bg-[var(--info)]",
+                        "relative flex h-3 border-0 p-0 text-left",
                         segment.starts || segment.ends ? "w-[calc(100%-2px)]" : "w-full",
                         segment.starts && "ml-0.5",
                         segment.starts && segment.ends && "w-[calc(100%-4px)]",
                         segment.goesOn && "after:absolute after:-right-0.5 after:top-0 after:border-y-[6px] after:border-l-[7px] after:border-y-transparent after:border-l-[var(--surface)]",
                       )}
                     >
+                      {(["am", "pm"] as const).map((half) => (
+                        <span
+                          key={half}
+                          aria-hidden="true"
+                          data-half-bar={half}
+                          className={cn("block h-3 min-w-0 flex-1", segment.ticket.doneAt ? "bg-[var(--status-done)]" : "bg-[var(--info)]", pale[half] && "opacity-25")}
+                        />
+                      ))}
                       {segment.starts && span >= 2 ? (
                         <span className="pointer-events-none absolute left-0.5 top-0 z-[2] overflow-hidden whitespace-nowrap text-[9.5px] font-semibold leading-3 text-white" style={{ maxWidth: `calc(${span} * 100% - 8px)` }}>
                           {segment.ticket.key}
@@ -706,14 +743,14 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
                         <td key={month.from} className={cn(CELL_BORDER, "p-0")}>
                           <Link href={hrefFor(page, { view: "month", anchor: month.from })} aria-label={`${person.name}, ${MONTH.format(at(month.from))}`} className="flex h-11 flex-col items-center justify-center gap-0.5 hover:bg-[var(--surface-2)]">
                             {summary.away ? <span className={cn("px-1.5 text-[11px] font-semibold leading-4 text-white", month.from > data.today ? "bg-[color-mix(in_oklch,var(--danger)_30%,var(--surface))] text-[var(--danger)]" : "bg-[var(--danger)]")}>{formatPoints(summary.away)} j</span> : null}
-                            {person.profile === "developer" && summary.done ? <span className="text-[11px] font-semibold text-[var(--status-done)]">{summary.done} ✓</span> : null}
+                            {page.display === "all" && person.profile === "developer" && summary.done ? <span className="text-[11px] font-semibold text-[var(--status-done)]">{summary.done} ✓</span> : null}
                           </Link>
                         </td>
                       );
                     })}
                     <td className={cn(CELL_BORDER, "border-r-0 px-2 text-[11px] leading-[1.35] text-muted-foreground")}>
                       <b className="font-semibold text-[var(--danger)]">{formatPoints(year.away)} j</b> absent
-                      {person.profile === "developer" ? <><br /><b className="font-semibold text-[var(--status-done)]">{year.done}</b> terminés</> : null}
+                      {page.display === "all" && person.profile === "developer" ? <><br /><b className="font-semibold text-[var(--status-done)]">{year.done}</b> terminés</> : null}
                     </td>
                   </tr>
                 );
@@ -965,7 +1002,7 @@ function RulesDialog() {
         <ul className="list-disc space-y-1.5 pl-5 text-sm">
           <li>Une absence va d’une demi-journée ouvrée à une autre, bornes incluses ; chaque demi-journée ouvrée compte 0,5 j. Les week-ends et les jours fériés français ne comptent jamais. Deux absences ne se chevauchent pas.</li>
           <li>Une absence vaut pour tous les backlogs de la personne ; elle est hachurée tant qu’elle n’est pas passée. Chacun déclare les siennes ; un administrateur d’un backlog, celles de ses membres.</li>
-          <li>Un ticket commence le jour où il passe « En cours » et finit le jour où il passe « Terminé », pour la personne à qui il est assigné aujourd’hui ; il traverse les absences, les week-ends et les fériés sans s’interrompre. La catégorie actuelle d’un statut vaut pour tout son historique ; « dates approximatives » signale un journal incomplet.</li>
+          <li>Un ticket commence le jour où il passe « En cours » et finit le jour où il passe « Terminé », pour la personne à qui il est assigné aujourd’hui ; il traverse les week-ends, les fériés et les absences sans s’interrompre, mais sa barre y pâlit : il reste ouvert, personne n’y travaille. La catégorie actuelle d’un statut vaut pour tout son historique ; « dates approximatives » signale un journal incomplet.</li>
           <li>L’équipe regroupe les personnes rattachées au backlog par ses rôles ou son schéma de droits ; à défaut, celles qui peuvent recevoir un ticket. Développement : une personne assignée à un ticket aujourd’hui ou au cours des douze derniers mois ; Produit sinon. Rien n’est réglé à la main.</li>
           <li>Les totaux comptent les demi-journées ouvrées d’absence et les tickets terminés dans la période, sur la portée affichée.</li>
         </ul>
