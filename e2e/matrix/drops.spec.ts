@@ -101,7 +101,7 @@ async function targetsAtOpening(page: Page, scroller: Locator) {
   return offscreenDropTargets(bounds, await frameBounds(scroller), fixture.origin.id);
 }
 
-async function observedDrop(page: Page, target: DropStatus) {
+async function observedDrop(page: Page, target: DropStatus, record: (line: string) => void) {
   if (!fixture) throw new Error("Drop fixture was not initialized.");
   const { moving, backlog, columns, origin } = fixture;
   const { handle, scroller } = await readyBoard(page);
@@ -155,6 +155,7 @@ async function observedDrop(page: Page, target: DropStatus) {
     const reloaded = columns.find(({ name }) => groupLabel.startsWith(`${name}, `))?.id ?? null;
     const result = compareDrop({ itemKey: moving.key, expected: target.id,
       announced: announcedDropStatus(announcement, `${moving.key} — ${TITLE}`, columns), sent, reloaded }, columns);
+    record(`${result.message}; autoScroll=${Math.round(scrollPx)}px`);
     expect(result.matches, result.message).toBe(true);
     expect(response?.status() ?? 0, `${result.message}; action HTTP status`).toBeGreaterThanOrEqual(200);
     expect(response?.status() ?? 500, `${result.message}; action HTTP status`).toBeLessThan(400);
@@ -171,9 +172,8 @@ async function runSeries(page: Page, target: DropStatus, info: TestInfo) {
   let completed = 0, scrollMs = 0, scrollPx = 0;
   try {
     for (let index = 0; index < DROPS; index++) {
-      const result = await observedDrop(page, target);
+      const result = await observedDrop(page, target, (line) => lines.push(`${index + 1}/${DROPS} ${line}`));
       completed++; scrollMs += result.scrollMs; scrollPx += result.scrollPx;
-      lines.push(`${completed}/${DROPS} ${result.message}; autoScroll=${Math.round(result.scrollPx)}px`);
       // Explicitly approved fixture reset; not a measured/tested drop.
       await updateItem({ id: fixture.moving.id, statusId: fixture.origin.id }, fixture.actorId);
       await page.reload();
