@@ -46,6 +46,25 @@ afterEach(async () => {
 });
 
 describe("end-of-run E2E inventory", () => {
+  it("inventories a11y JSON in persistent and local mode without taking another run's evidence", async () => {
+    for (const persistent of [true, false]) {
+      const root = await directory();
+      await manifest(root, persistent);
+      const options = { workingDirectory: root, env: {
+        JIROO_E2E_RUN_ID: RUN, JIROO_E2E_PERSIST_AUDIT: persistent ? "1" : "0",
+      } };
+      const path = await writeAuditText("audit/a11y/axe-p1-accueil.json", "abc", options);
+      const expected = persistent
+        ? `audit/a11y/${RUN}-axe-p1-accueil.json`
+        : `.playwright/evidence/${RUN}/a11y/${RUN}-axe-p1-accueil.json`;
+      expect(path).toBe(join(root, expected));
+      if (persistent) await put(root, "audit/a11y/other-run-axe-p1-accueil.json");
+      const result = await inventoryE2eRun(RUN, { workingDirectory: root });
+      expect(result.artifacts).toEqual([entry(expected)]);
+      await expect(readFile(path, "utf8")).resolves.toBe("abc");
+    }
+  });
+
   it("hashes every artifact category in deterministic relative-path order and preserves provenance", async () => {
     const inventories = [];
     for (const reverse of [false, true]) {

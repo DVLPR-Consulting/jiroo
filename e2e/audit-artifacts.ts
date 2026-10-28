@@ -17,7 +17,7 @@ function artifactCoordinates(legacyPath: string) {
   if (
     parts.length !== 3
     || parts[0] !== "audit"
-    || !["console", "network", "screenshots"].includes(parts[1]!)
+    || !["console", "network", "screenshots", "a11y"].includes(parts[1]!)
     || basename(parts[2]!) !== parts[2]
   ) {
     throw new Error(`Chemin d’artefact E2E non autorisé : ${legacyPath}`);
