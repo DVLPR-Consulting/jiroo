@@ -21,6 +21,10 @@ export type WorkloadRow = {
   open: number;
   inProgress: number;
   blocked: number;
+  /** Estimated points of the open tickets; null when none of them is estimated (JIR-124, Léo counts in points). */
+  points: number | null;
+  /** Estimated points of the tickets in progress; null when none of them is estimated. */
+  inProgressPoints: number | null;
 };
 
 /** A dependency the reader can see, or one in a backlog they cannot browse. */
@@ -290,11 +294,18 @@ export function teamWorkload(data: LePointDataset): WorkloadRow[] {
         open: 0,
         inProgress: 0,
         blocked: 0,
+        points: null,
+        inProgressPoints: null,
       };
       rows.set(ticket.assignee, row);
     }
     row.open += 1;
-    if (ticket.category === "in_progress") row.inProgress += 1;
+    const points = typeof ticket.points === "number" ? ticket.points : null;
+    if (points !== null) row.points = (row.points ?? 0) + points;
+    if (ticket.category === "in_progress") {
+      row.inProgress += 1;
+      if (points !== null) row.inProgressPoints = (row.inProgressPoints ?? 0) + points;
+    }
     if (isBlocked(ticket)) row.blocked += 1;
   }
   return [...rows.values()].sort((a, b) =>
