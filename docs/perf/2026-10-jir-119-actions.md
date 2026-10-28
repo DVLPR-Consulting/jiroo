@@ -1,6 +1,6 @@
 # Serial Board action probe — JIR-119
 
-This measures the public HTTP responses of `createItemAction`, `updateItemAction` and `moveItemAction`, including the route's RSC render when the action requests revalidation. It prepares the comparison for JIR-119 Q1 (minimal action responses) and Q2 (request-local authorization reuse). No application code, migration or dependency changes are part of this probe.
+This measures the public HTTP responses of `createItemAction`, `updateItemAction` and `moveItemAction`, including the route's RSC render when the action requests revalidation. It compares the baseline with JIR-119 Q1 (minimal action responses) and Q2 (request-local authorization reuse). No application code, migration or dependency changes are part of this probe.
 
 ## Environment and protocol
 
@@ -89,7 +89,19 @@ Against Before, decoded p50 bytes fall by **99.58% / 99.42% / 99.42%** for creat
 
 ## After Q2
 
-Pending: repeat after Q2, fresh profile, same operation order and transitions, recording the new commit.
+Recorded on **2026-10-28T11:54:02.200Z**, checkout/build revision **2c8ebc55e3267e604c11a3d0e47d0ec0fe6bb5cb**. This is main **199d8416b4476ebd480d8e1af6daf1c39efe7a2c** after #153 plus the rebased After Q1 documentation commit; the only difference from that main revision is this Markdown document, so application files match main exactly. The checkout SHA is also the revision reported by the probe. Same standalone production build protocol, Node 24.18.1, pnpm 10.34.5, Next.js 16.4.1, PostgreSQL 17 tmpfs on `127.0.0.1:5434`, runtime role, SQL markers and operation order as the previous runs, with a new JIR-41 profile and a fresh contributor; no dependency, migration or seed change.
+
+The unchanged probe validated all 63 mutations through the action result referenced by `0.a`, the expected successful item and an owner-side persisted status check. All 60 measured IDs are distinct; final postconditions are 20,021 items, 21 new probe tasks, 221 live active-sprint tasks and 42 done tasks. A separate read confirmed that the last twenty done tasks are the measured moves in their append order. Every percentile and SQL range was recomputed from the raw samples; decoded byte ranges are createItemAction: 898–919; updateItemAction: 1290–1297; moveItemAction: 1294–1303. The ten pure probe tests pass, the production build succeeded, and no probe changes were needed; the owned server and tmpfs container were removed and their absence/closed ports verified, with no credential or environment file created.
+
+Date: 2026-10-28T11:54:02.200Z; commit: 2c8ebc55e3267e604c11a3d0e47d0ec0fe6bb5cb; requests per operation: 20 (one warm-up excluded).
+
+| Operation | Decoded bytes (p50) | MiB | Full p50 ms | Full p95 ms | Full max ms | SQL p50 [min–max] |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| createItemAction | 914 | 0.00087 | 24.77 | 30.27 | 32.48 | 44 [44–44] |
+| updateItemAction | 1297 | 0.00124 | 15.36 | 17.12 | 20.33 | 31 [31–31] |
+| moveItemAction | 1299 | 0.00124 | 17.99 | 19.35 | 27.57 | 34 [34–34] |
+
+Against After Q1, decoded p50 bytes are identical (**914 / 1,297 / 1,299**), SQL falls by **31 / 26 / 26 executions** (**75→44 / 57→31 / 60→34**), and full-response p50 falls by **35.89% / 65.63% / 67.83%** (**38.64→24.77 / 44.69→15.36 / 55.91→17.99 ms**) for create/status/move. Against Before, decoded p50 bytes are down **99.58% / 99.42% / 99.42%**, SQL is down **88 / 83 / 83 executions** (**132→44 / 114→31 / 117→34**), and full-response p50 is down **84.32% / 87.74% / 82.81%**. Q2 changes authorization fact reads, not response contents; the time reductions observed here are larger than the expectation of similar times, but this small serial run does not isolate query savings from shared-machine and cache variation.
 
 ## Limits and verification
 
@@ -97,5 +109,17 @@ Pending: repeat after Q2, fresh profile, same operation order and transitions, r
 - Measures one Server Action POST per sample, including any RSC carried inside it; excludes subsequent browser refreshes or `boardSummaryAction` requests, so this is not end-to-end time-to-settled-UI after Q1.
 - The script reports the checkout commit; the operator must build and serve that same revision with matching credentials/profile. A successful HTTP mutation and its persisted status are checked, but no attempt is made to infer full application state from a minimal response.
 - PostgreSQL logging and Docker/psql marker work add operational overhead outside the HTTP timer; the fixed 20,000-line log tail must retain both markers and the dedicated runtime role must have no unrelated traffic.
-- Pure tests cover manifest selection/failure, browser-shaped headers/body, populated-column neighbor selection contract, Next 16 ID format, anonymous Flight hints, UTF-8 text and arbitrary Blob bytes containing misleading JSON rows, action failures, missing results and wrong target/backlog/status. No pure test requires a network or a database. The full unit suite passed with four workers: 3,193 passed, one skipped; an initial default-worker run hit the existing five-second limit in an unchanged NewItemButton test, which then passed alone and in the complete four-worker run without test or timeout changes.
+- Pure tests cover manifest selection/failure, browser-shaped headers/body, populated-column neighbor selection contract, Next 16 ID format, anonymous Flight hints, UTF-8 text and arbitrary Blob bytes containing misleading JSON rows, action failures, missing results and wrong target/backlog/status. No pure test requires a network or a database. At the Before revision, the full unit suite passed with four workers: 3,193 passed, one skipped; an initial default-worker run hit the existing five-second limit in an unchanged NewItemButton test, which then passed alone and in the complete four-worker run without test or timeout changes.
 - The production build, public contributor authentication/enrollment, all three action POSTs and persisted mutation postconditions passed; the ten pure tests and typecheck/lint were run separately from timing (lint retains the existing `lib/auth/client.ts` warning).
+
+## Summary
+
+Each operation cell lists decoded MiB p50, full-response p50/p95 milliseconds and SQL p50, in that order.
+
+| Revision | Create: MiB · p50/p95 ms · SQL | Status: MiB · p50/p95 ms · SQL | Move: MiB · p50/p95 ms · SQL |
+| --- | ---: | ---: | ---: |
+| Before (11807fc) | 0.20608 · 157.94/181.44 · 132 | 0.21193 · 125.27/147.63 · 114 | 0.21195 · 104.62/123.07 · 117 |
+| After Q1 (0764993) | 0.00087 · 38.64/61.07 · 75 | 0.00124 · 44.69/49.02 · 57 | 0.00124 · 55.91/68.66 · 60 |
+| After Q2 (2c8ebc5; main 199d841) | 0.00087 · 24.77/30.27 · 44 | 0.00124 · 15.36/17.12 · 31 | 0.00124 · 17.99/19.35 · 34 |
+
+Q1 removes the embedded route render from the three action POSTs, cutting decoded payloads by more than 99%, while Q2 reuses authorization facts within each action, reducing SQL further to **44 / 31 / 34** for create/status/move without changing median payload sizes. Creation still triggers its separate `router.refresh()`, targeted sprint figures are read separately, and actions outside create/update/move still revalidate; changing these paths is outside this work. These are serial, warm-cache samples on one shared machine, excluding those follow-up requests, and establish neither settled-UI latency nor concurrent capacity or a guaranteed timing gain in another environment.
