@@ -954,4 +954,42 @@ describe("ItemBoard", () => {
     await waitFor(() => expect(handle).not.toHaveAttribute("aria-pressed"));
     expect(moveItemAction).not.toHaveBeenCalled();
   });
+
+  // A finger picks a card up after a 250 ms hold, except on its inline
+  // editors: a long press on the priority or the status must leave the card
+  // where it is. Touch events need the Touch constructor (Chromium covers
+  // the rest of the gesture).
+  it.skipIf(typeof window.Touch === "undefined")(
+    "keeps a long press on the priority or status editors from picking the card up",
+    async () => {
+      const moveItemAction = vi.fn();
+      renderCards([richCard], { moveItemAction });
+      const handle = screen.getByRole("button", { name: "Déplacer DEMO-1" });
+      const press = (target: Element) => {
+        const touch = new Touch({ identifier: 1, target, clientX: 20, clientY: 20 });
+        target.dispatchEvent(
+          new TouchEvent("touchstart", {
+            touches: [touch],
+            targetTouches: [touch],
+            changedTouches: [touch],
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      };
+
+      press(screen.getByRole("button", { name: /Priorité.*Moyenne/i }));
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      expect(handle).not.toHaveAttribute("aria-pressed");
+      press(screen.getByRole("button", { name: "Statut : Prêt" }));
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      expect(handle).not.toHaveAttribute("aria-pressed");
+
+      press(screen.getByText("Authentication"));
+      await waitFor(() => expect(handle).toHaveAttribute("aria-pressed", "true"), { timeout: 1500 });
+      document.dispatchEvent(new TouchEvent("touchend", { changedTouches: [], bubbles: true }));
+      await waitFor(() => expect(handle).not.toHaveAttribute("aria-pressed"));
+      expect(moveItemAction).not.toHaveBeenCalled();
+    },
+  );
 });
