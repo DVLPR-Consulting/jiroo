@@ -70,9 +70,9 @@ const LINK = "text-xs text-[var(--primary)] underline";
 const PRIMARY = "border-[var(--primary)] bg-[var(--primary)] font-medium text-white hover:bg-[var(--primary)]";
 const FIELD = "h-[30px] rounded-[var(--radius)] border border-border bg-[var(--surface)] px-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
 const CELL_BORDER = "border-b border-r border-border";
-// Keep positioning on the cell itself (sticky for headers); isolate body cells
-// so these rails cover ticket labels without drawing over the sticky names.
-const TODAY_EDGES = "before:pointer-events-none before:absolute before:-top-px before:-bottom-px before:-left-px before:z-[3] before:w-0.5 before:bg-[var(--today)] before:content-[''] after:pointer-events-none after:absolute after:-top-px after:-bottom-px after:-right-px after:z-[3] after:w-0.5 after:bg-[var(--today)] after:content-['']";
+// Keep rails and overflowing ticket labels in the same stacking context:
+// labels at 1, rails at 2, sticky names at 3 and headers at 4 (corner at 5).
+const TODAY_EDGES = "before:pointer-events-none before:absolute before:-top-px before:-bottom-px before:-left-px before:z-[2] before:w-0.5 before:bg-[var(--today)] before:content-[''] after:pointer-events-none after:absolute after:-top-px after:-bottom-px after:-right-px after:z-[2] after:w-0.5 after:bg-[var(--today)] after:content-['']";
 
 
 type Panel = { kind: "person"; personId: string; from: Day; to: Day; label: string } | { kind: "sprint"; sprint: PresenceSprint };
@@ -593,7 +593,7 @@ function GroupRows({ label, members, columns, today, children }: {
           <td
             key={column}
             data-today={column === today || undefined}
-            className={cn(CELL_BORDER, "bg-[var(--surface-2)]", column === today && [TODAY_EDGES, "relative isolate bg-[color-mix(in_oklch,var(--today)_8%,var(--surface-2))]"])}
+            className={cn(CELL_BORDER, "bg-[var(--surface-2)]", column === today && [TODAY_EDGES, "relative bg-[color-mix(in_oklch,var(--today)_8%,var(--surface-2))]"])}
           />
         ))}
         <td className={cn(CELL_BORDER, "border-r-0 bg-[var(--surface-2)]")} />
@@ -640,7 +640,7 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
             data-person={person.id}
             data-today={day === data.today || undefined}
             title={publicHoliday(day) ?? undefined}
-            className={cn(CELL_BORDER, "cursor-pointer align-top", !working && "bg-[var(--muted)]", day === data.today ? [TODAY_EDGES, "relative isolate bg-[color-mix(in_oklch,var(--today)_8%,var(--surface))]"] : "hover:bg-[var(--surface-2)]")}
+            className={cn(CELL_BORDER, "cursor-pointer align-top", !working && "bg-[var(--muted)]", day === data.today ? [TODAY_EDGES, "relative bg-[color-mix(in_oklch,var(--today)_8%,var(--surface))]"] : "hover:bg-[var(--surface-2)]")}
           >
             <div className={cn("flex", withLanes ? "h-[22px]" : "h-[30px]")}>
               {(["am", "pm"] as const).map((half) => {
@@ -702,7 +702,7 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
                         />
                       ))}
                       {segment.starts && span >= 2 ? (
-                        <span className="pointer-events-none absolute left-0.5 top-0 z-[2] overflow-hidden whitespace-nowrap text-[9.5px] font-semibold leading-3 text-white" style={{ maxWidth: `calc(${span} * 100% - 8px)` }}>
+                        <span className="pointer-events-none absolute left-0.5 top-0 z-[1] overflow-hidden whitespace-nowrap text-[9.5px] font-semibold leading-3 text-white" style={{ maxWidth: `calc(${span} * 100% - 8px)` }}>
                           {segment.ticket.key}
                         </span>
                       ) : null}
@@ -759,7 +759,7 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
                     {months.map((month) => {
                       const summary = personSummary(data, scope, person.id, month.from, month.to);
                       return (
-                        <td key={month.from} data-today={month.from.slice(0, 7) === data.today.slice(0, 7) || undefined} className={cn(CELL_BORDER, "p-0", month.from.slice(0, 7) === data.today.slice(0, 7) && [TODAY_EDGES, "relative isolate bg-[color-mix(in_oklch,var(--today)_8%,var(--surface))]"])}>
+                        <td key={month.from} data-today={month.from.slice(0, 7) === data.today.slice(0, 7) || undefined} className={cn(CELL_BORDER, "p-0", month.from.slice(0, 7) === data.today.slice(0, 7) && [TODAY_EDGES, "relative bg-[color-mix(in_oklch,var(--today)_8%,var(--surface))]"])}>
                           <Link href={hrefFor(page, { view: "month", anchor: month.from })} aria-label={`${person.name}, ${MONTH.format(at(month.from))}`} className="flex h-11 flex-col items-center justify-center gap-0.5 hover:bg-[var(--surface-2)]">
                             {summary.away ? <span className={cn("px-1.5 text-[11px] font-semibold leading-4 text-white", month.from > data.today ? "bg-[color-mix(in_oklch,var(--danger)_30%,var(--surface))] text-[var(--danger)]" : "bg-[var(--danger)]")}>{formatPoints(summary.away)} j</span> : null}
                             {page.display === "all" && person.profile === "developer" && summary.done ? <span className="text-[11px] font-semibold text-[var(--status-done)]">{summary.done} ✓</span> : null}
