@@ -129,6 +129,17 @@ describe("SidebarStateProvider", () => {
     );
   });
 
+  it("follows Tailwind's md breakpoint in rem, like the shell's CSS (JIR-127)", () => {
+    installMatchMedia(false);
+    render(
+      <AppShell sidebar={<Probe />} topbar={<header>Topbar</header>}>
+        Contenu
+      </AppShell>,
+    );
+
+    expect(window.matchMedia).toHaveBeenCalledWith("(width < 48rem)");
+  });
+
   it("uses one content column and opens the sidebar as a modal drawer on mobile", async () => {
     installMatchMedia(true);
     const user = userEvent.setup();

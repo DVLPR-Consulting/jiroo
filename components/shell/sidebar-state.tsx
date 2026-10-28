@@ -16,7 +16,11 @@ const SidebarStateContext = createContext<SidebarState | null>(null);
 export function SidebarStateProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const mobile = useMediaQuery("(max-width: 767px)");
+  // Same expression as Tailwind's `md` breakpoint (48rem), which the shell's
+  // grid and inline sidebar follow in CSS: both sides must move together when
+  // the browser's base font size changes, or the sidebar could be hidden
+  // without its drawer (JIR-127).
+  const mobile = useMediaQuery("(width < 48rem)");
 
   useLayoutEffect(() => {
     const initial = document.documentElement.dataset.sidebar === "collapsed";
