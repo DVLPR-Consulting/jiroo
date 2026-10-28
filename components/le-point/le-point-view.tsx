@@ -879,7 +879,7 @@ function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDatas
           Charge par personne <span className="text-xs font-normal text-muted-foreground tabular-nums">{rows.length}</span>
         </h3>
         <Link href={`/presences?backlog=${encodeURIComponent(data.backlog.key)}`} className="ml-auto text-xs text-[var(--primary)] underline">
-          Absences et congés
+          Calendrier d’équipe
         </Link>
         {rows.length > 0 ? (
           <button type="button" onClick={() => setTable((value) => !value)} className="text-xs text-[var(--primary)] underline">

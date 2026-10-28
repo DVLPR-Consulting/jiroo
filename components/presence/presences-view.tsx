@@ -47,7 +47,7 @@ import { addDays, startOfMonth, type Day } from "@/lib/roadmap/days";
 import { cn } from "@/lib/utils";
 
 /**
- * « Absences et congés » (JIR-124, lot B2), after the validated mock-up: a
+ * « Calendrier d’équipe » (JIR-124, lot B2), after the validated mock-up: a
  * month, a sprint or a year of the team, developers then product; a drag on
  * the half-cells declares an absence, a click on one takes it off; a click
  * on a cell, a name or a sprint lists the tickets as the Liste shows them.
@@ -308,10 +308,10 @@ export function PresencesView({ page }: { page: PresencePage }) {
     <section className="space-y-3">
       <header>
         <h1 className="t-h1 flex items-center gap-2">
-          Absences et congés
+          Calendrier d’équipe
           <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">prototype</span>
         </h1>
-        <p className="text-sm text-muted-foreground">Les présences de l’équipe, et le travail de chacun dans le temps.</p>
+        <p className="text-sm text-muted-foreground">Qui est là, les tickets de chacun dans le temps, et vos absences à déclarer.</p>
       </header>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-y border-border py-2">

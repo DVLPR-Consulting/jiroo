@@ -6,7 +6,7 @@ import type { PresenceProfile } from "@/lib/presence/model";
 import { addDays, type Day } from "@/lib/roadmap/days";
 
 /**
- * « Absences et congés » (JIR-124, lot B2): who is there, who is not, and
+ * « Calendrier d’équipe » (JIR-124, lot B2): who is there, who is not, and
  * each developer's tickets in time. Pure rules over a dataset the page
  * loads for one period, so the fixtures and the real read feed the same
  * view. Decisions of 27 October 2026: absences in half-days on the team's

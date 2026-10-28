@@ -292,15 +292,15 @@ export function Sidebar({
         <NavLink
           href="/presences"
           active={context.activeNav === "presences"}
-          ariaLabel="Absences et congés"
+          ariaLabel="Calendrier d’équipe"
           collapsed={collapsed}
-          title={collapsed ? "Absences et congés" : undefined}
+          title={collapsed ? "Calendrier d’équipe" : undefined}
         >
           <CalendarDays className="size-4" />
           <span
             className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}
           >
-            Absences et congés
+            Calendrier d’équipe
           </span>
         </NavLink>
         {!collapsed && (

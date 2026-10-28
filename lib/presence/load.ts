@@ -7,7 +7,7 @@ import { listAbsences } from "@/lib/services/absences";
 import { loadPresenceScope, loadSprintsForPeriod, loadTicketTimeline } from "@/lib/services/presence-page";
 
 /**
- * « Absences et congés » (JIR-124, lot B2): reads one period for the page,
+ * « Calendrier d’équipe » (JIR-124, lot B2): reads one period for the page,
  * with the reader's own rights. The scope is every backlog they may browse,
  * or one of them; the view is a month, one of that backlog's sprints, or a
  * year. Absences and tickets are read for the period only.

@@ -8,12 +8,12 @@ import { loadPresencePage } from "@/lib/presence/load";
 import type { View } from "@/lib/presence/view";
 import { isDay } from "@/lib/roadmap/days";
 
-export const metadata: Metadata = { title: "Absences et congés — Jiroo" };
+export const metadata: Metadata = { title: "Calendrier d’équipe — Jiroo" };
 
 const VIEWS: Record<string, View> = { mois: "month", sprint: "sprint", annee: "year" };
 
 /**
- * « Absences et congés » (JIR-124, lot B2): the team's page, outside any
+ * « Calendrier d’équipe » (JIR-124, lot B2): the team's page, outside any
  * backlog. The URL says what is shown (`backlog`, `vue`, `date`, `sprint`);
  * the server reads that period with the reader's rights.
  */

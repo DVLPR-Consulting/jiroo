@@ -77,7 +77,7 @@ beforeEach(() => {
 describe("PresencesView", () => {
   it("shows the team by profile over the month, with each person's figures and backlogs", () => {
     render(<PresencesView page={page} />);
-    expect(screen.getByRole("heading", { level: 1, name: /Absences et congés/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /Calendrier d’équipe/ })).toBeInTheDocument();
     expect(screen.getByText("Développement")).toBeInTheDocument();
     expect(screen.getByText("Produit")).toBeInTheDocument();
     // Thirty days, plus the name and the total columns.

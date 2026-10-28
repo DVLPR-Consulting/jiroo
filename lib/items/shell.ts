@@ -56,7 +56,7 @@ export function deriveShellContext({
     "/": { section: "Backlogs", activeNav: "backlogs" as const },
     "/mine": { section: "Mes items", activeNav: "mine" as const },
     // The team's absences, outside any backlog (JIR-124).
-    "/presences": { section: "Absences et congés", activeNav: "presences" as const },
+    "/presences": { section: "Calendrier d’équipe", activeNav: "presences" as const },
     "/trash": { section: "Corbeille", activeNav: "trash" as const },
     "/admin": { section: "Administration", activeNav: "admin" as const },
     "/aide": { section: "Aide", activeNav: null },
