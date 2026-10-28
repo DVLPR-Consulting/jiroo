@@ -121,7 +121,7 @@ export async function inventoryE2eRun(
     }
     await shared(folder);
     if (persistent) {
-      for (const category of ["console", "network", "screenshots"]) await shared(`audit/${category}`);
+      for (const category of ["console", "network", "screenshots", "a11y"]) await shared(`audit/${category}`);
     } else {
       await walk(`.playwright/evidence/${runId}`);
     }

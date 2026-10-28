@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 import { exclusiveJunitPaths } from "./scripts/e2e-junit-report";
-import { MATRIX_PROJECTS } from "./e2e/matrix";
+import { MATRIX_PROJECTS, type MatrixOptions } from "./e2e/matrix";
 
 process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, "--conditions=react-server"]
   .filter(Boolean)
@@ -20,7 +20,7 @@ const reportPath = persistAudit
   : `.playwright/reports/${runId}-junit.xml`;
 const junitPaths = exclusiveJunitPaths({ reportPath, runId });
 
-export default defineConfig({
+export default defineConfig<MatrixOptions>({
   testDir: "./e2e",
   fullyParallel: false,
   workers: 1,
@@ -45,11 +45,12 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: ["**/matrix/**"],
       use: { ...devices["Desktop Chrome"] },
     },
     ...MATRIX_PROJECTS.map((project) => ({
       name: project.name,
-      use: { ...devices[project.device], viewport: project.viewport },
+      use: { ...devices[project.device], viewport: project.viewport, ...project.use },
       ...(project.testMatch ? { testMatch: [...project.testMatch] } : {}),
     })),
   ],
