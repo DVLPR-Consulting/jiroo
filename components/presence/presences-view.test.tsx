@@ -92,6 +92,9 @@ describe("PresencesView", () => {
     expect(half("Hugo Lefèvre, 9 nov. matin")).toHaveAttribute("data-state", "free");
     expect(half("Hugo Lefèvre, 11 nov. matin")).toHaveAttribute("data-state", "off");
     expect(screen.getByRole("link", { name: "Sprint" })).toHaveAttribute("aria-disabled", "true");
+    // Laid out as the other pages: the shell's header holds the title, its toolbar the controls.
+    expect(document.querySelector('[data-slot="page-header"]')).toContainElement(screen.getByRole("heading", { level: 1 }));
+    expect(document.querySelector('[data-slot="page-toolbar"]')).toContainElement(screen.getByRole("group", { name: "Vue" }));
     // The grid takes the page's width, never less than 28 px a day.
     expect(screen.getByRole("table")).toHaveStyle({ width: "100%", minWidth: "1108px" });
   });

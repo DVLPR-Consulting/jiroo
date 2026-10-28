@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PresencesView } from "@/components/presence/presences-view";
-import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
 import { requireAppPageSession } from "@/lib/auth/session";
 import { firstSearchParam, type RawSearchParams } from "@/lib/items/view-url-params";
 import { loadPresencePage } from "@/lib/presence/load";
@@ -29,12 +28,5 @@ export default async function PresencesPage({ searchParams }: { searchParams?: P
     sprintId: firstSearchParam(query.sprint) ?? null,
   });
   if (!page) notFound();
-  return (
-    <div className="mx-auto max-w-[1240px] p-4 sm:p-8">
-      <div className="mb-4">
-        <ShellBreadcrumb />
-      </div>
-      <PresencesView page={page} />
-    </div>
-  );
+  return <PresencesView page={page} />;
 }
