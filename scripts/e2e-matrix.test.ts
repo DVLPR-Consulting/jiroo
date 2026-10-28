@@ -9,7 +9,7 @@ import { executeMatrix, planMatrixRuns } from "./e2e-matrix";
 import { inventoryE2eRun } from "./e2e-run-inventory";
 
 const START = new Date("2026-10-28T22:30:00.000Z");
-const NAMES = ["matrix-chromium", "matrix-firefox", "matrix-webkit", "matrix-chromium-1024", "matrix-chromium-768", "matrix-webkit-768", "matrix-zoom-chromium", "matrix-zoom-firefox", "matrix-zoom-webkit"];
+const NAMES = ["matrix-chromium", "matrix-firefox", "matrix-webkit", "matrix-chromium-1024", "matrix-chromium-768", "matrix-webkit-768", "matrix-zoom-chromium", "matrix-zoom-firefox", "matrix-zoom-webkit", "matrix-drops"];
 const EXPECTED_WIDTH_SPECS = [
   "backlog-ranking.spec.ts", "backlog-redesign.spec.ts", "board-added-column.spec.ts", "board-empty-columns.spec.ts",
   "create-everywhere.spec.ts", "create-under-version-filter.spec.ts", "help-guide.spec.ts", "item-detail-drawer.spec.ts",
@@ -24,7 +24,7 @@ afterEach(async () => {
 });
 
 describe("browser and width matrix", () => {
-  it("defines the nine browser, width and zoom projects", () => {
+  it("defines the ten browser, width, zoom and drop projects", () => {
     expect(MATRIX_PROJECTS.map(({ name, device, viewport }) => ({ name, device, viewport }))).toEqual([
       { name: "matrix-chromium", device: "Desktop Chrome", viewport: { width: 1440, height: 900 } },
       { name: "matrix-firefox", device: "Desktop Firefox", viewport: { width: 1440, height: 900 } },
@@ -35,13 +35,14 @@ describe("browser and width matrix", () => {
       { name: "matrix-zoom-chromium", device: "Desktop Chrome", viewport: { width: 720, height: 450 } },
       { name: "matrix-zoom-firefox", device: "Desktop Firefox", viewport: { width: 720, height: 450 } },
       { name: "matrix-zoom-webkit", device: "Desktop Safari", viewport: { width: 720, height: 450 } },
+      { name: "matrix-drops", device: "Desktop Chrome", viewport: { width: 1200, height: 800 } },
     ]);
   });
 
   it("matches exactly the 21 width specs against the real spec directory", async () => {
     const files = (await readdir(new URL("../e2e/", import.meta.url))).filter((file) => file.endsWith(".spec.ts"));
     expect(files.length).toBeGreaterThan(21);
-    for (const project of MATRIX_PROJECTS.filter(({ name }) => !name.startsWith("matrix-zoom-"))) {
+    for (const project of MATRIX_PROJECTS.filter(({ name }) => !name.startsWith("matrix-zoom-") && name !== "matrix-drops")) {
       if (!project.testMatch) {
         expect(["matrix-chromium", "matrix-firefox", "matrix-webkit"]).toContain(project.name);
         continue;
@@ -49,11 +50,17 @@ describe("browser and width matrix", () => {
       const selected = files.filter((file) => project.testMatch!.some((pattern) => matchesGlob(`e2e/${file}`, pattern))).sort();
       expect(selected, project.name).toEqual(EXPECTED_WIDTH_SPECS);
     }
-    expect(MATRIX_PROJECTS.filter((project) => project.testMatch && !project.name.startsWith("matrix-zoom-"))).toHaveLength(3);
+    expect(MATRIX_PROJECTS.filter((project) => project.testMatch && !project.name.startsWith("matrix-zoom-") && project.name !== "matrix-drops")).toHaveLength(3);
   });
 });
 
 describe("pure matrix planning", () => {
+  it("limits the drop project to its stress spec at the baseline desktop viewport", () => {
+    const project = config.projects?.find(({ name }) => name === "matrix-drops");
+    expect(project?.testMatch).toEqual(["**/matrix/drops.spec.ts"]);
+    expect(project?.use).toMatchObject({ viewport: { width: 1200, height: 800 } });
+  });
+
   it("forwards text zoom and its dedicated spec to the actual Playwright config", () => {
     for (const name of ["matrix-zoom-chromium", "matrix-zoom-firefox", "matrix-zoom-webkit"]) {
       const project = config.projects?.find((candidate) => candidate.name === name);
@@ -71,6 +78,7 @@ describe("pure matrix planning", () => {
       "matrix-chromium-20261028-223000", "matrix-firefox-20261028-223000", "matrix-webkit-20261028-223000",
       "matrix-chromium-1024-20261028-223000", "matrix-chromium-768-20261028-223000", "matrix-webkit-768-20261028-223000",
       "matrix-zoom-chromium-20261028-223000", "matrix-zoom-firefox-20261028-223000", "matrix-zoom-webkit-20261028-223000",
+      "matrix-drops-20261028-223000",
     ]);
   });
 
@@ -112,7 +120,7 @@ describe("pure matrix planning", () => {
 
   it("does not create an ID that is another ID followed by a hyphen", () => {
     const ids = planMatrixRuns([], START).map((step) => step.runId);
-    expect(new Set(ids).size).toBe(9);
+    expect(new Set(ids).size).toBe(10);
     for (const id of ids) {
       expect(ids.some((other) => other !== id && id.startsWith(`${other}-`))).toBe(false);
     }
@@ -129,7 +137,7 @@ describe("pure matrix planning", () => {
         schemaVersion: 1, runId, result: { junitReport: `.playwright/reports/${runId}-junit.xml` },
       }));
     }
-    expect(plan).toHaveLength(9);
+    expect(plan).toHaveLength(10);
     for (const { runId } of plan) {
       await inventoryE2eRun(runId, { workingDirectory: root });
       expect(JSON.parse(await readFile(join(root, `.playwright/reports/${runId}-manifest.json`), "utf8")).artifacts).toEqual([]);

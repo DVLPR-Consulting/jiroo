@@ -27,4 +27,5 @@ export const MATRIX_PROJECTS: readonly MatrixProject[] = [
   { name: "matrix-zoom-chromium", device: "Desktop Chrome", viewport: { width: 720, height: 450 }, testMatch: ["**/matrix/zoom.spec.ts"], use: { textZoom: true } },
   { name: "matrix-zoom-firefox", device: "Desktop Firefox", viewport: { width: 720, height: 450 }, testMatch: ["**/matrix/zoom.spec.ts"], use: { textZoom: true } },
   { name: "matrix-zoom-webkit", device: "Desktop Safari", viewport: { width: 720, height: 450 }, testMatch: ["**/matrix/zoom.spec.ts"], use: { textZoom: true } },
+  { name: "matrix-drops", device: "Desktop Chrome", viewport: { width: 1200, height: 800 }, testMatch: ["**/matrix/drops.spec.ts"] },
 ];
