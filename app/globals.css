@@ -9,6 +9,8 @@
    primitives' open/close animations actually run. */
 @custom-variant data-open (&[data-state="open"]);
 @custom-variant data-closed (&[data-state="closed"]);
+/* The Compact density of the Affichage menu (`data-density` on <html>). */
+@custom-variant compact (&:is([data-density="compact"] *));
 
 /* =========================================================================
    JIROO — Tokens (oklch). Source : .claude/output/design/styles/jiroo.css

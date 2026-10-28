@@ -222,7 +222,7 @@ export function HelpGuide() {
         >
           <ul className="t-body list-disc space-y-1 pl-5">
             <li><Ui>Backlog</Ui> : les tâches par sprint et la section Backlog, une ligne compacte par tâche ; glisser-déposer pour classer et planifier.</li>
-            <li><Ui>Board</Ui> : les tâches du sprint actif, une colonne par statut ; déplacer une carte change son statut. Sans sprint actif, le bandeau <Ui>Aucun sprint actif</Ui> et son lien <Ui>Voir le Backlog</Ui> surmontent les colonnes, vides et sans glisser-déposer.</li>
+            <li><Ui>Board</Ui> : les tâches du sprint actif, une colonne par statut ; déplacer une carte (depuis n’importe quel point, ou au clavier avec sa poignée) change son statut. Une carte se lit de haut en bas : la clé, la priorité et les points ; le titre ; ce qui la situe (<Ui>Bloqué</Ui>, le parent, les étiquettes) ; puis l’échéance (rouge si dépassée, ambre à moins de deux jours), les sous-tâches et la personne. Une carte terminée est grisée, une carte bloquée porte un liseré rouge. Sans sprint actif, le bandeau <Ui>Aucun sprint actif</Ui> et son lien <Ui>Voir le Backlog</Ui> surmontent les colonnes, vides et sans glisser-déposer.</li>
             <li><Ui>Liste</Ui> : tous les tickets, à plat, dans le même tableau que le Backlog, intitulé <Ui>Tous les items</Ui> (nombre d’items et de non estimés, points par statut, <Ui>Créer un item</Ui> en bas) ; la ligne <Ui>Trier</Ui> de son en-tête pour trier, le menu <Ui>Colonnes</Ui> pour afficher des informations en plus. Groupée (<Ui>Affichage</Ui>), elle montre un tableau par groupe, repliable comme les sections du Backlog.</li>
             <li><Ui>Arbre</Ui> : la hiérarchie ; glisser un ticket sous un autre parent le rattache (règles de hiérarchie).</li>
           </ul>
@@ -306,7 +306,7 @@ export function HelpGuide() {
         <GuideTopic
           title="Densité"
           purpose="Afficher plus ou moins de lignes à l’écran."
-          steps={[<>Ouvrez le menu <Ui>Affichage</Ui> à droite du titre de la vue et choisissez <Ui>Confort</Ui> ou <Ui>Compact</Ui> (ou dans <Ui>Préférences</Ui>) ; le bouton rappelle la densité courante.</>]}
+          steps={[<>Ouvrez le menu <Ui>Affichage</Ui> à droite du titre de la vue et choisissez <Ui>Confort</Ui> ou <Ui>Compact</Ui> (ou dans <Ui>Préférences</Ui>) ; le bouton rappelle la densité courante. En <Ui>Compact</Ui>, les cartes du Board tiennent sur deux lignes : la clé avec ce qui presse (priorité Urgent, échéance proche ou dépassée, points, personne), puis le titre.</>]}
         />
       </GuideSection>
 

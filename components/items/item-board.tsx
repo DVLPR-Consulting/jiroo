@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -23,7 +23,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { generateKeyBetween } from "fractional-indexing";
 import Link from "next/link";
-import { Calendar, GripVertical, Inbox, Plus, SearchX } from "lucide-react";
+import { Calendar, CornerDownRight, Flag, GripVertical, Inbox, Plus, SearchX } from "lucide-react";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
@@ -37,7 +37,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useViewUrlState } from "@/components/shell/view-url-state";
-import { LABEL_HUES, type ItemKind, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
+import { LABEL_COLOR_VAR, LABEL_HUES, type ItemKind, type ItemType, type LabelHue, type Priority, type StatusId } from "@/lib/design/constants";
 import { KindIcon } from "@/components/icons/kind-icon";
 import { StatusDot } from "@/components/icons/status-dot";
 import type { moveItemAction as MoveItemAction } from "@/app/actions/items";
@@ -53,6 +53,9 @@ import type { SprintMetrics, SprintSummary } from "@/lib/items/sprint-planning";
 import type { ItemCapabilities, PlanningCapabilities } from "@/lib/auth/capabilities";
 import type { FixVersionOption } from "@/components/items/fix-version-picker";
 import { countLabel, frenchPlural, pointsLabel } from "@/lib/format/plural";
+import { dueStatus, type DueStatus } from "@/lib/items/due-date";
+import { dayInZone, type Day } from "@/lib/roadmap/days";
+import { cn } from "@/lib/utils";
 
 export type BoardCard = {
   id: string;
@@ -77,6 +80,10 @@ export type BoardCard = {
   dueDate?: Date | string | null;
   /** Used by release filtering upstream; intentionally not rendered on compact cards. */
   fixVersions?: FixVersionOption[];
+  /** Story points, shown as « 3 pts »; absent when the ticket is not estimated. */
+  estimatePoints?: number | null;
+  /** The parent (epic or component), shown as a lozenge in the hue of its key. */
+  parent?: { key: string; title: string; type: ItemType } | null;
 };
 
 export type BoardGroup = "assignee" | "priority" | "component" | "parent" | null;
@@ -151,6 +158,11 @@ function byRank(a: BoardCard, b: BoardCard): number {
   return a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0;
 }
 
+/** A card is done when its status belongs to the done category. */
+function isDone(card: BoardCard, statuses: Status[]): boolean {
+  return statuses.find((status) => status.id === card.statusId)?.category === "done";
+}
+
 // Clamp the DB integer priority into the 0..4 union PrioIcon expects.
 function asPriority(value: number): Priority {
   return Math.min(4, Math.max(0, value)) as Priority;
@@ -212,6 +224,7 @@ function SortableCard({
   swimlane,
   backlogKey,
   statusDomain,
+  today,
   onOpen,
   canEditItems,
   canTransitionItems,
@@ -223,6 +236,7 @@ function SortableCard({
   swimlane: string;
   backlogKey: string;
   statusDomain: Status[];
+  today: Day;
   onOpen: (key: string) => void;
   canEditItems: boolean;
   canTransitionItems: boolean;
@@ -243,22 +257,49 @@ function SortableCard({
     disabled: boardDragDisabled(canScheduleItems, dragDisabled ? 1 : 0),
   });
 
+  // The whole card is the pointer drag surface, as in Jira; the handle keeps
+  // the keyboard path and only shows on hover. A plain click never moves
+  // anything: the pointer sensor activates after 6 px, and the keyboard
+  // sensor only listens to its handle.
   return (
     <div
       ref={setNodeRef}
+      {...listeners}
+      data-card={card.key}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.4 : 1,
         padding: "var(--card-pad)",
+        boxShadow: card.blocked ? "inset 3px 0 0 var(--danger), var(--shadow-xs)" : "var(--shadow-xs)",
       }}
       onClick={() => onOpen(card.key)}
-      className="cursor-pointer rounded-[var(--radius-md)] border border-border bg-[var(--surface)] shadow-[var(--shadow-xs)]"
+      className={cn(
+        "group/card relative cursor-pointer rounded-[var(--radius-md)] border border-border bg-[var(--surface)] hover:border-[var(--border-strong)]",
+        canScheduleItems && "select-none",
+      )}
     >
+      {canScheduleItems ? (
+        <button
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          type="button"
+          aria-label={`Déplacer ${card.key}`}
+          title="Glisser pour déplacer"
+          onClick={(event) => event.stopPropagation()}
+          className="absolute left-0 top-1/2 inline-flex h-7 w-3.5 -translate-y-1/2 cursor-grab items-center justify-center rounded-r text-muted-foreground opacity-0 outline-none transition-opacity group-hover/card:opacity-70 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[var(--ring)] active:cursor-grabbing"
+        >
+          <GripVertical aria-hidden size={12} />
+        </button>
+      ) : null}
       <CardInner
         card={card}
         backlogKey={backlogKey}
+        done={isDone(card, statusDomain)}
+        today={today}
         interactivePriority={canEditItems}
+        statusOnlyOnPhone={canScheduleItems}
         mobileStatus={canEditItems && canTransitionItems ? (
           <InlineStatus
             itemId={card.id}
@@ -266,19 +307,6 @@ function SortableCard({
             statusId={card.statusId}
             statuses={statusDomain}
           />
-        ) : undefined}
-        dragHandle={canScheduleItems ? (
-          <button
-            ref={setActivatorNodeRef}
-            {...attributes}
-            {...listeners}
-            type="button"
-            aria-label={`Déplacer ${card.key}`}
-            onClick={(event) => event.stopPropagation()}
-            className="inline-flex size-6 flex-none cursor-grab items-center justify-center rounded text-muted-foreground outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] active:cursor-grabbing"
-          >
-            <GripVertical aria-hidden size={14} />
-          </button>
         ) : undefined}
         onOpen={() => onOpen(card.key)}
       />
@@ -292,26 +320,120 @@ function formatDueDate(d: Date | string): string {
   return new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
-// Visual body shared by sortable cards and the drag overlay.
+type LozengeTone = "muted" | "danger" | "warning" | "hue";
+
+/** The small chips of a card: points, due date, subtasks, parent, « Bloqué ». */
+function Lozenge({
+  tone = "muted",
+  hue,
+  title,
+  className,
+  children,
+  ...rest
+}: {
+  tone?: LozengeTone;
+  /** A label hue variable such as `--label-3`, for the `hue` tone. */
+  hue?: string;
+  title?: string;
+  className?: string;
+  children: ReactNode;
+  "data-tone"?: string;
+}) {
+  const style: CSSProperties =
+    tone === "danger"
+      ? { color: "var(--danger)", background: "color-mix(in oklch, var(--danger) 13%, transparent)" }
+      : tone === "warning"
+        ? {
+            color: "color-mix(in oklch, var(--warning) 55%, var(--foreground))",
+            background: "color-mix(in oklch, var(--warning) 22%, transparent)",
+          }
+        : tone === "hue"
+          ? { color: `var(${hue})`, background: `color-mix(in oklch, var(${hue}) 13%, transparent)` }
+          : { color: "var(--muted-foreground)", background: "var(--muted)" };
+  return (
+    <span
+      title={title}
+      style={style}
+      className={cn(
+        "inline-flex h-[18px] max-w-full items-center gap-1 whitespace-nowrap rounded px-1.5 text-[11px] leading-none compact:h-4 compact:px-1 compact:text-[10px] compact:[&>svg]:hidden",
+        tone === "muted" ? "font-medium" : "font-semibold",
+        className,
+      )}
+      {...rest}
+    >
+      {children}
+    </span>
+  );
+}
+
+function DueLozenge({ due, date, className }: { due: DueStatus; date: Date | string; className?: string }) {
+  return (
+    <Lozenge
+      tone={due.tone === "late" ? "danger" : due.tone === "soon" ? "warning" : "muted"}
+      title={due.title}
+      data-tone={due.tone}
+      className={className}
+    >
+      <Calendar aria-hidden size={11} />
+      <span className="sr-only">Échéance : </span>
+      {formatDueDate(date)}
+    </Lozenge>
+  );
+}
+
+function Assignee({ card, size }: { card: BoardCard; size: number }) {
+  return card.assigneeName ? (
+    <InitialsAvatar name={card.assigneeName} hue={hueFor(card.assigneeName)} size={size} />
+  ) : (
+    <span
+      aria-hidden
+      className="flex-none rounded-full"
+      style={{ width: size, height: size, border: "1.5px dashed var(--border-strong)" }}
+    />
+  );
+}
+
+// Visual body shared by sortable cards and the drag overlay, read top to
+// bottom: the key row (type, key, priority, points), the title, what situates
+// the ticket (« Bloqué », the parent, the labels), then the due date, the
+// subtasks and the assignee. The Compact density keeps the key row and two
+// lines of title, with only what presses: an urgent priority, a near or past
+// due date, the points and the person.
 function CardInner({
   card,
   backlogKey,
+  done = false,
+  today,
   interactivePriority = true,
-  dragHandle,
+  statusOnlyOnPhone = false,
   mobileStatus,
   onOpen,
 }: {
   card: BoardCard;
   backlogKey: string;
+  done?: boolean;
+  today: Day;
   interactivePriority?: boolean;
-  dragHandle?: ReactNode;
+  /** Hide the status row on wide screens, where the column already says it. */
+  statusOnlyOnPhone?: boolean;
   mobileStatus?: ReactNode;
   onOpen?: () => void;
 }) {
+  const urgent = card.priority >= 4;
+  const due = card.dueDate ? dueStatus(card.dueDate, today, done) : null;
+  const points = card.estimatePoints != null ? pointsLabel(card.estimatePoints) : null;
+  const labels = card.labels ?? [];
+  const situated = card.blocked || card.parent || labels.length > 0;
+  const identity = (
+    <>
+      <TypeIcon type={card.type} size={14} />
+      <ItemKey value={card.key} className={done ? "line-through decoration-[var(--border-strong)]" : undefined} />
+      {card.kind && <KindIcon kind={card.kind} />}
+    </>
+  );
   return (
     <>
-      <div className="flex items-center gap-1.5">
-        {dragHandle}
+      <div className="flex min-h-[22px] items-center gap-1.5 compact:min-h-[18px]">
         {onOpen ? (
           <button
             type="button"
@@ -323,83 +445,80 @@ function CardInner({
             }}
             className="inline-flex min-w-0 items-center gap-1.5 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           >
-            <TypeIcon type={card.type} size={14} />
-            <ItemKey value={card.key} />
-            {card.kind && <KindIcon kind={card.kind} />}
+            {identity}
           </button>
         ) : (
-          <>
-            <TypeIcon type={card.type} size={14} />
-            <ItemKey value={card.key} />
-            {card.kind && <KindIcon kind={card.kind} />}
-          </>
+          identity
         )}
-        <span className="ml-auto">
-          {interactivePriority ? (
-            <InlinePriority
-              itemId={card.id}
-              backlogKey={backlogKey}
-              priority={card.priority}
-            />
-          ) : (
-            <PrioIcon priority={asPriority(card.priority)} />
-          )}
+        <span className="ml-auto inline-flex flex-none items-center gap-1.5">
+          <span className={cn("inline-flex", !urgent && "compact:hidden")}>
+            {interactivePriority ? (
+              <InlinePriority
+                itemId={card.id}
+                backlogKey={backlogKey}
+                priority={card.priority}
+              />
+            ) : (
+              <PrioIcon priority={asPriority(card.priority)} />
+            )}
+          </span>
+          {due && due.tone !== "later" && card.dueDate ? (
+            <DueLozenge due={due} date={card.dueDate} className="hidden compact:inline-flex" />
+          ) : null}
+          {points ? (
+            <Lozenge title="Estimation" className="tabular-nums">
+              {points}
+            </Lozenge>
+          ) : null}
+          <span className="hidden compact:inline-flex">
+            <Assignee card={card} size={16} />
+          </span>
         </span>
       </div>
       <p
-        className="mt-1.5 text-[13px] font-medium"
-        style={{ textWrap: "pretty", lineHeight: 1.42 }}
+        className={cn(
+          "mt-1.5 text-pretty text-[13px] font-medium leading-[1.42] compact:mt-1 compact:line-clamp-2 compact:text-[12.5px] compact:leading-[1.3]",
+          done && "text-muted-foreground",
+        )}
       >
         {card.title}
       </p>
-      {card.labels && card.labels.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-1">
-          {card.labels.map((label) => (
-            <LabelPill key={label.id} name={label.name} color={label.color} />
+      {situated ? (
+        <div className="mt-1.5 flex flex-wrap gap-1 compact:hidden">
+          {card.blocked && (
+            <Lozenge tone="danger">
+              <Flag aria-hidden size={10} />
+              Bloqué
+            </Lozenge>
+          )}
+          {card.parent && (
+            <Lozenge
+              tone="hue"
+              hue={LABEL_COLOR_VAR[hueFor(card.parent.key)]}
+              title={`Parent : ${card.parent.key} — ${card.parent.title}`}
+            >
+              <span className="truncate">{card.parent.title}</span>
+            </Lozenge>
+          )}
+          {labels.map((label) => (
+            <LabelPill key={label.id} name={label.name} color={label.color} className="h-[18px] py-0 text-[11px]" />
           ))}
         </div>
-      )}
-      {card.blocked && (
-        <div className="mt-1.5">
-          <span
-            className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium"
-            style={{
-              color: "var(--danger)",
-              background: "color-mix(in oklch, var(--danger) 14%, transparent)",
-            }}
-          >
-            bloqué
-          </span>
-        </div>
-      )}
-      <div className="mt-2 flex items-center justify-between">
-        {/* Left cluster: due date + subtask count */}
-        <span className="inline-flex items-center gap-1.5">
-          {card.dueDate && (
-            <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground">
-              <Calendar size={12} />
-              {formatDueDate(card.dueDate)}
-            </span>
-          )}
+      ) : null}
+      <div className="mt-2 flex min-h-[22px] items-center justify-between gap-1.5 compact:hidden">
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          {due && card.dueDate ? <DueLozenge due={due} date={card.dueDate} /> : null}
           {card.subCount && card.subCount > 0 ? (
-            <span className="item-key inline-flex items-center gap-1">
-              {`⌐ ${card.subCount}`}
-            </span>
+            <Lozenge title="Sous-tâches">
+              <CornerDownRight aria-hidden size={11} />
+              {card.subCount}
+            </Lozenge>
           ) : null}
         </span>
-        {/* Right: assignee avatar */}
-        {card.assigneeName ? (
-          <InitialsAvatar name={card.assigneeName} hue={hueFor(card.assigneeName)} size={22} />
-        ) : (
-          <span
-            aria-hidden
-            className="size-[22px] rounded-full"
-            style={{ border: "1.5px dashed var(--border-strong)" }}
-          />
-        )}
+        <Assignee card={card} size={22} />
       </div>
       {mobileStatus ? (
-        <div className="mt-1.5 border-t border-border pt-1.5">
+        <div className={cn("mt-1.5 border-t border-border pt-1.5", statusOnlyOnPhone && "md:hidden")}>
           {mobileStatus}
         </div>
       ) : null}
@@ -414,6 +533,7 @@ function Column({
   cards,
   statusDomain,
   backlogKey,
+  today,
   createDialogProps,
   isOver,
   onOpen,
@@ -430,6 +550,7 @@ function Column({
   cards: BoardCard[];
   statusDomain: Status[];
   backlogKey: string;
+  today: Day;
   createDialogProps: BoardCreateDialogProps;
   isOver: boolean;
   onOpen: (key: string) => void;
@@ -484,6 +605,7 @@ function Column({
           cards={cards}
           statusDomain={statusDomain}
           backlogKey={backlogKey}
+          today={today}
           isOver={isOver}
           onOpen={onOpen}
           canEditItems={canEditItems}
@@ -505,6 +627,7 @@ function ColumnCards({
   cards,
   statusDomain,
   backlogKey,
+  today,
   isOver,
   onOpen,
   canEditItems,
@@ -518,6 +641,7 @@ function ColumnCards({
   cards: BoardCard[];
   statusDomain: Status[];
   backlogKey: string;
+  today: Day;
   isOver: boolean;
   onOpen: (key: string) => void;
   canEditItems: boolean;
@@ -550,6 +674,7 @@ function ColumnCards({
             swimlane={swimlane}
             backlogKey={backlogKey}
             statusDomain={statusDomain}
+            today={today}
             onOpen={onOpen}
             canEditItems={canEditItems}
             canTransitionItems={canTransitionItems}
@@ -583,6 +708,7 @@ export function ItemBoard({
   activeSprint,
   activeSprintMetrics,
   backlogHref,
+  today,
 }: {
   backlogKey: string;
   items: BoardCard[];
@@ -606,11 +732,14 @@ export function ItemBoard({
   activeSprint?: SprintSummary | null;
   activeSprintMetrics?: SprintMetrics | null;
   backlogHref?: string;
+  /** The team's calendar day, read on the server so hydration never drifts. */
+  today?: Day;
 }) {
   const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
   const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
   const canTransitionItems = itemCapabilities?.transition ?? legacyCanTransitionItems;
   const canScheduleItems = planningCapabilities?.rank ?? legacyCanScheduleItems;
+  const todayDay = today ?? dayInZone(new Date());
   const viewUrl = useViewUrlState();
   const dndId = useId();
   const noSprintHeadingId = useId();
@@ -901,6 +1030,7 @@ export function ItemBoard({
         cards={columns[id] ?? []}
         statusDomain={statusDomain}
         backlogKey={backlogKey}
+        today={todayDay}
         createDialogProps={createDialogProps}
         isOver={activeId !== null && overColId === id}
         onOpen={openItem}
@@ -1035,6 +1165,8 @@ export function ItemBoard({
                 <CardInner
                   card={activeCard}
                   backlogKey={backlogKey}
+                  done={isDone(activeCard, statusDomain)}
+                  today={todayDay}
                   interactivePriority={false}
                 />
               </div>

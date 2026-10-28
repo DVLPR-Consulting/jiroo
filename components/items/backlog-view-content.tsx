@@ -71,6 +71,7 @@ import {
   getActiveSprintStartCommitment,
   getPreviousSprintsVelocityContext,
 } from "@/lib/services/sprint-burndown";
+import { dayInZone } from "@/lib/roadmap/days";
 
 const VIEW_STATE_PARAM_KEYS = [
   "q",
@@ -524,6 +525,8 @@ export async function BacklogViewContent({
       kind: i.kind,
       dueDate: i.dueDate,
       fixVersions: fixVersionsByItem.get(i.id) ?? [],
+      estimatePoints: i.estimatePoints,
+      parent: parentPill(i.parentId),
     }));
   const resultCount =
     view === "backlog"
@@ -789,6 +792,7 @@ export async function BacklogViewContent({
           activeSprint={activeSprint}
           activeSprintMetrics={activeSection?.metrics ?? null}
           backlogHref={backlogHref}
+          today={dayInZone(new Date())}
         />
       )}
       {view === "tree" && (
