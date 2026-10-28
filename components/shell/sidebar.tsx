@@ -239,6 +239,24 @@ export function Sidebar({
         </nav>
       )}
 
+      {/* The team's calendar is a page of its own, not a filter: it sits between the backlogs and the filters. */}
+      <div className="mt-2">
+          <NavLink
+            href="/presences"
+            active={context.activeNav === "presences"}
+            ariaLabel="Calendrier d’équipe"
+            collapsed={collapsed}
+            title={collapsed ? "Calendrier d’équipe" : undefined}
+          >
+            <CalendarDays className="size-4" />
+            <span
+              className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}
+            >
+              Calendrier d’équipe
+            </span>
+          </NavLink>
+      </div>
+
       {/* Keep filters usable; short windows scroll the whole sidebar instead. */}
       <div className="mt-2 flex min-h-32 flex-1 flex-col gap-0.5 overflow-y-auto">
         <div
@@ -288,20 +306,6 @@ export function Sidebar({
             Mes items
           </span>
           <Count value={counts.mine} collapsed={collapsed} />
-        </NavLink>
-        <NavLink
-          href="/presences"
-          active={context.activeNav === "presences"}
-          ariaLabel="Calendrier d’équipe"
-          collapsed={collapsed}
-          title={collapsed ? "Calendrier d’équipe" : undefined}
-        >
-          <CalendarDays className="size-4" />
-          <span
-            className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}
-          >
-            Calendrier d’équipe
-          </span>
         </NavLink>
         {!collapsed && (
           <SidebarViews
