@@ -54,6 +54,15 @@ const PROJECT_VIEW_ICONS: Record<ProjectViewId, LucideIcon> = {
   reports: ChartColumn,
 };
 
+/** A path segment as the router decodes it; a malformed escape stays as written. */
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 export function Sidebar({
   backlogs,
   views,
@@ -90,6 +99,13 @@ export function Sidebar({
   const allCount = activeKey ? counts.allByBacklog[activeKey] ?? 0 : 0;
   const onActiveBacklogRoute =
     activeKey !== undefined && pathname.toUpperCase() === `/B/${activeKey}`;
+  // The home lists every backlog and only borrows the first one for its views:
+  // a backlog is "in use" on its own pages (`/b/KEY` and below), not there.
+  const pathBacklogKey = /^\/b\/([^/]+)(?:\/|$)/i.exec(pathname)?.[1];
+  const onActiveBacklogPages =
+    activeKey !== undefined &&
+    pathBacklogKey !== undefined &&
+    decodeSegment(pathBacklogKey).toUpperCase() === activeKey;
   const allItemsHref = onActiveBacklogRoute
     ? viewUrl.href(showAllBacklogItemsParams)
     : context.allItemsHref;
@@ -239,10 +255,11 @@ export function Sidebar({
         </nav>
       )}
 
-      {/* The team's calendar is a page of its own, not a filter: it sits between the backlogs and the filters. */}
+      {/* The team's calendar is a page of its own, not a filter: it sits between the backlogs and the filters.
+          From a backlog's pages it opens on that backlog; elsewhere, on every backlog the reader can browse. */}
       <div className="mt-2">
           <NavLink
-            href="/presences"
+            href={onActiveBacklogPages && activeBacklog ? `/presences?backlog=${encodeURIComponent(activeBacklog.key)}` : "/presences"}
             active={context.activeNav === "presences"}
             ariaLabel="Calendrier d’équipe"
             collapsed={collapsed}
