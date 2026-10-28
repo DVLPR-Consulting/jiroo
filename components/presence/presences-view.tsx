@@ -966,7 +966,7 @@ function RulesDialog() {
           <li>Une absence va d’une demi-journée ouvrée à une autre, bornes incluses ; chaque demi-journée ouvrée compte 0,5 j. Les week-ends et les jours fériés français ne comptent jamais. Deux absences ne se chevauchent pas.</li>
           <li>Une absence vaut pour tous les backlogs de la personne ; elle est hachurée tant qu’elle n’est pas passée. Chacun déclare les siennes ; un administrateur d’un backlog, celles de ses membres.</li>
           <li>Un ticket commence le jour où il passe « En cours » et finit le jour où il passe « Terminé », pour la personne à qui il est assigné aujourd’hui ; il traverse les absences, les week-ends et les fériés sans s’interrompre. La catégorie actuelle d’un statut vaut pour tout son historique ; « dates approximatives » signale un journal incomplet.</li>
-          <li>Développement : une personne assignée à un ticket aujourd’hui ou au cours des douze derniers mois ; Produit sinon. Rien n’est réglé à la main.</li>
+          <li>L’équipe regroupe les personnes rattachées au backlog par ses rôles ou son schéma de droits ; à défaut, celles qui peuvent recevoir un ticket. Développement : une personne assignée à un ticket aujourd’hui ou au cours des douze derniers mois ; Produit sinon. Rien n’est réglé à la main.</li>
           <li>Les totaux comptent les demi-journées ouvrées d’absence et les tickets terminés dans la période, sur la portée affichée.</li>
         </ul>
       </DialogContent>
