@@ -501,6 +501,19 @@ describe("Sidebar", () => {
     );
     fromLePoint.unmount();
 
+    mocks.pathname = "/b/%43ASS/reports";
+    const fromEncoded = renderSidebar();
+    expect(screen.getByRole("link", { name: "Calendrier d’équipe" })).toHaveAttribute(
+      "href",
+      "/presences?backlog=CASS",
+    );
+    fromEncoded.unmount();
+
+    mocks.pathname = "/b/CASSX";
+    const fromOtherKey = renderSidebar();
+    expect(screen.getByRole("link", { name: "Calendrier d’équipe" })).toHaveAttribute("href", "/presences");
+    fromOtherKey.unmount();
+
     mocks.pathname = "/";
     renderSidebar();
     expect(screen.getByRole("link", { name: "Calendrier d’équipe" })).toHaveAttribute("href", "/presences");

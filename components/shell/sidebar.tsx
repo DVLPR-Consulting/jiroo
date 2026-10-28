@@ -54,6 +54,15 @@ const PROJECT_VIEW_ICONS: Record<ProjectViewId, LucideIcon> = {
   reports: ChartColumn,
 };
 
+/** A path segment as the router decodes it; a malformed escape stays as written. */
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 export function Sidebar({
   backlogs,
   views,
@@ -91,10 +100,12 @@ export function Sidebar({
   const onActiveBacklogRoute =
     activeKey !== undefined && pathname.toUpperCase() === `/B/${activeKey}`;
   // The home lists every backlog and only borrows the first one for its views:
-  // a backlog is "in use" on its own pages, not there.
+  // a backlog is "in use" on its own pages (`/b/KEY` and below), not there.
+  const pathBacklogKey = /^\/b\/([^/]+)(?:\/|$)/i.exec(pathname)?.[1];
   const onActiveBacklogPages =
-    onActiveBacklogRoute ||
-    (activeKey !== undefined && pathname.toUpperCase().startsWith(`/B/${activeKey}/`));
+    activeKey !== undefined &&
+    pathBacklogKey !== undefined &&
+    decodeSegment(pathBacklogKey).toUpperCase() === activeKey;
   const allItemsHref = onActiveBacklogRoute
     ? viewUrl.href(showAllBacklogItemsParams)
     : context.allItemsHref;
