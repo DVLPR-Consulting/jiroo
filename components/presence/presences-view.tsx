@@ -346,7 +346,7 @@ export function PresencesView({ page }: { page: PresencePage }) {
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-        <div className="inline-flex h-[30px] overflow-hidden rounded-[var(--radius)] border border-border" role="group" aria-label="Vue">
+        <div className="inline-flex h-[30px] overflow-hidden rounded-[var(--radius)] border border-border bg-[var(--surface)]" role="group" aria-label="Vue">
           {(["month", "sprint", "year"] as const).map((candidate) => {
             const disabled = candidate === "sprint" && !backlog;
             return (
