@@ -6,6 +6,8 @@ import { useEffect, useRef, useState, useTransition, type FormEvent, type MouseE
 import { carveAbsenceAction, declareAbsenceAction, removeAbsenceAction } from "@/app/actions/absences";
 import { ItemRow } from "@/components/items/item-row";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
+import { PageHeader } from "@/components/shell/page-header";
+import { PageToolbar } from "@/components/shell/page-toolbar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { halfKey, halfName, type Half, type HalfDay } from "@/lib/dates/half-days";
@@ -304,17 +306,26 @@ export function PresencesView({ page }: { page: PresencePage }) {
       ? sprintIndex >= 0 && sprintIndex < page.sprints.length - 1 ? hrefFor(page, { sprintId: page.sprints[sprintIndex + 1]!.id, anchor: page.sprints[sprintIndex + 1]!.start }) : null
       : hrefFor(page, { anchor: addDays(period.to, 1) });
 
+  // The page is laid out as the others: the shell's header and toolbar, full width, the content under them.
   return (
-    <section className="space-y-3">
-      <header>
-        <h1 className="t-h1 flex items-center gap-2">
-          Calendrier d’équipe
-          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">prototype</span>
-        </h1>
-        <p className="text-sm text-muted-foreground">Qui est là, les tickets de chacun dans le temps, et vos absences à déclarer.</p>
-      </header>
-
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-y border-border py-2">
+    <div className="pb-10">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            Calendrier d’équipe
+            <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">prototype</span>
+          </span>
+        }
+        description="Qui est là, les tickets de chacun dans le temps, et vos absences à déclarer."
+        actions={
+          <>
+            <button type="button" onClick={exportPeriod} className={BUTTON}>Exporter la période (CSV)</button>
+            <button type="button" onClick={exportRegister} className={BUTTON}>Exporter les absences (CSV)</button>
+            <RulesDialog />
+          </>
+        }
+      />
+      <PageToolbar>
         <DropdownMenu>
           <DropdownMenuTrigger className={cn(BUTTON, "gap-2 font-semibold")} aria-label="Portée">
             {backlog ? <BacklogTag backlog={backlog} /> : <span className="inline-flex h-6 items-center rounded bg-[var(--muted-foreground)] px-1.5 text-[10px] font-semibold text-white">TOUS</span>}
@@ -370,13 +381,9 @@ export function PresencesView({ page }: { page: PresencePage }) {
           error={declaring ? error : null}
           onDeclare={(input) => run(() => declareAbsenceAction(input), () => setDeclaring(false))}
         />
-        <div className="ml-auto inline-flex items-center gap-2">
-          <button type="button" onClick={exportPeriod} className={BUTTON}>Exporter la période (CSV)</button>
-          <button type="button" onClick={exportRegister} className={BUTTON}>Exporter les absences (CSV)</button>
-          <RulesDialog />
-        </div>
-      </div>
+      </PageToolbar>
 
+      <div className="space-y-3 px-4 pt-4 sm:px-6">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <Legend swatch="bg-[var(--danger)]">absent</Legend>
         <Legend swatch="bg-[linear-gradient(90deg,var(--danger)_0_50%,var(--surface)_50%)] ring-1 ring-[var(--danger)]">demi-journée (matin | après-midi)</Legend>
@@ -520,7 +527,8 @@ export function PresencesView({ page }: { page: PresencePage }) {
         ) : null}
         {error ? <p role="alert" className="text-xs text-[var(--danger)]">{error}</p> : null}
       </div>
-    </section>
+      </div>
+    </div>
   );
 }
 
