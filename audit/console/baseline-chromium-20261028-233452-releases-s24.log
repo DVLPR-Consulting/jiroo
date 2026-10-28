@@ -1,0 +1,16 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[reader-order] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader-order] log: [HMR] connected
+[defect] BUG-JIR-051 Erreurs navigateur inattendues:
+[failed] [admin] GET http://localhost:3100/b/CASS/releases?_rsc=omVAkDbq_dNLmFXN net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS?view=list net::ERR_ABORTED
+[duration] scenario 24: 5197ms

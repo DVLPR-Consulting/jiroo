@@ -1,0 +1,5 @@
+[specialist] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[specialist] log: [HMR] connected
+[defect] BUG-JIR-033 Erreurs navigateur inattendues:
+[failed] [specialist] POST http://localhost:3100/b/CASS/releases/988d075a-b581-4a14-afa7-697260fa45db net::ERR_ABORTED
+[duration] scenario 6: 1031ms
