@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { browseAccessPredicate } from "@/lib/auth/accessible-backlogs";
-import { checkPermission, listAssignableUsersForBacklogs } from "@/lib/auth/authorization";
+import { checkPermission, listBacklogTeams } from "@/lib/auth/authorization";
 import { user } from "@/lib/db/schema/auth";
 import { backlogs } from "@/lib/db/schema/domain";
 import type { PresenceProfile } from "@/lib/presence/model";
@@ -112,7 +112,7 @@ function aYearAgo(now: Date): Date {
 }
 
 /**
- * Sidebar-visible backlogs and their assignable members. Without browse_users,
+ * Sidebar-visible backlogs and their attached teams (assignable fallback when empty). Without browse_users,
  * only the reader is returned, even if they cannot be assigned work.
  * Nicolas's observed-profile rule: current assignment or an assignment change
  * in the last twelve months means developer, otherwise product. It is never
@@ -127,7 +127,7 @@ export async function loadPresenceScope(actorId: string): Promise<PresenceBacklo
       .from(backlogs).where(and(isNull(backlogs.archivedAt), browseAccessPredicate(actorId))).orderBy(asc(backlogs.name));
     if (visible.length === 0) return [];
     const ids = visible.map((row) => row.id);
-    const directoryRows = directory.allowed ? await listAssignableUsersForBacklogs(ids, tx) : null;
+    const directoryRows = directory.allowed ? await listBacklogTeams(ids, tx) : null;
     const self = directoryRows === null ? await tx.select({ id: user.id, name: user.name }).from(user).where(eq(user.id, actorId)).limit(1) : [];
     const people = new Set(directoryRows ? directoryRows.map((person) => person.id) : self.map((person) => person.id));
     const observed = people.size === 0 ? [] : (await tx.execute<{ userId: string }>(sql`
