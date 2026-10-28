@@ -14,6 +14,7 @@ import {
   type PermissionKey,
 } from "@/lib/auth/permissions";
 import { resolvePlatformAdministratorIds } from "@/lib/auth/platform-administrator";
+import { cachedRead } from "@/lib/auth/request-cache";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
@@ -61,30 +62,37 @@ export class ResourceNotFoundError extends Error {
 
 type Actor = { id: string; name: string; role: string | null };
 
-async function loadActor(actorId: string): Promise<Actor | null> {
-  const [actor] = await db
-    .select({ id: user.id, name: user.name, role: user.role })
-    .from(user)
-    .where(eq(user.id, actorId))
-    .limit(1);
-  return actor ?? null;
+// The reads below go through the request's cache (JIR-119): an action that
+// checks several permissions of one actor on one backlog reads the actor,
+// the backlog's scheme, the administrator status and each grant question once.
+function loadActor(actorId: string): Promise<Actor | null> {
+  return cachedRead(`actor:${actorId}`, async () => {
+    const [actor] = await db
+      .select({ id: user.id, name: user.name, role: user.role })
+      .from(user)
+      .where(eq(user.id, actorId))
+      .limit(1);
+    return actor ?? null;
+  });
 }
 
 type BacklogAuthorizationContext = { permissionSchemeId: string | null };
 
-async function loadBacklogAuthorizationContext(
+function loadBacklogAuthorizationContext(
   backlogId: string,
 ): Promise<BacklogAuthorizationContext | null> {
-  const [context] = await db
-    .select({ permissionSchemeId: backlogPermissionConfigs.permissionSchemeId })
-    .from(backlogs)
-    .leftJoin(
-      backlogPermissionConfigs,
-      eq(backlogPermissionConfigs.backlogId, backlogs.id),
-    )
-    .where(eq(backlogs.id, backlogId))
-    .limit(1);
-  return context ?? null;
+  return cachedRead(`backlog-scheme:${backlogId}`, async () => {
+    const [context] = await db
+      .select({ permissionSchemeId: backlogPermissionConfigs.permissionSchemeId })
+      .from(backlogs)
+      .leftJoin(
+        backlogPermissionConfigs,
+        eq(backlogPermissionConfigs.backlogId, backlogs.id),
+      )
+      .where(eq(backlogs.id, backlogId))
+      .limit(1);
+    return context ?? null;
+  });
 }
 
 function groupMembershipExists(actorId: string) {
@@ -139,12 +147,16 @@ type LoadMatchesInput = {
   permissionSchemeId?: string;
 };
 
-async function loadGrantMatches(input: LoadMatchesInput): Promise<GrantMatch[]> {
-  const byPermission = await loadGrantMatchesByPermission({
-    ...input,
-    permissions: [input.permission],
+function loadGrantMatches(input: LoadMatchesInput): Promise<GrantMatch[]> {
+  const scope = input.scope.type === "backlog" ? `backlog:${input.scope.backlogId}` : "global";
+  const key = `grants:${input.actor.id}:${input.permission}:${scope}:${input.permissionSchemeId ?? ""}`;
+  return cachedRead(key, async () => {
+    const byPermission = await loadGrantMatchesByPermission({
+      ...input,
+      permissions: [input.permission],
+    });
+    return byPermission.get(input.permission) ?? [];
   });
-  return byPermission.get(input.permission) ?? [];
 }
 
 /** The grant matches of several permissions in one query, per permission. */
@@ -264,7 +276,11 @@ function knownPermission(input: CheckPermissionInput): PermissionKey | null {
   }
 }
 
-async function isPlatformAdministrator(actor: Actor): Promise<boolean> {
+function isPlatformAdministrator(actor: Actor): Promise<boolean> {
+  return cachedRead(`platform-administrator:${actor.id}`, () => readPlatformAdministrator(actor));
+}
+
+async function readPlatformAdministrator(actor: Actor): Promise<boolean> {
   const [grants, memberships] = await Promise.all([
     db
       .select({

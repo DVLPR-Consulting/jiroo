@@ -19,6 +19,7 @@ import {
 import type { BacklogPermissionKey } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
 import { invalidateBacklog, publishBacklogChange } from "@/lib/realtime/publish";
+import { withRequestCache } from "@/lib/auth/request-cache";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
 import { mapZodActionError } from "@/lib/validation/action-error";
 import { bulkUpdateItems } from "@/lib/services/item-bulk";
@@ -221,6 +222,11 @@ function mapBulkError(error: unknown): string {
 }
 
 export async function createItemAction(input: CreateItemActionInput) {
+  // One cache for the authorization reads of this call (JIR-119).
+  return withRequestCache(() => createItemActionBody(input));
+}
+
+async function createItemActionBody(input: CreateItemActionInput) {
   const actorId = await authenticatedActorId();
   try {
     const backlog = await requireBacklogPermissionById({
@@ -272,6 +278,11 @@ export async function createItemAction(input: CreateItemActionInput) {
 }
 
 export async function updateItemAction(input: UpdateItemActionInput) {
+  // One cache for the authorization reads of this call (JIR-119).
+  return withRequestCache(() => updateItemActionBody(input));
+}
+
+async function updateItemActionBody(input: UpdateItemActionInput) {
   const actorId = await authenticatedActorId();
   try {
     const authorization = await authorizeItemUpdate(actorId, input);
@@ -494,6 +505,11 @@ function mapMoveError(e: unknown): string {
 }
 
 export async function moveItemAction(input: MoveItemActionInput) {
+  // One cache for the authorization reads of this call (JIR-119).
+  return withRequestCache(() => moveItemActionBody(input));
+}
+
+async function moveItemActionBody(input: MoveItemActionInput) {
   const actorId = await authenticatedActorId();
   try {
     const itemAuthorization = await requireItemPermission({

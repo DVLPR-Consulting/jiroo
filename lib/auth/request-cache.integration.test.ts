@@ -1,0 +1,99 @@
+import "dotenv/config";
+
+import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { Client } from "pg";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { checkPermission } from "@/lib/auth/authorization";
+import { requireItemPermission } from "@/lib/auth/action-authorization";
+import { withRequestCache } from "@/lib/auth/request-cache";
+import { db } from "@/lib/db";
+import { user } from "@/lib/db/schema/auth";
+import { backlogs, items, statuses } from "@/lib/db/schema/domain";
+
+vi.mock("server-only", () => ({}));
+
+const describeDb = process.env.JIROO_RUN_DB_TESTS === "1" ? describe : describe.skip;
+
+async function countQueries(work: () => Promise<unknown>): Promise<number> {
+  const spy = vi.spyOn(Client.prototype, "query");
+  try {
+    await work();
+    return spy.mock.calls.length;
+  } finally {
+    spy.mockRestore();
+  }
+}
+
+describeDb("authorization reads through the request cache", () => {
+  let actorId = "";
+  let backlogId = "";
+  let itemId = "";
+
+  beforeAll(async () => {
+    const [actor] = await db.select({ id: user.id }).from(user).limit(1);
+    if (!actor) throw new Error("Le seed doit contenir un utilisateur.");
+    actorId = actor.id;
+    const [backlog] = await db
+      .insert(backlogs)
+      .values({ key: `R${randomUUID().replace(/[^a-f]/gi, "").slice(0, 5).toUpperCase()}`, name: "Cache", color: "#475569" })
+      .returning();
+    backlogId = backlog!.id;
+    const [status] = await db
+      .insert(statuses)
+      .values({ backlogId, name: "À faire", category: "todo", order: 0, color: "#9aa0a6" })
+      .returning();
+    itemId = randomUUID();
+    await db.insert(items).values({
+      id: itemId,
+      key: `${backlog!.key}-1`,
+      type: "tache",
+      backlogId,
+      title: "Tâche",
+      statusId: status!.id,
+      reporterId: actorId,
+      rank: "a0",
+      path: `root.${itemId.replaceAll("-", "")}`,
+      depth: 0,
+    });
+  });
+
+  afterAll(async () => {
+    if (backlogId) await db.delete(backlogs).where(eq(backlogs.id, backlogId));
+  });
+
+  it("asks the same question once per scope, and every time outside one", async () => {
+    const ask = () =>
+      checkPermission({ actorId, permission: "transition_items", scope: { type: "backlog", backlogId } });
+    const [first, second] = await Promise.all([ask(), ask()]);
+    expect(second).toEqual(first);
+
+    const unscoped = await countQueries(async () => {
+      await ask();
+      await ask();
+    });
+    const scoped = await countQueries(() =>
+      withRequestCache(async () => {
+        await ask();
+        await ask();
+      }),
+    );
+    const once = await countQueries(ask);
+    expect(unscoped).toBe(once * 2);
+    expect(scoped).toBe(once);
+    // The decision is the same through the cache.
+    expect(await withRequestCache(ask)).toEqual(first);
+  });
+
+  it("spares the repeated reads of an action's boundaries without changing its decisions", async () => {
+    const boundaries = async () => {
+      const authorized = await requireItemPermission({ actorId, itemId, permission: "schedule_items" });
+      await requireItemPermission({ actorId, itemId, permission: "transition_items" });
+      return authorized;
+    };
+    const unscoped = await countQueries(boundaries);
+    const scoped = await countQueries(() => withRequestCache(boundaries));
+    expect(scoped).toBeLessThan(unscoped);
+    expect(await withRequestCache(boundaries)).toEqual({ backlogId, resourceId: itemId });
+  });
+});

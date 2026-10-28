@@ -15,6 +15,9 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: vi.fn() }));
+vi.mock("@/lib/auth/request-cache", () => ({
+  withRequestCache: (work: () => Promise<unknown>) => work(),
+}));
 vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: mocks.authGetSession } },
 }));
