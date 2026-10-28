@@ -941,30 +941,16 @@ describe("ItemBoard", () => {
   });
 
   it("starts a drag from the card body, not only from its handle", async () => {
-    if (!("PointerEvent" in window)) {
-      class PointerEventPolyfill extends MouseEvent {
-        pointerId: number;
-        isPrimary: boolean;
-        pointerType: string;
-        constructor(type: string, init: MouseEventInit & { pointerId?: number; isPrimary?: boolean; pointerType?: string } = {}) {
-          super(type, init);
-          this.pointerId = init.pointerId ?? 1;
-          this.isPrimary = init.isPrimary ?? true;
-          this.pointerType = init.pointerType ?? "mouse";
-        }
-      }
-      Object.defineProperty(window, "PointerEvent", { value: PointerEventPolyfill, configurable: true, writable: true });
-    }
     const moveItemAction = vi.fn();
     renderCards([richCard], { moveItemAction });
     const handle = screen.getByRole("button", { name: "Déplacer DEMO-1" });
     expect(handle).not.toHaveAttribute("aria-pressed");
 
-    fireEvent.pointerDown(screen.getByText("Authentication"), { button: 0, isPrimary: true, pointerId: 1, clientX: 10, clientY: 10 });
-    fireEvent.pointerMove(document, { pointerId: 1, clientX: 30, clientY: 10 });
+    fireEvent.mouseDown(screen.getByText("Authentication"), { button: 0, clientX: 10, clientY: 10 });
+    fireEvent.mouseMove(document, { clientX: 30, clientY: 10 });
     await waitFor(() => expect(handle).toHaveAttribute("aria-pressed", "true"));
 
-    fireEvent.pointerUp(document, { pointerId: 1, clientX: 30, clientY: 10 });
+    fireEvent.mouseUp(document, { clientX: 30, clientY: 10 });
     await waitFor(() => expect(handle).not.toHaveAttribute("aria-pressed"));
     expect(moveItemAction).not.toHaveBeenCalled();
   });

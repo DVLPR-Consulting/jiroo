@@ -5,7 +5,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useDroppable,
   useSensor,
   useSensors,
@@ -257,10 +258,10 @@ function SortableCard({
     disabled: boardDragDisabled(canScheduleItems, dragDisabled ? 1 : 0),
   });
 
-  // The whole card is the pointer drag surface, as in Jira; the handle keeps
-  // the keyboard path and only shows on hover. A plain click never moves
-  // anything: the pointer sensor activates after 6 px, and the keyboard
-  // sensor only listens to its handle.
+  // The whole card is the drag surface, as in Jira; the handle keeps the
+  // keyboard path and only shows on hover. A plain click never moves
+  // anything: the mouse sensor activates after 6 px, a finger after a
+  // 250 ms hold, and the keyboard sensor only listens to its handle.
   return (
     <div
       ref={setNodeRef}
@@ -339,16 +340,24 @@ function Lozenge({
   children: ReactNode;
   "data-tone"?: string;
 }) {
+  // Text colours mix the hue with the foreground so this small text keeps a
+  // 4.5:1 contrast on its tinted background, in the light and the dark theme.
   const style: CSSProperties =
     tone === "danger"
-      ? { color: "var(--danger)", background: "color-mix(in oklch, var(--danger) 13%, transparent)" }
+      ? {
+          color: "color-mix(in oklch, var(--danger) 70%, var(--foreground))",
+          background: "color-mix(in oklch, var(--danger) 13%, transparent)",
+        }
       : tone === "warning"
         ? {
             color: "color-mix(in oklch, var(--warning) 55%, var(--foreground))",
             background: "color-mix(in oklch, var(--warning) 22%, transparent)",
           }
         : tone === "hue"
-          ? { color: `var(${hue})`, background: `color-mix(in oklch, var(${hue}) 13%, transparent)` }
+          ? {
+              color: `color-mix(in oklch, var(${hue}) 55%, var(--foreground))`,
+              background: `color-mix(in oklch, var(${hue}) 13%, transparent)`,
+            }
           : { color: "var(--muted-foreground)", background: "var(--muted)" };
   return (
     <span
@@ -774,8 +783,12 @@ export function ItemBoard({
     }
   }, [items, statuses, swimlanes, group, activeId, mutationPending]);
 
+  // The mouse drags from anywhere on a card after 6 px. A finger scrolls the
+  // board unless it holds a card for 250 ms (Jira's long press), so a swipe
+  // that starts on a card still pans the columns.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
