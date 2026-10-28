@@ -10,6 +10,8 @@ import type { ItemType } from "@/lib/design/constants";
 import {
   ITEM_CHOICE_LIMIT,
   listBacklogStructure,
+  listChildItems,
+  listItemChoicesByIds,
   searchBacklogItems,
 } from "@/lib/services/item-choices";
 
@@ -113,6 +115,31 @@ describeDb("item choices", () => {
     const rows = await listBacklogStructure(backlogId);
     expect(titles(rows)).toEqual(["Portail", "Connexion", "Recherche documentaire"]);
     expect(rows[0]).toEqual(choiceOf("Portail"));
+  });
+
+  it("labels the live items among given ids, deduplicated, in hierarchy order, deleted ones left out", async () => {
+    const page = byTitle.get("Page de connexion")!;
+    const rows = await listItemChoicesByIds(backlogId, [
+      page.id,
+      byTitle.get("Supprimée")!.id,
+      byTitle.get("Portail")!.id,
+      page.id,
+      null,
+      undefined,
+    ]);
+    expect(rows).toEqual([choiceOf("Portail"), choiceOf("Page de connexion")]);
+    expect(await listItemChoicesByIds(backlogId, [null])).toEqual([]);
+  });
+
+  it("lists the live children of an item with their status, in the backlog's order", async () => {
+    const rows = await listChildItems(backlogId, byTitle.get("Connexion")!.id);
+    expect(rows).toEqual([
+      { ...choiceOf("Page de connexion"), statusId },
+      { ...choiceOf("Récupération du mot de passe"), statusId },
+    ]);
+    const searchChildren = await listChildItems(backlogId, byTitle.get("Recherche documentaire")!.id);
+    expect(titles(searchChildren)).not.toContain("Supprimée");
+    expect(searchChildren).toHaveLength(ITEM_CHOICE_LIMIT);
   });
 
   it("offers the first items of the asked levels in hierarchy order, bounded, without the deleted ones", async () => {

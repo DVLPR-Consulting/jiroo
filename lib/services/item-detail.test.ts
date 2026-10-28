@@ -11,7 +11,8 @@ const mocks = vi.hoisted(() => ({
   listAssignableUsersForBacklog: vi.fn(),
   listComments: vi.fn(),
   listItemFixVersionPairs: vi.fn(),
-  listItems: vi.fn(),
+  listChildItems: vi.fn(),
+  listItemChoicesByIds: vi.fn(),
   listLabelsForBacklog: vi.fn(),
   listLinksForItem: vi.fn(),
   listRefsForItem: vi.fn(),
@@ -57,10 +58,13 @@ vi.mock("@/lib/services/items", () => ({
   getItemByKeyForBacklog: mocks.getItemByKeyForBacklog,
   getItemLabelIds: mocks.getItemLabelIds,
   listActivities: mocks.listActivities,
-  listItems: mocks.listItems,
   listLabelsForBacklog: mocks.listLabelsForBacklog,
   listUsers: mocks.listUsers,
   listUsersByIds: mocks.listUsersByIds,
+}));
+vi.mock("@/lib/services/item-choices", () => ({
+  listChildItems: mocks.listChildItems,
+  listItemChoicesByIds: mocks.listItemChoicesByIds,
 }));
 vi.mock("@/lib/services/links", () => ({ listLinksForItem: mocks.listLinksForItem }));
 vi.mock("@/lib/services/refs", () => ({ listRefsForItem: mocks.listRefsForItem }));
@@ -153,7 +157,13 @@ describe("loadItemDetailData", () => {
     canBrowseUsers = true;
     grantCapabilities(CAPABILITIES);
     mocks.getItemByKeyForBacklog.mockResolvedValue(detail);
-    mocks.listItems.mockResolvedValue([parent, detail, child]);
+    // Targeted reads (JIR-118): the parent by id, the children by parent.
+    mocks.listItemChoicesByIds.mockResolvedValue([
+      { id: parent.id, key: "DEMO-1", type: "epic", title: "Epic parent" },
+    ]);
+    mocks.listChildItems.mockResolvedValue([
+      { id: child.id, key: "DEMO-3", title: "Titre DEMO-3", type: "soustache", statusId: "status-1" },
+    ]);
     mocks.listLabelsForBacklog.mockResolvedValue([
       { id: "label-1", name: "Urgent", color: "#f00", backlogId: "backlog-1" },
     ]);
@@ -256,7 +266,9 @@ describe("loadItemDetailData", () => {
     expect(panel.childItems).toEqual([
       { id: child.id, key: "DEMO-3", title: "Titre DEMO-3", type: "soustache", statusId: "status-1" },
     ]);
-    expect(panel.candidates.map((candidate) => candidate.key)).toEqual(["DEMO-1", "DEMO-2", "DEMO-3"]);
+    expect(panel.historyItems).toEqual([{ id: parent.id, key: "DEMO-1" }]);
+    expect(mocks.listChildItems).toHaveBeenCalledWith("backlog-1", detail.id);
+    expect(mocks.listItemChoicesByIds).toHaveBeenCalledWith("backlog-1", expect.arrayContaining([parent.id]));
     expect(panel.statuses).toEqual([
       { id: "status-1", name: "À faire", color: "#999", category: "todo", order: 0 },
     ]);
@@ -355,7 +367,7 @@ describe("loadItemDetailData", () => {
     ]);
   });
 
-  it("offers child creation among the whole backlog only with create permission", async () => {
+  it("offers child creation only with create permission", async () => {
     const data = await load();
     if (data?.kind !== "item") throw new Error("expected an item");
     expect(data.panel.createDialog).toEqual(expect.objectContaining({
