@@ -163,6 +163,7 @@ export function InlineStatus({
             className={triggerClass}
             onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
           >
             {selected && <StatusDot status={visualStatusId(selected, statuses)} />}
             <span className="truncate">{selected?.name ?? statusId}</span>
@@ -172,6 +173,7 @@ export function InlineStatus({
           className={contentClass}
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
         >
           {statuses.map((status) => (
             <DropdownMenuItem
@@ -226,6 +228,7 @@ export function InlinePriority({
             className={triggerClass}
             onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
           >
             <PrioIcon priority={selected} />
           </button>
@@ -234,6 +237,7 @@ export function InlinePriority({
           className={contentClass}
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
         >
           {PRIORITIES.map((option) => (
             <DropdownMenuItem
@@ -303,6 +307,7 @@ export function InlineEstimate({
             className={compact ? compactTriggerClass : triggerClass}
             onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
           >
             {compact ? (
               <span
@@ -323,6 +328,7 @@ export function InlineEstimate({
           className="w-56 p-2"
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
         >
           <form
             className="flex items-end gap-2"
@@ -449,6 +455,7 @@ export function InlineAssignee({
             className={compact ? compactTriggerClass : triggerClass}
             onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
           >
             {selected ? (
               <InitialsAvatar
@@ -466,6 +473,7 @@ export function InlineAssignee({
           className={contentClass}
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
         >
           <DropdownMenuItem
             disabled={pending}

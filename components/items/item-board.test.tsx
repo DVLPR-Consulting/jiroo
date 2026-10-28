@@ -1,8 +1,8 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { currentHref } from "@/test/history";
-import { ItemBoard } from "@/components/items/item-board";
+import { ItemBoard, type BoardCard } from "@/components/items/item-board";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 
 const mocks = vi.hoisted(() => ({
@@ -842,4 +842,154 @@ describe("ItemBoard", () => {
     await user.click(screen.getByText("Authentication"));
     expect(mocks.push).toHaveBeenCalledWith("/b/DEMO?item=DEMO-1");
   });
+
+  const doneStatus = {
+    id: "done",
+    name: "Terminé",
+    color: "#3a7",
+    category: "done" as const,
+    order: 2,
+  };
+  const richCard: BoardCard = {
+    ...editableCard,
+    estimatePoints: 3,
+    parent: { key: "DEMO-EPIC", title: "Incidents de distribution", type: "epic" },
+    labels: [{ id: "label-1", name: "recette métier", color: "--label-4" }],
+    dueDate: "2026-10-30",
+    subCount: 2,
+    assigneeId: "user-camille",
+    assigneeName: "Camille Morel",
+  };
+  function renderCards(items: BoardCard[], props: Partial<Parameters<typeof ItemBoard>[0]> = {}) {
+    return renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={items}
+        statuses={[readyStatus, doneStatus]}
+        statusDomain={[readyStatus, doneStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        createDialogProps={createDialogProps}
+        today="2026-10-28"
+        {...props}
+      />,
+    );
+  }
+  const cardOf = (key: string) => document.querySelector(`[data-card="${key}"]`) as HTMLElement;
+
+  it("reads the card top to bottom: key, priority and points, title, context, then due date, subtasks and person", () => {
+    renderCards([richCard]);
+    const card = within(cardOf("DEMO-1"));
+
+    expect(card.getByTitle("Estimation")).toHaveTextContent("3 pts");
+    expect(card.getByRole("button", { name: /Priorité.*Moyenne/i })).toBeInTheDocument();
+    expect(card.getByTitle("Parent : DEMO-EPIC — Incidents de distribution")).toHaveTextContent("Incidents de distribution");
+    expect(card.getByText("recette métier")).toBeInTheDocument();
+    const due = card.getAllByTitle("Échéance dans 2 j");
+    expect(due.map((lozenge) => lozenge.dataset.tone)).toEqual(["soon", "soon"]);
+    expect(due[0]).toHaveTextContent("30 oct.");
+    expect(card.getByTitle("Sous-tâches")).toHaveTextContent("2");
+    expect(card.getAllByRole("img", { name: "Camille Morel" })).toHaveLength(2);
+    expect(card.queryByText("Bloqué")).not.toBeInTheDocument();
+  });
+
+  it("keeps a past due date red until the ticket is done, then mutes the card", () => {
+    const open = renderCards([{ ...richCard, dueDate: "2026-10-21" }]);
+    const late = within(cardOf("DEMO-1")).getAllByTitle("Échéance dépassée de 7 j");
+    expect(late.map((lozenge) => lozenge.dataset.tone)).toEqual(["late", "late"]);
+    expect(within(cardOf("DEMO-1")).getByText("DEMO-1")).not.toHaveClass("line-through");
+    open.unmount();
+
+    renderCards([{ ...richCard, dueDate: "2026-10-21", statusId: "done" }]);
+    const card = within(cardOf("DEMO-1"));
+    expect(card.getByTitle("Échéance")).toHaveAttribute("data-tone", "later");
+    expect(card.queryByTitle("Échéance dépassée de 7 j")).not.toBeInTheDocument();
+    expect(card.getByText("DEMO-1")).toHaveClass("line-through");
+    expect(card.getByText("Authentication")).toHaveClass("text-muted-foreground");
+  });
+
+  it("flags a blocked card with « Bloqué » and a red edge", () => {
+    renderCards([{ ...richCard, blocked: true }]);
+    const card = cardOf("DEMO-1");
+
+    expect(within(card).getByText("Bloqué")).toBeInTheDocument();
+    expect(card.style.boxShadow).toContain("var(--danger)");
+  });
+
+  it("hides the status row on wide screens when the card can be dragged instead", () => {
+    renderCards([richCard]);
+
+    const status = screen.getByRole("button", { name: "Statut : Prêt" });
+    expect(status.parentElement?.parentElement).toHaveClass("md:hidden");
+  });
+
+  it("keeps only what presses on a Compact card", () => {
+    const medium = renderCards([richCard]);
+    let card = within(cardOf("DEMO-1"));
+    expect(card.getByText("recette métier").parentElement).toHaveClass("compact:hidden");
+    expect(card.getByTitle("Sous-tâches").parentElement?.parentElement).toHaveClass("compact:hidden");
+    expect(card.getByRole("button", { name: /Priorité.*Moyenne/i }).closest(".compact\\:hidden")).not.toBeNull();
+    const [compactDue] = card.getAllByTitle("Échéance dans 2 j");
+    expect(compactDue).toHaveClass("hidden", "compact:inline-flex");
+    expect(card.getAllByRole("img", { name: "Camille Morel" })[0]?.parentElement).toHaveClass("hidden", "compact:inline-flex");
+    medium.unmount();
+
+    renderCards([{ ...richCard, priority: 4 }]);
+    card = within(cardOf("DEMO-1"));
+    expect(card.getByRole("button", { name: /Priorité.*Urgent/i }).closest(".compact\\:hidden")).toBeNull();
+  });
+
+  it("starts a drag from the card body, not only from its handle", async () => {
+    const moveItemAction = vi.fn();
+    renderCards([richCard], { moveItemAction });
+    const handle = screen.getByRole("button", { name: "Déplacer DEMO-1" });
+    expect(handle).not.toHaveAttribute("aria-pressed");
+
+    fireEvent.mouseDown(screen.getByText("Authentication"), { button: 0, clientX: 10, clientY: 10 });
+    fireEvent.mouseMove(document, { clientX: 30, clientY: 10 });
+    await waitFor(() => expect(handle).toHaveAttribute("aria-pressed", "true"));
+
+    fireEvent.mouseUp(document, { clientX: 30, clientY: 10 });
+    await waitFor(() => expect(handle).not.toHaveAttribute("aria-pressed"));
+    expect(moveItemAction).not.toHaveBeenCalled();
+  });
+
+  // A finger picks a card up after a 250 ms hold, except on its inline
+  // editors: a long press on the priority or the status must leave the card
+  // where it is. Touch events need the Touch constructor (Chromium covers
+  // the rest of the gesture).
+  it.skipIf(typeof window.Touch === "undefined")(
+    "keeps a long press on the priority or status editors from picking the card up",
+    async () => {
+      const moveItemAction = vi.fn();
+      renderCards([richCard], { moveItemAction });
+      const handle = screen.getByRole("button", { name: "Déplacer DEMO-1" });
+      const press = (target: Element) => {
+        const touch = new Touch({ identifier: 1, target, clientX: 20, clientY: 20 });
+        target.dispatchEvent(
+          new TouchEvent("touchstart", {
+            touches: [touch],
+            targetTouches: [touch],
+            changedTouches: [touch],
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      };
+
+      press(screen.getByRole("button", { name: /Priorité.*Moyenne/i }));
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      expect(handle).not.toHaveAttribute("aria-pressed");
+      press(screen.getByRole("button", { name: "Statut : Prêt" }));
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      expect(handle).not.toHaveAttribute("aria-pressed");
+
+      press(screen.getByText("Authentication"));
+      await waitFor(() => expect(handle).toHaveAttribute("aria-pressed", "true"), { timeout: 1500 });
+      document.dispatchEvent(new TouchEvent("touchend", { changedTouches: [], bubbles: true }));
+      await waitFor(() => expect(handle).not.toHaveAttribute("aria-pressed"));
+      expect(moveItemAction).not.toHaveBeenCalled();
+    },
+  );
 });
