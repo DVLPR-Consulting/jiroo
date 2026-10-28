@@ -397,8 +397,8 @@ export function PresencesView({ page }: { page: PresencePage }) {
           onMouseMove={onMouseMove}
           onClick={onClick}
         >
-          {/* The dates stay in sight while the rows scroll, the names while the days do: sticky cells, hence separate borders. */}
-          <table className="border-separate border-spacing-0 text-xs [&_tr:last-child>td]:border-b-0" style={{ tableLayout: "fixed", width: CELL.name + days.length * cellWidth + CELL.total }}>
+          {/* The grid takes the page's width, the days sharing it, never less than their minimum; the dates stay in sight while the rows scroll, the names while the days do: sticky cells, hence separate borders. */}
+          <table className="border-separate border-spacing-0 text-xs [&_tr:last-child>td]:border-b-0" style={{ tableLayout: "fixed", width: "100%", minWidth: CELL.name + days.length * cellWidth + CELL.total }}>
             <thead>
               <tr>
                 <th style={{ width: CELL.name }} className={cn(CELL_BORDER, "sticky left-0 top-0 z-[5] bg-[var(--surface-2)]")} />
@@ -406,7 +406,6 @@ export function PresencesView({ page }: { page: PresencePage }) {
                   <th
                     key={day}
                     scope="col"
-                    style={{ width: cellWidth }}
                     title={publicHoliday(day) ?? undefined}
                     className={cn(
                       CELL_BORDER,
@@ -489,34 +488,37 @@ export function PresencesView({ page }: { page: PresencePage }) {
         </p>
       ) : null}
 
-      {clicked ? (
-        <ClickBar
-          clicked={clicked}
-          absences={absences}
-          person={people.get(clicked.personId)}
-          backlogId={rightsBacklogFor(data, clicked.personId)}
-          pending={pending}
-          onHalf={(absenceId, backlogId) => carveAll([{ absenceId, from: clicked.slot, to: clicked.slot }], backlogId)}
-          onDay={(backlogId) => carveAll(removalsFor(absences, { personId: clicked.personId, from: { day: clicked.slot.day, half: "am" }, to: { day: clicked.slot.day, half: "pm" } }), backlogId)}
-          onAll={(absenceId, backlogId) => run(() => removeAbsenceAction({ id: absenceId, backlogId }))}
-          onClose={reset}
-        />
-      ) : selection ? (
-        <SelectionBar
-          selection={selection}
-          outcome={selectionOutcome(absences, selection)}
-          person={people.get(selection.personId)}
-          backlogId={rightsBacklogFor(data, selection.personId)}
-          pending={pending}
-          onDeclare={(backlogId) => run(() => declareAbsenceAction({
-            userId: selection.personId, backlogId,
-            startDate: selection.from.day, startHalf: selection.from.half, endDate: selection.to.day, endHalf: selection.to.half,
-          }))}
-          onRemove={(backlogId) => carveAll(removalsFor(absences, selection), backlogId)}
-          onClose={reset}
-        />
-      ) : null}
-      {error ? <p role="alert" className="text-xs text-[var(--danger)]">{error}</p> : null}
+      {/* The action bar keeps to the bottom of the window while a selection exists: a drag may start far above it. */}
+      <div className="sticky bottom-0 z-[6] space-y-2 bg-[var(--background)] py-2 empty:hidden">
+        {clicked ? (
+          <ClickBar
+            clicked={clicked}
+            absences={absences}
+            person={people.get(clicked.personId)}
+            backlogId={rightsBacklogFor(data, clicked.personId)}
+            pending={pending}
+            onHalf={(absenceId, backlogId) => carveAll([{ absenceId, from: clicked.slot, to: clicked.slot }], backlogId)}
+            onDay={(backlogId) => carveAll(removalsFor(absences, { personId: clicked.personId, from: { day: clicked.slot.day, half: "am" }, to: { day: clicked.slot.day, half: "pm" } }), backlogId)}
+            onAll={(absenceId, backlogId) => run(() => removeAbsenceAction({ id: absenceId, backlogId }))}
+            onClose={reset}
+          />
+        ) : selection ? (
+          <SelectionBar
+            selection={selection}
+            outcome={selectionOutcome(absences, selection)}
+            person={people.get(selection.personId)}
+            backlogId={rightsBacklogFor(data, selection.personId)}
+            pending={pending}
+            onDeclare={(backlogId) => run(() => declareAbsenceAction({
+              userId: selection.personId, backlogId,
+              startDate: selection.from.day, startHalf: selection.from.half, endDate: selection.to.day, endHalf: selection.to.half,
+            }))}
+            onRemove={(backlogId) => carveAll(removalsFor(absences, selection), backlogId)}
+            onClose={reset}
+          />
+        ) : null}
+        {error ? <p role="alert" className="text-xs text-[var(--danger)]">{error}</p> : null}
+      </div>
 
       {panel ? <PanelView page={page} panel={panel} people={people} developers={groups.developers} onClose={() => setPanel(null)} /> : null}
     </section>
@@ -637,7 +639,7 @@ function PersonRow({ page, person, days, cellWidth, withLanes, editable, highlig
                       )}
                     >
                       {segment.starts && span >= 2 ? (
-                        <span className="pointer-events-none absolute left-0.5 top-0 z-[2] overflow-hidden whitespace-nowrap text-[9.5px] font-semibold leading-3 text-white" style={{ maxWidth: span * cellWidth - 8 }}>
+                        <span className="pointer-events-none absolute left-0.5 top-0 z-[2] overflow-hidden whitespace-nowrap text-[9.5px] font-semibold leading-3 text-white" style={{ maxWidth: `calc(${span} * 100% - 8px)` }}>
                           {segment.ticket.key}
                         </span>
                       ) : null}
@@ -669,12 +671,12 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
   const groups = [["Développement", everyone.developers], ["Produit", everyone.product]] as const;
   return (
     <div className="max-h-[75vh] overflow-auto rounded-[var(--radius)] border border-border bg-[var(--surface)]">
-      <table className="border-separate border-spacing-0 text-xs [&_tr:last-child>td]:border-b-0" style={{ tableLayout: "fixed", width: CELL.name + months.length * 72 + CELL.total }}>
+      <table className="border-separate border-spacing-0 text-xs [&_tr:last-child>td]:border-b-0" style={{ tableLayout: "fixed", width: "100%", minWidth: CELL.name + months.length * 72 + CELL.total }}>
         <thead>
           <tr>
             <th style={{ width: CELL.name }} className={cn(CELL_BORDER, "sticky left-0 top-0 z-[5] bg-[var(--surface-2)]")} />
             {months.map((month) => (
-              <th key={month.from} scope="col" style={{ width: 72 }} className={cn(CELL_BORDER, "sticky top-0 z-[4] h-9 bg-[var(--surface-2)] text-[13px] font-medium", month.from.slice(0, 7) === data.today.slice(0, 7) && "text-[var(--primary)]")}>
+              <th key={month.from} scope="col" className={cn(CELL_BORDER, "sticky top-0 z-[4] h-9 bg-[var(--surface-2)] text-[13px] font-medium", month.from.slice(0, 7) === data.today.slice(0, 7) && "text-[var(--primary)]")}>
                 {monthShort(month.from)}
               </th>
             ))}
