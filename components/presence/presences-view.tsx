@@ -383,7 +383,8 @@ export function PresencesView({ page }: { page: PresencePage }) {
         />
       </PageToolbar>
 
-      <div className="space-y-3 px-4 pt-4 sm:px-6">
+      {/* 16 px a side, the Board's and the Liste's margins on desktop. */}
+      <div className="space-y-3 px-4 pt-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <Legend swatch="bg-[var(--danger)]">absent</Legend>
         <Legend swatch="bg-[linear-gradient(90deg,var(--danger)_0_50%,var(--surface)_50%)] ring-1 ring-[var(--danger)]">demi-journée (matin | après-midi)</Legend>
