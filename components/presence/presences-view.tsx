@@ -468,7 +468,6 @@ export function PresencesView({ page }: { page: PresencePage }) {
                         page={page}
                         person={person}
                         days={days}
-                        cellWidth={cellWidth}
                         withLanes={withLanes}
                         editable={rightsBacklogFor(data, person.id) !== null}
                         highlighted={highlighted}
@@ -488,7 +487,9 @@ export function PresencesView({ page }: { page: PresencePage }) {
         </p>
       ) : null}
 
-      {/* The action bar keeps to the bottom of the window while a selection exists: a drag may start far above it. */}
+
+      {panel ? <PanelView page={page} panel={panel} people={people} developers={groups.developers} onClose={() => setPanel(null)} /> : null}
+      {/* The action bar keeps to the bottom of the window while a selection exists: a drag may start far above it, and the tickets panel may run long below. */}
       <div className="sticky bottom-0 z-[6] space-y-2 bg-[var(--background)] py-2 empty:hidden">
         {clicked ? (
           <ClickBar
@@ -519,8 +520,6 @@ export function PresencesView({ page }: { page: PresencePage }) {
         ) : null}
         {error ? <p role="alert" className="text-xs text-[var(--danger)]">{error}</p> : null}
       </div>
-
-      {panel ? <PanelView page={page} panel={panel} people={people} developers={groups.developers} onClose={() => setPanel(null)} /> : null}
     </section>
   );
 }
@@ -553,11 +552,10 @@ function GroupRows({ label, members, columns, children }: {
   );
 }
 
-function PersonRow({ page, person, days, cellWidth, withLanes, editable, highlighted }: {
+function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
   page: PresencePage;
   person: PresencePerson;
   days: Day[];
-  cellWidth: number;
   withLanes: boolean;
   editable: boolean;
   highlighted: (personId: string, day: Day, half: Half) => boolean;

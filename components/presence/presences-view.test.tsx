@@ -103,8 +103,12 @@ describe("PresencesView", () => {
     fireEvent.mouseUp(window);
     const bar = screen.getByRole("group", { name: "Déclarer une absence" });
     expect(bar).toHaveTextContent("Camille Morel : absent du 12 nov. au 13 nov., 2 j ouvrés");
-    // The bar sticks to the bottom of the window: a drag may start far above it.
+    // The bar sticks to the bottom of the window, after the tickets panel: a drag may start far above it, a panel may run long.
     expect(bar.parentElement).toHaveClass("sticky", "bottom-0");
+    await userEvent.click(screen.getByRole("button", { name: "Camille Morel" }));
+    const panel = screen.getByRole("region", { name: "Tickets" });
+    expect(screen.getByRole("group", { name: "Déclarer une absence" })).toBeInTheDocument();
+    expect(panel.compareDocumentPosition(bar.parentElement!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await userEvent.click(within(bar).getByRole("button", { name: "Enregistrer" }));
     expect(actions.declareAbsenceAction).toHaveBeenCalledWith({
       userId: "camille", backlogId: "data", startDate: "2026-11-12", startHalf: "am", endDate: "2026-11-13", endHalf: "pm",
