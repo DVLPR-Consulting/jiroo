@@ -9,12 +9,13 @@ import { invalidateBacklog } from "@/lib/realtime/publish";
 import {
   ABSENCE_NOT_FOUND_MESSAGE,
   ABSENCE_OVERLAP_MESSAGE,
+  carveAbsence,
   declareAbsence,
   getAbsenceOwner,
   removeAbsence,
   type AbsenceDto,
 } from "@/lib/services/absences";
-import { absenceIdInput, declareAbsenceInput } from "@/lib/validation/absence";
+import { absenceIdInput, carveAbsenceInput, declareAbsenceInput } from "@/lib/validation/absence";
 
 /**
  * Declared absences (JIR-124). Anyone declares their own from a backlog they
@@ -110,6 +111,24 @@ export async function removeAbsenceAction(input: { id: string; backlogId: string
     await removeAbsence(parsed.data, actorId);
     await publish(backlogKey, parsed.data.backlogId, actorId);
     return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/** Takes half-days off an absence, with the same rights as removing it; answers what remains of it. */
+export async function carveAbsenceAction(input: Record<string, unknown>): Promise<{ ok: true; absences: AbsenceDto[] } | Failure> {
+  const actorId = await sessionActorId();
+  if (!actorId) return SESSION_EXPIRED;
+  const parsed = carveAbsenceInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Les données saisies sont invalides." };
+  try {
+    const { backlogKey } = await requireBacklogPermissionById({ actorId, backlogId: parsed.data.backlogId, permission: "browse_backlog" });
+    const owner = await getAbsenceOwner(parsed.data.id);
+    if (!owner || !(await mayManage(actorId, parsed.data.backlogId, owner))) return NOT_FOUND;
+    const remaining = await carveAbsence(parsed.data, actorId);
+    await publish(backlogKey, parsed.data.backlogId, actorId);
+    return { ok: true, absences: remaining };
   } catch (error) {
     return failure(error);
   }

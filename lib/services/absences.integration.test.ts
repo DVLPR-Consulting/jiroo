@@ -9,6 +9,7 @@ import { absences, backlogs, securityAuditEvents } from "@/lib/db/schema/domain"
 import {
   ABSENCE_NOT_FOUND_MESSAGE,
   ABSENCE_OVERLAP_MESSAGE,
+  carveAbsence,
   declareAbsence,
   getAbsenceOwner,
   listAbsences,
@@ -75,6 +76,32 @@ describeDb("absences (JIR-124)", () => {
     expect(events.filter((event) => event.action === "absence.declare")).toHaveLength(3);
     const removal = events.find((event) => event.action === "absence.remove");
     expect(removal).toMatchObject({ targetId: second.id, actorId: bo, newValue: null, oldValue: { userId: ana, startDate: "2026-11-09", endDate: "2026-11-09" } });
+  });
+
+  it("declares half-days, refuses a shared half-day, and carves an absence into what remains", async () => {
+    const week = await declareAbsence({ userId: ana, backlogId, startDate: "2026-11-16", endDate: "2026-11-20" }, ana);
+    expect(week).toMatchObject({ startHalf: "am", endHalf: "pm" });
+    const half = await declareAbsence({ userId: bo, backlogId, startDate: "2026-11-17", startHalf: "pm", endDate: "2026-11-18", endHalf: "am" }, bo);
+    expect(half).toMatchObject({ startDate: "2026-11-17", startHalf: "pm", endDate: "2026-11-18", endHalf: "am" });
+    await expect(declareAbsence({ userId: bo, backlogId, startDate: "2026-11-18", startHalf: "am", endDate: "2026-11-18", endHalf: "am" }, bo))
+      .rejects.toThrow(ABSENCE_OVERLAP_MESSAGE);
+    // The other half of that day is free.
+    await declareAbsence({ userId: bo, backlogId, startDate: "2026-11-18", startHalf: "pm", endDate: "2026-11-18", endHalf: "pm" }, bo);
+
+    const remaining = await carveAbsence({ id: week.id, backlogId, startDate: "2026-11-18", startHalf: "pm", endDate: "2026-11-18", endHalf: "pm" }, ana);
+    expect(remaining.map((absence) => [absence.startDate, absence.startHalf, absence.endDate, absence.endHalf])).toEqual([
+      ["2026-11-16", "am", "2026-11-18", "am"],
+      ["2026-11-19", "am", "2026-11-20", "pm"],
+    ]);
+    expect(remaining.every((absence) => absence.createdBy === ana)).toBe(true);
+    expect(await getAbsenceOwner(week.id)).toBeNull();
+    await expect(carveAbsence({ id: week.id, backlogId, startDate: "2026-11-16", startHalf: "am", endDate: "2026-11-16", endHalf: "am" }, ana))
+      .rejects.toThrow(ABSENCE_NOT_FOUND_MESSAGE);
+    const [carved] = await db
+      .select({ oldValue: securityAuditEvents.oldValue, newValue: securityAuditEvents.newValue })
+      .from(securityAuditEvents)
+      .where(and(eq(securityAuditEvents.action, "absence.carve"), eq(securityAuditEvents.targetId, week.id)));
+    expect(carved).toMatchObject({ oldValue: { startDate: "2026-11-16", endDate: "2026-11-20", endHalf: "pm" }, newValue: { remaining: [{ startDate: "2026-11-16" }, { startDate: "2026-11-19" }] } });
   });
 
   it("validates before touching the database", async () => {

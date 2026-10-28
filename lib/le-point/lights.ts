@@ -16,7 +16,8 @@ import {
   type LePointTicket,
   type Tone,
 } from "@/lib/le-point/model";
-import { dayNumber } from "@/lib/roadmap/days";
+import { countWorkingDays } from "@/lib/dates/working-days";
+import { addDays } from "@/lib/roadmap/days";
 
 /**
  * JIR-124 proof of concept: a traffic light for the active sprint and one per
@@ -78,14 +79,9 @@ const percent = (ratio: number) => Math.round(ratio * 10_000) / 100;
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const present = (line: string | null): line is string => line !== null;
 
-/** Working days (Monday to Friday) after `from`, up to and including `to`. */
+/** Working days after `from`, up to and including `to`, on the team's calendar (holidays off). */
 export function workingDaysBetween(from: Day, to: Day): number {
-  let total = 0;
-  for (let n = dayNumber(from) + 1; n <= dayNumber(to); n += 1) {
-    const weekday = (n + 4) % 7; // Day 0 (1970-01-01) was a Thursday; 0 is Sunday.
-    if (weekday !== 0 && weekday !== 6) total += 1;
-  }
-  return total;
+  return countWorkingDays(addDays(from, 1), to);
 }
 
 /**
@@ -217,9 +213,10 @@ export function personLight(data: LePointDataset, assignee: string): Light {
   );
   const inProgress = work.filter((ticket) => ticket.category === "in_progress");
   const blocked = work.filter((ticket) => openBlockersOf(ticket, byKey).length > 0);
+  // Whole days: a half-day away is not an idle half-day either.
   const idleDays = (ticket: LePointTicket) => (ticket.lastActivity
-    ? workingDaysBetween(ticket.lastActivity, data.today)
-      - absentWorkingDays(absences, assignee, dayAfter(ticket.lastActivity), data.today)
+    ? Math.floor(workingDaysBetween(ticket.lastActivity, data.today)
+      - absentWorkingDays(absences, assignee, dayAfter(ticket.lastActivity), data.today))
     : 0);
   const stale = inProgress.filter((ticket) => idleDays(ticket) >= PERSON_THRESHOLDS.idleDays);
   const stuck = inProgress.length > 0 && inProgress.every((ticket) => idleDays(ticket) >= PERSON_THRESHOLDS.stuckDays);
@@ -278,8 +275,8 @@ export function workloadTickets(data: LePointDataset, assignee: string | null): 
   const absences = data.absences ?? [];
   // The same idle days as the person's light: a day away is never an idle day.
   const idleDays = (ticket: LePointTicket) => (ticket.lastActivity
-    ? workingDaysBetween(ticket.lastActivity, data.today)
-      - (assignee === null ? 0 : absentWorkingDays(absences, assignee, dayAfter(ticket.lastActivity), data.today))
+    ? Math.floor(workingDaysBetween(ticket.lastActivity, data.today)
+      - (assignee === null ? 0 : absentWorkingDays(absences, assignee, dayAfter(ticket.lastActivity), data.today)))
     : 0);
   const stale = (ticket: LePointTicket) => ticket.category === "in_progress" && idleDays(ticket) >= PERSON_THRESHOLDS.idleDays;
   const outside = (ticket: LePointTicket) => data.sprint !== null && !ticket.inSprint && ticket.category !== "in_progress";

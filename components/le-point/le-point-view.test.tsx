@@ -329,7 +329,13 @@ describe("LePointView, whole team (JIR-121)", () => {
 
   it("says who is away and until when, and lets the reader declare their own absence (JIR-124)", async () => {
     const backlog = { ...camille.backlog, id: "11111111-1111-4111-8111-111111111111" };
-    const away = { ...camille, backlog, absences: [{ id: "a1", user: "hugo", start: "2026-11-03", end: "2026-11-06" }] };
+    const away = {
+      ...camille, backlog,
+      absences: [
+        { id: "a1", user: "hugo", start: "2026-11-03", end: "2026-11-06" },
+        { id: "a2", user: "hugo", start: "2026-11-09", startHalf: "pm" as const, end: "2026-11-10", endHalf: "am" as const },
+      ],
+    };
     absenceActions.declareAbsenceAction.mockResolvedValue({ ok: true });
     render(<LePointView data={away} />);
     const sprint = section("Santé du sprint");
@@ -339,13 +345,14 @@ describe("LePointView, whole team (JIR-121)", () => {
     expect(sprint).toHaveTextContent("12 jours-personne, 3 personnes présentes");
     await userEvent.click(hugo);
     expect(within(sprint).getByText("Absent du 3 nov. au 6 nov.")).toBeVisible();
+    expect(within(sprint).getByText("Absent du 9 nov. après-midi au 10 nov. matin")).toBeVisible();
     expect(within(sprint).queryByRole("button", { name: "Retirer" })).toBeNull();
     expect(within(sprint).queryByRole("button", { name: "Déclarer une absence" })).toBeNull();
     // The reader declares their own, whole days both included, from today by default.
     await userEvent.click(within(sprint).getByRole("button", { name: /^Camille Morel/ }));
     await userEvent.click(within(sprint).getByRole("button", { name: "Déclarer une absence" }));
     await userEvent.click(within(sprint).getByRole("button", { name: "Enregistrer" }));
-    expect(absenceActions.declareAbsenceAction).toHaveBeenCalledWith({ userId: "camille", backlogId: backlog.id, startDate: "2026-11-03", endDate: "2026-11-03" });
+    expect(absenceActions.declareAbsenceAction).toHaveBeenCalledWith({ userId: "camille", backlogId: backlog.id, startDate: "2026-11-03", startHalf: "am", endDate: "2026-11-03", endHalf: "pm" });
   });
 
   it("explains its rules on request, in a dialog, and gives the focus back to its button", async () => {

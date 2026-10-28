@@ -825,13 +825,21 @@ export const absences = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     startDate: date("start_date", { mode: "string" }).notNull(),
     endDate: date("end_date", { mode: "string" }).notNull(),
+    /** The absence starts in the morning (`am`) or the afternoon (`pm`) of `start_date` (JIR-124). */
+    startHalf: text("start_half", { enum: ["am", "pm"] }).notNull().default("am"),
+    /** It ends with the morning (`am`) or the afternoon (`pm`) of `end_date`. */
+    endHalf: text("end_half", { enum: ["am", "pm"] }).notNull().default("pm"),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("absences_user_start_idx").on(t.userId, t.startDate),
-    check("absences_dates_order", sql`${t.endDate} >= ${t.startDate}`),
+    check("absences_halves", sql`${t.startHalf} in ('am', 'pm') and ${t.endHalf} in ('am', 'pm')`),
+    check(
+      "absences_dates_order",
+      sql`${t.endDate} > ${t.startDate} or (${t.endDate} = ${t.startDate} and (${t.startHalf} = 'am' or ${t.endHalf} = 'pm'))`,
+    ),
   ],
 );
 

@@ -4,8 +4,9 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { databasePool, db } from "@/lib/db";
-import { absences, items, permissionGrants, sprints, statuses } from "@/lib/db/schema/domain";
+import { absences, items, permissionGrants, securityAuditEvents, sprints, statuses } from "@/lib/db/schema/domain";
 import { listAssignableUsersForBacklog } from "@/lib/auth/authorization";
+import { declareAbsence } from "@/lib/services/absences";
 import { createReadVisibilityFixture, deleteReadVisibilityFixture, type ReadVisibilityFixture } from "@/lib/services/read-visibility.integration-fixture";
 import { assignItemsToSprint, createSprint } from "@/lib/services/sprints";
 import { startSprint, completeSprint } from "@/lib/services/sprint-lifecycle";
@@ -32,10 +33,10 @@ describeDb("getSprintsReview", () => {
     await deleteReadVisibilityFixture(f);
   });
 
-  async function active() {
+  async function active(startAt = "2026-10-19T08:00:00Z", endAt = "2026-10-30T17:00:00Z") {
     const sprint = await createSprint({ backlogId: f.backlogA.id }, f.admin);
     await assignItemsToSprint({ backlogId: f.backlogA.id, sprintId: sprint.id, itemIds: [f.liveA.id] }, f.admin);
-    await startSprint({ id: sprint.id, backlogId: f.backlogA.id, name: sprint.name, goal: null, startAt: "2026-10-19T08:00:00Z", endAt: "2026-10-30T17:00:00Z", capacityPoints: null }, f.admin);
+    await startSprint({ id: sprint.id, backlogId: f.backlogA.id, name: sprint.name, goal: null, startAt, endAt, capacityPoints: null }, f.admin);
     return sprint;
   }
 
@@ -77,6 +78,19 @@ describeDb("getSprintsReview", () => {
       expect(row.presence).toBeNull();
       expect(row.pointsPerPersonDay).toBeNull();
     } finally { if (grants.length > 0) await db.insert(permissionGrants).values(grants); }
+  });
+
+  it("counts the presence on the team's calendar: a holiday off, a declared half-day worth 0,5", async () => {
+    // Monday 9 to Friday 13 November: four working days, the Armistice falling on the Wednesday.
+    await active("2026-11-09T08:00:00Z", "2026-11-13T17:00:00Z");
+    const members = await listAssignableUsersForBacklog(f.backlogA.id);
+    expect((await getSprintsReview(f.backlogA.id, f.actorA))!.rows[0]!.presence).toBe(members.length * 4);
+    await declareAbsence({ userId: f.admin, backlogId: f.backlogA.id, startDate: "2026-11-10", startHalf: "pm", endDate: "2026-11-10", endHalf: "pm" }, f.admin);
+    try {
+      expect((await getSprintsReview(f.backlogA.id, f.actorA))!.rows[0]!.presence).toBe(members.length * 4 - 0.5);
+    } finally {
+      await db.delete(securityAuditEvents).where(and(eq(securityAuditEvents.targetType, "absence"), eq(securityAuditEvents.actorId, f.admin)));
+    }
   });
 
   it("leaves unknown legacy counts blank and caps closed sprints at fifty, active first", async () => {

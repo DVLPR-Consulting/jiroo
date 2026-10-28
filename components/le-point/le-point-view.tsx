@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LABEL_HUES, type LabelHue } from "@/lib/design/constants";
 import { countLabel, formatPoints, frenchPlural } from "@/lib/format/plural";
+import { halfName, type Half } from "@/lib/dates/half-days";
 import { absentUntil } from "@/lib/le-point/absences";
 import { sprintForecast, sprintPeople } from "@/lib/le-point/forecast";
 import { personLight, sprintLight, SPRINT_THRESHOLDS, workloadTickets, type Light, type LightColor, type SprintLight } from "@/lib/le-point/lights";
@@ -629,8 +630,9 @@ function RulesDialog() {
             niveau : rien en cours ; orange dès qu’un ticket en cours est sans activité depuis 3 jours ouvrés, ou qu’un
             ticket est bloqué ; rouge quand plus rien n’a bougé depuis 5 jours ouvrés, ou avec 4 tickets en cours à la
             fois ; en rythme sinon. Les tickets à faire hors du sprint actif comptent dans les ouverts, pas dans la
-            pastille ; un ticket en cours y compte même hors sprint. Les jours d’absence déclarés ne comptent ni dans
-            l’inactivité d’un ticket ni dans les jours-personne du sprint.
+            pastille ; un ticket en cours y compte même hors sprint. Les jours ouvrés vont du lundi au vendredi, hors
+            jours fériés français. Les absences déclarées, en demi-journées, ne comptent ni dans l’inactivité d’un ticket
+            ni dans les jours-personne du sprint ; une personne absente une demi-journée reste présente ce jour-là.
           </p>
           <p>Un ticket sans activité connue n’est jamais compté comme inactif. Prototype : les seuils sont fixés dans le code.</p>
         </div>
@@ -761,7 +763,7 @@ function SprintHealthCard({ data }: { data: LePointDataset }) {
                 value={forecast ? `${forecast.daysLeft} j` : "—"}
                 unit={forecast ? frenchPlural(forecast.daysLeft, "ouvré restant", "ouvrés restants") : "ouvré restant"}
                 line={forecast
-                  ? `${countLabel(forecast.personDaysLeft, "jour-personne", "jours-personne")}, ${countLabel(forecast.present, "personne présente", "personnes présentes")}`
+                  ? `${countLabel(forecast.personDaysLeft, "jour-personne", "jours-personne", formatPoints)}, ${countLabel(forecast.present, "personne présente", "personnes présentes")}`
                   : "aucun ticket dans le sprint"}
               />
             )}
@@ -957,6 +959,16 @@ function PersonDetail({ row, data }: { row: WorkloadRow; data: LePointDataset })
 
 const DATE_INPUT_CLASS = "rounded border border-border bg-[var(--surface)] px-1.5 py-0.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
 
+/** « Absent du 3 nov. après-midi au 6 nov. », « Absent le 5 nov. matin ». */
+function absenceLabel(absence: { start: string; end: string; startHalf?: Half; endHalf?: Half }): string {
+  const startHalf = absence.startHalf ?? "am";
+  const endHalf = absence.endHalf ?? "pm";
+  if (absence.start === absence.end) {
+    return startHalf === endHalf ? `Absent le ${formatDay(absence.start)} ${halfName(startHalf)}` : `Absent le ${formatDay(absence.start)}`;
+  }
+  return `Absent du ${formatDay(absence.start)}${startHalf === "pm" ? " après-midi" : ""} au ${formatDay(absence.end)}${endHalf === "am" ? " matin" : ""}`;
+}
+
 /**
  * The person's absences from today on, and the way to declare one
  * (JIR-124): one's own from any backlog one may browse, a member's for the
@@ -969,7 +981,9 @@ function AbsencePanel({ row, data }: { row: WorkloadRow; data: LePointDataset })
   const [error, setError] = useState<string | null>(null);
   const [declaring, setDeclaring] = useState(false);
   const [startDate, setStartDate] = useState(data.today);
+  const [startHalf, setStartHalf] = useState<Half>("am");
   const [endDate, setEndDate] = useState(data.today);
+  const [endHalf, setEndHalf] = useState<Half>("pm");
   const person = row.assignee;
   const backlogId = data.backlog.id;
   if (!person || !backlogId) return null;
@@ -994,9 +1008,7 @@ function AbsencePanel({ row, data }: { row: WorkloadRow; data: LePointDataset })
         <ul className="flex flex-wrap gap-x-3 gap-y-1">
           {upcoming.map((absence) => (
             <li key={absence.id ?? `${absence.start}-${absence.end}`} className="inline-flex items-center gap-1.5 text-muted-foreground">
-              {absence.start === absence.end
-                ? `Absent le ${formatDay(absence.start)}`
-                : `Absent du ${formatDay(absence.start)} au ${formatDay(absence.end)}`}
+              {absenceLabel(absence)}
               {allowed && absence.id ? (
                 <button
                   type="button"
@@ -1017,13 +1029,21 @@ function AbsencePanel({ row, data }: { row: WorkloadRow; data: LePointDataset })
             className="flex flex-wrap items-center gap-2"
             onSubmit={(event) => {
               event.preventDefault();
-              run(() => declareAbsenceAction({ userId: person, backlogId, startDate, endDate }));
+              run(() => declareAbsenceAction({ userId: person, backlogId, startDate, startHalf, endDate, endHalf }));
             }}
           >
             <span>{mine ? "Mon absence, du" : `Absence de ${row.name}, du`}</span>
             <input type="date" required aria-label="Premier jour" value={startDate} onChange={(event) => setStartDate(event.target.value)} className={DATE_INPUT_CLASS} />
+            <select aria-label="Début" value={startHalf} onChange={(event) => setStartHalf(event.target.value as Half)} className={DATE_INPUT_CLASS}>
+              <option value="am">matin</option>
+              <option value="pm">après-midi</option>
+            </select>
             <span>au</span>
             <input type="date" required aria-label="Dernier jour" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} className={DATE_INPUT_CLASS} />
+            <select aria-label="Fin" value={endHalf} onChange={(event) => setEndHalf(event.target.value as Half)} className={DATE_INPUT_CLASS}>
+              <option value="am">matin</option>
+              <option value="pm">après-midi</option>
+            </select>
             <button type="submit" disabled={pending} className="rounded bg-[var(--primary)] px-2 py-0.5 font-medium text-white disabled:opacity-60">
               Enregistrer
             </button>
