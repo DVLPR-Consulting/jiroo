@@ -1,0 +1,2 @@
+[defect] BUG-JIR-053 browserContext.grantPermissions: Unknown permission: clipboard-write
+[duration] scenario 26: 95ms

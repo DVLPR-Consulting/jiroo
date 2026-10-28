@@ -1,0 +1,4 @@
+[log] [HMR] connected
+[result] plage CASS-9003 → CASS-9004, 4 mutations bulk persistées
+[log] [HMR] connected
+[performance] {"domContentLoadedMs":182,"loadMs":204,"responseStartMs":133}

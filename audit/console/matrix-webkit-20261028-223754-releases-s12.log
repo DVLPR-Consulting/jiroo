@@ -1,0 +1,15 @@
+[editor-capture] log: [HMR] connected
+[expected] interruption volontaire du prochain POST /b/CASS
+[editor-capture] info: Web Inspector blocked http://localhost:3100/b/CASS?view=list&item=CASS-91 from loading
+[defect] BUG-JIR-039 [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+Locator: getByRole('alert')
+Expected substring: [32m"Mise à jour impossible"[39m
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+[2m  - Expect "toContainText" with timeout 5000ms[22m
+[2m  - waiting for getByRole('alert')[22m
+
+[duration] scenario 12: 6455ms

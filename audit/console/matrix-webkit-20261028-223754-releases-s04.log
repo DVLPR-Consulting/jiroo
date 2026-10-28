@@ -1,0 +1,14 @@
+[admin] log: [HMR] connected
+[admin] log: [HMR] connected
+[admin] log: [HMR] connected
+[admin] pageerror: /localhost:3100/api/notifications due to access control checks.
+[admin] log: [HMR] connected
+[admin] log: [HMR] connected
+[defect] BUG-JIR-031 Erreurs navigateur inattendues:
+[admin] pageerror: /localhost:3100/api/notifications due to access control checks.
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/api/notifications cancelled
+[duration] scenario 4: 3693ms

@@ -1,0 +1,37 @@
+[admin] log: [HMR] connected
+[admin] pageerror: /localhost:3100/b/CASS?view=list&version=1c70622f-723e-4b09-bcdd-94d823382880 due to access control checks.
+[admin] log: [HMR] connected
+[admin] pageerror: /localhost:3100/api/notifications due to access control checks.
+[admin] log: [HMR] connected
+[admin] log: [HMR] connected
+[admin] log: [HMR] connected
+[admin] pageerror: /localhost:3100/api/notifications due to access control checks.
+[admin] log: [HMR] connected
+[admin] pageerror: /localhost:3100/b/CASS/releases/db1b345b-e266-4ff7-9ccd-edb0ff6cce3c/notes due to access control checks.
+[admin] log: [HMR] connected
+[admin] log: [HMR] connected
+[admin] pageerror: /localhost:3100/b/CASS/releases/db1b345b-e266-4ff7-9ccd-edb0ff6cce3c/notes due to access control checks.
+[admin] log: [HMR] connected
+[admin] pageerror: /localhost:3100/api/notifications due to access control checks.
+[admin] log: [HMR] connected
+[defect] BUG-JIR-054 Erreurs navigateur inattendues:
+[admin] pageerror: /localhost:3100/b/CASS?view=list&version=1c70622f-723e-4b09-bcdd-94d823382880 due to access control checks.
+[admin] pageerror: /localhost:3100/api/notifications due to access control checks.
+[admin] pageerror: /localhost:3100/api/notifications due to access control checks.
+[admin] pageerror: /localhost:3100/b/CASS/releases/db1b345b-e266-4ff7-9ccd-edb0ff6cce3c/notes due to access control checks.
+[admin] pageerror: /localhost:3100/b/CASS/releases/db1b345b-e266-4ff7-9ccd-edb0ff6cce3c/notes due to access control checks.
+[admin] pageerror: /localhost:3100/api/notifications due to access control checks.
+[failed] [admin] POST http://localhost:3100/b/CASS?view=list&version=1c70622f-723e-4b09-bcdd-94d823382880 cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] POST http://localhost:3100/b/CASS/releases/db1b345b-e266-4ff7-9ccd-edb0ff6cce3c/notes cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] POST http://localhost:3100/b/CASS/releases/db1b345b-e266-4ff7-9ccd-edb0ff6cce3c/notes cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] POST http://localhost:3100/b/CASS/releases/db1b345b-e266-4ff7-9ccd-edb0ff6cce3c/notes cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[duration] scenario 27: 4252ms

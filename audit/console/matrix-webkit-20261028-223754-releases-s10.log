@@ -1,0 +1,10 @@
+[admin] log: [HMR] connected
+[admin] error: Failed to fetch RSC payload for http://localhost:3100/b/CASS/releases/c2da2d3a-ca08-4007-9228-fbc6ed9002e9. Falling back to browser navigation. TypeError: Load failed
+[admin] pageerror: /localhost:3100/__nextjs_original-stack-frames due to access control checks.
+[admin] pageerror: /localhost:3100/api/notifications due to access control checks.
+[defect] BUG-JIR-037 page.goto: Navigation to "http://localhost:3100/b/CASS?view=list&item=CASS-89" is interrupted by another navigation to "http://localhost:3100/b/CASS/releases/c2da2d3a-ca08-4007-9228-fbc6ed9002e9"
+Call log:
+[2m  - navigating to "http://localhost:3100/b/CASS?view=list&item=CASS-89", waiting until "load"[22m
+
+[admin] log: [HMR] connected
+[duration] scenario 10: 885ms

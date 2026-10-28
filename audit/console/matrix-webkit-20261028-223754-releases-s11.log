@@ -1,0 +1,9 @@
+[editor] log: [HMR] connected
+[editor] error: Failed to fetch RSC payload for http://localhost:3100/b/CASS?view=list&item=CASS-90. Falling back to browser navigation. TypeError: Load failed
+[editor] pageerror: /localhost:3100/__nextjs_original-stack-frames due to access control checks.
+[defect] BUG-JIR-038 page.goto: Navigation to "http://localhost:3100/b/CASS/releases/e1405188-97a7-4f7d-a910-6b1540b93e32" is interrupted by another navigation to "http://localhost:3100/b/CASS?view=list&item=CASS-90"
+Call log:
+[2m  - navigating to "http://localhost:3100/b/CASS/releases/e1405188-97a7-4f7d-a910-6b1540b93e32", waiting until "load"[22m
+
+[editor] log: [HMR] connected
+[duration] scenario 11: 1851ms

@@ -1,0 +1,6 @@
+editor
+reader
+[log] [HMR] connected
+[pageerror] /localhost:3100/api/notifications due to access control checks.
+[pageerror] /localhost:3100/api/backlogs/CASS/items/CASS-134 due to access control checks.
+[log] [HMR] connected

@@ -1,0 +1,5 @@
+[log] [HMR] connected
+[log] [HMR] connected
+[log] [HMR] connected
+[timing] bulk sprint 460ms
+[result] CASS-9005 planifié par drag ; CASS-9003 → CASS-9004 par bulk, repliés puis persistés après reload

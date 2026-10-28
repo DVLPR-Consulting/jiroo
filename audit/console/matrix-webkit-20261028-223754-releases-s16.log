@@ -1,0 +1,9 @@
+[admin] log: [HMR] connected
+[admin-scope-change] log: [HMR] connected
+[admin-scope-change] error: Failed to fetch RSC payload for http://localhost:3100/b/CASS?view=list&item=CASS-93. Falling back to browser navigation. TypeError: Load failed
+[defect] BUG-JIR-043 page.goto: Navigation to "http://localhost:3100/b/CASS?view=list&item=CASS-94" is interrupted by another navigation to "http://localhost:3100/b/CASS?view=list&item=CASS-93"
+Call log:
+[2m  - navigating to "http://localhost:3100/b/CASS?view=list&item=CASS-94", waiting until "load"[22m
+
+[admin-scope-change] log: [HMR] connected
+[duration] scenario 16: 2468ms

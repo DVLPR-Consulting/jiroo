@@ -1,0 +1,15 @@
+[admin] log: [HMR] connected
+[expected] interruption volontaire du prochain POST /b/CASS/releases/9b85daff-6025-40fe-b943-8673fd6e5d22
+[admin] info: Web Inspector blocked http://localhost:3100/b/CASS/releases/9b85daff-6025-40fe-b943-8673fd6e5d22 from loading
+[defect] BUG-JIR-048 [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveText[2m([22m[32mexpected[39m[2m)[22m failed
+
+Locator: getByRole('dialog', { name: 'Supprimer R2-S21 Leurre' }).getByRole('alert')
+Expected: [32m"Suppression impossible."[39m
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+[2m  - Expect "toHaveText" with timeout 5000ms[22m
+[2m  - waiting for getByRole('dialog', { name: 'Supprimer R2-S21 Leurre' }).getByRole('alert')[22m
+
+[duration] scenario 21: 5726ms

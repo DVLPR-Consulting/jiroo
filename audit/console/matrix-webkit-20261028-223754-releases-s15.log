@@ -1,0 +1,19 @@
+[admin] log: [HMR] connected
+[admin] pageerror: /localhost:3100/b/LABS/releases due to access control checks.
+[admin] pageerror: /localhost:3100/api/realtime?backlog=LABS due to access control checks.
+[admin] log: [HMR] connected
+[reader-second-user] log: [HMR] connected
+[reader-second-user] pageerror: /localhost:3100/b/CASS/releases due to access control checks.
+[reader-second-user] log: [HMR] connected
+[reader-second-user] pageerror: /localhost:3100/b/CASS/releases due to access control checks.
+[reader-second-user] log: [HMR] connected
+[defect] BUG-JIR-042 Erreurs navigateur inattendues:
+[admin] pageerror: /localhost:3100/b/LABS/releases due to access control checks.
+[admin] pageerror: /localhost:3100/api/realtime?backlog=LABS due to access control checks.
+[reader-second-user] pageerror: /localhost:3100/b/CASS/releases due to access control checks.
+[reader-second-user] pageerror: /localhost:3100/b/CASS/releases due to access control checks.
+[failed] [reader-second-user] POST http://localhost:3100/b/CASS/releases cancelled
+[failed] [reader-second-user] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [reader-second-user] POST http://localhost:3100/b/CASS/releases cancelled
+[failed] [reader-second-user] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[duration] scenario 15: 1550ms

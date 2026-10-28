@@ -1,0 +1,16 @@
+[specialist] log: [HMR] connected
+[specialist] error: %o
+
+%s TypeError: Load failed The above error occurred in the <Unknown> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+[specialist] pageerror: /localhost:3100/api/notifications due to access control checks.
+[specialist] error: TypeError: Load failed
+[specialist] error: TypeError: Load failed
+[specialist] pageerror: /localhost:3100/__nextjs_original-stack-frames due to access control checks.
+[specialist] log: [HMR] connected
+[specialist] error: Failed to fetch RSC payload for http://localhost:3100/b/CASS/releases. Falling back to browser navigation. TypeError: Load failed
+[defect] BUG-JIR-047 page.goto: Navigation to "http://localhost:3100/b/CASS/releases/e6a999ef-3278-48d0-830d-aaf11de900ee" is interrupted by another navigation to "http://localhost:3100/b/CASS/releases"
+Call log:
+[2m  - navigating to "http://localhost:3100/b/CASS/releases/e6a999ef-3278-48d0-830d-aaf11de900ee", waiting until "load"[22m
+
+[specialist] log: [HMR] connected
+[duration] scenario 20: 2156ms

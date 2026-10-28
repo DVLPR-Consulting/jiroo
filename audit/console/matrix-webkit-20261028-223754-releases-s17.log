@@ -1,0 +1,7 @@
+[admin] log: [HMR] connected
+[admin] log: [HMR] connected
+[admin] log: [HMR] connected
+[defect] BUG-JIR-044 Erreurs navigateur inattendues:
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[duration] scenario 17: 3087ms

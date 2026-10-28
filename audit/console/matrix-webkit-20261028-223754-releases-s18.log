@@ -1,0 +1,12 @@
+[admin] log: [HMR] connected
+[admin] pageerror: /localhost:3100/api/notifications due to access control checks.
+[admin] log: [HMR] connected
+[defect] BUG-JIR-045 Erreurs navigateur inattendues:
+[admin] pageerror: /localhost:3100/api/notifications due to access control checks.
+[failed] [admin] GET http://localhost:3100/_next/static/chunks/components_markdown_markdown-editor-core_tsx_0yqa4_va0__t4._.js cancelled
+[failed] [admin] GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_1dk45a-u4u7d9._.js cancelled
+[failed] [admin] GET http://localhost:3100/b/CASS/releases?_rsc=gfob4wN3imw0fYJE cancelled
+[failed] [admin] POST http://localhost:3100/b/CASS/releases cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/_next/static/chunks/_171w4q9olt7pz._.js cancelled
+[duration] scenario 18: 1335ms
