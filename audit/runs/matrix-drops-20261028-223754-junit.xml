@@ -1,0 +1,44 @@
+<testsuites id="" name="" tests="4" failures="0" skipped="1" errors="0" time="355.02552499999996">
+<testsuite name="matrix/drops.spec.ts" timestamp="2026-10-28T23:20:02.264Z" hostname="matrix-drops" tests="4" failures="0" skipped="1" time="350.111" errors="0">
+<testcase name="390px — 50 drops to the nearest wholly offscreen column" classname="matrix/drops.spec.ts" time="122.641">
+<properties>
+<property name="drops" value="[drops] width=390 target=En revue verified=50/50 wallMs=121139">
+</property>
+</properties>
+<system-out>
+<![CDATA[[drops] width=390 target=En revue verified=50/50 wallMs=121139
+]]>
+</system-out>
+</testcase>
+<testcase name="768px — 50 drops to the nearest wholly offscreen column" classname="matrix/drops.spec.ts" time="100.706">
+<properties>
+<property name="drops" value="[drops] width=768 target=En revue verified=50/50 wallMs=99914">
+</property>
+</properties>
+<system-out>
+<![CDATA[[drops] width=768 target=En revue verified=50/50 wallMs=99914
+]]>
+</system-out>
+</testcase>
+<testcase name="1200px — 50 drops to the nearest wholly offscreen column" classname="matrix/drops.spec.ts" time="125.977">
+<properties>
+<property name="drops" value="[drops] width=1200 target=Contrôle 1 verified=50/50 wallMs=124983">
+</property>
+</properties>
+<system-out>
+<![CDATA[[drops] width=1200 target=Contrôle 1 verified=50/50 wallMs=124983
+]]>
+</system-out>
+</testcase>
+<testcase name="1200px — optional 50 drops to the farthest wholly offscreen column" classname="matrix/drops.spec.ts">
+<properties>
+<property name="budget" value="Optional farthest series estimate 271s, elapsed 351s; nine-minute internal budget.">
+</property>
+<property name="skip" value="Optional farthest series estimate 271s, elapsed 351s; nine-minute internal budget.">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+</testsuites>

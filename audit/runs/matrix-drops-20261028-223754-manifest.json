@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "runId": "matrix-drops-20261028-223754",
+  "timestamps": {
+    "startedAt": "2026-10-28T23:20:00.460Z",
+    "databaseVerifiedAt": "2026-10-28T23:20:00.470Z",
+    "manifestWrittenAt": "2026-10-28T23:20:00.594Z"
+  },
+  "runtime": {
+    "node": "v24.18.1",
+    "pnpm": "10.34.5"
+  },
+  "source": {
+    "gitSha": "282463d59644fb557e956e0bfe66cb6310b4354b"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:a70637732c622ead8e1bfe57c5fec658fda1cab995b41489e3222926ed8fc919"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "corepack pnpm exec playwright test --project=matrix-drops",
+    "scenarios": "matrice matrix-drops"
+  },
+  "result": {
+    "junitReport": "audit/runs/matrix-drops-20261028-223754-junit.xml"
+  },
+  "artifacts": [
+    {
+      "path": ".playwright/test-results/matrix-drops-20261028-223754/.last-run.json",
+      "size": 45,
+      "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903"
+    },
+    {
+      "path": "audit/console/matrix-drops-20261028-223754-drops-1200-nearest.log",
+      "size": 6008,
+      "sha256": "25f795a5ba4190caf574d2f03a86dc47efef936042d3d23299cb2cfd70e9fc1e"
+    },
+    {
+      "path": "audit/console/matrix-drops-20261028-223754-drops-390-nearest.log",
+      "size": 5404,
+      "sha256": "54cd8571836bd6e7883602a1d9083053555ba9fe1313fa087b0556a2f49286b3"
+    },
+    {
+      "path": "audit/console/matrix-drops-20261028-223754-drops-768-nearest.log",
+      "size": 5403,
+      "sha256": "894fa0715b8f4e4dc30892e6ba898449f0c1a27049f14e69cfc1970b11e65db2"
+    },
+    {
+      "path": "audit/runs/matrix-drops-20261028-223754-junit.xml",
+      "size": 1847,
+      "sha256": "6acd0a040ea8353af82960b16b3a343aad47ad018dc5f64b6a7697f0ef26fa24"
+    }
+  ]
+}
