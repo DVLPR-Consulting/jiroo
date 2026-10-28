@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { carveAbsenceAction, declareAbsenceAction, removeAbsenceAction } from "@/app/actions/absences";
 import { ItemRow } from "@/components/items/item-row";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { halfKey, halfName, type Half, type HalfDay } from "@/lib/dates/half-days";
-import { isWorkingDay, publicHoliday } from "@/lib/dates/working-days";
+import { isWorkingDay, nextWorkingDay, publicHoliday } from "@/lib/dates/working-days";
 import { LABEL_HUES, type LabelHue } from "@/lib/design/constants";
 import { countLabel, formatPoints } from "@/lib/format/plural";
 import { absentWorkingDays } from "@/lib/le-point/absences";
@@ -63,6 +63,9 @@ const VIEW_LABEL: Record<View, string> = { month: "Mois", sprint: "Sprint", year
 const CELL = { narrow: 28, wide: 60, name: 160, total: 108 };
 const BUTTON = "inline-flex h-[30px] items-center rounded-[var(--radius)] border border-border bg-[var(--surface)] px-2.5 text-[13px] hover:bg-[var(--surface-2)] disabled:opacity-60";
 const LINK = "text-xs text-[var(--primary)] underline";
+const PRIMARY = "border-[var(--primary)] bg-[var(--primary)] font-medium text-white hover:bg-[var(--primary)]";
+const FIELD = "h-[30px] rounded-[var(--radius)] border border-border bg-[var(--surface)] px-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
+const CELL_BORDER = "border-b border-r border-border";
 
 type Panel = { kind: "person"; personId: string; from: Day; to: Day; label: string } | { kind: "sprint"; sprint: PresenceSprint };
 type Drag = { personId: string; from: HalfDay; to: HalfDay; x: number; y: number; moved: boolean };
@@ -128,6 +131,8 @@ export function PresencesView({ page }: { page: PresencePage }) {
   const [clicked, setClicked] = useState<{ personId: string; slot: HalfDay } | null>(null);
   const [raw, setRaw] = useState<{ personId: string; a: HalfDay; b: HalfDay } | null>(null);
   const [panel, setPanel] = useState<Panel | null>(null);
+  const [declaring, setDeclaring] = useState(false);
+  const grid = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
   const suppressClick = useRef(false);
 
@@ -142,13 +147,15 @@ export function PresencesView({ page }: { page: PresencePage }) {
   const periodLabel = view === "year" ? period.from.slice(0, 4) : view === "sprint" && page.sprint ? page.sprint.name : monthLabel(period.from);
 
   useEffect(() => {
-    const up = () => {
+    // A drag released inside the grid ends with a click the handler must
+    // ignore; released outside, no click follows, so the next one is real.
+    const up = (event: MouseEvent) => {
       const current = drag.current;
       if (!current) return;
       drag.current = null;
       setRaw(null);
       if (!current.moved) return;
-      suppressClick.current = true;
+      suppressClick.current = event.target instanceof Node && (grid.current?.contains(event.target) ?? false);
       setClicked(null);
       setSelection(snapSelection(current.personId, current.from, current.to));
     };
@@ -161,7 +168,7 @@ export function PresencesView({ page }: { page: PresencePage }) {
     setClicked(null);
     setRaw(null);
   };
-  const run = (work: () => Promise<{ ok: true } | { ok: false; error: string }>) =>
+  const run = (work: () => Promise<{ ok: true } | { ok: false; error: string }>, after?: () => void) =>
     startTransition(async () => {
       setError(null);
       const result = await work();
@@ -170,6 +177,7 @@ export function PresencesView({ page }: { page: PresencePage }) {
         return;
       }
       reset();
+      after?.();
       router.refresh();
     });
   const carveAll = (removals: { absenceId: string; from: HalfDay; to: HalfDay }[], backlogId: string) =>
@@ -188,6 +196,7 @@ export function PresencesView({ page }: { page: PresencePage }) {
   const halfOf = (target: EventTarget | null) => (target as HTMLElement | null)?.closest<HTMLElement>("[data-half]") ?? null;
   const slotOf = (element: HTMLElement): HalfDay => ({ day: element.dataset.day!, half: element.dataset.half as Half });
   const onMouseDown = (event: ReactMouseEvent) => {
+    suppressClick.current = false;
     const half = halfOf(event.target);
     if (!half || half.dataset.editable !== "true" || !isWorkingDay(half.dataset.day!)) return;
     event.preventDefault();
@@ -349,6 +358,18 @@ export function PresencesView({ page }: { page: PresencePage }) {
           {nextHref ? <Link href={nextHref} aria-label="Suivant" className={BUTTON}>›</Link> : <span className={cn(BUTTON, "opacity-45")}>›</span>}
           <Link href={hrefFor(page, { anchor: data.today, sprintId: null })} className={BUTTON}>Aujourd’hui</Link>
         </nav>
+        <DeclareDialog
+          page={page}
+          people={everyone}
+          open={declaring}
+          onOpenChange={(open) => {
+            setDeclaring(open);
+            if (!open) setError(null);
+          }}
+          pending={pending}
+          error={declaring ? error : null}
+          onDeclare={(input) => run(() => declareAbsenceAction(input), () => setDeclaring(false))}
+        />
         <div className="ml-auto inline-flex items-center gap-2">
           <button type="button" onClick={exportPeriod} className={BUTTON}>Exporter la période (CSV)</button>
           <button type="button" onClick={exportRegister} className={BUTTON}>Exporter les absences (CSV)</button>
@@ -370,15 +391,17 @@ export function PresencesView({ page }: { page: PresencePage }) {
         <YearGrid page={page} everyone={groups} />
       ) : (
         <div
-          className="select-none overflow-auto rounded-[var(--radius)] border border-border bg-[var(--surface)]"
+          ref={grid}
+          className="max-h-[75vh] select-none overflow-auto rounded-[var(--radius)] border border-border bg-[var(--surface)]"
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onClick={onClick}
         >
-          <table className="border-collapse text-xs" style={{ tableLayout: "fixed", width: CELL.name + days.length * cellWidth + CELL.total }}>
+          {/* The dates stay in sight while the rows scroll, the names while the days do: sticky cells, hence separate borders. */}
+          <table className="border-separate border-spacing-0 text-xs [&_tr:last-child>td]:border-b-0" style={{ tableLayout: "fixed", width: CELL.name + days.length * cellWidth + CELL.total }}>
             <thead>
               <tr>
-                <th style={{ width: CELL.name }} className="border border-border bg-[var(--surface-2)]" />
+                <th style={{ width: CELL.name }} className={cn(CELL_BORDER, "sticky left-0 top-0 z-[5] bg-[var(--surface-2)]")} />
                 {days.map((day) => (
                   <th
                     key={day}
@@ -386,7 +409,8 @@ export function PresencesView({ page }: { page: PresencePage }) {
                     style={{ width: cellWidth }}
                     title={publicHoliday(day) ?? undefined}
                     className={cn(
-                      "h-9 border border-border bg-[var(--surface-2)] text-[11px] font-medium leading-tight text-muted-foreground",
+                      CELL_BORDER,
+                      "sticky top-0 z-[4] h-9 bg-[var(--surface-2)] text-[11px] font-medium leading-tight text-muted-foreground",
                       !isWorkingDay(day) && "bg-[var(--muted)]",
                     )}
                   >
@@ -394,7 +418,7 @@ export function PresencesView({ page }: { page: PresencePage }) {
                     {wide ? `${monthShort(day)} ` : ""}{weekdayLetter(day)}
                   </th>
                 ))}
-                <th scope="col" style={{ width: CELL.total }} className="border border-border bg-[var(--surface-2)] px-2 text-left text-[11px] font-medium text-muted-foreground">
+                <th scope="col" style={{ width: CELL.total }} className={cn(CELL_BORDER, "sticky top-0 z-[4] border-r-0 bg-[var(--surface-2)] px-2 text-left text-[11px] font-medium text-muted-foreground")}>
                   {view === "sprint" ? "Sprint" : "Mois"}
                 </th>
               </tr>
@@ -402,25 +426,33 @@ export function PresencesView({ page }: { page: PresencePage }) {
             <tbody>
               {backlog ? (
                 <tr className="h-[22px] text-[11px]">
-                  <td className="border border-border px-2 font-medium text-muted-foreground">Sprints {backlog.key}</td>
-                  {sprintBands(days, page.sprints, data.today).map((band, index) => (
+                  <td className={cn(CELL_BORDER, "sticky left-0 z-[3] bg-[var(--surface)] px-2 font-medium text-muted-foreground")}>Sprints {backlog.key}</td>
+                  {sprintBands(days, page.sprints).map((band, index) => (
                     <td
                       key={index}
                       colSpan={band.span}
-                      data-sprint={band.sprint?.id}
-                      title={band.sprint ? `${band.sprint.name} : du ${formatDay(band.sprint.start)}${band.sprint.end ? ` au ${formatDay(band.sprint.end)}` : ""}` : undefined}
                       className={cn(
-                        "overflow-hidden whitespace-nowrap border border-border px-1.5 text-left",
-                        band.sprint && "cursor-pointer border-l-[3px] font-medium hover:underline",
+                        CELL_BORDER,
+                        "overflow-hidden whitespace-nowrap text-left",
+                        band.sprint && "border-l-[3px]",
                         band.state === "active" && "border-l-[var(--info)] bg-[color-mix(in_oklch,var(--info)_18%,var(--surface))]",
                         band.state === "completed" && "border-l-[var(--muted-foreground)] bg-[var(--muted)]",
                         band.state === "planned" && "border-l-border bg-[var(--surface-2)] text-muted-foreground",
                       )}
                     >
-                      {band.sprint ? `${band.sprint.name}${band.state === "active" ? " · en cours" : ""}` : ""}
+                      {band.sprint ? (
+                        <button
+                          type="button"
+                          data-sprint={band.sprint.id}
+                          title={`${band.sprint.name} : du ${formatDay(band.sprint.start)}${band.sprint.end ? ` au ${formatDay(band.sprint.end)}` : ""}`}
+                          className="block w-full cursor-pointer truncate px-1.5 text-left font-medium hover:underline"
+                        >
+                          {band.sprint.name}{band.state === "active" ? " · en cours" : ""}
+                        </button>
+                      ) : null}
                     </td>
                   ))}
-                  <td className="border border-border" />
+                  <td className={cn(CELL_BORDER, "border-r-0")} />
                 </tr>
               ) : null}
               {(
@@ -465,7 +497,7 @@ export function PresencesView({ page }: { page: PresencePage }) {
           backlogId={rightsBacklogFor(data, clicked.personId)}
           pending={pending}
           onHalf={(absenceId, backlogId) => carveAll([{ absenceId, from: clicked.slot, to: clicked.slot }], backlogId)}
-          onDay={(absenceId, backlogId) => carveAll([{ absenceId, from: { day: clicked.slot.day, half: "am" }, to: { day: clicked.slot.day, half: "pm" } }], backlogId)}
+          onDay={(backlogId) => carveAll(removalsFor(absences, { personId: clicked.personId, from: { day: clicked.slot.day, half: "am" }, to: { day: clicked.slot.day, half: "pm" } }), backlogId)}
           onAll={(absenceId, backlogId) => run(() => removeAbsenceAction({ id: absenceId, backlogId }))}
           onClose={reset}
         />
@@ -510,8 +542,8 @@ function GroupRows({ label, members, columns, children }: {
   return (
     <>
       <tr>
-        <td colSpan={columns} className="border border-border bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
+        <td colSpan={columns} className={cn(CELL_BORDER, "border-r-0 bg-[var(--surface-2)] py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground")}>
+          <span className="sticky left-0 inline-block px-2">{label}</span>
         </td>
       </tr>
       {members.map(children)}
@@ -536,7 +568,7 @@ function PersonRow({ page, person, days, cellWidth, withLanes, editable, highlig
   const backlog = scopeBacklog(data, scope);
   return (
     <tr>
-      <td className="border border-border px-2 py-1 align-top" style={{ width: CELL.name }}>
+      <td className={cn(CELL_BORDER, "sticky left-0 z-[3] bg-[var(--surface)] px-2 py-1 align-top")} style={{ width: CELL.name }}>
         <button type="button" data-person-period={person.id} aria-label={person.name} className="flex max-w-full items-center gap-2 text-left text-[13px] font-medium hover:text-[var(--primary)]">
           <InitialsAvatar name={person.name} hue={hueFor(person.id)} size={22} />
           <span className="truncate">{person.name}</span>
@@ -556,7 +588,7 @@ function PersonRow({ page, person, days, cellWidth, withLanes, editable, highlig
             data-day={day}
             data-person={person.id}
             title={publicHoliday(day) ?? undefined}
-            className={cn("cursor-pointer border border-border align-top hover:bg-[var(--surface-2)]", !working && "bg-[var(--muted)]", day === data.today && "shadow-[inset_0_0_0_2px_color-mix(in_oklch,var(--primary)_45%,transparent)]")}
+            className={cn(CELL_BORDER, "cursor-pointer align-top hover:bg-[var(--surface-2)]", !working && "bg-[var(--muted)]", day === data.today && "shadow-[inset_0_0_0_2px_color-mix(in_oklch,var(--primary)_45%,transparent)]")}
           >
             <div className={cn("flex", withLanes ? "h-[22px]" : "h-[30px]")}>
               {(["am", "pm"] as const).map((half) => {
@@ -617,7 +649,7 @@ function PersonRow({ page, person, days, cellWidth, withLanes, editable, highlig
           </td>
         );
       })}
-      <td className="border border-border px-2 text-[11px] leading-[1.35] text-muted-foreground" data-person-period={person.id}>
+      <td className={cn(CELL_BORDER, "border-r-0 px-2 text-[11px] leading-[1.35] text-muted-foreground")} data-person-period={person.id}>
         <b className="font-semibold text-[var(--danger)]">{formatPoints(summary.away)} j</b> absent
         {withLanes ? (
           <>
@@ -636,17 +668,17 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
   const months = monthsIn(period.from, period.to);
   const groups = [["Développement", everyone.developers], ["Produit", everyone.product]] as const;
   return (
-    <div className="overflow-auto rounded-[var(--radius)] border border-border bg-[var(--surface)]">
-      <table className="border-collapse text-xs" style={{ tableLayout: "fixed", width: CELL.name + months.length * 72 + CELL.total }}>
+    <div className="max-h-[75vh] overflow-auto rounded-[var(--radius)] border border-border bg-[var(--surface)]">
+      <table className="border-separate border-spacing-0 text-xs [&_tr:last-child>td]:border-b-0" style={{ tableLayout: "fixed", width: CELL.name + months.length * 72 + CELL.total }}>
         <thead>
           <tr>
-            <th style={{ width: CELL.name }} className="border border-border bg-[var(--surface-2)]" />
+            <th style={{ width: CELL.name }} className={cn(CELL_BORDER, "sticky left-0 top-0 z-[5] bg-[var(--surface-2)]")} />
             {months.map((month) => (
-              <th key={month.from} scope="col" style={{ width: 72 }} className={cn("h-9 border border-border bg-[var(--surface-2)] text-[13px] font-medium", month.from.slice(0, 7) === data.today.slice(0, 7) && "text-[var(--primary)]")}>
+              <th key={month.from} scope="col" style={{ width: 72 }} className={cn(CELL_BORDER, "sticky top-0 z-[4] h-9 bg-[var(--surface-2)] text-[13px] font-medium", month.from.slice(0, 7) === data.today.slice(0, 7) && "text-[var(--primary)]")}>
                 {monthShort(month.from)}
               </th>
             ))}
-            <th scope="col" style={{ width: CELL.total }} className="border border-border bg-[var(--surface-2)] px-2 text-left text-[11px] font-medium text-muted-foreground">Année</th>
+            <th scope="col" style={{ width: CELL.total }} className={cn(CELL_BORDER, "sticky top-0 z-[4] border-r-0 bg-[var(--surface-2)] px-2 text-left text-[11px] font-medium text-muted-foreground")}>Année</th>
           </tr>
         </thead>
         <tbody>
@@ -656,13 +688,13 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
                 const year = personSummary(data, scope, person.id, period.from, period.to);
                 return (
                   <tr key={person.id}>
-                    <td className="border border-border px-2 py-1" style={{ width: CELL.name }}>
+                    <td className={cn(CELL_BORDER, "sticky left-0 z-[3] bg-[var(--surface)] px-2 py-1")} style={{ width: CELL.name }}>
                       <span className="flex items-center gap-2 text-[13px] font-medium"><InitialsAvatar name={person.name} hue={hueFor(person.id)} size={22} /><span className="truncate">{person.name}</span></span>
                     </td>
                     {months.map((month) => {
                       const summary = personSummary(data, scope, person.id, month.from, month.to);
                       return (
-                        <td key={month.from} className="border border-border p-0">
+                        <td key={month.from} className={cn(CELL_BORDER, "p-0")}>
                           <Link href={hrefFor(page, { view: "month", anchor: month.from })} aria-label={`${person.name}, ${MONTH.format(at(month.from))}`} className="flex h-11 flex-col items-center justify-center gap-0.5 hover:bg-[var(--surface-2)]">
                             {summary.away ? <span className={cn("px-1.5 text-[11px] font-semibold leading-4 text-white", month.from > data.today ? "bg-[color-mix(in_oklch,var(--danger)_30%,var(--surface))] text-[var(--danger)]" : "bg-[var(--danger)]")}>{formatPoints(summary.away)} j</span> : null}
                             {person.profile === "developer" && summary.done ? <span className="text-[11px] font-semibold text-[var(--status-done)]">{summary.done} ✓</span> : null}
@@ -670,7 +702,7 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
                         </td>
                       );
                     })}
-                    <td className="border border-border px-2 text-[11px] leading-[1.35] text-muted-foreground">
+                    <td className={cn(CELL_BORDER, "border-r-0 px-2 text-[11px] leading-[1.35] text-muted-foreground")}>
                       <b className="font-semibold text-[var(--danger)]">{formatPoints(year.away)} j</b> absent
                       {person.profile === "developer" ? <><br /><b className="font-semibold text-[var(--status-done)]">{year.done}</b> terminés</> : null}
                     </td>
@@ -694,7 +726,8 @@ function ClickBar({ clicked, absences, person, backlogId, pending, onHalf, onDay
   backlogId: string | null;
   pending: boolean;
   onHalf: (absenceId: string, backlogId: string) => void;
-  onDay: (absenceId: string, backlogId: string) => void;
+  /** The day may hold a morning and an afternoon declared apart: every absence on it is carved. */
+  onDay: (backlogId: string) => void;
   onAll: (absenceId: string, backlogId: string) => void;
   onClose: () => void;
 }) {
@@ -714,7 +747,7 @@ function ClickBar({ clicked, absences, person, backlogId, pending, onHalf, onDay
       <button type="button" disabled={pending} onClick={() => onHalf(id, backlogId)} className={cn(BUTTON, "border-[var(--danger)] text-[var(--danger)]")}>
         Retirer {clicked.slot.half === "am" ? "le matin" : "l’après-midi"} du {formatDay(clicked.slot.day)}
       </button>
-      <button type="button" disabled={pending} onClick={() => onDay(id, backlogId)} className={cn(BUTTON, "border-[var(--danger)] text-[var(--danger)]")}>Retirer la journée</button>
+      <button type="button" disabled={pending} onClick={() => onDay(backlogId)} className={cn(BUTTON, "border-[var(--danger)] text-[var(--danger)]")}>Retirer la journée</button>
       <button type="button" disabled={pending} onClick={() => onAll(id, backlogId)} className={cn(BUTTON, "border-[var(--danger)] text-[var(--danger)]")}>Retirer toute l’absence</button>
       <button type="button" onClick={onClose} className={BUTTON}>Fermer</button>
     </div>
@@ -750,7 +783,7 @@ function SelectionBar({ selection, outcome, person, backlogId, pending, onDeclar
       {remove ? (
         <button type="button" disabled={pending} onClick={() => onRemove(backlogId)} className={cn(BUTTON, "border-[var(--danger)] text-[var(--danger)]")}>Retirer</button>
       ) : (
-        <button type="button" disabled={pending} onClick={() => onDeclare(backlogId)} className={cn(BUTTON, "border-[var(--primary)] bg-[var(--primary)] font-medium text-white hover:bg-[var(--primary)]")}>Enregistrer</button>
+        <button type="button" disabled={pending} onClick={() => onDeclare(backlogId)} className={cn(BUTTON, PRIMARY)}>Enregistrer</button>
       )}
       <button type="button" onClick={onClose} className={BUTTON}>Annuler</button>
     </div>
@@ -794,27 +827,30 @@ function PanelView({ page, panel, people, developers, onClose }: {
 }) {
   const { data, scope } = page;
   const backlog = scopeBacklog(data, scope);
+  // The tickets active over the panel's bounds; the points, only those done within them.
+  const bounds = panel.kind === "sprint" ? { from: panel.sprint.start, to: panel.sprint.end ?? data.today } : { from: panel.from, to: panel.to };
   let title: ReactNode;
   let rows: { ticket: PresenceTicket; person?: PresencePerson }[];
   let link: ReactNode = null;
   if (panel.kind === "sprint") {
-    const end = panel.sprint.end ?? data.today;
     rows = developers.flatMap((person) =>
-      ticketsOf(data, person.id, scope).filter((ticket) => activeIn(ticket, panel.sprint.start, end, data.today)).map((ticket) => ({ ticket, person })));
+      ticketsOf(data, person.id, scope).filter((ticket) => activeIn(ticket, bounds.from, bounds.to, data.today)).map((ticket) => ({ ticket, person })));
     title = <>{panel.sprint.name} <span className="font-normal text-muted-foreground">· du {formatDay(panel.sprint.start)}{panel.sprint.end ? ` au ${formatDay(panel.sprint.end)}` : ""}</span></>;
     if (backlog) link = <Link href={`/b/${backlog.key}/reports?report=sprint&sprint=${panel.sprint.id}`} className={LINK}>Voir le rapport de sprint</Link>;
   } else {
     const person = people.get(panel.personId);
     if (!person) return null;
     rows = ticketsOf(data, person.id, scope)
-      .filter((ticket) => activeIn(ticket, panel.from, panel.to, data.today))
+      .filter((ticket) => activeIn(ticket, bounds.from, bounds.to, data.today))
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
       .map((ticket) => ({ ticket }));
     title = <>{person.name} <span className="font-normal text-muted-foreground">· {panel.label}</span></>;
     const key = backlog?.key ?? backlogsOf(data, person.id)[0]?.key;
     if (key) link = <Link href={`/b/${key}?view=list&assignee=${encodeURIComponent(person.id)}`} className={LINK}>Voir dans la Liste</Link>;
   }
-  const points = rows.filter(({ ticket }) => ticket.doneAt !== null).reduce((total, { ticket }) => total + (ticket.points ?? 0), 0);
+  const points = rows
+    .filter(({ ticket }) => ticket.doneAt !== null && ticket.doneAt >= bounds.from && ticket.doneAt <= bounds.to)
+    .reduce((total, { ticket }) => total + (ticket.points ?? 0), 0);
   rows.sort((a, b) => b.ticket.startedAt.localeCompare(a.ticket.startedAt));
   return (
     <section className="rounded-[var(--radius)] border border-border bg-[var(--surface)]" aria-label="Tickets">
@@ -828,6 +864,78 @@ function PanelView({ page, panel, people, developers, onClose }: {
       </h2>
       <TicketRows rows={rows} today={data.today} />
     </section>
+  );
+}
+
+type DeclareInput = { userId: string; backlogId: string; startDate: Day; startHalf: Half; endDate: Day; endHalf: Half };
+
+/**
+ * Declaring without the mouse: the person and the first and last half-days
+ * in a form, the keyboard's and the screen reader's way to what a drag does.
+ * The fields are those of Le point's form.
+ */
+function DeclareDialog({ page, people, open, onOpenChange, pending, error, onDeclare }: {
+  page: PresencePage;
+  people: PresencePerson[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  pending: boolean;
+  error: string | null;
+  onDeclare: (input: DeclareInput) => void;
+}) {
+  const { data } = page;
+  const editable = people.filter((person) => rightsBacklogFor(data, person.id) !== null);
+  const firstDay = isWorkingDay(data.today) ? data.today : nextWorkingDay(data.today);
+  const [userId, setUserId] = useState(editable.some((person) => person.id === data.viewerId) ? data.viewerId : editable[0]?.id ?? "");
+  const [startDate, setStartDate] = useState<Day>(firstDay);
+  const [startHalf, setStartHalf] = useState<Half>("am");
+  const [endDate, setEndDate] = useState<Day>(firstDay);
+  const [endHalf, setEndHalf] = useState<Half>("pm");
+  if (editable.length === 0) return null;
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const backlogId = rightsBacklogFor(data, userId);
+    if (backlogId) onDeclare({ userId, backlogId, startDate, startHalf, endDate, endHalf });
+  };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger className={BUTTON}>Déclarer une absence</DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Déclarer une absence</DialogTitle>
+          <DialogDescription>D’une demi-journée ouvrée à une autre, bornes incluses ; les week-ends et les jours fériés ne comptent pas.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3 text-[13px]">
+          <div className="flex items-center gap-2">
+            <span className="w-24 shrink-0">Personne</span>
+            <select aria-label="Personne" value={userId} onChange={(event) => setUserId(event.target.value)} className={cn(FIELD, "min-w-0 flex-1")}>
+              {editable.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-24 shrink-0">Premier jour</span>
+            <input type="date" required aria-label="Premier jour" value={startDate} onChange={(event) => setStartDate(event.target.value)} className={FIELD} />
+            <select aria-label="Début" value={startHalf} onChange={(event) => setStartHalf(event.target.value as Half)} className={FIELD}>
+              <option value="am">matin</option>
+              <option value="pm">après-midi</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-24 shrink-0">Dernier jour</span>
+            <input type="date" required aria-label="Dernier jour" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} className={FIELD} />
+            <select aria-label="Fin" value={endHalf} onChange={(event) => setEndHalf(event.target.value as Half)} className={FIELD}>
+              <option value="am">matin</option>
+              <option value="pm">après-midi</option>
+            </select>
+          </div>
+          {error ? <p role="alert" className="text-xs text-[var(--danger)]">{error}</p> : null}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => onOpenChange(false)} className={BUTTON}>Annuler</button>
+            <button type="submit" disabled={pending} className={cn(BUTTON, PRIMARY)}>Enregistrer</button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

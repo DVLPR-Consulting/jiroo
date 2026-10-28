@@ -227,17 +227,36 @@ export function personSummary(data: PresenceDataset, scope: Scope, personId: str
   };
 }
 
-/** The sprint bands over a run of days, for the ruler above the grid. */
-export function sprintBands(days: Day[], sprints: PresenceSprint[], today: Day): { sprint: PresenceSprint | null; span: number; state: "active" | "planned" | "completed" | null }[] {
-  const bands: { sprint: PresenceSprint | null; span: number; state: "active" | "planned" | "completed" | null }[] = [];
-  const covering = (day: Day) => sprints.find((sprint) => sprint.start <= day && (sprint.end === null || day <= sprint.end)) ?? null;
+export type SprintBand = { sprint: PresenceSprint | null; span: number; state: PresenceSprint["state"] | null };
+
+/**
+ * The sprint bands over a run of days, for the ruler above the grid. A
+ * sprint's state is its own, never read off its dates: a sprint closed this
+ * morning and its successor started today share the day, and the active one
+ * takes it; an active sprint past its target date is still running.
+ */
+export function sprintBands(days: Day[], sprints: PresenceSprint[]): SprintBand[] {
+  const bands: SprintBand[] = [];
+  const covering = (day: Day) => {
+    const candidates = sprints.filter((sprint) => sprint.start <= day && (sprint.end === null || day <= sprint.end));
+    return candidates.find((sprint) => sprint.state === "active") ?? candidates[0] ?? null;
+  };
   for (const day of days) {
     const sprint = covering(day);
     const last = bands.at(-1);
     if (last && last.sprint === sprint) last.span += 1;
-    else bands.push({ sprint, span: 1, state: sprint ? (sprint.start <= today && (sprint.end === null || today <= sprint.end) ? "active" : sprint.start > today ? "planned" : "completed") : null });
+    else bands.push({ sprint, span: 1, state: sprint?.state ?? null });
   }
   return bands;
+}
+
+/** The sprint the sprint view shows: the one asked for, else the active one, else the latest started, else the first. */
+export function chooseSprint(sprints: PresenceSprint[], sprintId: string | null, today: Day): PresenceSprint | null {
+  const asked = sprintId ? sprints.find((sprint) => sprint.id === sprintId) : undefined;
+  if (asked) return asked;
+  const active = sprints.find((sprint) => sprint.state === "active");
+  if (active) return active;
+  return [...sprints].reverse().find((sprint) => sprint.start <= today) ?? sprints[0] ?? null;
 }
 
 /** The holiday's name for a day's tooltip, or the weekend. */

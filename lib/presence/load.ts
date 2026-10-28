@@ -1,7 +1,7 @@
 import "server-only";
 
 import { checkPermissions } from "@/lib/auth/authorization";
-import type { PresenceDataset, PresencePerson, PresenceSprint, PresenceTicket, Scope, View } from "@/lib/presence/view";
+import { chooseSprint, type PresenceDataset, type PresencePerson, type PresenceSprint, type PresenceTicket, type Scope, type View } from "@/lib/presence/view";
 import { addDays, dayInZone, startOfMonth, type Day } from "@/lib/roadmap/days";
 import { listAbsences } from "@/lib/services/absences";
 import { loadPresenceScope, loadSprintsForPeriod, loadTicketTimeline } from "@/lib/services/presence-page";
@@ -35,15 +35,6 @@ export const monthPeriod = (anchor: Day) => {
   return { from, to: addDays(startOfMonth(addDays(from, 31)), -1) };
 };
 export const yearPeriod = (anchor: Day) => ({ from: `${anchor.slice(0, 4)}-01-01`, to: `${anchor.slice(0, 4)}-12-31` });
-
-/** The sprint to show: the one asked for, else the one running today, else the latest started. */
-function chooseSprint(sprints: PresenceSprint[], sprintId: string | null, today: Day): PresenceSprint | null {
-  const asked = sprintId ? sprints.find((sprint) => sprint.id === sprintId) : undefined;
-  if (asked) return asked;
-  const running = sprints.find((sprint) => sprint.start <= today && (sprint.end === null || today <= sprint.end));
-  if (running) return running;
-  return [...sprints].reverse().find((sprint) => sprint.start <= today) ?? sprints[0] ?? null;
-}
 
 export async function loadPresencePage(input: {
   userId: string;

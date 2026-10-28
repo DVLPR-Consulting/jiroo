@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  chooseSprint,
   halfState,
   laneOf,
   personSummary,
@@ -95,11 +96,39 @@ describe("the cells", () => {
 
   it("bands the sprints over the days, with their state", () => {
     const days = ["2026-11-06", "2026-11-07", "2026-11-08", "2026-11-09", "2026-11-10", "2026-11-11"];
-    expect(sprintBands(days, data.sprints.data!, data.today)).toEqual([
+    expect(sprintBands(days, data.sprints.data!)).toEqual([
       { sprint: data.sprints.data![0], span: 2, state: "active" },
       { sprint: null, span: 2, state: null },
       { sprint: data.sprints.data![1], span: 2, state: "planned" },
     ]);
+  });
+
+  it("reads a sprint's state from the sprint, never from its dates", () => {
+    // Sprint 7 closed this morning, Sprint 8 started today: the 3rd is Sprint 8's.
+    const closed = { id: "s7", name: "Sprint 7", state: "completed" as const, start: "2026-10-20", end: "2026-11-03" };
+    const started = { id: "s8", name: "Sprint 8", state: "active" as const, start: "2026-11-03", end: "2026-11-14" };
+    expect(sprintBands(["2026-11-02", "2026-11-03", "2026-11-04"], [closed, started])).toEqual([
+      { sprint: closed, span: 1, state: "completed" },
+      { sprint: started, span: 2, state: "active" },
+    ]);
+    // An active sprint past its target date still runs.
+    const late = { id: "s6", name: "Sprint 6", state: "active" as const, start: "2026-10-19", end: "2026-10-30" };
+    expect(sprintBands(["2026-10-29", "2026-10-30", "2026-10-31"], [late])).toEqual([
+      { sprint: late, span: 2, state: "active" },
+      { sprint: null, span: 1, state: null },
+    ]);
+  });
+
+  it("shows the sprint asked for, else the active one, else the latest started", () => {
+    const closed = { id: "s7", name: "Sprint 7", state: "completed" as const, start: "2026-10-20", end: "2026-11-03" };
+    const started = { id: "s8", name: "Sprint 8", state: "active" as const, start: "2026-11-03", end: "2026-11-14" };
+    const planned = { id: "s9", name: "Sprint 9", state: "planned" as const, start: "2026-11-17", end: "2026-11-28" };
+    expect(chooseSprint([closed, started, planned], null, "2026-11-03")).toBe(started);
+    expect(chooseSprint([closed, started, planned], "s7", "2026-11-03")).toBe(closed);
+    const late = { ...started, start: "2026-10-19", end: "2026-10-30" };
+    expect(chooseSprint([late, planned], null, "2026-11-03")).toBe(late);
+    expect(chooseSprint([closed, planned], null, "2026-11-05")).toBe(closed);
+    expect(chooseSprint([planned], null, "2026-11-05")).toBe(planned);
   });
 });
 

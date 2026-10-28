@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PresencesView, hrefFor } from "@/components/presence/presences-view";
@@ -41,6 +41,9 @@ const page: PresencePage = {
     absences: [
       { id: "a1", userId: "hugo", startDate: "2026-11-03", startHalf: "am", endDate: "2026-11-06", endHalf: "pm" },
       { id: "a2", userId: "hugo", startDate: "2026-11-09", startHalf: "pm", endDate: "2026-11-10", endHalf: "am" },
+      // One day declared twice: a morning, then an afternoon.
+      { id: "a3", userId: "camille", startDate: "2026-11-17", startHalf: "am", endDate: "2026-11-17", endHalf: "am" },
+      { id: "a4", userId: "camille", startDate: "2026-11-17", startHalf: "pm", endDate: "2026-11-17", endHalf: "pm" },
     ],
     tickets: [
       ticket({ id: "1", startedAt: "2026-10-28", doneAt: "2026-11-02", statusCategory: "done" }),
@@ -117,6 +120,45 @@ describe("PresencesView", () => {
     await userEvent.click(half("Hugo Lefèvre, 5 nov. après-midi, absent"));
     await userEvent.click(screen.getByRole("button", { name: "Retirer toute l’absence" }));
     expect(actions.removeAbsenceAction).toHaveBeenCalledWith({ id: "a1", backlogId: "data" });
+    // A day declared twice, morning then afternoon: « Retirer la journée » carves both.
+    actions.carveAbsenceAction.mockClear();
+    await userEvent.click(half("Camille Morel, 17 nov. matin, absent"));
+    expect(screen.getByRole("group", { name: "Retirer une absence" })).toHaveTextContent("Camille Morel : absent le 17 nov. matin");
+    await userEvent.click(screen.getByRole("button", { name: "Retirer la journée" }));
+    await waitFor(() => expect(actions.carveAbsenceAction).toHaveBeenCalledTimes(2));
+    expect(actions.carveAbsenceAction.mock.calls.map(([input]) => input)).toEqual([
+      { id: "a3", backlogId: "data", startDate: "2026-11-17", startHalf: "am", endDate: "2026-11-17", endHalf: "am" },
+      { id: "a4", backlogId: "data", startDate: "2026-11-17", startHalf: "pm", endDate: "2026-11-17", endHalf: "pm" },
+    ]);
+  });
+
+  it("declares an absence from the keyboard, through the form", async () => {
+    render(<PresencesView page={page} />);
+    screen.getByRole("button", { name: "Déclarer une absence" }).focus();
+    await userEvent.keyboard("{Enter}");
+    const dialog = screen.getByRole("dialog", { name: "Déclarer une absence" });
+    await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Personne" }), "hugo");
+    fireEvent.change(within(dialog).getByLabelText("Premier jour"), { target: { value: "2026-11-16" } });
+    await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Début" }), "pm");
+    fireEvent.change(within(dialog).getByLabelText("Dernier jour"), { target: { value: "2026-11-18" } });
+    await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Fin" }), "am");
+    within(dialog).getByRole("button", { name: "Enregistrer" }).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(actions.declareAbsenceAction).toHaveBeenCalledWith({
+      userId: "hugo", backlogId: "data", startDate: "2026-11-16", startHalf: "pm", endDate: "2026-11-18", endHalf: "am",
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("keeps the click that follows a drag released outside the grid", async () => {
+    render(<PresencesView page={page} />);
+    fireEvent.mouseDown(half("Camille Morel, 12 nov. matin"), { clientX: 0, clientY: 0 });
+    fireEvent.mouseMove(half("Camille Morel, 13 nov. après-midi"), { clientX: 60, clientY: 0 });
+    fireEvent.mouseUp(window);
+    expect(screen.getByRole("group", { name: "Déclarer une absence" })).toBeInTheDocument();
+    await userEvent.click(half("Hugo Lefèvre, 4 nov. matin, absent"));
+    expect(screen.getByRole("group", { name: "Retirer une absence" })).toBeInTheDocument();
   });
 
   it("refuses a drag that mixes absent and present half-days, and a drag over nothing working", () => {
@@ -140,14 +182,20 @@ describe("PresencesView", () => {
     expect(within(panel).getByRole("link", { name: "Voir dans la Liste" })).toHaveAttribute("href", "/b/DATA?view=list&assignee=hugo");
     await userEvent.click(screen.getByRole("button", { name: "Inès Garnier" }));
     expect(screen.getByRole("region", { name: "Tickets" })).toHaveTextContent("Aucun ticket sur cette période.");
+    // On the 1st, DATA-1 is under way but its points land on the 2nd: none done yet.
+    await userEvent.click(half("Hugo Lefèvre, 1 nov. matin").closest("td")!);
+    const sunday = screen.getByRole("region", { name: "Tickets" });
+    expect(sunday).toHaveTextContent("2 tickets, 0 pts terminés");
+    expect(within(sunday).getByText("DATA-1")).toBeInTheDocument();
   });
 
   it("shows a backlog's sprints over the days and opens a sprint's tickets", async () => {
     render(<PresencesView page={scoped} />);
     expect(screen.getByRole("link", { name: "Sprint" })).not.toHaveAttribute("aria-disabled");
-    const band = screen.getByText("Sprint 8 · en cours");
-    expect(band).toHaveAttribute("colspan", "7");
-    await userEvent.click(band);
+    const band = screen.getByRole("button", { name: "Sprint 8 · en cours" });
+    expect(band.closest("td")).toHaveAttribute("colspan", "7");
+    band.focus();
+    await userEvent.keyboard("{Enter}");
     const panel = screen.getByRole("region", { name: "Tickets" });
     expect(panel).toHaveTextContent("Sprint 8");
     expect(panel).toHaveTextContent("3 tickets");
