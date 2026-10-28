@@ -139,12 +139,10 @@ describeDb("loadLePoint sprint facts (JIR-124)", () => {
     return sprint!;
   }
 
-  it("returns assignable members even without a sprint, including members without tickets", async () => {
+  it("returns attached team members without a sprint, excluding unrelated global administrators", async () => {
     const data = (await read())!;
     expect(data.sprint).toBeNull();
-    // Global administrators already in the database are assignable too;
-    // require our members without assuming this fixture owns the directory.
-    expect(data.members?.map((member) => member.id)).toEqual(expect.arrayContaining([f.actorA, idleMember, f.admin, f.platformAdmin]));
+    expect(data.members?.map((member) => member.id).sort()).toEqual([f.actorA, idleMember].sort());
     expect(data.members).toContainEqual({ id: idleMember, name: "Membre sans ticket" });
     expect(data.members?.some((member) => member.id === f.actorB || member.id === browseOnly)).toBe(false);
   });

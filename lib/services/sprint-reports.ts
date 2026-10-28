@@ -27,7 +27,7 @@ import {
   PREVIOUS_SPRINTS_WINDOW,
 } from "@/lib/reports/sprint-calculations";
 
-import { checkPermission, listAssignableUsersForBacklog } from "@/lib/auth/authorization";
+import { checkPermission, listBacklogTeam } from "@/lib/auth/authorization";
 import { calculateSprintReview, type SprintsReview } from "@/lib/reports/bilan-calculations";
 import { presenceDays } from "@/lib/reports/presence";
 import { dayInZone } from "@/lib/roadmap/days";
@@ -1085,7 +1085,7 @@ const REVIEW_CLOSED_LIMIT = 50;
 /**
  * Team-level review: one active sprint and up to fifty closed ones. Closed
  * values come exclusively from snapshots and the journal. Presence is today's
- * assignable directory, recalculated over each sprint's Paris calendar days.
+ * attached team (assignable fallback when empty), recalculated over each sprint's Paris calendar days.
  */
 export async function getSprintsReview(backlogId: string, actorId: string): Promise<SprintsReview | null> {
   const access = await checkPermission({ actorId, permission: "browse_backlog", scope: { type: "backlog", backlogId } });
@@ -1093,7 +1093,7 @@ export async function getSprintsReview(backlogId: string, actorId: string): Prom
   const [backlog] = await db.select({ archivedAt: backlogs.archivedAt }).from(backlogs).where(eq(backlogs.id, backlogId)).limit(1);
   if (!backlog || backlog.archivedAt) return null;
   const directory = await checkPermission({ actorId, permission: "browse_users", scope: { type: "global" } });
-  const members = directory.allowed ? (await listAssignableUsersForBacklog(backlogId)).map((member) => member.id) : null;
+  const members = directory.allowed ? (await listBacklogTeam(backlogId)).map((member) => member.id) : null;
 
   const result = await db.transaction(async (tx) => {
     // One extra closed header detects the limit; no detailed item/event pages.

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { activities, backlogPermissionConfigs, backlogs, permissionGrants } from "@/lib/db/schema/domain";
-import { checkPermission, listAssignableUsersForBacklog, listAssignableUsersForBacklogs } from "@/lib/auth/authorization";
+import { checkPermission, listAssignableUsersForBacklog, listAssignableUsersForBacklogs, listBacklogTeam } from "@/lib/auth/authorization";
 import { listAccessibleBacklogs } from "@/lib/auth/accessible-backlogs";
 import { createReadVisibilityFixture, deleteReadVisibilityFixture, type ReadVisibilityFixture } from "@/lib/services/read-visibility.integration-fixture";
 import { loadPresenceScope } from "@/lib/services/presence-page";
@@ -49,6 +49,18 @@ describeDb("presence scope and observed profiles", () => {
     const a = own(await loadPresenceScope(f.actorA))[0]!;
     expect(a.members).toContainEqual({ id: f.actorA, name: "Presence scope A", profile: "developer" });
     expect(a.members.some((person) => person.id === f.actorB)).toBe(false);
+    expect(a.members.map(({ id, name }) => ({ id, name }))).toEqual(await listBacklogTeam(f.backlogA.id));
+    expect(a.members.some((person) => person.id === f.admin || person.id === f.platformAdmin)).toBe(false);
+  });
+
+  it("shows each backlog's attached people rather than repeating global administrators", async () => {
+    await db.insert(permissionGrants).values([
+      { scope: "backlog", permissionSchemeId: f.schemeIds[0]!, permissionKey: "assignable_user", principalType: "user", userId: f.actorA },
+      { scope: "backlog", permissionSchemeId: f.schemeIds[1]!, permissionKey: "assignable_user", principalType: "user", userId: f.actorB },
+    ]);
+    const scope = own(await loadPresenceScope(f.admin));
+    expect(scope.find((row) => row.id === f.backlogA.id)!.members.map((person) => person.id)).toEqual([f.actorA]);
+    expect(scope.find((row) => row.id === f.backlogB.id)!.members.map((person) => person.id)).toEqual([f.actorB]);
   });
 
   it("returns only the actor without browse_users, even when not assignable", async () => {
@@ -90,7 +102,8 @@ describeDb("presence scope and observed profiles", () => {
 
   it("uses a fixed number of queries for one or many visible backlogs", async () => {
     const spy = vi.spyOn(Client.prototype, "query");
-    await loadPresenceScope(f.actorA); const small = spy.mock.calls.length; expect(small).toBe(9); spy.mockRestore();
+    // Empty attachment falls back in one additional grouped read.
+    await loadPresenceScope(f.actorA); const small = spy.mock.calls.length; expect(small).toBe(10); spy.mockRestore();
     const added = await db.insert(backlogs).values(Array.from({ length: 12 }, (_, index) => ({ key: `PS${randomUUID().replaceAll("-", "").slice(0, 12).replace(/\d/g, "A").toUpperCase()}`, name: `Scope ${index}` }))).returning();
     extraBacklogs = added.map((row) => row.id);
     await db.insert(backlogPermissionConfigs).values(extraBacklogs.map((backlogId) => ({ backlogId, permissionSchemeId: f.schemeIds[0]! })));
