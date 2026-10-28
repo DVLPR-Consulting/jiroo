@@ -21,7 +21,9 @@ let fixture: Awaited<ReturnType<typeof seedBoard>> | undefined;
 let backlogId: string | undefined;
 let started = 0;
 test.use({ storageState: ".playwright/.auth/platform-admin.json" });
-test.setTimeout(180_000);
+// Fifty cycles per series (drag, reload, service reset, reload): a tight limit would
+// turn a slow but correct run into a false failure.
+test.setTimeout(300_000);
 
 test.beforeAll(async ({}, info) => {
   // Full matrix projects also discover this file: never seed for their skipped cases.

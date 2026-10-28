@@ -167,7 +167,7 @@ the remaining nine-minute internal budget, leaving a minute for process overhead
 The estimate projects observed fixed work plus auto-scroll milliseconds per
 pixel over the farther distance, with a **25% margin**. Otherwise Playwright
 marks the fourth series skipped with the estimate and elapsed time; it never
-reduces a series below 50 to claim a pass. Required series have 180-second test
+reduces a series below 50 to claim a pass. Required series have 300-second test
 timeouts, and the optional series uses the remaining internal budget.
 
 This is a sub-ten-minute **aim**, not a measured result: no real drop run belongs
