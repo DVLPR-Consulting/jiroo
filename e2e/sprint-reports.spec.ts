@@ -28,6 +28,7 @@ import { createSprint, moveItemToSprint, updateSprint } from "../lib/services/sp
 import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
 import { chooseOption } from "./select-helpers";
 import { keyPattern } from "./key-helpers";
+import { createAuditEvidenceFilters, settleExpectedFault } from "./support/evidence";
 
 const AUTH = {
   admin: ".playwright/.auth/platform-admin.json",
@@ -49,52 +50,10 @@ let fixtures: ReportFixtures;
 
 // Same resolution as e2e/global.setup.ts; the value never reaches an artifact.
 const FIXTURE_PASSWORD = process.env.JIROO_PLAYWRIGHT_PASSWORD ?? "Audit-Local-2026!";
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-const FORBIDDEN_AUDIT_EVIDENCE = new RegExp(
-  [
-    "postgres(?:ql)?:",
-    "authorization",
-    "bearer",
-    "cookie:",
-    "select\\s",
-    "sprint_report_snapshots",
-    "database_url",
-    "direct_database_url",
-    "jiroo-e2e-secret",
-    escapeRegExp(FIXTURE_PASSWORD),
-  ].join("|"),
-  "i",
-);
-const CREDENTIAL_EVIDENCE = new RegExp(
-  ["postgres(?:ql)?:", "authorization", "bearer", "jiroo-e2e-secret", escapeRegExp(FIXTURE_PASSWORD)].join("|"),
-  "i",
-);
-const BOUNDARY_FAULT = "handled by the <ErrorBoundaryHandler> error boundary";
-
-/**
- * Removes the deliberate boundary lines of the fault window once the scenario
- * is over, so late console reports are covered, and replaces them with one
- * `[expected-fault]` marker. Anything else in the window stays a fault.
- */
-function settleExpectedFault(capture: Capture) {
-  const window = capture.expectedFault;
-  if (!window) return;
-  const end = window.end ?? capture.faults.length;
-  const inWindow = capture.faults.slice(window.start, end);
-  const expected = inWindow.filter((fault) => fault.includes(BOUNDARY_FAULT));
-  expect(expected.length, "La panne injectée doit produire une preuve navigateur.").toBeGreaterThan(0);
-  // Discarded lines may name internal tables (dev error forwarding) but must
-  // never carry credentials.
-  for (const fault of expected) expect(fault).not.toMatch(CREDENTIAL_EVIDENCE);
-  capture.faults = [
-    ...capture.faults.slice(0, window.start),
-    ...inWindow.filter((fault) => !expected.includes(fault)),
-    ...capture.faults.slice(end),
-  ];
-  capture.console = capture.console.filter((line) => !expected.includes(line));
-  capture.console.push(window.marker);
-  capture.expectedFault = undefined;
-}
+const {
+  forbiddenAuditEvidence: FORBIDDEN_AUDIT_EVIDENCE,
+  credentialEvidence: CREDENTIAL_EVIDENCE,
+} = createAuditEvidenceFilters(FIXTURE_PASSWORD);
 
 function observe(page: Page, capture: Capture, actor: string) {
   page.on("console", (message) => {
@@ -153,7 +112,7 @@ function audited(
     let failure: unknown;
     try {
       await body({ page, browser, capture, observedPage });
-      settleExpectedFault(capture);
+      settleExpectedFault(capture, CREDENTIAL_EVIDENCE);
       expect(capture.expectedHttp, "Réponses HTTP attendues non observées").toEqual([]);
       expect(capture.faults, "Erreurs navigateur inattendues").toEqual([]);
     } catch (error) {
