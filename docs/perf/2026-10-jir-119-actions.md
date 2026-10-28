@@ -73,7 +73,19 @@ JIR-41 measured 1.36 MiB and 129/112/113 SQL executions for create/status/move r
 
 ## After Q1
 
-Pending: rerun the same probe on the integrated Q1 revision, fresh profile and build, recording the new commit and manifest. The three POSTs should stop carrying the re-rendered route, while the application's explicit creation refresh and targeted summary reads remain separate requests.
+Recorded on **2026-10-28T11:42:46.368Z**, application/build revision **076499320555f355bb21cd1b0ede27ee5c32fe29** (main after #152, Q1 integrated, Q2 absent). Same Node 24.18.1, pnpm 10.34.5, Next.js 16.4.1, PostgreSQL 17, standalone server on `127.0.0.1:3442`, loopback tmpfs database on port 5434, runtime role and SQL logging protocol as Before; a fresh JIR-41 profile and contributor were prepared before the merge, with no intervening mutations or enrollment, and built only after advancing to this revision. No dependencies, seed or migrations changed between preparation and the measured revision. Main also includes #150's targeted drawer reads since Before; this probe opens no drawer.
+
+The unchanged probe rediscovered the three action IDs from this build's manifest and validated all 63 successful mutations, including warm-ups, through the Flight root's `0.a` reference, `ok: true`, the expected returned item and its owner-read persisted status. All 60 measured item IDs are distinct; final postconditions are 20,021 items, 21 newly created probe tasks, 221 live tasks in the active sprint and 42 done tasks there. Every percentile and SQL range was independently recomputed from the raw samples; decoded byte ranges are 895–919 (create), 1,290–1,297 (status), and 1,294–1,303 (move). The ten pure probe tests pass; no probe changes were needed. The owned server was stopped, its tmpfs container removed, and their absence/closed ports verified; credentials stayed in process memory and child environments, without an environment or credential file.
+
+Date: 2026-10-28T11:42:46.368Z; commit: 076499320555f355bb21cd1b0ede27ee5c32fe29; requests per operation: 20 (one warm-up excluded).
+
+| Operation | Decoded bytes (p50) | MiB | Full p50 ms | Full p95 ms | Full max ms | SQL p50 [min–max] |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| createItemAction | 914 | 0.00087 | 38.64 | 61.07 | 63.29 | 75 [75–75] |
+| updateItemAction | 1297 | 0.00124 | 44.69 | 49.02 | 51.21 | 57 [57–57] |
+| moveItemAction | 1299 | 0.00124 | 55.91 | 68.66 | 69.28 | 60 [60–60] |
+
+Against Before, decoded p50 bytes fall by **99.58% / 99.42% / 99.42%** for create/status/move, SQL falls by **57 executions per POST** (**132→75 / 114→57 / 117→60**), and full-response p50 time falls by **75.54% / 64.33% / 46.56%** (**157.94→38.64 / 125.27→44.69 / 104.62→55.91 ms**), with the route render no longer carried in the action response. Authorization facts are still read separately at their existing boundaries: Q2's request-local reuse has not been applied. These are twenty serial, warm-cache samples on a shared local machine, excluding subsequent creation refreshes and `boardSummaryAction` reads; the result measures individual action POSTs, not settled-UI latency, concurrent capacity or an isolated timing contribution of each code change.
 
 ## After Q2
 
