@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 import { exclusiveJunitPaths } from "./scripts/e2e-junit-report";
+import { MATRIX_PROJECTS } from "./e2e/matrix";
 
 process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, "--conditions=react-server"]
   .filter(Boolean)
@@ -46,6 +47,11 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
+    ...MATRIX_PROJECTS.map((project) => ({
+      name: project.name,
+      use: { ...devices[project.device], viewport: project.viewport },
+      ...(project.testMatch ? { testMatch: [...project.testMatch] } : {}),
+    })),
   ],
   webServer: {
     command: "JIROO_E2E_ISOLATED=1 pnpm --ignore-workspace dev --port 3100",
