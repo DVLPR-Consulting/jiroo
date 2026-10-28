@@ -484,4 +484,25 @@ describe("Sidebar", () => {
     expect(mocks.push).toHaveBeenCalledWith("/b/CASS?tag=a&tag=b&view=list");
     expect(mocks.replace).not.toHaveBeenCalled();
   });
+
+  it("opens the team calendar on the open backlog, or on every backlog from the home (JIR-124)", () => {
+    const fromBoard = renderSidebar();
+    expect(screen.getByRole("link", { name: "Calendrier d’équipe" })).toHaveAttribute(
+      "href",
+      "/presences?backlog=CASS",
+    );
+    fromBoard.unmount();
+
+    mocks.pathname = "/b/CASS/le-point";
+    const fromLePoint = renderSidebar();
+    expect(screen.getByRole("link", { name: "Calendrier d’équipe" })).toHaveAttribute(
+      "href",
+      "/presences?backlog=CASS",
+    );
+    fromLePoint.unmount();
+
+    mocks.pathname = "/";
+    renderSidebar();
+    expect(screen.getByRole("link", { name: "Calendrier d’équipe" })).toHaveAttribute("href", "/presences");
+  });
 });
