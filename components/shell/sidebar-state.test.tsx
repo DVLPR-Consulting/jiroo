@@ -77,16 +77,13 @@ describe("SidebarStateProvider", () => {
     );
     const shell = container.firstElementChild;
 
-    expect(shell).toHaveStyle({
-      gridTemplateColumns: "248px minmax(0,1fr)",
-    });
+    expect(shell).toHaveClass("md:grid-cols-[248px_minmax(0,1fr)]");
 
     await user.click(screen.getByRole("button", { name: "open" }));
 
     expect(screen.getByRole("button", { name: "collapsed" })).toBeVisible();
-    expect(shell).toHaveStyle({
-      gridTemplateColumns: "64px minmax(0,1fr)",
-    });
+    expect(shell).toHaveClass("md:grid-cols-[64px_minmax(0,1fr)]");
+    expect(shell).not.toHaveClass("md:grid-cols-[248px_minmax(0,1fr)]");
   });
 
   it("clips the shell frame so focus cannot scroll the whole grid (JIR-125)", () => {
@@ -132,6 +129,17 @@ describe("SidebarStateProvider", () => {
     );
   });
 
+  it("follows Tailwind's md breakpoint in rem, like the shell's CSS (JIR-127)", () => {
+    installMatchMedia(false);
+    render(
+      <AppShell sidebar={<Probe />} topbar={<header>Topbar</header>}>
+        Contenu
+      </AppShell>,
+    );
+
+    expect(window.matchMedia).toHaveBeenCalledWith("(width < 48rem)");
+  });
+
   it("uses one content column and opens the sidebar as a modal drawer on mobile", async () => {
     installMatchMedia(true);
     const user = userEvent.setup();
@@ -144,9 +152,9 @@ describe("SidebarStateProvider", () => {
       </AppShell>,
     );
 
-    expect(container.firstElementChild).toHaveStyle({
-      gridTemplateColumns: "minmax(0,1fr)",
-    });
+    // One column below the breakpoint, in CSS rather than inline (JIR-127).
+    expect(container.firstElementChild).toHaveClass("grid-cols-[minmax(0,1fr)]");
+    expect(container.firstElementChild).not.toHaveAttribute("style");
     expect(screen.queryByText("Navigation mobile")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Ouvrir la navigation" }));
     expect(

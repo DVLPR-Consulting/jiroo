@@ -10,6 +10,7 @@ import { GlobalShortcuts } from "@/components/shortcuts/global-shortcuts";
 import { KeyboardShortcutsProvider } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 function AppShellFrame({
   sidebar,
@@ -36,16 +37,18 @@ function AppShellFrame({
     if (target instanceof Element && target.closest("a[href]")) closeMobile();
   }
 
+  // The columns and the inline sidebar follow the CSS breakpoint, not the media
+  // query hook: its server snapshot says "desktop", so the first render on a
+  // phone would otherwise lay out the 248 px column and overflow until
+  // hydration (JIR-127).
   return (
     <div
-      className="grid h-screen grid-rows-[minmax(0,1fr)] overflow-clip transition-[grid-template-columns] duration-150"
-      style={{
-        gridTemplateColumns: mobile
-          ? "minmax(0,1fr)"
-          : `${collapsed ? "64px" : "248px"} minmax(0,1fr)`,
-      }}
+      className={cn(
+        "grid h-screen grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-clip transition-[grid-template-columns] duration-150",
+        collapsed ? "md:grid-cols-[64px_minmax(0,1fr)]" : "md:grid-cols-[248px_minmax(0,1fr)]",
+      )}
     >
-      {!mobile && sidebar}
+      {!mobile && <div className="hidden md:contents">{sidebar}</div>}
       {mobile && (
         <Dialog
           open={mobileOpen}

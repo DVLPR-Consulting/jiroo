@@ -63,12 +63,32 @@ test("ouvre les vues du projet dans le tiroir de navigation à 390 par 844", asy
   await page.getByRole("button", { name: "Ouvrir la navigation" }).click();
   const drawer = page.getByRole("dialog", { name: "Navigation principale" });
   const views = drawer.getByRole("navigation", { name: "Vues du projet" });
-  await expect(views.getByRole("link")).toHaveCount(6);
+  for (const name of ["Backlog", "Board", "Liste", "Arbre", "Roadmap", "Releases", "Rapports"]) {
+    await expect(views.getByRole("link", { name, exact: true })).toBeVisible();
+  }
+  await expect(views.getByRole("link", { name: /^Le point/ })).toBeVisible();
   await expect(views.getByRole("link", { name: "Liste" })).toHaveAttribute("aria-current", "page");
 
   await views.getByRole("link", { name: "Rapports" }).click();
   await expect(page).toHaveURL(/\/b\/CASS\/reports$/);
   await expect(drawer).toHaveCount(0);
+  await expectNoPageOverflow(page);
+});
+
+test("garde l’accès aux vues du projet quand la police du navigateur est agrandie (JIR-127)", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium", "Page.setFontSizes est propre à Chromium.");
+  // A 20 px base font moves the shell's 48rem breakpoint to 960 px: at 800 px
+  // the inline sidebar is hidden by CSS, so the drawer must be offered.
+  const session = await page.context().newCDPSession(page);
+  await session.send("Page.setFontSizes", { fontSizes: { standard: 20 } });
+  await page.setViewportSize({ width: 800, height: 900 });
+  await page.goto("/b/CASS?view=list");
+
+  await expect(page.getByRole("navigation", { name: "Vues du projet" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Ouvrir la navigation" }).click();
+  const drawer = page.getByRole("dialog", { name: "Navigation principale" });
+  await expect(drawer.getByRole("navigation", { name: "Vues du projet" }).getByRole("link", { name: "Board", exact: true }))
+    .toBeVisible();
   await expectNoPageOverflow(page);
 });
 
