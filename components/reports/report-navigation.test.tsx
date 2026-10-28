@@ -147,3 +147,10 @@ describe("ReportNavigation", () => {
     expect(screen.getByText("1 sprint est planifié, mais aucun n’a encore démarré.")).toBeVisible();
   });
 });
+
+it("opens the team review without a sprint selector", () => {
+  render(<ReportNavigation backlogKey="CASS" report="bilan" selectedSprintId={null} sprints={sprints} plannedCount={0} />);
+  expect(screen.getByRole("link", { name: "Bilan des sprints" })).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("link", { name: "Bilan des sprints" })).toHaveAttribute("href", "/b/CASS/reports?report=bilan");
+  expect(screen.queryByRole("form", { name: "Choisir un sprint" })).not.toBeInTheDocument();
+});

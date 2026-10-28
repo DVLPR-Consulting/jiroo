@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   and,
   asc,
@@ -12,6 +14,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {
+  backlogs,
   items,
   sprintEvents,
   sprintReportItems,
@@ -23,6 +26,12 @@ import {
   calculateVelocity,
   PREVIOUS_SPRINTS_WINDOW,
 } from "@/lib/reports/sprint-calculations";
+
+import { checkPermission, listAssignableUsersForBacklog } from "@/lib/auth/authorization";
+import { calculateSprintReview, type SprintsReview } from "@/lib/reports/bilan-calculations";
+import { presenceDays } from "@/lib/reports/presence";
+import { dayInZone } from "@/lib/roadmap/days";
+import { listAbsences } from "@/lib/services/absences";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type SprintState = typeof sprints.$inferSelect.state;
@@ -618,13 +627,12 @@ async function readActiveItems(
   };
 }
 
-async function readActiveReport(
+async function readActiveScopeMetrics(
   tx: Tx,
   sprint: typeof sprints.$inferSelect,
   backlogId: string,
-  command: z.infer<typeof reportPageCommand>,
-): Promise<ActiveSprintReport> {
-  const metricsResult = await tx.execute<ActiveMetricsRow>(sql`
+) {
+  const metricsResult = await tx.execute<ActiveMetricsRow & { unknownStartCount: number; bugCount: number }>(sql`
       with relevant_memberships as (
         select si.*,
           exists (
@@ -645,6 +653,7 @@ async function readActiveReport(
       ), initial_metrics as (
         select
           count(*) filter (where not added)::int as initial_item_count,
+          count(*) filter (where not added and done_at_start is null)::int as unknown_start_count,
           coalesce(sum(estimate_at_start) filter (where not added), 0)::double precision as committed_points,
           count(*) filter (where not added and estimate_at_start is null)::int as initial_unestimated_count
         from relevant_memberships
@@ -654,6 +663,7 @@ async function readActiveReport(
           count(current_item.id)::int as joined_item_count,
           count(current_status.id)::int as joined_status_count,
           count(current_item.id)::int as current_item_count,
+          count(current_item.id) filter (where current_item.kind = 'bug')::int as bug_count,
           coalesce(sum(current_item.estimate_points), 0)::double precision as current_scope_points,
           count(current_item.id) filter (where current_item.estimate_points is null)::int as current_unestimated_count,
           count(current_item.id) filter (where current_status.category = 'done')::int as completed_item_count,
@@ -671,6 +681,8 @@ async function readActiveReport(
       )
       select
         initial_item_count as "initialItemCount",
+        unknown_start_count as "unknownStartCount",
+        bug_count as "bugCount",
         committed_points as "committedPoints",
         initial_unestimated_count as "initialUnestimatedCount",
         open_membership_count as "openMembershipCount",
@@ -692,20 +704,6 @@ async function readActiveReport(
       from sprint_events
       where backlog_id = ${backlogId} and sprint_id = ${sprint.id}
     `);
-  const itemResult = await readActiveItems(
-    tx,
-    backlogId,
-    sprint.id,
-    command.itemPage,
-    command.pageSize,
-  );
-  const events = await readSprintEventPage(
-    backlogId,
-    sprint.id,
-    command.eventPage,
-    command.pageSize,
-    tx,
-  );
   const metrics = metricsResult.rows[0];
   const scope = scopeResult.rows[0];
   if (
@@ -718,17 +716,8 @@ async function readActiveReport(
   }
   if (!sprint.startedAt) throw new InconsistentSprintReportError();
   return {
-    kind: "active",
-    statusLabel: "Données en cours",
-    sprint: {
-      id: sprint.id,
-      name: sprint.name,
-      goal: sprint.goal,
-      plannedStartAt: sprint.plannedStartAt,
-      plannedEndAt: sprint.plannedEndAt,
-      startedAt: sprint.startedAt,
-      completedAt: null,
-    },
+    startKnown: metrics.unknownStartCount === 0,
+    bugs: metrics.bugCount,
     metrics: {
       initialItemCount: metrics.initialItemCount,
       committedPoints: metrics.committedPoints,
@@ -743,6 +732,44 @@ async function readActiveReport(
       netEstimateDelta: scope.netEstimateDelta,
       scopeEventCount: scope.scopeEventCount,
     },
+  };
+}
+
+async function readActiveReport(
+  tx: Tx,
+  sprint: typeof sprints.$inferSelect,
+  backlogId: string,
+  command: z.infer<typeof reportPageCommand>,
+): Promise<ActiveSprintReport> {
+  const { metrics } = await readActiveScopeMetrics(tx, sprint, backlogId);
+  const itemResult = await readActiveItems(
+    tx,
+    backlogId,
+    sprint.id,
+    command.itemPage,
+    command.pageSize,
+  );
+  const events = await readSprintEventPage(
+    backlogId,
+    sprint.id,
+    command.eventPage,
+    command.pageSize,
+    tx,
+  );
+  if (!sprint.startedAt) throw new InconsistentSprintReportError();
+  return {
+    kind: "active",
+    statusLabel: "Données en cours",
+    sprint: {
+      id: sprint.id,
+      name: sprint.name,
+      goal: sprint.goal,
+      plannedStartAt: sprint.plannedStartAt,
+      plannedEndAt: sprint.plannedEndAt,
+      startedAt: sprint.startedAt,
+      completedAt: null,
+    },
+    metrics,
     items: itemResult.page,
     events,
     sections: itemResult.sections,
@@ -1051,4 +1078,88 @@ export async function getPreviousSprintsVelocityContext(
       sprintId,
     );
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
+}
+
+const REVIEW_CLOSED_LIMIT = 50;
+
+/**
+ * Team-level review: one active sprint and up to fifty closed ones. Closed
+ * values come exclusively from snapshots and the journal. Presence is today's
+ * assignable directory, recalculated over each sprint's Paris calendar days.
+ */
+export async function getSprintsReview(backlogId: string, actorId: string): Promise<SprintsReview | null> {
+  const access = await checkPermission({ actorId, permission: "browse_backlog", scope: { type: "backlog", backlogId } });
+  if (!access.allowed) return null;
+  const [backlog] = await db.select({ archivedAt: backlogs.archivedAt }).from(backlogs).where(eq(backlogs.id, backlogId)).limit(1);
+  if (!backlog || backlog.archivedAt) return null;
+  const directory = await checkPermission({ actorId, permission: "browse_users", scope: { type: "global" } });
+  const members = directory.allowed ? (await listAssignableUsersForBacklog(backlogId)).map((member) => member.id) : null;
+
+  const result = await db.transaction(async (tx) => {
+    // One extra closed header detects the limit; no detailed item/event pages.
+    const headers = await tx.select({ sprint: sprints, snapshot: sprintReportSnapshots })
+      .from(sprints)
+      .leftJoin(sprintReportSnapshots, and(eq(sprintReportSnapshots.sprintId, sprints.id), eq(sprintReportSnapshots.backlogId, backlogId)))
+      .where(and(eq(sprints.backlogId, backlogId), inArray(sprints.state, ["active", "completed"])))
+      .orderBy(sql`case when ${sprints.state} = 'active' then 0 else 1 end`, desc(sprints.completedAt), desc(sprints.id))
+      .limit(REVIEW_CLOSED_LIMIT + 2);
+    const closed = headers.filter(({ sprint }) => sprint.state === "completed");
+    const selected = [...headers.filter(({ sprint }) => sprint.state === "active"), ...closed.slice(0, REVIEW_CLOSED_LIMIT)];
+    if (selected.length === 0) return { rows: [], limited: false };
+    const ids = selected.map(({ sprint }) => sprint.id);
+    const snapshotIds = selected.flatMap(({ snapshot }) => snapshot ? [snapshot.id] : []);
+    const events = await tx.select({
+      sprintId: sprintEvents.sprintId,
+      added: sql<number>`count(*) filter (where ${sprintEvents.eventType} = 'item_added')::int`,
+      removed: sql<number>`count(*) filter (where ${sprintEvents.eventType} = 'item_removed')::int`,
+    }).from(sprintEvents).where(and(eq(sprintEvents.backlogId, backlogId), inArray(sprintEvents.sprintId, ids))).groupBy(sprintEvents.sprintId);
+    const frozen = snapshotIds.length === 0 ? [] : await tx.select({
+      sprintId: sprintReportItems.sprintId,
+      bugs: sql<number>`count(*) filter (where ${sprintReportItems.finalOutcome} <> 'removed' and ${sprintReportItems.itemKind} = 'bug')::int`,
+      unknownStart: sql<number>`count(*) filter (where ${sprintReportItems.initialCommitment} and ${sprintReportItems.doneAtStart} is null)::int`,
+    }).from(sprintReportItems).where(and(eq(sprintReportItems.backlogId, backlogId), inArray(sprintReportItems.sprintId, ids), inArray(sprintReportItems.snapshotId, snapshotIds))).groupBy(sprintReportItems.sprintId);
+    const eventBySprint = new Map(events.map((event) => [event.sprintId, event]));
+    const frozenBySprint = new Map(frozen.map((row) => [row.sprintId, row]));
+    const rows = [];
+    for (const { sprint, snapshot } of selected) {
+      const startAt = snapshot?.startedAt ?? sprint.startedAt;
+      const endAt = sprint.state === "active" ? sprint.plannedEndAt : snapshot?.completedAt ?? sprint.completedAt;
+      if (!startAt || (sprint.state === "completed" && !endAt)) throw new InconsistentSprintReportError();
+      const journal = eventBySprint.get(sprint.id);
+      const facts = frozenBySprint.get(sprint.id);
+      const active = sprint.state === "active" ? await readActiveScopeMetrics(tx, sprint, backlogId) : null;
+      const known = active !== null || snapshot !== null;
+      const initial = active
+        ? active.startKnown ? active.metrics.initialItemCount : null
+        : snapshot && (facts?.unknownStart ?? 0) === 0 ? snapshot.initialItemCount : null;
+      rows.push({
+        id: sprint.id, name: snapshot?.sprintName ?? sprint.name,
+        state: sprint.state as "active" | "completed", start: dayInZone(startAt), end: endAt ? dayInZone(endAt) : null,
+        initial, added: known ? journal?.added ?? 0 : null, removed: known ? journal?.removed ?? 0 : null,
+        completed: active?.metrics.completedItemCount ?? snapshot?.completedItemCount ?? null,
+        completedPoints: active?.metrics.completedPoints ?? snapshot?.completedPoints ?? null,
+        finalCount: active?.metrics.currentItemCount ?? snapshot?.finalItemCount ?? null,
+        bugs: active?.bugs ?? (snapshot ? facts?.bugs ?? 0 : null),
+      });
+    }
+    return { rows, limited: closed.length > REVIEW_CLOSED_LIMIT };
+  }, { isolationLevel: "repeatable read", accessMode: "read only" });
+
+  const starts = result.rows.map((row) => row.start).sort();
+  const ends = result.rows.flatMap((row) => row.end ? [row.end] : []).sort();
+  // The absence service accepts at most 500 identities, not a truncated team.
+  const absenceRows = members && starts.length > 0 && ends.length > 0
+    ? (await Promise.all(Array.from({ length: Math.ceil(members.length / 500) }, (_, index) => listAbsences({
+      userIds: members.slice(index * 500, (index + 1) * 500), startDate: starts[0], endDate: ends.at(-1),
+    })))).flat()
+    : [];
+  const absences = absenceRows.map((row) => ({ user: row.userId, start: row.startDate, end: row.endDate }));
+  return {
+    limited: result.limited,
+    rows: result.rows.map((row) => ({
+      ...row,
+      ...calculateSprintReview({ ...row, presence: members !== null && row.end !== null
+        ? presenceDays({ start: row.start, end: row.end, members, absences }) : null }),
+    })),
+  };
 }

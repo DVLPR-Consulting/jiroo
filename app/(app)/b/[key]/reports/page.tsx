@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { BurndownReportView } from "@/components/reports/burndown-report";
+import { SprintsReviewView } from "@/components/reports/sprints-review";
 import { ReportNavigation } from "@/components/reports/report-navigation";
 import {
   SprintReportView,
@@ -17,6 +18,7 @@ import { parseReportUrlState } from "@/lib/reports/report-url";
 import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
 import { getBurndownReport } from "@/lib/services/sprint-burndown";
 import {
+  getSprintsReview,
   getSprintReport,
   getVelocityReport,
   listReportableSprints,
@@ -108,7 +110,7 @@ export default async function ReportsPage({
   const capabilities = await getBacklogCapabilities(session.user.id, backlog.id);
   if (!capabilities) notFound();
 
-  const selector = await listReportableSprints(backlog.id);
+  const selector = state.report === "bilan" ? { sprints: [], plannedCount: 0 } : await listReportableSprints(backlog.id);
   const selectedSprintId = state.sprintId ??
     selector.sprints.find((sprint) => sprint.state === "active")?.id ??
     selector.sprints.find((sprint) => sprint.state === "completed")?.id ??
@@ -129,7 +131,11 @@ export default async function ReportsPage({
   );
 
   let content = null;
-  if (state.report === "velocity") {
+  if (state.report === "bilan") {
+    const review = await getSprintsReview(backlog.id, session.user.id);
+    if (!review) notFound();
+    content = <SprintsReviewView backlogKey={backlog.key} report={review} />;
+  } else if (state.report === "velocity") {
     const velocity = await getVelocityReport(backlog.id, state.limit);
     content = (
       <VelocityReportView

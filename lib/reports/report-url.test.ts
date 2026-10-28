@@ -58,3 +58,7 @@ describe("parseReportUrlState", () => {
     });
   });
 });
+
+it("accepts the team sprint review", () => {
+  expect(parseReportUrlState({ report: ["bilan", "sprint"] }).report).toBe("bilan");
+});

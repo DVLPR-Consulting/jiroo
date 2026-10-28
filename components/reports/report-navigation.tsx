@@ -18,7 +18,7 @@ export function ReportNavigation({
   plannedCount,
 }: {
   backlogKey: string;
-  report: "sprint" | "velocity" | "burndown";
+  report: "sprint" | "velocity" | "burndown" | "bilan";
   selectedSprintId: string | null;
   sprints: NavigationSprint[];
   plannedCount: number;
@@ -30,7 +30,7 @@ export function ReportNavigation({
     <>
       {/* The tabs sit on the toolbar's rule, as the other pages' controls. */}
       <PageToolbar className="pb-0">
-        <nav aria-label="Types de rapport" className="flex gap-2">
+        <nav aria-label="Types de rapport" className="flex flex-wrap gap-x-2">
           <Link
             href={`${path}?report=sprint${sprintQuery}`}
             aria-current={report === "sprint" ? "page" : undefined}
@@ -52,9 +52,16 @@ export function ReportNavigation({
           >
             Burndown
           </Link>
+          <Link
+            href={`${path}?report=bilan`}
+            aria-current={report === "bilan" ? "page" : undefined}
+            className="-mb-px border-b-2 border-transparent px-3 py-2 text-sm aria-current:border-primary aria-current:font-medium"
+          >
+            Bilan des sprints
+          </Link>
         </nav>
       </PageToolbar>
-      {report !== "velocity" ? (
+      {(report === "sprint" || report === "burndown") ? (
         <div className="px-4 pt-4 sm:px-6">
           {sprints.length > 0 ? (
             <form
