@@ -38,7 +38,7 @@ export async function openAuditPage(page: Page, target: AuditPage) {
 }
 
 /** Real, non-destructive actions: open CASS, create dialog, close drawer, rules,
- * guide TOC, and permission helper. The P1/P4 choices were explicitly approved. */
+ * guide TOC toggle, and permission helper. The P1/P4 choices were explicitly approved. */
 export async function primaryAuditAction(page: Page, target: AuditPage): Promise<Locator> {
   switch (target.name) {
     case "p1-accueil": return page.locator('[data-backlog-row="CASS"]').getByRole("link", { name: "Cour de cassation", exact: true });
@@ -46,7 +46,7 @@ export async function primaryAuditAction(page: Page, target: AuditPage): Promise
     case "p3-liste": return page.locator('[data-slot="shell-topbar"]').getByRole("button", { name: "Créer", exact: true });
     case "p4-tiroir": return page.getByRole("dialog", { name: /^CASS-\d+ —/ }).getByRole("button", { name: "Fermer (Échap)", exact: true });
     case "p5-le-point": return page.getByRole("button", { name: "Comment est-ce calculé ?", exact: true });
-    case "p6-aide": return page.getByRole("navigation", { name: "Sommaire du guide" }).getByRole("link", { name: /Démarrer/ }).filter({ visible: true });
+    case "p6-aide": return page.getByRole("navigation", { name: "Sommaire du guide" }).locator("summary").filter({ hasText: "Sommaire" });
     case "p7-reglages":
       await page.getByRole("combobox", { name: "Utilisateur à vérifier", exact: true }).selectOption({ label: "Administrateur E2E" });
       return page.getByRole("button", { name: "Vérifier la permission", exact: true });
@@ -60,7 +60,7 @@ export async function expectAuditActionResult(page: Page, target: AuditPage) {
     case "p3-liste": await expect(page.getByRole("dialog", { name: "Nouvel item", exact: true })).toBeVisible(); break;
     case "p4-tiroir": await expect(page.getByRole("dialog", { name: /^CASS-\d+ —/ })).toHaveCount(0); break;
     case "p5-le-point": await expect(page.getByRole("dialog", { name: "Comment est-ce calculé ?", exact: true })).toBeVisible(); break;
-    case "p6-aide": await expect(page).toHaveURL(/#demarrer$/); break;
+    case "p6-aide": await expect(page.getByRole("navigation", { name: "Sommaire du guide" }).getByRole("link", { name: /Démarrer/ }).filter({ visible: true })).toBeVisible(); break;
     case "p7-reglages": await expect(page.getByRole("heading", { name: "Autorisé", exact: true })).toBeVisible(); break;
   }
 }
