@@ -70,6 +70,10 @@ const LINK = "text-xs text-[var(--primary)] underline";
 const PRIMARY = "border-[var(--primary)] bg-[var(--primary)] font-medium text-white hover:bg-[var(--primary)]";
 const FIELD = "h-[30px] rounded-[var(--radius)] border border-border bg-[var(--surface)] px-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
 const CELL_BORDER = "border-b border-r border-border";
+// Keep positioning on the cell itself (sticky for headers); isolate body cells
+// so these rails cover ticket labels without drawing over the sticky names.
+const TODAY_EDGES = "before:pointer-events-none before:absolute before:-top-px before:-bottom-px before:-left-px before:z-[3] before:w-0.5 before:bg-[var(--today)] before:content-[''] after:pointer-events-none after:absolute after:-top-px after:-bottom-px after:-right-px after:z-[3] after:w-0.5 after:bg-[var(--today)] after:content-['']";
+
 
 type Panel = { kind: "person"; personId: string; from: Day; to: Day; label: string } | { kind: "sprint"; sprint: PresenceSprint };
 type Drag = { personId: string; from: HalfDay; to: HalfDay; x: number; y: number; moved: boolean };
@@ -407,6 +411,7 @@ export function PresencesView({ page }: { page: PresencePage }) {
       {/* 16 px a side, the Board's and the Liste's margins on desktop. */}
       <div className="space-y-3 px-4 pt-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <Legend swatch="border-[var(--today)] bg-[color-mix(in_oklch,var(--today)_8%,var(--surface))]">aujourd’hui</Legend>
         <Legend swatch="bg-[var(--danger)]">absent</Legend>
         <Legend swatch="bg-[linear-gradient(90deg,var(--danger)_0_50%,var(--surface)_50%)] ring-1 ring-[var(--danger)]">demi-journée (matin | après-midi)</Legend>
         <Legend swatch="bg-[repeating-linear-gradient(135deg,color-mix(in_oklch,var(--danger)_25%,transparent)_0_3px,transparent_3px_6px)] ring-1 ring-[var(--danger)]">absence à venir</Legend>
@@ -440,14 +445,16 @@ export function PresencesView({ page }: { page: PresencePage }) {
                   <th
                     key={day}
                     scope="col"
+                    data-today={day === data.today || undefined}
                     title={publicHoliday(day) ?? undefined}
                     className={cn(
                       CELL_BORDER,
                       "sticky top-0 z-[4] h-9 bg-[var(--surface-2)] text-[11px] font-medium leading-tight text-muted-foreground",
                       !isWorkingDay(day) && "bg-[var(--muted)]",
+                      day === data.today && [TODAY_EDGES, "bg-[var(--today)] text-[var(--today-foreground)]"],
                     )}
                   >
-                    <span className={cn("block text-[13px] text-foreground", day === data.today && "font-semibold text-[var(--primary)]")}>{Number(day.slice(8))}</span>
+                    <span className={cn("block text-[13px]", day === data.today ? "font-bold text-[var(--today-foreground)]" : "text-foreground")}>{Number(day.slice(8))}</span>
                     {wide ? `${monthShort(day)} ` : ""}{weekdayLetter(day)}
                   </th>
                 ))}
@@ -495,7 +502,7 @@ export function PresencesView({ page }: { page: PresencePage }) {
                 ] as const
               ).map(([label, members, withLanes]) => (
                 members.length === 0 ? null : (
-                  <GroupRows key={label} label={label} members={members} withLanes={withLanes} columns={days.length + 2}>
+                  <GroupRows key={label} label={label} members={members} withLanes={withLanes} columns={days} today={data.today}>
                     {(person) => (
                       <PersonRow
                         key={person.id}
@@ -568,19 +575,28 @@ function Legend({ swatch, children }: { swatch: string; children: ReactNode }) {
   );
 }
 
-function GroupRows({ label, members, columns, children }: {
+function GroupRows({ label, members, columns, today, children }: {
   label: string;
   members: PresencePerson[];
   withLanes: boolean;
-  columns: number;
+  columns: readonly string[];
+  today: string;
   children: (person: PresencePerson) => ReactNode;
 }) {
   return (
     <>
       <tr>
-        <td colSpan={columns} className={cn(CELL_BORDER, "border-r-0 bg-[var(--surface-2)] py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground")}>
-          <span className="sticky left-0 inline-block px-2">{label}</span>
+        <td className={cn(CELL_BORDER, "sticky left-0 z-[3] bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground")}>
+          {label}
         </td>
+        {columns.map((column) => (
+          <td
+            key={column}
+            data-today={column === today || undefined}
+            className={cn(CELL_BORDER, "bg-[var(--surface-2)]", column === today && [TODAY_EDGES, "relative isolate bg-[color-mix(in_oklch,var(--today)_8%,var(--surface-2))]"])}
+          />
+        ))}
+        <td className={cn(CELL_BORDER, "border-r-0 bg-[var(--surface-2)]")} />
       </tr>
       {members.map(children)}
     </>
@@ -622,8 +638,9 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
             key={day}
             data-day={day}
             data-person={person.id}
+            data-today={day === data.today || undefined}
             title={publicHoliday(day) ?? undefined}
-            className={cn(CELL_BORDER, "cursor-pointer align-top hover:bg-[var(--surface-2)]", !working && "bg-[var(--muted)]", day === data.today && "shadow-[inset_0_0_0_2px_color-mix(in_oklch,var(--primary)_45%,transparent)]")}
+            className={cn(CELL_BORDER, "cursor-pointer align-top", !working && "bg-[var(--muted)]", day === data.today ? [TODAY_EDGES, "relative isolate bg-[color-mix(in_oklch,var(--today)_8%,var(--surface))]"] : "hover:bg-[var(--surface-2)]")}
           >
             <div className={cn("flex", withLanes ? "h-[22px]" : "h-[30px]")}>
               {(["am", "pm"] as const).map((half) => {
@@ -637,11 +654,13 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
                     data-day={day}
                     data-person={person.id}
                     data-state={state}
+                    data-today={day === data.today || undefined}
                     data-editable={editable ? "true" : "false"}
                     aria-label={`${person.name}, ${formatDay(day)} ${halfName(half)}${away ? ", absent" : ""}`}
                     className={cn(
                       "min-w-0 flex-1 border-0 p-0",
                       half === "pm" && "border-l border-dashed border-border",
+                      half === "pm" && day === data.today && "border-l-[color-mix(in_oklch,var(--today)_35%,var(--border))]",
                       editable && working ? "cursor-crosshair" : "cursor-default",
                       state === "free" && editable && "hover:shadow-[inset_0_0_0_1px_var(--status-doing)]",
                       state === "away" && "bg-[var(--danger)]",
@@ -654,7 +673,7 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
             </div>
             {withLanes ? (
               // The tickets run in a lane of their own, tinted and ruled off from the half-days.
-              <div className={cn("flex flex-col gap-[3px] border-t border-border py-1", working ? "bg-[color-mix(in_oklch,var(--info)_7%,var(--surface))]" : "bg-[var(--muted)]")}>
+              <div className={cn("flex flex-col gap-[3px] border-t border-border py-1", day === data.today ? "border-t-[color-mix(in_oklch,var(--today)_35%,var(--border))] bg-[color-mix(in_oklch,var(--today)_14%,var(--surface))]" : working ? "bg-[color-mix(in_oklch,var(--info)_7%,var(--surface))]" : "bg-[var(--muted)]")}>
                 {segments.map((segment, lane) => {
                   if (!segment) return <i key={lane} aria-hidden="true" className="block h-3" />;
                   const span = daysOf(segment.ticket.startedAt, ticketUntil(segment.ticket, data.today) < period.to ? ticketUntil(segment.ticket, data.today) : period.to).length;
@@ -720,7 +739,7 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
           <tr>
             <th style={{ width: CELL.name }} className={cn(CELL_BORDER, "sticky left-0 top-0 z-[5] bg-[var(--surface-2)]")} />
             {months.map((month) => (
-              <th key={month.from} scope="col" className={cn(CELL_BORDER, "sticky top-0 z-[4] h-9 bg-[var(--surface-2)] text-[13px] font-medium", month.from.slice(0, 7) === data.today.slice(0, 7) && "text-[var(--primary)]")}>
+              <th key={month.from} scope="col" data-today={month.from.slice(0, 7) === data.today.slice(0, 7) || undefined} className={cn(CELL_BORDER, "sticky top-0 z-[4] h-9 bg-[var(--surface-2)] text-[13px] font-medium", month.from.slice(0, 7) === data.today.slice(0, 7) && [TODAY_EDGES, "bg-[var(--today)] font-bold text-[var(--today-foreground)]"])}>
                 {monthShort(month.from)}
               </th>
             ))}
@@ -729,7 +748,7 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
         </thead>
         <tbody>
           {groups.map(([label, members]) => members.length === 0 ? null : (
-            <GroupRows key={label} label={label} members={members} withLanes={false} columns={months.length + 2}>
+            <GroupRows key={label} label={label} members={members} withLanes={false} columns={months.map((month) => month.from.slice(0, 7))} today={data.today.slice(0, 7)}>
               {(person) => {
                 const year = personSummary(data, scope, person.id, period.from, period.to);
                 return (
@@ -740,7 +759,7 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
                     {months.map((month) => {
                       const summary = personSummary(data, scope, person.id, month.from, month.to);
                       return (
-                        <td key={month.from} className={cn(CELL_BORDER, "p-0")}>
+                        <td key={month.from} data-today={month.from.slice(0, 7) === data.today.slice(0, 7) || undefined} className={cn(CELL_BORDER, "p-0", month.from.slice(0, 7) === data.today.slice(0, 7) && [TODAY_EDGES, "relative isolate bg-[color-mix(in_oklch,var(--today)_8%,var(--surface))]"])}>
                           <Link href={hrefFor(page, { view: "month", anchor: month.from })} aria-label={`${person.name}, ${MONTH.format(at(month.from))}`} className="flex h-11 flex-col items-center justify-center gap-0.5 hover:bg-[var(--surface-2)]">
                             {summary.away ? <span className={cn("px-1.5 text-[11px] font-semibold leading-4 text-white", month.from > data.today ? "bg-[color-mix(in_oklch,var(--danger)_30%,var(--surface))] text-[var(--danger)]" : "bg-[var(--danger)]")}>{formatPoints(summary.away)} j</span> : null}
                             {page.display === "all" && person.profile === "developer" && summary.done ? <span className="text-[11px] font-semibold text-[var(--status-done)]">{summary.done} ✓</span> : null}
