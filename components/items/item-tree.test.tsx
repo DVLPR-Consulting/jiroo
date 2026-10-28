@@ -20,6 +20,10 @@ vi.mock("@/app/actions/items", () => ({
   softDeleteItemAction: vi.fn(),
 }));
 
+vi.mock("@/app/actions/item-choices", () => ({
+  searchBacklogItemsAction: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
+}));
+
 const reviewStatusId = "33333333-3333-4333-8333-333333333333";
 
 const statuses: Array<{
@@ -99,7 +103,7 @@ describe("ItemTree", () => {
           startStep="composant"
           createDialogProps={{
             backlogId: "backlog-id",
-            items: [],
+            structure: [],
             statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
           }}
         />
@@ -137,7 +141,7 @@ describe("ItemTree", () => {
           startStep="epic"
           createDialogProps={{
             backlogId: "backlog-id",
-            items: dialogItems,
+            structure: dialogItems,
             statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
           }}
         />
@@ -149,7 +153,7 @@ describe("ItemTree", () => {
     await user.click(within(note).getByRole("button", { name: "Nouvelle Epic" }));
     const dialog = screen.getByRole("dialog", { name: /Nouvel item/ });
     expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
-    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveTextContent(
+    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveValue(
       "DEMO-1 — Portail",
     );
     await user.keyboard("{Escape}");
@@ -167,7 +171,7 @@ describe("ItemTree", () => {
           startStep="epic"
           createDialogProps={{
             backlogId: "backlog-id",
-            items: dialogItems,
+            structure: dialogItems,
             statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
           }}
         />
@@ -216,7 +220,7 @@ describe("ItemTree", () => {
           startStep="composant"
           createDialogProps={{
             backlogId: "backlog-id",
-            items: [],
+            structure: [],
             statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
           }}
         />
@@ -342,7 +346,7 @@ describe("ItemTree", () => {
           startStep="composant"
           createDialogProps={{
             backlogId: "backlog-id",
-            items: [],
+            structure: [],
             statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
           }}
           canScheduleItems={false}
@@ -366,7 +370,7 @@ describe("ItemTree", () => {
           startStep="composant"
           createDialogProps={{
             backlogId: "backlog-id",
-            items: [],
+            structure: [],
             statuses: [{ id: statuses[0]!.id, name: statuses[0]!.name }],
           }}
           canCreateItems={false}

@@ -6,12 +6,15 @@ import { enrichHierarchy, matchItem, type Filters } from "@/lib/items/filter";
 import { sprintIdsByItem } from "@/lib/items/sprint-filter";
 import { ITEM_TEMPLATES } from "@/lib/items/templates";
 import { KeyboardShortcutsProvider } from "@/components/shortcuts/keyboard-shortcuts-provider";
+import type { ItemChoice } from "@/components/items/item-picker";
 
 const mocks = vi.hoisted(() => ({
   createItemAction: vi.fn(),
   refresh: vi.fn(),
   push: vi.fn(),
   toastSuccess: vi.fn(),
+  /** What the Parent picker's search finds (JIR-118). */
+  choices: [] as ItemChoice[],
 }));
 
 vi.mock("next/navigation", () => ({
@@ -34,6 +37,16 @@ vi.mock("@/app/actions/items", () => ({
   createItemAction: mocks.createItemAction,
 }));
 
+vi.mock("@/app/actions/item-choices", () => ({
+  searchBacklogItemsAction: vi.fn(async ({ q = "", types }: { q?: string; types?: string[] }) => ({
+    ok: true as const,
+    items: mocks.choices.filter(
+      (item) => (!types || types.includes(item.type)) && item.title.toLowerCase().includes(q.toLowerCase()),
+    ),
+    limit: 20,
+  })),
+}));
+
 const statuses = [
   { id: "ready-id", name: "Prêt" },
   { id: "doing-id", name: "En cours" },
@@ -54,10 +67,16 @@ const releaseOptions = [
   },
 ];
 
-/** Picks `option` in the dialog's Radix select named `name`. */
+/** Picks `option` in the dialog's select or picker named `name`. */
 async function choose(user: UserEvent, name: string | RegExp, option: string) {
   await user.click(screen.getByRole("combobox", { name }));
-  await user.click(screen.getByRole("option", { name: option }));
+  await user.click(await screen.findByRole("option", { name: option }));
+}
+
+/** The items the Parent picker will find; spread into the dialog's props. */
+function withChoices(choices: ItemChoice[]) {
+  mocks.choices = choices;
+  return {};
 }
 
 /** « c » goes through the app-wide shortcut layer, as in the real shell. */
@@ -74,7 +93,6 @@ function dialogProps() {
   return {
     backlogId: "backlog-id",
     backlogKey: "DEMO",
-    items: [],
     statuses,
     releaseOptions,
   };
@@ -84,6 +102,7 @@ describe("NewItemButton", () => {
   beforeEach(() => {
     mocks.createItemAction.mockReset();
     mocks.refresh.mockReset();
+    mocks.choices = [];
   });
 
   it("opens pre-filled with the title and parent typed in an inline creation", async () => {
@@ -92,11 +111,11 @@ describe("NewItemButton", () => {
     render(
       <NewItemButton
         {...dialogProps()}
-        items={[epic]}
+        {...withChoices([epic])}
         contextLabel="Sprint 2"
         sprintId={null}
         initialTitle="Écran de vérification"
-        initialParentId="epic-id"
+        initialParent={epic}
         trigger={<button type="button">Plus d’options</button>}
       />,
     );
@@ -104,7 +123,7 @@ describe("NewItemButton", () => {
     await user.click(screen.getByRole("button", { name: "Plus d’options" }));
     expect(screen.getByRole("heading", { name: "Nouvelle tâche — Sprint 2" })).toBeVisible();
     expect(screen.getByRole("textbox", { name: /Titre/ })).toHaveValue("Écran de vérification");
-    expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveTextContent("DEMO-9 — Connexion");
+    expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveValue("DEMO-9 — Connexion");
   });
 
   it("opens from a custom trigger with the supplied initial status", async () => {
@@ -235,9 +254,7 @@ describe("NewItemButton", () => {
     render(
       <NewItemButton
         {...dialogProps()}
-        items={[
-          { id: "epic-id", key: "DEMO-2", type: "epic", title: "Paiement" },
-        ]}
+        {...withChoices([{ id: "epic-id", key: "DEMO-2", type: "epic", title: "Paiement" }])}
         sprintId="33333333-3333-4333-8333-333333333333"
         contextLabel="Sprint paiement"
       />,
@@ -268,10 +285,10 @@ describe("NewItemButton", () => {
     render(
       <NewItemButton
         {...dialogProps()}
-        items={[
+        {...withChoices([
           { id: "component-id", key: "DEMO-1", type: "composant", title: "Plateforme" },
           { id: "epic-id", key: "DEMO-2", type: "epic", title: "Paiement" },
-        ]}
+        ])}
         canScheduleItems={false}
       />,
     );
@@ -473,10 +490,10 @@ describe("NewItemButton", () => {
       render(
         <NewItemButton
           {...dialogProps()}
-          items={items}
+          {...withChoices(items)}
           fieldOptions={fieldOptions}
           initialType="tache"
-          initialParentId="epic-id"
+          initialParent={items[0]}
         />,
       );
 
@@ -484,7 +501,7 @@ describe("NewItemButton", () => {
       const dialog = screen.getByRole("dialog", { name: "Nouvel item" });
       expect(dialog).toHaveTextContent("DEMO");
       expect(screen.getByRole("combobox", { name: "Type" })).toHaveTextContent("Tâche");
-      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveTextContent("DEMO-2 — Paiement");
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveValue("DEMO-2 — Paiement");
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche complète");
       expect(screen.getByRole("combobox", { name: "Assigné" })).toHaveTextContent("Non assigné");
       await user.click(screen.getByRole("button", { name: "M’assigner" }));
@@ -526,7 +543,7 @@ describe("NewItemButton", () => {
     it("« Créer un autre » keeps the dialog, type and parent, and clears the text", async () => {
       const user = userEvent.setup();
       mocks.createItemAction.mockResolvedValue({ ok: true, item: { id: "i", key: "DEMO-9" } });
-      render(<NewItemButton {...dialogProps()} items={items} initialType="tache" initialParentId="epic-id" />);
+      render(<NewItemButton {...dialogProps()} {...withChoices(items)} initialType="tache" initialParent={items[0]} />);
 
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       await user.click(screen.getByRole("checkbox", { name: "Créer un autre" }));
@@ -536,7 +553,7 @@ describe("NewItemButton", () => {
       await waitFor(() => expect(screen.getByRole("textbox", { name: /Titre/ })).toHaveValue(""));
       expect(screen.getByRole("dialog", { name: "Nouvel item" })).toBeVisible();
       expect(screen.getByRole("combobox", { name: "Type" })).toHaveTextContent("Tâche");
-      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveTextContent("DEMO-2 — Paiement");
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveValue("DEMO-2 — Paiement");
       expect(screen.getByRole("textbox", { name: /Titre/ })).toHaveFocus();
     });
 
@@ -656,10 +673,10 @@ describe("NewItemButton", () => {
         render(
           <NewItemButton
             {...dialogProps()}
-            items={[task]}
+            {...withChoices([task])}
             fieldOptions={fieldOptions}
             initialType="soustache"
-            initialParentId={task.id}
+            initialParent={task}
             viewFilters={filters}
           />,
         );
@@ -681,10 +698,10 @@ describe("NewItemButton", () => {
         render(
           <NewItemButton
             {...dialogProps()}
-            items={[...items, composant]}
+            {...withChoices([...items, composant])}
             fieldOptions={fieldOptions}
             initialType="tache"
-            initialParentId="epic-id"
+            initialParent={items[0]}
             viewFilters={filters}
           />,
         );
@@ -713,10 +730,10 @@ describe("NewItemButton", () => {
         render(
           <NewItemButton
             {...dialogProps()}
-            items={items}
+            {...withChoices(items)}
             fieldOptions={fieldOptions}
             initialType="tache"
-            initialParentId="epic-id"
+            initialParent={items[0]}
             viewFilters={filters}
           />,
         );
@@ -824,18 +841,19 @@ describe("NewItemButton", () => {
   });
 
   describe("prefilled parent consistency (JIR-73 R3)", () => {
-    it("never shows one parent while sending another when the prefilled one is not a candidate", async () => {
+    it("never shows one parent while sending another when the prefilled one is another level", async () => {
       const user = userEvent.setup();
       render(
         <NewItemButton
           {...dialogProps()}
-          items={[{ id: "other-epic", key: "DEMO-5", type: "epic", title: "Autre epic" }]}
+          {...withChoices([{ id: "other-epic", key: "DEMO-5", type: "epic", title: "Autre epic" }])}
           initialType="tache"
-          initialParentId="opened-epic"
+          initialParent={{ id: "opened-component", key: "DEMO-1", type: "composant", title: "Plateforme" }}
         />,
       );
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
-      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveTextContent("Choisir une epic…");
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveValue("");
+      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAttribute("placeholder", "Choisir une epic…");
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche");
       await user.click(screen.getByRole("button", { name: /^Créer$/ }));
       expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAttribute("aria-invalid", "true");
@@ -845,7 +863,7 @@ describe("NewItemButton", () => {
     it("refuses the create when no parent candidate exists", async () => {
       const user = userEvent.setup();
       render(
-        <NewItemButton {...dialogProps()} items={[]} initialType="tache" initialParentId="opened-epic" />,
+        <NewItemButton {...dialogProps()} {...withChoices([])} initialType="tache" />,
       );
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Tâche");
@@ -862,7 +880,7 @@ describe("NewItemButton", () => {
       render(
         <NewItemButton
           {...dialogProps()}
-          items={[{ id: "component-id", key: "DEMO-1", type: "composant", title: "Plateforme" }]}
+          {...withChoices([{ id: "component-id", key: "DEMO-1", type: "composant", title: "Plateforme" }])}
         />,
       );
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
@@ -927,7 +945,7 @@ describe("NewItemButton", () => {
       render(
         <NewItemButton
           {...dialogProps()}
-          items={[{ id: "epic-id", key: "DEMO-2", type: "epic", title: "Paiement" }]}
+          {...withChoices([{ id: "epic-id", key: "DEMO-2", type: "epic", title: "Paiement" }])}
           sprintId={null}
           contextLabel="Sprint 2"
           canScheduleItems={false}
@@ -971,7 +989,7 @@ describe("NewItemButton", () => {
 
     it("marks the Parent field required and states the rule of each type", async () => {
       const user = userEvent.setup();
-      render(<NewItemButton {...dialogProps()} items={[composant, epic, tache]} />);
+      render(<NewItemButton {...dialogProps()} {...withChoices([composant, epic, tache])} />);
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       expect(screen.queryByRole("combobox", { name: /Parent/ })).not.toBeInTheDocument();
 
@@ -994,7 +1012,7 @@ describe("NewItemButton", () => {
 
     it("explains a missing parent on « Créer » and focuses the field once the error shows", async () => {
       const user = userEvent.setup();
-      render(<NewItemButton {...dialogProps()} items={[epic]} initialType="tache" />);
+      render(<NewItemButton {...dialogProps()} {...withChoices([epic])} initialType="tache" />);
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Écran de vérification");
       const submit = screen.getByRole("button", { name: /^Créer$/ });
@@ -1025,7 +1043,7 @@ describe("NewItemButton", () => {
     it("clears the error once a parent is chosen, then creates", async () => {
       const user = userEvent.setup();
       mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: { id: "i", key: "DEMO-4" } });
-      render(<NewItemButton {...dialogProps()} items={[epic]} initialType="tache" />);
+      render(<NewItemButton {...dialogProps()} {...withChoices([epic])} initialType="tache" />);
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Écran de vérification");
       await user.click(screen.getByRole("button", { name: /^Créer$/ }));
@@ -1047,7 +1065,7 @@ describe("NewItemButton", () => {
 
     it("drops the error when the type changes, and names the new parent next time", async () => {
       const user = userEvent.setup();
-      render(<NewItemButton {...dialogProps()} items={[composant, epic]} initialType="tache" />);
+      render(<NewItemButton {...dialogProps()} {...withChoices([composant, epic])} initialType="tache" />);
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Brouillon");
       await user.click(screen.getByRole("button", { name: /^Créer$/ }));
@@ -1061,7 +1079,7 @@ describe("NewItemButton", () => {
 
     it("keeps « Créer » disabled for an empty title, as before", async () => {
       const user = userEvent.setup();
-      render(<NewItemButton {...dialogProps()} items={[epic]} initialType="tache" />);
+      render(<NewItemButton {...dialogProps()} {...withChoices([epic])} initialType="tache" />);
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       expect(screen.getByRole("button", { name: /^Créer$/ })).toBeDisabled();
     });
@@ -1070,15 +1088,16 @@ describe("NewItemButton", () => {
   describe("missing parent (JIR-91)", () => {
     it("offers « Créer un Composant » for an Epic in a backlog without Composant", async () => {
       const user = userEvent.setup();
-      render(<NewItemButton {...dialogProps()} items={[]} />);
+      render(<NewItemButton {...dialogProps()} {...withChoices([])} />);
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       await choose(user, "Type", "Epic");
 
       const parent = screen.getByRole("combobox", { name: /Parent/ });
+      // The picker's first look says the backlog has no Composant.
+      expect(await screen.findByRole("button", { name: "Créer un Composant" })).toBeVisible();
       expect(parent).toHaveAccessibleDescription(
         "Aucun Composant dans ce backlog : une Epic se rattache toujours à un Composant.",
       );
-      expect(screen.getByRole("button", { name: "Créer un Composant" })).toBeVisible();
       await user.type(screen.getByRole("textbox", { name: /Titre/ }), "Connexion");
       // JIR-69: « Créer » explains instead of staying disabled, without repeating the rule.
       await user.click(screen.getByRole("button", { name: /^Créer$/ }));
@@ -1094,7 +1113,7 @@ describe("NewItemButton", () => {
       const user = userEvent.setup();
       const template = ITEM_TEMPLATES[0]!;
       mocks.createItemAction.mockResolvedValueOnce({ ok: true, item: { id: "i", key: "DEMO-1" } });
-      render(<NewItemButton {...dialogProps()} items={[]} />);
+      render(<NewItemButton {...dialogProps()} {...withChoices([])} />);
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
       await choose(user, "Type", "Epic");
       await choose(user, "Modèle", template.name);
@@ -1105,7 +1124,7 @@ describe("NewItemButton", () => {
       screen.getByRole("combobox", { name: "Type" }).addEventListener("focus", (event) => {
         typeAtFocus.push((event.currentTarget as HTMLElement).textContent ?? "");
       });
-      await user.click(screen.getByRole("button", { name: "Créer un Composant" }));
+      await user.click(await screen.findByRole("button", { name: "Créer un Composant" }));
 
       const type = screen.getByRole("combobox", { name: "Type" });
       expect(type).toHaveTextContent("Composant");
@@ -1131,36 +1150,41 @@ describe("NewItemButton", () => {
       const user = userEvent.setup();
       const composant = { id: "component-id", key: "DEMO-1", type: "composant" as const, title: "Plateforme" };
       const { unmount } = render(
-        <NewItemButton {...dialogProps()} items={[composant]} initialType="tache" />,
+        <NewItemButton {...dialogProps()} {...withChoices([composant])} initialType="tache" />,
       );
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
+      await screen.findByRole("button", { name: "Créer une Epic" });
       expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAccessibleDescription(
         "Aucune Epic dans ce backlog : une Tâche se rattache toujours à une Epic.",
       );
       await user.click(screen.getByRole("button", { name: "Créer une Epic" }));
       expect(screen.getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
       // The Epic finds its Composant: the parent field is a normal choice again.
-      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAccessibleDescription(
-        "Une Epic se rattache toujours à un Composant.",
+      await waitFor(() =>
+        expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAccessibleDescription(
+          "Une Epic se rattache toujours à un Composant.",
+        ),
       );
       unmount();
 
-      render(<NewItemButton {...dialogProps()} items={[composant]} initialType="soustache" />);
+      render(<NewItemButton {...dialogProps()} {...withChoices([composant])} initialType="soustache" />);
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
-      await user.click(screen.getByRole("button", { name: "Créer une Tâche" }));
+      await user.click(await screen.findByRole("button", { name: "Créer une Tâche" }));
       expect(screen.getByRole("combobox", { name: "Type" })).toHaveTextContent("Tâche");
-      expect(screen.getByRole("button", { name: "Créer une Epic" })).toBeVisible();
+      expect(await screen.findByRole("button", { name: "Créer une Epic" })).toBeVisible();
     });
 
     it("only explains in a sprint-contextual create, which must stay a task", async () => {
       const user = userEvent.setup();
       render(
-        <NewItemButton {...dialogProps()} items={[]} sprintId={null} contextLabel="Sprint 2" />,
+        <NewItemButton {...dialogProps()} {...withChoices([])} sprintId={null} contextLabel="Sprint 2" />,
       );
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
 
-      expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAccessibleDescription(
-        "Aucune Epic dans ce backlog : une Tâche se rattache toujours à une Epic.",
+      await waitFor(() =>
+        expect(screen.getByRole("combobox", { name: /Parent/ })).toHaveAccessibleDescription(
+          "Aucune Epic dans ce backlog : une Tâche se rattache toujours à une Epic.",
+        ),
       );
       expect(screen.queryByRole("button", { name: /^Créer une/ })).not.toBeInTheDocument();
       expect(screen.getByRole("group", { name: "Type" })).toHaveTextContent("Tâche");
@@ -1169,7 +1193,7 @@ describe("NewItemButton", () => {
     it("never offers an Epic, nor its missing parent, without the scheduling right", async () => {
       const user = userEvent.setup();
       render(
-        <NewItemButton {...dialogProps()} items={[]} initialType="epic" canScheduleItems={false} />,
+        <NewItemButton {...dialogProps()} {...withChoices([])} initialType="epic" canScheduleItems={false} />,
       );
       await user.click(screen.getByRole("button", { name: "Nouvel item" }));
 

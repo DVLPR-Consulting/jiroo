@@ -3,15 +3,31 @@ import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NewItemButton } from "./new-item-dialog";
 import type { ItemTemplateDto } from "@/lib/services/item-templates";
-const mocks = vi.hoisted(() => ({ create: vi.fn(), refresh: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  create: vi.fn(),
+  refresh: vi.fn(),
+  choices: [
+    { id: "c1", key: "DEMO-1", type: "composant" as const, title: "Portail" },
+    { id: "e1", key: "DEMO-2", type: "epic" as const, title: "Sécurité" },
+  ],
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mocks.refresh, push: vi.fn() }) }));
 vi.mock("@/app/actions/items", () => ({ createItemAction: mocks.create }));
+vi.mock("@/app/actions/item-choices", () => ({
+  searchBacklogItemsAction: vi.fn(async ({ q = "", types }: { q?: string; types?: string[] }) => ({
+    ok: true as const,
+    items: mocks.choices.filter(
+      (item) => (!types || types.includes(item.type)) && item.title.toLowerCase().includes(q.toLowerCase()),
+    ),
+    limit: 20,
+  })),
+}));
 vi.mock("@/lib/toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/components/markdown/markdown-editor", () => ({ MarkdownEditor: ({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) => <textarea aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} /> }));
 const template: ItemTemplateDto = { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", backlogId: "b1", name: "Incident de sécurité", itemType: "tache", kind: "bug", title: "Incident :", description: "## Impact\n\nÀ préciser", priority: 3, labelIds: ["l1"], missingLabelCount: 1, updatedAt: new Date() };
-const props = { backlogId: "b1", backlogKey: "DEMO", templates: [template], statuses: [{ id: "s1", name: "À faire" }], items: [{ id: "c1", key: "DEMO-1", type: "composant" as const, title: "Portail" }, { id: "e1", key: "DEMO-2", type: "epic" as const, title: "Sécurité" }], fieldOptions: { labels: [{ id: "l1", name: "Sécurité", color: "#999" }] } };
+const props = { backlogId: "b1", backlogKey: "DEMO", templates: [template], statuses: [{ id: "s1", name: "À faire" }], structure: mocks.choices, fieldOptions: { labels: [{ id: "l1", name: "Sécurité", color: "#999" }] } };
 async function choose(user: UserEvent, name: string | RegExp, value: string) {
-  await user.click(screen.getByRole("combobox", { name })); await user.click(screen.getByRole("option", { name: value }));
+  await user.click(screen.getByRole("combobox", { name })); await user.click(await screen.findByRole("option", { name: value }));
 }
 describe("shared backlog templates in item creation", () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.create.mockResolvedValue({ ok: true, item: { id: "i1", key: "DEMO-3" } }); });
@@ -43,7 +59,7 @@ describe("shared backlog templates in item creation", () => {
     expect(screen.getByRole("button", { name: "Labels" })).toHaveTextContent("Aucun");
   });
   it("preserves manually chosen fields when clearing a fixed template", async () => {
-    const user = userEvent.setup(); render(<NewItemButton {...props} initialType="epic" initialParentId="c1" />);
+    const user = userEvent.setup(); render(<NewItemButton {...props} initialType="epic" initialParent={mocks.choices[0]} />);
     await user.click(screen.getByRole("button", { name: "Nouvel item" }));
     fireEvent.change(screen.getByRole("textbox", { name: /Titre/ }), { target: { value: "My draft" } });
     await choose(user, "Priorité", "Haute"); await choose(user, "Modèle", "User story"); await choose(user, "Modèle", "Aucun");
@@ -53,12 +69,12 @@ describe("shared backlog templates in item creation", () => {
     expect(screen.getByRole("textbox", { name: "Description" })).toHaveValue("");
   });
   it("keeps the selected type when the template has no predefined type", async () => {
-    const user = userEvent.setup(); render(<NewItemButton {...props} templates={[{ ...template, itemType: null }]} initialType="epic" initialParentId="c1" />);
+    const user = userEvent.setup(); render(<NewItemButton {...props} templates={[{ ...template, itemType: null }]} initialType="epic" initialParent={mocks.choices[0]} />);
     await user.click(screen.getByRole("button", { name: "Nouvel item" })); await choose(user, "Modèle", template.name);
     expect(screen.getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
   });
   it("keeps sprint creation a task even when a template names another type", async () => {
-    const user = userEvent.setup(); render(<NewItemButton {...props} templates={[{ ...template, itemType: "epic" }]} contextLabel="Sprint actif" sprintId="sp1" initialParentId="e1" />);
+    const user = userEvent.setup(); render(<NewItemButton {...props} templates={[{ ...template, itemType: "epic" }]} contextLabel="Sprint actif" sprintId="sp1" initialParent={mocks.choices[1]} />);
     await user.click(screen.getByRole("button", { name: "Nouvel item" })); await choose(user, "Modèle", template.name);
     expect(screen.queryByRole("combobox", { name: "Type" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^Créer$/ }));

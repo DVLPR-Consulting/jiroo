@@ -27,6 +27,10 @@ vi.mock("@/app/actions/items", () => ({
   createItemAction: mocks.createItemAction,
 }));
 
+vi.mock("@/app/actions/item-choices", () => ({
+  searchBacklogItemsAction: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
+}));
+
 const statuses = [{ id: "todo-id", name: "À faire" }];
 const composant = { id: "comp-1", key: "DEMO-1", type: "composant" as const, title: "Portail" };
 const otherComposant = { id: "comp-2", key: "DEMO-2", type: "composant" as const, title: "Greffe" };
@@ -67,7 +71,7 @@ describe("StartStepButton", () => {
         step="composant"
         backlogId="backlog-id"
         backlogKey="DEMO"
-        dialogProps={{ items: [], statuses }}
+        dialogProps={{ structure: [], statuses }}
       />,
     );
 
@@ -92,14 +96,14 @@ describe("StartStepButton", () => {
         step="epic"
         backlogId="backlog-id"
         backlogKey="DEMO"
-        dialogProps={{ items: [composant], statuses }}
+        dialogProps={{ structure: [composant], statuses }}
       />,
     );
 
     await user.click(screen.getByRole("button", { name: "Nouvelle Epic" }));
     const dialog = screen.getByRole("dialog", { name: /Nouvel item/ });
     expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
-    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveTextContent(
+    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveValue(
       "DEMO-1 — Portail",
     );
   });
@@ -112,7 +116,7 @@ describe("StartStepButton", () => {
         step="composant"
         backlogId="backlog-id"
         backlogKey="DEMO"
-        dialogProps={{ items: [], statuses }}
+        dialogProps={{ structure: [], statuses }}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Nouveau Composant" }));
@@ -126,7 +130,7 @@ describe("StartStepButton", () => {
         step="epic"
         backlogId="backlog-id"
         backlogKey="DEMO"
-        dialogProps={{ items: [composant], statuses }}
+        dialogProps={{ structure: [composant], statuses }}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Nouvelle Epic" }));
@@ -140,13 +144,14 @@ describe("StartStepButton", () => {
         step="epic"
         backlogId="backlog-id"
         backlogKey="DEMO"
-        dialogProps={{ items: [composant, otherComposant], statuses }}
+        dialogProps={{ structure: [composant, otherComposant], statuses }}
       />,
     );
 
     await user.click(screen.getByRole("button", { name: "Nouvelle Epic" }));
     const parent = within(screen.getByRole("dialog")).getByRole("combobox", { name: /Parent/ });
-    expect(parent).toHaveTextContent("Choisir un composant…");
+    expect(parent).toHaveValue("");
+    expect(parent).toHaveAttribute("placeholder", "Choisir un composant…");
     expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Créer" })).toBeDisabled();
   });
 });
@@ -188,7 +193,7 @@ describe("ViewStartGuide", () => {
       <ViewStartGuide
         step="epic"
         backlogKey="DEMO"
-        dialogProps={{ backlogId: "backlog-id", items: [composant], statuses, canScheduleItems: false }}
+        dialogProps={{ backlogId: "backlog-id", structure: [composant], statuses, canScheduleItems: false }}
         canCreateItems
         variant="callout"
       />,
@@ -206,7 +211,7 @@ describe("InlineStartStep", () => {
         step="epic"
         backlogId="backlog-id"
         backlogKey="DEMO"
-        dialogProps={{ items: [composant], statuses }}
+        dialogProps={{ structure: [composant], statuses }}
         contextLabel="Sprint 1"
       />,
     );

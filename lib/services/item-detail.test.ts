@@ -252,7 +252,7 @@ describe("loadItemDetailData", () => {
     expect(panel.webLinks).toEqual([
       { id: "web-link-1", url: "https://www.figma.com/design/abc", title: "Maquettes", createdAt: new Date(0) },
     ]);
-    expect(panel.parent).toEqual({ key: "DEMO-1", title: "Epic parent", type: "epic" });
+    expect(panel.parent).toEqual({ id: parent.id, key: "DEMO-1", title: "Epic parent", type: "epic" });
     expect(panel.childItems).toEqual([
       { id: child.id, key: "DEMO-3", title: "Titre DEMO-3", type: "soustache", statusId: "status-1" },
     ]);
@@ -361,11 +361,6 @@ describe("loadItemDetailData", () => {
     expect(data.panel.createDialog).toEqual(expect.objectContaining({
       backlogId: "backlog-1",
       canScheduleItems: true,
-      items: [
-        { id: parent.id, key: "DEMO-1", type: "epic", title: "Epic parent" },
-        { id: detail.id, key: "DEMO-2", type: "tache", title: "Titre DEMO-2" },
-        { id: child.id, key: "DEMO-3", type: "soustache", title: "Titre DEMO-3" },
-      ],
       statuses: [{ id: "status-1", name: "À faire", category: "todo" }],
       releaseOptions: [
         { id: "release-active", name: "2026.10", released: false, archived: false },

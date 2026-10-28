@@ -327,8 +327,8 @@ export function HelpGuide() {
             l’étape manquante ; sous des filtres actifs, il propose <Ui>Effacer les filtres</Ui> pour y accéder.
             Créer une Epic demande le droit de planifier ; sans le droit nécessaire, les vues
             indiquent seulement <Ui>Ce backlog est vide</Ui> ou <Ui>Aucune Epic pour l’instant</Ui>. Sous un filtre
-            Version, <Ui>Nouvel item</Ui> et <Ui>Créer un item</Ui> proposent tous les parents du backlog, même
-            ceux que le filtre masque. Un ticket créé sans cette version n’apparaît pas dans la vue filtrée : le
+            Version, le champ <Ui>Parent</Ui> de <Ui>Nouvel item</Ui> et l’<Ui>Epic parent</Ui> de{" "}
+            <Ui>Créer un item</Ui> proposent tous les parents du backlog, même ceux que le filtre masque. Un ticket créé sans cette version n’apparaît pas dans la vue filtrée : le
             message « CASS-7 créé — masqué par les filtres de la vue. » le signale, avec <Ui>Ouvrir</Ui> pour
             l’afficher ; effacez le filtre (ou ajoutez la version dans <Ui>Fix versions</Ui>) pour le voir dans
             la liste.
@@ -340,7 +340,7 @@ export function HelpGuide() {
           purpose="Ajouter un Composant, une Epic, une Tâche ou une Sous-tâche."
           steps={[
             <>Sur toutes les pages d’un backlog (vues, Roadmap, Releases, Rapports, Paramètres), cliquez sur <Ui>+ Créer</Ui> dans la barre du haut, à côté du champ de recherche (ou touche <Key>C</Key>) : la fenêtre <Ui>Nouvel item</Ui> s’ouvre, avec la clé du backlog dans sa couleur. Sur le Board, le ticket rejoint le sprint actif ; sans sprint actif, il va dans le backlog. Dans le Backlog, utilisez aussi <Ui>Créer un item</Ui> en bas d’une section (voir ci-dessous). Depuis le détail d’un ticket, <Ui>+ Créer une tâche</Ui> (ou une sous-tâche, un epic) préremplit le type et le parent.</>,
-            <>Choisissez le <Ui>Type</Ui> (et un <Ui>Modèle</Ui> si besoin), puis, sauf pour un Composant, le <Ui>Parent</Ui> obligatoire (marqué d’un astérisque ; une Epic se rattache à un Composant, une Tâche à une Epic, une Sous-tâche à une Tâche) ; saisissez le <Ui>Titre</Ui> et la <Ui>Description</Ui> dans l’éditeur mis en forme. Si le backlog n’a encore aucun parent possible, le champ <Ui>Parent</Ui> propose de le créer d’abord (voir « Démarrer dans un nouveau backlog »).</>,
+            <>Choisissez le <Ui>Type</Ui> (et un <Ui>Modèle</Ui> si besoin), puis, sauf pour un Composant, le <Ui>Parent</Ui> obligatoire (marqué d’un astérisque ; une Epic se rattache à un Composant, une Tâche à une Epic, une Sous-tâche à une Tâche) ; saisissez le <Ui>Titre</Ui> et la <Ui>Description</Ui> dans l’éditeur mis en forme. Le champ <Ui>Parent</Ui> cherche dans le backlog à mesure que vous tapez une clé ou un mot du titre (vingt propositions au plus ; sans rien taper, les premières dans l’ordre du backlog) : <Key>↓</Key> et <Key>↑</Key> parcourent la liste, <Key>Entrée</Key> choisit, <Key>Échap</Key> la referme. Si le backlog n’a encore aucun parent possible, le champ <Ui>Parent</Ui> propose de le créer d’abord (voir « Démarrer dans un nouveau backlog »).</>,
             <>Dans <Ui>Modèle</Ui>, retrouvez les modèles fixes <Ui>Rapport de bug</Ui> et <Ui>User story</Ui>, puis les <Ui>Modèles du backlog</Ui>. Un modèle partagé préremplit le type (si autorisé dans ce contexte), la nature, le titre, la description, la priorité et les labels. Tout reste modifiable avant de créer ; <Ui>Aucun</Ui> retire le préremplissage.</>,
             <>Dans <Ui>Détails</Ui>, ajustez <Ui>Statut</Ui> (il affiche le statut que recevra le ticket, le premier statut « À faire » par défaut), <Ui>Assigné</Ui> (ou <Ui>M’assigner</Ui>, à droite du champ), <Ui>Priorité</Ui>, <Ui>Points</Ui> et <Ui>Sprint</Ui> (tâches), <Ui>Nature</Ui>, <Ui>Labels</Ui>, <Ui>Fix versions</Ui>, <Ui>Échéance</Ui>, puis <Ui>Créer</Ui>.</>,
             <>Sans parent choisi, <Ui>Créer</Ui> ne crée rien : le message « Parent obligatoire : choisissez une Epic. » apparaît sous le champ <Ui>Parent</Ui>, qui reçoit le focus. Il disparaît dès que vous choisissez le parent.</>,
@@ -436,7 +436,7 @@ export function HelpGuide() {
           purpose="Signaler une dépendance ou un doublon."
           steps={[
             <>Dans le détail, cliquez sur <Ui>Lier un item</Ui> (ou <Ui>+ Lier un item</Ui> dans la section <Ui>Items liés</Ui>), puis choisissez le <Ui>Type de relation</Ui> : Bloque, Est bloqué par, Lié à, Duplique, Est dupliqué par.</>,
-            <>Cherchez le ticket dans <Ui>Rechercher un item…</Ui>, puis <Ui>Ajouter le lien</Ui>. Les liens s’affichent groupés par type.</>,
+            <>Dans <Ui>Rechercher un item…</Ui>, tapez une clé ou un mot du titre : la liste propose au plus vingt tickets du backlog (sans rien taper, les premiers dans l’ordre du backlog), le ticket ouvert et ceux déjà liés exclus. Choisissez-en un, puis <Ui>Ajouter le lien</Ui>. Les liens s’affichent groupés par type.</>,
             <>Dans <Ui>Liens web</Ui>, cliquez sur <Ui>Ajouter un lien web</Ui> pour rattacher une maquette Figma, une spec ou un document : saisissez une URL http ou https et un <Ui>Texte affiché</Ui> facultatif, puis <Ui>Ajouter</Ui>. Le lien s’ouvre dans un nouvel onglet ; le bouton de suppression apparaît au survol ou au focus.</>,
           ]}
         />

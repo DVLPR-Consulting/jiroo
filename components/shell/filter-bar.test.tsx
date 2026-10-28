@@ -37,6 +37,10 @@ vi.mock("@/app/actions/items", () => ({
   updateItemAction: vi.fn(),
 }));
 
+vi.mock("@/app/actions/item-choices", () => ({
+  searchBacklogItemsAction: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
+}));
+
 // The sidebar's user card imports a Server Action module.
 vi.mock("@/app/actions/account", () => ({ changeOwnPasswordAction: vi.fn() }));
 vi.mock("@/app/actions/backlogs", () => ({ canOpenBacklogSettingsAction: vi.fn(async () => false) }));
@@ -1081,7 +1085,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-          candidates={[]}
+
         />
       </ViewUrlStateProvider>,
     );
@@ -1118,7 +1122,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-          candidates={[]}
+
         />
       </ViewUrlStateProvider>,
     );
@@ -1140,7 +1144,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-          candidates={[]}
+
         />
       </ViewUrlStateProvider>,
     );
@@ -1152,7 +1156,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-          candidates={[]}
+
         />
       </ViewUrlStateProvider>,
     );
@@ -1174,7 +1178,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-          candidates={[]}
+
         />
       </>
     );
@@ -1226,7 +1230,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-          candidates={[]}
+
         />
       </>
     );
@@ -1277,7 +1281,7 @@ describe("FilterBar", () => {
           itemId="item-1"
           backlogKey="DEMO"
           links={relatedItemLinks}
-          candidates={[]}
+
         />
       </ViewUrlStateProvider>,
     );

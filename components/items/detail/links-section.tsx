@@ -3,23 +3,13 @@
 import { useEffect, useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
-import { TypeIcon } from "@/components/icons/type-icon";
+import { ItemPicker, type ItemChoice } from "@/components/items/item-picker";
 import { ItemRow } from "@/components/items/item-row";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import { LINK_TYPES, LINK_TYPE_META, groupLinksForDisplay } from "@/lib/items/links";
 import { addLinkAction, removeLinkAction } from "@/app/actions/links";
 import { toast } from "@/lib/toast";
 import type { LinkWithOther } from "@/lib/services/links";
-import type { ItemType } from "@/lib/design/constants";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Case/accent-insensitive normaliser (mirrors lib/items/filter.ts). */
-function normalize(s: string): string {
-  return s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -29,14 +19,12 @@ export function LinksSection({
   itemId,
   backlogKey,
   links,
-  candidates,
   canLink = true,
   openRequest = 0,
 }: {
   itemId: string;
   backlogKey: string;
   links: LinkWithOther[];
-  candidates: { id: string; key: string; title: string; type: ItemType }[];
   canLink?: boolean;
   /** Incremented by the drawer's « Lier un item » action to open the form. */
   openRequest?: number;
@@ -47,9 +35,8 @@ export function LinksSection({
 
   // Add-link form state
   const [linkType, setLinkType] = useState<(typeof LINK_TYPES)[number]>("blocks");
-  const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
+  // Picked by searching the backlog on demand (JIR-118).
+  const [selected, setSelected] = useState<ItemChoice | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // The add form stays behind « + Lier un item » until asked for (Jira).
   const [formOpen, setFormOpen] = useState(false);
@@ -71,24 +58,8 @@ export function LinksSection({
 
   function closeForm() {
     setFormOpen(false);
-    setQuery("");
-    setSelectedId(null);
-    setOpen(false);
+    setSelected(null);
   }
-
-  // Collect ids already linked (any direction) to exclude from the picker
-  const linkedIds = new Set(links.map((l) => l.other.id));
-
-  // Filter candidates: exclude self + already linked, match query
-  const filtered =
-    query.trim() === ""
-      ? []
-      : candidates
-          .filter((c) => c.id !== itemId && !linkedIds.has(c.id))
-          .filter((c) =>
-            normalize(`${c.key} ${c.title}`).includes(normalize(query)),
-          )
-          .slice(0, 8);
 
   // Group existing links for display
   const groups = groupLinksForDisplay(links, itemId);
@@ -97,27 +68,13 @@ export function LinksSection({
   // Handlers
   // ---------------------------------------------------------------------------
 
-  function handleSelectCandidate(c: { id: string; key: string; title: string }) {
-    setSelectedId(c.id);
-    setQuery(`${c.key} — ${c.title}`);
-    setOpen(false);
-    inputRef.current?.blur();
-  }
-
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = e.target.value;
-    setQuery(val);
-    setSelectedId(null);
-    setOpen(true);
-  }
-
   function handleAdd() {
-    if (!selectedId) return;
+    if (!selected) return;
     startTransition(async () => {
       const res = await addLinkAction({
         backlogKey,
         sourceId: itemId,
-        targetId: selectedId,
+        targetId: selected.id,
         type: linkType,
       });
       if (res.ok) {
@@ -211,8 +168,9 @@ export function LinksSection({
         data-local-escape
         className="flex flex-col gap-1.5"
         onKeyDown={(event) => {
-          // Escape closes the form, not the drawer.
-          if (event.key === "Escape" && !open) {
+          // Escape closes the form, not the drawer (the picker's open list
+          // takes it first and stops it here).
+          if (event.key === "Escape") {
             event.preventDefault();
             closeForm();
           }
@@ -233,58 +191,23 @@ export function LinksSection({
           ))}
         </select>
 
-        {/* Item typeahead */}
-        <div className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={handleInputChange}
-            onFocus={() => {
-              if (query && !selectedId) setOpen(true);
-            }}
-            onBlur={() => {
-              // Delay so mousedown on a candidate fires first
-              setTimeout(() => setOpen(false), 150);
-            }}
-            disabled={pending}
-            placeholder="Rechercher un item…"
-            aria-label="Rechercher un item à lier"
-            className="w-full rounded border border-[var(--border-strong)] bg-card px-2 py-1 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[var(--ring)] disabled:opacity-60"
-          />
-
-          {/* Dropdown */}
-          {open && filtered.length > 0 && (
-            <ul
-              role="listbox"
-              aria-label="Items correspondants"
-              className="absolute left-0 top-full z-50 mt-0.5 max-h-48 w-full overflow-y-auto rounded border border-[var(--border-strong)] bg-popover py-1 shadow-md"
-            >
-              {filtered.map((c) => (
-                <li key={c.id} role="option" aria-selected={false}>
-                  <button
-                    type="button"
-                    // mousedown fires before blur so we can capture the selection
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      handleSelectCandidate(c);
-                    }}
-                    className="flex w-full items-center gap-1.5 px-2 py-1 text-left text-xs hover:bg-[var(--muted)]"
-                  >
-                    <TypeIcon type={c.type} size={12} />
-                    <span className="item-key">{c.key}</span>
-                    <span className="truncate text-foreground">{c.title}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {/* The item to link, searched in the backlog (JIR-118); the server
+            leaves out this item and what it is already linked to. */}
+        <ItemPicker
+          inputRef={inputRef}
+          backlogKey={backlogKey}
+          excludeLinksOf={itemId}
+          value={selected}
+          onChange={setSelected}
+          disabled={pending}
+          placeholder="Rechercher un item…"
+          aria-label="Rechercher un item à lier"
+        />
 
         <div className="flex gap-2">
           <button
             type="button"
-            disabled={!selectedId || pending}
+            disabled={!selected || pending}
             onClick={handleAdd}
             className="rounded-[var(--radius)] bg-[var(--primary)] px-2.5 py-1 text-xs font-medium text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)] disabled:cursor-not-allowed disabled:opacity-40"
           >

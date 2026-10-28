@@ -15,10 +15,14 @@ import {
   listItemsWithAncestors,
   listLabelsForBacklog,
   listLiveItemTypes,
-  listLiveParentCandidates,
   listUsers,
   listUsersByIds,
 } from "@/lib/services/items";
+import {
+  listBacklogStructure,
+  STRUCTURE_ITEM_TYPES,
+  type ItemChoice,
+} from "@/lib/services/item-choices";
 import { blockedItemIds } from "@/lib/services/links";
 import { listItemFixVersionPairs } from "@/lib/services/item-fix-versions";
 import { listItemTemplates } from "@/lib/services/item-templates";
@@ -35,7 +39,7 @@ import {
   withKnownReleaseIds,
   type FilterItem,
 } from "@/lib/items/filter";
-import { PRIORITY_LABELS } from "@/lib/design/constants";
+import { PRIORITY_LABELS, type ItemType } from "@/lib/design/constants";
 import { hierarchyStartStep } from "@/lib/tree/hierarchy";
 import { requireAppPageSession } from "@/lib/auth/session";
 import { getViewByIdForUser } from "@/lib/services/views";
@@ -218,14 +222,23 @@ export async function BacklogViewContent({
     ? await listItemsWithAncestors(backlog.id, [...releaseMatchedIds])
     : releaseFilteredItems;
 
-  // The first-steps guide (JIR-88) and creation (JIR-92) read the live
-  // backlog, never the Version-filtered rows: a version without items must not
-  // pass for a new backlog, nor hide the parents a new item can go under.
-  // Only the Version filter narrows the rows loaded here; the other filters
-  // are applied to them below, so without it no extra read is needed.
-  const [liveItemTypes, parentCandidates] = releaseFilterActive
-    ? await Promise.all([listLiveItemTypes(backlog.id), listLiveParentCandidates(backlog.id)])
-    : [items.map((item) => item.type), items];
+  // The first-steps guide (JIR-88), inline creation and the Parent facet
+  // read the live backlog's structure (Composants and Epics), never the
+  // Version-filtered rows: a version without items must not pass for a new
+  // backlog, nor hide the Epics a new task can go under. Only the Version
+  // filter narrows the rows loaded here; the other filters are applied to
+  // them below, so without it no extra read is needed. Tâches and
+  // Sous-tâches never ship as choices: the Parent fields search on demand
+  // (JIR-118).
+  const structureTypes: readonly string[] = STRUCTURE_ITEM_TYPES;
+  const [liveItemTypes, structure]: [ItemType[], ItemChoice[]] = releaseFilterActive
+    ? await Promise.all([listLiveItemTypes(backlog.id), listBacklogStructure(backlog.id)])
+    : [
+        items.map((item) => item.type),
+        items
+          .filter((item) => structureTypes.includes(item.type))
+          .map(({ id, key, type, title }) => ({ id, key, type, title })),
+      ];
   const startStep = hierarchyStartStep(liveItemTypes.map((type) => ({ type })));
   const backlogHasItems = liveItemTypes.length > 0;
 
@@ -367,12 +380,7 @@ export async function BacklogViewContent({
     backlogId: backlog.id,
     backlogColor: backlog.color,
     canScheduleItems: capabilities.scheduleItems,
-    items: parentCandidates.map((item) => ({
-      id: item.id,
-      key: item.key,
-      type: item.type,
-      title: item.title,
-    })),
+    structure,
     statuses: statusRows.map((status) => ({
       id: status.id,
       name: status.name,
@@ -654,12 +662,7 @@ export async function BacklogViewContent({
         users={referencedUsers}
         labels={backlogLabelRows.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
         releases={releaseFilterOptions}
-        hierarchy={items.filter((item) => item.type === "composant" || item.type === "epic").map((item) => ({
-          id: item.id,
-          key: item.key,
-          title: item.title,
-          type: item.type,
-        }))}
+        hierarchy={structure}
         sprints={
           sprintFilterEnabled
             ? orderSprintsForFilter(sprintSnapshot.sprints).map(({ id, name, state }) => ({

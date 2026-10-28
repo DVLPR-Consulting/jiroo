@@ -309,7 +309,7 @@ export function ItemList({
    */
   startStep?: HierarchyStartStep | null;
   clearFiltersHref?: string;
-  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters" | "templates">;
+  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "structure" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters" | "templates">;
   canCreateItems?: boolean;
   canEditItems?: boolean;
   canTransitionItems?: boolean;
@@ -341,7 +341,7 @@ export function ItemList({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const [selection, setSelection] = useState(emptySelection);
   const [selectionScope, setSelectionScope] = useState<string | null>(null);
-  const { epics, parentId, setParentId } = useInlineCreateParent(createDialogProps?.items);
+  const { epics, parentId, setParentId } = useInlineCreateParent(createDialogProps?.structure);
   const total = groups.reduce((count, group) => count + group.items.length, 0);
   // One card per group, or a single « Tous les items » card (JIR-97).
   const sections: Group[] = useMemo(
