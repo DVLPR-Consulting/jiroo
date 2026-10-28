@@ -851,7 +851,6 @@ function hueFor(value: string): LabelHue {
 
 /** « 3 ouverts, 1 en cours, 1 bloqué » */
 function countsLabel(row: WorkloadRow) {
-  if (row.open === 0) return "aucun ticket ouvert";
   return [
     `${row.open} ouvert${row.open > 1 ? "s" : ""}`,
     row.inProgress > 0 ? `${row.inProgress} en cours` : null,
@@ -863,21 +862,10 @@ function countsLabel(row: WorkloadRow) {
  * The team's load inside the card, as Jira's Sprint health lists the
  * assignees: one chip per person, the colour of their light and their open
  * tickets. Nothing is open at first; a chip opens the person, « Tout voir »
- * gives the full table.
+ * gives the full table. The members without an open ticket stay out of both:
+ * the forecast alone counts them present (JIR-124).
  */
-function WorkloadStrip({ rows: assignedRows, data }: { rows: WorkloadRow[]; data: LePointDataset }) {
-  // The directory can include members with no open work; keep the existing
-  // load order, then these members by name, and the unassigned tickets last.
-  const holders = new Set(assignedRows.map((row) => row.assignee));
-  const withoutTickets: WorkloadRow[] = (data.members ?? [])
-    .filter((member) => !holders.has(member.id))
-    .map((member) => ({ assignee: member.id, name: member.name, open: 0, inProgress: 0, blocked: 0 }))
-    .sort((a, b) => a.name.localeCompare(b.name, "fr"));
-  const rows = [
-    ...assignedRows.filter((row) => row.assignee !== null),
-    ...withoutTickets,
-    ...assignedRows.filter((row) => row.assignee === null),
-  ];
+function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDataset }) {
   const [open, setOpen] = useState<string | null>(null);
   const [table, setTable] = useState(false);
   const panelId = useId();
@@ -912,16 +900,16 @@ function WorkloadStrip({ rows: assignedRows, data }: { rows: WorkloadRow[]; data
                   type="button"
                   aria-expanded={isOpen}
                   aria-controls={panelId}
-                  aria-label={`${row.name}, ${light ? `${light.label}, ` : ""}${row.open === 0 ? "aucun ticket ouvert" : countLabel(row.open, "ticket ouvert", "tickets ouverts")}`}
+                  aria-label={`${row.name}, ${light ? `${light.label}, ` : ""}${countLabel(row.open, "ticket ouvert", "tickets ouverts")}`}
                   onClick={() => setOpen(isOpen ? null : id)}
                   className={cn(
                     "inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-[var(--surface)] py-1 pr-3 pl-1 text-[13px] outline-none transition-colors hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
                     isOpen && "bg-[var(--muted)] ring-1 ring-inset ring-foreground",
-                    (row.assignee === null || row.open === 0 || away !== null) && "border-dashed text-muted-foreground",
+                    (row.assignee === null || away !== null) && "border-dashed text-muted-foreground",
                   )}
                 >
                   {row.assignee ? (
-                    <span className={cn("shrink-0", row.open === 0 && "opacity-50")}>
+                    <span className="shrink-0">
                       <InitialsAvatar name={row.name} hue={hueFor(row.assignee)} size={24} />
                     </span>
                   ) : (
@@ -930,7 +918,7 @@ function WorkloadStrip({ rows: assignedRows, data }: { rows: WorkloadRow[]; data
                   <span className="min-w-0 truncate">{row.assignee ? shortName(row.name) : row.name}</span>
                   {light ? <LightDot color={light.color} className="size-2" /> : null}
                   <span className="shrink-0 text-muted-foreground tabular-nums">
-                    {away ? `en congé jusqu’au ${formatDay(away)}` : row.open === 0 ? "rien d’assigné" : row.open}
+                    {away ? `en congé jusqu’au ${formatDay(away)}` : row.open}
                   </span>
                 </button>
               );
@@ -962,11 +950,7 @@ function PersonDetail({ row, data }: { row: WorkloadRow; data: LePointDataset })
         </Link>
       </div>
       <AbsencePanel key={row.assignee ?? "unassigned"} row={row} data={data} />
-      {row.open === 0 ? (
-        <p className="text-xs text-muted-foreground">Aucun ticket ouvert.</p>
-      ) : (
-        <Rows cards={workloadTickets(data, row.assignee)} backlogKey={data.backlog.key} showDue />
-      )}
+      <Rows cards={workloadTickets(data, row.assignee)} backlogKey={data.backlog.key} showDue />
     </div>
   );
 }
@@ -1100,11 +1084,9 @@ function WorkloadPerson({ row, busiest, data }: { row: WorkloadRow; busiest: num
           <span className="min-w-0 truncate">{row.name}</span>
         </span>
         <span className="justify-self-end @2xl:justify-self-start">{light ? <LightTag light={light} /> : null}</span>
-        {row.open > 0 ? (
-          <span aria-hidden="true" className="hidden h-1.5 overflow-hidden rounded-full bg-[var(--muted)] @2xl:flex">
-            <span className="bg-[var(--status-doing)]" style={{ width: `${(row.open / busiest) * 100}%` }} />
-          </span>
-        ) : <span aria-hidden="true" className="hidden @2xl:block" />}
+        <span aria-hidden="true" className="hidden h-1.5 overflow-hidden rounded-full bg-[var(--muted)] @2xl:flex">
+          <span className="bg-[var(--status-doing)]" style={{ width: `${(row.open / busiest) * 100}%` }} />
+        </span>
         <span className="col-span-2 text-xs tabular-nums text-muted-foreground @2xl:col-span-1">
           {countsLabel(row)}
         </span>
