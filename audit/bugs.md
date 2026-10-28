@@ -431,7 +431,7 @@ mutation n'a été émis. La restauration tactile native reste hors de ce verdic
 
 - **Gravité :** critique
 - **Priorité :** P0
-- **Statut :** corrigé, non-régression partielle vérifiée le 5 août 2026
+- **Statut :** clos le 28 octobre 2026 : 150 dépôts consécutifs vérifiés par la matrice (JIR-40), voir le journal du 28 octobre
 - **Fonctionnalité :** board / drag & drop horizontal
 
 ### Étapes de reproduction — desktop
@@ -1475,3 +1475,84 @@ Observations ouvertes (mineures, non classées comme bugs) : au-delà de
 dans un titre deviennent des liens dans l’aperçu (URL `javascript:` neutralisées) ;
 après suppression depuis la liste, le focus revient au document ; l’aperçu des
 notes contient un second `<h1>`.
+
+## Matrice navigateurs et accessibilité — 28 octobre 2026 (JIR-40)
+
+Run `matrix-*-20261028-223754` sur `282463d` (Chromium 151, WebKit 26.5 ; Firefox
+indisponible sur macOS 27, ticket JIR-133), grille et triage dans
+[matrix.md](matrix.md). Les défauts produit ci-dessous ont chacun un ticket
+Linear ; les échecs propres aux spécifications sont traités dans la grille.
+
+**BUG-JIR-011 : clos le 28 octobre 2026.** Spécification
+`e2e/matrix/drops.spec.ts` (projet `matrix-drops`) : 50 dépôts consécutifs vers
+la colonne entièrement hors écran la plus proche, avec auto-défilement, à 390,
+768 et 1200 px ; à chaque dépôt, cible annoncée, `statusId` envoyé et statut
+après rechargement identiques ; 150/150, aucune divergence
+(`console/matrix-drops-20261028-223754-drops-{390,768,1200}-nearest.log`). La
+série vers la colonne la plus éloignée à 1200 px a été ignorée par budget
+(estimation 271 s après 351 s écoulées) ; elle reste à jouer.
+
+### BUG-JIR-030 — Les initiales d'avatar en blanc n'atteignent pas le contraste 4,5:1
+
+- **Gravité :** majeure
+- **Priorité :** P1
+- **Statut :** ouvert, ticket JIR-128
+- **Fonctionnalité :** avatars (barre du haut, filtres par assigné, tiroir, Le point)
+
+axe-core, règle `color-contrast`, impact serious, sur les sept pages clés, en
+Chromium et en WebKit : initiales en blanc sur la couleur de l'utilisateur
+(« Administrateur E2E ») et avatar `.flex-none` de la barre du haut. Preuves :
+`a11y/matrix-chromium-20261028-223754-axe-p1-accueil.json` à `p7-reglages.json`,
+idem `matrix-webkit-…`.
+
+### BUG-JIR-031 — Des noms accessibles ne reprennent pas le texte visible
+
+- **Gravité :** majeure
+- **Priorité :** P1
+- **Statut :** ouvert, ticket JIR-129
+- **Fonctionnalité :** barre latérale (compteurs), déclencheurs Radix, tiroir, Le point (personnes)
+
+axe-core, règle `label-content-name-mismatch` (WCAG 2.5.3), impact serious,
+sept pages, Chromium et WebKit : « Tous les items 32 » pour un lien dont le
+texte visible est « Tous les items » suivi d'un badge, menus de la barre
+latérale et de la barre du haut, bouton de titre du tiroir, bouton d'une
+personne de Le point (nom et puce visibles, `aria-label` différent). Mêmes
+preuves que BUG-JIR-030.
+
+### BUG-JIR-032 — Le conteneur des colonnes du board n'est pas atteignable au clavier
+
+- **Gravité :** majeure
+- **Priorité :** P1
+- **Statut :** ouvert, ticket JIR-130
+- **Fonctionnalité :** board
+
+axe-core, règle `scrollable-region-focusable` (WCAG 2.1.1), impact serious :
+`.overflow-x-auto` défile horizontalement sans être focalisable. Preuve :
+`a11y/matrix-chromium-20261028-223754-axe-p2-board.json`, idem WebKit.
+
+### BUG-JIR-033 — À 200 %, la page Accès des réglages déborde horizontalement
+
+- **Gravité :** mineure
+- **Priorité :** P2
+- **Statut :** ouvert, ticket JIR-131
+- **Fonctionnalité :** réglages du backlog, onglet Accès
+
+`e2e/matrix/zoom.spec.ts`, fenêtre 720 × 450 et police racine à 200 % :
+`<main>` déborde de 52 px en Chromium et de 22 px en WebKit, reproduit à la
+relance. Preuves : `screenshots/matrix-zoom-chromium-20261028-223754-zoom-p7-reglages.png`,
+`runs/matrix-zoom-chromium-20261028-223754-junit.xml`, idem WebKit.
+
+### BUG-JIR-034 — À 200 %, l'accueil des backlogs et la barre du haut deviennent illisibles
+
+- **Gravité :** mineure
+- **Priorité :** P2
+- **Statut :** ouvert, ticket JIR-132
+- **Fonctionnalité :** accueil des backlogs, barre du haut
+
+Même mesure : la colonne du nom des backlogs disparaît et la clé se colle au
+compteur (« CASS5 »), les en-têtes se touchent ; le champ de recherche de la
+barre du haut est tronqué à une lettre. Le bouton « Créer » est jugé pas
+entièrement dans la fenêtre sur le board et la liste (à vérifier), et le tiroir
+ne s'ouvre pas à 200 % en WebKit (à investiguer). Preuves :
+`screenshots/matrix-zoom-chromium-20261028-223754-zoom-p1-accueil.png`,
+`…-zoom-p2-board.png`, `…-zoom-p3-liste.png`, JUnit des projets zoom.
