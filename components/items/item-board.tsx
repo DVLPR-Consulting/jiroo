@@ -792,13 +792,23 @@ export function ItemBoard({
 
   // The sprint's figures: the server's at render, then refreshed by one small
   // read after each action, since an action no longer renders the page
-  // (JIR-119). Fresh server props still win, like the columns.
-  const [metrics, setMetrics] = useState(activeSprintMetrics);
-  const [seenMetrics, setSeenMetrics] = useState(activeSprintMetrics);
-  if (activeSprintMetrics !== seenMetrics) {
-    setSeenMetrics(activeSprintMetrics);
-    setMetrics(activeSprintMetrics);
-  }
+  // (JIR-119). A read counts only while the props it was fired under are the
+  // current ones: fresh server props win over any read fired before them,
+  // like the columns, and a read for another sprint is dropped.
+  const [summary, setSummary] = useState<{
+    base: SprintMetrics | null;
+    sprintId: string;
+    metrics: SprintMetrics | null;
+  } | null>(null);
+  const serverMetrics = activeSprintMetrics ?? null;
+  const metrics =
+    summary !== null && summary.base === serverMetrics && summary.sprintId === activeSprint?.id
+      ? summary.metrics
+      : serverMetrics;
+  const latestProps = useRef({ sprintId: activeSprint?.id ?? null, metrics: serverMetrics });
+  useEffect(() => {
+    latestProps.current = { sprintId: activeSprint?.id ?? null, metrics: serverMetrics };
+  }, [activeSprint?.id, serverMetrics]);
   const summaryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const summarySeq = useRef(0);
   useEffect(
@@ -809,16 +819,20 @@ export function ItemBoard({
   );
   function refreshSummary() {
     if (!activeSprint) return;
-    const sprintId = activeSprint.id;
     if (summaryTimer.current) clearTimeout(summaryTimer.current);
     // Several quick actions share one read.
     summaryTimer.current = setTimeout(() => {
       summaryTimer.current = null;
       const seq = ++summarySeq.current;
+      const base = latestProps.current;
+      const sprintId = base.sprintId;
+      if (sprintId === null) return;
       boardSummaryAction(backlogKey)
         .then((result) => {
+          // Only the latest read counts, and only for the sprint it was fired for.
           if (seq !== summarySeq.current || !result.ok) return;
-          if (result.summary.activeSprintId === sprintId) setMetrics(result.summary.metrics);
+          if (result.summary.activeSprintId !== sprintId) return;
+          setSummary({ base: base.metrics, sprintId, metrics: result.summary.metrics });
         })
         .catch(() => {
           // The figures keep their last value until the next render.
@@ -844,11 +858,23 @@ export function ItemBoard({
 
   // Issue 2 (re-seed race): only accept fresh server props when no drag is
   // active and nothing is in flight — otherwise a mid-drag revalidate would
-  // clobber the optimistic state.
+  // clobber the optimistic state. Only props that changed since the last seed
+  // count: the end of a mutation alone must not rebuild the columns from props
+  // that predate the action's answer, which the columns already carry (JIR-119).
+  const seeded = useRef({ items, statuses, swimlanes, group });
   useEffect(() => {
-    if (activeId === null && !mutationPending && pending.current === 0) {
-      setColumns(groupByCell(items, statuses, swimlanes, group));
+    if (activeId !== null || mutationPending || pending.current !== 0) return;
+    const last = seeded.current;
+    if (
+      last.items === items &&
+      last.statuses === statuses &&
+      last.swimlanes === swimlanes &&
+      last.group === group
+    ) {
+      return;
     }
+    seeded.current = { items, statuses, swimlanes, group };
+    setColumns(groupByCell(items, statuses, swimlanes, group));
   }, [items, statuses, swimlanes, group, activeId, mutationPending]);
 
   // The mouse drags from anywhere on a card after 6 px. A finger scrolls the

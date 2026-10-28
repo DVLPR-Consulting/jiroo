@@ -961,6 +961,10 @@ describe("ItemBoard", () => {
     fireEvent.mouseUp(document, { clientX: 30, clientY: 10 });
     await waitFor(() => expect(handle).not.toHaveAttribute("aria-pressed"));
     expect(moveItemAction).not.toHaveBeenCalled();
+    // After a mouse drag, dnd-kit swallows the click that follows it for 50 ms
+    // (a capture listener on the document): let it expire here, or the first
+    // click of the next test never reaches React.
+    await new Promise((resolve) => setTimeout(resolve, 60));
   });
 
   // A finger picks a card up after a 250 ms hold, except on its inline
@@ -1016,46 +1020,127 @@ describe("ItemBoard after an action (JIR-119)", () => {
     },
   };
 
-  function renderTwoColumns(boardSummaryAction: (key: string) => Promise<typeof refreshed>) {
-    renderBoard(
-      <ItemBoard
-        backlogKey="DEMO"
-        items={[editableCard]}
-        statuses={[readyStatus, doingStatus]}
-        statusDomain={[readyStatus, doingStatus]}
-        group={null}
-        groupLabels={{}}
-        moveItemAction={vi.fn()}
-        boardSummaryAction={boardSummaryAction}
-        createDialogProps={createDialogProps}
-        activeSprint={activeSprint}
-        activeSprintMetrics={activeMetrics}
-      />,
+  type Summary = (key: string) => Promise<typeof refreshed>;
+  type Overrides = Partial<
+    Pick<React.ComponentProps<typeof ItemBoard>, "activeSprint" | "activeSprintMetrics" | "moveItemAction">
+  >;
+
+  function twoColumns(boardSummaryAction: Summary, overrides: Overrides = {}) {
+    return (
+      <ViewUrlStateProvider initialEntries={[]}>
+        <ItemBoard
+          backlogKey="DEMO"
+          items={[editableCard]}
+          statuses={[readyStatus, doingStatus]}
+          statusDomain={[readyStatus, doingStatus]}
+          group={null}
+          groupLabels={{}}
+          moveItemAction={vi.fn()}
+          boardSummaryAction={boardSummaryAction}
+          createDialogProps={createDialogProps}
+          activeSprint={activeSprint}
+          activeSprintMetrics={activeMetrics}
+          {...overrides}
+        />
+      </ViewUrlStateProvider>
     );
+  }
+
+  // Opens the card's status menu from the keyboard and selects a status: the
+  // same onSelect path as a click, without the pointer timing a mouse click
+  // depends on under jsdom once many boards have been rendered before.
+  async function chooseStatus(user: ReturnType<typeof userEvent.setup>, from: string, to: string) {
+    screen.getByRole("button", { name: `Statut : ${from}` }).focus();
+    await user.keyboard("{Enter}");
+    const item = await screen.findByRole("menuitem", { name: to });
+    item.focus();
+    await user.keyboard("{Enter}");
+  }
+
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((settle) => {
+      resolve = settle;
+    });
+    return { promise, resolve };
+  }
+
+  // The closing menu still hides the page from the accessibility tree: look past it.
+  const column = (name: string) => screen.getByRole("group", { name, hidden: true });
+
+  // Two status columns side by side, so a keyboard drag to the right lands in
+  // « En cours »; jsdom has no layout of its own.
+  function mockBoardGeometry() {
+    return vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function boardRect(this: HTMLElement) {
+        const label = this.closest('[role="group"][aria-label]')?.getAttribute("aria-label") ?? "";
+        const left = label.startsWith("En cours") ? 300 : 0;
+        return {
+          x: left,
+          y: 0,
+          width: 200,
+          height: 400,
+          top: 0,
+          right: left + 200,
+          bottom: 400,
+          left,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
   }
 
   it("moves the card to the status chosen in its menu and refreshes the sprint's figures, without a page render", async () => {
     const user = userEvent.setup();
     mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: { ...editableCard, statusId: "doing" } });
     const summary = vi.fn(async () => refreshed);
-    renderTwoColumns(summary);
+    render(twoColumns(summary));
     expect(screen.getByText("8 pts restants")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Statut : Prêt" }));
-    await user.click(screen.getByRole("menuitem", { name: "En cours" }));
+    await chooseStatus(user, "Prêt", "En cours");
 
-    // The closing menu still hides the page from the accessibility tree: look past it.
     await waitFor(() =>
-      expect(
-        within(screen.getByRole("group", { name: "En cours, 1 item", hidden: true })).getByText("Authentication"),
-      ).toBeInTheDocument(),
+      expect(within(column("En cours, 1 item")).getByText("Authentication")).toBeInTheDocument(),
     );
-    expect(screen.getByRole("group", { name: "Prêt, 0 item", hidden: true })).toBeInTheDocument();
+    expect(column("Prêt, 0 item")).toBeInTheDocument();
     expect(mocks.refresh).not.toHaveBeenCalled();
     // The figures come from one small read, not from a page render.
     await waitFor(() => expect(summary).toHaveBeenCalledWith("DEMO"));
     await waitFor(() => expect(screen.getByText("3 pts restants")).toBeInTheDocument());
     expect(screen.getByText("10 pts terminés")).toBeInTheDocument();
+  });
+
+  it("keeps a dropped card at the status and rank the server answers with, though the props never changed", async () => {
+    const user = userEvent.setup();
+    const geometry = mockBoardGeometry();
+    try {
+      const moveItemAction = vi
+        .fn()
+        .mockResolvedValue({ ok: true, item: { ...editableCard, statusId: "doing", rank: "zz" } });
+      const summary = vi.fn(async () => refreshed);
+      render(twoColumns(summary, { moveItemAction }));
+
+      screen.getByRole("button", { name: "Déplacer DEMO-1" }).focus();
+      await user.keyboard("[Space][ArrowRight][Space]");
+
+      await waitFor(() =>
+        expect(moveItemAction).toHaveBeenCalledWith({
+          backlogKey: "DEMO",
+          id: "task-a",
+          statusId: "doing",
+          beforeId: null,
+          afterId: null,
+        }),
+      );
+      // The read fires once the mutation has settled: the card is still where
+      // the server put it, not back where the unchanged props had it.
+      await waitFor(() => expect(summary).toHaveBeenCalledWith("DEMO"));
+      expect(within(column("En cours, 1 item")).getByText("Authentication")).toBeInTheDocument();
+      expect(column("Prêt, 0 item")).toBeInTheDocument();
+      expect(mocks.refresh).not.toHaveBeenCalled();
+    } finally {
+      geometry.mockRestore();
+    }
   });
 
   it("keeps its figures when the read fails or answers for another sprint", async () => {
@@ -1065,12 +1150,52 @@ describe("ItemBoard after an action (JIR-119)", () => {
       ...refreshed,
       summary: { ...refreshed.summary, activeSprintId: "another-sprint" },
     }));
-    renderTwoColumns(summary);
+    render(twoColumns(summary));
 
-    await user.click(screen.getByRole("button", { name: "Statut : Prêt" }));
-    await user.click(screen.getByRole("menuitem", { name: "En cours" }));
+    await chooseStatus(user, "Prêt", "En cours");
     await waitFor(() => expect(summary).toHaveBeenCalledWith("DEMO"));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.getByText("8 pts restants")).toBeInTheDocument();
+  });
+
+  it.each([
+    { props: "another sprint", sprint: { ...activeSprint, id: "sprint-b", name: "Sprint B" } },
+    { props: "the same sprint", sprint: activeSprint },
+  ])("lets fresh server props for $props win over a read fired before them", async ({ sprint }) => {
+    const user = userEvent.setup();
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: { ...editableCard, statusId: "doing" } });
+    const read = deferred<typeof refreshed>();
+    const summary = vi.fn(() => read.promise);
+    const view = render(twoColumns(summary));
+
+    await chooseStatus(user, "Prêt", "En cours");
+    await waitFor(() => expect(summary).toHaveBeenCalledWith("DEMO"));
+
+    // The page renders again (a creation, a navigation) while the read is pending.
+    const fresh = { ...activeMetrics, remainingPoints: 42 };
+    view.rerender(twoColumns(summary, { activeSprint: sprint, activeSprintMetrics: fresh }));
+    expect(screen.getByText("42 pts restants")).toBeInTheDocument();
+
+    read.resolve({
+      ...refreshed,
+      summary: { activeSprintId: "sprint-active", metrics: { ...activeMetrics, remainingPoints: 1 } },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.getByText("42 pts restants")).toBeInTheDocument();
+  });
+
+  it("applies a read fired after the latest server props", async () => {
+    const user = userEvent.setup();
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: { ...editableCard, statusId: "doing" } });
+    const summary = vi.fn(async () => ({
+      ...refreshed,
+      summary: { activeSprintId: "sprint-active", metrics: { ...activeMetrics, remainingPoints: 1 } },
+    }));
+    const view = render(twoColumns(summary));
+    view.rerender(twoColumns(summary, { activeSprintMetrics: { ...activeMetrics, remainingPoints: 42 } }));
+    expect(screen.getByText("42 pts restants")).toBeInTheDocument();
+
+    await chooseStatus(user, "Prêt", "En cours");
+    await waitFor(() => expect(screen.getByText("1 pt restant")).toBeInTheDocument());
   });
 });
