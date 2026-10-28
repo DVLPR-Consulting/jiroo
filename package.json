@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "e2e:inventory": "tsx scripts/e2e-run-inventory.ts",
     "test:e2e": "JIROO_E2E_ISOLATED=1 BETTER_AUTH_URL=http://localhost:3100 NODE_OPTIONS=--conditions=react-server playwright test",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
