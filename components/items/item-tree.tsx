@@ -206,10 +206,14 @@ export function ItemTree({
 
   // Re-seed from fresh server props only when no drag is active and nothing is
   // in flight, so a mid-drag revalidate cannot clobber the optimistic state.
+  // Only props that changed since the last seed do: a reorder between siblings
+  // answers with the row's rank and renders no page (JIR-119), so the end of
+  // its commit must not rebuild the tree from the props it already had.
+  const seeded = useRef(items);
   useEffect(() => {
-    if (dragId === null && pending.current === 0) {
-      setTreeItems(seed(items));
-    }
+    if (dragId !== null || pending.current !== 0 || seeded.current === items) return;
+    seeded.current = items;
+    setTreeItems(seed(items));
   }, [items, dragId, settledTick]);
 
   const roots = buildTree(treeItems);
@@ -327,6 +331,13 @@ export function ItemTree({
       if (mySeq !== seq.current) return;
       if (res.ok) {
         setError(null);
+        // A reorder between siblings answers with the row's rank: the tree
+        // takes it and renders no page (JIR-119). A reparent still re-seeds
+        // from the revalidated props, since path and depth change too.
+        if (args.sameParent) {
+          const { rank } = res.item;
+          setTreeItems((prev) => prev.map((i) => (i.id === args.id ? { ...i, rank } : i)));
+        }
       } else {
         setTreeItems(args.base);
         setError(res.error);

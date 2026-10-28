@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { currentHref } from "@/test/history";
@@ -273,6 +273,48 @@ describe("ItemTree", () => {
     fireEvent.dragStart(row, { dataTransfer });
     expect(dataTransfer.effectAllowed).toBe("move");
     expect(dataTransfer.setData).toHaveBeenCalledWith("text/plain", "task-1");
+  });
+
+  it("keeps a reorder between siblings at the rank the server answers with, without a page render (JIR-119)", async () => {
+    const second = { ...item, id: "task-2", key: "DEMO-2", title: "Billing", rank: "b", path: "task2" };
+    const moveItemAction = vi.fn().mockResolvedValue({ ok: true, item: { ...item, rank: "c" } });
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[item, second]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={moveItemAction}
+        />
+      </ViewUrlStateProvider>,
+    );
+    const order = () =>
+      screen
+        .getAllByRole("button", { name: /^DEMO-\d — / })
+        .map((row) => row.getAttribute("aria-label")?.split(" — ")[0]);
+    expect(order()).toEqual(["DEMO-1", "DEMO-2"]);
+
+    const dataTransfer = { effectAllowed: "none", dropEffect: "none", setData: vi.fn() };
+    fireEvent.dragStart(screen.getByRole("button", { name: "DEMO-1 — Authentication" }), { dataTransfer });
+    const target = screen.getByRole("button", { name: "DEMO-2 — Billing" });
+    // Below the row's middle (jsdom rows have no height): the "after" zone.
+    const over = createEvent.dragOver(target, { dataTransfer });
+    Object.defineProperty(over, "clientY", { value: 10 });
+    fireEvent(target, over);
+    fireEvent.drop(target, { dataTransfer });
+
+    await waitFor(() =>
+      expect(moveItemAction).toHaveBeenCalledWith({
+        backlogKey: "DEMO",
+        id: "task-1",
+        beforeId: "task-2",
+        afterId: null,
+      }),
+    );
+    // The row takes the rank the server answered with; the props never changed.
+    await waitFor(() => expect(order()).toEqual(["DEMO-2", "DEMO-1"]));
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("keeps viewer rows navigable without making them draggable", async () => {

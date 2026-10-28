@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   renderRealViews: { current: false },
   listAssignableUsersForBacklog: vi.fn(),
   listSprintsForBacklog: vi.fn(),
+  loadBoardSummary: vi.fn(),
   listReleaseSummaries: vi.fn(),
   listUsers: vi.fn(),
   listUsersByIds: vi.fn(),
@@ -97,6 +98,9 @@ vi.mock("@/lib/services/releases", () => ({
 vi.mock("@/lib/services/sprints", () => ({
   listSprintsForBacklog: mocks.listSprintsForBacklog,
 }));
+vi.mock("@/lib/services/board-summary", () => ({
+  loadBoardSummary: mocks.loadBoardSummary,
+}));
 vi.mock("@/lib/services/sprint-burndown", () => ({
   getPreviousSprintsVelocityContext: mocks.getPreviousSprintsVelocityContext,
   getActiveSprintStartCommitment: mocks.getActiveSprintStartCommitment,
@@ -112,6 +116,10 @@ vi.mock("@/app/actions/items", () => ({
   softDeleteItemAction: vi.fn(),
   bulkUpdateItemsAction: vi.fn(),
   updateItemAction: vi.fn(),
+}));
+
+vi.mock("@/app/actions/board", () => ({
+  boardSummaryAction: vi.fn(async () => ({ ok: true as const, summary: { activeSprintId: null, metrics: null } })),
 }));
 vi.mock("@/components/items/item-backlog", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/items/item-backlog")>();
@@ -236,6 +244,7 @@ describe("BacklogViewContent read boundary", () => {
     });
     mocks.listLabelsForBacklog.mockResolvedValue([]);
     mocks.listSprintsForBacklog.mockResolvedValue({ sprints: [], memberships: [] });
+    mocks.loadBoardSummary.mockResolvedValue({ activeSprintId: null, metrics: null });
     mocks.listReleaseSummaries.mockResolvedValue([]);
     mocks.getViewByIdForUser.mockResolvedValue(null);
     mocks.getPreviousSprintsVelocityContext.mockResolvedValue({
@@ -819,6 +828,137 @@ describe("BacklogViewContent read boundary", () => {
       ],
       contextIds: [parent.id],
     }));
+  });
+
+  describe("Board figures under the Version filter (JIR-119)", () => {
+    const S = "22222222-2222-4222-8222-222222222222";
+    const task = (id: string, key: string, estimatePoints: number) => ({
+      id,
+      backlogId: "backlog-1",
+      key,
+      sequence: Number(key.split("-")[1]),
+      type: "tache",
+      kind: "story",
+      title: key,
+      statusId: "status-1",
+      priority: 2,
+      estimatePoints,
+      assigneeId: null,
+      reporterId: null,
+      parentId: null,
+      path: `root.${id}`,
+      depth: 0,
+      dueDate: null,
+      rank: key,
+      deletedAt: null,
+      createdAt: new Date("2026-08-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    const small = task("task-small", "DEMO-1", 3);
+    const large = task("task-large", "DEMO-2", 8);
+    const membership = (itemId: string) => ({
+      id: `${itemId}-${S}`,
+      sprintId: S,
+      itemId,
+      joinedAt: new Date("2026-08-01T00:00:00.000Z"),
+      joinedBy: "viewer-1",
+      estimateAtJoin: null,
+      estimateAtStart: null,
+      leftAt: null,
+      outcome: null,
+      destinationSprintId: null,
+    });
+    const wholeSprint = {
+      itemCount: 2,
+      estimatedPoints: 11,
+      completedPoints: 0,
+      remainingPoints: 11,
+      unestimatedCount: 0,
+      capacityPoints: null,
+      overCapacityPoints: 0,
+      velocityComparison: null,
+      commitmentBasis: null,
+    };
+
+    beforeEach(() => {
+      mocks.getBacklogByKeyForUser.mockResolvedValue({
+        id: "backlog-1",
+        key: "DEMO",
+        name: "Demo",
+        color: "#2563eb",
+        archivedAt: null,
+      });
+      mocks.getBacklogCapabilities.mockResolvedValue({
+        createItems: false,
+        editItems: false,
+        transitionItems: false,
+        scheduleItems: false,
+        assignItems: false,
+        manageSprints: false,
+        manageWorkflow: false,
+        manageMembers: false,
+        bulkChangeItems: false,
+      });
+      // Only the small task belongs to the selected version.
+      mocks.listItems.mockImplementation(async (_backlogId: string, options?: { releaseIds?: string[] }) =>
+        options?.releaseIds?.length ? [small] : [small, large],
+      );
+      mocks.listItemsWithAncestors.mockResolvedValue([small]);
+      mocks.listReleaseSummaries.mockResolvedValue([
+        { id: "release-selected", name: "2026.09", released: false, archived: false },
+      ]);
+      mocks.listItemFixVersionPairs.mockResolvedValue([
+        { itemId: "task-small", releaseId: "release-selected", name: "2026.09" },
+      ]);
+      mocks.listSprintsForBacklog.mockResolvedValue({
+        sprints: [{ id: S, name: "Sprint 2", state: "active", completedAt: null, capacityPoints: null }],
+        memberships: [membership("task-small"), membership("task-large")],
+      });
+      mocks.loadBoardSummary.mockResolvedValue({ activeSprintId: S, metrics: wholeSprint });
+    });
+
+    const boardMetrics = () =>
+      (mocks.itemBoardProps.mock.calls[0]?.[0] as { activeSprintMetrics: { remainingPoints: number } | null })
+        .activeSprintMetrics;
+
+    it("gives the Board the whole sprint's figures under the Version filter, as after an action", async () => {
+      render(
+        await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view: "board", version: "release-selected" }),
+        }),
+      );
+
+      expect(mocks.loadBoardSummary).toHaveBeenCalledWith("backlog-1");
+      // The cards stay the version's; the pills describe the sprint.
+      expect(mocks.itemBoardProps).toHaveBeenCalledWith(
+        expect.objectContaining({ items: [expect.objectContaining({ id: "task-small" })] }),
+      );
+      expect(boardMetrics()).toEqual(wholeSprint);
+    });
+
+    it("computes the same figures from its own rows without the Version filter", async () => {
+      render(
+        await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view: "board" }),
+        }),
+      );
+
+      expect(mocks.loadBoardSummary).not.toHaveBeenCalled();
+      expect(boardMetrics()).toEqual(expect.objectContaining({ itemCount: 2, remainingPoints: 11 }));
+    });
+
+    it("keeps the sections' figures for the other views", async () => {
+      render(
+        await BacklogViewContent({
+          paramsPromise: Promise.resolve({ key: "DEMO" }),
+          searchParamsPromise: Promise.resolve({ view: "list", version: "release-selected" }),
+        }),
+      );
+
+      expect(mocks.loadBoardSummary).not.toHaveBeenCalled();
+    });
   });
 
   it("ignores deleted versions in the Version filter instead of showing an empty list", async () => {

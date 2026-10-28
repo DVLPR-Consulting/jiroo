@@ -42,6 +42,7 @@ const mocks = vi.hoisted(() => ({
   requireStatusPermission: vi.fn(),
   revalidatePath: vi.fn(),
   invalidateBacklog: vi.fn(),
+  publishBacklogChange: vi.fn(),
   notifyUsers: vi.fn(),
   restoreItem: vi.fn(),
   softDeleteItem: vi.fn(),
@@ -49,7 +50,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
-vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
+vi.mock("@/lib/realtime/publish", () => ({
+  invalidateBacklog: mocks.invalidateBacklog,
+  publishBacklogChange: mocks.publishBacklogChange,
+  notifyUsers: mocks.notifyUsers,
+}));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireBacklogPermissionById: mocks.requireBacklogPermissionById,
   requireItemPermission: mocks.requireItemPermission,
@@ -144,12 +149,15 @@ describe("item action permission mapping", () => {
     mocks.updateItem.mockReturnValueOnce(new Promise((resolve) => { commit = resolve; }));
     const result = updateItemAction({ backlogKey: "DEMO", id: itemId, title: "Updated" });
     await vi.waitFor(() => expect(mocks.updateItem).toHaveBeenCalled());
-    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
+    expect(mocks.publishBacklogChange).not.toHaveBeenCalled();
     commit({ id: itemId });
     await expect(result).resolves.toEqual({ ok: true, item: { id: itemId } });
-    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", {
+    // The item alone answers: no page revalidation travels with it (JIR-119).
+    expect(mocks.publishBacklogChange).toHaveBeenCalledWith({
       kind: "item", backlogId, itemIds: [itemId], actorId: "writer-1",
     });
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("requires create_items and schedule_items when creating directly in a sprint", async () => {
@@ -390,7 +398,8 @@ describe("item action permission mapping", () => {
       "writer-1",
       expect.stringMatching(uuidPattern),
     );
-    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", expect.objectContaining({ kind: "item", backlogId, actorId: "writer-1" }));
+    expect(mocks.publishBacklogChange).toHaveBeenCalledWith(expect.objectContaining({ kind: "item", backlogId, actorId: "writer-1" }));
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -785,7 +794,8 @@ describe("item action validation", () => {
       "writer-1",
       expect.stringMatching(uuidPattern),
     );
-    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("DEMO", expect.objectContaining({ kind: "item", backlogId, actorId: "writer-1" }));
+    expect(mocks.publishBacklogChange).toHaveBeenCalledWith(expect.objectContaining({ kind: "item", backlogId, actorId: "writer-1" }));
+    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
   });
 
   it("returns the task-only estimate error without leaking internals", async () => {
