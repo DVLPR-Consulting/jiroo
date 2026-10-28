@@ -367,6 +367,41 @@ describe("loadItemDetailData", () => {
     ]);
   });
 
+  it("names the parents the history cites by their ids, through one read", async () => {
+    mocks.listActivities.mockResolvedValue([
+      { id: "activity-1", actorId: "user-actor" },
+      { id: "activity-2", actorId: "user-actor", action: "move", field: "parent", oldValue: "item-old-parent", newValue: parent.id },
+      { id: "activity-3", actorId: "user-actor", action: "update", field: "assignee", oldValue: "user-old", newValue: "user-new" },
+    ]);
+    const data = await load();
+    if (data?.kind !== "item") throw new Error("expected an item");
+    // The current parent and both sides of every parent change; the service deduplicates.
+    expect(mocks.listItemChoicesByIds).toHaveBeenCalledTimes(1);
+    expect(mocks.listItemChoicesByIds).toHaveBeenCalledWith("backlog-1", [parent.id, "item-old-parent", parent.id]);
+    // What the read found is what the history can name; a deleted parent stays unnamed.
+    expect(data.panel.historyItems).toEqual([{ id: parent.id, key: "DEMO-1" }]);
+    expect(data.panel.parent).toEqual({ id: parent.id, key: "DEMO-1", title: "Epic parent", type: "epic" });
+  });
+
+  it("names the people the history cites when the directory is not browsable", async () => {
+    browseUsers(false);
+    mocks.listActivities.mockResolvedValue([
+      { id: "activity-1", actorId: "user-actor" },
+      { id: "activity-3", actorId: "user-actor", action: "update", field: "assignee", oldValue: "user-old", newValue: null },
+      { id: "activity-4", actorId: "user-actor", action: "update", field: "reporter", oldValue: null, newValue: "user-new" },
+      { id: "activity-5", actorId: "user-actor", action: "update", field: "title", oldValue: "Ancien titre", newValue: "Nouveau titre" },
+    ]);
+    const data = await load();
+    if (data?.kind !== "item") throw new Error("expected an item");
+    expect(mocks.listUsersByIds).toHaveBeenCalledTimes(1);
+    const asked = mocks.listUsersByIds.mock.calls[0]![0] as string[];
+    expect(asked).toEqual(
+      expect.arrayContaining(["user-assignee", "user-reporter", "user-actor", "user-old", "user-new", "user-author"]),
+    );
+    expect(asked).not.toContain("Ancien titre");
+    expect(asked).not.toContain("Nouveau titre");
+  });
+
   it("offers child creation only with create permission", async () => {
     const data = await load();
     if (data?.kind !== "item") throw new Error("expected an item");
