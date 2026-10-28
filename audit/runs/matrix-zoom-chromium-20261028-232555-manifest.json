@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "runId": "matrix-zoom-chromium-20261028-232555",
+  "timestamps": {
+    "startedAt": "2026-10-28T23:25:57.928Z",
+    "databaseVerifiedAt": "2026-10-28T23:25:57.940Z",
+    "manifestWrittenAt": "2026-10-28T23:25:58.067Z"
+  },
+  "runtime": {
+    "node": "v24.18.1",
+    "pnpm": "10.34.5"
+  },
+  "source": {
+    "gitSha": "282463d59644fb557e956e0bfe66cb6310b4354b"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:a70637732c622ead8e1bfe57c5fec658fda1cab995b41489e3222926ed8fc919"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "corepack pnpm exec playwright test --project=matrix-zoom-chromium",
+    "scenarios": "matrice matrix-zoom-chromium"
+  },
+  "result": {
+    "junitReport": "audit/runs/matrix-zoom-chromium-20261028-232555-junit.xml"
+  },
+  "artifacts": [
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/.last-run.json",
+      "size": 243,
+      "sha256": "7442329b56419f0815a6be6f2914bdeba7d464d55415873414b1afd5cf097fd4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/error-context.md",
+      "size": 4209,
+      "sha256": "1518f1ca8f22b9313c29f4b76d8edb18951b948ac90d11d39afe1363f888b09b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/test-failed-1.png",
+      "size": 33442,
+      "sha256": "dee40fdfef6114504953ff3d7eed29deffcaddd137ef69df872bbf9f074712a6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/trace.zip",
+      "size": 1354568,
+      "sha256": "ab6c2a451553f72838471f538bbf590d7006aa6be70569093e8c0cc72ca80da6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/video.webm",
+      "size": 139968,
+      "sha256": "f33e456496f7a40f9d65fa276c4c27d357861ce6650c5e22bf92872592ce6907"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/error-context.md",
+      "size": 3730,
+      "sha256": "e3fd3af2e743348cfa586f12796cde6d667ae984952d885017d5c329c6588ee0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/test-failed-1.png",
+      "size": 32534,
+      "sha256": "6062b04fede1e26a17bf497862ee2ba60f4f774c035c7d3ee451a141a1874550"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/trace.zip",
+      "size": 579333,
+      "sha256": "15c61d8f0574bb2cc27ce00f119f0a042eb584222d25031f9604aca042b3cc38"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/video.webm",
+      "size": 97601,
+      "sha256": "dce766231bbcf34663f97109453cfb0324398bea7e1290838df523e7e1e1e31b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/error-context.md",
+      "size": 3730,
+      "sha256": "ca5866dc4bbaf866323b4d0638484c7bae493b3c572520a7ae06d1df41ace72c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/test-failed-1.png",
+      "size": 31445,
+      "sha256": "b5dcebcf5af99970fead256f3ab605b029800f196a56226dc01dbf2631a14e74"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/trace.zip",
+      "size": 552047,
+      "sha256": "338903e18c6f419c91db94097b1fca2d3f4442f86a61014cd95de91f0f2ed561"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/video.webm",
+      "size": 129764,
+      "sha256": "e48f88826579a20af94d628213bf33706f58bac4be1846cc6205795777e4fc43"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/error-context.md",
+      "size": 14120,
+      "sha256": "6fb788488e62253445a526395708db55f27f420cd584d20f51407ab1ea83d96d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/test-failed-1.png",
+      "size": 37612,
+      "sha256": "ca7683372e69c7a9e0e338368f5653d097209e6b5142ce5635910e3db613bba4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/trace.zip",
+      "size": 530905,
+      "sha256": "18b43f0b9dd932f22f1ac118229bcbcff6b93328bde800695ba549b8feec3789"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/video.webm",
+      "size": 56784,
+      "sha256": "b89f2d554dc09b999ea4ee5c2cf68e71cefe145b156e2ecdad490683ee9ced28"
+    },
+    {
+      "path": "audit/runs/matrix-zoom-chromium-20261028-232555-junit.xml",
+      "size": 19439,
+      "sha256": "cdabd0e1078b4ef4f3da4726c81ec78859856c325504d538bb70bb4b291c4b35"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-chromium-20261028-232555-zoom-p1-accueil.png",
+      "size": 31113,
+      "sha256": "e44d3732325b154cf1e8c752c3d95cd3a56d91839ce9ad1962a9bc0501533845"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-chromium-20261028-232555-zoom-p2-board.png",
+      "size": 32534,
+      "sha256": "6062b04fede1e26a17bf497862ee2ba60f4f774c035c7d3ee451a141a1874550"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-chromium-20261028-232555-zoom-p3-liste.png",
+      "size": 31445,
+      "sha256": "b5dcebcf5af99970fead256f3ab605b029800f196a56226dc01dbf2631a14e74"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-chromium-20261028-232555-zoom-p4-tiroir.png",
+      "size": 25623,
+      "sha256": "fdee86829a2ab8f77d92735af2c2826d9b965a496d50e2fca218e221eed2666f"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-chromium-20261028-232555-zoom-p5-le-point.png",
+      "size": 49272,
+      "sha256": "a7d0aec06bec064bad0c724107800e896cdad6108e12edd34e2d238798606cd7"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-chromium-20261028-232555-zoom-p6-aide.png",
+      "size": 35189,
+      "sha256": "d86d3896b9498cc53ecd91b60ae981a711c55c04f27899f626e3eac857cd0986"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-chromium-20261028-232555-zoom-p7-reglages.png",
+      "size": 37578,
+      "sha256": "be1d44587b0bf124322fd91d3a04609ed6ff05612b0b0b2e7401fdb1f8b84f5c"
+    }
+  ]
+}

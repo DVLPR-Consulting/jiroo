@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "runId": "matrix-zoom-webkit-20261028-223754",
+  "timestamps": {
+    "startedAt": "2026-10-28T23:19:26.798Z",
+    "databaseVerifiedAt": "2026-10-28T23:19:26.812Z",
+    "manifestWrittenAt": "2026-10-28T23:19:26.938Z"
+  },
+  "runtime": {
+    "node": "v24.18.1",
+    "pnpm": "10.34.5"
+  },
+  "source": {
+    "gitSha": "282463d59644fb557e956e0bfe66cb6310b4354b"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:a70637732c622ead8e1bfe57c5fec658fda1cab995b41489e3222926ed8fc919"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "corepack pnpm exec playwright test --project=matrix-zoom-webkit",
+    "scenarios": "matrice matrix-zoom-webkit"
+  },
+  "result": {
+    "junitReport": "audit/runs/matrix-zoom-webkit-20261028-223754-junit.xml"
+  },
+  "artifacts": [
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/.last-run.json",
+      "size": 292,
+      "sha256": "096cb1720b7484dd99234c7c72104bd597c554d08683459233b689a21adb4d3c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-webkit/error-context.md",
+      "size": 4209,
+      "sha256": "1518f1ca8f22b9313c29f4b76d8edb18951b948ac90d11d39afe1363f888b09b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-webkit/test-failed-1.png",
+      "size": 95642,
+      "sha256": "7b76232d79daf4e2cec407e2e3add5b6ff82a644d2ebc14369dc345215330b1c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-webkit/trace.zip",
+      "size": 433441,
+      "sha256": "e5938fa59978a3b39fbbdfc717c01d67900237802ba66e637cf34f69bbdd806e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-webkit/video.webm",
+      "size": 107217,
+      "sha256": "d257bab2dc4f1903d2e2b3a636683ebea094dfc0b2bfb2c0c8b33f7de3c6b994"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-webkit/error-context.md",
+      "size": 3730,
+      "sha256": "af867252a7c11743af485dafb4b8daa98c6971a898a5d2932c5a7ffc2111f5c9"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-webkit/test-failed-1.png",
+      "size": 99111,
+      "sha256": "076a19b49729ffcf87373ca8ae6fd716578d18580ba091cef472eda6c82594bd"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-webkit/trace.zip",
+      "size": 553484,
+      "sha256": "1487b274acded9a924d04efb7508338fb106d99a361b7f44cbf26acb8b14d9c5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-webkit/video.webm",
+      "size": 87551,
+      "sha256": "b48b879d6a7eb10da47d19924c3a4ddf2a91dd6aadb59048039f505fc8001e8d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-webkit/error-context.md",
+      "size": 3730,
+      "sha256": "ca5866dc4bbaf866323b4d0638484c7bae493b3c572520a7ae06d1df41ace72c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-webkit/test-failed-1.png",
+      "size": 97241,
+      "sha256": "5dfe01b67402b4c9bbd4e416aabe5038d01093ec815dbfb369037359de2ebde5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-webkit/trace.zip",
+      "size": 563253,
+      "sha256": "a897350583c69a440626752e6b96d2912f9f4f3a6ee6e15f5c84c05b6b24e300"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-webkit/video.webm",
+      "size": 100757,
+      "sha256": "bb69fe276f169c2e56f43cdee135ded2392b229521776027860ccf62303365c8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p4-tiroir-matrix-zoom-webkit/error-context.md",
+      "size": 5767,
+      "sha256": "b2d5ec519d01b61a0556fa76ae2c9674230f546fed54dae277a0fe3bc8d10c1b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p4-tiroir-matrix-zoom-webkit/test-failed-1.png",
+      "size": 94190,
+      "sha256": "bf9d6174ed9cf8afd33d6ac37d99207007419fdf4726f0bea369303c5e2d20f8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p4-tiroir-matrix-zoom-webkit/trace.zip",
+      "size": 677228,
+      "sha256": "7dbb31f591fd1ce4ee2a2bca814742fdf4c6e16498ad37c87e3e2c61264cdd4f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p4-tiroir-matrix-zoom-webkit/video.webm",
+      "size": 108631,
+      "sha256": "f376338bc6a47948336688dec408391259f6d9753f7eb9fbf7c2240aa4e4805a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-webkit/error-context.md",
+      "size": 13984,
+      "sha256": "52df2278121456225145c895049414ca411e33d37ad3f4e215b32e83f578e851"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-webkit/test-failed-1.png",
+      "size": 105138,
+      "sha256": "11185843f75edc85e73ffbe8e6f8caf12e5f1432f46271eeb354860897c7c8aa"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-webkit/trace.zip",
+      "size": 521962,
+      "sha256": "1f32b3fb9b2a10f52c4adafbae5bdbe398e19fc1290ccb96f1f44407a4d27d2b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-zoom-webkit-20261028-223754/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-webkit/video.webm",
+      "size": 49678,
+      "sha256": "e35a7898f22ec03c45a64922e8417acbec93f36677047fa2257d869734bb89d5"
+    },
+    {
+      "path": "audit/runs/matrix-zoom-webkit-20261028-223754-junit.xml",
+      "size": 23559,
+      "sha256": "a5c9364f79ea3e70e8a0957e169332d3a54aeaf08a7fea30b5d518fba3ea764e"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-webkit-20261028-223754-zoom-p1-accueil.png",
+      "size": 88783,
+      "sha256": "44512d2e98b4d8cdc3d7f882a376e5a79357559dc7f62d47b9e1749040ace0de"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-webkit-20261028-223754-zoom-p2-board.png",
+      "size": 99111,
+      "sha256": "076a19b49729ffcf87373ca8ae6fd716578d18580ba091cef472eda6c82594bd"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-webkit-20261028-223754-zoom-p3-liste.png",
+      "size": 97241,
+      "sha256": "5dfe01b67402b4c9bbd4e416aabe5038d01093ec815dbfb369037359de2ebde5"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-webkit-20261028-223754-zoom-p5-le-point.png",
+      "size": 125222,
+      "sha256": "41f7ac638a78bf6b70c7e94d6652305f29d2040d8d497972c6ce6076b3ffb278"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-webkit-20261028-223754-zoom-p6-aide.png",
+      "size": 96746,
+      "sha256": "a2cb2393351395b512f66a4b978f0966da675ceca1c51fd0d3152bb312bb2e21"
+    },
+    {
+      "path": "audit/screenshots/matrix-zoom-webkit-20261028-223754-zoom-p7-reglages.png",
+      "size": 104733,
+      "sha256": "e3a8e3c906ca1d8065f7ec81920c8ffa32d00169a3be637c7c0d9dac3ede60d9"
+    }
+  ]
+}
