@@ -17,14 +17,14 @@ type ParentOption = { id: string; key: string; title: string };
  * (e.g. the first one just created).
  */
 export function useInlineCreateParent(
-  items: StartStepDialogProps["items"] | undefined,
+  structure: StartStepDialogProps["structure"] | undefined,
 ) {
   const epics = useMemo(
     () =>
-      (items ?? [])
+      (structure ?? [])
         .filter((item) => item.type === "epic")
         .map(({ id, key, title }) => ({ id, key, title })),
-    [items],
+    [structure],
   );
   const [pickedParentId, setParentId] = useState("");
   const parentId = pickedParentId || (epics.length === 1 ? epics[0]!.id : "");

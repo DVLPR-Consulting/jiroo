@@ -156,7 +156,7 @@ type ItemTreeProps = {
    */
   startStep?: HierarchyStartStep | null;
   clearFiltersHref?: string;
-  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters" | "templates">;
+  createDialogProps?: Pick<NewItemButtonProps, "backlogId" | "structure" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters" | "templates">;
   canCreateItems?: boolean;
   canScheduleItems?: boolean;
   itemCapabilities?: ItemCapabilities;

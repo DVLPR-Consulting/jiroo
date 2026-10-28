@@ -33,6 +33,10 @@ vi.mock("@/app/actions/items", () => ({
   rankBacklogItemAction: mocks.rankBacklogItemAction,
   updateItemAction: vi.fn(),
 }));
+
+vi.mock("@/app/actions/item-choices", () => ({
+  searchBacklogItemsAction: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
+}));
 vi.mock("@/app/actions/sprints", () => ({
   moveSprintItemAction: mocks.moveSprintItemAction,
   reorderSprintAction: vi.fn(),
@@ -122,7 +126,7 @@ function props(): React.ComponentProps<typeof ItemBacklog> {
     hasItems: true,
     clearFiltersHref: "/b/DEMO?view=backlog",
     createDialogProps: {
-      items: items.map(({ id, key, type, title }) => ({ id, key, type, title })),
+      structure: items.map(({ id, key, type, title }) => ({ id, key, type, title })),
       statuses: statuses.map(({ id, name }) => ({ id, name })),
     },
     canCreateItems: true,
@@ -231,7 +235,7 @@ function sprintProps(): React.ComponentProps<typeof ItemBacklog> {
     hasItems: true,
     clearFiltersHref: "/b/DEMO?view=backlog",
     createDialogProps: {
-      items: [...epicItems, ...items.map(({ id, key, type, title }) => ({ id, key, type, title }))],
+      structure: [...epicItems, ...items.map(({ id, key, type, title }) => ({ id, key, type, title }))],
       statuses: statuses.map(({ id, name }) => ({ id, name })),
     },
     canCreateItems: true,
@@ -593,7 +597,7 @@ describe("ItemBacklog", () => {
     render(
       <ItemBacklog
         {...input}
-        createDialogProps={{ ...input.createDialogProps!, items: twoEpics }}
+        createDialogProps={{ ...input.createDialogProps!, structure: twoEpics }}
       />,
     );
 
@@ -1114,7 +1118,7 @@ describe("ItemBacklog first steps (JIR-88)", () => {
       // The server reads the live backlog; here the candidates are all of it.
       startStep: hierarchyStartStep(dialogItems),
       createDialogProps: {
-        items: dialogItems,
+        structure: dialogItems,
         statuses: statuses.map(({ id, name }) => ({ id, name })),
       },
       canCreateItems: true,
@@ -1161,7 +1165,7 @@ describe("ItemBacklog first steps (JIR-88)", () => {
     await user.click(within(backlog).getByRole("button", { name: "Nouvelle Epic (Backlog)" }));
     const dialog = screen.getByRole("dialog", { name: /Nouvel item/ });
     expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
-    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveTextContent(
+    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveValue(
       "DEMO-1 — Portail",
     );
   });
@@ -1216,7 +1220,7 @@ describe("ItemBacklog first steps (JIR-88)", () => {
       <ItemBacklog
         {...newBacklogProps([], {
           canScheduleItems: false,
-          createDialogProps: { items: [], statuses: [], canScheduleItems: false },
+          createDialogProps: { structure: [], statuses: [], canScheduleItems: false },
         })}
       />,
     );
@@ -1230,7 +1234,7 @@ describe("ItemBacklog first steps (JIR-88)", () => {
       <ItemBacklog
         {...newBacklogProps([composant], {
           canScheduleItems: false,
-          createDialogProps: { items: [composant], statuses: [], canScheduleItems: false },
+          createDialogProps: { structure: [composant], statuses: [], canScheduleItems: false },
         })}
       />,
     );

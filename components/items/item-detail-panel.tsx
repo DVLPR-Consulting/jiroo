@@ -23,6 +23,7 @@ import {
   type FixVersionOption,
 } from "@/components/items/fix-version-picker";
 import { NewItemButton, type NewItemButtonProps } from "@/components/items/new-item-dialog";
+import { ItemPicker, type ItemChoice } from "@/components/items/item-picker";
 import type { Filters } from "@/lib/items/filter";
 import { useOptimisticFieldUpdate } from "@/components/items/detail/use-optimistic-field-update";
 import { useListNeighbors } from "@/components/items/detail/use-list-neighbors";
@@ -104,7 +105,7 @@ function statusCategory(value: string): "todo" | "in_progress" | "done" | null {
 /** Data the « Nouvel item » dialog needs, shared with the views. */
 export type DetailCreateDialog = Pick<
   NewItemButtonProps,
-  "backlogId" | "backlogColor" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "templates"
+  "backlogId" | "backlogColor" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "templates"
 >;
 
 /** The hierarchy one level down (lib/tree/hierarchy.ts), with Jira-like wording. */
@@ -220,7 +221,7 @@ export function ItemDetailPanel({
   canAdministerBacklog?: boolean;
   /** Web links of the item (JIR-99). */
   webLinks?: ItemWebLink[];
-  parent?: { key: string; title: string; type?: ItemType };
+  parent?: { id: string; key: string; title: string; type?: ItemType };
   childItems?: ChildItem[];
   createDialog?: DetailCreateDialog;
   sprints?: { id: string; name: string }[];
@@ -293,17 +294,19 @@ export function ItemDetailPanel({
 
   const [deleting, startDelete] = useTransition();
   const [planningPending, startPlanning] = useTransition();
-  const [selectedParentId, setSelectedParentId] = useState(detail.parentId);
+  // The parent as shown and changed here: the picker searches the backlog
+  // for another one on demand (JIR-118).
+  const [selectedParent, setSelectedParent] = useState<ItemChoice | null>(() =>
+    parent
+      ? { id: parent.id, key: parent.key, title: parent.title, type: parent.type ?? (PARENT_TYPE[detail.type] as ItemType) }
+      : null,
+  );
   const [selectedSprintId, setSelectedSprintId] = useState(sprintId);
   const [planningError, setPlanningError] = useState<string | null>(null);
   const priority = Math.min(4, Math.max(0, detail.priority)) as Priority;
   const reporter = users.find((option) => option.id === detail.reporterId);
   const selectedLabelIds = new Set(itemLabelIds);
   const selectedLabels = backlogLabels.filter((label) => selectedLabelIds.has(label.id));
-  const parentCandidates = candidates.filter(
-    (candidate) => candidate.type === PARENT_TYPE[detail.type],
-  );
-  const selectedParent = candidates.find((candidate) => candidate.id === selectedParentId);
   const selectedSprint = sprints.find((sprint) => sprint.id === selectedSprintId);
   const statusOptions = useMemo(
     () => statuses.map((status, index) => ({ ...status, order: status.order ?? index })),
@@ -385,19 +388,19 @@ export function ItemDetailPanel({
     });
   };
 
-  const handleParentChange = (newParentId: string | null) => {
-    const previousParentId = selectedParentId;
-    setSelectedParentId(newParentId);
+  const handleParentChange = (next: ItemChoice | null) => {
+    const previous = selectedParent;
+    setSelectedParent(next);
     setPlanningError(null);
     startPlanning(async () => {
       try {
         const result = await reparentItemAction({
           backlogKey,
           id: detail.id,
-          newParentId,
+          newParentId: next?.id ?? null,
         });
         if (!result.ok) {
-          setSelectedParentId(previousParentId);
+          setSelectedParent(previous);
           setPlanningError(result.error);
           toast.error(result.error);
           return;
@@ -405,7 +408,7 @@ export function ItemDetailPanel({
         router.refresh();
       } catch {
         const error = "Impossible de modifier la planification.";
-        setSelectedParentId(previousParentId);
+        setSelectedParent(previous);
         setPlanningError(error);
         toast.error(error);
       }
@@ -447,23 +450,14 @@ export function ItemDetailPanel({
     linksRef.current?.scrollIntoView?.({ block: "nearest" });
   };
 
-  // The opened item is the child's parent: make sure it is a candidate even
-  // when the view's filter (e.g. a Fix version) left it out of the list.
-  const childDialogItems = useMemo(() => {
-    const dialogItems = createDialog?.items ?? [];
-    return dialogItems.some((item) => item.id === detail.id)
-      ? dialogItems
-      : [...dialogItems, { id: detail.id, key: detail.key, type: detail.type, title: detail.title }];
-  }, [createDialog?.items, detail.id, detail.key, detail.title, detail.type]);
-
+  // The opened item is the child's parent, whatever the view's filters.
   const createChildButton = (trigger: React.ReactNode) =>
     child && createDialog ? (
       <NewItemButton
         backlogKey={backlogKey}
         {...createDialog}
-        items={childDialogItems}
         initialType={child.type}
-        initialParentId={detail.id}
+        initialParent={{ id: detail.id, key: detail.key, type: detail.type, title: detail.title }}
         viewFilters={viewFilters}
         trigger={trigger}
       />
@@ -672,7 +666,6 @@ export function ItemDetailPanel({
                   itemId={detail.id}
                   backlogKey={backlogKey}
                   links={links}
-                  candidates={candidates}
                   canLink={canLink}
                   openRequest={linkRequest}
                 />
@@ -848,34 +841,28 @@ export function ItemDetailPanel({
                   <DetailField
                     label="Parent"
                     editTrigger="icon"
-                    value={(() => {
-                      const shown = selectedParent ?? (parent ? { ...parent, type: parent.type ?? PARENT_TYPE[detail.type]! } : null);
-                      return shown ? (
-                        <Link
-                          {...itemLinkProps(shown.key)}
-                          className="flex min-w-0 items-center gap-2 text-[var(--primary)] hover:text-[var(--primary-hover)] hover:underline"
-                        >
-                          <TypeIcon type={shown.type} size={14} />
-                          <span className="truncate">{shown.key} {shown.title}</span>
-                        </Link>
-                      ) : null;
-                    })()}
-                    editor={planningCapabilities?.reparent ? (
-                      <select
-                        aria-label="Parent"
-                        aria-busy={planningPending}
-                        disabled={planningPending}
-                        value={selectedParentId ?? ""}
-                        onChange={(event) => handleParentChange(event.target.value || null)}
-                        className={SELECT}
+                    value={selectedParent ? (
+                      <Link
+                        {...itemLinkProps(selectedParent.key)}
+                        className="flex min-w-0 items-center gap-2 text-[var(--primary)] hover:text-[var(--primary-hover)] hover:underline"
                       >
-                        <option value="">Aucun parent</option>
-                        {parentCandidates.map((candidate) => (
-                          <option key={candidate.id} value={candidate.id}>
-                            {candidate.key} — {candidate.title}
-                          </option>
-                        ))}
-                      </select>
+                        <TypeIcon type={selectedParent.type} size={14} />
+                        <span className="truncate">{selectedParent.key} {selectedParent.title}</span>
+                      </Link>
+                    ) : null}
+                    editor={planningCapabilities?.reparent ? (
+                      // Searched in the backlog on demand (JIR-118); « × » detaches.
+                      <ItemPicker
+                        aria-label="Parent"
+                        backlogKey={backlogKey}
+                        types={PARENT_TYPE[detail.type] ? [PARENT_TYPE[detail.type]!] : undefined}
+                        excludeIds={[detail.id]}
+                        value={selectedParent}
+                        onChange={handleParentChange}
+                        disabled={planningPending}
+                        clearable
+                        placeholder="Aucun parent"
+                      />
                     ) : undefined}
                   />
                 )}

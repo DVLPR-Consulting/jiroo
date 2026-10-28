@@ -20,6 +20,10 @@ vi.mock("@/app/actions/items", () => ({
   softDeleteItemAction: vi.fn(),
 }));
 
+vi.mock("@/app/actions/item-choices", () => ({
+  searchBacklogItemsAction: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
+}));
+
 const epic = { id: "11111111-1111-4111-8111-111111111111", key: "DEMO-9", title: "Connexion" };
 const statuses = [{ id: "22222222-2222-4222-8222-222222222222", name: "À faire" }];
 const sprintId = "33333333-3333-4333-8333-333333333333";
@@ -36,7 +40,7 @@ function Harness() {
       parentId={parentId}
       onParentChange={setParentId}
       dialogProps={{
-        items: [{ ...epic, type: "epic" }],
+        structure: [{ ...epic, type: "epic" }],
         statuses,
         canScheduleItems: true,
         releaseOptions: [],
@@ -81,7 +85,7 @@ describe("InlineCreateItem « Plus d’options »", () => {
     );
     await waitFor(() => expect(title).toHaveValue(""));
     expect(screen.getByRole("dialog", { name: "Nouvelle tâche — Sprint 2" })).toBeVisible();
-    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveTextContent(`${epic.key} — ${epic.title}`);
+    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveValue(`${epic.key} — ${epic.title}`);
 
     await user.type(title, "Deuxième");
     await user.click(within(dialog).getByRole("button", { name: "Créer" }));
@@ -222,7 +226,7 @@ describe("InlineCreateItem under the view's filters (JIR-92)", () => {
         parents={[epic]}
         parentId={epic.id}
         onParentChange={() => {}}
-        dialogProps={{ items: [{ ...epic, type: "epic" }], statuses, viewFilters }}
+        dialogProps={{ structure: [{ ...epic, type: "epic" }], statuses, viewFilters }}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Créer un item dans Backlog" }));
@@ -256,7 +260,7 @@ describe("InlineCreateItem under the view's filters (JIR-92)", () => {
         parents={[epic]}
         parentId={epic.id}
         onParentChange={() => {}}
-        dialogProps={{ items: [{ ...epic, type: "epic" }], statuses, viewFilters }}
+        dialogProps={{ structure: [{ ...epic, type: "epic" }], statuses, viewFilters }}
       />
     );
     const { rerender } = render(inline(before));

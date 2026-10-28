@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   getBacklogByKeyForUser: vi.fn(),
   resolveBacklogAccess: vi.fn(),
   listAssignableUsersForBacklog: vi.fn(),
-  listLiveParentCandidates: vi.fn(),
+  listBacklogStructure: vi.fn(),
   listLabelsForBacklog: vi.fn(),
   listReleaseSummaries: vi.fn(),
   statusRows: vi.fn(),
@@ -19,10 +19,8 @@ vi.mock("@/lib/auth/accessible-backlogs", () => ({ resolveBacklogAccess: mocks.r
 vi.mock("@/lib/auth/authorization", () => ({
   listAssignableUsersForBacklog: mocks.listAssignableUsersForBacklog,
 }));
-vi.mock("@/lib/services/items", () => ({
-  listLiveParentCandidates: mocks.listLiveParentCandidates,
-  listLabelsForBacklog: mocks.listLabelsForBacklog,
-}));
+vi.mock("@/lib/services/item-choices", () => ({ listBacklogStructure: mocks.listBacklogStructure }));
+vi.mock("@/lib/services/items", () => ({ listLabelsForBacklog: mocks.listLabelsForBacklog }));
 vi.mock("@/lib/services/releases", () => ({ listReleaseSummaries: mocks.listReleaseSummaries }));
 vi.mock("@/lib/db", async () => {
   const { sprints } = await import("@/lib/db/schema/domain");
@@ -54,8 +52,8 @@ describe("loadBacklogCreateDialog", () => {
     mocks.listItemTemplates.mockResolvedValue([{ id: "shared-template", name: "Incident" }]);
     mocks.getBacklogByKeyForUser.mockResolvedValue(BACKLOG);
     mocks.resolveBacklogAccess.mockResolvedValue(access(true));
-    mocks.listLiveParentCandidates.mockResolvedValue([
-      { id: "e1", key: "PORT-1", type: "epic", title: "Epic", parentId: null },
+    mocks.listBacklogStructure.mockResolvedValue([
+      { id: "e1", key: "PORT-1", type: "epic", title: "Epic" },
     ]);
     mocks.statusRows.mockResolvedValue([{ id: "s1", name: "À faire", category: "todo" }]);
     mocks.listLabelsForBacklog.mockResolvedValue([{ id: "l1", name: "ux", color: "#000", backlogId: "b1" }]);
@@ -76,7 +74,7 @@ describe("loadBacklogCreateDialog", () => {
       backlogKey: "PORT",
       backlogColor: "#0f766e",
       canScheduleItems: true,
-      items: [{ id: "e1", key: "PORT-1", type: "epic", title: "Epic" }],
+      structure: [{ id: "e1", key: "PORT-1", type: "epic", title: "Epic" }],
       statuses: [{ id: "s1", name: "À faire", category: "todo" }],
       releaseOptions: [{ id: "r1", name: "1.0", released: false, archived: false }],
       fieldOptions: {
@@ -106,7 +104,7 @@ describe("loadBacklogCreateDialog", () => {
   ])("returns null when %s", async (_case, arrange) => {
     arrange();
     expect(await loadBacklogCreateDialog({ userId: "u1", backlogKey: "PORT" })).toBeNull();
-    expect(mocks.listLiveParentCandidates).not.toHaveBeenCalled();
+    expect(mocks.listBacklogStructure).not.toHaveBeenCalled();
     expect(mocks.listItemTemplates).not.toHaveBeenCalled();
   });
 });

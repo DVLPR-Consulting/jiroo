@@ -43,7 +43,7 @@ export function InlineCreateItem({
   parents: ParentOption[];
   parentId: string;
   onParentChange: (parentId: string) => void;
-  dialogProps?: Pick<NewItemButtonProps, "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "templates" | "viewFilters">;
+  dialogProps?: Pick<NewItemButtonProps, "structure" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "templates" | "viewFilters">;
 }) {
   const router = useRouter();
   const openCreated = useOpenCreatedItem();
@@ -65,6 +65,11 @@ export function InlineCreateItem({
   const errorId = useId();
   const parentErrorId = useId();
   const selectedParent = parents.some((parent) => parent.id === parentId) ? parentId : "";
+  // The full dialog takes the parent as an item: the Epic picked here.
+  const selectedParentChoice = (() => {
+    const found = parents.find((parent) => parent.id === selectedParent);
+    return found ? { ...found, type: "epic" as const } : null;
+  })();
 
   function close() {
     setOpen(false);
@@ -226,7 +231,7 @@ export function InlineCreateItem({
           sprintId={sprintId}
           contextLabel={contextLabel}
           initialTitle={title}
-          initialParentId={selectedParent}
+          initialParent={selectedParentChoice}
           // A create only clears the inline draft: the dialog host must stay
           // mounted so « Créer un autre » can keep the dialog open.
           onCreated={() => {

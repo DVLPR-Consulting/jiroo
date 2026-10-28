@@ -7,7 +7,8 @@ import { sprints, statuses } from "@/lib/db/schema/domain";
 import { binaryTextOrder } from "@/lib/db/order";
 import type { NewItemDialogData } from "@/components/items/new-item-dialog";
 import { getBacklogByKeyForUser } from "@/lib/services/backlogs";
-import { listLabelsForBacklog, listLiveParentCandidates } from "@/lib/services/items";
+import { listBacklogStructure } from "@/lib/services/item-choices";
+import { listLabelsForBacklog } from "@/lib/services/items";
 import { listItemTemplates } from "@/lib/services/item-templates";
 import { listReleaseSummaries } from "@/lib/services/releases";
 
@@ -33,9 +34,10 @@ export async function loadBacklogCreateDialog({
   if (!capabilities?.createItems) return null;
   const canBrowseUsers = access.globalDecisions.get("browse_users")?.allowed === true;
 
-  const [parents, statusRows, labels, openSprints, releaseSummaries, assigneeCandidates, templates] =
+  const [structure, statusRows, labels, openSprints, releaseSummaries, assigneeCandidates, templates] =
     await Promise.all([
-      listLiveParentCandidates(backlog.id),
+      // Composants and Epics only: the Parent field searches on demand (JIR-118).
+      listBacklogStructure(backlog.id),
       db
         .select({ id: statuses.id, name: statuses.name, category: statuses.category })
         .from(statuses)
@@ -59,7 +61,7 @@ export async function loadBacklogCreateDialog({
     backlogKey: backlog.key,
     backlogColor: backlog.color,
     canScheduleItems: capabilities.scheduleItems,
-    items: parents.map(({ id, key, type, title }) => ({ id, key, type, title })),
+    structure,
     statuses: statusRows,
     releaseOptions: releaseSummaries
       .filter((release) => !release.archived)

@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 /** The dialog data a start-step button needs (the view's « Nouvel item » data). */
 export type StartStepDialogProps = Pick<
   NewItemButtonProps,
-  "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "templates" | "viewFilters"
+  "structure" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "templates" | "viewFilters"
 >;
 
 const STEP_COPY: Record<
@@ -87,9 +87,9 @@ export function StartStepButton({
   contextLabel?: string;
   variant?: "default" | "outline";
 }) {
-  const composants = dialogProps.items.filter((item) => item.type === "composant");
-  const initialParentId =
-    step === "epic" && composants.length === 1 ? composants[0]!.id : undefined;
+  const composants = (dialogProps.structure ?? []).filter((item) => item.type === "composant");
+  const initialParent =
+    step === "epic" && composants.length === 1 ? composants[0]! : undefined;
   return (
     <NewItemButton
       // The dialog keeps its draft type between openings: a new step (the
@@ -99,7 +99,7 @@ export function StartStepButton({
       backlogKey={backlogKey}
       {...dialogProps}
       initialType={step}
-      initialParentId={initialParentId}
+      initialParent={initialParent}
       trigger={
         <Button type="button" variant={variant}>
           <span aria-hidden>

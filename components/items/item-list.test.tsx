@@ -31,6 +31,10 @@ vi.mock("@/app/actions/items", () => ({
   updateItemAction: mocks.updateItemAction,
 }));
 
+vi.mock("@/app/actions/item-choices", () => ({
+  searchBacklogItemsAction: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
+}));
+
 const todoStatusId = "11111111-1111-4111-8111-111111111111";
 
 const statuses: Array<{
@@ -277,7 +281,7 @@ describe("ItemList", () => {
       startStep: "composant",
       createDialogProps: {
         backlogId: "backlog-id",
-        items: [],
+        structure: [],
         statuses: [{ id: todoStatusId, name: "À faire" }],
       },
     });
@@ -309,7 +313,7 @@ describe("ItemList", () => {
       startStep: "epic",
       createDialogProps: {
         backlogId: "backlog-id",
-        items: composants,
+        structure: composants,
         statuses: [{ id: todoStatusId, name: "À faire" }],
       },
     });
@@ -325,7 +329,9 @@ describe("ItemList", () => {
     const dialog = screen.getByRole("dialog", { name: /Nouvel item/ });
     expect(within(dialog).getByRole("combobox", { name: "Type" })).toHaveTextContent("Epic");
     // Two Composants: the parent is left to choose.
-    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveTextContent(
+    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveValue("");
+    expect(within(dialog).getByRole("combobox", { name: /Parent/ })).toHaveAttribute(
+      "placeholder",
       "Choisir un composant…",
     );
   });
@@ -336,7 +342,7 @@ describe("ItemList", () => {
       startStep: "epic",
       createDialogProps: {
         backlogId: "backlog-id",
-        items: [{ id: "comp-1", key: "DEMO-9", type: "composant", title: "Portail" }],
+        structure: [{ id: "comp-1", key: "DEMO-9", type: "composant", title: "Portail" }],
         statuses: [{ id: todoStatusId, name: "À faire" }],
       },
       canCreateItems: false,
@@ -374,7 +380,7 @@ describe("ItemList", () => {
       startStep: "composant",
       createDialogProps: {
         backlogId: "backlog-id",
-        items: [],
+        structure: [],
         statuses: [{ id: todoStatusId, name: "À faire" }],
       },
     });
@@ -690,7 +696,7 @@ describe("ItemList", () => {
       startStep: "composant",
       createDialogProps: {
         backlogId: "backlog-id",
-        items: [],
+        structure: [],
         statuses: [{ id: todoStatusId, name: "À faire" }],
       },
       canCreateItems: false,
@@ -829,7 +835,7 @@ describe("ItemList", () => {
       ...listProps(),
       createDialogProps: {
         backlogId: "backlog-id",
-        items: [{ id: "epic-1", key: "DEMO-5", type: "epic", title: "Paiements" }],
+        structure: [{ id: "epic-1", key: "DEMO-5", type: "epic", title: "Paiements" }],
         statuses: [{ id: todoStatusId, name: "À faire" }],
       },
     });
@@ -864,7 +870,7 @@ describe("ItemList", () => {
       ...rights,
       createDialogProps: {
         backlogId: "backlog-id",
-        items: [{ id: "epic-1", key: "DEMO-5", type: "epic", title: "Paiements" }],
+        structure: [{ id: "epic-1", key: "DEMO-5", type: "epic", title: "Paiements" }],
         statuses: [{ id: todoStatusId, name: "À faire" }],
       },
     });
@@ -879,7 +885,7 @@ describe("ItemList", () => {
       startStep: "epic",
       createDialogProps: {
         backlogId: "backlog-id",
-        items: [{ id: "comp-1", key: "DEMO-9", type: "composant", title: "Portail" }],
+        structure: [{ id: "comp-1", key: "DEMO-9", type: "composant", title: "Portail" }],
         statuses: [{ id: todoStatusId, name: "À faire" }],
       },
     });

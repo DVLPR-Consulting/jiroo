@@ -8,6 +8,7 @@ import { ItemDetailSheet } from "@/components/items/item-detail-sheet";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
 import { KeyboardShortcutsProvider } from "@/components/shortcuts/keyboard-shortcuts-provider";
 import type { ViewUrlEntry } from "@/lib/items/view-url-params";
+import type { ItemChoice } from "@/components/items/item-picker";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
@@ -21,6 +22,8 @@ const mocks = vi.hoisted(() => ({
   updateItemAction: vi.fn(),
   moveSprintItemAction: vi.fn(),
   reparentItemAction: vi.fn(),
+  /** What the Parent picker's search finds (JIR-118). */
+  choices: [] as ItemChoice[],
 }));
 
 vi.mock("next/navigation", () => ({
@@ -42,6 +45,16 @@ vi.mock("@/app/actions/items", () => ({
 
 vi.mock("@/app/actions/sprints", () => ({
   moveSprintItemAction: mocks.moveSprintItemAction,
+}));
+
+vi.mock("@/app/actions/item-choices", () => ({
+  searchBacklogItemsAction: vi.fn(async ({ q = "", types }: { q?: string; types?: string[] }) => ({
+    ok: true as const,
+    items: mocks.choices.filter(
+      (item) => (!types || types.includes(item.type)) && item.title.toLowerCase().includes(q.toLowerCase()),
+    ),
+    limit: 20,
+  })),
 }));
 
 vi.mock("@/app/actions/comments", () => ({
@@ -170,6 +183,21 @@ function DetailHarness({
   );
 }
 
+/** The Epics the Parent picker finds: the current one and a target. */
+function withEpicChoices() {
+  mocks.choices = [
+    { id: detail.parentId!, key: "CASS-1", title: "Epic initial", type: "epic" },
+    { id: "55555555-5555-4555-8555-555555555555", key: "CASS-3", title: "Epic cible", type: "epic" },
+  ];
+  return {};
+}
+
+/** Picks `label` in the open Parent picker, which searches the backlog. */
+async function pickParent(user: ReturnType<typeof userEvent.setup>, label: string) {
+  await user.click(screen.getByRole("combobox", { name: "Parent" }));
+  await user.click(await screen.findByRole("option", { name: label }));
+}
+
 /** Opens a « Détails » row's editor, as a click on its value does. */
 async function editField(user: ReturnType<typeof userEvent.setup>, label: string) {
   const iconTrigger = screen.queryByRole("button", { name: `Modifier : ${label}` });
@@ -177,7 +205,7 @@ async function editField(user: ReturnType<typeof userEvent.setup>, label: string
 }
 
 function renderPanel(
-  parent?: { key: string; title: string },
+  parent?: { id: string; key: string; title: string },
   detailOverride = detail,
   canEditItems = true,
 ) {
@@ -250,7 +278,7 @@ describe("ItemDetailPanel header", () => {
   });
 
   it("renders the parent key and title, then the current key alone, as a breadcrumb", () => {
-    renderPanel({ key: "PARENT-1", title: "Composant parent" });
+    renderPanel({ id: "parent-1", key: "PARENT-1", title: "Composant parent" });
 
     const breadcrumb = screen.getByRole("navigation", { name: "Fil d’Ariane" });
     expect(breadcrumb).toHaveTextContent(/^PARENT-1\s*Composant parent\s*\/\s*CASS-2$/);
@@ -351,7 +379,7 @@ describe("ItemDetailPanel header", () => {
       value: { writeText },
     });
     writeText.mockResolvedValueOnce(undefined);
-    renderPanel({ key: "PARENT-1", title: "Composant parent" });
+    renderPanel({ id: "parent-1", key: "PARENT-1", title: "Composant parent" });
     const href = window.location.href;
 
     await user.click(screen.getByRole("button", { name: "Copier le lien" }));
@@ -799,11 +827,8 @@ describe("ItemDetailPanel header", () => {
         <ItemDetailPanel
           {...baseProps}
           detail={taskDetail}
-          parent={{ key: "CASS-1", title: "Epic initial" }}
-          candidates={[
-            { id: detail.parentId!, key: "CASS-1", title: "Epic initial", type: "epic" },
-            { id: "55555555-5555-4555-8555-555555555555", key: "CASS-3", title: "Epic cible", type: "epic" },
-          ]}
+          parent={{ id: detail.parentId!, key: "CASS-1", title: "Epic initial" }}
+          {...withEpicChoices()}
           sprints={[
             { id: "66666666-6666-4666-8666-666666666666", name: "Sprint actif" },
           ]}
@@ -820,7 +845,7 @@ describe("ItemDetailPanel header", () => {
       .not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Priorité / })).not.toBeInTheDocument();
     await editField(user, "Parent");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Parent" }), "55555555-5555-4555-8555-555555555555");
+    await pickParent(user, "CASS-3 — Epic cible");
     await editField(user, "Sprint");
     await user.selectOptions(screen.getByRole("combobox", { name: "Sprint" }), "66666666-6666-4666-8666-666666666666");
 
@@ -852,11 +877,8 @@ describe("ItemDetailPanel header", () => {
         <ItemDetailPanel
           {...baseProps}
           detail={{ ...detail, type: "tache" }}
-          parent={{ key: "CASS-1", title: "Epic initial" }}
-          candidates={[
-            { id: detail.parentId!, key: "CASS-1", title: "Epic initial", type: "epic" },
-            { id: "55555555-5555-4555-8555-555555555555", key: "CASS-3", title: "Epic cible", type: "epic" },
-          ]}
+          parent={{ id: detail.parentId!, key: "CASS-1", title: "Epic initial" }}
+          {...withEpicChoices()}
           canEditItems={false}
           planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
         />
@@ -864,12 +886,12 @@ describe("ItemDetailPanel header", () => {
     );
 
     await editField(user, "Parent");
-    const parentSelect = screen.getByRole("combobox", { name: "Parent" });
-    await user.selectOptions(parentSelect, "55555555-5555-4555-8555-555555555555");
-    expect(parentSelect).toHaveValue("55555555-5555-4555-8555-555555555555");
+    await pickParent(user, "CASS-3 — Epic cible");
+    const parentPicker = screen.getByRole("combobox", { name: "Parent" });
+    expect(parentPicker).toHaveValue("CASS-3 — Epic cible");
     resolveAction({ ok: false, error: "Planification interdite." });
 
-    await waitFor(() => expect(parentSelect).toHaveValue(detail.parentId));
+    await waitFor(() => expect(parentPicker).toHaveValue("CASS-1 — Epic initial"));
     expect(screen.getByRole("alert")).toHaveTextContent("Planification interdite.");
     expect(mocks.toastError).toHaveBeenCalledWith("Planification interdite.");
   });
@@ -882,11 +904,8 @@ describe("ItemDetailPanel header", () => {
         <ItemDetailPanel
           {...baseProps}
           detail={{ ...detail, type: "tache" }}
-          parent={{ key: "CASS-1", title: "Epic initial" }}
-          candidates={[
-            { id: detail.parentId!, key: "CASS-1", title: "Epic initial", type: "epic" },
-            { id: "55555555-5555-4555-8555-555555555555", key: "CASS-3", title: "Epic cible", type: "epic" },
-          ]}
+          parent={{ id: detail.parentId!, key: "CASS-1", title: "Epic initial" }}
+          {...withEpicChoices()}
           canEditItems={false}
           planningCapabilities={{ rank: true, reparent: true, assignSprint: true, manageSprints: false }}
         />
@@ -894,10 +913,10 @@ describe("ItemDetailPanel header", () => {
     );
 
     await editField(user, "Parent");
-    const parentSelect = screen.getByRole("combobox", { name: "Parent" });
-    await user.selectOptions(parentSelect, "55555555-5555-4555-8555-555555555555");
+    await pickParent(user, "CASS-3 — Epic cible");
+    const parentPicker = screen.getByRole("combobox", { name: "Parent" });
 
-    await waitFor(() => expect(parentSelect).toHaveValue(detail.parentId));
+    await waitFor(() => expect(parentPicker).toHaveValue("CASS-1 — Epic initial"));
     expect(screen.getByRole("alert")).toHaveTextContent("Impossible de modifier la planification.");
     expect(mocks.toastError).toHaveBeenCalledWith("Impossible de modifier la planification.");
   });
@@ -1142,11 +1161,9 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
         <ItemDetailPanel
           {...baseProps}
           itemCapabilities={fullCapabilities}
-          // A Fix version filter matched other epics only.
-          createDialog={{
-            ...createDialog,
-            items: [{ id: "other-epic", key: "CASS-5", type: "epic", title: "Autre epic" }],
-          }}
+          // A Fix version filter matched other epics only: the opened item is
+          // still the parent (JIR-118: no candidate list travels with the dialog).
+          createDialog={createDialog}
         />
       </DetailHarness>,
     );
@@ -1154,7 +1171,7 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
     await user.click(screen.getByRole("button", { name: "Créer une tâche" }));
     const dialog = await screen.findByRole("dialog", { name: /Nouvel item/ });
     const parent = within(dialog).getByRole("combobox", { name: /Parent/ });
-    expect(parent).toHaveTextContent(`${detail.key} — ${detail.title}`);
+    expect(parent).toHaveValue(`${detail.key} — ${detail.title}`);
     await user.type(within(dialog).getByRole("textbox", { name: /Titre/ }), "Tâche filtrée");
     await user.click(within(dialog).getByRole("button", { name: /^Créer$/ }));
 
@@ -1226,7 +1243,7 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
       </DetailHarness>,
     );
     await user.click(screen.getByRole("button", { name: "Lier un item" }));
-    expect(screen.getByRole("textbox", { name: "Rechercher un item à lier" })).toHaveFocus();
+    expect(screen.getByRole("combobox", { name: "Rechercher un item à lier" })).toHaveFocus();
   });
 
   it("copies the item's branch name", async () => {

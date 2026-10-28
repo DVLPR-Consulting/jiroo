@@ -4,7 +4,6 @@ import {
   useCallback,
   useId,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   useTransition,
@@ -61,8 +60,8 @@ import {
 } from "@/components/items/fix-version-picker";
 import type { ItemTemplateDto } from "@/lib/services/item-templates";
 import { AssigneePermissionHint } from "@/components/items/assignee-permission-hint";
+import { ItemPicker, type ItemChoice } from "@/components/items/item-picker";
 
-type Item = { id: string; key: string; type: ItemType; title: string };
 /**
  * `category` lets the dialog name the status a create without `statusId`
  * lands in (the backlog's first « todo » status, in board order).
@@ -96,15 +95,16 @@ export type NewItemButtonProps = {
    */
   openCreatedAt?: string;
   /**
-   * The parent candidates: the backlog's live items, whatever the view
-   * filters (a Version-filtered view loads them apart, JIR-92).
+   * The backlog's Composants and Epics (few), for the choices that stay in
+   * the page: the inline Epic picker and the first-steps guide. The dialog's
+   * own Parent field searches the backlog on demand (JIR-118).
    */
-  items: Item[];
+  structure?: ItemChoice[];
   statuses: Status[];
   initialStatusId?: string;
   /** Type and parent to start from (e.g. « + Créer une sous-tâche » in the drawer). */
   initialType?: ItemType;
-  initialParentId?: string;
+  initialParent?: ItemChoice | null;
   trigger?: ReactNode;
   onCreated?: (item: { id: string; key: string }) => void;
   /** The dialog really closed (cancel, Échap or a create without « Créer un autre »). */
@@ -119,7 +119,7 @@ export type NewItemButtonProps = {
   templates?: ItemTemplateDto[];
   /**
    * Pre-fills the title when opened (« Plus d’options » of inline creation);
-   * `initialParentId` is re-applied on every opening too.
+   * `initialParent` is re-applied on every opening too.
    */
   initialTitle?: string;
   /**
@@ -132,7 +132,7 @@ export type NewItemButtonProps = {
 /** The dialog data a view hands down to its « Nouvel item » buttons. */
 export type NewItemDialogData = Pick<
   NewItemButtonProps,
-  "backlogId" | "backlogColor" | "items" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters" | "templates"
+  "backlogId" | "backlogColor" | "structure" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters" | "templates"
 >;
 
 const EMPTY_FIELD_OPTIONS: NewItemFieldOptions = {};
@@ -312,11 +312,10 @@ export function NewItemButton({
   backlogKey,
   backlogColor,
   openCreatedAt,
-  items,
   statuses,
   initialStatusId,
   initialType,
-  initialParentId,
+  initialParent,
   trigger,
   onCreated,
   onClosed,
@@ -345,7 +344,9 @@ export function NewItemButton({
   const [kind, setKind] = useState<ItemKind>("feature");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState<string>("");
-  const [parentId, setParentId] = useState<string>(initialParentId ?? "");
+  const [parent, setParent] = useState<ItemChoice | null>(initialParent ?? null);
+  // What the Parent picker found at its first look: nothing of that level.
+  const [noParentCandidate, setNoParentCandidate] = useState(false);
   const [statusId, setStatusId] = useState<string>(initialStatusId ?? "");
   const [priority, setPriority] = useState<Priority>(0);
   const [fixVersionIds, setFixVersionIds] = useState<string[]>([]);
@@ -360,9 +361,9 @@ export function NewItemButton({
   const [parentError, setParentError] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const typeTriggerRef = useRef<HTMLButtonElement>(null);
-  const parentTriggerRef = useRef<HTMLButtonElement>(null);
+  const parentTriggerRef = useRef<HTMLInputElement>(null);
   // The field to focus once React has committed the change that asked for it.
-  const focusAfterCommit = useRef<RefObject<HTMLButtonElement | null> | null>(null);
+  const focusAfterCommit = useRef<RefObject<HTMLElement | null> | null>(null);
   // Guarantees that commit, even when the state did not change.
   const [, setFocusRequest] = useState(0);
   const parentHintId = useId();
@@ -396,20 +397,18 @@ export function NewItemButton({
       ? type
       : availableItemTypes[0]!;
   const requiredParentType = allowedParentType(effectiveType);
-  const parentOptions = useMemo(
-    () => (requiredParentType ? items.filter((i) => i.type === requiredParentType) : []),
-    [items, requiredParentType],
-  );
-  // Only a listed parent counts: the select, the validation and the payload
-  // always agree, even if a prefilled parent is not among the candidates.
-  const selectedParentId = parentOptions.some((option) => option.id === parentId) ? parentId : "";
+  // Only a parent of the required level counts: the field, the validation
+  // and the payload always agree, even if a prefilled parent is another level.
+  const selectedParent = parent && parent.type === requiredParentType ? parent : null;
+  // A parent already picked is a candidate, whatever the picker's first look said.
+  const noCandidate = noParentCandidate && selectedParent === null;
   // No candidate for the required parent (JIR-91): the backlog has none of
   // that level yet, so the dialog offers to create it: this same draft
   // switches to the parent's type, keeping its title and description. A
   // sprint-contextual create stays a task, so it only explains.
   const canSwitchToParentType =
     requiredParentType !== null &&
-    parentOptions.length === 0 &&
+    noCandidate &&
     !contextualTask &&
     availableItemTypes.includes(requiredParentType);
   const assignableUsers = fieldOptions.canAssign ? (fieldOptions.users ?? []) : [];
@@ -439,7 +438,7 @@ export function NewItemButton({
     resetText();
     setType(defaultType);
     setKind("feature");
-    setParentId(initialParentId ?? "");
+    setParent(initialParent ?? null);
     setStatusId(initialStatusId ?? "");
     setPriority(0);
     setFixVersionIds([]);
@@ -487,16 +486,13 @@ export function NewItemButton({
 
   function handleTypeChange(next: ItemType) {
     setType(next);
-    // The required parent changes with the type: its error no longer applies.
+    // The required parent changes with the type: its error no longer applies,
+    // and the picker says again whether that level has candidates.
     setParentError(null);
+    setNoParentCandidate(false);
     // Clear the parent if it no longer matches the new required type.
     const nextParentType = allowedParentType(next);
-    if (parentId) {
-      const current = items.find((i) => i.id === parentId);
-      if (!nextParentType || !current || current.type !== nextParentType) {
-        setParentId("");
-      }
-    }
+    if (parent && (!nextParentType || parent.type !== nextParentType)) setParent(null);
   }
 
   /** « Créer un Composant » (JIR-91): the same draft becomes the missing parent. */
@@ -508,7 +504,7 @@ export function NewItemButton({
     focusOnceCommitted(typeTriggerRef);
   }
 
-  function focusOnceCommitted(target: RefObject<HTMLButtonElement | null>) {
+  function focusOnceCommitted(target: RefObject<HTMLElement | null>) {
     focusAfterCommit.current = target;
     setFocusRequest((request) => request + 1);
   }
@@ -539,9 +535,9 @@ export function NewItemButton({
     e.preventDefault();
     // Jira's required field: « Créer » says what is missing instead of
     // staying silently disabled (JIR-69). The server still checks it.
-    if (requiredParentType && !selectedParentId) {
+    if (requiredParentType && !selectedParent) {
       setParentError(
-        parentOptions.length === 0
+        noCandidate
           ? `Parent obligatoire : créez d’abord ${aTypeName(requiredParentType)}.`
           : `Parent obligatoire : choisissez ${aTypeName(requiredParentType)}.`,
       );
@@ -560,7 +556,7 @@ export function NewItemButton({
         backlogId,
         type: effectiveType,
         kind,
-        parentId: requiredParentType ? selectedParentId || null : null,
+        parentId: requiredParentType ? (selectedParent?.id ?? null) : null,
         title: title.trim(),
         description: description.trim() ? description : null,
         statusId: statusId || undefined,
@@ -614,11 +610,11 @@ export function NewItemButton({
   // Without the scheduling right there is no Parent field to point at: only
   // a parent handed down (« Plus d’options ») lets the task be created.
   const submitDisabled =
-    pending || !title.trim() || (parentRequired && !canScheduleItems && !selectedParentId);
+    pending || !title.trim() || (parentRequired && !canScheduleItems && !selectedParent);
   const parentDescribedBy = [
     parentError ? parentErrorId : null,
     // JIR-91's « Aucune Epic… » already states the rule: no second sentence.
-    parentOptions.length === 0 ? parentHintId : parentHelpId,
+    noCandidate ? parentHintId : parentHelpId,
   ]
     .filter(Boolean)
     .join(" ");
@@ -635,7 +631,7 @@ export function NewItemButton({
           onClosed?.();
         }
         if (o && initialTitle) setTitle(initialTitle);
-        if (o && initialParentId) setParentId(initialParentId);
+        if (o && initialParent) setParent(initialParent);
       }}
     >
       <DialogTrigger asChild>
@@ -649,6 +645,14 @@ export function NewItemButton({
       <DialogContent
         aria-describedby={undefined}
         className="flex max-h-[min(90dvh,860px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[760px]"
+        onEscapeKeyDown={(event) => {
+          // Échap belongs to a widget that closes itself on it (the Parent
+          // picker's open list): the dialog stays.
+          const target = event.target;
+          if (target instanceof Element && target.closest("[data-local-escape]")) {
+            event.preventDefault();
+          }
+        }}
       >
         <DialogHeader className="flex-none flex-row items-center gap-2.5 border-b border-border px-6 py-4 pr-12">
           <DialogTitle className="text-lg font-semibold">
@@ -718,35 +722,35 @@ export function NewItemButton({
                   Parent <span className="text-[var(--danger)]" aria-hidden>*</span>
                   <span className="sr-only">(obligatoire)</span>
                 </Label>
-                <SelectField
+                {/* Searched on demand (JIR-118): the page carries no candidate list. */}
+                <ItemPicker
                   id="item-parent"
-                  triggerRef={parentTriggerRef}
-                  value={selectedParentId}
+                  backlogKey={backlogKey}
+                  types={[requiredParentType]}
+                  value={selectedParent}
+                  onChange={(next) => {
+                    setParent(next);
+                    setParentError(null);
+                  }}
+                  onEmptyChange={setNoParentCandidate}
+                  emptyLabel={`${noTypeName(requiredParentType)} dans ce backlog.`}
+                  placeholder={`Choisir ${aTypeName(requiredParentType).toLowerCase()}…`}
+                  inputRef={parentTriggerRef}
                   aria-required
                   aria-invalid={parentError ? true : undefined}
                   aria-describedby={parentDescribedBy}
-                  onValueChange={(next) => {
-                    setParentId(next);
-                    setParentError(null);
-                  }}
-                  placeholder={`Choisir ${aTypeName(requiredParentType).toLowerCase()}…`}
-                  options={parentOptions.map((p) => ({
-                    value: p.id,
-                    label: `${p.key} — ${p.title}`,
-                    icon: <TypeIcon type={p.type} />,
-                  }))}
                 />
                 {parentError && (
                   <p id={parentErrorId} className="t-sm text-destructive">
                     {parentError}
                   </p>
                 )}
-                {parentOptions.length > 0 && (
+                {!noCandidate && (
                   <p id={parentHelpId} className="t-sm text-muted-foreground">
                     {parentRule(effectiveType, requiredParentType)}
                   </p>
                 )}
-                {parentOptions.length === 0 && (
+                {noCandidate && (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     <p id={parentHintId} className="t-sm min-w-0 flex-1 basis-56 text-muted-foreground">
                       {`${noTypeName(requiredParentType)} dans ce backlog : ${aTypeName(effectiveType)} se rattache toujours à ${aTypeName(requiredParentType)}.`}

@@ -27,6 +27,10 @@ vi.mock("@/app/actions/items", () => ({
   updateItemAction: mocks.updateItemAction,
 }));
 
+vi.mock("@/app/actions/item-choices", () => ({
+  searchBacklogItemsAction: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
+}));
+
 const readyStatus = {
   id: "ready",
   name: "Prêt",

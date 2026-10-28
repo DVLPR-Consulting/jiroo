@@ -195,23 +195,17 @@ export async function loadItemDetailData({
       canAdministerBacklog: administerDecision.allowed,
       webLinks,
       parent: parentItem
-        ? { key: parentItem.key, title: parentItem.title, type: parentItem.type as ItemType }
+        ? { id: parentItem.id, key: parentItem.key, title: parentItem.title, type: parentItem.type as ItemType }
         : undefined,
       childItems,
-      // The drawer may show an item the view's filter left out: its child
-      // creation picks parents among the whole backlog.
+      // Child creation from the drawer: the opened item is the parent, so no
+      // candidate list travels with it (JIR-118).
       createDialog: capabilities.createItems
         ? {
             templates,
             backlogId: backlog.id,
             backlogColor: backlog.color,
             canScheduleItems: capabilities.scheduleItems,
-            items: backlogItems.map((item) => ({
-              id: item.id,
-              key: item.key,
-              type: item.type,
-              title: item.title,
-            })),
             statuses: statusRows.map((status) => ({
               id: status.id,
               name: status.name,
