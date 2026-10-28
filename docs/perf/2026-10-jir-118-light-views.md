@@ -51,9 +51,19 @@ Payloads remain of the same order: List, Backlog, Tree and Panel are close to th
 
 Latency is substantially lower in this **single-request-at-a-time** protocol than in JIR-41's ten concurrent clients, mutations and realtime subscribers. That is not evidence of a JIR-118 speedup: this is still the before application. The fresh dataset also has 20,000 items versus JIR-41's 20,108 after its mutation campaign. The earlier exact driver is unavailable, and SQL accounting changed from a TCP observer to PostgreSQL logs. Only follow-up runs of this serial probe should be compared as its before/after series.
 
-## After P1
+## After P1 (88f57d5, the files of main 476b8f8)
 
-Pending — not measured.
+Recorded start: **2026-10-28T09:27:09.207Z**, same protocol and seed, on the checkout of PR #147 (`88f57d5`, whose files are those of `main` at `476b8f8`). The probe was copied into that checkout as untracked tooling. Codex's Chromium review of the next lots ran on the same machine during this run: timings are noisier than the baseline (the Backlog p95 is an outlier), sizes and SQL counts are exact.
+
+| Operation | Decoded bytes (p50) | MiB | Full p50 ms | Full p95 ms | Full max ms | SQL p50 [min–max] |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| List | 25899631 | 24.70 | 756.46 | 817.95 | 855.28 | 57 [57–57] |
+| Backlog | 14711280 | 14.03 | 449.90 | 1022.26 | 1045.45 | 59 [59–59] |
+| Tree | 14202987 | 13.55 | 376.56 | 398.62 | 420.92 | 57 [57–57] |
+| Board | 2555427 | 2.44 | 149.28 | 167.60 | 168.54 | 57 [57–57] |
+| Panel | 1267289 | 1.21 | 58.43 | 70.13 | 72.00 | 39 [39–39] |
+
+Reading: dropping `description` and `search` from the view rows takes 1.47 MiB off the List (the descriptions it sent to the browser) and 0.63 MiB off each of the Backlog, Tree and Board (the same payload is streamed to all four views: the candidate lists of the create dialog and the Parent facet, which the next lot removes). The Panel is unchanged, as expected, until the drawer stops reading the whole backlog. The remaining bulk of the List is its 4,024 rendered rows themselves, which only server-side windows (JIR-120) can reduce.
 
 ## After P2
 
