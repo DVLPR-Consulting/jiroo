@@ -65,13 +65,29 @@ Recorded start: **2026-10-28T09:27:09.207Z**, same protocol and seed, on the che
 
 Reading: dropping `description` and `search` from the view rows takes 1.47 MiB off the List (the descriptions it sent to the browser) and 0.63 MiB off each of the Backlog, Tree and Board (the same payload is streamed to all four views: the candidate lists of the create dialog and the Parent facet, which the next lot removes). The Panel is unchanged, as expected, until the drawer stops reading the whole backlog. The remaining bulk of the List is its 4,024 rendered rows themselves, which only server-side windows (JIR-120) can reduce.
 
-## After P2
+## After P2 and P3 (d122aa6, the files of main once PR #150 is merged)
 
-Pending — not measured.
+Recorded start: **2026-10-28T10:01:29.872Z**, same protocol and seed, on the checkout of PR #150 (`d122aa6`: PR #149, the on-demand item picker, plus the drawer's targeted reads), measured once for both lots. The machine was quieter than during the After P1 run (no concurrent review).
 
-## After P3
+| Operation | Decoded bytes (p50) | MiB | Full p50 ms | Full p95 ms | Full max ms | SQL p50 [min–max] |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| List | 25214660 | 24.05 | 690.70 | 709.55 | 725.16 | 57 [57–57] |
+| Backlog | 14026309 | 13.38 | 409.08 | 443.78 | 444.28 | 59 [59–59] |
+| Tree | 13518016 | 12.89 | 248.67 | 257.51 | 267.40 | 57 [57–57] |
+| Board | 1870456 | 1.78 | 87.82 | 91.36 | 93.03 | 57 [57–57] |
+| Panel | 25343 | 0.02 | 19.92 | 22.54 | 27.56 | 40 [40–40] |
 
-Pending — not measured.
+### Before and after, this serial series
+
+| Operation | Before MiB | After MiB | Before full p95 ms | After full p95 ms | SQL before → after |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| List | 26.17 | 24.05 | 853.17 | 709.55 | 57 → 57 |
+| Backlog | 14.66 | 13.38 | 613.83 | 443.78 | 59 → 59 |
+| Tree | 14.18 | 12.89 | 344.96 | 257.51 | 57 → 57 |
+| Board | 3.07 | 1.78 | 148.45 | 91.36 | 57 → 57 |
+| Panel | 1.21 | 0.02 | 58.58 | 22.54 | 39 → 40 |
+
+Reading: the panel no longer carries the backlog (1.21 MiB → 25 KB, p95 59 → 23 ms; one more, much smaller, SQL statement: the children and the cited parents are read apart). The Board loses the candidate lists it streamed with every view (3.07 → 1.78 MiB). The List, Backlog and Tree lose the descriptions, the candidate lists and the Parent facet's 4,024 entries (2.1, 1.3 and 1.3 MiB), and answer faster, but they still send every rendered row of the backlog: their remaining size is the rows themselves, which only server-side windows (JIR-120) can reduce. SQL counts are unchanged by design: this lot removed payload, not statements (JIR-119).
 
 ## Reproduction
 

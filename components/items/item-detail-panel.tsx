@@ -92,6 +92,7 @@ type ActivityRow = typeof activitiesTable.$inferSelect;
 const EMPTY_FIX_VERSIONS: FixVersionOption[] = [];
 type ItemWebLink = { id: string; url: string; title: string | null; createdAt: Date | string };
 const EMPTY_CHILDREN: ChildItem[] = [];
+const EMPTY_HISTORY_ITEMS: { id: string; key: string }[] = [];
 const EMPTY_WEB_LINKS: ItemWebLink[] = [];
 type LabelRow = typeof labelsTable.$inferSelect;
 type UserLite = { id: string; name: string };
@@ -182,7 +183,7 @@ export function ItemDetailPanel({
   statuses,
   backlogKey,
   links,
-  candidates,
+  historyItems = EMPTY_HISTORY_ITEMS,
   refs,
   hasRepoConnection = false,
   canAdministerBacklog = false,
@@ -215,7 +216,8 @@ export function ItemDetailPanel({
   statuses: StatusLite[];
   backlogKey: string;
   links: LinkWithOther[];
-  candidates: { id: string; key: string; title: string; type: ItemType }[];
+  /** The items the history cites (parent changes), to name them by key. */
+  historyItems?: { id: string; key: string }[];
   refs: DevRef[];
   hasRepoConnection?: boolean;
   canAdministerBacklog?: boolean;
@@ -357,14 +359,14 @@ export function ItemDetailPanel({
     const statusName = new Map(statuses.map((status) => [status.id, status.name]));
     const userName = new Map(users.map((user) => [user.id, user.name]));
     const labelName = new Map(backlogLabels.map((label) => [label.id, label.name]));
-    const itemKey = new Map(candidates.map((candidate) => [candidate.id, candidate.key]));
+    const itemKey = new Map(historyItems.map((item) => [item.id, item.key]));
     return {
       status: (id) => statusName.get(id),
       user: (id) => userName.get(id),
       label: (id) => labelName.get(id),
       item: (id) => itemKey.get(id),
     };
-  }, [backlogLabels, candidates, statuses, users]);
+  }, [backlogLabels, historyItems, statuses, users]);
 
   const handleDelete = () => {
     if (!window.confirm("Supprimer cet item et ses sous-items ?")) return;

@@ -14,11 +14,11 @@ import {
   getItemByKeyForBacklog,
   getItemLabelIds,
   listActivities,
-  listItems,
   listLabelsForBacklog,
   listUsers,
   listUsersByIds,
 } from "@/lib/services/items";
+import { listChildItems, listItemChoicesByIds } from "@/lib/services/item-choices";
 import { listLinksForItem } from "@/lib/services/links";
 import { listRefsForItem } from "@/lib/services/refs";
 import { listWebLinksForItem } from "@/lib/services/web-links";
@@ -52,7 +52,6 @@ export async function loadItemDetailData({
   const [
     access,
     detail,
-    backlogItems,
     statusRows,
     labels,
     sprintSnapshot,
@@ -62,7 +61,6 @@ export async function loadItemDetailData({
     // browse_users joins the capabilities' global batch.
     resolveBacklogAccess(userId, backlog.id, ["browse_users"]),
     getItemByKeyForBacklog(itemKey, backlog.id),
-    listItems(backlog.id),
     db
       .select()
       .from(statuses)
@@ -79,6 +77,7 @@ export async function loadItemDetailData({
   // The drawer is already open: explain the miss instead of an empty panel.
   if (!detail) return { kind: "not-found", itemKey };
 
+  // Targeted reads (JIR-118): the item's children, never the whole backlog.
   const [
     activities,
     itemLabelIds,
@@ -91,6 +90,7 @@ export async function loadItemDetailData({
     directoryUsers,
     assigneeCandidates,
     templates,
+    childItems,
   ] = await Promise.all([
     listActivities(detail.id),
     getItemLabelIds(detail.id),
@@ -111,17 +111,34 @@ export async function loadItemDetailData({
     canBrowseUsers ? listUsers() : Promise.resolve([]),
     canBrowseUsers ? listAssignableUsersForBacklog(backlog.id) : Promise.resolve([]),
     capabilities.createItems ? listItemTemplates(backlog.id) : Promise.resolve([]),
+    listChildItems(backlog.id, detail.id),
   ]);
-  // Names shown in the drawer: the directory (when browsable) plus everyone
-  // the backlog and this item reference, so no name falls back to an id. The
-  // whole directory already names everyone: look the others up only without it.
-  const referencedUsers = canBrowseUsers ? [] : await listUsersByIds([
-    ...backlogItems.flatMap((item) => [item.assigneeId, item.reporterId]),
-    detail.assigneeId,
-    detail.reporterId,
-    ...activities.map((activity) => activity.actorId),
-    ...comments.map((comment) => comment.authorId),
-  ].filter((id): id is string => typeof id === "string"));
+  const userFieldChanges = activities.filter(
+    (activity) => activity.field === "assignee" || activity.field === "reporter",
+  );
+  const parentChanges = activities.filter(
+    (activity) => activity.action === "move" && activity.field === "parent",
+  );
+  const [referencedUsers, citedItems] = await Promise.all([
+    // Names shown in the drawer: the directory (when browsable) plus everyone
+    // this item and its history reference, so no name falls back to an id.
+    // The whole directory already names everyone: look the others up only
+    // without it.
+    canBrowseUsers
+      ? Promise.resolve([])
+      : listUsersByIds([
+          detail.assigneeId,
+          detail.reporterId,
+          ...activities.map((activity) => activity.actorId),
+          ...userFieldChanges.flatMap((activity) => [activity.oldValue, activity.newValue]),
+          ...comments.map((comment) => comment.authorId),
+        ].filter((id): id is string => typeof id === "string")),
+    // The parent and the parents the history cites, by their ids.
+    listItemChoicesByIds(backlog.id, [
+      detail.parentId,
+      ...parentChanges.flatMap((activity) => [activity.oldValue, activity.newValue]),
+    ]),
+  ]);
   const directory = directoryUsers.map(({ id, name }) => ({ id, name }));
   const users = [...new Map(
     [...referencedUsers, ...directory].map((candidate) => [candidate.id, candidate]),
@@ -147,25 +164,10 @@ export async function loadItemDetailData({
     (membership) => membership.itemId === detail.id && membership.leftAt === null,
   )?.sprintId ?? null;
 
-  const candidates = backlogItems.map((item) => ({
-    id: item.id,
-    key: item.key,
-    title: item.title,
-    type: item.type as ItemType,
-  }));
   const parentItem = detail.parentId
-    ? backlogItems.find((item) => item.id === detail.parentId)
+    ? citedItems.find((item) => item.id === detail.parentId)
     : undefined;
-  // The backlog's items are ordered depth, rank, key: children keep their rank.
-  const childItems = backlogItems
-    .filter((item) => item.parentId === detail.id)
-    .map((item) => ({
-      id: item.id,
-      key: item.key,
-      title: item.title,
-      type: item.type as ItemType,
-      statusId: item.statusId,
-    }));
+  const historyItems = citedItems.map(({ id, key }) => ({ id, key }));
 
   return {
     kind: "item",
@@ -189,7 +191,7 @@ export async function loadItemDetailData({
       })),
       backlogKey: backlog.key,
       links,
-      candidates,
+      historyItems,
       refs,
       hasRepoConnection: enabledConnections.length > 0,
       canAdministerBacklog: administerDecision.allowed,

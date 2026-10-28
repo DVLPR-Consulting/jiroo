@@ -145,7 +145,7 @@ const baseProps = {
   ],
   backlogKey: "CASS",
   links: [],
-  candidates: [],
+  historyItems: [],
   refs: [],
 };
 
