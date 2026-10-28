@@ -70,6 +70,7 @@ import {
 } from "@/lib/items/sprint-filter";
 import { pointsByStatusCategory } from "@/lib/items/status-points";
 import { listSprintsForBacklog } from "@/lib/services/sprints";
+import { loadBoardSummary } from "@/lib/services/board-summary";
 import { loadItemDetailData } from "@/lib/services/item-detail";
 import {
   getActiveSprintStartCommitment,
@@ -158,6 +159,7 @@ export async function BacklogViewContent({
     sprintSnapshot,
     recentVelocity,
     activeSprintCommitment,
+    boardSummary,
   ] = await Promise.all([
     listItems(backlog.id, { releaseIds: requestedViewState.filters.releaseIds }),
     listItemLabelPairs(backlog.id),
@@ -187,6 +189,12 @@ export async function BacklogViewContent({
     // velocity "Commitment"); one aggregate read, Backlog view only.
     view === "backlog"
       ? getActiveSprintStartCommitment(backlog.id)
+      : Promise.resolve(null),
+    // Under the Version filter the rows loaded here are the version's, so the
+    // sections' figures would be too. The Board's pills describe the whole
+    // sprint whatever the filter (JIR-119, D3): read apart, as after an action.
+    view === "board" && requestedViewState.filters.releaseIds.length > 0
+      ? loadBoardSummary(backlog.id)
       : Promise.resolve(null),
   ]);
   // The Sprint facet (JIR-81) is Jira's issue-search Sprint filter: it belongs
@@ -475,6 +483,10 @@ export async function BacklogViewContent({
   });
   const activeSection = baseSprintSections.find((section) => section.kind === "active") ?? null;
   const activeSprint = activeSection?.sprint ?? null;
+  const boardSprintMetrics =
+    boardSummary && activeSprint && boardSummary.activeSprintId === activeSprint.id
+      ? boardSummary.metrics
+      : (activeSection?.metrics ?? null);
   const activeSprintItemIds = new Set(
     activeSection?.items.map((item) => item.id) ?? [],
   );
@@ -792,7 +804,7 @@ export async function BacklogViewContent({
           itemCapabilities={productCapabilities.items}
           planningCapabilities={productCapabilities.planning}
           activeSprint={activeSprint}
-          activeSprintMetrics={activeSection?.metrics ?? null}
+          activeSprintMetrics={boardSprintMetrics}
           backlogHref={backlogHref}
           today={dayInZone(new Date())}
         />
