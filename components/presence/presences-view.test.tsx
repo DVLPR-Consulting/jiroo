@@ -240,6 +240,9 @@ describe("PresencesView", () => {
     expect(away.querySelector('[data-half-bar="pm"]')).toHaveClass("opacity-25");
     const here = within(half("Hugo Lefèvre, 2 nov. matin").closest("td")!).getByRole("button", { name: /^DATA-2/ });
     expect(here.querySelector('[data-half-bar="am"]')).not.toHaveClass("opacity-25");
+    // Saturday the 7th: open, paused.
+    const weekend = within(half("Hugo Lefèvre, 7 nov. matin").closest("td")!).getByRole("button", { name: /^DATA-2/ });
+    expect(weekend.querySelector('[data-half-bar="pm"]')).toHaveClass("opacity-25");
     expect(screen.queryByRole("button", { name: "Exporter la période (CSV)" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Exporter" }));
     expect(await screen.findByRole("menuitem", { name: "Exporter les absences (CSV)" })).toBeVisible();

@@ -415,7 +415,7 @@ export function PresencesView({ page }: { page: PresencePage }) {
           <>
             <Legend swatch="h-2.5 w-5 bg-[var(--info)]">ticket en cours</Legend>
             <Legend swatch="h-2.5 w-5 bg-[var(--status-done)]">ticket terminé</Legend>
-            <Legend swatch="h-2.5 w-5 bg-[var(--info)] opacity-25">ticket ouvert pendant une absence</Legend>
+            <Legend swatch="h-2.5 w-5 bg-[var(--info)] opacity-25">ticket en pause (absence, week-end, férié)</Legend>
           </>
         ) : null}
         <Legend swatch="bg-[var(--muted)]">week-end et jour férié</Legend>
@@ -658,8 +658,8 @@ function PersonRow({ page, person, days, withLanes, editable, highlighted }: {
                 {segments.map((segment, lane) => {
                   if (!segment) return <i key={lane} aria-hidden="true" className="block h-3" />;
                   const span = daysOf(segment.ticket.startedAt, ticketUntil(segment.ticket, data.today) < period.to ? ticketUntil(segment.ticket, data.today) : period.to).length;
-                  // A bar is drawn by half-days: it pales on the half-days the person is away, the ticket open but not worked on.
-                  const pale = { am: absentHalf(absences, person.id, day, "am"), pm: absentHalf(absences, person.id, day, "pm") };
+                  // A bar is drawn by half-days: it pales when nobody works, the person away or the day off, the ticket open but paused.
+                  const pale = { am: !working || absentHalf(absences, person.id, day, "am"), pm: !working || absentHalf(absences, person.id, day, "pm") };
                   return (
                     <button
                       key={lane}
@@ -1002,7 +1002,7 @@ function RulesDialog() {
         <ul className="list-disc space-y-1.5 pl-5 text-sm">
           <li>Une absence va d’une demi-journée ouvrée à une autre, bornes incluses ; chaque demi-journée ouvrée compte 0,5 j. Les week-ends et les jours fériés français ne comptent jamais. Deux absences ne se chevauchent pas.</li>
           <li>Une absence vaut pour tous les backlogs de la personne ; elle est hachurée tant qu’elle n’est pas passée. Chacun déclare les siennes ; un administrateur d’un backlog, celles de ses membres.</li>
-          <li>Un ticket commence le jour où il passe « En cours » et finit le jour où il passe « Terminé », pour la personne à qui il est assigné aujourd’hui ; il traverse les week-ends et les fériés sans s’interrompre ; sur une demi-journée d’absence, sa barre pâlit : il reste ouvert, mais il n’est pas travaillé. La catégorie actuelle d’un statut vaut pour tout son historique ; « dates approximatives » signale un journal incomplet.</li>
+          <li>Un ticket commence le jour où il passe « En cours » et finit le jour où il passe « Terminé », pour la personne à qui il est assigné aujourd’hui ; il traverse les week-ends, les fériés et les absences sans s’interrompre, mais sa barre y pâlit : il reste ouvert, personne n’y travaille. La catégorie actuelle d’un statut vaut pour tout son historique ; « dates approximatives » signale un journal incomplet.</li>
           <li>Développement : une personne assignée à un ticket aujourd’hui ou au cours des douze derniers mois ; Produit sinon. Rien n’est réglé à la main.</li>
           <li>Les totaux comptent les demi-journées ouvrées d’absence et les tickets terminés dans la période, sur la portée affichée.</li>
         </ul>
