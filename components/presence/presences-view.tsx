@@ -743,14 +743,14 @@ function YearGrid({ page, everyone }: { page: PresencePage; everyone: { develope
                         <td key={month.from} className={cn(CELL_BORDER, "p-0")}>
                           <Link href={hrefFor(page, { view: "month", anchor: month.from })} aria-label={`${person.name}, ${MONTH.format(at(month.from))}`} className="flex h-11 flex-col items-center justify-center gap-0.5 hover:bg-[var(--surface-2)]">
                             {summary.away ? <span className={cn("px-1.5 text-[11px] font-semibold leading-4 text-white", month.from > data.today ? "bg-[color-mix(in_oklch,var(--danger)_30%,var(--surface))] text-[var(--danger)]" : "bg-[var(--danger)]")}>{formatPoints(summary.away)} j</span> : null}
-                            {person.profile === "developer" && summary.done ? <span className="text-[11px] font-semibold text-[var(--status-done)]">{summary.done} ✓</span> : null}
+                            {page.display === "all" && person.profile === "developer" && summary.done ? <span className="text-[11px] font-semibold text-[var(--status-done)]">{summary.done} ✓</span> : null}
                           </Link>
                         </td>
                       );
                     })}
                     <td className={cn(CELL_BORDER, "border-r-0 px-2 text-[11px] leading-[1.35] text-muted-foreground")}>
                       <b className="font-semibold text-[var(--danger)]">{formatPoints(year.away)} j</b> absent
-                      {person.profile === "developer" ? <><br /><b className="font-semibold text-[var(--status-done)]">{year.done}</b> terminés</> : null}
+                      {page.display === "all" && person.profile === "developer" ? <><br /><b className="font-semibold text-[var(--status-done)]">{year.done}</b> terminés</> : null}
                     </td>
                   </tr>
                 );

@@ -220,7 +220,18 @@ describe("PresencesView", () => {
     render(<PresencesView page={{ ...page, view: "year", period: { from: "2026-01-01", to: "2026-12-31" } }} />);
     const november = screen.getByRole("link", { name: "Hugo Lefèvre, novembre 2026" });
     expect(november).toHaveTextContent("5 j");
+    expect(november).toHaveTextContent("1 ✓");
+    expect(november.closest("tr")).toHaveTextContent("1 terminés");
     expect(november).toHaveAttribute("href", "/presences?vue=mois&date=2026-11-01");
+  });
+
+  it("keeps the year to the absences when asked", () => {
+    render(<PresencesView page={{ ...page, view: "year", period: { from: "2026-01-01", to: "2026-12-31" }, display: "absences" }} />);
+    const november = screen.getByRole("link", { name: "Hugo Lefèvre, novembre 2026" });
+    expect(november).toHaveTextContent("5 j");
+    expect(november).not.toHaveTextContent("✓");
+    expect(november.closest("tr")).not.toHaveTextContent("terminés");
+    expect(november).toHaveAttribute("href", "/presences?vue=mois&date=2026-11-01&affichage=absences");
   });
 
   it("shows the absences alone when asked, with the tickets' lane gone", () => {
@@ -240,8 +251,8 @@ describe("PresencesView", () => {
     expect(away.querySelector('[data-half-bar="pm"]')).toHaveClass("opacity-25");
     const here = within(half("Hugo Lefèvre, 2 nov. matin").closest("td")!).getByRole("button", { name: /^DATA-2/ });
     expect(here.querySelector('[data-half-bar="am"]')).not.toHaveClass("opacity-25");
-    // Saturday the 7th: open, paused.
-    const weekend = within(half("Hugo Lefèvre, 7 nov. matin").closest("td")!).getByRole("button", { name: /^DATA-2/ });
+    // Sunday the 1st: open, paused.
+    const weekend = within(half("Hugo Lefèvre, 1 nov. matin").closest("td")!).getByRole("button", { name: /^DATA-2/ });
     expect(weekend.querySelector('[data-half-bar="pm"]')).toHaveClass("opacity-25");
     expect(screen.queryByRole("button", { name: "Exporter la période (CSV)" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Exporter" }));
