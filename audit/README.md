@@ -840,6 +840,7 @@ Une fois le run terminé, finaliser l’inventaire de ses artefacts avec `corepa
 
 La matrice navigateurs et largeurs reste à la demande : `corepack pnpm test:e2e:matrix [projet…]`, une invocation et un reset par projet ([procédure et projets](../docs/e2e-audit.md#browser-and-width-matrix)).
 Axe WCAG A/AA et zoom texte/reflow 200 % couvrent sept pages dans les projets dédiés ; JSON sans HTML et captures restent liés au run ([seuils et procédure](../docs/e2e-audit.md#accessibility-and-zoom)).
+La matrice de dépôts BUG-JIR-011 ajoute 50 dépôts par cible hors écran à 390/768/1200 px, avec une série lointaine conditionnelle et triple contrôle ([procédure](../docs/e2e-audit.md#drop-matrix-bug-jir-011)) ; son premier run réel reste à réaliser.
 
 Le flag unique `JIROO_E2E_PERSIST_AUDIT=1` maintient ensemble le JUnit, le
 manifeste, les journaux et les captures ; une configuration partielle n’est

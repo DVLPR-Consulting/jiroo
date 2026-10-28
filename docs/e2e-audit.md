@@ -25,6 +25,7 @@ The matrix is run on demand, outside CI. The existing `chromium` project keeps i
 | `matrix-zoom-chromium` | Desktop Chrome | 720 × 450 | Seven zoom pages |
 | `matrix-zoom-firefox` | Desktop Firefox | 720 × 450 | Seven zoom pages |
 | `matrix-zoom-webkit` | Desktop Safari | 720 × 450 | Seven zoom pages |
+| `matrix-drops` | Desktop Chrome | 1200 × 800 baseline | Three required drop series + one conditional farthest series |
 
 The shared width subset contains these 21 specs (defined once with the projects in `e2e/matrix.ts`):
 
@@ -38,7 +39,7 @@ Install missing engines before running the matrix: `corepack pnpm exec playwrigh
 Keep the local database connection, explicit reset consent, verified database system identifier, fixture password and audit-persistence variables from the [existing procedure](../audit/README.md). The matrix runner inherits these values and never prints them; it does not grant reset consent. The package command uses the same isolated-app, local auth URL and React server-condition preamble as `test:e2e`.
 
 ```sh
-# All nine projects, in the table's order:
+# All ten projects, in the table's order:
 corepack pnpm test:e2e:matrix
 
 # Only these projects, in argument order:
@@ -114,3 +115,77 @@ NODE_OPTIONS=--conditions=react-server corepack pnpm exec playwright test --list
 For a real isolated run, use the environment and reset safeguards above, then
 `corepack pnpm test:e2e:matrix matrix-zoom-firefox`. Browser installation and real
 matrix execution are separate operations; adding these specs does not run them.
+
+### Drop matrix (BUG-JIR-011)
+
+`corepack pnpm test:e2e:matrix matrix-drops` selects only
+`matrix/drops.spec.ts`, using the existing isolated database/reset procedure.
+The full browser projects discover but skip these stress cases; their setup
+never creates the drop backlog. The legacy Chromium project continues to ignore
+the matrix directory, and the width subsets remain unchanged.
+
+The spec creates one dedicated `DRPxxx` backlog through services, with the four
+default columns plus Contrôle 1, Contrôle 2 and Contrôle 3 added through
+`createStatus`. A component, epic and started sprint own one anchor task per
+column plus a moving task in À faire. The dedicated backlog is archived on
+cleanup because its sprint ledger is append-only. No shared CASS/LABS data is
+changed.
+
+At each of **390, 768 and 1200 px** (height 800), the spec selects the nearest
+column that is **entirely offscreen** at zero horizontal scroll, then verifies
+**50 consecutive forward drops of the same card**. Partial columns do not count
+as offscreen targets. Mouse drag remains supported at 390 px; this is a pointer
+regression test, not a replacement for native touch coverage.
+
+Each drag holds the pointer two pixels inside the scroller's right edge until
+native dnd-kit auto-scroll exposes the chosen column's center. It then samples
+fresh geometry, moves into the column, reads the live region **before releasing**,
+and requires a nonzero horizontal scroll. No programmatic scrolling occurs
+while the card is held. After release, the test independently compares:
+
+1. The intended column against the column named in that card's live announcement.
+2. The actual `statusId` parsed from the moving item's POST server-action arguments,
+   matching the item rather than searching for the expected destination.
+3. The moving card's actual parent column after a reload.
+
+All three must agree with the intended status. Failures name the card key and
+expected / announced / sent / reloaded business labels; absent observations
+fail closed. Request bodies and headers are not written to evidence. The test
+also checks the action's HTTP status and waits for the card's enabled handle
+(server acknowledgement) rather than waiting for the RSC stream to finish.
+
+After each verified reload, `updateItem` returns the card to À faire through
+the service, followed by another reload. This explicitly approved fixture reset
+is **not a tested or counted drop**. Zero scroll is restored only while at rest.
+Series wall time includes these resets for project budgeting; reset latency is
+not reported as a separate measured product action.
+
+There are three required series (150 forward drops). An optional fourth series
+at 1200 px targets the farthest offscreen column for another **50**. It runs only
+after all three required series succeed and when a conservative estimate fits
+the remaining nine-minute internal budget, leaving a minute for process overhead.
+The estimate projects observed fixed work plus auto-scroll milliseconds per
+pixel over the farther distance, with a **25% margin**. Otherwise Playwright
+marks the fourth series skipped with the estimate and elapsed time; it never
+reduces a series below 50 to claim a pass. Required series have 180-second test
+timeouts, and the optional series uses the remaining internal budget.
+
+This is a sub-ten-minute **aim**, not a measured result: no real drop run belongs
+to the tooling lot. As an unmeasured planning assumption, 150 warm cycles at
+2–3 seconds take about 5–7.5 minutes plus setup; the farther series may not fit.
+M3 must record actual times and whether the fourth series ran or was skipped.
+Filled columns are deliberate; existing `board-empty-columns` coverage remains
+separate, as do native touch and initially nonzero-scroll scenarios.
+
+Each executed series writes `<runId>-drops-<width>-nearest.log` (or `-farthest`)
+in the console evidence directory, with each verified triple, positive scroll,
+verified count and total duration. Counts/duration also appear in console and
+test annotations. Incomplete series capture a screenshot through the normal
+run-scoped writer; default Playwright failure artifacts remain enabled. The
+shared credential filter is applied before writing the text evidence.
+
+For discovery only, without database/server/browser execution:
+
+```sh
+NODE_OPTIONS=--conditions=react-server corepack pnpm exec playwright test --project=matrix-drops --list --reporter=list
+```
