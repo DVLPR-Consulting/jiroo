@@ -133,7 +133,7 @@ describe("HelpPage", () => {
       .getByRole("heading", { level: 3, name: "Démarrer dans un nouveau backlog" })
       .closest("div") as HTMLElement;
     expect(topic).toHaveTextContent(
-      "Sous un filtre Version, « Nouvel item » et « Créer un item » proposent tous les parents du backlog, même ceux que le filtre masque.",
+      "Sous un filtre Version, le champ « Parent » de « Nouvel item » et l’« Epic parent » de « Créer un item » proposent tous les parents du backlog, même ceux que le filtre masque.",
     );
     expect(topic).toHaveTextContent("Un ticket créé sans cette version n’apparaît pas dans la vue filtrée");
     expect(topic).toHaveTextContent("« CASS-7 créé — masqué par les filtres de la vue. » le signale, avec « Ouvrir »");
