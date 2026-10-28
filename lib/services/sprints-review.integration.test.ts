@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { databasePool, db } from "@/lib/db";
 import { absences, items, permissionGrants, securityAuditEvents, sprints, statuses } from "@/lib/db/schema/domain";
-import { listAssignableUsersForBacklog } from "@/lib/auth/authorization";
+import { listBacklogTeam } from "@/lib/auth/authorization";
 import { declareAbsence } from "@/lib/services/absences";
 import { createReadVisibilityFixture, deleteReadVisibilityFixture, type ReadVisibilityFixture } from "@/lib/services/read-visibility.integration-fixture";
 import { assignItemsToSprint, createSprint } from "@/lib/services/sprints";
@@ -67,9 +67,16 @@ describeDb("getSprintsReview", () => {
     expect((await getSprintsReview(f.backlogA.id, f.actorA))!.rows[0]).toEqual(closed);
   });
 
-  it("subtracts overlapping absences of current assignable members and hides presence without browse_users", async () => {
+  it("uses attached people for presence and ignores an unattached global administrator's absence", async () => {
+    await db.insert(permissionGrants).values({ scope: "backlog", permissionSchemeId: f.schemeIds[0]!, permissionKey: "assignable_user", principalType: "user", userId: f.actorA });
     await active();
-    const members = await listAssignableUsersForBacklog(f.backlogA.id);
+    await db.insert(absences).values({ userId: f.admin, startDate: "2026-10-22", endDate: "2026-10-26", createdBy: f.admin });
+    expect((await getSprintsReview(f.backlogA.id, f.actorA))!.rows[0]!.presence).toBe(10);
+  });
+
+  it("subtracts overlapping absences of current team members and hides presence without browse_users", async () => {
+    await active();
+    const members = await listBacklogTeam(f.backlogA.id);
     await db.insert(absences).values({ userId: f.admin, startDate: "2026-10-22", endDate: "2026-10-26", createdBy: f.admin });
     expect((await getSprintsReview(f.backlogA.id, f.actorA))!.rows[0]!.presence).toBe(members.length * 10 - 3);
     const grants = await db.delete(permissionGrants).where(and(eq(permissionGrants.scope, "global"), eq(permissionGrants.permissionKey, "browse_users"), eq(permissionGrants.principalType, "authenticated_user"))).returning();
@@ -83,7 +90,7 @@ describeDb("getSprintsReview", () => {
   it("counts the presence on the team's calendar: a holiday off, a declared half-day worth 0,5", async () => {
     // Monday 9 to Friday 13 November: four working days, the Armistice falling on the Wednesday.
     await active("2026-11-09T08:00:00Z", "2026-11-13T17:00:00Z");
-    const members = await listAssignableUsersForBacklog(f.backlogA.id);
+    const members = await listBacklogTeam(f.backlogA.id);
     expect((await getSprintsReview(f.backlogA.id, f.actorA))!.rows[0]!.presence).toBe(members.length * 4);
     await declareAbsence({ userId: f.admin, backlogId: f.backlogA.id, startDate: "2026-11-10", startHalf: "pm", endDate: "2026-11-10", endHalf: "pm" }, f.admin);
     try {

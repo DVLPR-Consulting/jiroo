@@ -535,6 +535,47 @@ export async function listAssignableUsersForBacklog(
   return (await listAssignableUsersForBacklogs([backlogId])).map(({ id, name }) => ({ id, name }));
 }
 
+/**
+ * The people attached through each backlog's permission scheme: both browse
+ * and assignment must match, without the global administrator bypass. A
+ * global administrator belongs only when attached like any other person.
+ * Backlogs with no attached team fall back to their assignable directory;
+ * this costs at most one extra grouped read, limited to those backlogs.
+ */
+export async function listBacklogTeams(
+  backlogIds: readonly string[],
+  executor: AuthorizationExecutor = db,
+): Promise<(AssignableUserIdentity & { backlogId: string })[]> {
+  const ids = [...new Set(backlogIds)];
+  if (ids.length === 0) return [];
+  const context = {
+    backlogId: sql`backlogs.id`,
+    permissionSchemeId: sql`backlog_permission_configs.permission_scheme_id`,
+  };
+  const browseMatch = backlogPermissionMatchSql({ ...context, permission: "browse_backlog" });
+  const assignableMatch = backlogPermissionMatchSql({ ...context, permission: "assignable_user" });
+  const result = await executor.execute<AssignableUserIdentity & { backlogId: string }>(sql`
+    select backlogs.id as "backlogId", directory_user.id, directory_user.name
+    from backlogs
+    left join backlog_permission_configs on backlog_permission_configs.backlog_id = backlogs.id
+    cross join "user" as directory_user
+    where ${inArray(backlogs.id, ids)}
+      and backlog_permission_configs.permission_scheme_id is not null
+      and ${browseMatch} and ${assignableMatch}
+    order by backlogs.id, lower(directory_user.name), directory_user.id
+  `);
+  const attached = new Set(result.rows.map((person) => person.backlogId));
+  const empty = ids.filter((id) => !attached.has(id));
+  const fallback = await listAssignableUsersForBacklogs(empty, executor);
+  // Each backlog occurs in only one result; a stable sort preserves its SQL name order.
+  return [...result.rows, ...fallback].sort((a, b) => a.backlogId.localeCompare(b.backlogId));
+}
+
+/** One backlog's attached team, with the same empty-team fallback as the grouped reader. */
+export async function listBacklogTeam(backlogId: string): Promise<AssignableUserIdentity[]> {
+  return (await listBacklogTeams([backlogId])).map(({ id, name }) => ({ id, name }));
+}
+
 export function explainPermission(input: CheckPermissionInput): Promise<AuthorizationDecision> {
   return checkPermission(input);
 }

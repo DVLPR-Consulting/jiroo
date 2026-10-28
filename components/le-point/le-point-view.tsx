@@ -622,8 +622,9 @@ function RulesDialog() {
           <p>
             <strong className="font-medium text-foreground">Va-t-on finir ?</strong> Ce qui reste, rapporté aux jours ouvrés
             restants et aux personnes présentes ; le rythme jusqu’ici est le terminé rapporté aux jours-personne écoulés.
-            Sans absences déclarées, chaque membre du backlog est présent ; sans la liste des membres, est présente
-            toute personne qui tient un ticket ouvert du sprint.
+            Sans absences déclarées, les personnes rattachées au backlog par ses rôles ou son schéma de droits sont présentes.
+            Si personne n’est rattaché, on reprend celles qui peuvent recevoir un ticket ; sans accès à la liste des membres,
+            est présente toute personne qui tient un ticket ouvert du sprint.
           </p>
           <p>
             <strong className="font-medium text-foreground">Par personne.</strong> La pastille dit le fait et sa couleur le

@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, asc, eq, inArray, isNull, max, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { checkPermission, listAssignableUsersForBacklog } from "@/lib/auth/authorization";
+import { checkPermission, listBacklogTeam } from "@/lib/auth/authorization";
 import { listAccessibleBacklogs } from "@/lib/auth/accessible-backlogs";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -211,7 +211,7 @@ export async function loadLePoint(input: {
       : [],
     // The report reads at most seven headers. Reuse its inclusion rules, with a three-sprint window below.
     sprint ? getVelocityReport(backlog.id, 7) : null,
-    directoryAccess.allowed ? listAssignableUsersForBacklog(backlog.id) : [],
+    directoryAccess.allowed ? listBacklogTeam(backlog.id) : [],
   ]);
   const sprintVelocity = velocityReport && sprint
     ? calculatePreviousSprintsVelocity(
