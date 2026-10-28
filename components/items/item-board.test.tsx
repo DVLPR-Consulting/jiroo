@@ -27,6 +27,10 @@ vi.mock("@/app/actions/items", () => ({
   updateItemAction: mocks.updateItemAction,
 }));
 
+vi.mock("@/app/actions/board", () => ({
+  boardSummaryAction: vi.fn(async () => ({ ok: true as const, summary: { activeSprintId: null, metrics: null } })),
+}));
+
 vi.mock("@/app/actions/item-choices", () => ({
   searchBacklogItemsAction: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
 }));
@@ -996,4 +1000,77 @@ describe("ItemBoard", () => {
       expect(moveItemAction).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("ItemBoard after an action (JIR-119)", () => {
+  beforeEach(() => {
+    mocks.updateItemAction.mockReset();
+    mocks.refresh.mockReset();
+  });
+
+  const refreshed = {
+    ok: true as const,
+    summary: {
+      activeSprintId: "sprint-active",
+      metrics: { ...activeMetrics, remainingPoints: 3, completedPoints: 10, unestimatedCount: 0 },
+    },
+  };
+
+  function renderTwoColumns(boardSummaryAction: (key: string) => Promise<typeof refreshed>) {
+    renderBoard(
+      <ItemBoard
+        backlogKey="DEMO"
+        items={[editableCard]}
+        statuses={[readyStatus, doingStatus]}
+        statusDomain={[readyStatus, doingStatus]}
+        group={null}
+        groupLabels={{}}
+        moveItemAction={vi.fn()}
+        boardSummaryAction={boardSummaryAction}
+        createDialogProps={createDialogProps}
+        activeSprint={activeSprint}
+        activeSprintMetrics={activeMetrics}
+      />,
+    );
+  }
+
+  it("moves the card to the status chosen in its menu and refreshes the sprint's figures, without a page render", async () => {
+    const user = userEvent.setup();
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: { ...editableCard, statusId: "doing" } });
+    const summary = vi.fn(async () => refreshed);
+    renderTwoColumns(summary);
+    expect(screen.getByText("8 pts restants")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Statut : Prêt" }));
+    await user.click(screen.getByRole("menuitem", { name: "En cours" }));
+
+    // The closing menu still hides the page from the accessibility tree: look past it.
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("group", { name: "En cours, 1 item", hidden: true })).getByText("Authentication"),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("group", { name: "Prêt, 0 item", hidden: true })).toBeInTheDocument();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    // The figures come from one small read, not from a page render.
+    await waitFor(() => expect(summary).toHaveBeenCalledWith("DEMO"));
+    await waitFor(() => expect(screen.getByText("3 pts restants")).toBeInTheDocument());
+    expect(screen.getByText("10 pts terminés")).toBeInTheDocument();
+  });
+
+  it("keeps its figures when the read fails or answers for another sprint", async () => {
+    const user = userEvent.setup();
+    mocks.updateItemAction.mockResolvedValueOnce({ ok: true, item: { ...editableCard, statusId: "doing" } });
+    const summary = vi.fn(async () => ({
+      ...refreshed,
+      summary: { ...refreshed.summary, activeSprintId: "another-sprint" },
+    }));
+    renderTwoColumns(summary);
+
+    await user.click(screen.getByRole("button", { name: "Statut : Prêt" }));
+    await user.click(screen.getByRole("menuitem", { name: "En cours" }));
+    await waitFor(() => expect(summary).toHaveBeenCalledWith("DEMO"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.getByText("8 pts restants")).toBeInTheDocument();
+  });
 });

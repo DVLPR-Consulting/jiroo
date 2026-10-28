@@ -30,6 +30,7 @@ import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { InlinePriority, InlineStatus } from "@/components/items/inline-item-field";
+import { boardSummaryAction as defaultBoardSummaryAction } from "@/app/actions/board";
 import { LabelPill } from "@/components/items/label-pill";
 import {
   NewItemButton,
@@ -88,6 +89,9 @@ export type BoardCard = {
 };
 
 export type BoardGroup = "assignee" | "priority" | "component" | "parent" | null;
+
+/** What an action answers with about a card: where the server put it. */
+export type ServerCard = { id: string; statusId: string; rank: string };
 
 type Status = {
   id: string;
@@ -227,6 +231,7 @@ function SortableCard({
   statusDomain,
   today,
   onOpen,
+  onStatusApplied,
   canEditItems,
   canTransitionItems,
   canScheduleItems,
@@ -236,6 +241,7 @@ function SortableCard({
   colDomId: string;
   swimlane: string;
   backlogKey: string;
+  onStatusApplied: (item: ServerCard) => void;
   statusDomain: Status[];
   today: Day;
   onOpen: (key: string) => void;
@@ -307,6 +313,7 @@ function SortableCard({
             backlogKey={backlogKey}
             statusId={card.statusId}
             statuses={statusDomain}
+            onApplied={onStatusApplied}
           />
         ) : undefined}
         onOpen={() => onOpen(card.key)}
@@ -546,6 +553,7 @@ function Column({
   createDialogProps,
   isOver,
   onOpen,
+  onStatusApplied,
   canCreateItems,
   canEditItems,
   canTransitionItems,
@@ -563,6 +571,7 @@ function Column({
   createDialogProps: BoardCreateDialogProps;
   isOver: boolean;
   onOpen: (key: string) => void;
+  onStatusApplied: (item: ServerCard) => void;
   canCreateItems: boolean;
   canEditItems: boolean;
   canTransitionItems: boolean;
@@ -617,6 +626,7 @@ function Column({
           today={today}
           isOver={isOver}
           onOpen={onOpen}
+          onStatusApplied={onStatusApplied}
           canEditItems={canEditItems}
           canTransitionItems={canTransitionItems}
           canScheduleItems={canScheduleItems}
@@ -639,6 +649,7 @@ function ColumnCards({
   today,
   isOver,
   onOpen,
+  onStatusApplied,
   canEditItems,
   canTransitionItems,
   canScheduleItems,
@@ -653,6 +664,7 @@ function ColumnCards({
   today: Day;
   isOver: boolean;
   onOpen: (key: string) => void;
+  onStatusApplied: (item: ServerCard) => void;
   canEditItems: boolean;
   canTransitionItems: boolean;
   canScheduleItems: boolean;
@@ -685,6 +697,7 @@ function ColumnCards({
             statusDomain={statusDomain}
             today={today}
             onOpen={onOpen}
+            onStatusApplied={onStatusApplied}
             canEditItems={canEditItems}
             canTransitionItems={canTransitionItems}
             canScheduleItems={canScheduleItems}
@@ -704,6 +717,7 @@ export function ItemBoard({
   group,
   groupLabels,
   moveItemAction,
+  boardSummaryAction = defaultBoardSummaryAction,
   createDialogProps,
   filtersActive = false,
   hasItems,
@@ -727,6 +741,8 @@ export function ItemBoard({
   group: BoardGroup;
   groupLabels: Record<string, string>;
   moveItemAction: typeof MoveItemAction;
+  /** Refreshes the sprint's figures after an action (JIR-119); the server action by default. */
+  boardSummaryAction?: typeof defaultBoardSummaryAction;
   createDialogProps: BoardCreateDialogProps;
   filtersActive?: boolean;
   hasItems?: boolean;
@@ -773,6 +789,58 @@ export function ItemBoard({
   const [mutationPending, setMutationPending] = useState(false);
   const snapshot = useRef<Columns | null>(null);
   const pending = useRef(0);
+
+  // The sprint's figures: the server's at render, then refreshed by one small
+  // read after each action, since an action no longer renders the page
+  // (JIR-119). Fresh server props still win, like the columns.
+  const [metrics, setMetrics] = useState(activeSprintMetrics);
+  const [seenMetrics, setSeenMetrics] = useState(activeSprintMetrics);
+  if (activeSprintMetrics !== seenMetrics) {
+    setSeenMetrics(activeSprintMetrics);
+    setMetrics(activeSprintMetrics);
+  }
+  const summaryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const summarySeq = useRef(0);
+  useEffect(
+    () => () => {
+      if (summaryTimer.current) clearTimeout(summaryTimer.current);
+    },
+    [],
+  );
+  function refreshSummary() {
+    if (!activeSprint) return;
+    const sprintId = activeSprint.id;
+    if (summaryTimer.current) clearTimeout(summaryTimer.current);
+    // Several quick actions share one read.
+    summaryTimer.current = setTimeout(() => {
+      summaryTimer.current = null;
+      const seq = ++summarySeq.current;
+      boardSummaryAction(backlogKey)
+        .then((result) => {
+          if (seq !== summarySeq.current || !result.ok) return;
+          if (result.summary.activeSprintId === sprintId) setMetrics(result.summary.metrics);
+        })
+        .catch(() => {
+          // The figures keep their last value until the next render.
+        });
+    }, 300);
+  }
+
+  // A successful action answers with the item: the card takes the server's
+  // rank and status, in its column, without a page render (JIR-119).
+  function applyServerCard(server: ServerCard) {
+    setColumns((prev) => {
+      const from = findColumn(prev, server.id);
+      if (!from) return prev;
+      const card = prev[from]!.find((c) => c.id === server.id)!;
+      const next = { ...card, statusId: server.statusId, rank: server.rank };
+      const to = colId(swimlaneOf(card, group), server.statusId);
+      const updated: Columns = { ...prev, [from]: prev[from]!.filter((c) => c.id !== server.id) };
+      updated[to] = [...(updated[to] ?? []), next].sort(byRank);
+      return updated;
+    });
+    refreshSummary();
+  }
 
   // Issue 2 (re-seed race): only accept fresh server props when no drag is
   // active and nothing is in flight — otherwise a mid-drag revalidate would
@@ -983,6 +1051,8 @@ export function ItemBoard({
       if (!res.ok) {
         setColumns(rollbackColumns);
         setError(res.error);
+      } else {
+        applyServerCard(res.item);
       }
     } catch {
       setColumns(rollbackColumns);
@@ -1047,6 +1117,7 @@ export function ItemBoard({
         createDialogProps={createDialogProps}
         isOver={activeId !== null && overColId === id}
         onOpen={openItem}
+        onStatusApplied={applyServerCard}
         canCreateItems={canCreateItems}
         canEditItems={canEditItems}
         canTransitionItems={canTransitionItems}
@@ -1104,17 +1175,17 @@ export function ItemBoard({
                 </p>
               )}
             </div>
-            {activeSprintMetrics && (
+            {metrics && (
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 font-medium">
-                  {`${pointsLabel(activeSprintMetrics.remainingPoints)} ${frenchPlural(activeSprintMetrics.remainingPoints, "restant", "restants")}`}
+                  {`${pointsLabel(metrics.remainingPoints)} ${frenchPlural(metrics.remainingPoints, "restant", "restants")}`}
                 </span>
                 <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 font-medium">
-                  {`${pointsLabel(activeSprintMetrics.completedPoints)} ${frenchPlural(activeSprintMetrics.completedPoints, "terminé", "terminés")}`}
+                  {`${pointsLabel(metrics.completedPoints)} ${frenchPlural(metrics.completedPoints, "terminé", "terminés")}`}
                 </span>
-                {activeSprintMetrics.unestimatedCount > 0 && (
+                {metrics.unestimatedCount > 0 && (
                   <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 font-medium text-muted-foreground">
-                    {countLabel(activeSprintMetrics.unestimatedCount, "non estimé", "non estimés")}
+                    {countLabel(metrics.unestimatedCount, "non estimé", "non estimés")}
                   </span>
                 )}
               </div>

@@ -18,7 +18,7 @@ import {
 } from "@/lib/auth/authorization";
 import type { BacklogPermissionKey } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
-import { invalidateBacklog } from "@/lib/realtime/publish";
+import { invalidateBacklog, publishBacklogChange } from "@/lib/realtime/publish";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
 import { mapZodActionError } from "@/lib/validation/action-error";
 import { bulkUpdateItems } from "@/lib/services/item-bulk";
@@ -250,9 +250,12 @@ export async function createItemAction(input: CreateItemActionInput) {
       await requireAssignableUser({ assigneeId: input.assigneeId, backlogId: backlog.backlogId });
     }
     const { backlogKey, ...data } = input;
+    // The page key stays in the input for the callers; the answer is the
+    // item alone, never a page render (JIR-119).
+    void backlogKey;
     const requestCorrelationId = randomUUID();
     const item = await createItem(data, actorId, requestCorrelationId);
-    await invalidateBacklog(backlogKey, {
+    await publishBacklogChange({
       kind: "item",
       backlogId: backlog.backlogId,
       itemIds: [item.id, ...(input.parentId ? [input.parentId] : [])],
@@ -273,9 +276,12 @@ export async function updateItemAction(input: UpdateItemActionInput) {
   try {
     const authorization = await authorizeItemUpdate(actorId, input);
     const { backlogKey, ...data } = input;
+    void backlogKey;
     const requestCorrelationId = randomUUID();
     const item = await updateItem(data, actorId, requestCorrelationId);
-    await invalidateBacklog(backlogKey, {
+    // The answer is the item alone: the views that need the page re-render
+    // ask for it themselves, the Board applies the item (JIR-119).
+    await publishBacklogChange({
       kind: "item",
       backlogId: authorization.backlogId,
       itemIds: [input.id],
@@ -519,7 +525,9 @@ export async function moveItemAction(input: MoveItemActionInput) {
     const requestCorrelationId = randomUUID();
     const item = await moveItem(data, actorId, requestCorrelationId);
     if (!item) return { ok: false as const, error: "Item introuvable." };
-    await invalidateBacklog(input.backlogKey, {
+    // The Board already moved the card and takes the server's rank from the
+    // answer: no page render travels with it (JIR-119).
+    await publishBacklogChange({
       kind: "item",
       backlogId: itemAuthorization.backlogId,
       itemIds: [input.id],

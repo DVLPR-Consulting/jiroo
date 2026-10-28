@@ -33,6 +33,8 @@ type StatusOption = {
 
 type UserOption = { id: string; name: string };
 type UpdatePatch = Omit<Parameters<typeof updateItemAction>[0], "id" | "backlogKey">;
+/** What a view applies from the item an update answers with: where the server put it. */
+export type AppliedItem = { id: string; statusId: string; rank: string };
 
 function asPriority(value: number): Priority {
   return Math.min(4, Math.max(0, value)) as Priority;
@@ -61,7 +63,16 @@ function visualStatusId(status: StatusOption, statuses: StatusOption[]): StatusI
     : "review";
 }
 
-function useInlineUpdate(itemId: string, backlogKey: string) {
+/**
+ * Sends a patch and, once it is saved, either hands the answered item to
+ * `onApplied` (a view that applies it itself, like the Board: no page render,
+ * JIR-119) or refreshes the page.
+ */
+function useInlineUpdate(
+  itemId: string,
+  backlogKey: string,
+  onApplied?: (item: AppliedItem) => void,
+) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +86,9 @@ function useInlineUpdate(itemId: string, backlogKey: string) {
         return;
       }
       onSuccess?.();
-      router.refresh();
+      // The item answers for itself; without it (gone meanwhile), the page says so.
+      if (onApplied && result.item) onApplied(result.item);
+      else router.refresh();
     });
   }
 
@@ -131,14 +144,17 @@ export function InlineStatus({
   statusId,
   statuses,
   readOnly = false,
+  onApplied,
 }: {
   itemId: string;
   backlogKey: string;
   statusId: string;
   statuses: StatusOption[];
   readOnly?: boolean;
+  /** Applies the saved item in place of a page refresh (the Board moves the card). */
+  onApplied?: (item: AppliedItem) => void;
 }) {
-  const { error, pending, update } = useInlineUpdate(itemId, backlogKey);
+  const { error, pending, update } = useInlineUpdate(itemId, backlogKey, onApplied);
   const errorId = useId();
   const selected = statuses.find((status) => status.id === statusId);
 

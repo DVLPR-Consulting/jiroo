@@ -113,6 +113,10 @@ vi.mock("@/app/actions/items", () => ({
   bulkUpdateItemsAction: vi.fn(),
   updateItemAction: vi.fn(),
 }));
+
+vi.mock("@/app/actions/board", () => ({
+  boardSummaryAction: vi.fn(async () => ({ ok: true as const, summary: { activeSprintId: null, metrics: null } })),
+}));
 vi.mock("@/components/items/item-backlog", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/items/item-backlog")>();
   return {
