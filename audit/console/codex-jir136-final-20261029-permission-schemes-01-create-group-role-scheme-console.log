@@ -1,0 +1,14 @@
+[scenario] création groupe + rôle + schéma
+[création groupe + rôle + schéma] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[création groupe + rôle + schéma] log: [HMR] connected
+[création groupe + rôle + schéma] log: [Fast Refresh] rebuilding
+[création groupe + rôle + schéma] log: [Fast Refresh] done in 153ms
+[création groupe + rôle + schéma] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[création groupe + rôle + schéma] log: [HMR] connected
+[création groupe + rôle + schéma] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[création groupe + rôle + schéma] log: [HMR] connected
+[création groupe + rôle + schéma] [aborted-action] POST /admin 200
+[result] scénario validé
+[scenario] gestionnaire de groupes limité
+[gestionnaire de groupes limité] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[gestionnaire de groupes limité] log: [HMR] connected

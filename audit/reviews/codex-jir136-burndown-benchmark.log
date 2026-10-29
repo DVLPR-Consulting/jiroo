@@ -1,0 +1,8 @@
+(node:90366) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit/lib/reports/burndown-calculations.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"node":"v24.18.1","participants":1,"events":10000,"timesMs":[4.94,7.69,6.64]}
+{"node":"v24.18.1","participants":1000,"events":10000,"timesMs":[23.82,25.07,24.7]}
+{"node":"v24.18.1","participants":5000,"events":10000,"timesMs":[85.87,86.48,83.37]}
+{"node":"v24.18.1","participants":10000,"events":10000,"timesMs":[158.62,168.21,166.71]}

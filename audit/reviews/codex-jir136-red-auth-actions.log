@@ -1,0 +1,63 @@
+
+> jiroo@0.1.0 test /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+> vitest run --project unit app/actions/authorization.test.ts -t server-side
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+
+ ❯ |unit| app/actions/authorization.test.ts (25 tests | 2 failed | 23 skipped) 6ms
+     × keeps affected private backlog identities server-side when members add 5ms
+     × keeps affected private backlog identities server-side when members remove 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |unit| app/actions/authorization.test.ts > authorization administration Server Actions > keeps affected private backlog identities server-side when members add
+ FAIL  |unit| app/actions/authorization.test.ts > authorization administration Server Actions > keeps affected private backlog identities server-side when members remove
+AssertionError: expected { ok: true, membership: { …(4) } } to deeply equal { ok: true, membership: { …(2) } }
+
+- Expected
++ Received
+
+  {
+    "membership": {
++     "affectedBacklogKeys": [
++       "SECRET",
++     ],
++     "affectedBacklogs": [
++       {
++         "id": "00000000-0000-4000-8000-000000000001",
++         "key": "SECRET",
++       },
++     ],
+      "groupId": "00000000-0000-4000-8000-000000000004",
+      "userId": "third-party",
+    },
+    "ok": true,
+  }
+
+ ❯ app/actions/authorization.test.ts:142:61
+    140|   ])("keeps affected private backlog identities server-side when membe…
+    141|     service.mockResolvedValue({ groupId, userId: "third-party", affect…
+    142|     await expect(action({ groupId, userId: "third-party" })).resolves.…
+       |                                                             ^
+    143|     expect(mocks.invalidateBacklog).toHaveBeenCalledWith("SECRET", exp…
+    144|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 23 skipped (25)
+   Start at  11:22:26
+   Duration  382ms (transform 36ms, setup 28ms, import 56ms, tests 6ms, environment 228ms)
+
+ ELIFECYCLE  Test failed. See above for more details.

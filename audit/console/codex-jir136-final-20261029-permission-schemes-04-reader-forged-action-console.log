@@ -1,0 +1,8 @@
+[scenario] capture action administrateur
+[capture action administrateur] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[capture action administrateur] log: [HMR] connected
+[capture action administrateur] [aborted-action] POST /admin 200
+[result] scénario validé
+[scenario] rejeu lecteur
+[rejeu lecteur] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[rejeu lecteur] log: [HMR] connected

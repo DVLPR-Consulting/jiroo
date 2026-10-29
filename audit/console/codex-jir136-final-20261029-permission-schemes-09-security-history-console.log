@@ -1,0 +1,5 @@
+[scenario] historique immuable
+[historique immuable] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[historique immuable] log: [HMR] connected
+[historique immuable] [aborted-action] POST /admin 200
+[result] scénario validé

@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "runId": "codex-jir136-final-20261029",
+  "timestamps": {
+    "startedAt": "2026-10-29T10:50:56.332Z",
+    "databaseVerifiedAt": "2026-10-29T10:50:56.344Z",
+    "manifestWrittenAt": "2026-10-29T10:50:56.482Z"
+  },
+  "runtime": {
+    "node": "v24.18.1",
+    "pnpm": "10.34.5"
+  },
+  "source": {
+    "gitSha": "188f93c49d9ac1fc06a950c032738e318f26933c"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:22f6bf62a9bd696937a734df912fc92bc4a205e3cad91c31cbbda1a177cc2858"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "corepack pnpm test:e2e e2e/permission-schemes.spec.ts",
+    "scenarios": "permission-schemes: authorization administration and backlog access"
+  },
+  "result": {
+    "junitReport": "audit/runs/codex-jir136-final-20261029-junit.xml"
+  },
+  "artifacts": [
+    {
+      "path": ".playwright/test-results/codex-jir136-final-20261029/.last-run.json",
+      "size": 45,
+      "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903"
+    },
+    {
+      "path": "audit/console/codex-jir136-final-20261029-permission-schemes-01-create-group-role-scheme-console.log",
+      "size": 1211,
+      "sha256": "d9ada8194a5151d77f240e0cace612f1830737711de98c76016e42ce446f0abb"
+    },
+    {
+      "path": "audit/console/codex-jir136-final-20261029-permission-schemes-02-backlog-isolation-console.log",
+      "size": 500,
+      "sha256": "8041fdfeecc9d9663eb0f2694c71989c9203a712e69c473a1876f4a5ec42b7a8"
+    },
+    {
+      "path": "audit/console/codex-jir136-final-20261029-permission-schemes-03-permission-helper-console.log",
+      "size": 281,
+      "sha256": "aaf1e081f0e835a0de9249c885a6843af7ad2b954f95e3443461188c059f93d6"
+    },
+    {
+      "path": "audit/console/codex-jir136-final-20261029-permission-schemes-04-reader-forged-action-console.log",
+      "size": 552,
+      "sha256": "0427372b5bd4b3fb6013b6311c3094bc57568b385b620192a77f124284d651a7"
+    },
+    {
+      "path": "audit/console/codex-jir136-final-20261029-permission-schemes-05-specialist-controls-console.log",
+      "size": 323,
+      "sha256": "90319428f7b0a84692eab2d3d28746ffb444f24289cd20d5806fb951a385d3a0"
+    },
+    {
+      "path": "audit/console/codex-jir136-final-20261029-permission-schemes-06-release-permission-interface-console.log",
+      "size": 1008,
+      "sha256": "45da62f6d954b6867e50c442f5f6ef740d5fedf7a9600fdf098e7321db90a234"
+    },
+    {
+      "path": "audit/console/codex-jir136-final-20261029-permission-schemes-07-browse-removal-console.log",
+      "size": 1671,
+      "sha256": "8fb19dcc87c66c4a60606f0895e880626e2aba7183f5525f74b2025a014f89be"
+    },
+    {
+      "path": "audit/console/codex-jir136-final-20261029-permission-schemes-08-stale-shared-scheme-console.log",
+      "size": 734,
+      "sha256": "74e26dcab4f969e70db6ef811f395dbafdc4a789d4d681de9d83695079c8305b"
+    },
+    {
+      "path": "audit/console/codex-jir136-final-20261029-permission-schemes-09-security-history-console.log",
+      "size": 306,
+      "sha256": "0504245ad778e9bf62e5aa21f4224daa1a0b7dcd3217d8e44be02270747df104"
+    },
+    {
+      "path": "audit/console/codex-jir136-final-20261029-permission-schemes-10-reload-second-user-console.log",
+      "size": 815,
+      "sha256": "ebbb383803075d35bebb5cf7719367e7b5f51f17eaeaee1265838c37ccecdda7"
+    },
+    {
+      "path": "audit/network/codex-jir136-final-20261029-permission-schemes-01-create-group-role-scheme-network.log",
+      "size": 32802,
+      "sha256": "4953d5c38fb4a87dc42a7c2166de470fa0c7599013d44c606e1c8b117a9b5bdc"
+    },
+    {
+      "path": "audit/network/codex-jir136-final-20261029-permission-schemes-02-backlog-isolation-network.log",
+      "size": 21316,
+      "sha256": "a196ecdba4bb367e4d7d4922426759c75e62d5e268d2105159cb6575980a3de4"
+    },
+    {
+      "path": "audit/network/codex-jir136-final-20261029-permission-schemes-03-permission-helper-network.log",
+      "size": 8918,
+      "sha256": "0427ba95ab536741898a6ea65d0d227d2688bff360ab9d307cfec8b89c87b533"
+    },
+    {
+      "path": "audit/network/codex-jir136-final-20261029-permission-schemes-04-reader-forged-action-network.log",
+      "size": 18320,
+      "sha256": "133ec8e9717b21d35d2331ae7b34c2c414a9a2b8982a5e754504299bb45e4217"
+    },
+    {
+      "path": "audit/network/codex-jir136-final-20261029-permission-schemes-05-specialist-controls-network.log",
+      "size": 11315,
+      "sha256": "0db7083b4759ea78336c065fb7146e4996d439e40040096613eae4f4333764d1"
+    },
+    {
+      "path": "audit/network/codex-jir136-final-20261029-permission-schemes-06-release-permission-interface-network.log",
+      "size": 22639,
+      "sha256": "83ecb2664aaeca2e11a8bd9e25974709bf1165494119f5841aba811085c9eeb2"
+    },
+    {
+      "path": "audit/network/codex-jir136-final-20261029-permission-schemes-07-browse-removal-network.log",
+      "size": 55660,
+      "sha256": "356c4782d056af3b618c73d0159faa12cf451108743e95e347fae6c095fc0c24"
+    },
+    {
+      "path": "audit/network/codex-jir136-final-20261029-permission-schemes-08-stale-shared-scheme-network.log",
+      "size": 21388,
+      "sha256": "2fb692ae332ee370b17c4832cad9d0697b4a8c449c2e9cd64c6df7e0d769cf57"
+    },
+    {
+      "path": "audit/network/codex-jir136-final-20261029-permission-schemes-09-security-history-network.log",
+      "size": 7381,
+      "sha256": "278880109f81e2c7698a574568ae87598be24ae2655afba2824c6eebb2e94e9d"
+    },
+    {
+      "path": "audit/network/codex-jir136-final-20261029-permission-schemes-10-reload-second-user-network.log",
+      "size": 28086,
+      "sha256": "ec3db8fe1d4a009b088e7b8b91f481ade81f2cbb7ff922ba90a7853718d4b087"
+    },
+    {
+      "path": "audit/runs/codex-jir136-final-20261029-junit.xml",
+      "size": 1792,
+      "sha256": "747ad5085e6718faebc81f61974826f2a869256013814079ab6b0527382a7ade"
+    },
+    {
+      "path": "audit/screenshots/codex-jir136-final-20261029-FIXED-BUG-JIR-024-protected-admin-group-membership-controls.png",
+      "size": 112393,
+      "sha256": "49366b3c59927b6553a06f2575cf7e10910f6a175b6983e085bf813624fbf30c"
+    },
+    {
+      "path": "audit/screenshots/codex-jir136-final-20261029-FIXED-BUG-JIR-025-project-role-blockers-clean-console.png",
+      "size": 34330,
+      "sha256": "d79ef8e75a8f2b1743859c56b6eb5226ba226b07ed344540e7b88820f8295f72"
+    }
+  ]
+}

@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-29",
+  "base": "b0b6c72684d11b8b6c778325f3d357f1649f9375",
+  "codeRevision": "188f93c49d9ac1fc06a950c032738e318f26933c",
+  "runtime": {
+    "node": "24.18.1",
+    "pnpm": "10.34.5",
+    "postgres": "17",
+    "databasePort": 5460,
+    "applicationPort": 3100
+  },
+  "checks": {
+    "typecheck": {
+      "exit": 0
+    },
+    "lint": {
+      "exit": 0,
+      "preexistingWarnings": [
+        "lib/auth/client.ts:8"
+      ]
+    },
+    "unit": {
+      "exit": 0,
+      "passed": 3370,
+      "skipped": 1,
+      "filesPassed": 291
+    },
+    "db": {
+      "exit": 0,
+      "passed": 499,
+      "skipped": 5,
+      "filesPassed": 51,
+      "filesSkipped": 1,
+      "database": "jiroo_e2e",
+      "resetConsent": true,
+      "databaseIdentityVerified": true
+    },
+    "build": {
+      "exit": 0
+    },
+    "e2e": {
+      "exit": 0,
+      "passed": 10,
+      "runId": "codex-jir136-final-20261029",
+      "inventoryArtifacts": 24
+    }
+  },
+  "accessQueries": {
+    "occupants": [
+      1,
+      100
+    ],
+    "before": [
+      7,
+      403
+    ],
+    "after": [
+      7,
+      7
+    ],
+    "largeBeforeMilliseconds": 75.600625,
+    "largeAfterMilliseconds": 15.09425,
+    "timingSamples": 1
+  },
+  "presence": {
+    "tickets": 2001,
+    "resultRowsBeforeLimit": 2001,
+    "fixtureSetupMilliseconds": 151.379875,
+    "initialReadMilliseconds": 1655.076042,
+    "explainBeforeMilliseconds": 2776.083,
+    "explainAfterMilliseconds": 244.668,
+    "aggregateLoopsBefore": 2001,
+    "aggregateLoopsAfter": 1,
+    "returnedRowsEqual": true,
+    "sameDatabaseSameFixtureSameParameters": true
+  },
+  "burndownPure": {
+    "events": 10000,
+    "exactPoints": 10002,
+    "maxDisplayPoints": 600,
+    "samplesMilliseconds": {
+      "1": [
+        4.94,
+        7.69,
+        6.64
+      ],
+      "1000": [
+        23.82,
+        25.07,
+        24.7
+      ],
+      "5000": [
+        85.87,
+        86.48,
+        83.37
+      ],
+      "10000": [
+        158.62,
+        168.21,
+        166.71
+      ]
+    },
+    "fixtureConstructionExcluded": true,
+    "warmupRunsPerPopulation": 1
+  },
+  "limitations": [
+    "Les temps sont locaux, sans charge concurrente représentative de production.",
+    "La sonde DB de renommage a échoué sur les options du harnais ; ce défaut reste une preuve statique et une confirmation métier.",
+    "La première passe E2E précédait le commit de sécurité ; la passe finale est reliée à la révision committée.",
+    "Un premier harnais a échoué dans son nettoyage après build ; son conteneur a été supprimé, puis build et E2E ont été relancés dans un environnement jetable neuf."
+  ],
+  "cleanup": {
+    "containerRemoved": "jiroo-jir136-tmp",
+    "listeningPortsAfterCleanup": {
+      "5460": false,
+      "3100": false
+    },
+    "removedWorktreePaths": [
+      ".next",
+      ".next-e2e",
+      ".playwright/.auth"
+    ],
+    "existingAuditArtifactsChanged": false,
+    "generatedAgentsHeadingRestored": true
+  },
+  "evidenceLogFormatting": "Espaces de fin de ligne et lignes vides finales normalisés ; contenu des résultats conservé."
+}

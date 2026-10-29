@@ -1,0 +1,49 @@
+
+> jiroo@0.1.0 test /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+> vitest run --project db lib/services/links.integration.test.ts
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+
+ ❯ |db| lib/services/links.integration.test.ts (4 tests | 2 failed) 133ms
+     × serializes inverse 'blocks' requests (mixed case: true) 31ms
+     × serializes inverse 'relates' requests (mixed case: true) 21ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |db| lib/services/links.integration.test.ts > concurrent link invariants > serializes inverse 'blocks' requests (mixed case: true)
+ FAIL  |db| lib/services/links.integration.test.ts > concurrent link invariants > serializes inverse 'relates' requests (mixed case: true)
+AssertionError: expected [ { status: 'fulfilled', …(1) }, …(1) ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ lib/services/links.integration.test.ts:47:62
+     45|       await gate.query("commit");
+     46|       const result = await pending;
+     47|       expect(result.filter((r) => r.status === "fulfilled")).toHaveLen…
+       |                                                              ^
+     48|       const refused = result.find((r) => r.status === "rejected") as P…
+     49|       expect(refused.reason.message).toContain(type === "blocks" ? "Cy…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 2 passed (4)
+   Start at  11:36:32
+   Duration  644ms (transform 40ms, setup 28ms, import 202ms, tests 133ms, environment 220ms)
+
+ ELIFECYCLE  Test failed. See above for more details.

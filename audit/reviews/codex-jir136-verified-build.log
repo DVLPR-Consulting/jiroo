@@ -1,0 +1,54 @@
+
+> jiroo@0.1.0 build /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+> next build
+
+▲ Next.js 16.4.1 (Turbopack)
+✓ Running next.config.ts took 12ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 311ms
+  Running TypeScript ...
+  Finished TypeScript in 1890ms ...
+  Collecting page data using 17 workers ...
+  Generating static pages using 17 workers (0/16) ...
+  Generating static pages using 17 workers (4/16)
+  Generating static pages using 17 workers (8/16)
+  Generating static pages using 17 workers (12/16)
+✓ Generating static pages using 17 workers (16/16) in 229ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ○ /2fa
+├ ƒ /2fa/enroll
+├ ○ /2fa/recovery
+├ ƒ /admin
+├ ƒ /aide
+├ ƒ /api/auth/[...all]
+├ ƒ /api/backlogs/[key]/items/[itemKey]
+├ ƒ /api/health
+├ ƒ /api/notifications
+├ ƒ /api/realtime
+├ ƒ /api/webhooks/github/[connectionId]
+├ ƒ /api/webhooks/gitlab/[connectionId]
+├ ƒ /b/[key]
+├ ƒ /b/[key]/le-point
+├ ƒ /b/[key]/releases
+├ ƒ /b/[key]/releases/[releaseId]
+├ ƒ /b/[key]/releases/[releaseId]/notes
+├ ƒ /b/[key]/reports
+├ ƒ /b/[key]/roadmap
+├ ƒ /b/[key]/settings/access
+├ ƒ /b/[key]/settings/development
+├ ƒ /b/[key]/settings/templates
+├ ○ /design
+├ ƒ /le-point
+├ ○ /login
+├ ƒ /mine
+├ ƒ /presences
+└ ƒ /trash
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

@@ -1,0 +1,79 @@
+
+> jiroo@0.1.0 test /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+> vitest run --project db
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+
+ ❯ |db| lib/services/items.integration.test.ts (44 tests | 1 failed) 504ms
+     × creates a task and its contextual sprint membership atomically 19ms
+ ❯ |db| lib/services/presence-scope.integration.test.ts (7 tests | 1 failed) 451ms
+     × uses a fixed number of queries for one or many visible backlogs 25ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |db| lib/services/items.integration.test.ts > createItem sprint transaction > creates a task and its contextual sprint membership atomically
+Error: Failed query: insert into "items" ("id", "key", "type", "kind", "backlog_id", "title", "description", "parent_id", "status_id", "priority", "estimate_points", "assignee_id", "reporter_id", "rank", "path", "depth", "start_date", "due_date", "created_at", "updated_at", "closed_at", "deleted_at") values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, default, default, $19, default) returning "id", "key", "type", "kind", "backlog_id", "title", "description", "parent_id", "status_id", "priority", "estimate_points", "assignee_id", "reporter_id", "rank", "path", "depth", "start_date", "due_date", "created_at", "updated_at", "closed_at", "deleted_at", "search"
+params: a5d7523a-1dbb-4633-8016-ac3be48d16be,RCBFDE-3,tache,feature,5484f450-2660-40aa-9d69-7afceee50f44,Créée depuis le sprint,,4ca6531e-81b3-4a87-993c-748649074221,23392829-21f2-4e15-9907-09350e510482,0,,,x8DiFtspAC4wdgQFx2OMO1hsDUbuuQ1R,a3,root.9ed9ff2870b048588fe9a6d29c65f2c8.4ca6531e81b34a87993c748649074221.a5d7523a1dbb46338016ac3be48d16be,2,,,
+ ❯ NodePgPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/src/pg-core/session.ts:73:10
+ ❯ node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/src/node-postgres/session.ts:154:18
+ ❯ lib/services/items.ts:563:22
+    561|       const closedAt = category === "done" ? new Date() : null;
+    562|
+    563|       const [item] = await tx
+       |                      ^
+    564|         .insert(items)
+    565|         .values({
+ ❯ NodePgSession.transaction node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/src/node-postgres/session.ts:259:18
+ ❯ withRetry lib/services/items.ts:339:14
+ ❯ lib/services/items.integration.test.ts:185:23
+
+Caused by: error: duplicate key value violates unique constraint "items_key_unique"
+ ❯ node_modules/.pnpm/pg@8.21.0/node_modules/pg/lib/client.js:646:17
+ ❯ node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/node-postgres/session.js:124:18
+ ❯ NodePgPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/pg-core/session.js:39:16
+ ❯ node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/node-postgres/session.js:117:22
+ ❯ lib/services/items.ts:563:22
+ ❯ NodePgSession.transaction node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/node-postgres/session.js:186:22
+ ❯ withRetry lib/services/items.ts:339:14
+ ❯ lib/services/items.integration.test.ts:185:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { length: 200, severity: 'ERROR', code: '23505', detail: 'Key (key)=(RCBFDE-3) already exists.', hint: undefined, position: undefined, internalPosition: undefined, internalQuery: undefined, where: undefined, schema: 'public', table: 'items', dataType: undefined, constraint: 'items_key_unique', file: 'nbtinsert.c', routine: '_bt_check_unique' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |db| lib/services/presence-scope.integration.test.ts > presence scope and observed profiles > uses a fixed number of queries for one or many visible backlogs
+Error: Failed query: insert into "backlogs" ("id", "key", "name", "color", "archived_at", "lead_user_id", "created_at") values (default, $1, $2, default, default, default, default), (default, $3, $4, default, default, default, default), (default, $5, $6, default, default, default, default), (default, $7, $8, default, default, default, default), (default, $9, $10, default, default, default, default), (default, $11, $12, default, default, default, default), (default, $13, $14, default, default, default, default), (default, $15, $16, default, default, default, default), (default, $17, $18, default, default, default, default), (default, $19, $20, default, default, default, default), (default, $21, $22, default, default, default, default), (default, $23, $24, default, default, default, default) returning "id", "key", "name", "color", "archived_at", "lead_user_id", "created_at"
+params: PSCCADFDAAAAAA,Scope 0,PSAAAAAAAAAAAA,Scope 1,PSEAAEBAAABAAA,Scope 2,PSCEFACEAADDAA,Scope 3,PSEAAAAADBAACC,Scope 4,PSCAAAAAEAAFEA,Scope 5,PSAAAACAFCAAAD,Scope 6,PSAFAAAAAAACCA,Scope 7,PSEFADCAAAADAA,Scope 8,PSAAABFFAAAAAA,Scope 9,PSAAAAAAAAAAAA,Scope 10,PSBAAABAAAAFAB,Scope 11
+ ❯ NodePgPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/src/pg-core/session.ts:73:10
+ ❯ node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/src/node-postgres/session.ts:154:18
+ ❯ lib/services/presence-scope.integration.test.ts:107:19
+
+
+Caused by: error: duplicate key value violates unique constraint "backlogs_key_unique"
+ ❯ node_modules/.pnpm/pg-pool@3.14.0_pg@8.21.0/node_modules/pg-pool/index.js:45:11
+ ❯ node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/node-postgres/session.js:124:18
+ ❯ NodePgPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/pg-core/session.js:39:16
+ ❯ node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/node-postgres/session.js:117:22
+ ❯ lib/services/presence-scope.integration.test.ts:107:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { length: 215, severity: 'ERROR', code: '23505', detail: 'Key (key)=(PSAAAAAAAAAAAA) already exists.', hint: undefined, position: undefined, internalPosition: undefined, internalQuery: undefined, where: undefined, schema: 'public', table: 'backlogs', dataType: undefined, constraint: 'backlogs_key_unique', file: 'nbtinsert.c', routine: '_bt_check_unique' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed | 49 passed | 1 skipped (52)
+      Tests  2 failed | 497 passed | 5 skipped (504)
+   Start at  11:42:44
+   Duration  63.63s (transform 761ms, setup 1.04s, import 11.06s, tests 36.04s, environment 12.18s)
+
+ ELIFECYCLE  Test failed. See above for more details.
