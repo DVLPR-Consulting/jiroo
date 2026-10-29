@@ -59,7 +59,7 @@ async function createFromDialog(page: Page, type: string, title: string, parent?
   const dialog = page.getByRole("dialog", { name: "Nouvel item" });
   await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText(type);
   if (parent) {
-    await expect(dialog.getByRole("combobox", { name: /Parent/ })).toContainText(parent);
+    await expect(dialog.getByRole("combobox", { name: /Parent/ })).toHaveValue(new RegExp(`^${KEY}-\\d+ — ${parent}$`));
   }
   await dialog.getByRole("textbox", { name: /Titre/ }).fill(title);
   await dialog.getByRole("button", { name: "Créer" }).click();

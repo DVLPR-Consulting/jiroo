@@ -193,7 +193,9 @@ test.describe("panneau de détail", () => {
           element.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
         ),
     );
-    const properties = page.getByTestId("item-detail-properties");
+    const properties = dialog.getByTestId("item-detail-properties");
+    await properties.getByRole("button", { name: "Modifier : Parent", exact: true }).click();
+    await expect(properties.getByRole("combobox", { name: "Parent", exact: true })).toBeVisible();
     const drawerBox = await dialog.boundingBox();
     const box = await properties.boundingBox();
     if (!drawerBox || !box) throw new Error("Panneau de détail non mesurable.");
@@ -206,6 +208,7 @@ test.describe("panneau de détail", () => {
     const overflow = await properties.evaluate((column) => {
       const limit = column.getBoundingClientRect().right - 20 + 0.5;
       return [...column.querySelectorAll("input, select, button")]
+        .filter((control) => control.getClientRects().length > 0)
         .filter((control) => control.getBoundingClientRect().right > limit).length;
     });
     expect(overflow).toBe(0);
@@ -214,6 +217,7 @@ test.describe("panneau de détail", () => {
       const context = document.createElement("canvas").getContext("2d")!;
       return [...column.querySelectorAll<HTMLInputElement>("input[placeholder]")]
         .filter((input) => {
+          if (input.getClientRects().length === 0) return false;
           const style = getComputedStyle(input);
           context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
           const room = input.clientWidth

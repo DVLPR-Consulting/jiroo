@@ -259,7 +259,7 @@ test.describe("fenêtre « Nouvel item »", () => {
     await expect(dialog.getByRole("textbox", { name: "Titre" })).toHaveValue("");
     await expect(dialog.getByRole("textbox", { name: "Titre" })).toBeFocused();
     await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText("Tâche");
-    await expect(dialog.getByRole("combobox", { name: /Parent/ })).toContainText(keyPattern(epic.key));
+    await expect(dialog.getByRole("combobox", { name: /Parent/ })).toHaveValue(new RegExp(`^${epic.key} — `));
 
     await dialog.getByRole("textbox", { name: "Titre" }).fill(`JIR-73 seconde ${RUN_ID}`);
     await dialog.getByRole("checkbox", { name: "Créer un autre" }).uncheck();
@@ -298,7 +298,7 @@ test.describe("fenêtre « Nouvel item »", () => {
 
     await dialog.getByRole("button", { name: "Créer une tâche", exact: true }).click();
     const create = page.getByRole("dialog", { name: "Nouvel item" });
-    await expect(create.getByRole("combobox", { name: /Parent/ })).toContainText(keyPattern(epic.key));
+    await expect(create.getByRole("combobox", { name: /Parent/ })).toHaveValue(new RegExp(`^${epic.key} — `));
     await create.getByRole("textbox", { name: "Titre" }).fill(`JIR-73 hors filtre ${RUN_ID}`);
     await create.getByRole("button", { name: "Créer", exact: true }).click();
     await expect(create).toHaveCount(0);
