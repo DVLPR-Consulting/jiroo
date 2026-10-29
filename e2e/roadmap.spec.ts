@@ -1,3 +1,4 @@
+import { observePage } from "./support/capture";
 import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { eq } from "drizzle-orm";
 import { db } from "../lib/db";
@@ -18,28 +19,7 @@ const captures = new Map<Page, Capture>();
 function observe(page: Page, label: string) {
   const capture: Capture = { console: [label], network: [label], errors: [], navigating: false };
   captures.set(page, capture);
-  page.on("console", (message) => {
-    capture.console.push(`[${message.type()}] ${message.text()}`);
-    if (message.type() === "error") capture.errors.push(message.text());
-  });
-  page.on("pageerror", (error) => {
-    capture.console.push(`[pageerror] ${error.message}`);
-    capture.errors.push(error.message);
-  });
-  page.on("response", (response) => {
-    const line = `${response.status()} ${response.request().method()} ${response.url()}`;
-    capture.network.push(line);
-    if (response.status() >= 400) capture.errors.push(line);
-  });
-  page.on("requestfailed", (request) => {
-    const error = request.failure()?.errorText;
-    const line = `${request.method()} ${request.url()} ${error}`;
-    capture.network.push(line);
-    // Reload intentionally closes this tab's long-lived stream.
-    const expected = capture.navigating && new URL(request.url()).pathname === "/api/realtime"
-      && error === "net::ERR_ABORTED";
-    if (!expected) capture.errors.push(line);
-  });
+  observePage(page, { console: capture.console, network: capture.network, onFault: ({ line }) => capture.errors.push(line) }, label);
   return capture;
 }
 
