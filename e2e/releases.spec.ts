@@ -1,3 +1,4 @@
+import { observePage } from "./support/capture";
 import "dotenv/config";
 import { interceptAction, performAction, type ActionMatch } from "./support/actions";
 
@@ -95,33 +96,7 @@ function observe(page: Page, capture: Capture, actor: string) {
   if (capture.pages.has(page)) return;
   capture.pages.add(page);
   capture.activePage = page;
-  page.on("console", (message) => {
-    const line = `[${actor}] ${message.type()}: ${message.text()}`;
-    capture.console.push(line);
-    if (message.type() === "error") {
-      capture.faults.push({ kind: "console", line, page });
-    }
-  });
-  page.on("pageerror", (error) => {
-    const line = `[${actor}] pageerror: ${error.message}`;
-    capture.console.push(line);
-    capture.faults.push({ kind: "page", line, page });
-  });
-  page.on("request", (request) => {
-    capture.network.push(`[request] [${actor}] ${request.method()} ${request.url()}`);
-  });
-  page.on("response", (response) => {
-    const line = `[response] [${actor}] ${response.request().method()} ${response.status()} ${response.url()}`;
-    capture.network.push(line);
-    if (response.status() >= 400) {
-      capture.faults.push({ kind: "http", line, page });
-    }
-  });
-  page.on("requestfailed", (request) => {
-    const line = `[failed] [${actor}] ${request.method()} ${request.url()} ${request.failure()?.errorText ?? "unknown"}`;
-    capture.network.push(line);
-    capture.faults.push({ kind: "request", line, page });
-  });
+  observePage(page, { console: capture.console, network: capture.network, onFault: (fault) => capture.faults.push(fault) }, actor);
 }
 
 function activatePage(capture: Capture, page: Page) {
