@@ -1,0 +1,167 @@
+[scenario] capture action administrateur
+[capture action administrateur] request GET http://localhost:3100/admin?tab=groups
+[capture action administrateur] 200 GET http://localhost:3100/admin?tab=groups
+[capture action administrateur] request GET http://localhost:3100/_next/static/media/GeistMono_Variable-s.p.3x-_q69-5-na5.woff2
+[capture action administrateur] request GET http://localhost:3100/_next/static/media/Geist_Variable-s.p.07llyuw7ush_n.woff2
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/app_1f3z4xovu6ts3._.css
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1ensnhzzz7ywf._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom-client_development_0klrjggdzrbdd.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom_development_0_zd_l2kylhrw.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_0tg87u1c2jhy8._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-server-dom-turbopack_1pss9gsjld--e._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_next-devtools_index_0gkrnae4eyf-s.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_0yl7fd8n1fycg._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_client_0nzwpuoz2_fpe._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_00txrel2klxj9._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e474n4mns._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/_1anvha4rlo79g._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/turbopack-_0tarvnjjw_srp._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/_1f23vbnarmvec._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/_13uux42pushyd._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/_03tjj566eqwoj._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myfxvxz2u._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_classic_0zkl3adr1a7xg._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_core_154wm9-r_42lt._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_locales_1x9v8rdd-quw8._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_16wer07cq0-mr._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/_0ql4zhl9bfjp0._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/_1welw3sox5y5s._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/1z_g_lucide-react_dist_esm_icons_1_2qo5nmm7w9w._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/app_1f3z4xovu6ts3._.css
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/media/GeistMono_Variable-s.p.3x-_q69-5-na5.woff2
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/media/Geist_Variable-s.p.07llyuw7ush_n.woff2
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1ensnhzzz7ywf._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom_development_0_zd_l2kylhrw.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_0tg87u1c2jhy8._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_0yl7fd8n1fycg._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-server-dom-turbopack_1pss9gsjld--e._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e474n4mns._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/_1anvha4rlo79g._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_00txrel2klxj9._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/_1f23vbnarmvec._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/turbopack-_0tarvnjjw_srp._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/_13uux42pushyd._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myfxvxz2u._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_classic_0zkl3adr1a7xg._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom-client_development_0klrjggdzrbdd.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/_03tjj566eqwoj._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/_0ql4zhl9bfjp0._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_next-devtools_index_0gkrnae4eyf-s.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/1z_g_lucide-react_dist_esm_icons_1_2qo5nmm7w9w._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_client_0nzwpuoz2_fpe._.js
+[capture action administrateur] request GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsayzyj2p6._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_locales_1x9v8rdd-quw8._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/_1welw3sox5y5s._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_core_154wm9-r_42lt._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_16wer07cq0-mr._.js
+[capture action administrateur] 200 GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsayzyj2p6._.js
+[capture action administrateur] request POST http://localhost:3100/admin?tab=groups
+[capture action administrateur] request GET http://localhost:3100/api/realtime
+[capture action administrateur] 200 POST http://localhost:3100/admin?tab=groups
+[capture action administrateur] request POST http://localhost:3100/admin?tab=groups
+[capture action administrateur] 200 GET http://localhost:3100/api/realtime
+[capture action administrateur] 200 POST http://localhost:3100/admin?tab=groups
+[capture action administrateur] request POST http://localhost:3100/admin?tab=groups
+[timing] action source 75ms
+[capture action administrateur] 200 POST http://localhost:3100/admin?tab=groups
+[capture action administrateur] failed POST http://localhost:3100/admin?tab=groups net::ERR_ABORTED
+[capture action administrateur] request GET http://localhost:3100/api/notifications
+[capture action administrateur] 200 GET http://localhost:3100/api/notifications
+[scenario] rejeu lecteur
+[rejeu lecteur] request GET http://localhost:3100/b/CASS
+[rejeu lecteur] 200 GET http://localhost:3100/b/CASS
+[rejeu lecteur] request GET http://localhost:3100/_next/static/media/GeistMono_Variable-s.p.3x-_q69-5-na5.woff2
+[rejeu lecteur] request GET http://localhost:3100/_next/static/media/Geist_Variable-s.p.07llyuw7ush_n.woff2
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/app_1f3z4xovu6ts3._.css
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1ensnhzzz7ywf._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom-client_development_0klrjggdzrbdd.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom_development_0_zd_l2kylhrw.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_0tg87u1c2jhy8._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-server-dom-turbopack_1pss9gsjld--e._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_next-devtools_index_0gkrnae4eyf-s.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_0yl7fd8n1fycg._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_client_0nzwpuoz2_fpe._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_00txrel2klxj9._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e474n4mns._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/_1anvha4rlo79g._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/turbopack-_0tarvnjjw_srp._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/_0ii-aqedeq56o._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/_13uux42pushyd._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/_03tjj566eqwoj._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myfxvxz2u._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_classic_0zkl3adr1a7xg._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_core_154wm9-r_42lt._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_locales_1x9v8rdd-quw8._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_16wer07cq0-mr._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/_0ql4zhl9bfjp0._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/_119kup15o1j3c._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/components_markdown_markdown-editor-core_tsx_09j7yzzfiay2y._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/components_shell_1-jh_e631it1x._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/components_items_new-item-dialog_tsx_16ahj-37lr7eu._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/components_items_item-board_tsx_03-ai_f7d9rpi._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/components_items_detail_0cqvsdh3_zd4x._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/components_items_item-detail-panel_tsx_08yefexpff9_g._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/components_items_1kvw7414b-j60._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/components_sprints_1ihxnc62f6oo2._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/components_skeletons_page-skeletons_tsx_1neq8mlx2xuyj._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/components_0hh7end3b8irj._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/lib_1rte0ot1uz3_v._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/app_actions_04n4u8i3yij1q._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/16ei_%40radix-ui_react-select_dist_index_mjs_0nmv3jg2dtr79._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/09q4_%40dnd-kit_core_dist_core_esm_0t_2dcqsh1mj0.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/1_33_micromark_dev_lib_0cqgvaofiz9d_._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/1g_1_micromark-core-commonmark_dev_lib_1iz2svpbftwkc._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_09pe-62_veota._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/app_1f3z4xovu6ts3._.css
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/media/Geist_Variable-s.p.07llyuw7ush_n.woff2
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/media/GeistMono_Variable-s.p.3x-_q69-5-na5.woff2
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1ensnhzzz7ywf._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom_development_0_zd_l2kylhrw.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_0tg87u1c2jhy8._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-server-dom-turbopack_1pss9gsjld--e._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_0yl7fd8n1fycg._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e474n4mns._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/_1anvha4rlo79g._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_00txrel2klxj9._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/turbopack-_0tarvnjjw_srp._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/_0ii-aqedeq56o._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/_13uux42pushyd._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myfxvxz2u._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_classic_0zkl3adr1a7xg._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom-client_development_0klrjggdzrbdd.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/_03tjj566eqwoj._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/_0ql4zhl9bfjp0._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_next-devtools_index_0gkrnae4eyf-s.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_client_0nzwpuoz2_fpe._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/components_markdown_markdown-editor-core_tsx_09j7yzzfiay2y._.js
+[rejeu lecteur] request GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsayzyj2p6._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_locales_1x9v8rdd-quw8._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/_119kup15o1j3c._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/components_shell_1-jh_e631it1x._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_core_154wm9-r_42lt._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/components_items_new-item-dialog_tsx_16ahj-37lr7eu._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/components_items_item-board_tsx_03-ai_f7d9rpi._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/components_items_item-detail-panel_tsx_08yefexpff9_g._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/components_items_detail_0cqvsdh3_zd4x._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/components_skeletons_page-skeletons_tsx_1neq8mlx2xuyj._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/components_sprints_1ihxnc62f6oo2._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/components_0hh7end3b8irj._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_16wer07cq0-mr._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/app_actions_04n4u8i3yij1q._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/lib_1rte0ot1uz3_v._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/1_33_micromark_dev_lib_0cqgvaofiz9d_._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/components_items_1kvw7414b-j60._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/16ei_%40radix-ui_react-select_dist_index_mjs_0nmv3jg2dtr79._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/09q4_%40dnd-kit_core_dist_core_esm_0t_2dcqsh1mj0.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/1g_1_micromark-core-commonmark_dev_lib_1iz2svpbftwkc._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_09pe-62_veota._.js
+[rejeu lecteur] 200 GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsayzyj2p6._.js
+[rejeu lecteur] request POST http://localhost:3100/admin?tab=groups
+[rejeu lecteur] request POST http://localhost:3100/b/CASS
+[rejeu lecteur] request GET http://localhost:3100/api/realtime?backlog=CASS
+[rejeu lecteur] 200 POST http://localhost:3100/admin?tab=groups
+[timing] rejeu Server Action 97ms
+[rejeu lecteur] 200 GET http://localhost:3100/api/realtime?backlog=CASS
+[rejeu lecteur] 200 POST http://localhost:3100/b/CASS
+[rejeu lecteur] request POST http://localhost:3100/b/CASS
+[rejeu lecteur] 200 POST http://localhost:3100/b/CASS

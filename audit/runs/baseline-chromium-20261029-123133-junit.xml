@@ -1,0 +1,474 @@
+<testsuites id="" name="" tests="172" failures="1" skipped="0" errors="0" time="473.453733">
+<testsuite name="account-recovery.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="3" failures="0" skipped="0" time="12.602" errors="0">
+<testcase name="account recovery › an administrator resets a password and the user signs in with the temporary one" classname="account-recovery.spec.ts" time="6.592">
+</testcase>
+<testcase name="account recovery › an administrator resets 2FA and the user must enroll again" classname="account-recovery.spec.ts" time="3.158">
+</testcase>
+<testcase name="account recovery › a user changes their own password; other sessions close and the old password fails" classname="account-recovery.spec.ts" time="2.852">
+</testcase>
+</testsuite>
+<testsuite name="all-items.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="1" failures="0" skipped="0" time="3.07" errors="0">
+<testcase name="ouvre la Liste non filtrée depuis le Board, au même nombre que le compteur" classname="all-items.spec.ts" time="3.07">
+</testcase>
+</testsuite>
+<testsuite name="backlog-access.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="2" failures="0" skipped="0" time="4.15" errors="0">
+<testcase name="aligne la barre latérale et le fil d’Ariane sur le backlog de la page Accès" classname="backlog-access.spec.ts" time="2.555">
+</testcase>
+<testcase name="retire un occupant en mode Simple, sauf le dernier administrateur" classname="backlog-access.spec.ts" time="1.595">
+</testcase>
+</testsuite>
+<testsuite name="backlog-foundation.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="7" failures="0" skipped="0" time="12.087" errors="0">
+<testcase name="sélectionne une plage et applique les quatre actions groupées" classname="backlog-foundation.spec.ts" time="3.466">
+</testcase>
+<testcase name="le lecteur ne reçoit aucun contrôle de planification" classname="backlog-foundation.spec.ts" time="0.628">
+</testcase>
+<testcase name="distingue 5, zéro et non estimé puis restaure la valeur" classname="backlog-foundation.spec.ts" time="2.076">
+</testcase>
+<testcase name="désactive le classement avec tri ou groupement et conserve le mode Backlog" classname="backlog-foundation.spec.ts" time="1.338">
+</testcase>
+<testcase name="isole la sélection de la Liste et la réinitialise au changement de vue" classname="backlog-foundation.spec.ts" time="1.655">
+</testcase>
+<testcase name="restaure le classement et conserve la sélection après deux échecs réseau injectés" classname="backlog-foundation.spec.ts" time="1.491">
+</testcase>
+<testcase name="garde le Backlog et les en-têtes de la Liste lisibles à 390 par 844" classname="backlog-foundation.spec.ts" time="1.433">
+</testcase>
+</testsuite>
+<testsuite name="backlog-onboarding.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="2" failures="0" skipped="0" time="7.028" errors="0">
+<testcase name="guide un nouveau backlog : Composant, puis Epic, puis Tâche" classname="backlog-onboarding.spec.ts" time="4.196">
+</testcase>
+<testcase name="remplace « Créer un item » par l’étape manquante dans le Backlog" classname="backlog-onboarding.spec.ts" time="2.832">
+</testcase>
+</testsuite>
+<testsuite name="backlog-ranking.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="1" failures="0" skipped="0" time="2.885" errors="0">
+<testcase name="classe à la souris, restaure au clavier et conserve chaque ordre" classname="backlog-ranking.spec.ts" time="2.885">
+</testcase>
+</testsuite>
+<testsuite name="backlog-redesign.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="5" failures="0" skipped="0" time="9.697" errors="0">
+<testcase name="en-tête de sprint : points par statut, action principale et menu ⋯" classname="backlog-redesign.spec.ts" time="2.029">
+</testcase>
+<testcase name="glisser un item du backlog dans la zone d’un sprint vide le planifie" classname="backlog-redesign.spec.ts" time="1.84">
+</testcase>
+<testcase name="« + Créer un item » crée dans le sprint et dans le backlog, Échap annule" classname="backlog-redesign.spec.ts" time="1.444">
+</testcase>
+<testcase name="une ligne compacte masque les valeurs vides et s’édite sur place" classname="backlog-redesign.spec.ts" time="2.205">
+</testcase>
+<testcase name="Backlog lisible sans défilement horizontal à 390 × 844, captures clair / sombre" classname="backlog-redesign.spec.ts" time="2.179">
+</testcase>
+</testsuite>
+<testsuite name="backlogs-home.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="3" failures="0" skipped="0" time="2.967" errors="0">
+<testcase name="liste les backlogs, garde un favori en tête après rechargement et ouvre le backlog" classname="backlogs-home.spec.ts" time="1.179">
+</testcase>
+<testcase name="affiche le responsable choisi dans l’administration" classname="backlogs-home.spec.ts" time="1.127">
+</testcase>
+<testcase name="reste lisible sans débordement à 390 par 844" classname="backlogs-home.spec.ts" time="0.661">
+</testcase>
+</testsuite>
+<testsuite name="board-added-column.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="5" failures="0" skipped="0" time="10.508" errors="0">
+<testcase name="une carte déposée sur une colonne ajoutée y reste et le ticket propose ce statut" classname="board-added-column.spec.ts" time="3.625">
+</testcase>
+<testcase name="un ticket passé dans la colonne ajoutée depuis sa fiche apparaît dans cette colonne" classname="board-added-column.spec.ts" time="2.194">
+</testcase>
+<testcase name="le statut en ligne de la Liste propose la colonne ajoutée et y range le ticket" classname="board-added-column.spec.ts" time="1.544">
+</testcase>
+<testcase name="le bouton « statut suivant » mène à la colonne ajoutée" classname="board-added-column.spec.ts" time="1.469">
+</testcase>
+<testcase name="la modification groupée du statut propose la colonne ajoutée" classname="board-added-column.spec.ts" time="1.676">
+</testcase>
+</testsuite>
+<testsuite name="board-empty-columns.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="1" failures="0" skipped="0" time="0.623" errors="0">
+<testcase name="affiche les colonnes vides et inertes sous le bandeau sans sprint actif" classname="board-empty-columns.spec.ts" time="0.623">
+</testcase>
+</testsuite>
+<testsuite name="browse-users.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="4" failures="0" skipped="0" time="6.644" errors="0">
+<testcase name="browsing users by default and its removal › assigns another user with only the default global permission and persists it" classname="browse-users.spec.ts" time="1.96">
+</testcase>
+<testcase name="browsing users by default and its removal › explains the removed permission and restores the directory when granted again" classname="browse-users.spec.ts" time="3.134">
+</testcase>
+<testcase name="browsing users by default and its removal › distinguishes backlog administrators from Jiroo administrators" classname="browse-users.spec.ts" time="0.959">
+</testcase>
+<testcase name="browsing users by default and its removal › explains inherited global rights on user creation and links to groups" classname="browse-users.spec.ts" time="0.591">
+</testcase>
+</testsuite>
+<testsuite name="create-everywhere.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="4" failures="0" skipped="0" time="8.843" errors="0">
+<testcase name="crée une tâche depuis Roadmap, sans appartenance de sprint" classname="create-everywhere.spec.ts" time="2.862">
+</testcase>
+<testcase name="crée une tâche depuis Releases, sans appartenance de sprint" classname="create-everywhere.spec.ts" time="2.614">
+</testcase>
+<testcase name="crée une tâche depuis Board sans sprint, sans appartenance de sprint" classname="create-everywhere.spec.ts" time="2.298">
+</testcase>
+<testcase name="sans droit de création › le lecteur ne voit pas de bouton Créer sur les trois pages" classname="create-everywhere.spec.ts" time="1.069">
+</testcase>
+</testsuite>
+<testsuite name="create-under-version-filter.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="1" failures="0" skipped="0" time="2.693" errors="0">
+<testcase name="crée une Tâche sous l’Epic masquée par un filtre Version vide" classname="create-under-version-filter.spec.ts" time="2.693">
+</testcase>
+</testsuite>
+<testsuite name="help-guide.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="3" failures="0" skipped="0" time="3.764" errors="0">
+<testcase name="ouvre le guide depuis l’en-tête et suit le sommaire" classname="help-guide.spec.ts" time="1.488">
+</testcase>
+<testcase name="reste lisible sans débordement à 390 par 844" classname="help-guide.spec.ts" time="0.952">
+</testcase>
+<testcase name="revient à l’accueil du backlog par le fil d’Ariane puis par le logo" classname="help-guide.spec.ts" time="1.324">
+</testcase>
+</testsuite>
+<testsuite name="item-detail-drawer.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="15" failures="0" skipped="0" time="22.597" errors="0">
+<testcase name="panneau de détail › glisse depuis la droite une seule fois, sans échange d’overlay, puis se referme" classname="item-detail-drawer.spec.ts" time="1.333">
+</testcase>
+<testcase name="panneau de détail › s’ouvre dès le clic, avant la réponse du serveur, puis affiche l’item" classname="item-detail-drawer.spec.ts" time="1.094">
+</testcase>
+<testcase name="panneau de détail › enregistre la description en cours de frappe quand le panneau se ferme" classname="item-detail-drawer.spec.ts" time="2.611">
+</testcase>
+<testcase name="panneau de détail › ouvre directement le lien profond sans animation si le mouvement est réduit" classname="item-detail-drawer.spec.ts" time="2.002">
+</testcase>
+<testcase name="panneau de détail › donne aux propriétés une colonne lisible, rembourrée comme la colonne principale" classname="item-detail-drawer.spec.ts" time="1.155">
+</testcase>
+<testcase name="panneau de détail › empile les propriétés sous la colonne principale sur un écran étroit" classname="item-detail-drawer.spec.ts" time="1.052">
+</testcase>
+<testcase name="panneau de détail › occupe toute la hauteur et fait défiler les propriétés seules à 1440×900" classname="item-detail-drawer.spec.ts" time="1.135">
+</testcase>
+<testcase name="panneau de détail › occupe toute la hauteur et fait défiler les propriétés seules à 2000×1100" classname="item-detail-drawer.spec.ts" time="1.136">
+</testcase>
+<testcase name="panneau de détail › suit la hauteur de la fenêtre quand elle change, panneau ouvert" classname="item-detail-drawer.spec.ts" time="0.99">
+</testcase>
+<testcase name="panneau de détail › fait défiler la seule colonne des propriétés quand elle dépasse la hauteur" classname="item-detail-drawer.spec.ts" time="1.12">
+</testcase>
+<testcase name="panneau de détail › se ferme au retour arrière et se rouvre en avant dans l’historique" classname="item-detail-drawer.spec.ts" time="1.231">
+</testcase>
+<testcase name="panneau de détail sans re-rendu de la vue (JIR-78) › ouvre, enchaîne avec J, suit l’historique et se ferme sans re-rendre la vue" classname="item-detail-drawer.spec.ts" time="3.253">
+</testcase>
+<testcase name="panneau de détail sans re-rendu de la vue (JIR-78) › rafraîchit le panneau ouvert au clic et la vue après un renommage" classname="item-detail-drawer.spec.ts" time="1.868">
+</testcase>
+<testcase name="panneau de détail sans re-rendu de la vue (JIR-78) › enregistre la description en cours de frappe en passant à l’item suivant" classname="item-detail-drawer.spec.ts" time="2.556">
+</testcase>
+<testcase name="panneau de détail sans re-rendu de la vue (JIR-78) › n’expose le détail qu’aux lecteurs du backlog" classname="item-detail-drawer.spec.ts" time="0.061">
+</testcase>
+</testsuite>
+<testsuite name="item-templates.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="1" failures="0" skipped="0" time="7.961" errors="0">
+<testcase name="an administrator shares a template, a member applies it, and management remains protected" classname="item-templates.spec.ts" time="7.961">
+</testcase>
+</testsuite>
+<testsuite name="keyboard-shortcuts.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="4" failures="0" skipped="0" time="6.462" errors="0">
+<testcase name="« ? » liste les raccourcis, « / » ouvre la recherche" classname="keyboard-shortcuts.spec.ts" time="1.027">
+</testcase>
+<testcase name="« g » puis une lettre change de vue, jamais pendant la saisie" classname="keyboard-shortcuts.spec.ts" time="2.113">
+</testcase>
+<testcase name="« j » / « k » sélectionnent un ticket et « o » l’ouvre ; dans le tiroir « j » / « k », « m » puis « i »" classname="keyboard-shortcuts.spec.ts" time="2.287">
+</testcase>
+<testcase name="les raccourcis à une touche se désactivent depuis la fenêtre « ? »" classname="keyboard-shortcuts.spec.ts" time="1.035">
+</testcase>
+</testsuite>
+<testsuite name="le-point.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="2" failures="0" skipped="0" time="4.131" errors="0">
+<testcase name="keyboard journey remembers the perspective and restores focus after closing a ticket" classname="le-point.spec.ts" time="3.01">
+</testcase>
+<testcase name="390px keeps both perspectives in one column with complete card text and no overflow" classname="le-point.spec.ts" time="1.121">
+</testcase>
+</testsuite>
+<testsuite name="list-rows.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="5" failures="0" skipped="0" time="9.026" errors="0">
+<testcase name="trie la Liste depuis « Trier la liste » et affiche les colonnes choisies en pastilles" classname="list-rows.spec.ts" time="2.417">
+</testcase>
+<testcase name="présente la Liste dans le tableau du Backlog : en-tête, sélection, création et groupes" classname="list-rows.spec.ts" time="2.296">
+</testcase>
+<testcase name="montre Mes items dans le tableau du Backlog, en lignes qui ouvrent l’item" classname="list-rows.spec.ts" time="1.272">
+</testcase>
+<testcase name="restaure un item depuis sa ligne, dans le tableau de la Corbeille" classname="list-rows.spec.ts" time="1.528">
+</testcase>
+<testcase name="montre le périmètre d’une release dans le tableau du Backlog" classname="list-rows.spec.ts" time="1.513">
+</testcase>
+</testsuite>
+<testsuite name="loading-skeletons.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="1" failures="0" skipped="0" time="5.938" errors="0">
+<testcase name="chaque page se charge derrière un squelette à sa forme" classname="loading-skeletons.spec.ts" time="5.938">
+</testcase>
+</testsuite>
+<testsuite name="markdown-editor.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="6" failures="0" skipped="0" time="20.443" errors="0">
+<testcase name="éditeur Markdown visuel › écrit la description en place, l’enregistre automatiquement en Markdown et la rouvre formatée" classname="markdown-editor.spec.ts" time="5.156">
+</testcase>
+<testcase name="éditeur Markdown visuel › garde une seule entrée d’historique pour plusieurs enregistrements automatiques" classname="markdown-editor.spec.ts" time="6.442">
+</testcase>
+<testcase name="éditeur Markdown visuel › quitte l’éditeur avec Échap en enregistrant, puis ferme le panneau au second Échap" classname="markdown-editor.spec.ts" time="1.69">
+</testcase>
+<testcase name="éditeur Markdown visuel › affiche la description en lecture seule au lecteur" classname="markdown-editor.spec.ts" time="1.503">
+</testcase>
+<testcase name="éditeur Markdown visuel › écrit un commentaire formaté avec mention puis le modifie" classname="markdown-editor.spec.ts" time="3.415">
+</testcase>
+<testcase name="éditeur Markdown visuel › affiche les titres d’un commentaire enregistré comme dans l’éditeur" classname="markdown-editor.spec.ts" time="2.237">
+</testcase>
+</testsuite>
+<testsuite name="mobile-shell.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="5" failures="0" skipped="0" time="5.82" errors="0">
+<testcase name="garde le fil d’Ariane complet et lisible au-dessus du titre à 390 par 844" classname="mobile-shell.spec.ts" time="1.328">
+</testcase>
+<testcase name="mène du fil d’Ariane au backlog sur grand écran" classname="mobile-shell.spec.ts" time="1.055">
+</testcase>
+<testcase name="ouvre les vues du projet dans le tiroir de navigation à 390 par 844" classname="mobile-shell.spec.ts" time="1.507">
+</testcase>
+<testcase name="garde l’accès aux vues du projet quand la police du navigateur est agrandie (JIR-127)" classname="mobile-shell.spec.ts" time="1.063">
+</testcase>
+<testcase name="fait passer la barre du haut et les filtres à la ligne sans débordement à 390 par 844" classname="mobile-shell.spec.ts" time="0.867">
+</testcase>
+</testsuite>
+<testsuite name="new-item-missing-parent.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="1" failures="0" skipped="0" time="5.327" errors="0">
+<testcase name="« + Créer » une Epic sans Composant propose de créer le Composant d’abord" classname="new-item-missing-parent.spec.ts" time="5.327">
+</testcase>
+</testsuite>
+<testsuite name="new-item-required-parent.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="1" failures="0" skipped="0" time="2.196" errors="0">
+<testcase name="« Créer » sans parent signale le champ Parent obligatoire, puis crée la Tâche" classname="new-item-required-parent.spec.ts" time="2.196">
+</testcase>
+</testsuite>
+<testsuite name="overlay-animations.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="2" failures="0" skipped="0" time="2.889" errors="0">
+<testcase name="animations des fenêtres et menus › anime l’ouverture d’un dialogue centré et d’un menu, puis les démonte" classname="overlay-animations.spec.ts" time="1.707">
+</testcase>
+<testcase name="animations des fenêtres et menus › n’anime rien quand le mouvement est réduit" classname="overlay-animations.spec.ts" time="1.182">
+</testcase>
+</testsuite>
+<testsuite name="permission-schemes.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="10" failures="0" skipped="0" time="21.71" errors="0">
+<testcase name="1. crée un groupe, un rôle personnalisé et un clone de schéma" classname="permission-schemes.spec.ts" time="4.074">
+</testcase>
+<testcase name="2. isole le grant de rôle et l’occupation de groupe à un seul backlog" classname="permission-schemes.spec.ts" time="1.06">
+</testcase>
+<testcase name="3. explique les grants direct, groupe et rôle dans l’Assistant de permissions" classname="permission-schemes.spec.ts" time="0.947">
+</testcase>
+<testcase name="4. rejette une Server Action forgée par le lecteur" classname="permission-schemes.spec.ts" time="1.67">
+</testcase>
+<testcase name="5. donne au spécialiste les contrôles de sprint sans édition d’item ni workflow" classname="permission-schemes.spec.ts" time="0.819">
+</testcase>
+<testcase name="6. relie manage_releases à l’interface Releases du spécialiste" classname="permission-schemes.spec.ts" time="1.842">
+</testcase>
+<testcase name="7. retire browse de la navigation, recherche, récents, notifications et URL" classname="permission-schemes.spec.ts" time="4.613">
+</testcase>
+<testcase name="8. détecte puis récupère un conflit de version sur schéma partagé" classname="permission-schemes.spec.ts" time="3.982">
+</testcase>
+<testcase name="9. conserve un historique de sécurité append-only" classname="permission-schemes.spec.ts" time="0.725">
+</testcase>
+<testcase name="10. persiste après reload et dans un second contexte utilisateur" classname="permission-schemes.spec.ts" time="1.978">
+</testcase>
+</testsuite>
+<testsuite name="realtime.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="3" failures="0" skipped="0" time="11.034" errors="0">
+<testcase name="realtime between two users › offers a list refresh to the other user only" classname="realtime.spec.ts" time="4.091">
+</testcase>
+<testcase name="realtime between two users › refreshes the other user&apos;s open item automatically" classname="realtime.spec.ts" time="3.384">
+</testcase>
+<testcase name="realtime between two users › increments the other user&apos;s bell after a mention" classname="realtime.spec.ts" time="3.559">
+</testcase>
+</testsuite>
+<testsuite name="releases.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="27" failures="0" skipped="0" time="115.984" errors="0">
+<testcase name="01 — crée puis modifie une version" classname="releases.spec.ts" time="3.304">
+</testcase>
+<testcase name="02 — persiste deux versions à la création puis depuis le détail" classname="releases.spec.ts" time="5.734">
+</testcase>
+<testcase name="03 — ajoute, remplace et retire des versions en masse" classname="releases.spec.ts" time="11.475">
+</testcase>
+<testcase name="04 — conserve le filtre Version après reload et dans une vue enregistrée" classname="releases.spec.ts" time="5.251">
+</testcase>
+<testcase name="05 — calcule la progression depuis les items et leurs points" classname="releases.spec.ts" time="1.09">
+</testcase>
+<testcase name="06 — permet au spécialiste de publier en conservant les incomplets" classname="releases.spec.ts" time="2.058">
+</testcase>
+<testcase name="07 — refuse un publish move forgé par le spécialiste" classname="releases.spec.ts" time="2.174">
+</testcase>
+<testcase name="08 — conserve deux snapshots après dépublication et republication" classname="releases.spec.ts" time="3.591">
+</testcase>
+<testcase name="09 — déplace les incomplets sans retirer leurs versions sans rapport" classname="releases.spec.ts" time="1.744">
+</testcase>
+<testcase name="10 — masque une version archivée des candidats tout en gardant l’affectation courante" classname="releases.spec.ts" time="12.934">
+</testcase>
+<testcase name="11 — autorise l’éditeur à affecter sans exposer le cycle de vie" classname="releases.spec.ts" time="3.878">
+</testcase>
+<testcase name="12 — refuse la requête forgée du lecteur sans changer DB ni historique" classname="releases.spec.ts" time="3.678">
+</testcase>
+<testcase name="13 — détecte une édition stale entre deux contextes" classname="releases.spec.ts" time="3.362">
+</testcase>
+<testcase name="14 — garde le dialogue ouvert et rollback après publish intercepté" classname="releases.spec.ts" time="1.3">
+</testcase>
+<testcase name="15 — rend la release visible au second utilisateur et isole CASS de LABS" classname="releases.spec.ts" time="2.312">
+</testcase>
+<testcase name="16 — refuse un publish quand le périmètre change entre deux contextes" classname="releases.spec.ts" time="6.996">
+</testcase>
+<testcase name="17 — fusionne une version en dédoublonnant les liens et la retire partout" classname="releases.spec.ts" time="4.503">
+</testcase>
+<testcase name="18 — fusionne une version publiée sans réécrire les snapshots ni leurs libellés" classname="releases.spec.ts" time="1.946">
+</testcase>
+<testcase name="19 — supprime avec transfert puis avec retrait en journalisant chaque item" classname="releases.spec.ts" time="6.016">
+</testcase>
+<testcase name="20 — laisse le spécialiste fusionner et supprimer sans edit_items, comme Jira" classname="releases.spec.ts" time="3.529">
+</testcase>
+<testcase name="21 — masque fusion, suppression et ordre à l’éditeur et au lecteur et refuse leurs requêtes forgées" classname="releases.spec.ts" time="5.509">
+</testcase>
+<testcase name="22 — refuse une suppression dont l’aperçu d’impact est devenu stale" classname="releases.spec.ts" time="1.214">
+</testcase>
+<testcase name="23 — garde le dialogue et la sélection après une suppression interceptée" classname="releases.spec.ts" time="1.081">
+</testcase>
+<testcase name="24 — réordonne par glisser-déposer puis Monter, partout et pour un second utilisateur" classname="releases.spec.ts" time="8.674">
+</testcase>
+<testcase name="25 — génère les notes depuis l’état courant, publiée ou non" classname="releases.spec.ts" time="4.686">
+</testcase>
+<testcase name="26 — édite les notes puis copie et télécharge Markdown et HTML sans HTML brut" classname="releases.spec.ts" time="1.507">
+</testcase>
+<testcase name="27 — ignore une version supprimée dans l’URL et la vue enregistrée, et reste responsive" classname="releases.spec.ts" time="6.438">
+</testcase>
+</testsuite>
+<testsuite name="repo-connections.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="1" failures="0" skipped="0" time="14.554" errors="0">
+<testcase name="connexion de dépôts GitHub / GitLab (JIR-95) › relie push, PR et MR signés aux tickets et refuse l’ancien secret" classname="repo-connections.spec.ts" time="14.554">
+</testcase>
+</testsuite>
+<testsuite name="roadmap.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="6" failures="0" skipped="0" time="8.752" errors="0">
+<testcase name="planning on the Roadmap › shows the hierarchy and calendar on desktop and mobile" classname="roadmap.spec.ts" time="1.062">
+</testcase>
+<testcase name="planning on the Roadmap › persists a dragged epic and opens matching dates in its drawer" classname="roadmap.spec.ts" time="1.646">
+</testcase>
+<testcase name="planning on the Roadmap › plans seven days from a click on an empty row and keeps them" classname="roadmap.spec.ts" time="1.248">
+</testcase>
+<testcase name="planning on the Roadmap › persists two one-day keyboard moves" classname="roadmap.spec.ts" time="2.127">
+</testcase>
+<testcase name="planning on the Roadmap › keeps the reader&apos;s bars read only" classname="roadmap.spec.ts" time="1.338">
+</testcase>
+<testcase name="planning on the Roadmap › remembers the selected zoom after reload" classname="roadmap.spec.ts" time="1.331">
+</testcase>
+</testsuite>
+<testsuite name="shell-redesign.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="8" failures="0" skipped="0" time="14.716" errors="0">
+<testcase name="navigue entre les vues du projet depuis la barre latérale" classname="shell-redesign.spec.ts" time="2.843">
+</testcase>
+<testcase name="ouvre la recherche depuis le champ de la barre du haut" classname="shell-redesign.spec.ts" time="0.988">
+</testcase>
+<testcase name="ouvre la création depuis « + Créer », absent hors des vues" classname="shell-redesign.spec.ts" time="1.536">
+</testcase>
+<testcase name="règle le regroupement et la densité dans « Affichage »" classname="shell-redesign.spec.ts" time="2.703">
+</testcase>
+<testcase name="ajoute un filtre en pastille, le retire, et propose alors d’enregistrer la vue" classname="shell-redesign.spec.ts" time="1.639">
+</testcase>
+<testcase name="filtre par assigné avec les avatars" classname="shell-redesign.spec.ts" time="1.582">
+</testcase>
+<testcase name="ouvre l’enregistrement d’une vue depuis la barre latérale" classname="shell-redesign.spec.ts" time="1.275">
+</testcase>
+<testcase name="capture le shell en clair, en sombre et sur téléphone" classname="shell-redesign.spec.ts" time="2.15">
+</testcase>
+</testsuite>
+<testsuite name="sprint-dates.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="3" failures="0" skipped="0" time="6.371" errors="0">
+<testcase name="enregistre des dates de sprint saisies sans heure et explique une fin avant le début" classname="sprint-dates.spec.ts" time="2.412">
+</testcase>
+<testcase name="démarre un sprint sans dates prévues avec des dates saisies sans heure" classname="sprint-dates.spec.ts" time="1.907">
+</testcase>
+<testcase name="enregistre une capacité à deux décimales refusée par l’arrondi flottant (JIR-90)" classname="sprint-dates.spec.ts" time="2.052">
+</testcase>
+</testsuite>
+<testsuite name="sprint-filter.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="1" failures="0" skipped="0" time="1.64" errors="0">
+<testcase name="filtre la Liste par un sprint terminé, ticket reporté compris, et le garde au rechargement" classname="sprint-filter.spec.ts" time="1.64">
+</testcase>
+</testsuite>
+<testsuite name="sprint-lifecycle.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="8" failures="1" skipped="0" time="28.363" errors="0">
+<testcase name="planifie, exécute et clôture un sprint sans exposer le backlog sur le Board" classname="sprint-lifecycle.spec.ts" time="5.662">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/baseline-chromium-20261029-123133/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/baseline-chromium-20261029-123133/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/baseline-chromium-20261029-123133/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/baseline-chromium-20261029-123133/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(locator).toHaveCount(expected) failed" type="expect.toHaveCount">
+<![CDATA[  [chromium] › sprint-lifecycle.spec.ts:250:5 › planifie, exécute et clôture un sprint sans exposer le backlog sur le Board 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByRole('button', { name: 'Créer', exact: true })
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for getByRole('button', { name: 'Créer', exact: true })
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      273 |     "/b/CASS?q=audit&view=backlog",
+      274 |   );
+    > 275 |   await expect(page.getByRole("button", { name: "Créer", exact: true })).toHaveCount(0);
+          |                                                                          ^
+      276 |   await writeAuditScreenshot(
+      277 |     NO_ACTIVE_SCREENSHOT,
+      278 |     (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
+        at /Users/nkrmnr/Developer/worktrees/jiroo/jir-134-baseline/e2e/sprint-lifecycle.spec.ts:275:74
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/baseline-chromium-20261029-123133/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/baseline-chromium-20261029-123133/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/baseline-chromium-20261029-123133/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/baseline-chromium-20261029-123133/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/baseline-chromium-20261029-123133/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="conserve le sprint planifié et explique un échec réseau au démarrage" classname="sprint-lifecycle.spec.ts" time="3.468">
+</testcase>
+<testcase name="recalcule et explique un dépassement de capacité avant démarrage" classname="sprint-lifecycle.spec.ts" time="1.188">
+</testcase>
+<testcase name="démarre un sprint renommé avec son nom, son objectif et ses dates à jour" classname="sprint-lifecycle.spec.ts" time="2.253">
+</testcase>
+<testcase name="restaure sélection et section après deux échecs réseau de planification" classname="sprint-lifecycle.spec.ts" time="3.665">
+</testcase>
+<testcase name="clôture vers le Backlog ou un nouveau sprint et bloque une sous-tâche ouverte" classname="sprint-lifecycle.spec.ts" time="3.679">
+</testcase>
+<testcase name="laisse le lecteur consulter la planification et le Board sans aucun contrôle" classname="sprint-lifecycle.spec.ts" time="3.481">
+</testcase>
+<testcase name="planifie une plage de tâches en masse et conserve la section après rechargement" classname="sprint-lifecycle.spec.ts" time="4.967">
+</testcase>
+</testsuite>
+<testsuite name="sprint-reports.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="12" failures="0" skipped="0" time="38.126" errors="0">
+<testcase name="01 — affiche les rapports figés et la vélocité explicable" classname="sprint-reports.spec.ts" time="1.026">
+</testcase>
+<testcase name="02 — distingue les états vides, planifiés, actifs non estimés et legacy" classname="sprint-reports.spec.ts" time="3.992">
+</testcase>
+<testcase name="03 — conserve les lectures lecteur, second contexte et dissimule les ressources" classname="sprint-reports.spec.ts" time="3.642">
+</testcase>
+<testcase name="04 — reste lisible et sans débordement à 390 par 844" classname="sprint-reports.spec.ts" time="0.917">
+</testcase>
+<testcase name="05 — masque une panne de lecture et récupère après retry" classname="sprint-reports.spec.ts" time="0.6">
+</testcase>
+<testcase name="06 — relie bulk, Board et clôture UI au rapport" classname="sprint-reports.spec.ts" time="10.633">
+</testcase>
+<testcase name="07 — rejoue le burndown actif depuis le baseline figé et le ledger" classname="sprint-reports.spec.ts" time="1.737">
+</testcase>
+<testcase name="08 — relie édition unitaire, bulk et Board au burndown, ordre par séquence" classname="sprint-reports.spec.ts" time="3.973">
+</testcase>
+<testcase name="09 — fige le point final à la clôture et ignore les mutations ultérieures" classname="sprint-reports.spec.ts" time="4.273">
+</testcase>
+<testcase name="10 — compare un sprint planifié à la vélocité récente sans bloquer" classname="sprint-reports.spec.ts" time="2.194">
+</testcase>
+<testcase name="11 — conserve le burndown pour lecteur et second contexte, dissimule étranger et malformé" classname="sprint-reports.spec.ts" time="3.759">
+</testcase>
+<testcase name="12 — masque une panne de lecture du burndown et récupère après retry" classname="sprint-reports.spec.ts" time="1.38">
+</testcase>
+</testsuite>
+<testsuite name="ticket-drawer.spec.ts" timestamp="2026-10-29T11:31:42.579Z" hostname="chromium" tests="8" failures="0" skipped="0" time="19.224" errors="0">
+<testcase name="panneau de ticket façon Jira › présente l’en-tête, les sections et la colonne Détails / Développement" classname="ticket-drawer.spec.ts" time="3.485">
+</testcase>
+<testcase name="panneau de ticket façon Jira › filtre l’activité, trie, et passe au statut suivant" classname="ticket-drawer.spec.ts" time="2.378">
+</testcase>
+<testcase name="panneau de ticket façon Jira › copie le lien et le nom de branche dans le presse-papiers" classname="ticket-drawer.spec.ts" time="1.465">
+</testcase>
+<testcase name="panneau de ticket façon Jira › passe à l’item précédent / suivant de la vue, au clic et avec K / J" classname="ticket-drawer.spec.ts" time="2.87">
+</testcase>
+<testcase name="panneau de ticket sur mobile › occupe tout l’écran et empile les propriétés sous le contenu" classname="ticket-drawer.spec.ts" time="1.09">
+</testcase>
+<testcase name="fenêtre « Nouvel item » › enchaîne deux tâches avec « Créer un autre » puis ouvre la dernière depuis le message" classname="ticket-drawer.spec.ts" time="3.054">
+</testcase>
+<testcase name="fenêtre « Nouvel item » › crée une tâche sous l’epic ouvert même quand le filtre de version l’écarte de la liste" classname="ticket-drawer.spec.ts" time="1.385">
+</testcase>
+<testcase name="fenêtre « Nouvel item » › affiche des listes homogènes, le statut par défaut et une tâche de section au type fixe (JIR-80)" classname="ticket-drawer.spec.ts" time="3.497">
+</testcase>
+</testsuite>
+</testsuites>

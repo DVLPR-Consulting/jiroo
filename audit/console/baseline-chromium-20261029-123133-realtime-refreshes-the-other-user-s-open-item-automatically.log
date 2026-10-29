@@ -1,0 +1,7 @@
+A: platform administrator
+[A: platform administrator] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[A: platform administrator] log: [HMR] connected
+[A: platform administrator] [aborted-rsc] GET /b/CASS
+B: reader
+[B: reader] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[B: reader] log: [HMR] connected

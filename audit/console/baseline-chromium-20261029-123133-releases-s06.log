@@ -1,0 +1,6 @@
+[specialist] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[specialist] log: [HMR] connected
+[specialist] [aborted-action] POST /b/CASS/releases/5f773744-3e63-446d-a1af-2a0030f7736d 200
+[specialist] [aborted-action] POST /b/CASS/releases/5f773744-3e63-446d-a1af-2a0030f7736d 200
+[specialist] [aborted-rsc] GET /b/CASS/releases/5f773744-3e63-446d-a1af-2a0030f7736d
+[duration] scenario 6: 1566ms

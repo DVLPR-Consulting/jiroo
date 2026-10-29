@@ -1,0 +1,24 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS?view=backlog 200 447ms
+[measure] completed commitment 10 pts vs previous sprints average 0 over 2 sprints
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=71d0e5b2-578e-4323-a460-2ab1e59ab1ff 200 365ms
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS/reports 200
+[measure] completed burndown read 10ms events=15 exact=16 display=31
+[admin] [aborted-action] POST /b/CASS/reports 200
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[overflow] completed burndown 390x844 document=0px main=0px chart=316px
+[admin] [aborted-action] POST /b/CASS/reports 200
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=0d608476-3091-414c-b9ff-162ffffc1a75 200 155ms
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=sprint&sprint=96224604-f687-4efd-a8c8-9b510e3bfde2 200 149ms
+[admin] [aborted-rsc] GET /b/CASS/reports
+[duration] scenario 9: 4186ms

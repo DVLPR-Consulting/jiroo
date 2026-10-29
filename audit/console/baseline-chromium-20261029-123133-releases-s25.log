@@ -1,0 +1,16 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] log: [Fast Refresh] rebuilding
+[admin] log: [Fast Refresh] done in 695ms
+[admin] [aborted-rsc] GET /b/CASS/releases/6c2ce28e-f8cd-4473-ac50-17e0ac54dde7/notes
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS/releases/ade547e0-b30a-4a71-89bb-288fbf441dd1/notes 200
+[admin] [aborted-action] POST /b/CASS/releases/ade547e0-b30a-4a71-89bb-288fbf441dd1/notes 200
+[admin] [aborted-rsc] GET /b/CASS/releases/ade547e0-b30a-4a71-89bb-288fbf441dd1/notes
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS/releases/ade547e0-b30a-4a71-89bb-288fbf441dd1/notes 200
+[duration] scenario 25: 4555ms

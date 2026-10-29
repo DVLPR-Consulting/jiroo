@@ -1,0 +1,16 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin-scope-change] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-scope-change] log: [HMR] connected
+[admin-scope-change] [aborted-action] POST /b/CASS 200
+[admin-scope-change] [aborted-action] POST /b/CASS 200
+[admin-scope-change] [aborted-action] POST /b/CASS 200
+[admin-scope-change] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-scope-change] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS/releases/220cbeaf-b5d6-4075-aab7-59ad46c7a409 200
+[admin-scope-change] [aborted-rsc] GET /b/CASS
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS/releases/220cbeaf-b5d6-4075-aab7-59ad46c7a409 200
+[admin] [aborted-rsc] GET /b/CASS/releases/220cbeaf-b5d6-4075-aab7-59ad46c7a409
+[duration] scenario 16: 6425ms
