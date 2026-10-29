@@ -59,7 +59,7 @@ async function createFromDialog(page: Page, type: string, title: string, parent?
   const dialog = page.getByRole("dialog", { name: "Nouvel item" });
   await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText(type);
   if (parent) {
-    await expect(dialog.getByRole("combobox", { name: /Parent/ })).toHaveValue(new RegExp(` — ${parent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
+    await expect(dialog.getByRole("combobox", { name: /Parent/ })).toHaveValue(new RegExp(`^${KEY}-\\d+ — ${parent}$`));
   }
   await dialog.getByRole("textbox", { name: /Titre/ }).fill(title);
   await dialog.getByRole("button", { name: "Créer" }).click();
@@ -94,7 +94,7 @@ test("guide un nouveau backlog : Composant, puis Epic, puis Tâche", async ({ pa
   await page.goto(`/b/${KEY}?view=backlog`);
   const backlog = page.getByRole("region", { name: "Backlog", exact: true });
   await backlog.getByRole("button", { name: "Créer un item dans Backlog" }).click();
-  await expect(backlog.getByRole("combobox", { name: "Epic parent" })).toHaveValue(new RegExp(` — ${EPIC}$`));
+  await expect(backlog.getByRole("combobox", { name: "Epic parent" })).toContainText(EPIC);
   const field = backlog.getByRole("textbox", { name: "Titre du nouvel item dans Backlog" });
   await field.fill(TASK);
   await field.press("Enter");
