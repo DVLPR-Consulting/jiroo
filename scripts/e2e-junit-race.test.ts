@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readFile, rm } from "node:fs/promises";
+import { readFile, readdir, rm, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
@@ -12,11 +12,11 @@ const runId = `junit-race-${randomUUID()}`;
 const reportPath = `${testRoot}/owner-junit.xml`;
 const lockRoot = `${testRoot}/locks`;
 
-async function runPlaywright(instance: string, delayMs: number) {
+async function runPlaywright(instance: string, delayMs: number, listOnly = false) {
   try {
     const result = await execFileAsync(
       "pnpm",
-      ["--ignore-workspace", "exec", "playwright", "test", `--config=${fixtureConfig}`],
+      ["--ignore-workspace", "exec", "playwright", "test", `--config=${fixtureConfig}`, ...(listOnly ? ["--list"] : [])],
       {
         cwd: process.cwd(),
         env: {
@@ -50,6 +50,15 @@ afterEach(async () => {
 });
 
 describe("publication exclusive du rapport JUnit Playwright", () => {
+  it("lists with the real CLI without reserving or publishing evidence", async () => {
+    const result = await runPlaywright("list", 0, true);
+
+    expect(result.exitCode, result.output).toBe(0);
+    await expect(stat(lockRoot)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(stat(reportPath)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readdir(testRoot)).resolves.toEqual([]);
+  }, 15_000);
+
   it("empêche un processus perdant d’écraser la preuve du propriétaire", async () => {
     const [owner, delayedLoser] = await Promise.all([
       runPlaywright("owner", 0),
