@@ -5,6 +5,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Client } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
+import { nextItemKey } from "@/lib/items/key";
 import { user } from "@/lib/db/schema/auth";
 import {
   activities,
@@ -348,13 +349,16 @@ async function createTaskUpdateFixture() {
       color: "#9aa0a6",
     })
     .returning();
+  const componentKey = await nextItemKey(db, backlog!.key);
+  const epicKey = await nextItemKey(db, backlog!.key);
+  const taskKey = await nextItemKey(db, backlog!.key);
   const componentId = randomUUID();
   const epicId = randomUUID();
   const taskId = randomUUID();
   const componentPath = `root.${componentId.replaceAll("-", "")}`;
   await db.insert(items).values({
     id: componentId,
-    key: `${backlog!.key}-1`,
+    key: componentKey,
     type: "composant",
     backlogId: backlog!.id,
     title: "Produit",
@@ -367,7 +371,7 @@ async function createTaskUpdateFixture() {
   const epicPath = `${componentPath}.${epicId.replaceAll("-", "")}`;
   await db.insert(items).values({
     id: epicId,
-    key: `${backlog!.key}-2`,
+    key: epicKey,
     type: "epic",
     backlogId: backlog!.id,
     title: "Epic estimable",
@@ -382,7 +386,7 @@ async function createTaskUpdateFixture() {
     .insert(items)
     .values({
       id: taskId,
-      key: `${backlog!.key}-3`,
+      key: taskKey,
       type: "tache",
       backlogId: backlog!.id,
       title: "Travail estimable",

@@ -104,7 +104,9 @@ describeDb("presence scope and observed profiles", () => {
     const spy = vi.spyOn(Client.prototype, "query");
     // Empty attachment falls back in one additional grouped read.
     await loadPresenceScope(f.actorA); const small = spy.mock.calls.length; expect(small).toBe(10); spy.mockRestore();
-    const added = await db.insert(backlogs).values(Array.from({ length: 12 }, (_, index) => ({ key: `PS${randomUUID().replaceAll("-", "").slice(0, 12).replace(/\d/g, "A").toUpperCase()}`, name: `Scope ${index}` }))).returning();
+    // Preserve UUID entropy and guarantee uniqueness within this batch even for an all-digit prefix.
+    const prefix = randomUUID().replaceAll("-", "").slice(0, 12).replace(/\d/g, (digit) => String.fromCharCode(71 + Number(digit))).toUpperCase();
+    const added = await db.insert(backlogs).values(Array.from({ length: 12 }, (_, index) => ({ key: `PS${prefix}${String.fromCharCode(65 + index)}`, name: `Scope ${index}` }))).returning();
     extraBacklogs = added.map((row) => row.id);
     await db.insert(backlogPermissionConfigs).values(extraBacklogs.map((backlogId) => ({ backlogId, permissionSchemeId: f.schemeIds[0]! })));
     const largeSpy = vi.spyOn(Client.prototype, "query");
