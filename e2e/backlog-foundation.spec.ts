@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { interceptAction, performAction, type ActionMatch } from "./support/actions";
+
 
 import { expect, test, type Page } from "@playwright/test";
 import { eq, inArray } from "drizzle-orm";
@@ -62,22 +64,7 @@ function observe(page: Page): AuditCapture {
   return capture;
 }
 
-async function waitForBusinessPost(page: Page, action: () => Promise<void>) {
-  const responsePromise = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      new URL(response.url()).pathname === "/b/CASS",
-  );
-  const startedAt = Date.now();
-  await action();
-  const response = await responsePromise;
-  await response.finished();
-  return {
-    status: response.status(),
-    elapsedMs: Date.now() - startedAt,
-    url: response.url(),
-  };
-}
+
 
 test("sélectionne une plage et applique les quatre actions groupées", async ({ page }) => {
   const capture = observe(page);
@@ -105,6 +92,14 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
     .from(items)
     .where(inArray(items.key, [firstKey, secondKey]));
   expect(originalRows).toHaveLength(2);
+  const bulkMutation = (field: string): ActionMatch => (input) => {
+    const patch = input.patch;
+    return Array.isArray(input.itemIds)
+      && input.itemIds.length === originalRows.length
+      && input.itemIds.every((id) => originalRows.some((row) => row.id === id))
+      && typeof patch === "object" && patch !== null
+      && "field" in patch && patch.field === field;
+  };
   const [auditActor] = await db
     .select({ id: user.id })
     .from(user)
@@ -120,7 +115,7 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
     ).toHaveJSProperty("indeterminate", true);
 
     const timings: string[] = [];
-    const priority = await waitForBusinessPost(page, async () => {
+    const priority = await performAction(page, bulkMutation("priority"), async () => {
       await page.getByRole("button", { name: "Modifier la priorité" }).click();
       await page.getByRole("menuitem", { name: "Haute" }).click();
     });
@@ -136,7 +131,7 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
       ).toBeVisible();
     }
 
-    const status = await waitForBusinessPost(page, async () => {
+    const status = await performAction(page, bulkMutation("statusId"), async () => {
       await page.getByRole("button", { name: "Modifier le statut" }).click();
       await page.getByRole("menuitem", { name: "En cours" }).click();
     });
@@ -146,7 +141,7 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
       await expect(page.getByRole("row", { name: new RegExp(`^${key} —`) })).toContainText("En cours");
     }
 
-    const assignee = await waitForBusinessPost(page, async () => {
+    const assignee = await performAction(page, bulkMutation("assigneeId"), async () => {
       await page.getByRole("button", { name: "Modifier l’assigné" }).click();
       await page.getByRole("menuitem", { name: "Administrateur E2E", exact: true }).click();
     });
@@ -160,7 +155,7 @@ test("sélectionne une plage et applique les quatre actions groupées", async ({
     }
 
     await page.getByRole("spinbutton", { name: "Estimation groupée" }).fill("5");
-    const estimate = await waitForBusinessPost(page, async () => {
+    const estimate = await performAction(page, bulkMutation("estimatePoints"), async () => {
       await page.getByRole("button", { name: "Appliquer l’estimation" }).click();
     });
     timings.push(`[timing] bulk estimate ${estimate.elapsedMs}ms`);
@@ -260,24 +255,21 @@ test("distingue 5, zéro et non estimé puis restaure la valeur", async ({ page 
   try {
     await firstButton.click();
     await page.getByRole("spinbutton", { name: "Points" }).fill("5");
-    const five = await waitForBusinessPost(page, () =>
-      page.getByRole("button", { name: "Enregistrer l’estimation" }).click(),
-    );
+    const five = await performAction(page, (input) => input.id === original.id && input.estimatePoints === 5, () =>
+      page.getByRole("button", { name: "Enregistrer l’estimation" }).click());
     expect(five.status).toBeLessThan(400);
     await expect(liveRow.getByRole("button", { name: "Estimation : 5 pts" })).toBeVisible();
 
     await liveRow.getByRole("button", { name: "Estimation : 5 pts" }).click();
     await page.getByRole("spinbutton", { name: "Points" }).fill("0");
-    const zero = await waitForBusinessPost(page, () =>
-      page.getByRole("button", { name: "Enregistrer l’estimation" }).click(),
-    );
+    const zero = await performAction(page, (input) => input.id === original.id && input.estimatePoints === 0, () =>
+      page.getByRole("button", { name: "Enregistrer l’estimation" }).click());
     expect(zero.status).toBeLessThan(400);
     await expect(liveRow.getByRole("button", { name: "Estimation : 0 pt" })).toBeVisible();
 
     await liveRow.getByRole("button", { name: "Estimation : 0 pt" }).click();
-    const cleared = await waitForBusinessPost(page, () =>
-      page.getByRole("button", { name: "Effacer l’estimation" }).click(),
-    );
+    const cleared = await performAction(page, (input) => input.id === original.id && input.estimatePoints === null, () =>
+      page.getByRole("button", { name: "Effacer l’estimation" }).click());
     expect(cleared.status).toBeLessThan(400);
     await expect(
       liveRow.getByRole("button", { name: "Estimation : Non estimé" }),
@@ -356,18 +348,11 @@ test("restaure le classement et conserve la sélection après deux échecs rése
   const movedKey = (await firstHandle.getAttribute("aria-label"))?.replace("Déplacer ", "");
   if (!movedKey) throw new Error("Clé de classement introuvable.");
 
-  let abortNextPost = true;
-  await page.route("**/*", async (route) => {
-    if (
-      abortNextPost &&
-      route.request().method() === "POST" &&
-      new URL(route.request().url()).pathname === "/b/CASS"
-    ) {
-      abortNextPost = false;
-      await route.abort("failed");
-      return;
-    }
-    await route.continue();
+  const [movedItem] = await db.select({ id: items.id }).from(items).where(eq(items.key, movedKey));
+  if (!movedItem) throw new Error("Item de classement introuvable.");
+  const rankFailure = await interceptAction(page, {
+    match: (input) => input.id === movedItem.id && "beforeId" in input && "afterId" in input,
+    respond: (route) => route.abort("failed"),
   });
   await firstHandle.focus();
   await page.keyboard.press("Space");
@@ -394,7 +379,12 @@ test("restaure le classement et conserve la sélection après deux échecs rése
   await rowCheckboxes.nth(0).click();
   await rowCheckboxes.nth(1).click({ modifiers: ["Shift"] });
   await expect(page.getByText("2 items sélectionnés")).toBeVisible();
-  abortNextPost = true;
+  await rankFailure.dispose();
+  await interceptAction(page, {
+    match: (input) => Array.isArray(input.itemIds) && typeof input.patch === "object"
+      && input.patch !== null && "field" in input.patch && input.patch.field === "priority",
+    respond: (route) => route.abort("failed"),
+  });
   await page.getByRole("button", { name: "Modifier la priorité" }).click();
   await page.getByRole("menuitem", { name: "Haute" }).click();
   await expect(

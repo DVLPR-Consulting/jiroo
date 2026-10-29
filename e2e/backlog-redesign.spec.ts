@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { performAction } from "./support/actions";
+
 
 import { expect, test, type Page } from "@playwright/test";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -103,20 +105,10 @@ async function seed() {
     },
     actor.id,
   );
-  return { epic, task, bare };
+  return { epic, task, bare, planned, empty };
 }
 
-async function businessPost(page: Page, action: () => Promise<void>) {
-  const response = page.waitForResponse(
-    (candidate) =>
-      candidate.request().method() === "POST" &&
-      new URL(candidate.url()).pathname === "/b/CASS",
-  );
-  await action();
-  const settled = await response;
-  await settled.finished();
-  expect(settled.status()).toBeLessThan(400);
-}
+
 
 function section(page: Page, name: string) {
   return page.getByRole("region", { name, exact: true });
@@ -136,7 +128,7 @@ test.afterEach(clean);
 
 test("en-tête de sprint : points par statut, action principale et menu ⋯", async ({ page }) => {
   const errors = observeErrors(page);
-  await seed();
+  const { empty: emptySprint } = await seed();
   await page.goto("/b/CASS?view=backlog");
 
   const planned = section(page, PLANNED_SPRINT);
@@ -169,7 +161,7 @@ test("en-tête de sprint : points par statut, action principale et menu ⋯", as
   const headings = page.locator("[data-sprint-section] h3");
   const before = await headings.allTextContents();
   expect(before.indexOf(EMPTY_SPRINT)).toBe(before.indexOf(PLANNED_SPRINT) + 1);
-  await businessPost(page, () => sprintMenuAction(page, EMPTY_SPRINT, "Monter"));
+  await performAction(page, (input) => input.id === emptySprint.id && "beforeId" in input && "afterId" in input, () => sprintMenuAction(page, EMPTY_SPRINT, "Monter"));
   await expect
     .poll(async () => {
       const after = await headings.allTextContents();
@@ -185,7 +177,7 @@ test("en-tête de sprint : points par statut, action principale et menu ⋯", as
 });
 
 test("glisser un item du backlog dans la zone d’un sprint vide le planifie", async ({ page }) => {
-  await seed();
+  const { bare, empty: emptySprint } = await seed();
   await page.goto("/b/CASS?view=backlog");
   const empty = section(page, EMPTY_SPRINT);
   const zone = empty.getByText("Glissez des items du backlog ici pour planifier le sprint");
@@ -200,7 +192,7 @@ test("glisser un item du backlog dans la zone d’un sprint vide le planifie", a
   const target = await zone.boundingBox();
   if (!origin || !target) throw new Error("Géométrie du glisser-déposer introuvable.");
 
-  await businessPost(page, async () => {
+  await performAction(page, (input) => input.itemId === bare.id && input.sprintId === emptySprint.id, async () => {
     await page.mouse.move(origin.x + origin.width / 2, origin.y + origin.height / 2);
     await page.mouse.down();
     await page.mouse.move(origin.x + origin.width / 2 + 10, origin.y + origin.height / 2, {
@@ -221,10 +213,10 @@ test("glisser un item du backlog dans la zone d’un sprint vide le planifie", a
 
 test("« + Créer un item » crée dans le sprint et dans le backlog, Échap annule", async ({ page }) => {
   const errors = observeErrors(page);
-  const { epic } = await seed();
+  const { epic, planned: plannedSprint } = await seed();
   await page.goto("/b/CASS?view=backlog");
 
-  await businessPost(page, () => createInlineItem(page, PLANNED_SPRINT, INLINE_SPRINT_TASK));
+  await performAction(page, (input) => input.title === INLINE_SPRINT_TASK && input.parentId === epic.id && input.sprintId === plannedSprint.id, () => createInlineItem(page, PLANNED_SPRINT, INLINE_SPRINT_TASK));
   const planned = section(page, PLANNED_SPRINT);
   const created = planned.getByRole("row", { name: new RegExp(`— ${INLINE_SPRINT_TASK}$`) });
   await expect(created).toBeVisible();
@@ -237,7 +229,7 @@ test("« + Créer un item » crée dans le sprint et dans le backlog, Échap ann
   await expect(page.getByRole("button", { name: `Créer un item dans ${PLANNED_SPRINT}` }))
     .toBeFocused();
 
-  await businessPost(page, () => createInlineItem(page, "Backlog", INLINE_BACKLOG_TASK));
+  await performAction(page, (input) => input.title === INLINE_BACKLOG_TASK && input.parentId === epic.id, () => createInlineItem(page, "Backlog", INLINE_BACKLOG_TASK));
   await expect(
     section(page, "Backlog").getByRole("row", { name: new RegExp(`— ${INLINE_BACKLOG_TASK}$`) }),
   ).toBeVisible();
@@ -251,7 +243,7 @@ test("« + Créer un item » crée dans le sprint et dans le backlog, Échap ann
 });
 
 test("une ligne compacte masque les valeurs vides et s’édite sur place", async ({ page }) => {
-  await seed();
+  const { bare } = await seed();
   await page.goto("/b/CASS?view=backlog");
   await expect(page.getByRole("columnheader")).toHaveCount(0);
 
@@ -278,7 +270,7 @@ test("une ligne compacte masque les valeurs vides et s’édite sur place", asyn
   await expect(row.getByRole("button", { name: "Assigné : Non assigné" })).toBeVisible();
 
   await priority.click();
-  await businessPost(page, () => page.getByRole("menuitem", { name: "Haute" }).click());
+  await performAction(page, (input) => input.id === bare.id && input.priority === 3, () => page.getByRole("menuitem", { name: "Haute" }).click());
   await expect(row.getByRole("button", { name: "Priorité : Haute" })).toBeVisible();
   await page.mouse.move(0, 0);
   await expect.poll(() => opacity(row.getByRole("button", { name: "Priorité : Haute" }))).toBe(1);

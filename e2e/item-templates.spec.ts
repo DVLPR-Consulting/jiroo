@@ -1,3 +1,4 @@
+import { interceptAction, performAction } from "./support/actions";
 import { expect, test, type Page } from "@playwright/test";
 import { and, eq } from "drizzle-orm";
 import { db } from "../lib/db";
@@ -69,9 +70,11 @@ test("an administrator shares a template, a member applies it, and management re
     await form.getByRole("checkbox", { name: live.name, exact: true }).check();
     await form.getByRole("checkbox", { name: removed.name, exact: true }).check();
     await screenshots(page, "template-editor", output);
-    const createRequest = page.waitForRequest((request) => request.method() === "POST" && Boolean(request.headers()["next-action"]));
-    await form.getByRole("button", { name: "Créer le modèle", exact: true }).click();
-    const actionId = (await createRequest).headers()["next-action"];
+    const createMatch = (input: Record<string, unknown>) => input.backlogId === backlog.id && input.name === name;
+    const creation = await interceptAction(page, { match: createMatch, respond: (route) => route.continue() });
+    await performAction(page, createMatch, () => form.getByRole("button", { name: "Créer le modèle", exact: true }).click());
+    const actionId = creation.request().headers()["next-action"];
+    await creation.dispose();
     if (!actionId) throw new Error("Template action ID missing.");
     await expect(page.getByRole("dialog", { name: "Nouveau modèle", exact: true })).toBeHidden();
     await expect(page.getByRole("button", { name: `Modifier le modèle ${name}`, exact: true })).toBeVisible();
