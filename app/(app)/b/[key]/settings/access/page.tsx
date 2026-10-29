@@ -9,7 +9,7 @@ import { checkPermission, ResourceNotFoundError } from "@/lib/auth/authorization
 import { requireAppPageSession } from "@/lib/auth/session";
 import {
   listGroups,
-  listPermissionSchemes,
+  listPermissionSchemeChoices,
   readBacklogAccess,
 } from "@/lib/services/authorization-admin";
 import { listAdminUsers } from "@/lib/services/users";
@@ -42,8 +42,8 @@ export default async function AccessPage({ params }: { params: Promise<{ key: st
   const [access, rawUsers, rawGroups, rawSchemes] = await Promise.all([
     readBacklogAccess(resource.backlogId),
     browseUsersDecision.allowed ? listAdminUsers() : Promise.resolve([]),
-    listGroups(),
-    administerDecision.allowed ? listPermissionSchemes() : Promise.resolve([]),
+    listGroups(session.user.id),
+    administerDecision.allowed ? listPermissionSchemeChoices(session.user.id) : Promise.resolve([]),
   ]);
   const users = rawUsers.map(({ id, name }) => ({ id, name }));
   const groups = rawGroups.map(({ id, name }) => ({ id, name }));

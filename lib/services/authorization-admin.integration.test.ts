@@ -540,7 +540,7 @@ describeDb("transactional authorization administration", () => {
   });
 
   it("returns minimal administration DTOs for groups, roles, schemes, and backlog access", async () => {
-    const groups = await listGroups();
+    const groups = await listGroups(actorId);
     expect(groups[0]).toEqual(
       expect.objectContaining({
         id: expect.any(String),
@@ -551,7 +551,7 @@ describeDb("transactional authorization administration", () => {
         blockers: expect.any(Array),
       }),
     );
-    const roles = await listProjectRoles();
+    const roles = await listProjectRoles(actorId);
     expect(roles).toContainEqual(
       expect.objectContaining({ id: administratorRoleId, key: "administrators", blockers: expect.any(Array) }),
     );
@@ -1463,4 +1463,5 @@ describeDb("transactional authorization administration", () => {
     },
     10_000,
   );
+
 });

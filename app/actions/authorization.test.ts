@@ -134,6 +134,15 @@ describe("authorization administration Server Actions", () => {
     mocks.groupMembershipRequiredPermission.mockResolvedValue("manage_users_groups");
   });
 
+  it.each([
+    ["add", addGroupMemberAction, mocks.addGroupMember],
+    ["remove", removeGroupMemberAction, mocks.removeGroupMember],
+  ])("keeps affected private backlog identities server-side when members %s", async (_name, action, service) => {
+    service.mockResolvedValue({ groupId, userId: "third-party", affectedBacklogKeys: ["SECRET"], affectedBacklogs: [{ id: backlogId, key: "SECRET" }] });
+    await expect(action({ groupId, userId: "third-party" })).resolves.toEqual({ ok: true, membership: { groupId, userId: "third-party" } });
+    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("SECRET", expect.objectContaining({ backlogId }));
+  });
+
   it("derives the actor from the session and requires manage_users_groups to create groups", async () => {
     mocks.createGroup.mockResolvedValue({ id: groupId, name: "Équipe", protected: false });
 

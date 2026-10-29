@@ -85,20 +85,20 @@ export default async function AdminPage({
         ? await (async () => {
             const globalDecision = await checkPermission({ actorId: session.user.id, permission: "administer_jiroo", scope: { type: "global" } });
             const [groups, rawUsers, globalGrants] = await Promise.all([
-              listGroups(),
+              listGroups(session.user.id),
               browseUsersDecision.allowed ? listAdminUsers() : Promise.resolve([]),
               listGlobalPermissionGrants(),
             ]);
             return { tab: "groups" as const, groups, users: rawUsers.map(({ id, name }) => ({ id, name })), globalGrants, canAdministerGlobals: globalDecision.allowed };
           })()
         : activeTab === "roles"
-          ? { tab: "roles" as const, roles: await listProjectRoles() }
+          ? { tab: "roles" as const, roles: await listProjectRoles(session.user.id) }
           : await (async () => {
               const [schemes, rawUsers, rawGroups, rawRoles] = await Promise.all([
                 listPermissionSchemes(),
                 browseUsersDecision.allowed ? listAdminUsers() : Promise.resolve([]),
-                listGroups(),
-                listProjectRoles(),
+                listGroups(session.user.id),
+                listProjectRoles(session.user.id),
               ]);
               return {
                 tab: "schemes" as const,

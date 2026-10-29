@@ -280,7 +280,7 @@ export async function addGroupMemberAction(input: unknown) {
       authorization.requestCorrelationId,
     );
     await revalidateAccess(membership.affectedBacklogs, authorization.actorId);
-    return { ok: true as const, membership };
+    return { ok: true as const, membership: { groupId: membership.groupId, userId: membership.userId } };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
   }
@@ -309,7 +309,7 @@ export async function removeGroupMemberAction(input: unknown) {
       authorization.requestCorrelationId,
     );
     await revalidateAccess(membership.affectedBacklogs, authorization.actorId);
-    return { ok: true as const, membership };
+    return { ok: true as const, membership: { groupId: membership.groupId, userId: membership.userId } };
   } catch (error) {
     return { ok: false as const, error: safeError(error) };
   }
