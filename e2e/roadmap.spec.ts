@@ -13,11 +13,11 @@ if (!RUN) throw new Error("Roadmap E2E requires the isolated Playwright run id."
 const DESKTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844 };
 const TIMEOUT = 10_000;
-type Capture = { console: string[]; network: string[]; errors: string[]; navigating: boolean };
+type Capture = { console: string[]; network: string[]; errors: string[] };
 const captures = new Map<Page, Capture>();
 
 function observe(page: Page, label: string) {
-  const capture: Capture = { console: [label], network: [label], errors: [], navigating: false };
+  const capture: Capture = { console: [label], network: [label], errors: [] };
   captures.set(page, capture);
   observePage(page, { console: capture.console, network: capture.network, onFault: ({ line }) => capture.errors.push(line) }, label);
   return capture;
@@ -83,18 +83,12 @@ const bar = (page: Page, key: string) => page.locator(`[data-roadmap-bar="${key}
 const row = (page: Page, key: string) => page.locator(`[data-roadmap-row="${key}"]`);
 
 async function openRoadmap(page: Page, reload = false) {
-  const capture = captures.get(page);
-  if (capture) capture.navigating = true;
-  try {
-    const stream = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/realtime");
-    if (reload) await page.reload();
-    else await page.goto("/b/CASS/roadmap");
-    expect((await stream).status()).toBe(200);
-    await expect(page.getByRole("heading", { level: 1, name: "Roadmap", exact: true })).toBeVisible();
-    await expect(page.getByTestId("roadmap-scroller")).toBeVisible();
-  } finally {
-    if (capture) capture.navigating = false;
-  }
+  const stream = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/realtime");
+  if (reload) await page.reload();
+  else await page.goto("/b/CASS/roadmap");
+  expect((await stream).status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1, name: "Roadmap", exact: true })).toBeVisible();
+  await expect(page.getByTestId("roadmap-scroller")).toBeVisible();
 }
 
 /** Keep a bar to the right of the sticky labels, not hidden underneath them. */
