@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import type { CSSProperties, ReactNode } from "react";
 import { CalendarDays } from "lucide-react";
 import { KindIcon } from "@/components/icons/kind-icon";
@@ -199,6 +200,7 @@ export function ItemRow({
   href,
   onNavigate,
   selected = false,
+  wrapTitle = false,
   leading,
   trailing,
   aside,
@@ -214,6 +216,8 @@ export function ItemRow({
   href?: string;
   onNavigate?: (event: { preventDefault: () => void }) => void;
   selected?: boolean;
+  /** Show the complete title on multiple lines in reading-focused contexts. */
+  wrapTitle?: boolean;
   leading?: ReactNode;
   trailing?: ReactNode;
   aside?: ReactNode;
@@ -222,6 +226,7 @@ export function ItemRow({
   style?: CSSProperties;
 }) {
   const cellRole = as === "row" ? "cell" : undefined;
+  const rowClass = cn(ROW_CLASS, wrapTitle && "items-start");
   const priority = item.priority === undefined ? undefined : asPriority(item.priority);
   const fixVersions = item.fixVersions ?? [];
   const labels = item.labels ?? [];
@@ -235,7 +240,7 @@ export function ItemRow({
       <span className="shrink-0 font-mono text-[11.5px] font-medium text-muted-foreground">
         {item.key}
       </span>
-      <span className="min-w-0 truncate text-sm">{item.title}</span>
+      <span className={cn("min-w-0 text-sm", wrapTitle ? "whitespace-normal break-words" : "truncate")}>{item.title}</span>
     </>
   );
 
@@ -246,13 +251,13 @@ export function ItemRow({
           {leading}
         </div>
       ) : null}
-      <div role={cellRole} className="flex min-w-0 flex-1 basis-48 items-center gap-2">
+      <div role={cellRole} className={cn("flex min-w-0 flex-1 basis-48 items-center gap-2", wrapTitle && "items-start")}>
         {href ? (
           <Link
             href={href}
             onNavigate={onNavigate}
             title={linkTitle}
-            className="flex min-w-0 items-center gap-2 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-[var(--ring)]"
+            className={cn("flex min-w-0 items-center gap-2 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-[var(--ring)]", wrapTitle && "flex-1 items-start")}
           >
             {identity}
           </Link>
@@ -398,7 +403,7 @@ export function ItemRow({
             onOpen();
           }
         }}
-        className={`${ROW_CLASS} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)] ${highlight}`}
+        className={`${rowClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)] ${highlight}`}
         style={style}
       >
         {content}
@@ -406,7 +411,7 @@ export function ItemRow({
     );
   }
 
-  const className = `${ROW_CLASS} ${href ? "relative" : ""} ${highlight}`;
+  const className = `${rowClass} ${href ? "relative" : ""} ${highlight}`;
   if (as === "li") {
     return (
       <li ref={rowRef} className={className} style={style}>

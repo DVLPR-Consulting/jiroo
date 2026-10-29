@@ -297,7 +297,7 @@ function Section({ id, title, count, empty, children }: {
 function Tag({ card }: { card: LePointCard }) {
   return (
     <span
-      className={cn("inline-flex max-w-56 items-center truncate rounded px-1.5 py-0.5 text-[11px] font-medium", TONE_CLASS[card.tone])}
+      className={cn("inline-block min-w-0 max-w-56 whitespace-normal break-words rounded px-1.5 py-0.5 text-[11px] font-medium", TONE_CLASS[card.tone])}
     >
       {card.tag}
     </span>
@@ -318,6 +318,7 @@ function Rows({ cards, backlogKey, showAssignee = false, showDue = false }: {
           // A team's decisions may list one ticket once per person asked.
           key={`${card.key}-${index}`}
           as="li"
+          wrapTitle
           href={ticketHref(card.key, backlogKey)}
           item={{
             id: card.key,
@@ -575,7 +576,7 @@ function ScopePanel({ data, light }: { data: LePointDataset; light: SprintLight 
                 {change.key}
               </Link>
               {/* The title keeps a readable width; the facts wrap under it when the row is narrow. */}
-              <span className="min-w-[10rem] flex-1 truncate">{change.title}</span>
+              <span className="min-w-[10rem] flex-1 whitespace-normal break-words">{change.title}</span>
               <span className="text-xs text-muted-foreground">
                 {change.points === null ? "non estimé" : countLabel(change.points, "pt", "pts", formatPoints)} · le {formatDay(change.day)}
                 {` par ${(change.actor && people.get(change.actor)) ?? "quelqu’un"}`}
@@ -930,7 +931,7 @@ function WorkloadStrip({ rows, data }: { rows: WorkloadRow[]; data: LePointDatas
                   ) : (
                     <span aria-hidden="true" className="inline-grid size-6 place-items-center rounded-full bg-[var(--muted)] text-xs">?</span>
                   )}
-                  <span className="min-w-0 truncate">{row.assignee ? shortName(row.name) : row.name}</span>
+                  <span className="min-w-0 whitespace-normal break-words">{row.assignee ? shortName(row.name) : row.name}</span>
                   {light ? <LightDot color={light.color} className="size-2" /> : null}
                   <span className="shrink-0 text-muted-foreground tabular-nums">
                     {away
@@ -1116,7 +1117,7 @@ function WorkloadPerson({ row, busiest, data }: { row: WorkloadRow; busiest: num
       >
         <span className={cn("flex min-w-0 items-center gap-1.5", row.assignee === null && "text-muted-foreground")}>
           <ChevronRight aria-hidden="true" className={cn("size-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")} />
-          <span className="min-w-0 truncate">{row.name}</span>
+          <span className="min-w-0 whitespace-normal break-words">{row.name}</span>
         </span>
         <span className="justify-self-end @2xl:justify-self-start">{light ? <LightTag light={light} /> : null}</span>
         <span aria-hidden="true" className="hidden h-1.5 overflow-hidden rounded-full bg-[var(--muted)] @2xl:flex">
@@ -1162,11 +1163,11 @@ function ObjectiveTable({ objectives, backlogKey }: { objectives: ObjectiveSumma
           >
             <Link
               href={ticketHref(objective.key, backlogKey)}
-              className="flex min-w-0 items-center gap-2 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-[var(--ring)]"
+              className="flex min-w-0 items-start gap-2 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-[var(--ring)]"
             >
               <TypeIcon type="epic" />
               <span className="shrink-0 font-mono text-[11.5px] font-medium text-muted-foreground">{objective.key}</span>
-              <span className="min-w-0 truncate text-sm">{objective.title}</span>
+              <span className="min-w-0 whitespace-normal break-words text-sm">{objective.title}</span>
             </Link>
             <span
               role="img"
@@ -1184,7 +1185,7 @@ function ObjectiveTable({ objectives, backlogKey }: { objectives: ObjectiveSumma
               {objective.done}/{objective.total}
               {objective.blocked > 0 ? <span className="ml-1 text-[var(--danger)]">· {objective.blocked} bloqué{objective.blocked > 1 ? "s" : ""}</span> : null}
             </span>
-            <span className="col-span-2 truncate text-xs text-muted-foreground sm:col-span-1" title={objective.delivery}>
+            <span className="col-span-2 min-w-0 whitespace-normal break-words text-xs text-muted-foreground sm:col-span-1" title={objective.delivery}>
               {objective.due ? `${formatDay(objective.due)} · ` : ""}
               {objective.deliveryTag}
             </span>
