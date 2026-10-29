@@ -41,6 +41,17 @@ function inTable(node: React.ReactNode) {
 }
 
 describe("ItemRow", () => {
+  it("opts into wrapping long linked titles without changing the default truncation", () => {
+    const item = { ...task, title: "Un titre long qui doit rester lisible dans son intégralité" };
+    const view = (wrapTitle?: boolean) => <ul><ItemRow as="li" item={item} href="/b/DEMO/le-point?item=DEMO-1" wrapTitle={wrapTitle} /></ul>;
+    const { rerender } = render(view());
+    expect(screen.getByText(item.title)).toHaveClass("truncate");
+    rerender(view(true));
+    expect(screen.getByText(item.title)).not.toHaveClass("truncate");
+    expect(screen.getByText(item.title)).toHaveClass("whitespace-normal", "break-words");
+    expect(screen.getByRole("link", { name: /DEMO-1/ })).toHaveAttribute("href", "/b/DEMO/le-point?item=DEMO-1");
+  });
+
   it("renders the Backlog fields with inline editors and opens the item", async () => {
     const onOpen = vi.fn();
     inTable(<ItemRow item={task} editing={editing} onOpen={onOpen} />);
