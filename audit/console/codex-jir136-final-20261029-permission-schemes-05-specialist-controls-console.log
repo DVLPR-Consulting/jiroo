@@ -1,0 +1,5 @@
+[scenario] contrôles spécialiste
+[contrôles spécialiste] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[contrôles spécialiste] log: [HMR] connected
+[contrôles spécialiste] [aborted-action] POST /b/CASS 200
+[result] scénario validé

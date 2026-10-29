@@ -1,0 +1,74 @@
+
+> jiroo@0.1.0 test /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+> vitest run --project db lib/services/items.integration.test.ts lib/services/sprints.integration.test.ts -t 'reparented trash|sprint ranking across'
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+
+ ❯ |db| lib/services/sprints.integration.test.ts (9 tests | 1 failed | 8 skipped) 43ms
+     × does not reuse the rank of an active sprint before the first planned sprint 42ms
+ ❯ |db| lib/services/items.integration.test.ts (44 tests | 1 failed | 43 skipped) 63ms
+     × restores a deleted descendant under its parent's current path 62ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |db| lib/services/items.integration.test.ts > reparented trash integrity > restores a deleted descendant under its parent's current path
+AssertionError: expected 'root.a6860fe06adb4cebac73569a000b0bcf…' to be 'root.8316096b4b9a40e69a2ebe175b201ae3…' // Object.is equality
+
+Expected: "root.8316096b4b9a40e69a2ebe175b201ae3.905374b3007b4fee958c96da50c42680.f18d529c007940ff949897db74cbd22f"
+Received: "root.a6860fe06adb4cebac73569a000b0bcf.905374b3007b4fee958c96da50c42680.f18d529c007940ff949897db74cbd22f"
+
+ ❯ lib/services/items.integration.test.ts:1748:30
+    1746|       const [restored] = await db.select().from(items).where(eq(items.…
+    1747|       expect(restored!.parentId).toBe(moved!.id);
+    1748|       expect(restored!.path).toBe(`${moved!.path}.${task.id.replaceAll…
+       |                              ^
+    1749|       expect(restored!.depth).toBe(moved!.depth + 1);
+    1750|       await softDeleteItem({ id: b.id }, actor.id);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |db| lib/services/sprints.integration.test.ts > sprint ranking across lifecycle states > does not reuse the rank of an active sprint before the first planned sprint
+Error: Failed query: update "sprints" set "rank" = $1, "updated_at" = $2 where "sprints"."id" = $3 returning "id", "backlog_id", "name", "goal", "state", "rank", "capacity_points", "planned_start_at", "planned_end_at", "started_at", "completed_at", "created_by", "created_at", "updated_at"
+params: a0,2026-10-29T10:18:17.511Z,29d53288-a486-4bc6-aa81-d6369814a296
+ ❯ NodePgPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/src/pg-core/session.ts:73:10
+ ❯ node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/src/node-postgres/session.ts:154:18
+ ❯ lib/services/sprints.ts:220:23
+    218|     if (rank === current.rank) return current;
+    219|
+    220|     const [updated] = await tx
+       |                       ^
+    221|       .update(sprints)
+    222|       .set({ rank, updatedAt: new Date() })
+ ❯ NodePgSession.transaction node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/src/node-postgres/session.ts:259:18
+ ❯ lib/services/sprints.integration.test.ts:479:7
+
+Caused by: error: duplicate key value violates unique constraint "sprints_backlog_rank_idx"
+ ❯ node_modules/.pnpm/pg@8.21.0/node_modules/pg/lib/client.js:646:17
+ ❯ node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/node-postgres/session.js:124:18
+ ❯ NodePgPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/pg-core/session.js:39:16
+ ❯ node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/node-postgres/session.js:117:22
+ ❯ lib/services/sprints.ts:220:23
+ ❯ NodePgSession.transaction node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/node-postgres/session.js:186:22
+ ❯ lib/services/sprints.integration.test.ts:479:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { length: 263, severity: 'ERROR', code: '23505', detail: 'Key (backlog_id, rank)=(5ab515e1-7df9-4869-9b3e-b164d3fe6833, a0) already exists.', hint: undefined, position: undefined, internalPosition: undefined, internalQuery: undefined, where: undefined, schema: 'public', table: 'sprints', dataType: undefined, constraint: 'sprints_backlog_rank_idx', file: 'nbtinsert.c', routine: '_bt_check_unique' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 51 skipped (53)
+   Start at  11:18:16
+   Duration  1.27s (transform 122ms, setup 46ms, import 508ms, tests 106ms, environment 482ms)
+
+ ELIFECYCLE  Test failed. See above for more details.

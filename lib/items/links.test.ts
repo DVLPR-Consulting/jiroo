@@ -243,6 +243,13 @@ describe("addLinkInput", () => {
     expect(result.success).toBe(false);
   });
 
+  it("canonicalizes UUID casing before identity checks", () => {
+    const sourceId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const targetId = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
+    expect(addLinkInput.parse({ sourceId: sourceId.toUpperCase(), targetId: targetId.toUpperCase(), type: "relates" })).toMatchObject({ sourceId, targetId });
+    expect(addLinkInput.safeParse({ sourceId, targetId: sourceId.toUpperCase(), type: "relates" }).success).toBe(false);
+  });
+
   it("rejects a self-link (sourceId === targetId)", () => {
     const result = addLinkInput.safeParse({ sourceId: UUID_A, targetId: UUID_A, type: "relates" });
     expect(result.success).toBe(false);

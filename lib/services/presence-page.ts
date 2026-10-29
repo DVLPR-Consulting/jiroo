@@ -64,7 +64,7 @@ export async function loadTicketTimeline(input: {
       where backlogs.id in (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
         and backlogs.archived_at is null and ${browseAccessPredicate(command.actorId)}
         and items.deleted_at is null and items.assignee_id is not null
-    ), journal_dates as (
+    ), journal_dates as materialized (
       select ticket.id,
         min(change.at) filter (where changed_status.category = 'in_progress') as first_progress,
         max(change.at) filter (where changed_status.category = 'done') as last_done,

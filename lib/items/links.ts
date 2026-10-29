@@ -145,8 +145,8 @@ export function groupLinksForDisplay<T extends LinkRow>(
 
 export const addLinkInput = z
   .object({
-    sourceId: z.string().uuid(),
-    targetId: z.string().uuid(),
+    sourceId: z.string().uuid().toLowerCase(),
+    targetId: z.string().uuid().toLowerCase(),
     type: z.enum(LINK_TYPES),
   })
   .refine((d) => d.sourceId !== d.targetId, {

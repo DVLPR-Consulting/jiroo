@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   breadcrumbProps: vi.fn(),
   checkPermission: vi.fn(),
   helperProps: vi.fn(),
-  listGroups: vi.fn(), listPermissionSchemes: vi.fn(), readBacklogAccess: vi.fn(), listAdminUsers: vi.fn(),
+  listGroups: vi.fn(), listPermissionSchemeChoices: vi.fn(), readBacklogAccess: vi.fn(), listAdminUsers: vi.fn(),
   notFound: vi.fn(), redirect: vi.fn(), requireBacklogReadPermissionByKey: vi.fn(), requireSession: vi.fn(),
 }));
 vi.mock("@/components/shell/shell-breadcrumb", () => ({
@@ -33,7 +33,7 @@ vi.mock("@/lib/auth/authorization", () => ({
 }));
 vi.mock("@/lib/services/users", () => ({ listAdminUsers: mocks.listAdminUsers }));
 vi.mock("@/lib/services/authorization-admin", () => ({
-  listGroups: mocks.listGroups, listPermissionSchemes: mocks.listPermissionSchemes, readBacklogAccess: mocks.readBacklogAccess,
+  listGroups: mocks.listGroups, listPermissionSchemeChoices: mocks.listPermissionSchemeChoices, readBacklogAccess: mocks.readBacklogAccess,
 }));
 vi.mock("@/components/admin/access-admin", () => ({
   AccessAdmin: (props: unknown) => {
@@ -55,7 +55,7 @@ describe("backlog access settings route", () => {
     vi.clearAllMocks();
     mocks.requireSession.mockResolvedValue({ user: { id: "u1" } });
     mocks.requireBacklogReadPermissionByKey.mockResolvedValue({ backlogId: "b1", backlogKey: "DEMO", resourceId: "b1" });
-    mocks.listGroups.mockResolvedValue([]); mocks.listPermissionSchemes.mockResolvedValue([]); mocks.listAdminUsers.mockResolvedValue([]);
+    mocks.listGroups.mockResolvedValue([]); mocks.listPermissionSchemeChoices.mockResolvedValue([]); mocks.listAdminUsers.mockResolvedValue([]);
     mocks.readBacklogAccess.mockResolvedValue({ backlog: { id: "b1", key: "DEMO", name: "Démo" }, scheme: { id: "s1", name: "Schéma", version: 1 }, mode: "simple", roles: [] });
     mocks.redirect.mockImplementation((path: string) => { throw new Error(`redirect:${path}`); });
     mocks.notFound.mockImplementation(() => { throw new Error("not-found"); });
@@ -73,6 +73,7 @@ describe("backlog access settings route", () => {
     mocks.checkPermission.mockImplementation(async ({ permission }: { permission: string }) => ({ allowed: permission === "administer_backlog" }));
     render(await AccessPage({ params: Promise.resolve({ key: "DEMO" }) }));
     expect(mocks.readBacklogAccess).toHaveBeenCalledWith("b1");
+    expect(mocks.listPermissionSchemeChoices).toHaveBeenCalledWith("u1");
     expect(mocks.accessProps).toHaveBeenCalledWith(expect.objectContaining({
       canManageMembers: false,
       canAdministerBacklog: true,

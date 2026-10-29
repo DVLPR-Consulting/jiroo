@@ -208,13 +208,18 @@ export async function reorderSprint(input: unknown, actorId: string) {
 
     const before = beforeIndex >= 0 ? planned[beforeIndex]! : null;
     const after = afterIndex >= 0 ? planned[afterIndex]! : null;
-    const rank = before
+    let rank = before
       ? after
         ? rankBetween(before.rank, after.rank)
         : rankLast(before.rank)
       : after
         ? rankFirst(after.rank)
         : rankLast(null);
+    // Ranks are unique across all lifecycle states, not only planned sprints.
+    const occupied = new Set(rows.filter((row) => row.id !== current.id).map((row) => row.rank));
+    while (occupied.has(rank)) {
+      rank = after ? rankBetween(rank, after.rank) : rankLast(rank);
+    }
     if (rank === current.rank) return current;
 
     const [updated] = await tx

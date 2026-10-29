@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, like } from "drizzle-orm";
+import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { appendPlatformAdministratorBypassEvent } from "@/lib/auth/authorization";
 import { PROTECTED_ROLE_PERMISSION_KEYS } from "@/lib/auth/permissions";
@@ -540,7 +541,7 @@ describeDb("transactional authorization administration", () => {
   });
 
   it("returns minimal administration DTOs for groups, roles, schemes, and backlog access", async () => {
-    const groups = await listGroups();
+    const groups = await listGroups(actorId);
     expect(groups[0]).toEqual(
       expect.objectContaining({
         id: expect.any(String),
@@ -551,7 +552,7 @@ describeDb("transactional authorization administration", () => {
         blockers: expect.any(Array),
       }),
     );
-    const roles = await listProjectRoles();
+    const roles = await listProjectRoles(actorId);
     expect(roles).toContainEqual(
       expect.objectContaining({ id: administratorRoleId, key: "administrators", blockers: expect.any(Array) }),
     );
@@ -1463,4 +1464,33 @@ describeDb("transactional authorization administration", () => {
     },
     10_000,
   );
+  it("reads administrator-removal guards with a fixed query count at 1 and 100 occupants", async () => {
+    const schemeId = await createCanonicalScheme("Access cost fixture");
+    const backlog = await createConfiguredBacklog(schemeId, "advanced", "Access cost fixture");
+    const ids = Array.from({ length: 99 }, () => `cost-${randomUUID()}`);
+    try {
+      const smallSpy = vi.spyOn(Client.prototype, "query");
+      const small = await readBacklogAccess(backlog.id);
+      const queryCount = smallSpy.mock.calls.length;
+      smallSpy.mockRestore();
+      expect(small.roles.flatMap((role) => role.occupants)).toHaveLength(1);
+      expect(small.roles.flatMap((role) => role.occupants)[0]!.removalBlocked).toBe(true);
+      await db.insert(user).values(ids.map((id) => ({ id, name: id, email: `${id}@example.test`, role: "contributor" })));
+      await db.insert(backlogRoleActors).values(ids.map((id) => ({ backlogId: backlog.id, projectRoleId: administratorRoleId, actorType: "user" as const, userId: id })));
+      const largeSpy = vi.spyOn(Client.prototype, "query");
+      const start = performance.now();
+      const large = await readBacklogAccess(backlog.id);
+      const largeCount = largeSpy.mock.calls.length;
+      largeSpy.mockRestore();
+      console.log("ACCESS_QUERY_COST", JSON.stringify({ small: queryCount, large: largeCount, milliseconds: performance.now() - start }));
+      expect(large.roles.flatMap((role) => role.occupants)).toHaveLength(100);
+      expect(large.roles.flatMap((role) => role.occupants).every((row) => !row.removalBlocked)).toBe(true);
+      expect(largeCount).toBe(queryCount);
+    } finally {
+      vi.restoreAllMocks();
+      await db.delete(backlogRoleActors).where(eq(backlogRoleActors.backlogId, backlog.id));
+      await db.delete(user).where(inArray(user.id, ids));
+    }
+  });
+
 });

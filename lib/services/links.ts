@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne, or } from "drizzle-orm";
+import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { itemLinks, items, statuses } from "@/lib/db/schema/domain";
 import { addLinkInput, isDuplicateLink, wouldCreateDirectCycle } from "@/lib/items/links";
@@ -113,6 +113,10 @@ export async function addLink(
   const data = addLinkInput.parse(input);
 
   return db.transaction(async (tx: Tx) => {
+    // A pair has one logical identity in both directions. Serialize its check
+    // and insertion; the directed unique index alone cannot protect inverses.
+    const pair = [data.sourceId, data.targetId].map((id) => id.toLowerCase()).sort().join(":");
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`item-link-pair:${pair}`}, 0))`);
     // Load both items; both must be live.
     const [source] = await tx
       .select({ id: items.id, backlogId: items.backlogId, deletedAt: items.deletedAt })

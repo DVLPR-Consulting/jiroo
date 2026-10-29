@@ -1,0 +1,10 @@
+[scenario] persistance administrateur
+[persistance administrateur] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[persistance administrateur] log: [HMR] connected
+[persistance administrateur] [aborted-action] POST /b/CASS/settings/access 200
+[persistance administrateur] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[persistance administrateur] log: [HMR] connected
+[result] scénario validé
+[scenario] persistance second utilisateur
+[persistance second utilisateur] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[persistance second utilisateur] log: [HMR] connected

@@ -1,0 +1,61 @@
+
+> jiroo@0.1.0 test /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+> vitest run --project db lib/services/with-retry.integration.test.ts
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+
+ ❯ |db| lib/services/with-retry.integration.test.ts (1 test | 1 failed) 22ms
+     × retries a real Drizzle unique violation after the failed transaction rolls back 22ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |db| lib/services/with-retry.integration.test.ts > PostgreSQL retries > retries a real Drizzle unique violation after the failed transaction rolls back
+AssertionError: promise rejected "Error: Failed query: insert into "backlog… { …(2) }" instead of resolving
+ ❯ lib/services/with-retry.integration.test.ts:21:11
+     19|         if (attempts === 1) await tx.insert(backlogs).values({ key, na…
+     20|         return "recovered";
+     21|       }))).resolves.toBe("recovered");
+       |           ^
+     22|       expect(attempts).toBe(2);
+     23|     } finally {
+
+Caused by: Error: Failed query: insert into "backlogs" ("id", "key", "name", "color", "archived_at", "lead_user_id", "created_at") values (default, $1, $2, $3, default, default, default)
+params: RTCCD32ED3,Collision,#475569
+ ❯ NodePgPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/pg-core/session.js:41:15
+ ❯ lib/services/with-retry.integration.test.ts:19:29
+ ❯ NodePgSession.transaction node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/node-postgres/session.js:186:22
+ ❯ Module.withRetry lib/services/items.ts:339:14
+ ❯ lib/services/with-retry.integration.test.ts:17:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { query: 'insert into "backlogs" ("id", "key", "name", "color", "archived_at", "lead_user_id", "created_at") values (default, $1, $2, $3, default, default, default)', params: [ 'RTCCD32ED3', 'Collision', '#475569' ] }
+Caused by: error: duplicate key value violates unique constraint "backlogs_key_unique"
+ ❯ node_modules/.pnpm/pg@8.21.0/node_modules/pg/lib/client.js:646:17
+ ❯ node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/node-postgres/session.js:113:20
+ ❯ NodePgPreparedQuery.queryWithCache node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/pg-core/session.js:39:16
+ ❯ lib/services/with-retry.integration.test.ts:19:29
+ ❯ NodePgSession.transaction node_modules/.pnpm/drizzle-orm@0.45.2_@prisma+client@5.22.0_@types+pg@8.20.0_better-sqlite3@12.10.0_kysely@0.28.17_pg@8.21.0/node_modules/drizzle-orm/node-postgres/session.js:186:22
+ ❯ Module.withRetry lib/services/items.ts:339:14
+ ❯ lib/services/with-retry.integration.test.ts:17:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { length: 211, severity: 'ERROR', code: '23505', detail: 'Key (key)=(RTCCD32ED3) already exists.', hint: undefined, position: undefined, internalPosition: undefined, internalQuery: undefined, where: undefined, schema: 'public', table: 'backlogs', dataType: undefined, constraint: 'backlogs_key_unique', file: 'nbtinsert.c', routine: '_bt_check_unique' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  11:18:18
+   Duration  801ms (transform 113ms, setup 37ms, import 353ms, tests 22ms, environment 303ms)
+
+ ELIFECYCLE  Test failed. See above for more details.

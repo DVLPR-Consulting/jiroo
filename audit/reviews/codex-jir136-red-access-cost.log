@@ -1,0 +1,50 @@
+
+> jiroo@0.1.0 test /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+> vitest run --project db lib/services/authorization-admin.integration.test.ts -t 'fixed query count at 1 and 100'
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+
+stdout | lib/services/authorization-admin.integration.test.ts > transactional authorization administration > reads administrator-removal guards with a fixed query count at 1 and 100 occupants
+ACCESS_QUERY_COST {"small":7,"large":403,"milliseconds":75.60062500000004}
+
+ ❯ |db| lib/services/authorization-admin.integration.test.ts (32 tests | 1 failed | 31 skipped) 143ms
+     × reads administrator-removal guards with a fixed query count at 1 and 100 occupants 118ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |db| lib/services/authorization-admin.integration.test.ts > transactional authorization administration > reads administrator-removal guards with a fixed query count at 1 and 100 occupants
+AssertionError: expected 403 to be 7 // Object.is equality
+
+- Expected
++ Received
+
+- 7
++ 403
+
+ ❯ lib/services/authorization-admin.integration.test.ts:1488:26
+    1486|       expect(large.roles.flatMap((role) => role.occupants)).toHaveLeng…
+    1487|       expect(large.roles.flatMap((role) => role.occupants).every((row)…
+    1488|       expect(largeCount).toBe(queryCount);
+       |                          ^
+    1489|     } finally {
+    1490|       vi.restoreAllMocks();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 31 skipped (32)
+   Start at  11:26:22
+   Duration  844ms (transform 95ms, setup 30ms, import 304ms, tests 143ms, environment 278ms)
+
+ ELIFECYCLE  Test failed. See above for more details.

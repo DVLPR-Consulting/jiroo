@@ -1,0 +1,18 @@
+[scenario] mutation browse par matrice UI
+[mutation browse par matrice UI] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[mutation browse par matrice UI] log: [HMR] connected
+[mutation browse par matrice UI] log: [Fast Refresh] rebuilding
+[mutation browse par matrice UI] log: [Fast Refresh] done in 101ms
+[result] scénario validé
+[scenario] visibilité utilisateur avant/après browse
+[visibilité utilisateur avant/après browse] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[visibilité utilisateur avant/après browse] log: [HMR] connected
+[visibilité utilisateur avant/après browse] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[visibilité utilisateur avant/après browse] log: [HMR] connected
+[visibilité utilisateur avant/après browse] [aborted-action] POST /b/CASS 200
+[visibilité utilisateur avant/après browse] log: [Fast Refresh] rebuilding
+[visibilité utilisateur avant/après browse] log: [Fast Refresh] done in 101ms
+[visibilité utilisateur avant/après browse] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[visibilité utilisateur avant/après browse] log: [HMR] connected
+[visibilité utilisateur avant/après browse] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[visibilité utilisateur avant/après browse] log: [HMR] connected

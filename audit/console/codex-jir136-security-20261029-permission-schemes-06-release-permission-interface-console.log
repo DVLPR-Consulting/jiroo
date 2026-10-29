@@ -1,0 +1,14 @@
+[scenario] permission future release
+[permission future release] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[permission future release] log: [HMR] connected
+[permission future release] [aborted-action] POST /b/CASS/settings/access 200
+[permission future release] log: [Fast Refresh] rebuilding
+[permission future release] log: [Fast Refresh] done in 292ms
+[result] scénario validé
+[scenario] interface Releases spécialiste
+[interface Releases spécialiste] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[interface Releases spécialiste] log: [HMR] connected
+[interface Releases spécialiste] [aborted-action] POST /b/CASS 200
+[interface Releases spécialiste] log: [Fast Refresh] rebuilding
+[interface Releases spécialiste] log: [Fast Refresh] done in 292ms
+[interface Releases spécialiste] [aborted-rsc] GET /b/CASS/releases

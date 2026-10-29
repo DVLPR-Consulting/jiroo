@@ -1,0 +1,12 @@
+[scenario] éditeur A
+[éditeur A] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[éditeur A] log: [HMR] connected
+[result] scénario validé
+[scenario] éditeur B
+[éditeur B] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[éditeur B] log: [HMR] connected
+[éditeur B] [aborted-action] POST /admin 200
+[éditeur B] [aborted-action] POST /admin 200
+[éditeur B] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[éditeur B] log: [HMR] connected
+[éditeur B] [aborted-action] POST /admin 200

@@ -1,0 +1,7 @@
+[scenario] isolation CASS/LABS
+[isolation CASS/LABS] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[isolation CASS/LABS] log: [HMR] connected
+[isolation CASS/LABS] [aborted-action] POST /b/CASS 200
+[isolation CASS/LABS] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[isolation CASS/LABS] log: [HMR] connected
+[result] scénario validé

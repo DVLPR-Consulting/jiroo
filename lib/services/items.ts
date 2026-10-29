@@ -338,8 +338,9 @@ export async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> 
     try {
       return await fn();
     } catch (e) {
-      const code = (e as { code?: string } | null)?.code;
-      if (code && RETRYABLE_PG_CODES.has(code) && attempt < tries - 1) {
+      const candidate = e as { code?: unknown; cause?: { code?: unknown } } | null;
+      const code = candidate?.code ?? candidate?.cause?.code;
+      if (typeof code === "string" && RETRYABLE_PG_CODES.has(code) && attempt < tries - 1) {
         lastErr = e;
         continue;
       }
@@ -1200,11 +1201,11 @@ export async function reparentItem(input: unknown, actorId: string) {
       }
 
       if (!sameParent) {
-        // lock the whole moved subtree (asc(path)) before the rewrite
+        // Include trashed descendants so restoration preserves the parent/path invariant.
+        // Lock the whole moved subtree (asc(path)) before the rewrite
         const subtree = and(
           eq(items.backlogId, node.backlogId),
           sql`${items.path} <@ ${node.path}::ltree`,
-          isNull(items.deletedAt),
         );
         await tx.select({ id: items.id }).from(items).where(subtree).orderBy(asc(items.path)).for("update");
 

@@ -1,0 +1,66 @@
+
+> jiroo@0.1.0 test /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+> vitest run --project db lib/services/counter-audit-probe.integration.test.ts
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.12 /Users/nkrmnr/Developer/worktrees/jiroo/jir-136-contre-audit
+
+ ❯ |db| lib/services/counter-audit-probe.integration.test.ts (3 tests | 1 failed) 97ms
+     × observes rename failures independently in report, burndown and completion 47ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |db| lib/services/counter-audit-probe.integration.test.ts > counter-audit lifecycle observations > observes rename failures independently in report, burndown and completion
+ZodError: [
+  {
+    "expected": "number",
+    "code": "invalid_type",
+    "path": [
+      "itemPage"
+    ],
+    "message": "Invalid input: expected number, received undefined"
+  },
+  {
+    "expected": "number",
+    "code": "invalid_type",
+    "path": [
+      "eventPage"
+    ],
+    "message": "Invalid input: expected number, received undefined"
+  },
+  {
+    "expected": "number",
+    "code": "invalid_type",
+    "path": [
+      "pageSize"
+    ],
+    "message": "Invalid input: expected number, received undefined"
+  }
+]
+ ❯ Module.getSprintReport lib/services/sprint-reports.ts:940:37
+    938|   options: unknown,
+    939| ): Promise<SprintReport | null> {
+    940|   const command = reportPageCommand.parse(options);
+       |                                     ^
+    941|   return db.transaction(
+    942|     async (tx) => {
+ ❯ lib/services/counter-audit-probe.integration.test.ts:174:28
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  11:27:04
+   Duration  1.14s (transform 175ms, setup 34ms, import 622ms, tests 97ms, environment 265ms)
+
+ ELIFECYCLE  Test failed. See above for more details.

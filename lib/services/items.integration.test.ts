@@ -5,6 +5,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Client } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
+import { nextItemKey } from "@/lib/items/key";
 import { user } from "@/lib/db/schema/auth";
 import {
   activities,
@@ -29,6 +30,7 @@ import {
   rankBacklogItem,
   reparentItem,
   restoreItem,
+  softDeleteItem,
   updateItem,
 } from "@/lib/services/items";
 
@@ -347,13 +349,16 @@ async function createTaskUpdateFixture() {
       color: "#9aa0a6",
     })
     .returning();
+  const componentKey = await nextItemKey(db, backlog!.key);
+  const epicKey = await nextItemKey(db, backlog!.key);
+  const taskKey = await nextItemKey(db, backlog!.key);
   const componentId = randomUUID();
   const epicId = randomUUID();
   const taskId = randomUUID();
   const componentPath = `root.${componentId.replaceAll("-", "")}`;
   await db.insert(items).values({
     id: componentId,
-    key: `${backlog!.key}-1`,
+    key: componentKey,
     type: "composant",
     backlogId: backlog!.id,
     title: "Produit",
@@ -366,7 +371,7 @@ async function createTaskUpdateFixture() {
   const epicPath = `${componentPath}.${epicId.replaceAll("-", "")}`;
   await db.insert(items).values({
     id: epicId,
-    key: `${backlog!.key}-2`,
+    key: epicKey,
     type: "epic",
     backlogId: backlog!.id,
     title: "Epic estimable",
@@ -381,7 +386,7 @@ async function createTaskUpdateFixture() {
     .insert(items)
     .values({
       id: taskId,
-      key: `${backlog!.key}-3`,
+      key: taskKey,
       type: "tache",
       backlogId: backlog!.id,
       title: "Travail estimable",
@@ -1721,6 +1726,36 @@ describeDb("item view projection", () => {
         .resolves.toMatchObject({ id: fixture.item.id, description });
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
+
+
+describeDb("reparented trash integrity", () => {
+  it("restores a deleted descendant under its parent's current path", async () => {
+    const [actor] = await db.select({ id: user.id }).from(user).limit(1);
+    if (!actor) throw new Error("Missing seeded actor");
+    const [backlog] = await db.insert(backlogs).values({ key: randomBacklogKey(), name: "Tree integrity", color: "#475569" }).returning();
+    const [status] = await db.insert(statuses).values({ backlogId: backlog!.id, name: "Todo", category: "todo", order: 0, color: "#9aa0a6" }).returning();
+    try {
+      const create = (type: string, title: string, parentId: string | null = null) => createItem({ backlogId: backlog!.id, type, title, parentId, statusId: status!.id }, actor.id);
+      const a = await create("composant", "A");
+      const b = await create("composant", "B");
+      const epic = await create("epic", "E", a.id);
+      const task = await create("tache", "T", epic.id);
+      await softDeleteItem({ id: task.id }, actor.id);
+      await reparentItem({ id: epic.id, newParentId: b.id }, actor.id);
+      await restoreItem({ id: task.id }, actor.id);
+      const [moved] = await db.select().from(items).where(eq(items.id, epic.id));
+      const [restored] = await db.select().from(items).where(eq(items.id, task.id));
+      expect(restored!.parentId).toBe(moved!.id);
+      expect(restored!.path).toBe(`${moved!.path}.${task.id.replaceAll("-", "")}`);
+      expect(restored!.depth).toBe(moved!.depth + 1);
+      await softDeleteItem({ id: b.id }, actor.id);
+      const [deletedAgain] = await db.select().from(items).where(eq(items.id, task.id));
+      expect(deletedAgain!.deletedAt).not.toBeNull();
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, backlog!.id));
     }
   });
 });

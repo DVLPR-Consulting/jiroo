@@ -139,5 +139,7 @@ describeDb("presence ticket timeline", () => {
     // Reading multiple visible backlogs still takes one grouped data query.
     await db.insert(permissionGrants).values({ scope: "backlog", permissionSchemeId: f.schemeIds[1]!, permissionKey: "browse_backlog", principalType: "user", userId: f.actorA });
     expect((await read("2026-10-01", "2026-10-31", [f.backlogA.id, f.backlogB.id])).tickets).toHaveLength(2000);
+    // Filtering dates after aggregation must not introduce out-of-period tickets at volume.
+    expect((await read("2026-09-01", "2026-09-30")).tickets).toEqual([]);
   });
 });
