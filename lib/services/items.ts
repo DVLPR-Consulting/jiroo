@@ -1201,11 +1201,11 @@ export async function reparentItem(input: unknown, actorId: string) {
       }
 
       if (!sameParent) {
-        // lock the whole moved subtree (asc(path)) before the rewrite
+        // Include trashed descendants so restoration preserves the parent/path invariant.
+        // Lock the whole moved subtree (asc(path)) before the rewrite
         const subtree = and(
           eq(items.backlogId, node.backlogId),
           sql`${items.path} <@ ${node.path}::ltree`,
-          isNull(items.deletedAt),
         );
         await tx.select({ id: items.id }).from(items).where(subtree).orderBy(asc(items.path)).for("update");
 

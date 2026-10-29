@@ -29,6 +29,7 @@ import {
   rankBacklogItem,
   reparentItem,
   restoreItem,
+  softDeleteItem,
   updateItem,
 } from "@/lib/services/items";
 
@@ -1721,6 +1722,36 @@ describeDb("item view projection", () => {
         .resolves.toMatchObject({ id: fixture.item.id, description });
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+});
+
+
+describeDb("reparented trash integrity", () => {
+  it("restores a deleted descendant under its parent's current path", async () => {
+    const [actor] = await db.select({ id: user.id }).from(user).limit(1);
+    if (!actor) throw new Error("Missing seeded actor");
+    const [backlog] = await db.insert(backlogs).values({ key: randomBacklogKey(), name: "Tree integrity", color: "#475569" }).returning();
+    const [status] = await db.insert(statuses).values({ backlogId: backlog!.id, name: "Todo", category: "todo", order: 0, color: "#9aa0a6" }).returning();
+    try {
+      const create = (type: string, title: string, parentId: string | null = null) => createItem({ backlogId: backlog!.id, type, title, parentId, statusId: status!.id }, actor.id);
+      const a = await create("composant", "A");
+      const b = await create("composant", "B");
+      const epic = await create("epic", "E", a.id);
+      const task = await create("tache", "T", epic.id);
+      await softDeleteItem({ id: task.id }, actor.id);
+      await reparentItem({ id: epic.id, newParentId: b.id }, actor.id);
+      await restoreItem({ id: task.id }, actor.id);
+      const [moved] = await db.select().from(items).where(eq(items.id, epic.id));
+      const [restored] = await db.select().from(items).where(eq(items.id, task.id));
+      expect(restored!.parentId).toBe(moved!.id);
+      expect(restored!.path).toBe(`${moved!.path}.${task.id.replaceAll("-", "")}`);
+      expect(restored!.depth).toBe(moved!.depth + 1);
+      await softDeleteItem({ id: b.id }, actor.id);
+      const [deletedAgain] = await db.select().from(items).where(eq(items.id, task.id));
+      expect(deletedAgain!.deletedAt).not.toBeNull();
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, backlog!.id));
     }
   });
 });
