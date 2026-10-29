@@ -33,6 +33,24 @@ afterEach(async () => {
 });
 
 describe("publication JUnit exclusive", () => {
+  it("requires a readable reservation even when no temporary report exists", async () => {
+    const reportPaths = await paths(30_001);
+    await rm(reportPaths.lockPath);
+
+    await expect(publishExclusiveJunitReport(reportPaths, 30_001)).rejects.toThrow("réservation Playwright");
+    await expect(stat(reportPaths.finalPath)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("rejects an unreadable reservation and removes the temporary report", async () => {
+    const reportPaths = await paths(30_002);
+    await writeFile(reportPaths.lockPath, "invalid JSON");
+    await writeFile(reportPaths.temporaryPath, "unowned proof");
+
+    await expect(publishExclusiveJunitReport(reportPaths, 30_002)).rejects.toThrow("réservation Playwright");
+    await expect(stat(reportPaths.finalPath)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(stat(reportPaths.temporaryPath)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("does not publish or retain a temporary report for a non-owner", async () => {
     const reportPaths = await paths(10_001);
     await writeFile(reportPaths.temporaryPath, "loser");
