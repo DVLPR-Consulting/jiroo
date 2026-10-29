@@ -37,10 +37,54 @@ série et les sept cas zoom ignorés hors des projets zoom.
 
 ## Lecture par spécification (36 specs existantes)
 
-À compléter avec la ligne de base `chromium` (1280 × 720) sur le même commit :
-pour chaque test rouge de la matrice, « B » s'il échoue aussi en ligne de base
-(dérive de la spécification par rapport au produit, ou défaut du produit déjà
-présent à 1280 px), « M » s'il n'échoue que dans la matrice (largeur ou moteur).
+Ligne de base : le projet d'acceptation `chromium` (1280 × 720, 172 tests)
+rejoué sur le même commit, run `baseline-chromium-20261028-233452` : **100
+verts, 69 rouges, 3 ignorés**. Les rouges de la matrice se répartissent en
+« B », déjà rouges en ligne de base (dérive de la spécification par rapport au
+produit, ou défaut du produit déjà présent à 1280 px), et « M », rouges dans la
+matrice seulement (largeur ou moteur). Dédupliqués : **67 B** et **18 M**, dont
+les 7 audits axe absents de la ligne de base par construction et **11 cas
+propres à WebKit ou à 1440 px**. Les 14 rouges de chaque projet de largeur
+Chromium sont tous B.
+
+| Spécification | Base 1280 | C 1440 | C 1024 | C 768 | W 1440 | W 768 |
+| -- | --: | --: | --: | --: | --: | --: |
+| account-recovery | 0 | 0 | 0 | 0 | 1 | 0 |
+| backlog-foundation | 4 | 5 | 0 | 0 | 4 | 0 |
+| backlog-onboarding | 2 | 2 | 0 | 0 | 2 | 0 |
+| backlog-ranking | 1 | 1 | 1 | 1 | 1 | 1 |
+| backlog-redesign | 3 | 2 | 2 | 2 | 0 | 0 |
+| browse-users | 1 | 1 | 0 | 0 | 1 | 0 |
+| create-everywhere | 4 | 4 | 4 | 4 | 1 | 1 |
+| item-detail-drawer | 1 | 1 | 1 | 1 | 1 | 1 |
+| item-templates | 1 | 1 | 1 | 1 | 1 | 1 |
+| keyboard-shortcuts | 0 | 0 | 0 | 0 | 1 | 1 |
+| le-point | 2 | 2 | 0 | 0 | 2 | 0 |
+| matrix/a11y | hors base | 7 | 0 | 0 | 7 | 0 |
+| permission-schemes | 8 | 7 | 0 | 0 | 7 | 0 |
+| realtime | 3 | 3 | 3 | 3 | 0 | 0 |
+| releases | 26 | 25 | 0 | 0 | 21 | 0 |
+| roadmap | 4 | 5 | 0 | 0 | 5 | 0 |
+| sprint-lifecycle | 7 | 7 | 0 | 0 | 6 | 0 |
+| sprint-reports | 0 | 1 | 0 | 0 | 1 | 0 |
+| ticket-drawer | 2 | 2 | 2 | 2 | 3 | 3 |
+
+Les 16 autres specs sont vertes partout où elles ont tourné (les projets de
+largeur n'exécutent que le sous-ensemble P2, P3, P4, P6).
+
+**Ce que ça dit.** La matrice n'a pas révélé de défaut de moteur ou de largeur
+massif : l'essentiel des rouges est la **dérive de la suite d'acceptation
+elle-même** (69 sur 172, hors CI, non rejouée depuis les lots d'octobre), à
+trier spec par spec entre dérive de test, harnais et régression possible du
+produit : **JIR-134** (priorité haute ; en tête, les trois familles qui peuvent
+cacher une régression : item-templates « Server Action returned no
+discriminated result », realtime, create-everywhere). Les 11 cas propres à
+WebKit ou à 1440 px sont dans **JIR-135** : permission `clipboard-write`
+inconnue de WebKit (account-recovery, ticket-drawer), focus et timing WebKit
+(sprint-reports 01, loading-skeletons, backlog-foundation, permission-schemes
+9), raccourcis j / k / o en WebKit (défaut produit possible), et quatre cas à
+1440 px (backlog-foundation 390, permission-schemes 1, roadmap zoom,
+sprint-reports 06).
 
 ## Zoom 200 %
 
