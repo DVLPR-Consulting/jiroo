@@ -272,7 +272,8 @@ test("planifie, exécute et clôture un sprint sans exposer le backlog sur le Bo
     "href",
     "/b/CASS?q=audit&view=backlog",
   );
-  await expect(page.getByRole("button", { name: "Créer", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("button", { name: /^Créer(?: dans .*)?$/ })).toHaveCount(0);
+  await expect(page.locator('[data-slot="topbar-create"]').getByRole("button", { name: "Créer", exact: true })).toBeVisible();
   await writeAuditScreenshot(
     NO_ACTIVE_SCREENSHOT,
     (path) => page.screenshot({ path, fullPage: true, caret: "initial" }),
