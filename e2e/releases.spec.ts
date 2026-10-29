@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { interceptAction, performAction, type ActionMatch } from "./support/actions";
+
 
 import {
   expect,
@@ -305,16 +307,7 @@ async function assignedVersionIds(itemId: string) {
   return rows.map((row) => row.releaseId);
 }
 
-async function clickPost(page: Page, action: () => Promise<void>) {
-  const responsePromise = page.waitForResponse((response) =>
-    response.request().method() === "POST"
-    && new URL(response.url()).origin === new URL(page.url()).origin,
-  );
-  await action();
-  const response = await responsePromise;
-  await response.finished();
-  expect(response.status()).toBeLessThan(400);
-}
+
 
 async function selectBulkItems(
   page: Page,
@@ -356,11 +349,11 @@ async function applyBulkFixVersions(
   for (const consequence of expectedConsequences) {
     await expect(dialog).toContainText(consequence);
   }
-  await clickPost(page, () =>
+  await performAction(page, (input) => Array.isArray(input.itemIds) && input.itemIds.length === selectedCount && typeof input.patch === "object" && input.patch !== null && "field" in input.patch && input.patch.field === "fixVersionIds", () =>
     dialog.getByRole("button", {
       name: `Appliquer à ${selectedCount} ${selectedCount === 1 ? "item" : "items"}`,
-    }).click(),
-  );
+    }).click());
+  await expect(dialog).toBeHidden();
 }
 
 async function expectListFixVersions(
@@ -381,10 +374,11 @@ async function expectListFixVersions(
 
 async function publishFromDialog(
   page: Page,
-  releaseName: string,
+  release: { id: string; name: string },
   disposition: "keep" | "move",
   destinationName?: string,
 ) {
+  const releaseName = release.name;
   await page.getByRole("button", { name: `Publier ${releaseName}` }).click();
   const dialog = page.getByRole("dialog", { name: `Publier ${releaseName}` });
   await dialog.getByLabel("Date de publication").fill("2026-08-07");
@@ -394,39 +388,23 @@ async function publishFromDialog(
   if (disposition === "move") {
     await dialog.getByLabel("Version de destination").selectOption({ label: destinationName });
   }
-  await clickPost(page, () => dialog.getByRole("button", { name: "Publier", exact: true }).click());
+  await performAction(page, (input) => input.releaseId === release.id && "incompleteDisposition" in input, () => dialog.getByRole("button", { name: "Publier", exact: true }).click());
+  await expect(dialog).toBeHidden();
 }
 
-async function interceptNextPost(page: Page, pathname: string, capture: Capture) {
-  let intercepted: ForgedRequest | undefined;
+async function interceptMutation(page: Page, pathname: string, capture: Capture, match: ActionMatch) {
   capture.expectedRequestFailures.push(pathname);
   capture.expectedConsoleErrors.push("Failed to load resource: net::ERR_FAILED");
-  capture.console.push(`[expected] interruption volontaire du prochain POST ${pathname}`);
-  await page.route("**/*", async (route) => {
-    const request = route.request();
-    if (!intercepted && request.method() === "POST" && new URL(request.url()).pathname === pathname) {
-      const allowedHeaders = new Set([
-        "accept",
-        "content-type",
-        "next-action",
-        "next-router-state-tree",
-        "next-url",
-      ]);
-      intercepted = {
-        url: request.url(),
-        body: request.postData() ?? "",
-        headers: Object.fromEntries(
-          Object.entries(request.headers()).filter(([name]) => allowedHeaders.has(name.toLowerCase())),
-        ),
-      };
-      await route.abort("failed");
-      return;
-    }
-    await route.continue();
-  });
-  return () => {
-    if (!intercepted) throw new Error(`POST ${pathname} non intercepté.`);
-    return intercepted;
+  capture.console.push(`[expected] interruption volontaire du POST métier ${pathname}`);
+  const intercepted = await interceptAction(page, { match, respond: (route) => route.abort("failed") });
+  return (): ForgedRequest => {
+    const request = intercepted.request();
+    const allowedHeaders = new Set(["accept", "content-type", "next-action", "next-router-state-tree", "next-url"]);
+    return {
+      url: request.url(),
+      body: request.postData() ?? "",
+      headers: Object.fromEntries(Object.entries(request.headers()).filter(([name]) => allowedHeaders.has(name.toLowerCase()))),
+    };
   };
 }
 
@@ -462,7 +440,7 @@ audited(1, "crée puis modifie une version", async ({ page }) => {
     await create.getByRole("textbox", { name: "Description" }).fill(input.initialDescription);
     await create.getByLabel("Date de début").fill(input.initialStartDate);
     await create.getByLabel("Date cible").fill(input.initialTargetDate);
-    await clickPost(page, () => create.getByRole("button", { name: "Créer", exact: true }).click());
+    await performAction(page, (args) => args.name === input.initialName && typeof args.backlogId === "string", () => create.getByRole("button", { name: "Créer", exact: true }).click());
     const article = page.getByRole("article", { name: input.initialName });
     await expect(article).toBeVisible();
     await article.getByText(`Actions pour ${input.initialName}`, { exact: true }).click();
@@ -472,7 +450,7 @@ audited(1, "crée puis modifie une version", async ({ page }) => {
     await edit.getByRole("textbox", { name: "Description" }).fill(input.finalDescription);
     await edit.getByLabel("Date de début").fill(input.finalStartDate);
     await edit.getByLabel("Date cible").fill(input.finalTargetDate);
-    await clickPost(page, () => edit.getByRole("button", { name: "Enregistrer" }).click());
+    await performAction(page, (args) => args.name === input.finalName && typeof args.releaseId === "string" && "expectedRevision" in args, () => edit.getByRole("button", { name: "Enregistrer" }).click());
     await expect(page.getByRole("article", { name: input.finalName })).toBeVisible();
   }
   await createThenEdit({ initialName: "R09-S01 Création", finalName: "R09-S01 Modifiée", initialDescription: "Description initiale", finalDescription: "Description finale", initialStartDate: "2026-08-10", initialTargetDate: "2026-08-20", finalStartDate: "2026-08-11", finalTargetDate: "2026-08-22" });
@@ -504,7 +482,8 @@ audited(2, "persiste deux versions à la création puis depuis le détail", asyn
   await page.getByRole("menuitemcheckbox", { name: first.name, exact: true }).click();
   await page.getByRole("menuitemcheckbox", { name: second.name, exact: true }).click();
   await page.keyboard.press("Escape");
-  await clickPost(page, () => create.getByRole("button", { name: "Créer", exact: true }).click());
+  await performAction(page, (input) => input.title === "R09-S02 créé multi-version" && input.backlogId === backlog.id, () => create.getByRole("button", { name: "Créer", exact: true }).click());
+  await expect(create).toBeHidden();
   const [created] = await db
     .select({ id: items.id, key: items.key, title: items.title })
     .from(items)
@@ -519,15 +498,15 @@ audited(2, "persiste deux versions à la création puis depuis le détail", asyn
   const createdSelection = page.getByRole("list", { name: "Versions sélectionnées" });
   await expect(createdSelection).toContainText(first.name);
   await expect(createdSelection).toContainText(second.name);
-  expect(await assignedVersionIds(created.id)).toEqual([first.id, second.id].sort());
+  await expect.poll(() => assignedVersionIds(created.id)).toEqual([first.id, second.id].sort());
 
   const item = await fixtureTask("R09-S02 détail multi-version", { points: 3 });
   const editor = await observedPage(browser, capture, "editor-multi-version", AUTH.editor);
   audit.use(editor);
   await editor.goto(`/b/CASS?view=list&item=${item.key}`);
   await editor.getByRole("button", { name: "Versions", exact: true }).click();
-  await clickPost(editor, () => editor.getByRole("menuitemcheckbox", { name: first.name }).click());
-  await clickPost(editor, () => editor.getByRole("menuitemcheckbox", { name: second.name }).click());
+  await performAction(editor, (input) => input.id === item.id && Array.isArray(input.fixVersionIds), () => editor.getByRole("menuitemcheckbox", { name: first.name }).click());
+  await performAction(editor, (input) => input.id === item.id && Array.isArray(input.fixVersionIds), () => editor.getByRole("menuitemcheckbox", { name: second.name }).click());
   await editor.reload();
   const selected = editor.getByRole("list", { name: "Versions sélectionnées" });
   await expect(selected).toContainText(first.name);
@@ -536,7 +515,7 @@ audited(2, "persiste deux versions à la création puis depuis le détail", asyn
   await expect(editor.getByRole("region", { name: "Périmètre actuel" })).toContainText(keyPattern(item.key));
   await editor.goto(`/b/CASS/releases/${second.id}`);
   await expect(editor.getByRole("region", { name: "Périmètre actuel" })).toContainText(keyPattern(item.key));
-  expect(await assignedVersionIds(item.id)).toEqual([first.id, second.id].sort());
+  await expect.poll(() => assignedVersionIds(item.id)).toEqual([first.id, second.id].sort());
 });
 
 audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser, capture, audit }) => {
@@ -554,8 +533,8 @@ audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser,
       "seront ajoutées sans retirer les Fix versions existantes",
     ]);
     await editor.reload();
-    expect(await assignedVersionIds(one.id)).toEqual([first.id]);
-    expect(await assignedVersionIds(two.id)).toEqual([first.id]);
+    await expect.poll(() => assignedVersionIds(one.id)).toEqual([first.id]);
+    await expect.poll(() => assignedVersionIds(two.id)).toEqual([first.id]);
     await expectListFixVersions(editor, one, [first.name]);
     await expectListFixVersions(editor, two, [first.name]);
 
@@ -566,8 +545,8 @@ audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser,
       "Les Fix versions existantes seront remplacées",
     ]);
     await editor.reload();
-    expect(await assignedVersionIds(one.id)).toEqual([second.id]);
-    expect(await assignedVersionIds(two.id)).toEqual([second.id]);
+    await expect.poll(() => assignedVersionIds(one.id)).toEqual([second.id]);
+    await expect.poll(() => assignedVersionIds(two.id)).toEqual([second.id]);
     await expectListFixVersions(editor, one, [second.name]);
     await expectListFixVersions(editor, two, [second.name]);
 
@@ -578,8 +557,8 @@ audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser,
       "seront retirées. Les autres Fix versions seront conservées",
     ]);
     await editor.reload();
-    expect(await assignedVersionIds(one.id)).toEqual([]);
-    expect(await assignedVersionIds(two.id)).toEqual([]);
+    await expect.poll(() => assignedVersionIds(one.id)).toEqual([]);
+    await expect.poll(() => assignedVersionIds(two.id)).toEqual([]);
     await expectListFixVersions(editor, one, []);
     await expectListFixVersions(editor, two, []);
 
@@ -590,13 +569,13 @@ audited(3, "ajoute, remplace et retire des versions en masse", async ({ browser,
       second.name,
       "seront ajoutées sans retirer les Fix versions existantes",
     ]);
-    expect(await assignedVersionIds(one.id)).toEqual([first.id, second.id].sort());
+    await expect.poll(() => assignedVersionIds(one.id)).toEqual([first.id, second.id].sort());
     await applyBulkFixVersions(editor, "Effacer toutes les versions", 2, [
       "Toutes les Fix versions seront retirées",
     ]);
     await editor.reload();
-    expect(await assignedVersionIds(one.id)).toEqual([]);
-    expect(await assignedVersionIds(two.id)).toEqual([]);
+    await expect.poll(() => assignedVersionIds(one.id)).toEqual([]);
+    await expect.poll(() => assignedVersionIds(two.id)).toEqual([]);
     await expectListFixVersions(editor, one, []);
     await expectListFixVersions(editor, two, []);
 });
@@ -636,7 +615,7 @@ audited(4, "conserve le filtre Version après reload et dans une vue enregistré
     await page.getByRole("menuitem", { name: "Enregistrer sous…" }).click();
     const dialog = page.getByRole("dialog", { name: "Enregistrer la vue" });
     await dialog.getByRole("textbox", { name: "Nom de la vue" }).fill("R09-S04 Vue version");
-    await clickPost(page, () => dialog.getByRole("button", { name: "Enregistrer" }).click());
+    await performAction(page, (input) => input.name === "R09-S04 Vue version", () => dialog.getByRole("button", { name: "Enregistrer" }).click());
     await expect(page.getByRole("button", { name: /R09-S04 Vue version/ })).toBeVisible();
     await page.reload();
     await expect(page.getByText(matching.key, { exact: true })).toBeVisible();
@@ -704,10 +683,10 @@ audited(6, "permet au spécialiste de publier en conservant les incomplets", asy
     await expect(dialog.getByLabel("Déplacer vers une autre version")).toHaveCount(0);
     await dialog.getByLabel("Date de publication").fill("2026-08-07");
     await dialog.getByLabel("Conserver dans cette version").check();
-    await clickPost(specialist, () => dialog.getByRole("button", { name: "Publier", exact: true }).click());
+    await performAction(specialist, (input) => input.releaseId === release.id && "incompleteDisposition" in input, () => dialog.getByRole("button", { name: "Publier", exact: true }).click());
     await expect(specialist.getByText("Publiée", { exact: true })).toBeVisible();
-    expect(await assignedVersionIds(done.id)).toEqual([release.id]);
-    expect(await assignedVersionIds(open.id)).toEqual([release.id]);
+    await expect.poll(() => assignedVersionIds(done.id)).toEqual([release.id]);
+    await expect.poll(() => assignedVersionIds(open.id)).toEqual([release.id]);
     const specialistId = await accountId(EMAIL.specialist);
     const [event] = await db.select({ actorId: releaseEvents.actorId, action: releaseEvents.action })
       .from(releaseEvents)
@@ -721,7 +700,7 @@ audited(7, "refuse un publish move forgé par le spécialiste", async ({ page, b
   const item = await fixtureTask("R09-S07 incomplet");
   await assignVersions(item.id, [source.id]);
   await page.goto(`/b/CASS/releases/${source.id}`);
-  const intercepted = await interceptNextPost(page, `/b/CASS/releases/${source.id}`, capture);
+  const intercepted = await interceptMutation(page, `/b/CASS/releases/${source.id}`, capture, (input) => input.releaseId === source.id && "incompleteDisposition" in input);
   await page.getByRole("button", { name: `Publier ${source.name}` }).click();
   const dialog = page.getByRole("dialog", { name: `Publier ${source.name}` });
   await dialog.getByLabel("Date de publication").fill("2026-08-07");
@@ -738,7 +717,7 @@ audited(7, "refuse un publish move forgé par le spécialiste", async ({ page, b
     const response = await replayForgedRequest(specialist, forged);
     expect(response.status).toBeLessThan(500);
     expect(response.text).toContain("Modifier les éléments");
-    expect(await assignedVersionIds(item.id)).toEqual([source.id]);
+    await expect.poll(() => assignedVersionIds(item.id)).toEqual([source.id]);
     const publications = await db.select({ id: releasePublications.id })
       .from(releasePublications).where(eq(releasePublications.releaseId, source.id));
     expect(publications).toEqual([]);
@@ -753,11 +732,11 @@ audited(8, "conserve deux snapshots après dépublication et republication", asy
   await expect(page.getByRole("navigation", { name: "Vues du projet" })
     .getByRole("link", { name: "Releases" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("link", { name: "← Toutes les versions" })).toBeVisible();
-  await publishFromDialog(page, release.name, "keep");
+  await publishFromDialog(page, release, "keep");
   await page.getByRole("button", { name: `Annuler la publication ${release.name}` }).click();
   const unpublish = page.getByRole("dialog", { name: `Annuler la publication ${release.name}` });
-  await clickPost(page, () => unpublish.getByRole("button", { name: "Confirmer l’annulation" }).click());
-  await publishFromDialog(page, release.name, "keep");
+  await performAction(page, (input) => input.releaseId === release.id && "expectedRevision" in input, () => unpublish.getByRole("button", { name: "Confirmer l’annulation" }).click());
+  await publishFromDialog(page, release, "keep");
 
   const publications = await db.select({
     id: releasePublications.id,
@@ -790,9 +769,9 @@ audited(9, "déplace les incomplets sans retirer leurs versions sans rapport", a
   await assignVersions(done.id, [source.id, unrelated.id]);
 
   await page.goto(`/b/CASS/releases/${source.id}`);
-  await publishFromDialog(page, source.name, "move", destination.name);
-  expect(await assignedVersionIds(open.id)).toEqual([destination.id, unrelated.id].sort());
-  expect(await assignedVersionIds(done.id)).toEqual([source.id, unrelated.id].sort());
+  await publishFromDialog(page, source, "move", destination.name);
+  await expect.poll(() => assignedVersionIds(open.id)).toEqual([destination.id, unrelated.id].sort());
+  await expect.poll(() => assignedVersionIds(done.id)).toEqual([source.id, unrelated.id].sort());
   const snapshot = page.getByRole("region", { name: "Instantané de publication" });
   await expect(snapshot).toContainText(`${open.key} — ${open.title}`);
   await expect(snapshot).toContainText(`Déplacée vers ${destination.name}`);
@@ -807,7 +786,7 @@ audited(10, "masque une version archivée des candidats tout en gardant l’affe
   await page.goto(`/b/CASS/releases/${release.id}`);
   await page.getByRole("button", { name: `Archiver ${release.name}` }).click();
   const archive = page.getByRole("dialog", { name: `Archiver ${release.name}` });
-  await clickPost(page, () => archive.getByRole("button", { name: "Confirmer l’archivage" }).click());
+  await performAction(page, (input) => input.releaseId === release.id && "expectedRevision" in input, () => archive.getByRole("button", { name: "Confirmer l’archivage" }).click());
 
   await page.goto(`/b/CASS?view=list&item=${item.key}`);
   const selected = page.getByRole("list", { name: "Versions sélectionnées" });
@@ -815,11 +794,10 @@ audited(10, "masque une version archivée des candidats tout en gardant l’affe
   await page.getByRole("button", { name: "Versions", exact: true }).click();
   await expect(page.getByRole("menuitemcheckbox", { name: `${release.name} — Archivée` })).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await clickPost(page, () =>
-    selected.getByRole("button", { name: `Retirer ${release.name}` }).click(),
-  );
+  await performAction(page, (input) => input.id === item.id && Array.isArray(input.fixVersionIds), () =>
+    selected.getByRole("button", { name: `Retirer ${release.name}` }).click());
   await page.reload();
-  expect(await assignedVersionIds(item.id)).toEqual([]);
+  await expect.poll(() => assignedVersionIds(item.id)).toEqual([]);
   await page.getByRole("button", { name: "Versions", exact: true }).click();
   await expect(page.getByRole("menuitemcheckbox", { name: release.name, exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
@@ -847,7 +825,7 @@ audited(10, "masque une version archivée des candidats tout en gardant l’affe
   await page.goto(`/b/CASS/releases/${release.id}`);
   await page.getByRole("button", { name: `Désarchiver ${release.name}` }).click();
   const unarchive = page.getByRole("dialog", { name: `Désarchiver ${release.name}` });
-  await clickPost(page, () => unarchive.getByRole("button", { name: "Confirmer le désarchivage" }).click());
+  await performAction(page, (input) => input.releaseId === release.id && "expectedRevision" in input, () => unarchive.getByRole("button", { name: "Confirmer le désarchivage" }).click());
   await page.goto("/b/CASS?view=list&fvcol=1");
 
   await page.getByRole("button", { name: "Créer", exact: true }).click();
@@ -880,8 +858,8 @@ audited(11, "autorise l’éditeur à affecter sans exposer le cycle de vie", as
   audit.use(editor);
     await editor.goto(`/b/CASS?view=list&item=${item.key}`);
     await editor.getByRole("button", { name: "Versions", exact: true }).click();
-    await clickPost(editor, () => editor.getByRole("menuitemcheckbox", { name: release.name }).click());
-    expect(await assignedVersionIds(item.id)).toEqual([release.id]);
+    await performAction(editor, (input) => input.id === item.id && Array.isArray(input.fixVersionIds), () => editor.getByRole("menuitemcheckbox", { name: release.name }).click());
+    await expect.poll(() => assignedVersionIds(item.id)).toEqual([release.id]);
     await editor.goto(`/b/CASS/releases/${release.id}`);
     await expect(editor.getByRole("button", { name: `Modifier ${release.name}` })).toHaveCount(0);
     await expect(editor.getByRole("button", { name: `Publier ${release.name}` })).toHaveCount(0);
@@ -896,7 +874,7 @@ audited(12, "refuse la requête forgée du lecteur sans changer DB ni historique
   const editor = await observedPage(browser, capture, "editor-capture", AUTH.editor);
   audit.use(editor);
     await editor.goto(`/b/CASS?view=list&item=${item.key}`);
-    const intercepted = await interceptNextPost(editor, "/b/CASS", capture);
+    const intercepted = await interceptMutation(editor, "/b/CASS", capture, (input) => input.id === item.id && Array.isArray(input.fixVersionIds));
     await editor.getByRole("button", { name: "Versions", exact: true }).click();
     await editor.getByRole("menuitemcheckbox", { name: release.name }).click();
     await expect(editor.getByRole("alert")).toContainText("Mise à jour impossible");
@@ -911,7 +889,7 @@ audited(12, "refuse la requête forgée du lecteur sans changer DB ni historique
     const response = await replayForgedRequest(reader, forged!);
     expect(response.status).toBeLessThan(500);
     expect(response.text).toContain("Modifier les éléments");
-    expect(await assignedVersionIds(item.id)).toEqual([]);
+    await expect.poll(() => assignedVersionIds(item.id)).toEqual([]);
     const [activityAfter] = await db.select({ value: count() }).from(activities)
       .where(eq(activities.itemId, item.id));
     expect(activityAfter?.value).toBe(activityBefore?.value);
@@ -932,13 +910,13 @@ audited(13, "détecte une édition stale entre deux contextes", async ({ browser
     await firstDialog.getByRole("textbox", { name: "Description" }).fill("R09-S13 Valeur serveur");
     await firstDialog.getByLabel("Date de début").fill("2026-08-05");
     await firstDialog.getByLabel("Date cible").fill("2026-09-05");
-    await clickPost(first, () => firstDialog.getByRole("button", { name: "Enregistrer" }).click());
+    await performAction(first, (input) => input.releaseId === release.id && "name" in input, () => firstDialog.getByRole("button", { name: "Enregistrer" }).click());
 
     audit.use(second);
     await second.getByRole("button", { name: `Modifier ${release.name}` }).click();
     const staleDialog = second.getByRole("dialog", { name: `Modifier ${release.name}` });
     await staleDialog.getByRole("textbox", { name: "Nom" }).fill("R09-S13 Saisie locale");
-    await clickPost(second, () => staleDialog.getByRole("button", { name: "Enregistrer" }).click());
+    await performAction(second, (input) => input.releaseId === release.id && "name" in input, () => staleDialog.getByRole("button", { name: "Enregistrer" }).click());
     await expect(staleDialog.getByRole("alert")).toContainText("a changé");
     await expect(staleDialog.getByRole("textbox", { name: "Nom" })).toHaveValue("R09-S13 Saisie locale");
     await staleDialog.getByRole("button", { name: "Recharger la version" }).click();
@@ -952,7 +930,8 @@ audited(13, "détecte une édition stale entre deux contextes", async ({ browser
     await expect(freshDialog.getByLabel("Date de début")).toHaveValue("2026-08-05");
     await expect(freshDialog.getByLabel("Date cible")).toHaveValue("2026-09-05");
     await freshDialog.getByRole("textbox", { name: "Description" }).fill("R09-S13 Confirmée par le second");
-    await clickPost(second, () => freshDialog.getByRole("button", { name: "Enregistrer" }).click());
+    await performAction(second, (input) => input.releaseId === release.id && "description" in input, () => freshDialog.getByRole("button", { name: "Enregistrer" }).click());
+    await expect(freshDialog).toBeHidden();
     const [stored] = await db.select({
       name: releases.name,
       description: releases.description,
@@ -969,7 +948,7 @@ audited(14, "garde le dialogue ouvert et rollback après publish intercepté", a
   const item = await fixtureTask("R09-S14 item rollback");
   await assignVersions(item.id, [release.id]);
   await page.goto(`/b/CASS/releases/${release.id}`);
-  const intercepted = await interceptNextPost(page, `/b/CASS/releases/${release.id}`, capture);
+  const intercepted = await interceptMutation(page, `/b/CASS/releases/${release.id}`, capture, (input) => input.releaseId === release.id && "incompleteDisposition" in input);
   await page.getByRole("button", { name: `Publier ${release.name}` }).click();
   const dialog = page.getByRole("dialog", { name: `Publier ${release.name}` });
   await dialog.getByLabel("Date de publication").fill("2026-08-07");
@@ -981,7 +960,7 @@ audited(14, "garde le dialogue ouvert et rollback après publish intercepté", a
   const publications = await db.select({ id: releasePublications.id })
     .from(releasePublications).where(eq(releasePublications.releaseId, release.id));
   expect(publications).toEqual([]);
-  expect(await assignedVersionIds(item.id)).toEqual([release.id]);
+  await expect.poll(() => assignedVersionIds(item.id)).toEqual([release.id]);
   capture.console.push("[expected] POST publish interrompu volontairement; dialogue et DB conservés");
   await page.unroute("**/*");
 });
@@ -1025,21 +1004,18 @@ audited(16, "refuse un publish quand le périmètre change entre deux contextes"
   audit.use(second);
   await second.goto(`/b/CASS?view=list&item=${firstItem.key}`);
   await second.getByRole("button", { name: "Versions", exact: true }).click();
-  await clickPost(second, () =>
-    second.getByRole("menuitemcheckbox", { name: release.name }).click(),
-  );
+  await performAction(second, (input) => input.id === firstItem.id && Array.isArray(input.fixVersionIds), () =>
+    second.getByRole("menuitemcheckbox", { name: release.name }).click());
   await second.goto(`/b/CASS?view=list&item=${secondItem.key}`);
   await second.getByRole("button", { name: "Versions", exact: true }).click();
-  await clickPost(second, () =>
-    second.getByRole("menuitemcheckbox", { name: release.name }).click(),
-  );
-  expect(await assignedVersionIds(firstItem.id)).toEqual([]);
-  expect(await assignedVersionIds(secondItem.id)).toEqual([release.id]);
+  await performAction(second, (input) => input.id === secondItem.id && Array.isArray(input.fixVersionIds), () =>
+    second.getByRole("menuitemcheckbox", { name: release.name }).click());
+  await expect.poll(() => assignedVersionIds(firstItem.id)).toEqual([]);
+  await expect.poll(() => assignedVersionIds(secondItem.id)).toEqual([release.id]);
 
   audit.use(page);
-  await clickPost(page, () =>
-    staleDialog.getByRole("button", { name: "Publier", exact: true }).click(),
-  );
+  await performAction(page, (input) => input.releaseId === release.id && "incompleteDisposition" in input, () =>
+    staleDialog.getByRole("button", { name: "Publier", exact: true }).click());
   await expect(staleDialog.getByRole("alert")).toContainText("périmètre de publication a changé");
   await expect(staleDialog.getByLabel("Date de publication")).toHaveValue("2026-08-07");
   await expect(staleDialog.getByRole("button", { name: "Publier", exact: true })).toBeDisabled();
@@ -1049,7 +1025,7 @@ audited(16, "refuse un publish quand le périmètre change entre deux contextes"
   ).resolves.toEqual([]);
 
   await page.reload();
-  await publishFromDialog(page, release.name, "keep");
+  await publishFromDialog(page, release, "keep");
   await expect(page.getByText("Publiée", { exact: true })).toBeVisible();
   const snapshots = await db.select({ itemId: releasePublicationItems.itemId })
     .from(releasePublicationItems)
@@ -1106,13 +1082,13 @@ audited(17, "fusionne une version en dédoublonnant les liens et la retire parto
   const dialog = page.getByRole("dialog", { name: `Fusionner ${source.name}` });
   await expect(dialog).toContainText("2 éléments liés");
   await dialog.getByLabel("Version de destination").selectOption({ label: target.name });
-  await clickPost(page, () => dialog.getByRole("button", { name: "Fusionner", exact: true }).click());
+  await performAction(page, (input) => input.sourceReleaseId === source.id && input.targetReleaseId === target.id, () => dialog.getByRole("button", { name: "Fusionner", exact: true }).click());
   await expect(page.getByRole("article", { name: source.name })).toHaveCount(0);
   await expect(page.getByRole("article", { name: target.name })).toBeVisible();
 
-  expect(await releaseExists(source.id)).toBe(false);
-  expect(await assignedVersionIds(onlySource.id)).toEqual([target.id]);
-  expect(await assignedVersionIds(both.id)).toEqual([target.id]);
+  await expect.poll(() => releaseExists(source.id)).toBe(false);
+  await expect.poll(() => assignedVersionIds(onlySource.id)).toEqual([target.id]);
+  await expect.poll(() => assignedVersionIds(both.id)).toEqual([target.id]);
 
   await page.goto("/b/CASS?view=list");
   await page.getByRole("button", { name: "Filtre", exact: true }).click();
@@ -1156,7 +1132,7 @@ audited(18, "fusionne une version publiée sans réécrire les snapshots ni leur
   const dialog = page.getByRole("dialog", { name: `Fusionner ${published.name}` });
   await expect(dialog).toContainText("1 publication conservée");
   await dialog.getByLabel("Version de destination").selectOption({ label: target.name });
-  await clickPost(page, () => dialog.getByRole("button", { name: "Fusionner", exact: true }).click());
+  await performAction(page, (input) => input.sourceReleaseId === published.id && input.targetReleaseId === target.id, () => dialog.getByRole("button", { name: "Fusionner", exact: true }).click());
   await expect(page).toHaveURL(/\/b\/CASS\/releases$/);
 
   const snapshotAfter = await db.select().from(releasePublicationItems)
@@ -1175,7 +1151,7 @@ audited(18, "fusionne une version publiée sans réécrire les snapshots ni leur
   await page.goto(`/b/CASS/releases/${target.id}`);
   await expect(page.getByRole("region", { name: "Historique" }))
     .toContainText("a reçu les éléments d’une version fusionnée ou supprimée");
-  expect(await assignedVersionIds(delivered.id)).toEqual([target.id]);
+  await expect.poll(() => assignedVersionIds(delivered.id)).toEqual([target.id]);
 });
 
 audited(19, "supprime avec transfert puis avec retrait en journalisant chaque item", async ({ page }) => {
@@ -1195,7 +1171,7 @@ audited(19, "supprime avec transfert puis avec retrait en journalisant chaque it
   await expect(transferDialog.getByRole("button", { name: "Supprimer", exact: true })).toBeDisabled();
   await transferDialog.getByLabel("Transférer vers une autre version").check();
   await transferDialog.getByLabel("Version de destination").selectOption({ label: target.name });
-  await clickPost(page, () => transferDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
+  await performAction(page, (input) => input.releaseId === transferred.id && "fixVersions" in input, () => transferDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
   await expect(page.getByRole("article", { name: transferred.name })).toHaveCount(0);
   // Focus lands on the next version card instead of the document.
   await expect(page.getByRole("link", { name: removed.name, exact: true })).toBeFocused();
@@ -1204,11 +1180,11 @@ audited(19, "supprime avec transfert puis avec retrait en journalisant chaque it
   await page.getByRole("button", { name: `Supprimer ${removed.name}` }).click();
   const removeDialog = page.getByRole("dialog", { name: `Supprimer ${removed.name}` });
   await removeDialog.getByLabel("Retirer la version des éléments").check();
-  await clickPost(page, () => removeDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
+  await performAction(page, (input) => input.releaseId === removed.id && "fixVersions" in input, () => removeDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
   await expect(page).toHaveURL(/\/b\/CASS\/releases$/);
 
-  expect(await assignedVersionIds(first.id)).toEqual([target.id]);
-  expect(await assignedVersionIds(second.id)).toEqual([kept.id]);
+  await expect.poll(() => assignedVersionIds(first.id)).toEqual([target.id]);
+  await expect.poll(() => assignedVersionIds(second.id)).toEqual([kept.id]);
   for (const [item, expectedName] of [[first, target.name], [second, kept.name]] as const) {
     const rows = await db.select({ newValue: activities.newValue, correlation: activities.requestCorrelationId })
       .from(activities)
@@ -1240,25 +1216,25 @@ audited(20, "laisse le spécialiste fusionner et supprimer sans edit_items, comm
   await specialist.getByRole("button", { name: `Fusionner ${source.name}` }).click();
   const mergeDialog = specialist.getByRole("dialog", { name: `Fusionner ${source.name}` });
   await mergeDialog.getByLabel("Version de destination").selectOption({ label: target.name });
-  await clickPost(specialist, () => mergeDialog.getByRole("button", { name: "Fusionner", exact: true }).click());
+  await performAction(specialist, (input) => input.sourceReleaseId === source.id && input.targetReleaseId === target.id, () => mergeDialog.getByRole("button", { name: "Fusionner", exact: true }).click());
   await expect(specialist).toHaveURL(/\/b\/CASS\/releases$/);
-  expect(await assignedVersionIds(merged.id)).toEqual([target.id]);
+  await expect.poll(() => assignedVersionIds(merged.id)).toEqual([target.id]);
 
   await specialist.goto(`/b/CASS/releases/${removed.id}`);
   await specialist.getByRole("button", { name: `Supprimer ${removed.name}` }).click();
   const removeDialog = specialist.getByRole("dialog", { name: `Supprimer ${removed.name}` });
   await expect(removeDialog.getByLabel("Retirer la version des éléments")).toBeEnabled();
   await removeDialog.getByLabel("Retirer la version des éléments").check();
-  await clickPost(specialist, () => removeDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
-  expect(await assignedVersionIds(detached.id)).toEqual([]);
+  await performAction(specialist, (input) => input.releaseId === removed.id && "fixVersions" in input, () => removeDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
+  await expect.poll(() => assignedVersionIds(detached.id)).toEqual([]);
 
   await specialist.goto(`/b/CASS/releases/${empty.id}`);
   await specialist.getByRole("button", { name: `Supprimer ${empty.name}` }).click();
   const emptyDialog = specialist.getByRole("dialog", { name: `Supprimer ${empty.name}` });
   await expect(emptyDialog).toContainText("Aucun élément lié");
   await expect(emptyDialog.getByRole("radio")).toHaveCount(0);
-  await clickPost(specialist, () => emptyDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
-  for (const release of [source, removed, empty]) expect(await releaseExists(release.id)).toBe(false);
+  await performAction(specialist, (input) => input.releaseId === empty.id && "fixVersions" in input, () => emptyDialog.getByRole("button", { name: "Supprimer", exact: true }).click());
+  for (const release of [source, removed, empty]) await expect.poll(() => releaseExists(release.id)).toBe(false);
   const specialistId = await accountId(EMAIL.specialist);
   const [event] = await db.select({ actorId: releaseEvents.actorId })
     .from(releaseEvents)
@@ -1273,20 +1249,20 @@ audited(21, "masque fusion, suppression et ordre à l’éditeur et au lecteur e
   await assignVersions(item.id, [protectedRelease.id]);
 
   await page.goto(`/b/CASS/releases/${decoy.id}`);
-  const intercepted = await interceptNextPost(page, `/b/CASS/releases/${decoy.id}`, capture);
+  const intercepted = await interceptMutation(page, `/b/CASS/releases/${decoy.id}`, capture, (input) => input.releaseId === decoy.id && "fixVersions" in input);
   await page.getByRole("button", { name: `Supprimer ${decoy.name}` }).click();
   const dialog = page.getByRole("dialog", { name: `Supprimer ${decoy.name}` });
   await dialog.getByRole("button", { name: "Supprimer", exact: true }).click();
   await expect(dialog.getByRole("alert")).toHaveText("Suppression impossible.");
   const captured = intercepted();
   await page.unroute("**/*");
-  expect(await releaseExists(decoy.id)).toBe(true);
+  await expect.poll(() => releaseExists(decoy.id)).toBe(true);
 
   // Capture a merge and a reorder request too: each Server Action is its own
   // authorization surface.
   const decoyTarget = await fixtureRelease("R2-S21 Leurre cible");
   await page.goto(`/b/CASS/releases/${decoy.id}`);
-  const interceptedMerge = await interceptNextPost(page, `/b/CASS/releases/${decoy.id}`, capture);
+  const interceptedMerge = await interceptMutation(page, `/b/CASS/releases/${decoy.id}`, capture, (input) => input.sourceReleaseId === decoy.id && input.targetReleaseId === decoyTarget.id);
   await page.getByRole("button", { name: `Fusionner ${decoy.name}` }).click();
   const mergeDialog = page.getByRole("dialog", { name: `Fusionner ${decoy.name}` });
   await mergeDialog.getByLabel("Version de destination").selectOption({ label: decoyTarget.name });
@@ -1295,7 +1271,7 @@ audited(21, "masque fusion, suppression et ordre à l’éditeur et au lecteur e
   const forgedMerge = interceptedMerge();
   await page.unroute("**/*");
   await page.goto("/b/CASS/releases");
-  const interceptedReorder = await interceptNextPost(page, "/b/CASS/releases", capture);
+  const interceptedReorder = await interceptMutation(page, "/b/CASS/releases", capture, (input) => input.releaseId === decoyTarget.id && "beforeId" in input);
   await page.getByRole("button", { name: `Monter ${decoyTarget.name}` }).click();
   await expect(page.getByRole("main").getByRole("alert")).toHaveText("Réordonnancement impossible.");
   const forgedReorder = interceptedReorder();
@@ -1336,13 +1312,13 @@ audited(21, "masque fusion, suppression et ordre à l’éditeur et au lecteur e
       expect(refused.text).toContain("Gérer les releases");
     }
   }
-  expect(await releaseExists(decoy.id)).toBe(true);
+  await expect.poll(() => releaseExists(decoy.id)).toBe(true);
   await expect(
     db.select({ id: releases.id, revision: releases.revision, rank: releases.rank })
       .from(releases).where(sql`${releases.id} in (${decoy.id}, ${decoyTarget.id})`).orderBy(asc(releases.id)),
   ).resolves.toEqual(decoyRevisions);
-  expect(await releaseExists(protectedRelease.id)).toBe(true);
-  expect(await assignedVersionIds(item.id)).toEqual([protectedRelease.id]);
+  await expect.poll(() => releaseExists(protectedRelease.id)).toBe(true);
+  await expect.poll(() => assignedVersionIds(item.id)).toEqual([protectedRelease.id]);
   const [eventsAfter] = await db.select({ value: count() }).from(releaseEvents)
     .where(eq(releaseEvents.releaseId, protectedRelease.id));
   expect(eventsAfter?.value).toBe(eventsBefore?.value);
@@ -1360,14 +1336,14 @@ audited(22, "refuse une suppression dont l’aperçu d’impact est devenu stale
   await expect(dialog).toContainText("1 élément lié");
   await dialog.getByLabel("Retirer la version des éléments").check();
   await assignVersions(second.id, [release.id]);
-  await clickPost(page, () => dialog.getByRole("button", { name: "Supprimer", exact: true }).click());
+  await performAction(page, (input) => input.releaseId === release.id && "fixVersions" in input, () => dialog.getByRole("button", { name: "Supprimer", exact: true }).click());
   await expect(dialog.getByRole("alert")).toContainText("ont changé");
   await expect(dialog.getByRole("button", { name: "Supprimer", exact: true })).toBeDisabled();
   await dialog.getByRole("button", { name: "Examiner l’impact actualisé" }).click();
   await expect(dialog).toContainText("2 éléments liés");
-  expect(await releaseExists(release.id)).toBe(true);
-  expect(await assignedVersionIds(first.id)).toEqual([release.id]);
-  expect(await assignedVersionIds(second.id)).toEqual([release.id]);
+  await expect.poll(() => releaseExists(release.id)).toBe(true);
+  await expect.poll(() => assignedVersionIds(first.id)).toEqual([release.id]);
+  await expect.poll(() => assignedVersionIds(second.id)).toEqual([release.id]);
 });
 
 audited(23, "garde le dialogue et la sélection après une suppression interceptée", async ({ page, capture }) => {
@@ -1376,7 +1352,7 @@ audited(23, "garde le dialogue et la sélection après une suppression intercept
   const item = await fixtureTask("R2-S23 item");
   await assignVersions(item.id, [release.id]);
   await page.goto(`/b/CASS/releases/${release.id}`);
-  const intercepted = await interceptNextPost(page, `/b/CASS/releases/${release.id}`, capture);
+  const intercepted = await interceptMutation(page, `/b/CASS/releases/${release.id}`, capture, (input) => input.releaseId === release.id && "fixVersions" in input);
   await page.getByRole("button", { name: `Supprimer ${release.name}` }).click();
   const dialog = page.getByRole("dialog", { name: `Supprimer ${release.name}` });
   await dialog.getByLabel("Transférer vers une autre version").check();
@@ -1388,8 +1364,8 @@ audited(23, "garde le dialogue et la sélection après une suppression intercept
   intercepted();
   capture.console.push("[expected] POST suppression interrompu volontairement; dialogue et DB conservés");
   await page.unroute("**/*");
-  expect(await releaseExists(release.id)).toBe(true);
-  expect(await assignedVersionIds(item.id)).toEqual([release.id]);
+  await expect.poll(() => releaseExists(release.id)).toBe(true);
+  await expect.poll(() => assignedVersionIds(item.id)).toEqual([release.id]);
 });
 
 audited(24, "réordonne par glisser-déposer puis Monter, partout et pour un second utilisateur", async ({ page, browser, capture, audit }) => {
@@ -1409,7 +1385,7 @@ audited(24, "réordonne par glisser-déposer puis Monter, partout et pour un sec
   const from = await handle.boundingBox();
   const to = await dropTarget.boundingBox();
   if (!from || !to) throw new Error("Positions de glisser-déposer introuvables.");
-  await clickPost(page, async () => {
+  await performAction(page, (input) => input.releaseId === z.id && "beforeId" in input, async () => {
     await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
     await page.mouse.down();
     await page.mouse.move(from.x + from.width / 2, from.y - 10, { steps: 5 });
@@ -1418,7 +1394,7 @@ audited(24, "réordonne par glisser-déposer puis Monter, partout et pour un sec
   });
   await expect.poll(() => articleOrder(page, names)).toEqual([z.name, x.name, y.name]);
 
-  await clickPost(page, () => page.getByRole("button", { name: `Monter ${y.name}` }).click());
+  await performAction(page, (input) => input.releaseId === y.id && "beforeId" in input, () => page.getByRole("button", { name: `Monter ${y.name}` }).click());
   await expect.poll(() => articleOrder(page, names)).toEqual([z.name, y.name, x.name]);
   await page.reload();
   await expect.poll(() => articleOrder(page, names)).toEqual([z.name, y.name, x.name]);
