@@ -1,6 +1,7 @@
 import "dotenv/config";
+import { interceptAction } from "./support/actions";
 
-import { expect, test, type Browser, type Locator, type Page, type Request } from "@playwright/test";
+import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "../lib/db";
 import { user } from "../lib/db/schema/auth";
@@ -283,13 +284,15 @@ audited(
     const adminCapture = observe(page, "capture action administrateur");
     captures.push(adminCapture);
     await page.goto("/admin?tab=groups");
-    let actionRequest: Request | undefined;
-    page.on("request", (request) => {
-      if (request.method() === "POST" && request.headers()["next-action"] && !actionRequest) actionRequest = request;
+    const sourceAction = await interceptAction(page, {
+      match: (input) => input.name === sourceName,
+      respond: (route) => route.continue(),
     });
     await page.getByRole("textbox", { name: "Nom du nouveau groupe" }).fill(sourceName);
     await timed(adminCapture, "action source", () => page.getByRole("button", { name: "Créer le groupe" }).click());
     await expect(page.getByRole("region", { name: sourceName })).toBeVisible();
+    const actionRequest = sourceAction.request();
+    await sourceAction.dispose();
     expect(actionRequest).toBeDefined();
 
     const sourceBody = actionRequest!.postData() ?? "";
