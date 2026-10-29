@@ -1,0 +1,7 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[expected] interruption volontaire du POST métier /b/CASS/releases/dcdbb137-36f9-4c08-8de1-da7296346cf6
+[admin] [aborted-action] POST /b/CASS/releases/dcdbb137-36f9-4c08-8de1-da7296346cf6 200
+[admin] error: Failed to load resource: net::ERR_FAILED
+[expected] POST suppression interrompu volontairement; dialogue et DB conservés
+[duration] scenario 23: 862ms

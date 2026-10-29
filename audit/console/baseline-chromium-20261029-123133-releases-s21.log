@@ -1,0 +1,26 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[expected] interruption volontaire du POST métier /b/CASS/releases/cc39fa93-f901-4d97-9dc6-d2e2936d56d0
+[admin] [aborted-action] POST /b/CASS/releases/cc39fa93-f901-4d97-9dc6-d2e2936d56d0 200
+[admin] error: Failed to load resource: net::ERR_FAILED
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[expected] interruption volontaire du POST métier /b/CASS/releases/cc39fa93-f901-4d97-9dc6-d2e2936d56d0
+[admin] error: Failed to load resource: net::ERR_FAILED
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[expected] interruption volontaire du POST métier /b/CASS/releases
+[admin] [aborted-action] POST /b/CASS/releases 200
+[admin] error: Failed to load resource: net::ERR_FAILED
+[editor-forged] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[editor-forged] log: [HMR] connected
+[editor-forged] [aborted-action] POST /b/CASS/releases 200
+[editor-forged] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[editor-forged] log: [HMR] connected
+[editor-forged] [aborted-action] POST /b/CASS/releases/5e56a87f-71ec-4385-9d90-c5fa0c245ef7 200
+[reader-forged] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader-forged] log: [HMR] connected
+[reader-forged] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader-forged] log: [HMR] connected
+[reader-forged] [aborted-action] POST /b/CASS/releases/5e56a87f-71ec-4385-9d90-c5fa0c245ef7 200
+[duration] scenario 21: 5175ms

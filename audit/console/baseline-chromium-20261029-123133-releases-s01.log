@@ -1,0 +1,16 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS/releases 200
+[admin] [aborted-rsc] GET /b/CASS
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS/releases 200
+[admin] [aborted-action] POST /b/CASS/releases 200
+[admin] [aborted-rsc] GET /b/CASS/releases
+[admin] [aborted-action] POST /b/CASS/releases 200
+[admin] [aborted-rsc] GET /b/CASS/releases
+[admin] [aborted-action] POST /b/CASS/releases 200
+[admin] [aborted-rsc] GET /b/CASS/releases
+[admin] [aborted-action] POST /b/CASS/releases 200
+[admin] [aborted-rsc] GET /b/CASS/releases
+[duration] scenario 1: 3188ms

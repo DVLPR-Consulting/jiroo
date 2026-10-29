@@ -1,0 +1,17 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS?view=backlog 200 467ms
+[ordering] bulk item_added shared timestamp; sequence order CASS-185 < CASS-186
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS 200
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS 200
+[admin] [aborted-rsc] GET /b/CASS
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=71d0e5b2-578e-4323-a460-2ab1e59ab1ff 200 231ms
+[admin] [aborted-action] POST /b/CASS/reports 200
+[admin] [aborted-action] POST /b/CASS/reports 200
+[duration] scenario 8: 3881ms

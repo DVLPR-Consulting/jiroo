@@ -1,0 +1,13 @@
+[admin-first] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-stale] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-first] log: [HMR] connected
+[admin-stale] log: [HMR] connected
+[admin-stale] [aborted-action] POST /b/CASS/releases/31e24363-4980-4013-8d57-518a0ee55314 200
+[admin-first] [aborted-action] POST /b/CASS/releases/31e24363-4980-4013-8d57-518a0ee55314 200
+[admin-first] [aborted-action] POST /b/CASS/releases/31e24363-4980-4013-8d57-518a0ee55314 200
+[admin-first] [aborted-rsc] GET /b/CASS/releases/31e24363-4980-4013-8d57-518a0ee55314
+[admin-stale] [aborted-action] POST /b/CASS/releases/31e24363-4980-4013-8d57-518a0ee55314 200
+[admin-stale] [aborted-rsc] GET /b/CASS/releases/31e24363-4980-4013-8d57-518a0ee55314
+[admin-stale] [aborted-action] POST /b/CASS/releases/31e24363-4980-4013-8d57-518a0ee55314 200
+[admin-stale] [aborted-rsc] GET /b/CASS/releases/31e24363-4980-4013-8d57-518a0ee55314
+[duration] scenario 13: 2931ms

@@ -1,0 +1,4 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-rsc] GET /b/CASS/releases/00088454-b67a-4b3f-84ea-6b788a58591f
+[duration] scenario 9: 1561ms

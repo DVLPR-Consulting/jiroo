@@ -1,0 +1,274 @@
+[scenario] création groupe + rôle + schéma
+[création groupe + rôle + schéma] request GET http://localhost:3100/admin?tab=groups
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/admin?tab=groups
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/media/GeistMono_Variable-s.p.3x-_q69-5-na5.woff2
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/media/Geist_Variable-s.p.07llyuw7ush_n.woff2
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/app_1f3z4xovu6ts3._.css
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1ensnhzzz7ywf._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom-client_development_0klrjggdzrbdd.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom_development_0_zd_l2kylhrw.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_0tg87u1c2jhy8._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-server-dom-turbopack_1pss9gsjld--e._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_next-devtools_index_0gkrnae4eyf-s.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_0yl7fd8n1fycg._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_client_0nzwpuoz2_fpe._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_00txrel2klxj9._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e474n4mns._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_1anvha4rlo79g._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/turbopack-_0tarvnjjw_srp._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_1f23vbnarmvec._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_13uux42pushyd._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_03tjj566eqwoj._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myfxvxz2u._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_classic_0zkl3adr1a7xg._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_core_154wm9-r_42lt._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_locales_1x9v8rdd-quw8._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_16wer07cq0-mr._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_0ql4zhl9bfjp0._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_1welw3sox5y5s._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1z_g_lucide-react_dist_esm_icons_1_2qo5nmm7w9w._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/app_1f3z4xovu6ts3._.css
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/media/Geist_Variable-s.p.07llyuw7ush_n.woff2
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/media/GeistMono_Variable-s.p.3x-_q69-5-na5.woff2
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1ensnhzzz7ywf._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_0tg87u1c2jhy8._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom_development_0_zd_l2kylhrw.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-server-dom-turbopack_1pss9gsjld--e._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_0yl7fd8n1fycg._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_1anvha4rlo79g._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_00txrel2klxj9._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e474n4mns._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_1f23vbnarmvec._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/turbopack-_0tarvnjjw_srp._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_13uux42pushyd._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myfxvxz2u._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_classic_0zkl3adr1a7xg._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_03tjj566eqwoj._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom-client_development_0klrjggdzrbdd.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_0ql4zhl9bfjp0._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_next-devtools_index_0gkrnae4eyf-s.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_locales_1x9v8rdd-quw8._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_client_0nzwpuoz2_fpe._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1z_g_lucide-react_dist_esm_icons_1_2qo5nmm7w9w._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_1welw3sox5y5s._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_core_154wm9-r_42lt._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_16wer07cq0-mr._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsayzyj2p6._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsayzyj2p6._.js
+[timing] navigation groupes 249ms
+[création groupe + rôle + schéma] request POST http://localhost:3100/admin?tab=groups
+[création groupe + rôle + schéma] request GET http://localhost:3100/api/realtime
+[création groupe + rôle + schéma] 200 POST http://localhost:3100/admin?tab=groups
+[création groupe + rôle + schéma] request POST http://localhost:3100/admin?tab=groups
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/api/realtime
+[création groupe + rôle + schéma] 200 POST http://localhost:3100/admin?tab=groups
+[création groupe + rôle + schéma] request POST http://localhost:3100/admin?tab=groups
+[timing] création groupe 61ms
+[création groupe + rôle + schéma] 200 POST http://localhost:3100/admin?tab=groups
+[création groupe + rôle + schéma] request GET http://localhost:3100/admin?tab=roles
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/admin?tab=roles
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/media/GeistMono_Variable-s.p.3x-_q69-5-na5.woff2
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/media/GeistMono_Variable-s.p.3x-_q69-5-na5.woff2
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/media/Geist_Variable-s.p.07llyuw7ush_n.woff2
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/media/Geist_Variable-s.p.07llyuw7ush_n.woff2
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/app_1f3z4xovu6ts3._.css
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1ensnhzzz7ywf._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom-client_development_0klrjggdzrbdd.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom_development_0_zd_l2kylhrw.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_0tg87u1c2jhy8._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-server-dom-turbopack_1pss9gsjld--e._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_next-devtools_index_0gkrnae4eyf-s.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_0yl7fd8n1fycg._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_client_0nzwpuoz2_fpe._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_00txrel2klxj9._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e474n4mns._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_1anvha4rlo79g._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/turbopack-_0tarvnjjw_srp._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_1f23vbnarmvec._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_13uux42pushyd._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_03tjj566eqwoj._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myfxvxz2u._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_classic_0zkl3adr1a7xg._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_core_154wm9-r_42lt._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_locales_1x9v8rdd-quw8._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_16wer07cq0-mr._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_0ql4zhl9bfjp0._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_1welw3sox5y5s._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1z_g_lucide-react_dist_esm_icons_1_2qo5nmm7w9w._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/app_1f3z4xovu6ts3._.css
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1ensnhzzz7ywf._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom_development_0_zd_l2kylhrw.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_0tg87u1c2jhy8._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-server-dom-turbopack_1pss9gsjld--e._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_0yl7fd8n1fycg._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e474n4mns._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_1anvha4rlo79g._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom-client_development_0klrjggdzrbdd.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_00txrel2klxj9._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/turbopack-_0tarvnjjw_srp._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_1f23vbnarmvec._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_13uux42pushyd._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myfxvxz2u._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_03tjj566eqwoj._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_classic_0zkl3adr1a7xg._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_client_0nzwpuoz2_fpe._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_0ql4zhl9bfjp0._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_next-devtools_index_0gkrnae4eyf-s.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1z_g_lucide-react_dist_esm_icons_1_2qo5nmm7w9w._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_locales_1x9v8rdd-quw8._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_core_154wm9-r_42lt._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_1welw3sox5y5s._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsayzyj2p6._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_16wer07cq0-mr._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsayzyj2p6._.js
+[création groupe + rôle + schéma] request POST http://localhost:3100/admin?tab=roles
+[création groupe + rôle + schéma] request GET http://localhost:3100/api/realtime
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/api/realtime
+[création groupe + rôle + schéma] 200 POST http://localhost:3100/admin?tab=roles
+[création groupe + rôle + schéma] request POST http://localhost:3100/admin?tab=roles
+[création groupe + rôle + schéma] failed POST http://localhost:3100/admin?tab=roles net::ERR_ABORTED
+[création groupe + rôle + schéma] 200 POST http://localhost:3100/admin?tab=roles
+[création groupe + rôle + schéma] failed POST http://localhost:3100/admin?tab=roles net::ERR_ABORTED
+[timing] navigation rôles 503ms
+[création groupe + rôle + schéma] request GET http://localhost:3100/api/notifications
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/api/notifications
+[création groupe + rôle + schéma] request POST http://localhost:3100/admin?tab=roles
+[timing] création rôle 42ms
+[création groupe + rôle + schéma] 200 POST http://localhost:3100/admin?tab=roles
+[création groupe + rôle + schéma] request GET http://localhost:3100/__nextjs_font/geist-latin.woff2
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/__nextjs_font/geist-latin.woff2
+[création groupe + rôle + schéma] request GET http://localhost:3100/admin?tab=schemes
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/admin?tab=schemes
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/media/GeistMono_Variable-s.p.3x-_q69-5-na5.woff2
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/media/GeistMono_Variable-s.p.3x-_q69-5-na5.woff2
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/media/Geist_Variable-s.p.07llyuw7ush_n.woff2
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/media/Geist_Variable-s.p.07llyuw7ush_n.woff2
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/app_1f3z4xovu6ts3._.css
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1ensnhzzz7ywf._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom-client_development_0klrjggdzrbdd.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom_development_0_zd_l2kylhrw.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_0tg87u1c2jhy8._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-server-dom-turbopack_1pss9gsjld--e._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_next-devtools_index_0gkrnae4eyf-s.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_0yl7fd8n1fycg._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_client_0nzwpuoz2_fpe._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_00txrel2klxj9._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e474n4mns._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_1anvha4rlo79g._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/turbopack-_0tarvnjjw_srp._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_1f23vbnarmvec._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_13uux42pushyd._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_03tjj566eqwoj._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myfxvxz2u._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_classic_0zkl3adr1a7xg._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_core_154wm9-r_42lt._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_locales_1x9v8rdd-quw8._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_16wer07cq0-mr._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_0ql4zhl9bfjp0._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/_1welw3sox5y5s._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/1z_g_lucide-react_dist_esm_icons_1_2qo5nmm7w9w._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/app_1f3z4xovu6ts3._.css
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1ensnhzzz7ywf._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom_development_0_zd_l2kylhrw.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_0tg87u1c2jhy8._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom-client_development_0klrjggdzrbdd.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-server-dom-turbopack_1pss9gsjld--e._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_0yl7fd8n1fycg._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e474n4mns._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_00txrel2klxj9._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_1anvha4rlo79g._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/turbopack-_0tarvnjjw_srp._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_1f23vbnarmvec._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_13uux42pushyd._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myfxvxz2u._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_0ql4zhl9bfjp0._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_client_0nzwpuoz2_fpe._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_next-devtools_index_0gkrnae4eyf-s.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsayzyj2p6._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_classic_0zkl3adr1a7xg._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_03tjj566eqwoj._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1z_g_lucide-react_dist_esm_icons_1_2qo5nmm7w9w._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/_1welw3sox5y5s._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_locales_1x9v8rdd-quw8._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_core_154wm9-r_42lt._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsayzyj2p6._.js
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_16wer07cq0-mr._.js
+[création groupe + rôle + schéma] request GET http://localhost:3100/__nextjs_font/geist-latin.woff2
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/__nextjs_font/geist-latin.woff2
+[création groupe + rôle + schéma] request POST http://localhost:3100/admin?tab=schemes
+[création groupe + rôle + schéma] request GET http://localhost:3100/api/realtime
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/api/realtime
+[création groupe + rôle + schéma] 200 POST http://localhost:3100/admin?tab=schemes
+[création groupe + rôle + schéma] request POST http://localhost:3100/admin?tab=schemes
+[création groupe + rôle + schéma] failed POST http://localhost:3100/admin?tab=schemes net::ERR_ABORTED
+[création groupe + rôle + schéma] 200 POST http://localhost:3100/admin?tab=schemes
+[création groupe + rôle + schéma] failed POST http://localhost:3100/admin?tab=schemes net::ERR_ABORTED
+[timing] navigation schémas 514ms
+[création groupe + rôle + schéma] request GET http://localhost:3100/api/notifications
+[création groupe + rôle + schéma] 200 GET http://localhost:3100/api/notifications
+[création groupe + rôle + schéma] request POST http://localhost:3100/admin?tab=schemes
+[timing] clonage schéma 102ms
+[création groupe + rôle + schéma] 200 POST http://localhost:3100/admin?tab=schemes
+[scenario] gestionnaire de groupes limité
+[gestionnaire de groupes limité] request GET http://localhost:3100/admin?tab=groups
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/admin?tab=groups
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/media/GeistMono_Variable-s.p.3x-_q69-5-na5.woff2
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/media/Geist_Variable-s.p.07llyuw7ush_n.woff2
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/app_1f3z4xovu6ts3._.css
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1ensnhzzz7ywf._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom-client_development_0klrjggdzrbdd.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom_development_0_zd_l2kylhrw.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_0tg87u1c2jhy8._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-server-dom-turbopack_1pss9gsjld--e._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_next-devtools_index_0gkrnae4eyf-s.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_0yl7fd8n1fycg._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_client_0nzwpuoz2_fpe._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_00txrel2klxj9._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e474n4mns._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/_1anvha4rlo79g._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/turbopack-_0tarvnjjw_srp._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/_1f23vbnarmvec._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/_13uux42pushyd._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/_03tjj566eqwoj._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myfxvxz2u._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_classic_0zkl3adr1a7xg._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_core_154wm9-r_42lt._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_locales_1x9v8rdd-quw8._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_16wer07cq0-mr._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/_0ql4zhl9bfjp0._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/_1welw3sox5y5s._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/1z_g_lucide-react_dist_esm_icons_1_2qo5nmm7w9w._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/app_1f3z4xovu6ts3._.css
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/media/Geist_Variable-s.p.07llyuw7ush_n.woff2
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/media/GeistMono_Variable-s.p.3x-_q69-5-na5.woff2
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1ensnhzzz7ywf._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom_development_0_zd_l2kylhrw.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_0tg87u1c2jhy8._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_0yl7fd8n1fycg._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-server-dom-turbopack_1pss9gsjld--e._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/0zix_%40swc_helpers_cjs_0hi-e474n4mns._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_00txrel2klxj9._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/_1anvha4rlo79g._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/_1f23vbnarmvec._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/turbopack-_0tarvnjjw_srp._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/_13uux42pushyd._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/1hn7_tailwind-merge_dist_bundle-mjs_mjs_04a_myfxvxz2u._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_classic_0zkl3adr1a7xg._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_react-dom_cjs_react-dom-client_development_0klrjggdzrbdd.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/_03tjj566eqwoj._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_client_0nzwpuoz2_fpe._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/0nqs_next_dist_compiled_next-devtools_index_0gkrnae4eyf-s.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/_0ql4zhl9bfjp0._.js
+[gestionnaire de groupes limité] request GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsayzyj2p6._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/1z_g_lucide-react_dist_esm_icons_1_2qo5nmm7w9w._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_locales_1x9v8rdd-quw8._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/_1welw3sox5y5s._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/1h6z_zod_v4_core_154wm9-r_42lt._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/node_modules__pnpm_16wer07cq0-mr._.js
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_1mojsayzyj2p6._.js
+[gestionnaire de groupes limité] request POST http://localhost:3100/admin?tab=groups
+[gestionnaire de groupes limité] request GET http://localhost:3100/api/realtime
+[gestionnaire de groupes limité] 200 GET http://localhost:3100/api/realtime
+[gestionnaire de groupes limité] 200 POST http://localhost:3100/admin?tab=groups
+[gestionnaire de groupes limité] request POST http://localhost:3100/admin?tab=groups
+[gestionnaire de groupes limité] 200 POST http://localhost:3100/admin?tab=groups

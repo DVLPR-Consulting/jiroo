@@ -1,0 +1,10 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS 200
+[admin] [aborted-action] POST /b/CASS 200
+[admin] [aborted-action] POST /b/CASS 200
+[result] plage CASS-9003 → CASS-9004, 4 mutations bulk persistées
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS 200
+[performance] {"domContentLoadedMs":239,"loadMs":319,"responseStartMs":127}

@@ -1,0 +1,5 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS/releases/b20391d2-240f-40d5-bd28-5dc811cda3f9 200
+[admin] [aborted-action] POST /b/CASS/releases/b20391d2-240f-40d5-bd28-5dc811cda3f9 200
+[duration] scenario 22: 1003ms
