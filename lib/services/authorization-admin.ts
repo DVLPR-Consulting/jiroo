@@ -490,12 +490,7 @@ type EffectiveAdminExclusion = {
   membership?: { groupId: string; userId: string };
 };
 
-async function effectiveBacklogAdministratorIds(
-  tx: Transaction,
-  backlogId: string,
-  schemeId: string,
-  exclusion: EffectiveAdminExclusion = {},
-): Promise<Set<string>> {
+async function loadBacklogAdministratorContext(tx: Transaction, backlogId: string, schemeId: string) {
   const users = await tx.select({ id: user.id }).from(user);
   const grants = await tx
     .select({
@@ -527,6 +522,24 @@ async function effectiveBacklogAdministratorIds(
     .from(backlogRoleActors)
     .where(eq(backlogRoleActors.backlogId, backlogId));
 
+  return { users, grants, memberships, roleActors };
+}
+
+type BacklogAdministratorContext = Awaited<ReturnType<typeof loadBacklogAdministratorContext>>;
+
+async function effectiveBacklogAdministratorIds(
+  tx: Transaction,
+  backlogId: string,
+  schemeId: string,
+  exclusion: EffectiveAdminExclusion = {},
+): Promise<Set<string>> {
+  return administratorIdsFromContext(await loadBacklogAdministratorContext(tx, backlogId, schemeId), exclusion);
+}
+
+function administratorIdsFromContext(
+  { users, grants, memberships, roleActors }: BacklogAdministratorContext,
+  exclusion: EffectiveAdminExclusion = {},
+): Set<string> {
   const membership = new Set(
     memberships
       .filter(
@@ -1787,7 +1800,7 @@ export async function readBacklogAccess(backlogId: string) {
     .innerJoin(permissionSchemes, eq(permissionSchemes.id, backlogPermissionConfigs.permissionSchemeId))
     .where(eq(backlogPermissionConfigs.backlogId, parsedBacklogId));
   if (!config) throw new ProtectedInvariantError("Configuration d’accès introuvable.");
-  const [roles, actors] = await Promise.all([
+  const [roles, actors, administratorContext] = await Promise.all([
     db.select({ id: projectRoles.id, key: projectRoles.key, name: projectRoles.name, description: projectRoles.description, protected: projectRoles.protected }).from(projectRoles).orderBy(asc(projectRoles.name)),
     db
       .select({ id: backlogRoleActors.id, projectRoleId: backlogRoleActors.projectRoleId, actorType: backlogRoleActors.actorType, userId: backlogRoleActors.userId, userName: user.name, groupId: backlogRoleActors.groupId, groupName: userGroups.name })
@@ -1795,6 +1808,7 @@ export async function readBacklogAccess(backlogId: string) {
       .leftJoin(user, eq(user.id, backlogRoleActors.userId))
       .leftJoin(userGroups, eq(userGroups.id, backlogRoleActors.groupId))
       .where(eq(backlogRoleActors.backlogId, parsedBacklogId)),
+    loadBacklogAdministratorContext(db as unknown as Transaction, parsedBacklogId, config.schemeId),
   ]);
   const roleDtos = await Promise.all(roles.map(async (role) => ({
     ...role,
@@ -1807,7 +1821,7 @@ export async function readBacklogAccess(backlogId: string) {
       return principal ? [{ actorId: entry.id, principal }] : [];
     }).map(async (occupant) => ({
       ...occupant,
-      removalBlocked: (await effectiveBacklogAdministratorIds(db as unknown as Transaction, parsedBacklogId, config.schemeId, { roleActorId: occupant.actorId })).size === 0,
+      removalBlocked: administratorIdsFromContext(administratorContext, { roleActorId: occupant.actorId }).size === 0,
     }))),
   })));
   return {
