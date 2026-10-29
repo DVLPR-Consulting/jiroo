@@ -1,3 +1,4 @@
+import { observePage } from "./support/capture";
 import "dotenv/config";
 import { interceptAction, performAction, type ActionMatch } from "./support/actions";
 
@@ -41,26 +42,15 @@ function observe(page: Page): AuditCapture {
     requestFailures: [],
     httpErrors: [],
   };
-  page.on("console", (message) => {
-    const line = `[${message.type()}] ${message.text()}`;
-    capture.consoleLines.push(line);
-    if (message.type() === "error") capture.consoleErrors.push(line);
-  });
-  page.on("pageerror", (error) => {
-    const line = `[pageerror] ${error.message}`;
-    capture.consoleLines.push(line);
-    capture.consoleErrors.push(line);
-  });
-  page.on("requestfailed", (request) => {
-    const line = `${request.method()} ${request.url()} — ${request.failure()?.errorText ?? "échec inconnu"}`;
-    capture.networkLines.push(line);
-    capture.requestFailures.push(line);
-  });
-  page.on("response", (response) => {
-    const line = `${response.status()} ${response.request().method()} ${response.url()}`;
-    capture.networkLines.push(line);
-    if (response.status() >= 400) capture.httpErrors.push(line);
-  });
+  observePage(page, {
+    console: capture.consoleLines,
+    network: capture.networkLines,
+    onFault: ({ kind, line }) => {
+      if (kind === "request") capture.requestFailures.push(line);
+      else if (kind === "http") capture.httpErrors.push(line);
+      else capture.consoleErrors.push(line);
+    },
+  }, "admin");
   return capture;
 }
 
