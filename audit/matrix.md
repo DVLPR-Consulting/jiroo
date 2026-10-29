@@ -86,6 +86,81 @@ inconnue de WebKit (account-recovery, ticket-drawer), focus et timing WebKit
 1440 px (backlog-foundation 390, permission-schemes 1, roadmap zoom,
 sprint-reports 06).
 
+## Ligne de base Chromium du 29 octobre 2026 (JIR-134, lots 1 à 3)
+
+Run de référence : **`baseline-chromium-20261029-123133`**, sur **`4a2a41cfee19746a26f687778489e93bf662ffa9`** (`origin/main` au lancement, JIR-136 et JIR-137 fusionnés).
+Une seule invocation complète `corepack pnpm test:e2e`, sans filtre de spec et sans retry : **171 verts, 1 rouge, 0 ignoré**, 172 tests dans 36 specs, 7 min 54 s. Le projet d'acceptation `chromium` garde son défaut 1280 × 720 ; les specs qui imposent une autre largeur gardent leurs propres fenêtres, dont Le point à 390 px.
+
+Environnement local : Node 24.18.1, pnpm 10.34.5 via Corepack, PostgreSQL 17 tmpfs dédié sur 5459, base `jiroo_e2e` et identité physique vérifiées ; `next dev` Turbopack sur 3100. Secrets générés en mémoire, aucun `.env`. Budget de 60 minutes non atteint, aucune relance de la suite.
+
+Preuves : [JUnit](runs/baseline-chromium-20261029-123133-junit.xml), [manifeste scellé](runs/baseline-chromium-20261029-123133-manifest.json) et captures/journaux préfixés par ce run. **209 fichiers sous `audit/`, 8 247 354 octets (8,25 Mo)** : 2 fichiers de run, 77 journaux console, 77 journaux réseau, 53 PNG. Le répertoire de captures du backlog est lui aussi préfixé par le run. L'inventaire contient **290 artefacts**, tous revérifiés par taille et SHA-256 après scellement : 208 sous `audit/` et 82 sorties locales `.playwright/` ; le manifeste ne peut inclure son propre digest. Les traces, vidéos et autres sorties `.playwright/` restent hors Git.
+
+Contrôle avant commit : aucun signalement dans les **156 fichiers texte** contrôlés contre les secrets générés et les motifs de credentials ; contrôle OCR local des **53 PNG**, aucun écran d'activation 2FA, clé manuelle ou codes de récupération repéré, aucune image illisible. La capture de l'échec a aussi été examinée. **Aucune capture sensible retirée**. Ces contrôles des preuves destinées à Git sont distincts de l'inventaire cryptographique ; ils ne certifient pas les contenus privés des traces locales non publiées.
+
+### Comparaison avec le 28 octobre
+
+La base du 28 octobre reste **100 verts, 69 rouges, 3 ignorés**, run `baseline-chromium-20261028-233452`. Sur les mêmes 172 tests : **+71 verts, −68 rouges, −3 ignorés**. Parmi les anciens rouges, **68 passent** (7 S et 61 H selon la classification du lot 0) ; **un ancien H reste rouge mais s'arrête maintenant sur une dérive S**. Aucun test auparavant vert ou ignoré ne devient rouge. La comparaison mesure l'ensemble des changements intégrés jusqu'à `4a2a41c` ; elle n'isole pas la contribution de chaque lot.
+
+| Spécification | Rouges : base 28 oct → base 29 oct | Verts 29 oct | Ignorés 29 oct |
+| -- | --: | --: | --: |
+| account-recovery | 0 → 0 | 3 | 0 |
+| all-items | 0 → 0 | 1 | 0 |
+| backlog-access | 0 → 0 | 2 | 0 |
+| backlog-foundation | 4 → 0 | 7 | 0 |
+| backlog-onboarding | 2 → 0 | 2 | 0 |
+| backlog-ranking | 1 → 0 | 1 | 0 |
+| backlog-redesign | 3 → 0 | 5 | 0 |
+| backlogs-home | 0 → 0 | 3 | 0 |
+| board-added-column | 0 → 0 | 5 | 0 |
+| board-empty-columns | 0 → 0 | 1 | 0 |
+| browse-users | 1 → 0 | 4 | 0 |
+| create-everywhere | 4 → 0 | 4 | 0 |
+| create-under-version-filter | 0 → 0 | 1 | 0 |
+| help-guide | 0 → 0 | 3 | 0 |
+| item-detail-drawer | 1 → 0 | 15 | 0 |
+| item-templates | 1 → 0 | 1 | 0 |
+| keyboard-shortcuts | 0 → 0 | 4 | 0 |
+| le-point | 2 → 0 | 2 | 0 |
+| list-rows | 0 → 0 | 5 | 0 |
+| loading-skeletons | 0 → 0 | 1 | 0 |
+| markdown-editor | 0 → 0 | 6 | 0 |
+| mobile-shell | 0 → 0 | 5 | 0 |
+| new-item-missing-parent | 0 → 0 | 1 | 0 |
+| new-item-required-parent | 0 → 0 | 1 | 0 |
+| overlay-animations | 0 → 0 | 2 | 0 |
+| permission-schemes | 8 → 0 | 10 | 0 |
+| realtime | 3 → 0 | 3 | 0 |
+| releases | 26 → 0 | 27 | 0 |
+| repo-connections | 0 → 0 | 1 | 0 |
+| roadmap | 4 → 0 | 6 | 0 |
+| shell-redesign | 0 → 0 | 8 | 0 |
+| sprint-dates | 0 → 0 | 3 | 0 |
+| sprint-filter | 0 → 0 | 1 | 0 |
+| sprint-lifecycle | 7 → 1 | 7 | 0 |
+| sprint-reports | 0 → 0 | 12 | 0 |
+| ticket-drawer | 2 → 0 | 8 | 0 |
+| **Total** | **69 → 1** | **171** | **0** |
+
+Les trois ignorés du 28 octobre appartenaient au groupe en série `browse-users` après son premier échec. Les quatre tests de ce groupe ont cette fois été exécutés et sont verts. Aucun scénario n'est ignoré dans cette ligne de base. Les deux parcours de Le point, dont le texte complet à 390 px, sont verts après JIR-137.
+
+### Reclassement du rouge restant
+
+Codes : **S** dérive de spec, **H** harnais, **P** produit, **I** infrastructure. Ils désignent le point d'arrêt observé, pas la garantie que les assertions suivantes du scénario passeraient.
+
+| Test | Point d'arrêt et preuve assainie | Code et comparaison | Suivi proposé |
+| -- | -- | -- | -- |
+| `sprint-lifecycle.spec.ts:250` — « planifie, exécute et clôture un sprint sans exposer le backlog sur le Board » | `e2e/sprint-lifecycle.spec.ts:275` exige 0 bouton « Créer » sur toute la page `/b/CASS?view=board&q=audit`, reçoit 1 après 5 s. « Aucun sprint actif » et le lien Backlog sont présents. Le bouton trouvé est la commande globale de la barre du haut, visible sur la [capture d'échec](screenshots/baseline-chromium-20261029-123133-sprint-lifecycle-no-active-global-create-failure.png) et consignée dans le [JUnit](runs/baseline-chromium-20261029-123133-junit.xml). | **S**, ancien rouge **H #61** (attente `response.finished()` pendant 120 s dans la classification du lot 0). Même test toujours rouge, nouveau point d'arrêt ; aucune régression produit démontrée par ce constat. | **Ticket à créer — « Sprint lifecycle : distinguer Créer global et création locale du Board sans sprint »**. Reproduire ce seul scénario après setup jetable. Limiter l'interdiction à la surface de création locale du Board et préserver explicitement la commande globale ; piste seulement, aucune correction ici. |
+
+La spec `e2e/create-everywhere.spec.ts:74–138` exige justement la création depuis la barre du haut sur le Board sans sprint, sans appartenance de sprint ; son parcours est vert dans ce run. L'assertion globale du cycle de sprint contredit ce contrat. Le scénario en échec **n'atteint pas** les étapes de planification/démarrage/clôture après la ligne 275 : leur exécution complète n'est pas déduite de ce résultat. Les sept autres tests de `sprint-lifecycle` sont verts.
+
+Bilan des points d'arrêt de la suite : **S=1, H=0, P=0, I=0**. Aucun produit, helper ou spec corrigé dans ce lot ; le rouge est conservé dans les preuves.
+
+### Observation auxiliaire hors des 172 tests
+
+Le contrôle préalable `corepack pnpm test:e2e --list` a bien annoncé 172 tests / 36 fichiers, puis a terminé avec une erreur du reporter : « La réservation Playwright est absente ou illisible ». `e2e/exclusive-junit-reporter.ts:11` publie sans condition ; `scripts/e2e-junit-report.ts:39–44` exige le verrou que `e2e/global.setup.ts:309` réserve seulement lors d'une vraie exécution. **H**, ticket à créer : « Reporter Playwright : permettre --list sans réservation de run ». Ce diagnostic n'est ni une seconde invocation de tests ni un rouge supplémentaire de la ligne de base. Aucune correction appliquée.
+
+Cette passe ne rejoue ni WebKit, ni Firefox, ni la matrice de zoom/accessibilité du 28 octobre : leurs résultats et tickets restent historiques et distincts. Elle ne vaut pas validation de déploiement ni de préparation générale à la production ; les limites de JIR-136 restent dans ses livrables.
+
 ## Zoom 200 %
 
 Fenêtre 720 × 450 et police racine à 200 %, soit 1440 × 900 à 200 % ; critère :

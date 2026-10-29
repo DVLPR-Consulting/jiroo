@@ -391,6 +391,9 @@ Une fonctionnalité simplement découverte n'est **pas** considérée terminée.
 
 ## Historique des audits
 
+- **29 octobre 2026 — JIR-134, ligne de base Chromium complète** : 171 verts, 1 rouge S, 0 ignoré sur 172 tests (`4a2a41c`, run `baseline-chromium-20261029-123133`), contre 100/69/3 le 28 octobre ; preuves et reclassement dans [matrix.md](matrix.md#ligne-de-base-chromium-du-29-octobre-2026-jir-134-lots-1-à-3).
+- **29 octobre 2026 — JIR-136, contre-audit indépendant** : [constats](CODEX_REVIEW.md), [corrections et vérifications](CODEX_ADDITIONAL_FIXES.md), [travail restant](CODEX_REMAINING_WORK.md).
+
 ### 2026-08-04 — Incrément 01
 
 - Découverte générale de l'application authentifiée.
