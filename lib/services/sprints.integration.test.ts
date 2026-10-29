@@ -466,3 +466,22 @@ describeDb("sprint planning services", () => {
     }
   });
 });
+
+
+describeDb("sprint ranking across lifecycle states", () => {
+  it("does not reuse the rank of an active sprint before the first planned sprint", async () => {
+    const f = await fixture();
+    try {
+      const first = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+      const second = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+      const third = await createSprint({ backlogId: f.backlog.id }, f.actor.id);
+      await db.update(sprints).set({ state: "active", startedAt: new Date() }).where(eq(sprints.id, first.id));
+      await reorderSprint({ backlogId: f.backlog.id, id: third.id, beforeId: null, afterId: second.id }, f.actor.id);
+      const result = await listSprintsForBacklog(f.backlog.id);
+      expect(result.sprints.filter((row) => row.state === "planned").map((row) => row.id)).toEqual([third.id, second.id]);
+      expect(new Set(result.sprints.map((row) => row.rank)).size).toBe(3);
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, f.backlog.id));
+    }
+  });
+});
