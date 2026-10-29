@@ -1,0 +1,13 @@
+{
+  "status": "Firefox unavailable on this host",
+  "macOS": "27.0.1 (26A434)",
+  "browser": "Firefox 153.0 / revision1538",
+  "originalTimeoutMs": 180000,
+  "retryTimeoutMs": 30000,
+  "retryEnvironment": {
+    "MOZ_DISABLE_CONTENT_SANDBOX": "1"
+  },
+  "scope": "Only the preflight browser process; no committed configuration changed",
+  "result": "Same sandbox_extension_issue_file_to_process and SWGL errors",
+  "action": "Stop this project before browser test execution and continue the remaining matrix, as authorized"
+}

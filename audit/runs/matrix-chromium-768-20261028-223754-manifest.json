@@ -1,0 +1,743 @@
+{
+  "schemaVersion": 1,
+  "runId": "matrix-chromium-768-20261028-223754",
+  "timestamps": {
+    "startedAt": "2026-10-28T23:10:55.182Z",
+    "databaseVerifiedAt": "2026-10-28T23:10:55.194Z",
+    "manifestWrittenAt": "2026-10-28T23:10:55.328Z"
+  },
+  "runtime": {
+    "node": "v24.18.1",
+    "pnpm": "10.34.5"
+  },
+  "source": {
+    "gitSha": "282463d59644fb557e956e0bfe66cb6310b4354b"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:a70637732c622ead8e1bfe57c5fec658fda1cab995b41489e3222926ed8fc919"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "corepack pnpm exec playwright test --project=matrix-chromium-768",
+    "scenarios": "matrice matrix-chromium-768"
+  },
+  "result": {
+    "junitReport": "audit/runs/matrix-chromium-768-20261028-223754-junit.xml"
+  },
+  "artifacts": [
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/.last-run.json",
+      "size": 733,
+      "sha256": "5b4f50393042f6462c51fb44d05bf7e5f9ec430d2d8effeb36db1377f3525a69"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-768/error-context.md",
+      "size": 18225,
+      "sha256": "09e307e30967dee9e5f36bb12b62b6800cc6516029a24dbdf30c44cbac113103"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-768/test-failed-1.png",
+      "size": 96846,
+      "sha256": "55dcf34a2c5fc39c429facecedc127ebaef8f2b90b7ecc0ac23af204bbabd68d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-768/trace.zip",
+      "size": 3760793,
+      "sha256": "773a3b0284155d78e64a419012cf4b586e25db59f4d85c71636160d0f911cbd7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-768/video.webm",
+      "size": 272555,
+      "sha256": "9f0b25949c89cbaa21565f593b05f0e0c28dc23ecc924c0055a60caddc963334"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-768/error-context.md",
+      "size": 25762,
+      "sha256": "8e67f0110e233bd21e408993372a150d74708dbb393a14db3841e58f39f68884"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-768/test-failed-1.png",
+      "size": 159491,
+      "sha256": "b3aa2c41f087356d88513462b611b322d341010f1f5f1664135571dadf84e122"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-768/trace.zip",
+      "size": 4232449,
+      "sha256": "6bd799f43642475857c75b81fe3f8e18e5dd9f92ee408919c135be990d113583"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-768/video.webm",
+      "size": 781756,
+      "sha256": "655ac37847902440d9a937acbdc75ee5dd6543d15e43581382a8a0e8a39c39c5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-768/error-context.md",
+      "size": 28885,
+      "sha256": "3c85d2d030201623527f5074228a0f105e7e8057bb3bf9b52f5a3e90d07f534d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-768/test-failed-1.png",
+      "size": 174195,
+      "sha256": "6e92ccd5ff13b5a081bd535cb7c3e3719f1ba1433423ad415eafcb5c291ed677"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-768/trace.zip",
+      "size": 7705142,
+      "sha256": "75b9e843746757b96b83fe1b8f0d64345f37a54cfbdaf2e68371ebf252b04d02"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-768/video.webm",
+      "size": 861505,
+      "sha256": "30729dd2aa2f89684fcce49c26f2076810af6a1949e5223fa47486b1ca8d826f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/board-empty-columns-affich-a0931-e-bandeau-sans-sprint-actif-matrix-chromium-768/jir89-board-no-sprint-desktop.png",
+      "size": 77919,
+      "sha256": "239e7e540fb2806df5af1c5ef20f122356361a035cf6c080af209053cf107d04"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/board-empty-columns-affich-a0931-e-bandeau-sans-sprint-actif-matrix-chromium-768/jir89-board-no-sprint-phone.png",
+      "size": 39831,
+      "sha256": "91e4a3369e6660bb86084993abdf4edfcc371de3b6a30920980bdc6bb5c539f6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-768/error-context.md",
+      "size": 10638,
+      "sha256": "1acd32c110635a70f1949316aac7f0a3881821526ec00bc34b2ec0948209b1b3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-768/test-failed-1.png",
+      "size": 95057,
+      "sha256": "409dd8f12445a9177e5eaca79f118f2c32e29b7094df45005b56fde373b13c05"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-768/trace.zip",
+      "size": 4003203,
+      "sha256": "742d4f39557395d96b8e894cffb5b6bf88220b6f3bc6f9cd8334d9bc03c1fdb0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-768/video.webm",
+      "size": 348387,
+      "sha256": "54244d204545ad10eefbfaced5136206ce4e1178528aa10e2b8a88bc399844ae"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-768/error-context.md",
+      "size": 10586,
+      "sha256": "ae97f33ab550a44707d3ed11c8974c328f5a8eb8981fdfd4e435679db7ef5977"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-768/test-failed-1.png",
+      "size": 95460,
+      "sha256": "c7469c1c1b71f2d0211ac127e721cfdea33e3953da7351db85119e09c0a03f8b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-768/trace.zip",
+      "size": 3458695,
+      "sha256": "b11d3dd9658c958b76674deedc8494bfa6439a82ccc265ec623ab3b5c130eb75"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-768/video.webm",
+      "size": 233247,
+      "sha256": "31d5025ddb2fa9ebc5333587288eabfe5f9e31a48e2bb07a42f770474988b83b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-768/error-context.md",
+      "size": 10543,
+      "sha256": "f80341b80016d315f4af045664d1ac9b0da20094415afce5259fa51364a56601"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-768/test-failed-1.png",
+      "size": 93855,
+      "sha256": "8d14b722fef66be829644fd7484c39beab70fad2e143334cff17cb4936fcdbe0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-768/trace.zip",
+      "size": 2918552,
+      "sha256": "b367775dd9c5bce386e82cb8faea798e652193972ad1d26bebcaa61cb0e2e179"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-768/video.webm",
+      "size": 243812,
+      "sha256": "4251c8d59032c792e54a760ab4eec02e46e72edfb5acd79a22d5609d82fdf2e6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-768/error-context.md",
+      "size": 10365,
+      "sha256": "4faa9b7b423fef6af277e4fd0b30d3987383994a9bbb69ab0045515e76c35c02"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-768/test-failed-1.png",
+      "size": 70952,
+      "sha256": "285685e2db062849489f869564ff085d844f5ddc2932436b4a65ac617d4b45a3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-768/trace.zip",
+      "size": 1414062,
+      "sha256": "dd0abb75e256d9bbf0f19e93cf28a5448a09243dfe0e78e3a16ff7f8de0b3113"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-768/video.webm",
+      "size": 81046,
+      "sha256": "bfab2a862235b653b5329a2566523956217e144f57e8813fa97d115769255823"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-chromium-768/jir92-1-inline-epic-masquee.png",
+      "size": 92755,
+      "sha256": "c821b109ab1b9a9a67746682947d7ed209c2411536e68a8e0454ad65f71c0b00"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-chromium-768/jir92-2-inline-cree-masquee.png",
+      "size": 98998,
+      "sha256": "d049a61f147d2e6d8fb88f313fba5ddaeed474358ff76a443f5bda99e833651e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-chromium-768/jir92-3-dialog-composant.png",
+      "size": 161784,
+      "sha256": "db189b13f858c3bf5c62266302bd485955db9e8a5950b600a0d7a4f6b93b450a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-chromium-768/jir92-4-dialog-epic.png",
+      "size": 162311,
+      "sha256": "6fcb591c14b5f686299c00976160b5004d0ce97d011735a0a39f32078e9322a6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/create-under-version-filte-b48f2--par-un-filtre-Version-vide-matrix-chromium-768/jir92-5-dialog-cree-masquee.png",
+      "size": 99859,
+      "sha256": "3f8a0cfdb4d46053d1691995097342a77e29472327d193c6f95f76c257e5e3c3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/help-guide-ouvre-le-guide--c63ac-en-tête-et-suit-le-sommaire-matrix-chromium-768/jir67-desktop-1440.png",
+      "size": 230017,
+      "sha256": "e1d79ff441ecb70c0ad4f3a76ff0b6e057bb803d7177db56946b91f454b45e68"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/help-guide-reste-lisible-sans-débordement-à-390-par-844-matrix-chromium-768/jir67-mobile-390.png",
+      "size": 87344,
+      "sha256": "a939b93dc7368fc87aa59f88a3615b1a64e96448875a69fb6feeb1f6b57e35ab"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-768/error-context.md",
+      "size": 27595,
+      "sha256": "2bdbccf8771bd2f48c9332408ed101036747b127c91b333ccce43621b92a0f1d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-768/test-failed-1.png",
+      "size": 169953,
+      "sha256": "4d6d3725db029b55dd197fdf34994ddbb6d7c15fbda6a65944c3c6ae465879ec"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-768/trace.zip",
+      "size": 1711928,
+      "sha256": "08f72815e7836d8783e71a117b283cac06daee32e33ace716e0e2156aab2dd1e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-768/video.webm",
+      "size": 132939,
+      "sha256": "5c781ee2e14be1242a002279d285fe929e422a1b7694b55b0ca2bd378077a05e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-768/error-context.md",
+      "size": 16081,
+      "sha256": "1e4eee8304ee9e3ee174d5df05fc3788c974678b1447eab990947e9d2278bc07"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-768/jir43-settings-1440.png",
+      "size": 90271,
+      "sha256": "1f7b8e35606d9e9fa30da35148f53fbe33cf9aceef84842f2ab4dcfb4df307bb"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-768/jir43-settings-390.png",
+      "size": 51990,
+      "sha256": "a27f162f6f2a48e5927121fab48e7e0e0c41f5514e88fa3fb047f49795492724"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-768/jir43-template-editor-1440.png",
+      "size": 150100,
+      "sha256": "6c6667b23931140175270ecddaaa1152e253bc5c3754a7f9c2b7e6f441778311"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-768/jir43-template-editor-390.png",
+      "size": 66681,
+      "sha256": "eafcdc4bf9be2c1350287b2b80fd36b22cddf6b72a5d7c46ea04020c79979dc2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-768/test-failed-1.png",
+      "size": 93630,
+      "sha256": "0516bb30bf0c574d81dbc1cfdb796805caf1b4553766a54aeabc302c74f77780"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-768/test-failed-2.png",
+      "size": 56383,
+      "sha256": "8537d3d1f386a0af20f41404ac1111b8eb7052385be5bb578f4d3d7b54763f57"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-768/trace.zip",
+      "size": 4323206,
+      "sha256": "63268ea8e3e004bf6fb3cb8abd0aea7bef94530c8b00dbb5a3599ec0d095faf1"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-768/video.webm",
+      "size": 353189,
+      "sha256": "f121a7db0328911e898e758e86aff54810ac2b0b2dcf92cec3b7dceb64fd5c02"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/content-admin.png",
+      "size": 105754,
+      "sha256": "8508f6e5edef1cbba1ca227525c9f0dd7e528e5428a72e4d1d7833d2ddab81e6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/content-backlog-from-releases.png",
+      "size": 241740,
+      "sha256": "3c5091259fc302deab1cbbcb8f8ad1901732ac1416dd72a4a61f39adebec3df4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/content-backlog.png",
+      "size": 241740,
+      "sha256": "3c5091259fc302deab1cbbcb8f8ad1901732ac1416dd72a4a61f39adebec3df4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/content-board.png",
+      "size": 84294,
+      "sha256": "fbcdd64188b5ff63b602fdf80897d092b45b72c778969b07dd740477beaa9c8e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/content-home.png",
+      "size": 68443,
+      "sha256": "da65ce1a6c3bde205e7b8fc0c148dfa0b5b05ae079258e08483440f11aaa78f9"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/content-list.png",
+      "size": 233270,
+      "sha256": "c951a4a09038e8cdc9efa8052d33c710a6f1c800dff0052e292db4d13cf3071b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/content-mine.png",
+      "size": 72163,
+      "sha256": "c9c11c9584173df098187e430d585d0423bc8a54bf1a89f5093e311e5e292916"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/content-releases.png",
+      "size": 98521,
+      "sha256": "bc9689115a323826f3cb12682ea20e2a0431e84716c3b812a74966c1556f0d7e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/content-roadmap.png",
+      "size": 102029,
+      "sha256": "7c13d5716da1b3375db395be9a94cb499d097ea0be6bb7d052881da07a3bb241"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/content-trash.png",
+      "size": 67461,
+      "sha256": "722b1a88cc2e5287840cfbef1c927b19adff01d8ba462b6ecaa386f89f3356af"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/content-tree.png",
+      "size": 207378,
+      "sha256": "37f2b0211a7bf442017b23fac32278d40901e4862d0feb69051e7af8d4b0749b"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/skeleton-admin.png",
+      "size": 52255,
+      "sha256": "788efc76f9183fabb5209d8fc2b60651661cb088145b00633e337aac307fefa2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/skeleton-backlog-from-releases.png",
+      "size": 61348,
+      "sha256": "d7a6eee8ab4119cd9591b52dcc37514fc734fb5de2755f5f3fac9f97cb89e275"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/skeleton-backlog.png",
+      "size": 61350,
+      "sha256": "a19fed99c1dd700b66e966d75557ff844765cf185b79bcd71770a9ec05df0eb1"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/skeleton-board.png",
+      "size": 59152,
+      "sha256": "225453d7822b864c12c33f91b9a80547e533ebe1247af698389fd07a6ad34bd2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/skeleton-home.png",
+      "size": 54205,
+      "sha256": "e742460667d88fa134115335464d66dff73a68a3a7373c50f3e7e99966b167ca"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/skeleton-list.png",
+      "size": 60227,
+      "sha256": "553969ab870407f8e13fd82e37ef024fabbb086c7262c3a3afe2f7b5509d56c4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/skeleton-mine.png",
+      "size": 55918,
+      "sha256": "1d8e19d407bd933ae5807aa3bdb4c7dfb889b64fe8cd35f344bf7f4c51d8586d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/skeleton-releases.png",
+      "size": 56571,
+      "sha256": "8df9d396e4d7c73ae2006604abb993b660d18d0c29579680137d7f09e833b319"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/skeleton-roadmap.png",
+      "size": 53425,
+      "sha256": "90c9492a69d3738fe7eb60229ef63dd4f28e79ca5e8dec402a1913c2ab9d5fce"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/skeleton-trash.png",
+      "size": 54401,
+      "sha256": "43cb6bea761ca3f5abfb2f6333d11ec7e30568183a82c22870d94630b1963daa"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-matrix-chromium-768/skeleton-tree.png",
+      "size": 54454,
+      "sha256": "48d28caf936b432b7a4a6e12bf732ab63e00db5d04e114cfff920254d6df2902"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/markdown-editor-éditeur-Ma-1df82-en-lecture-seule-au-lecteur-matrix-chromium-768/jir71-read-only.png",
+      "size": 347441,
+      "sha256": "a8751593051d9c5af978ea5cb8594b1c4f6c1c9b94582f0cfcfff5d287d259f7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-matrix-chromium-768/jir71-bubble-menu.png",
+      "size": 224249,
+      "sha256": "a91bc8003ceb4f44ac85c2ff545990a5f5a333662283c263252e6c1145fe9be7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-matrix-chromium-768/jir71-focus-slash-menu.png",
+      "size": 221253,
+      "sha256": "39573efdd26aa1dcc7334abac877372ebdbfa2c2507d718db69f081ae2c29486"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-matrix-chromium-768/jir71-rest-empty.png",
+      "size": 218809,
+      "sha256": "1cc4d81248421b4242b8fe6830e32c81a5ac01b9512b6d1dfbfc981f01f23bf5"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-matrix-chromium-768/jir71-rest.png",
+      "size": 221136,
+      "sha256": "189af591307d026231c3b22c6dbeec159f5857d1d355a3da05c34f23b0b51691"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/markdown-editor-éditeur-Ma-b7056-vec-mention-puis-le-modifie-matrix-chromium-768/comment-editor.png",
+      "size": 213562,
+      "sha256": "60a360fa8d91acc052c6850fb85bfab5262314eee749dd1e4f8f695a32f81874"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/markdown-editor-éditeur-Ma-fb20c-gistré-comme-dans-l’éditeur-matrix-chromium-768/comment-heading.png",
+      "size": 8129,
+      "sha256": "489ef8473eb30bbb91ff40b596c8abe6507cf98d612660b748cdbd56f0bcafd1"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-matrix-chromium-768/jir91-1-epic-sans-composant.png",
+      "size": 149744,
+      "sha256": "45d99432dac64765aa65d3ce06a52808bb715b8f3312d54daff3d5cc32a74106"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-matrix-chromium-768/jir91-2-bascule-composant.png",
+      "size": 140417,
+      "sha256": "4d4a6427a9f70a5ded411ab765fdc1e2c5799644b38690273e72365c5e4ce81d"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-matrix-chromium-768/jir91-3-filtre-version.png",
+      "size": 144175,
+      "sha256": "572d8336e108acfe43a97ca4fad76db516662d16961f040da6435c260d29ee92"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-matrix-chromium-768/jir91-4-epic-avec-composant.png",
+      "size": 162017,
+      "sha256": "b6833137f7cbd0174149df16c81d9aa6923d77d607e04b3b2f3deefe5b86acea"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/new-item-required-parent-«-1b045-igatoire-puis-crée-la-Tâche-matrix-chromium-768/jir69-1-parent-manquant.png",
+      "size": 160924,
+      "sha256": "d419547ab2ef4a8b2e8553712b03e92792de825d19036747f4fdfa2d15f916f0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/new-item-required-parent-«-1b045-igatoire-puis-crée-la-Tâche-matrix-chromium-768/jir69-2-parent-choisi.png",
+      "size": 161806,
+      "sha256": "047d0c1e1c12def9229c0bf0ec67537811c4a439e1017a01ed85460dad3d6d8a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-768/error-context.md",
+      "size": 9731,
+      "sha256": "0442115901162fbd6c4354942bb4140449e525f772b59dc9a8ce395f3006d62e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-768/test-failed-1.png",
+      "size": 224137,
+      "sha256": "ed12c5e14d75c6b830a5b95678311b82c07f072cbfd14f9fd2392e7b93e478bf"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-768/test-failed-2.png",
+      "size": 222693,
+      "sha256": "8d75ee33d479b9507fd56cba0e97af283c174e2c6c0e8781babea5a0ed1c943a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-768/trace.zip",
+      "size": 440034,
+      "sha256": "ac94195e55312bd0f4c0b09bb71990734b872a8ccc80159017e9b200ecbe1fd0"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-768/error-context.md",
+      "size": 9816,
+      "sha256": "7306c85d2e288e4f940699aa73d4c0275729bcf18992aba94fcd935ada4d640a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-768/test-failed-1.png",
+      "size": 233333,
+      "sha256": "5d1d51054145c55a52139d1328909521fe26afebbe7fc3e57508571d4ab3d2f3"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-768/test-failed-2.png",
+      "size": 218288,
+      "sha256": "e087c1d709374366a4cde7668d450c2cb8b248ec5b4a52297cdc0e979e169ba6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-768/trace.zip",
+      "size": 443819,
+      "sha256": "ac5871c367c91a8f3fc40b27a91e92d58ccbcbd66ad5e4b1246219adbdbd90bf"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-768/error-context.md",
+      "size": 9818,
+      "sha256": "028a5422d44a5bcc6f0072508d11e40b9d2ea575a48bc2e7ebdcb0308c40ece9"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-768/test-failed-1.png",
+      "size": 219775,
+      "sha256": "7288d4345b9225549f764dbe48676fbf4c79170e57b6d73fc1b80b85fba70e45"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-768/test-failed-2.png",
+      "size": 221385,
+      "sha256": "90adec5556b4baad0d8f42823ea216908bde4533de87741eb6a9e45c50294d2a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-768/trace.zip",
+      "size": 438986,
+      "sha256": "05e16fc80683a4a894f930341c2b975a8d5cb9463802338563c01aa82df35d6f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-matrix-chromium-768/jir74-desktop-dark.png",
+      "size": 262701,
+      "sha256": "58b064ba3bc67b95d030d270b13435d885b4f9529db2c16d4f29c4ae65648e7e"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-matrix-chromium-768/jir74-desktop-light.png",
+      "size": 257217,
+      "sha256": "f3eabdbd551ec74972327baae1b4292db8fc7988b09f1977b92716a4f557f455"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-matrix-chromium-768/jir74-mobile-drawer.png",
+      "size": 120735,
+      "sha256": "192ce3a83b1729bd7474be048ded8aee899d840d0c020b107200d9867a02c7e2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-matrix-chromium-768/jir74-mobile.png",
+      "size": 88695,
+      "sha256": "c5254f98d950a182876ddb105eefb567ba2d232e40d00c26ee6a056c2d1dabc4"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/sprint-filter-filtre-la-Li-c4fd7-et-le-garde-au-rechargement-matrix-chromium-768/jir81-liste-filtre-sprint-termine.png",
+      "size": 94211,
+      "sha256": "1bbe49a059f886e39c349a842b0bf1852da88badabb1b38b3d89132eedac9794"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/sprint-filter-filtre-la-Li-c4fd7-et-le-garde-au-rechargement-matrix-chromium-768/jir81-menu-sprint.png",
+      "size": 110233,
+      "sha256": "e2a717a55d1895d7329844812828bce3ae698109b807f407aa0eff629f32ee8c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-768/error-context.md",
+      "size": 12594,
+      "sha256": "0b071ffa09af1778f2180d6634298ead609021f87a866773935c8d5f2a648c5a"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-768/test-failed-1.png",
+      "size": 205132,
+      "sha256": "77daa743f7ba3b872c9c9b9bad07b72d35dd80d535afb85eadeeb0af6e8c8cf6"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-768/trace.zip",
+      "size": 2676398,
+      "sha256": "dfeea5c5ff5d372b404473f6d8addf4489daf74bb031372738be2aa713ff4529"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-768/video.webm",
+      "size": 281409,
+      "sha256": "be747a279f6b5acd10f3c2f88750fba10ea0069e70e6d885c0638583a39c976f"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--matrix-chromium-768/jir80-create-dialog-contextual.png",
+      "size": 268067,
+      "sha256": "5b91fbfeac34076c797b576a4d5a310c8137f21fa5cd2678ca58586d6b1cbce1"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--matrix-chromium-768/jir80-create-dialog-short.png",
+      "size": 135451,
+      "sha256": "d60717353147c444402077674957b088944936dcd045c365843a6973ee7f3a84"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--matrix-chromium-768/jir80-create-dialog-type-open.png",
+      "size": 261957,
+      "sha256": "b64c15818517e35db746be46007e14c3bbafd9b4743a2bbe2901ac90516f50f1"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--matrix-chromium-768/jir80-create-dialog.png",
+      "size": 257911,
+      "sha256": "984fd19ef32271795186a923b4c8d6628c47f00060c3c0a1074d680cddbb7bc7"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-768/error-context.md",
+      "size": 14780,
+      "sha256": "0d6aa95c8f2c973b72e33e266a005e3168e642d243c14897e8b4f6bcfe8e4fd8"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-768/test-failed-1.png",
+      "size": 261414,
+      "sha256": "4ebb11e4c2e1b78c8745aca4871eb2f8255df07df46d45aac938d10ff411821c"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-768/trace.zip",
+      "size": 3736516,
+      "sha256": "b7973bd95c3c075ec5bac953198c107e7280bd483782743f711df74d2354f7c2"
+    },
+    {
+      "path": ".playwright/test-results/matrix-chromium-768-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-768/video.webm",
+      "size": 314666,
+      "sha256": "dedfc994523abb3097f4110a2f2085cb900a3c305bfd1aa34c399166ffa4b7f9"
+    },
+    {
+      "path": "audit/console/matrix-chromium-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-board-sans-sprint-sans-appartenance-de-sprint.log",
+      "size": 151,
+      "sha256": "cc84a3eaee3f5ad82cab4cf42c8487c4e9199a1300ef1460c85ba1448a90e129"
+    },
+    {
+      "path": "audit/console/matrix-chromium-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-releases-sans-appartenance-de-sprint.log",
+      "size": 151,
+      "sha256": "cc84a3eaee3f5ad82cab4cf42c8487c4e9199a1300ef1460c85ba1448a90e129"
+    },
+    {
+      "path": "audit/console/matrix-chromium-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-roadmap-sans-appartenance-de-sprint.log",
+      "size": 151,
+      "sha256": "cc84a3eaee3f5ad82cab4cf42c8487c4e9199a1300ef1460c85ba1448a90e129"
+    },
+    {
+      "path": "audit/console/matrix-chromium-768-20261028-223754-create-everywhere-le-lecteur-ne-voit-pas-de-bouton-cr-er-sur-les-trois-pages.log",
+      "size": 453,
+      "sha256": "e794615f09865fa72315ac80c0d475da536948603f476d1c7e7fb7a3921bc680"
+    },
+    {
+      "path": "audit/console/matrix-chromium-768-20261028-223754-realtime-increments-the-other-user-s-bell-after-a-mention.log",
+      "size": 338,
+      "sha256": "05a6479370fb010e16b446e14ce16fd841c502fba598f7fc392da59574c8f197"
+    },
+    {
+      "path": "audit/console/matrix-chromium-768-20261028-223754-realtime-offers-a-list-refresh-to-the-other-user-only.log",
+      "size": 338,
+      "sha256": "05a6479370fb010e16b446e14ce16fd841c502fba598f7fc392da59574c8f197"
+    },
+    {
+      "path": "audit/console/matrix-chromium-768-20261028-223754-realtime-refreshes-the-other-user-s-open-item-automatically.log",
+      "size": 338,
+      "sha256": "05a6479370fb010e16b446e14ce16fd841c502fba598f7fc392da59574c8f197"
+    },
+    {
+      "path": "audit/network/matrix-chromium-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-board-sans-sprint-sans-appartenance-de-sprint.log",
+      "size": 5273,
+      "sha256": "520c8eaf980a4a2c0ee5480b2b588a53ad720e6e248f71d546999ae35fd1b0a6"
+    },
+    {
+      "path": "audit/network/matrix-chromium-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-releases-sans-appartenance-de-sprint.log",
+      "size": 7277,
+      "sha256": "774306c9f5906223601719527a2f02c383b9c86805e3decf49ccdadc16654079"
+    },
+    {
+      "path": "audit/network/matrix-chromium-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-roadmap-sans-appartenance-de-sprint.log",
+      "size": 4448,
+      "sha256": "befed5b30ac6e6d8c29e824043cd6b4521282533daedd6fe37e065764234d1a5"
+    },
+    {
+      "path": "audit/network/matrix-chromium-768-20261028-223754-create-everywhere-le-lecteur-ne-voit-pas-de-bouton-cr-er-sur-les-trois-pages.log",
+      "size": 10565,
+      "sha256": "184d28fa28ffc8c18d414154ce7abee48e79916808f21d5d8740c1897667cce9"
+    },
+    {
+      "path": "audit/network/matrix-chromium-768-20261028-223754-realtime-increments-the-other-user-s-bell-after-a-mention.log",
+      "size": 9555,
+      "sha256": "eb6fe78b3b92b43302977ce66cdc0237d4b8ab4abc7828192073c090918937ad"
+    },
+    {
+      "path": "audit/network/matrix-chromium-768-20261028-223754-realtime-offers-a-list-refresh-to-the-other-user-only.log",
+      "size": 9440,
+      "sha256": "da959497c89f6e8a4997db4d52fd87a183db70cad4d3888f6380a928c7dd6c49"
+    },
+    {
+      "path": "audit/network/matrix-chromium-768-20261028-223754-realtime-refreshes-the-other-user-s-open-item-automatically.log",
+      "size": 9670,
+      "sha256": "42c32b70c7ed50257fdda8b213e563a8bf2053c8e4248c4d975ccc1e5f3d7b91"
+    },
+    {
+      "path": "audit/runs/matrix-chromium-768-20261028-223754-junit.xml",
+      "size": 80994,
+      "sha256": "ba0c07c0e97f26932e132a2fe4eb931d448bd43863f66cb9d444ad339f4fa9a2"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-768-20261028-223754-create-everywhere-board.png",
+      "size": 83808,
+      "sha256": "3d0e0cc33867f797fac0bce9bbfe1675078d4b8921e9cc2b5edada3f19c5c240"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-board-sans-sprint-sans-appartenance-de-sprint-failure.png",
+      "size": 95460,
+      "sha256": "c7469c1c1b71f2d0211ac127e721cfdea33e3953da7351db85119e09c0a03f8b"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-releases-sans-appartenance-de-sprint-failure.png",
+      "size": 95057,
+      "sha256": "409dd8f12445a9177e5eaca79f118f2c32e29b7094df45005b56fde373b13c05"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-768-20261028-223754-create-everywhere-cr-e-une-t-che-depuis-roadmap-sans-appartenance-de-sprint-failure.png",
+      "size": 93855,
+      "sha256": "8d14b722fef66be829644fd7484c39beab70fad2e143334cff17cb4936fcdbe0"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-768-20261028-223754-create-everywhere-le-lecteur-ne-voit-pas-de-bouton-cr-er-sur-les-trois-pages-failure.png",
+      "size": 70952,
+      "sha256": "285685e2db062849489f869564ff085d844f5ddc2932436b4a65ac617d4b45a3"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-768-20261028-223754-create-everywhere-releases-opened.png",
+      "size": 94496,
+      "sha256": "f15c0babcf6acd73e67713fe41c74394b2bdcb4d8ffd0242a956bd2bc22d44b6"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-768-20261028-223754-create-everywhere-releases.png",
+      "size": 76917,
+      "sha256": "ce9a7c58b0c45391c1d0fc8bc4006b896800ff871360c70c5081436a70899e6e"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-768-20261028-223754-create-everywhere-roadmap.png",
+      "size": 74607,
+      "sha256": "09f3567cbb20c899db7fe1107c97c5857a82522497b0cc155529ab0d17fbc54d"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-768-20261028-223754-realtime-bell.png",
+      "size": 233333,
+      "sha256": "5d1d51054145c55a52139d1328909521fe26afebbe7fc3e57508571d4ab3d2f3"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-768-20261028-223754-realtime-drawer.png",
+      "size": 219775,
+      "sha256": "7288d4345b9225549f764dbe48676fbf4c79170e57b6d73fc1b80b85fba70e45"
+    },
+    {
+      "path": "audit/screenshots/matrix-chromium-768-20261028-223754-realtime-list-banner.png",
+      "size": 233157,
+      "sha256": "1ac3d58fe09cd25dd3c7803ccaa013a04dba3764a90c6b11891c54186178d46d"
+    }
+  ]
+}

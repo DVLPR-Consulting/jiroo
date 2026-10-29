@@ -1,0 +1,6 @@
+[scenario] éditeur A
+[log] [HMR] connected
+[result] scénario validé
+[scenario] éditeur B
+[log] [HMR] connected
+[log] [HMR] connected

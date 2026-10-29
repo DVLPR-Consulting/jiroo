@@ -1,0 +1,6 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin-scope-change] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-scope-change] log: [HMR] connected
+[defect] BUG-JIR-043 Test ended.
+[duration] scenario 16: 30746ms

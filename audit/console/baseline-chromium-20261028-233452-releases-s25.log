@@ -1,0 +1,17 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] log: [Fast Refresh] rebuilding
+[admin] log: [Fast Refresh] done in 785ms
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[defect] BUG-JIR-052 Erreurs navigateur inattendues:
+[failed] [admin] GET http://localhost:3100/b/CASS/releases/73b97606-4281-4b01-b881-fd24f94ffe90/notes?_rsc=TG9bmzql4O4S_KO4 net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS/releases/73b97606-4281-4b01-b881-fd24f94ffe90/notes net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS/releases/73b97606-4281-4b01-b881-fd24f94ffe90/notes net::ERR_ABORTED
+[failed] [admin] GET http://localhost:3100/b/CASS/releases/0d790c38-9528-4cf2-8356-05ee525e8906/notes?incomplete=1&_rsc=gLZzChmZVUxA0VIj net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS/releases/0d790c38-9528-4cf2-8356-05ee525e8906/notes?incomplete=1 net::ERR_ABORTED
+[duration] scenario 25: 3084ms

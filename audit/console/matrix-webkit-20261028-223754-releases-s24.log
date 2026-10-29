@@ -1,0 +1,18 @@
+[admin] log: [HMR] connected
+[admin] error: Failed to fetch RSC payload for http://localhost:3100/b/CASS/releases. Falling back to browser navigation. TypeError: Load failed
+[admin] pageerror: /localhost:3100/__nextjs_original-stack-frames due to access control checks.
+[admin] log: [HMR] connected
+[admin] log: [HMR] connected
+[admin] log: [HMR] connected
+[admin] log: [HMR] connected
+[reader-order] log: [HMR] connected
+[defect] BUG-JIR-051 Erreurs navigateur inattendues:
+[admin] error: Failed to fetch RSC payload for http://localhost:3100/b/CASS/releases. Falling back to browser navigation. TypeError: Load failed
+[admin] pageerror: /localhost:3100/__nextjs_original-stack-frames due to access control checks.
+[failed] [admin] GET http://localhost:3100/b/CASS/releases?_rsc=omVAkDbq_dNLmFXN cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/b/CASS/releases cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[failed] [admin] GET http://localhost:3100/api/realtime?backlog=CASS cancelled
+[duration] scenario 24: 5329ms

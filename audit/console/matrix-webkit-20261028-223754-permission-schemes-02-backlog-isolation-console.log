@@ -1,0 +1,5 @@
+[scenario] isolation CASS/LABS
+[log] [HMR] connected
+[pageerror] /localhost:3100/b/CASS?view=backlog due to access control checks.
+[log] [HMR] connected
+[result] scénario validé

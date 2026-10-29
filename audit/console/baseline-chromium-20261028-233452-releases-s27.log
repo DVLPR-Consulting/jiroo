@@ -1,0 +1,27 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[defect] BUG-JIR-054 Erreurs navigateur inattendues:
+[failed] [admin] POST http://localhost:3100/b/CASS?view=list&version=9884cfe3-bd07-48ad-9bd8-da7b942aa132&v=b23be0a8-896f-4852-94e7-1e873bb7d9bd net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS/releases/cf8852f8-2b7c-4310-9f51-2f2f9665aceb/notes net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS/releases net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS/releases net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS/releases/cf8852f8-2b7c-4310-9f51-2f2f9665aceb/notes net::ERR_ABORTED
+[duration] scenario 27: 4543ms

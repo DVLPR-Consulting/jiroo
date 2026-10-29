@@ -1,0 +1,15 @@
+[admin] log: [HMR] connected
+[expected] interruption volontaire du prochain POST /b/CASS/releases/c8580790-6d01-448d-9970-d9a5e123cfd6
+[admin] info: Web Inspector blocked http://localhost:3100/b/CASS/releases/c8580790-6d01-448d-9970-d9a5e123cfd6 from loading
+[defect] BUG-JIR-034 [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+Locator: getByRole('dialog', { name: 'Publier R09-S07 Source' }).getByRole('alert')
+Expected substring: [32m"Publication impossible"[39m
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+[2m  - Expect "toContainText" with timeout 5000ms[22m
+[2m  - waiting for getByRole('dialog', { name: 'Publier R09-S07 Source' }).getByRole('alert')[22m
+
+[duration] scenario 7: 5728ms

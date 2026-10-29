@@ -1,0 +1,982 @@
+<testsuites id="" name="" tests="81" failures="11" skipped="0" errors="3" time="230.23346899999999">
+<testsuite name="backlog-ranking.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="1" failures="1" skipped="0" time="7.493" errors="0">
+<testcase name="classe à la souris, restaure au clavier et conserve chaque ordre" classname="backlog-ranking.spec.ts" time="7.493">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-1024/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(received).toEqual(expected) // deep equality" type="expect.toEqual">
+<![CDATA[  [matrix-chromium-1024] › backlog-ranking.spec.ts:11:5 › classe à la souris, restaure au clavier et conserve chaque ordre 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Array [
+    -   "CASS-9004 — Permissions de sprint",
+        "CASS-9003 — Écran de vérification",
+    +   "CASS-9004 — Permissions de sprint",
+        "CASS-9005 — Audit de sécurité",
+      ]
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      93 |   await expect
+      94 |     .poll(async () => rows.evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
+    > 95 |     .toEqual(optimisticOrder);
+         |      ^
+      96 |
+      97 |   const restoredHandle = page.getByRole("button", { name: `Déplacer ${movedKey}`, exact: true });
+      98 |   await restoredHandle.focus();
+        at /Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/backlog-ranking.spec.ts:95:6
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-1024/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-1024/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+</testsuite>
+<testsuite name="backlog-redesign.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="5" failures="0" skipped="0" time="67.371" errors="2">
+<testcase name="en-tête de sprint : points par statut, action principale et menu ⋯" classname="backlog-redesign.spec.ts" time="2.473">
+</testcase>
+<testcase name="glisser un item du backlog dans la zone d’un sprint vide le planifie" classname="backlog-redesign.spec.ts" time="1.963">
+</testcase>
+<testcase name="« + Créer un item » crée dans le sprint et dans le backlog, Échap annule" classname="backlog-redesign.spec.ts" time="30.282">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-1024/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<error message="Test timeout of 30000ms exceeded." type="Error">
+<![CDATA[  [matrix-chromium-1024] › backlog-redesign.spec.ts:222:5 › « + Créer un item » crée dans le sprint et dans le backlog, Échap annule 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: Test timeout of 30000ms exceeded.
+
+      115 |   await action();
+      116 |   const settled = await response;
+    > 117 |   await settled.finished();
+          |                 ^
+      118 |   expect(settled.status()).toBeLessThan(400);
+      119 | }
+      120 |
+        at businessPost (/Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/backlog-redesign.spec.ts:117:17)
+        at /Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/backlog-redesign.spec.ts:240:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-1024/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-1024/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="une ligne compacte masque les valeurs vides et s’édite sur place" classname="backlog-redesign.spec.ts" time="30.651">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-1024/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<error message="Test timeout of 30000ms exceeded." type="Error">
+<![CDATA[  [matrix-chromium-1024] › backlog-redesign.spec.ts:253:5 › une ligne compacte masque les valeurs vides et s’édite sur place 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: Test timeout of 30000ms exceeded.
+
+      115 |   await action();
+      116 |   const settled = await response;
+    > 117 |   await settled.finished();
+          |                 ^
+      118 |   expect(settled.status()).toBeLessThan(400);
+      119 | }
+      120 |
+        at businessPost (/Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/backlog-redesign.spec.ts:117:17)
+        at /Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/backlog-redesign.spec.ts:281:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-1024/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-1024/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+<testcase name="Backlog lisible sans défilement horizontal à 390 × 844, captures clair / sombre" classname="backlog-redesign.spec.ts" time="2.002">
+</testcase>
+</testsuite>
+<testsuite name="board-added-column.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="5" failures="0" skipped="0" time="8.903" errors="0">
+<testcase name="une carte déposée sur une colonne ajoutée y reste et le ticket propose ce statut" classname="board-added-column.spec.ts" time="2.924">
+</testcase>
+<testcase name="un ticket passé dans la colonne ajoutée depuis sa fiche apparaît dans cette colonne" classname="board-added-column.spec.ts" time="1.966">
+</testcase>
+<testcase name="le statut en ligne de la Liste propose la colonne ajoutée et y range le ticket" classname="board-added-column.spec.ts" time="1.164">
+</testcase>
+<testcase name="le bouton « statut suivant » mène à la colonne ajoutée" classname="board-added-column.spec.ts" time="1.327">
+</testcase>
+<testcase name="la modification groupée du statut propose la colonne ajoutée" classname="board-added-column.spec.ts" time="1.522">
+</testcase>
+</testsuite>
+<testsuite name="board-empty-columns.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="1" failures="0" skipped="0" time="0.75" errors="0">
+<testcase name="affiche les colonnes vides et inertes sous le bandeau sans sprint actif" classname="board-empty-columns.spec.ts" time="0.75">
+</testcase>
+</testsuite>
+<testsuite name="create-everywhere.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="4" failures="4" skipped="0" time="8.024" errors="0">
+<testcase name="crée une tâche depuis Roadmap, sans appartenance de sprint" classname="create-everywhere.spec.ts" time="2.672">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-1024/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<failure message="Browser and network errors" type="expect.toEqual">
+<![CDATA[  [matrix-chromium-1024] › create-everywhere.spec.ts:94:3 › crée une tâche depuis Roadmap, sans appartenance de sprint 
+
+    Error: Browser and network errors
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 6
+
+    - Array []
+    + Array [
+    +   "POST http://localhost:3100/b/CRTALL/roadmap net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CRTALL/roadmap net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CRTALL/roadmap net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CRTALL/roadmap net::ERR_ABORTED",
+    + ]
+
+      57 |         await writeAuditText(`audit/network/${slug}.log`, capture.network.join("\n") + "\n");
+      58 |       }
+    > 59 |       expect(capture.errors, "Browser and network errors").toEqual([]);
+         |                                                            ^
+      60 |     }
+      61 |   }, { auto: true }],
+      62 | });
+        at Object._test.test.extend.audit.auto (/Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/create-everywhere.spec.ts:59:60)
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-1024/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-1024/error-context.md
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-1024/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="crée une tâche depuis Releases, sans appartenance de sprint" classname="create-everywhere.spec.ts" time="2.598">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-1024/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<failure message="Browser and network errors" type="expect.toEqual">
+<![CDATA[  [matrix-chromium-1024] › create-everywhere.spec.ts:94:3 › crée une tâche depuis Releases, sans appartenance de sprint 
+
+    Error: Browser and network errors
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 7
+
+    - Array []
+    + Array [
+    +   "POST http://localhost:3100/b/CRTALL/releases net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CRTALL/releases net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CRTALL/releases net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CRTALL/releases net::ERR_ABORTED",
+    +   "GET http://localhost:3100/b/CRTALL/releases?_rsc=T08Cf8dcp_OrBi7l net::ERR_ABORTED",
+    + ]
+
+      57 |         await writeAuditText(`audit/network/${slug}.log`, capture.network.join("\n") + "\n");
+      58 |       }
+    > 59 |       expect(capture.errors, "Browser and network errors").toEqual([]);
+         |                                                            ^
+      60 |     }
+      61 |   }, { auto: true }],
+      62 | });
+        at Object._test.test.extend.audit.auto (/Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/create-everywhere.spec.ts:59:60)
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-1024/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-1024/error-context.md
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-1024/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="crée une tâche depuis Board sans sprint, sans appartenance de sprint" classname="create-everywhere.spec.ts" time="1.659">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-1024/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<failure message="Browser and network errors" type="expect.toEqual">
+<![CDATA[  [matrix-chromium-1024] › create-everywhere.spec.ts:94:3 › crée une tâche depuis Board sans sprint, sans appartenance de sprint 
+
+    Error: Browser and network errors
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 7
+
+    - Array []
+    + Array [
+    +   "POST http://localhost:3100/b/CRTALL?view=board net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CRTALL?view=board net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CRTALL?view=board net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CRTALL?view=board net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CRTALL?view=board net::ERR_ABORTED",
+    + ]
+
+      57 |         await writeAuditText(`audit/network/${slug}.log`, capture.network.join("\n") + "\n");
+      58 |       }
+    > 59 |       expect(capture.errors, "Browser and network errors").toEqual([]);
+         |                                                            ^
+      60 |     }
+      61 |   }, { auto: true }],
+      62 | });
+        at Object._test.test.extend.audit.auto (/Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/create-everywhere.spec.ts:59:60)
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-1024/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-1024/error-context.md
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-1024/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="sans droit de création › le lecteur ne voit pas de bouton Créer sur les trois pages" classname="create-everywhere.spec.ts" time="1.095">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-1024/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<failure message="Browser and network errors" type="expect.toEqual">
+<![CDATA[  [matrix-chromium-1024] › create-everywhere.spec.ts:174:3 › sans droit de création › le lecteur ne voit pas de bouton Créer sur les trois pages 
+
+    Error: Browser and network errors
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 4
+
+    - Array []
+    + Array [
+    +   "POST http://localhost:3100/b/CASS/roadmap net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CASS/releases net::ERR_ABORTED",
+    + ]
+
+      57 |         await writeAuditText(`audit/network/${slug}.log`, capture.network.join("\n") + "\n");
+      58 |       }
+    > 59 |       expect(capture.errors, "Browser and network errors").toEqual([]);
+         |                                                            ^
+      60 |     }
+      61 |   }, { auto: true }],
+      62 | });
+        at Object._test.test.extend.audit.auto (/Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/create-everywhere.spec.ts:59:60)
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-1024/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-1024/error-context.md
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-1024/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+</testsuite>
+<testsuite name="create-under-version-filter.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="1" failures="0" skipped="0" time="2.729" errors="0">
+<testcase name="crée une Tâche sous l’Epic masquée par un filtre Version vide" classname="create-under-version-filter.spec.ts" time="2.729">
+</testcase>
+</testsuite>
+<testsuite name="help-guide.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="3" failures="0" skipped="0" time="3.068" errors="0">
+<testcase name="ouvre le guide depuis l’en-tête et suit le sommaire" classname="help-guide.spec.ts" time="0.942">
+</testcase>
+<testcase name="reste lisible sans débordement à 390 par 844" classname="help-guide.spec.ts" time="0.956">
+</testcase>
+<testcase name="revient à l’accueil du backlog par le fil d’Ariane puis par le logo" classname="help-guide.spec.ts" time="1.17">
+</testcase>
+</testsuite>
+<testsuite name="item-detail-drawer.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="15" failures="1" skipped="0" time="21.832" errors="0">
+<testcase name="panneau de détail › glisse depuis la droite une seule fois, sans échange d’overlay, puis se referme" classname="item-detail-drawer.spec.ts" time="1.113">
+</testcase>
+<testcase name="panneau de détail › s’ouvre dès le clic, avant la réponse du serveur, puis affiche l’item" classname="item-detail-drawer.spec.ts" time="0.993">
+</testcase>
+<testcase name="panneau de détail › enregistre la description en cours de frappe quand le panneau se ferme" classname="item-detail-drawer.spec.ts" time="2.395">
+</testcase>
+<testcase name="panneau de détail › ouvre directement le lien profond sans animation si le mouvement est réduit" classname="item-detail-drawer.spec.ts" time="1.358">
+</testcase>
+<testcase name="panneau de détail › donne aux propriétés une colonne lisible, rembourrée comme la colonne principale" classname="item-detail-drawer.spec.ts" time="0.997">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-1024/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(received).toEqual(expected) // deep equality" type="expect.toEqual">
+<![CDATA[  [matrix-chromium-1024] › item-detail-drawer.spec.ts:186:7 › panneau de détail › donne aux propriétés une colonne lisible, rembourrée comme la colonne principale 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "Aucun parent",
+    + ]
+
+      223 |         .map((input) => input.placeholder);
+      224 |     });
+    > 225 |     expect(truncated).toEqual([]);
+          |                       ^
+      226 |   });
+      227 |
+      228 |   test("empile les propriétés sous la colonne principale sur un écran étroit", async ({
+        at /Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/item-detail-drawer.spec.ts:225:23
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-1024/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-1024/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="panneau de détail › empile les propriétés sous la colonne principale sur un écran étroit" classname="item-detail-drawer.spec.ts" time="1.03">
+</testcase>
+<testcase name="panneau de détail › occupe toute la hauteur et fait défiler les propriétés seules à 1440×900" classname="item-detail-drawer.spec.ts" time="0.983">
+</testcase>
+<testcase name="panneau de détail › occupe toute la hauteur et fait défiler les propriétés seules à 2000×1100" classname="item-detail-drawer.spec.ts" time="1.016">
+</testcase>
+<testcase name="panneau de détail › suit la hauteur de la fenêtre quand elle change, panneau ouvert" classname="item-detail-drawer.spec.ts" time="0.942">
+</testcase>
+<testcase name="panneau de détail › fait défiler la seule colonne des propriétés quand elle dépasse la hauteur" classname="item-detail-drawer.spec.ts" time="1.021">
+</testcase>
+<testcase name="panneau de détail › se ferme au retour arrière et se rouvre en avant dans l’historique" classname="item-detail-drawer.spec.ts" time="1.157">
+</testcase>
+<testcase name="panneau de détail sans re-rendu de la vue (JIR-78) › ouvre, enchaîne avec J, suit l’historique et se ferme sans re-rendre la vue" classname="item-detail-drawer.spec.ts" time="4.229">
+</testcase>
+<testcase name="panneau de détail sans re-rendu de la vue (JIR-78) › rafraîchit le panneau ouvert au clic et la vue après un renommage" classname="item-detail-drawer.spec.ts" time="1.95">
+</testcase>
+<testcase name="panneau de détail sans re-rendu de la vue (JIR-78) › enregistre la description en cours de frappe en passant à l’item suivant" classname="item-detail-drawer.spec.ts" time="2.573">
+</testcase>
+<testcase name="panneau de détail sans re-rendu de la vue (JIR-78) › n’expose le détail qu’aux lecteurs du backlog" classname="item-detail-drawer.spec.ts" time="0.075">
+</testcase>
+</testsuite>
+<testsuite name="item-templates.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="1" failures="0" skipped="0" time="3.694" errors="1">
+<testcase name="an administrator shares a template, a member applies it, and management remains protected" classname="item-templates.spec.ts" time="3.694">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-1024/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-1024/test-failed-2.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<error message="Server Action returned no discriminated result." type="Error">
+<![CDATA[  [matrix-chromium-1024] › item-templates.spec.ts:32:5 › an administrator shares a template, a member applies it, and management remains protected 
+
+    Error: Server Action returned no discriminated result.
+
+      27 |     } catch { /* Other Flight rows can be references or streamed module data. */ }
+      28 |   }
+    > 29 |   throw new Error("Server Action returned no discriminated result.");
+         |         ^
+      30 | }
+      31 |
+      32 | test("an administrator shares a template, a member applies it, and management remains protected", async ({ page, browser, baseURL }, testInfo) => {
+        at actionResult (/Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/item-templates.spec.ts:29:9)
+        at /Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/item-templates.spec.ts:106:23
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-1024/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-1024/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-1024/error-context.md
+
+    attachment #5: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/item-templates-an-administ-e984f-anagement-remains-protected-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</error>
+</testcase>
+</testsuite>
+<testsuite name="keyboard-shortcuts.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="4" failures="0" skipped="0" time="5.37" errors="0">
+<testcase name="« ? » liste les raccourcis, « / » ouvre la recherche" classname="keyboard-shortcuts.spec.ts" time="0.932">
+</testcase>
+<testcase name="« g » puis une lettre change de vue, jamais pendant la saisie" classname="keyboard-shortcuts.spec.ts" time="1.798">
+</testcase>
+<testcase name="« j » / « k » sélectionnent un ticket et « o » l’ouvre ; dans le tiroir « j » / « k », « m » puis « i »" classname="keyboard-shortcuts.spec.ts" time="1.653">
+</testcase>
+<testcase name="les raccourcis à une touche se désactivent depuis la fenêtre « ? »" classname="keyboard-shortcuts.spec.ts" time="0.987">
+</testcase>
+</testsuite>
+<testsuite name="list-rows.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="5" failures="0" skipped="0" time="6.874" errors="0">
+<testcase name="trie la Liste depuis « Trier la liste » et affiche les colonnes choisies en pastilles" classname="list-rows.spec.ts" time="1.888">
+</testcase>
+<testcase name="présente la Liste dans le tableau du Backlog : en-tête, sélection, création et groupes" classname="list-rows.spec.ts" time="1.836">
+</testcase>
+<testcase name="montre Mes items dans le tableau du Backlog, en lignes qui ouvrent l’item" classname="list-rows.spec.ts" time="1.056">
+</testcase>
+<testcase name="restaure un item depuis sa ligne, dans le tableau de la Corbeille" classname="list-rows.spec.ts" time="1.113">
+</testcase>
+<testcase name="montre le périmètre d’une release dans le tableau du Backlog" classname="list-rows.spec.ts" time="0.981">
+</testcase>
+</testsuite>
+<testsuite name="loading-skeletons.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="1" failures="0" skipped="0" time="5.463" errors="0">
+<testcase name="chaque page se charge derrière un squelette à sa forme" classname="loading-skeletons.spec.ts" time="5.463">
+</testcase>
+</testsuite>
+<testsuite name="markdown-editor.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="6" failures="0" skipped="0" time="14.868" errors="0">
+<testcase name="éditeur Markdown visuel › écrit la description en place, l’enregistre automatiquement en Markdown et la rouvre formatée" classname="markdown-editor.spec.ts" time="3.231">
+</testcase>
+<testcase name="éditeur Markdown visuel › garde une seule entrée d’historique pour plusieurs enregistrements automatiques" classname="markdown-editor.spec.ts" time="5.127">
+</testcase>
+<testcase name="éditeur Markdown visuel › quitte l’éditeur avec Échap en enregistrant, puis ferme le panneau au second Échap" classname="markdown-editor.spec.ts" time="1.543">
+</testcase>
+<testcase name="éditeur Markdown visuel › affiche la description en lecture seule au lecteur" classname="markdown-editor.spec.ts" time="1.206">
+</testcase>
+<testcase name="éditeur Markdown visuel › écrit un commentaire formaté avec mention puis le modifie" classname="markdown-editor.spec.ts" time="2.146">
+</testcase>
+<testcase name="éditeur Markdown visuel › affiche les titres d’un commentaire enregistré comme dans l’éditeur" classname="markdown-editor.spec.ts" time="1.615">
+</testcase>
+</testsuite>
+<testsuite name="mobile-shell.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="5" failures="0" skipped="0" time="4.82" errors="0">
+<testcase name="garde le fil d’Ariane complet et lisible au-dessus du titre à 390 par 844" classname="mobile-shell.spec.ts" time="1.06">
+</testcase>
+<testcase name="mène du fil d’Ariane au backlog sur grand écran" classname="mobile-shell.spec.ts" time="0.895">
+</testcase>
+<testcase name="ouvre les vues du projet dans le tiroir de navigation à 390 par 844" classname="mobile-shell.spec.ts" time="1.314">
+</testcase>
+<testcase name="garde l’accès aux vues du projet quand la police du navigateur est agrandie (JIR-127)" classname="mobile-shell.spec.ts" time="0.811">
+</testcase>
+<testcase name="fait passer la barre du haut et les filtres à la ligne sans débordement à 390 par 844" classname="mobile-shell.spec.ts" time="0.74">
+</testcase>
+</testsuite>
+<testsuite name="new-item-missing-parent.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="1" failures="0" skipped="0" time="4.592" errors="0">
+<testcase name="« + Créer » une Epic sans Composant propose de créer le Composant d’abord" classname="new-item-missing-parent.spec.ts" time="4.592">
+</testcase>
+</testsuite>
+<testsuite name="new-item-required-parent.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="1" failures="0" skipped="0" time="1.901" errors="0">
+<testcase name="« Créer » sans parent signale le champ Parent obligatoire, puis crée la Tâche" classname="new-item-required-parent.spec.ts" time="1.901">
+</testcase>
+</testsuite>
+<testsuite name="overlay-animations.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="2" failures="0" skipped="0" time="2.398" errors="0">
+<testcase name="animations des fenêtres et menus › anime l’ouverture d’un dialogue centré et d’un menu, puis les démonte" classname="overlay-animations.spec.ts" time="1.349">
+</testcase>
+<testcase name="animations des fenêtres et menus › n’anime rien quand le mouvement est réduit" classname="overlay-animations.spec.ts" time="1.049">
+</testcase>
+</testsuite>
+<testsuite name="realtime.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="3" failures="3" skipped="0" time="7.148" errors="0">
+<testcase name="realtime between two users › offers a list refresh to the other user only" classname="realtime.spec.ts" time="2.258">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-1024/test-failed-2.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<failure message="Console, page and network errors" type="expect.toEqual">
+<![CDATA[  [matrix-chromium-1024] › realtime.spec.ts:132:3 › realtime between two users › offers a list refresh to the other user only 
+
+    Error: Console, page and network errors
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 5
+
+    - Array []
+    + Array [
+    +   "POST http://localhost:3100/b/CASS?view=list&item=CASS-72 net::ERR_ABORTED",
+    +   "GET http://localhost:3100/b/CASS?view=list&item=CASS-72&_rsc=iT519xyN5stMqaac net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CASS?view=list net::ERR_ABORTED",
+    + ]
+
+      64 |         await writeAuditText(`audit/network/${slug}.log`,
+      65 |           captures.map((capture) => capture.network.join("\n")).join("\n") + "\n");
+    > 66 |         expect(captures.flatMap((capture) => capture.errors), "Console, page and network errors").toEqual([]);
+         |                                                                                                   ^
+      67 |       } finally {
+      68 |         // Close only after the audit: closing a live SSE stream aborts its request.
+      69 |         await Promise.all([authorContext.close(), viewerContext.close()]);
+        at Object.pair (/Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/realtime.spec.ts:66:99)
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-1024/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-1024/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--b429c-resh-to-the-other-user-only-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="realtime between two users › refreshes the other user&apos;s open item automatically" classname="realtime.spec.ts" time="2.308">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-1024/test-failed-2.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<failure message="Console, page and network errors" type="expect.toEqual">
+<![CDATA[  [matrix-chromium-1024] › realtime.spec.ts:159:3 › realtime between two users › refreshes the other user's open item automatically 
+
+    Error: Console, page and network errors
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 5
+
+    - Array []
+    + Array [
+    +   "POST http://localhost:3100/b/CASS?view=list&item=CASS-73 net::ERR_ABORTED",
+    +   "POST http://localhost:3100/b/CASS?view=list&item=CASS-73 net::ERR_ABORTED",
+    +   "GET http://localhost:3100/b/CASS?view=list&item=CASS-73&_rsc=iT519xyN5stMqaac net::ERR_ABORTED",
+    + ]
+
+      64 |         await writeAuditText(`audit/network/${slug}.log`,
+      65 |           captures.map((capture) => capture.network.join("\n")).join("\n") + "\n");
+    > 66 |         expect(captures.flatMap((capture) => capture.errors), "Console, page and network errors").toEqual([]);
+         |                                                                                                   ^
+      67 |       } finally {
+      68 |         // Close only after the audit: closing a live SSE stream aborts its request.
+      69 |         await Promise.all([authorContext.close(), viewerContext.close()]);
+        at Object.pair (/Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/realtime.spec.ts:66:99)
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-1024/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-1024/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--f2583-r-s-open-item-automatically-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="realtime between two users › increments the other user&apos;s bell after a mention" classname="realtime.spec.ts" time="2.582">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-1024/test-failed-2.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<failure message="Console, page and network errors" type="expect.toEqual">
+<![CDATA[  [matrix-chromium-1024] › realtime.spec.ts:176:3 › realtime between two users › increments the other user's bell after a mention 
+
+    Error: Console, page and network errors
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "GET http://localhost:3100/b/CASS?view=list&item=CASS-74&_rsc=iT519xyN5stMqaac net::ERR_ABORTED",
+    + ]
+
+      64 |         await writeAuditText(`audit/network/${slug}.log`,
+      65 |           captures.map((capture) => capture.network.join("\n")).join("\n") + "\n");
+    > 66 |         expect(captures.flatMap((capture) => capture.errors), "Console, page and network errors").toEqual([]);
+         |                                                                                                   ^
+      67 |       } finally {
+      68 |         // Close only after the audit: closing a live SSE stream aborts its request.
+      69 |         await Promise.all([authorContext.close(), viewerContext.close()]);
+        at Object.pair (/Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/realtime.spec.ts:66:99)
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-1024/test-failed-2.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-1024/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/realtime-realtime-between--e628d-user-s-bell-after-a-mention-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+</testsuite>
+<testsuite name="shell-redesign.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="8" failures="0" skipped="0" time="12.579" errors="0">
+<testcase name="navigue entre les vues du projet depuis la barre latérale" classname="shell-redesign.spec.ts" time="2.309">
+</testcase>
+<testcase name="ouvre la recherche depuis le champ de la barre du haut" classname="shell-redesign.spec.ts" time="0.918">
+</testcase>
+<testcase name="ouvre la création depuis « + Créer », absent hors des vues" classname="shell-redesign.spec.ts" time="1.582">
+</testcase>
+<testcase name="règle le regroupement et la densité dans « Affichage »" classname="shell-redesign.spec.ts" time="2.355">
+</testcase>
+<testcase name="ajoute un filtre en pastille, le retire, et propose alors d’enregistrer la vue" classname="shell-redesign.spec.ts" time="1.313">
+</testcase>
+<testcase name="filtre par assigné avec les avatars" classname="shell-redesign.spec.ts" time="1.13">
+</testcase>
+<testcase name="ouvre l’enregistrement d’une vue depuis la barre latérale" classname="shell-redesign.spec.ts" time="1.07">
+</testcase>
+<testcase name="capture le shell en clair, en sombre et sur téléphone" classname="shell-redesign.spec.ts" time="1.902">
+</testcase>
+</testsuite>
+<testsuite name="sprint-filter.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="1" failures="0" skipped="0" time="1.739" errors="0">
+<testcase name="filtre la Liste par un sprint terminé, ticket reporté compris, et le garde au rechargement" classname="sprint-filter.spec.ts" time="1.739">
+</testcase>
+</testsuite>
+<testsuite name="ticket-drawer.spec.ts" timestamp="2026-10-28T23:07:06.614Z" hostname="matrix-chromium-1024" tests="8" failures="2" skipped="0" time="26.639" errors="0">
+<testcase name="panneau de ticket façon Jira › présente l’en-tête, les sections et la colonne Détails / Développement" classname="ticket-drawer.spec.ts" time="2.773">
+</testcase>
+<testcase name="panneau de ticket façon Jira › filtre l’activité, trie, et passe au statut suivant" classname="ticket-drawer.spec.ts" time="2.051">
+</testcase>
+<testcase name="panneau de ticket façon Jira › copie le lien et le nom de branche dans le presse-papiers" classname="ticket-drawer.spec.ts" time="1.326">
+</testcase>
+<testcase name="panneau de ticket façon Jira › passe à l’item précédent / suivant de la vue, au clic et avec K / J" classname="ticket-drawer.spec.ts" time="2.522">
+</testcase>
+<testcase name="panneau de ticket sur mobile › occupe tout l’écran et empile les propriétés sous le contenu" classname="ticket-drawer.spec.ts" time="1.069">
+</testcase>
+<testcase name="fenêtre « Nouvel item » › enchaîne deux tâches avec « Créer un autre » puis ouvre la dernière depuis le message" classname="ticket-drawer.spec.ts" time="7.033">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-1024/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(locator).toContainText(expected) failed" type="expect.toContainText">
+<![CDATA[  [matrix-chromium-1024] › ticket-drawer.spec.ts:238:7 › fenêtre « Nouvel item » › enchaîne deux tâches avec « Créer un autre » puis ouvre la dernière depuis le message 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog', { name: 'Nouvel item' }).getByRole('combobox', { name: /Parent/ })
+    Expected pattern: /CASS-48(?!\d)/
+    Received string:  ""
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for getByRole('dialog', { name: 'Nouvel item' }).getByRole('combobox', { name: /Parent/ })
+        14 × locator resolved to <input type="text" role="combobox" id="item-parent" data-slot="input" autocomplete="off" spellcheck="false" aria-required="true" aria-expanded="false" aria-describedby="_r_1_" aria-autocomplete="list" placeholder="Choisir une epic…" value="CASS-48 — JIR-93 parent matrix-chromium-1024-20261028-223754" class="h-8 w-full min-w-0 rounded-lg border border-input bg-card px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-me…/>
+           - unexpected value ""
+
+
+      260 |     await expect(dialog.getByRole("textbox", { name: "Titre" })).toBeFocused();
+      261 |     await expect(dialog.getByRole("combobox", { name: "Type" })).toHaveText("Tâche");
+    > 262 |     await expect(dialog.getByRole("combobox", { name: /Parent/ })).toContainText(keyPattern(epic.key));
+          |                                                                    ^
+      263 |
+      264 |     await dialog.getByRole("textbox", { name: "Titre" }).fill(`JIR-73 seconde ${RUN_ID}`);
+      265 |     await dialog.getByRole("checkbox", { name: "Créer un autre" }).uncheck();
+        at /Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/ticket-drawer.spec.ts:262:68
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-1024/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-1024/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="fenêtre « Nouvel item » › crée une tâche sous l’epic ouvert même quand le filtre de version l’écarte de la liste" classname="ticket-drawer.spec.ts" time="6.38">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-1024/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-1024/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-1024/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-1024/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(locator).toContainText(expected) failed" type="expect.toContainText">
+<![CDATA[  [matrix-chromium-1024] › ticket-drawer.spec.ts:287:7 › fenêtre « Nouvel item » › crée une tâche sous l’epic ouvert même quand le filtre de version l’écarte de la liste 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog', { name: 'Nouvel item' }).getByRole('combobox', { name: /Parent/ })
+    Expected pattern: /CASS-48(?!\d)/
+    Received string:  ""
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for getByRole('dialog', { name: 'Nouvel item' }).getByRole('combobox', { name: /Parent/ })
+        14 × locator resolved to <input type="text" role="combobox" id="item-parent" data-slot="input" autocomplete="off" spellcheck="false" aria-required="true" aria-expanded="false" aria-describedby="_r_f_" aria-autocomplete="list" placeholder="Choisir une epic…" value="CASS-48 — JIR-93 parent matrix-chromium-1024-20261028-223754" class="h-8 w-full min-w-0 rounded-lg border border-input bg-card px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-me…/>
+           - unexpected value ""
+
+
+      299 |     await dialog.getByRole("button", { name: "Créer une tâche", exact: true }).click();
+      300 |     const create = page.getByRole("dialog", { name: "Nouvel item" });
+    > 301 |     await expect(create.getByRole("combobox", { name: /Parent/ })).toContainText(keyPattern(epic.key));
+          |                                                                    ^
+      302 |     await create.getByRole("textbox", { name: "Titre" }).fill(`JIR-73 hors filtre ${RUN_ID}`);
+      303 |     await create.getByRole("button", { name: "Créer", exact: true }).click();
+      304 |     await expect(create).toHaveCount(0);
+        at /Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/ticket-drawer.spec.ts:301:68
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-1024/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-1024/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-1024/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-1024/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-chromium-1024-20261028-223754/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-matrix-chromium-1024/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="fenêtre « Nouvel item » › affiche des listes homogènes, le statut par défaut et une tâche de section au type fixe (JIR-80)" classname="ticket-drawer.spec.ts" time="3.485">
+</testcase>
+</testsuite>
+</testsuites>

@@ -1,0 +1,6 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[defect] BUG-JIR-036 Erreurs navigateur inattendues:
+[failed] [admin] POST http://localhost:3100/b/CASS/releases/99ffcc80-6903-4fff-838b-35e7f2967b30 net::ERR_ABORTED
+[failed] [admin] GET http://localhost:3100/b/CASS/releases/99ffcc80-6903-4fff-838b-35e7f2967b30?_rsc=sgMUxbzDri66iQxc net::ERR_ABORTED
+[duration] scenario 9: 993ms

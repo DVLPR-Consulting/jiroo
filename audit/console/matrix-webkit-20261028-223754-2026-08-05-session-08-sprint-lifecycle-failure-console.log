@@ -1,0 +1,6 @@
+[log] [HMR] connected
+[info] Web Inspector blocked http://localhost:3100/b/CASS?view=backlog from loading
+[log] [HMR] connected
+[info] Web Inspector blocked http://localhost:3100/b/CASS?view=backlog from loading
+[expected] POST de démarrage et POST de clôture interrompus volontairement
+[result] dialogues conservés, messages français visibles, états planifié puis actif inchangés

@@ -1,0 +1,6 @@
+[admin-stale] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-first] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-stale] log: [HMR] connected
+[admin-first] log: [HMR] connected
+[defect] BUG-JIR-040 Test ended.
+[duration] scenario 13: 30851ms

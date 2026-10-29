@@ -1,0 +1,17 @@
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=sprint&sprint=e54c6390-90b2-4374-ab6d-851387e85dbf 200 282ms
+[page-size] items=50 journal=50
+[defect] [2mexpect([22m[31mlocator[39m[2m).[22mtoBeFocused[2m([22m[2m)[22m failed
+
+Locator:  getByRole('button', { name: 'Afficher' })
+Expected: focused
+Received: inactive
+Timeout:  5000ms
+
+Call log:
+[2m  - Expect "toBeFocused" with timeout 5000ms[22m
+[2m  - waiting for getByRole('button', { name: 'Afficher' })[22m
+[2m    14 × locator resolved to <button type="submit" data-slot="button" data-size="default" data-variant="default" class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-…>Afficher</button>[22m
+[2m       - unexpected value "inactive"[22m
+
+[duration] scenario 1: 5582ms

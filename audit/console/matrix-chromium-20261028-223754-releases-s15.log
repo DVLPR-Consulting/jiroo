@@ -1,0 +1,17 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[reader-second-user] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader-second-user] log: [HMR] connected
+[reader-second-user] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader-second-user] log: [HMR] connected
+[reader-second-user] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader-second-user] log: [HMR] connected
+[defect] BUG-JIR-042 Erreurs navigateur inattendues:
+[failed] [admin] POST http://localhost:3100/b/LABS/releases net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/LABS/releases/b6557b38-5708-4489-a276-c684065ba448 net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/LABS/releases/b6557b38-5708-4489-a276-c684065ba448 net::ERR_ABORTED
+[failed] [reader-second-user] POST http://localhost:3100/b/CASS/releases net::ERR_ABORTED
+[failed] [reader-second-user] POST http://localhost:3100/b/CASS/releases net::ERR_ABORTED
+[duration] scenario 15: 1402ms

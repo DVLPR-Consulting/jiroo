@@ -1,0 +1,235 @@
+<testsuites id="" name="" tests="7" failures="4" skipped="0" errors="0" time="26.784492999999998">
+<testsuite name="matrix/zoom.spec.ts" timestamp="2026-10-28T23:25:59.731Z" hostname="matrix-zoom-chromium" tests="7" failures="4" skipped="0" time="21.921" errors="0">
+<testcase name="200% text and reflow — p1-accueil" classname="matrix/zoom.spec.ts" time="5.767">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [matrix-zoom-chromium] › matrix/zoom.spec.ts:15:3 › 200% text and reflow — p1-accueil ────────────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('[data-backlog-row="CASS"]').getByRole('link', { name: 'Cour de cassation', exact: true })
+    Expected: visible
+    Received: hidden
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('[data-backlog-row="CASS"]').getByRole('link', { name: 'Cour de cassation', exact: true })
+        14 × locator resolved to <a href="/b/CASS" class="min-w-0 truncate text-sm font-medium text-foreground outline-none after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:after:rounded-[var(--radius)] focus-visible:after:ring-2 focus-visible:after:ring-[var(--ring)] focus-visible:after:ring-inset">Cour de cassation</a>
+           - unexpected value "hidden"
+
+
+      31 |     expect(Number.isNaN(overflow.main), "Missing <main> scroller").toBe(false);
+      32 |     expect(overflow.main, "Horizontal overflow inside <main>").toBeLessThanOrEqual(1);
+    > 33 |     await expect(action).toBeVisible();
+         |                          ^
+      34 |     await expect(action).toBeInViewport({ ratio: 1 });
+      35 |     await expect(action).toBeEnabled();
+      36 |     await action.click();
+        at /Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/matrix/zoom.spec.ts:33:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p1-accueil-matrix-zoom-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="200% text and reflow — p2-board" classname="matrix/zoom.spec.ts" time="6.062">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeInViewport() failed" type="expect.toBeInViewport">
+<![CDATA[  [matrix-zoom-chromium] › matrix/zoom.spec.ts:15:3 › 200% text and reflow — p2-board ──────────────
+
+    Error: expect(locator).toBeInViewport() failed
+
+    Locator:  locator('[data-slot="shell-topbar"]').getByRole('button', { name: 'Créer', exact: true })
+    Expected: in viewport
+    Received: viewport ratio 0.8541666865348816
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeInViewport" with timeout 5000ms
+      - waiting for locator('[data-slot="shell-topbar"]').getByRole('button', { name: 'Créer', exact: true })
+        14 × locator resolved to <button type="button" data-size="default" data-state="closed" aria-keyshortcuts="c" aria-expanded="false" data-variant="default" aria-haspopup="dialog" title="Créer un item (C)" data-slot="dialog-trigger" aria-controls="radix-_r_u_" class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50…>…</button>
+           - unexpected value "viewport ratio 0.8541666865348816"
+
+
+      32 |     expect(overflow.main, "Horizontal overflow inside <main>").toBeLessThanOrEqual(1);
+      33 |     await expect(action).toBeVisible();
+    > 34 |     await expect(action).toBeInViewport({ ratio: 1 });
+         |                          ^
+      35 |     await expect(action).toBeEnabled();
+      36 |     await action.click();
+      37 |     await expectAuditActionResult(page, target);
+        at /Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/matrix/zoom.spec.ts:34:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p2-board-matrix-zoom-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="200% text and reflow — p3-liste" classname="matrix/zoom.spec.ts" time="5.759">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/trace.zip]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeInViewport() failed" type="expect.toBeInViewport">
+<![CDATA[  [matrix-zoom-chromium] › matrix/zoom.spec.ts:15:3 › 200% text and reflow — p3-liste ──────────────
+
+    Error: expect(locator).toBeInViewport() failed
+
+    Locator:  locator('[data-slot="shell-topbar"]').getByRole('button', { name: 'Créer', exact: true })
+    Expected: in viewport
+    Received: viewport ratio 0.8541666865348816
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeInViewport" with timeout 5000ms
+      - waiting for locator('[data-slot="shell-topbar"]').getByRole('button', { name: 'Créer', exact: true })
+        14 × locator resolved to <button type="button" data-size="default" data-state="closed" aria-keyshortcuts="c" aria-expanded="false" data-variant="default" aria-haspopup="dialog" title="Créer un item (C)" data-slot="dialog-trigger" aria-controls="radix-_r_u_" class="group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50…>…</button>
+           - unexpected value "viewport ratio 0.8541666865348816"
+
+
+      32 |     expect(overflow.main, "Horizontal overflow inside <main>").toBeLessThanOrEqual(1);
+      33 |     await expect(action).toBeVisible();
+    > 34 |     await expect(action).toBeInViewport({ ratio: 1 });
+         |                          ^
+      35 |     await expect(action).toBeEnabled();
+      36 |     await action.click();
+      37 |     await expectAuditActionResult(page, target);
+        at /Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/matrix/zoom.spec.ts:34:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p3-liste-matrix-zoom-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+<testcase name="200% text and reflow — p4-tiroir" classname="matrix/zoom.spec.ts" time="1.796">
+</testcase>
+<testcase name="200% text and reflow — p5-le-point" classname="matrix/zoom.spec.ts" time="0.969">
+</testcase>
+<testcase name="200% text and reflow — p6-aide" classname="matrix/zoom.spec.ts" time="0.734">
+</testcase>
+<testcase name="200% text and reflow — p7-reglages" classname="matrix/zoom.spec.ts" time="0.834">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/video.webm]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/error-context.md]]
+
+[[ATTACHMENT|../../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/trace.zip]]
+]]>
+</system-out>
+<failure message="Horizontal overflow inside &lt;main&gt;" type="expect.toBeLessThanOrEqual">
+<![CDATA[  [matrix-zoom-chromium] › matrix/zoom.spec.ts:15:3 › 200% text and reflow — p7-reglages ───────────
+
+    Error: Horizontal overflow inside <main>
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 1
+    Received:    52
+
+      30 |     expect(overflow.document, "Horizontal document overflow").toBeLessThanOrEqual(1);
+      31 |     expect(Number.isNaN(overflow.main), "Missing <main> scroller").toBe(false);
+    > 32 |     expect(overflow.main, "Horizontal overflow inside <main>").toBeLessThanOrEqual(1);
+         |                                                                ^
+      33 |     await expect(action).toBeVisible();
+      34 |     await expect(action).toBeInViewport({ ratio: 1 });
+      35 |     await expect(action).toBeEnabled();
+        at /Users/nkrmnr/Developer/worktrees/jiroo/jir-40-m3/e2e/matrix/zoom.spec.ts:32:64
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace ../.playwright/test-results/matrix-zoom-chromium-20261028-232555/matrix-zoom-200-text-and-reflow-—-p7-reglages-matrix-zoom-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+]]>
+</failure>
+</testcase>
+</testsuite>
+</testsuites>

@@ -1,0 +1,10 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[defect] BUG-JIR-045 Erreurs navigateur inattendues:
+[failed] [admin] GET http://localhost:3100/b/CASS/releases?_rsc=sYG3fic4QztlcYAw net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS/releases net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS/releases/18fb23aa-4d44-4839-9a92-d59309bbeaa1 net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS/releases/18fb23aa-4d44-4839-9a92-d59309bbeaa1 net::ERR_ABORTED
+[duration] scenario 18: 1250ms

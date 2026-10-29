@@ -1,0 +1,16 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[expected] interruption volontaire du prochain POST /b/CASS/releases/ca2d130a-1677-4848-9e09-1580fc1f1a46
+[admin] error: Failed to load resource: net::ERR_FAILED
+[defect] BUG-JIR-050 [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveText[2m([22m[32mexpected[39m[2m)[22m failed
+
+Locator: getByRole('dialog', { name: 'Supprimer R2-S23 Panne réseau' }).getByRole('alert')
+Expected: [32m"Suppression impossible."[39m
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+[2m  - Expect "toHaveText" with timeout 5000ms[22m
+[2m  - waiting for getByRole('dialog', { name: 'Supprimer R2-S23 Panne réseau' }).getByRole('alert')[22m
+
+[duration] scenario 23: 5656ms

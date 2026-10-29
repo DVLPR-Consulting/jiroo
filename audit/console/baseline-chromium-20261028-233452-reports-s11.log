@@ -1,0 +1,33 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=eecf5fb4-e60a-46ba-b727-e49f9eea3130 200 1062ms
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS/reports 200
+[admin-second] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-second] log: [HMR] connected
+[navigation] admin-second /b/CASS/reports?report=burndown&sprint=eecf5fb4-e60a-46ba-b727-e49f9eea3130 200 630ms
+[admin-second] [aborted-action] POST /b/CASS/reports 200
+[admin-second] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin-second] log: [HMR] connected
+[reader] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader] log: [HMR] connected
+[navigation] reader /b/CASS/reports?report=burndown&sprint=eecf5fb4-e60a-46ba-b727-e49f9eea3130 200 615ms
+[reader] [aborted-action] POST /b/CASS/reports 200
+[reader] [aborted-action] POST /b/CASS/reports 200
+[reader] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[reader] log: [HMR] connected
+[reader] [aborted-action] POST /b/CASS/reports 200
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=not-a-uuid 200 167ms
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/LABS/reports?report=burndown&sprint=4babec1b-94c2-4efd-83ae-0ea5ada41237 200 250ms
+[admin] [aborted-action] POST /b/LABS/reports 200
+[admin] [aborted-action] POST /b/LABS/reports 200
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=4babec1b-94c2-4efd-83ae-0ea5ada41237 200 154ms
+[admin] [aborted-action] POST /b/CASS/reports 200
+[duration] scenario 11: 6290ms

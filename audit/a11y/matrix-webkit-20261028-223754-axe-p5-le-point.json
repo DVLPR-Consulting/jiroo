@@ -1,0 +1,87 @@
+[
+  {
+    "id": "color-contrast",
+    "impact": "serious",
+    "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=playwright",
+    "tags": [
+      "cat.color",
+      "wcag2aa",
+      "wcag143",
+      "TTv5",
+      "TT13.c",
+      "EN-301-549",
+      "EN-9.1.4.3",
+      "ACT",
+      "RGAAv4",
+      "RGAA-3.2.1"
+    ],
+    "nodes": [
+      {
+        "target": [
+          "#radix-_R_3ucmitmlb_ > .flex-none[aria-label=\"Administrateur E2E\"][title=\"Administrateur E2E\"]"
+        ],
+        "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.72 (foreground color: #ffffff, background color: #3f8bbc, font size: 7.4pt (9.9px), font weight: normal). Expected contrast ratio of 4.5:1"
+      },
+      {
+        "target": [
+          ".shrink-0:nth-child(1) > .flex-none[aria-label=\"Administrateur E2E\"][title=\"Administrateur E2E\"]"
+        ],
+        "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.49 (foreground color: #ffffff, background color: #8569b4, font size: 8.1pt (10.8px), font weight: normal). Expected contrast ratio of 4.5:1"
+      }
+    ]
+  },
+  {
+    "id": "label-content-name-mismatch",
+    "impact": "serious",
+    "description": "Ensure that elements labelled through their content must have their visible text as part of their accessible name",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/label-content-name-mismatch?application=playwright",
+    "tags": [
+      "cat.semantics",
+      "wcag21a",
+      "wcag253",
+      "EN-301-549",
+      "EN-9.2.5.3",
+      "RGAAv4",
+      "RGAA-6.1.5"
+    ],
+    "nodes": [
+      {
+        "target": [
+          "#radix-_R_4cmitmlb_"
+        ],
+        "failureSummary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+      },
+      {
+        "target": [
+          "a[aria-label=\"Tous les items 32\"]"
+        ],
+        "failureSummary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+      },
+      {
+        "target": [
+          "a[aria-label=\"Mes items 2\"]"
+        ],
+        "failureSummary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+      },
+      {
+        "target": [
+          "a[aria-label=\"Corbeille 0\"]"
+        ],
+        "failureSummary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+      },
+      {
+        "target": [
+          "#radix-_R_3ucmitmlb_"
+        ],
+        "failureSummary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+      },
+      {
+        "target": [
+          ".pl-1.pr-3[aria-controls=\"_R_el5esnebn5rksmitmlb_\"]:nth-child(1)"
+        ],
+        "failureSummary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+      }
+    ]
+  }
+]

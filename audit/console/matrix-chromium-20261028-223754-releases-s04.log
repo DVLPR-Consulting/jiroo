@@ -1,0 +1,17 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[defect] BUG-JIR-031 Erreurs navigateur inattendues:
+[failed] [admin] GET http://localhost:3100/b/CASS?view=list&version=50abc9e6-bb83-4234-9714-ccf97dd701ea&v=bb766527-4650-46d0-8cae-2adaf18704df&_rsc=J_59D5WJwA6rJthS net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS?view=list&version=50abc9e6-bb83-4234-9714-ccf97dd701ea&v=bb766527-4650-46d0-8cae-2adaf18704df net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS?view=board&version=50abc9e6-bb83-4234-9714-ccf97dd701ea net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS?view=board&version=50abc9e6-bb83-4234-9714-ccf97dd701ea net::ERR_ABORTED
+[failed] [admin] POST http://localhost:3100/b/CASS?view=board&version=50abc9e6-bb83-4234-9714-ccf97dd701ea net::ERR_ABORTED
+[duration] scenario 4: 3738ms

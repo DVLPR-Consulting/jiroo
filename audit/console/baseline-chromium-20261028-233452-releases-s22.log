@@ -1,0 +1,5 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[defect] BUG-JIR-049 Erreurs navigateur inattendues:
+[failed] [admin] POST http://localhost:3100/b/CASS/releases/0c32aa4c-ba67-43fd-9f8d-852860395ce3 net::ERR_ABORTED
+[duration] scenario 22: 867ms

@@ -1,0 +1,5 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[admin] [aborted-action] POST /b/CASS/reports 200
+[expected-fault] report read failed; generic ErrorBoundaryHandler rendered and recovered
+[duration] scenario 5: 602ms

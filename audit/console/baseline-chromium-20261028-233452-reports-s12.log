@@ -1,0 +1,7 @@
+[admin] info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[admin] log: [HMR] connected
+[navigation] admin /b/CASS/reports?report=burndown&sprint=ba3f9912-61f4-4753-8285-ffdd11798161 200 415ms
+[admin] [aborted-action] POST /b/CASS/reports 200
+[admin] [aborted-action] POST /b/CASS/reports 200
+[expected-fault] burndown ledger read failed; generic ErrorBoundaryHandler rendered and recovered
+[duration] scenario 12: 1673ms

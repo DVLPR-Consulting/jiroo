@@ -1,0 +1,9 @@
+[scenario] mutation browse par matrice UI
+[log] [HMR] connected
+[result] scénario validé
+[scenario] visibilité utilisateur avant/après browse
+[log] [HMR] connected
+[pageerror] /localhost:3100/b/CASS due to access control checks.
+[log] [HMR] connected
+[log] [HMR] connected
+[log] [HMR] connected

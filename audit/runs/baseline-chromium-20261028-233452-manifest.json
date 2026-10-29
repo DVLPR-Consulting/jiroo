@@ -1,0 +1,2873 @@
+{
+  "schemaVersion": 1,
+  "runId": "baseline-chromium-20261028-233452",
+  "timestamps": {
+    "startedAt": "2026-10-28T23:34:55.558Z",
+    "databaseVerifiedAt": "2026-10-28T23:34:55.569Z",
+    "manifestWrittenAt": "2026-10-28T23:34:55.693Z"
+  },
+  "runtime": {
+    "node": "v24.18.1",
+    "pnpm": "10.34.5"
+  },
+  "source": {
+    "gitSha": "4cc0e2697abd9e64d54891620c3a0bd222a716a4"
+  },
+  "database": {
+    "name": "jiroo_e2e",
+    "systemIdentifierFingerprint": "sha256:fd2ecd8b8dde44ec52873806517796486dfcb014f341e22de1121dd19d46b61b"
+  },
+  "server": {
+    "baseURL": "http://localhost:3100",
+    "port": 3100
+  },
+  "invocation": {
+    "command": "corepack pnpm test:e2e",
+    "scenarios": "ligne de base Chromium 1280"
+  },
+  "result": {
+    "junitReport": "audit/runs/baseline-chromium-20261028-233452-junit.xml"
+  },
+  "artifacts": [
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/.last-run.json",
+      "size": 3428,
+      "sha256": "c790f597967437bfc0a2360397ca38a3e6b9561cf165b18eddba2da93b9b454b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/all-items-ouvre-la-Liste-n-6f32f-même-nombre-que-le-compteur-chromium/jir94-tous-les-items-liste.png",
+      "size": 109715,
+      "sha256": "77643086ceb6040f4644534c91360923877c14d1a91c5f304c51abb6ae3e7ccd"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-access-aligne-la-b-93d2b-le-backlog-de-la-page-Accès-chromium/jir85-access-shell.png",
+      "size": 112826,
+      "sha256": "5796ed3949e38d307953f471bcb15aff0a7faee7a4e698c8dcda2e2e96eadb24"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-access-retire-un-o-11412-f-le-dernier-administrateur-chromium/jir85-access-simple-remove.png",
+      "size": 117673,
+      "sha256": "dbd84783794081006ec1299a861e2db6ded1f2be9ebc1a3eedfcda3c25cad64b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/error-context.md",
+      "size": 9731,
+      "sha256": "2cecbcb2f4e7cba76ac8cc8ba926c39659852c931bb9d1f28fe6d0456649da0f"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/test-failed-1.png",
+      "size": 97986,
+      "sha256": "71e2de4dc3922034b5ad0327894f5afc9fbb4470ce8d1f9330353eb8ba8b8e08"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/trace.zip",
+      "size": 2753362,
+      "sha256": "14401b4d9696ec84b402af00bd48f63da2362270676b9f81ff97422d6c5259c4"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-disting-013e5-imé-puis-restaure-la-valeur-chromium/video.webm",
+      "size": 542649,
+      "sha256": "8f9e2dc1381ef8542b2cc0bac7d805c0bd40634feeb5493bae6cbb83cb4c65f7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-désacti-f5f82-et-conserve-le-mode-Backlog-chromium/error-context.md",
+      "size": 21314,
+      "sha256": "960214a7e8587f61f0bf6e2c960f188117a0e9dae8479ff0554cce073332c006"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-désacti-f5f82-et-conserve-le-mode-Backlog-chromium/test-failed-1.png",
+      "size": 102442,
+      "sha256": "cfe7910431fc53bafa92073d3473bb7248202f0b66e801c85ba039df38622860"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-désacti-f5f82-et-conserve-le-mode-Backlog-chromium/trace.zip",
+      "size": 1738608,
+      "sha256": "06e0b107290aa0eca92e4f4de948ed10d064f04648e2bbe2602785bc7ff32f31"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-désacti-f5f82-et-conserve-le-mode-Backlog-chromium/video.webm",
+      "size": 85255,
+      "sha256": "207c42b0c5c3309a3e6f4dff8beab7bbfbb01565f1f31886062d1a947576d6dc"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-isole-l-4a7fa-ialise-au-changement-de-vue-chromium/error-context.md",
+      "size": 20602,
+      "sha256": "eebd1ccd43a62f0befdd058ec244e06f3229178f2d595581354e3217ce7df3d5"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-isole-l-4a7fa-ialise-au-changement-de-vue-chromium/test-failed-1.png",
+      "size": 97769,
+      "sha256": "04c93919763be1f7e738e7612f3eb0e078df48e1591771f1f56af142172a9d99"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-isole-l-4a7fa-ialise-au-changement-de-vue-chromium/trace.zip",
+      "size": 2136503,
+      "sha256": "ac5156aa5edb871c1a3a3cb135ec84174c3fdad4ea538777253fafa41fb7d498"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-isole-l-4a7fa-ialise-au-changement-de-vue-chromium/video.webm",
+      "size": 90208,
+      "sha256": "da1950d1fc623e63fe1d04a7d7ccb259c801de31dc78f5c2f349dab276f15e55"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/error-context.md",
+      "size": 11052,
+      "sha256": "12e5607eef6520e894f36316d7098e5bce53d0e91d95fc9ddce1a62641b33f63"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/test-failed-1.png",
+      "size": 115207,
+      "sha256": "e75b33900e18555ddf0e45e7ec427b6b6efa9b06ef158d2651c6a14445529827"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/trace.zip",
+      "size": 7287254,
+      "sha256": "fe39a15c5fe95e743a9bfbcbc80c1525f4f39c62801ea56d7eba1df3bb0decae"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-foundation-sélecti-44100-les-quatre-actions-groupées-chromium/video.webm",
+      "size": 690623,
+      "sha256": "6e551127d7e94c26003567e9dd47664567ffa6fb0a7699e9c725e73d1f2c063c"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-guide-u-44396-posant-puis-Epic-puis-Tâche-chromium/error-context.md",
+      "size": 10288,
+      "sha256": "0d6f959ee12924fd116d621ea27e31d8fc904e38db048fe45c82948b3a2cae35"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-guide-u-44396-posant-puis-Epic-puis-Tâche-chromium/jir88-1-liste-composant.png",
+      "size": 89342,
+      "sha256": "e02c96a39ea3f54a4cd123d0d830f71f7cb16a5faa99bbb14c50ecfd1830e3ba"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-guide-u-44396-posant-puis-Epic-puis-Tâche-chromium/jir88-2-arbre-epic.png",
+      "size": 82656,
+      "sha256": "5986fd5016189f851fdcf37c2e75bf20532a46fd614b8d5b53efcaf30a57765b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-guide-u-44396-posant-puis-Epic-puis-Tâche-chromium/test-failed-1.png",
+      "size": 149906,
+      "sha256": "4d0a9e0cece21bd57fd833a6abf837ddddbde1fbf2802b147de46da0a97ca5ae"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-guide-u-44396-posant-puis-Epic-puis-Tâche-chromium/trace.zip",
+      "size": 2578316,
+      "sha256": "b895d952351ad74fa619db9143197c21eef64b00c6000af2b819da177ff7e9e0"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-guide-u-44396-posant-puis-Epic-puis-Tâche-chromium/video.webm",
+      "size": 255967,
+      "sha256": "e33b7261532f81924b8a7dffa7303b29928e87e2ac00af2ef8fa859e1a7fad60"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-chromium/error-context.md",
+      "size": 10299,
+      "sha256": "c742d8c6f03f78b080882fa6defdde9f5bff194e92ded526671696739f26d7f5"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-chromium/jir88-4-backlog-composant.png",
+      "size": 94784,
+      "sha256": "5b51b27a8dd2239efd54dff50e9412b2f8075324e7481cc9f5f5438c89cdfd37"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-chromium/jir88-5-backlog-epic.png",
+      "size": 96173,
+      "sha256": "33f8bc8168bf7d019782981d65f24aa25471dd84168d20bb91abede03ab9f58e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-chromium/jir88-7-backlog-version-vide.png",
+      "size": 91092,
+      "sha256": "d0f23181d2b930285bf5b9f2e8e93ada0c9a8b95a4d37da9eb03952b8633f34f"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-chromium/test-failed-1.png",
+      "size": 157321,
+      "sha256": "f6d8e7749140830b8a4e120946eee7c834c4920d1cf892887dbcac204c170148"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-chromium/trace.zip",
+      "size": 2356733,
+      "sha256": "7839aaca716eea27a564704fc103b524afb1d53a6e67da8dbd7ea9815b928d2b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-onboarding-remplac-44ecd-e-manquante-dans-le-Backlog-chromium/video.webm",
+      "size": 271601,
+      "sha256": "53280d7c2af92688a7b73437e4dedacbf004672c27cb1f28204f85f3f1e2942d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/error-context.md",
+      "size": 15415,
+      "sha256": "04a280082962bc0a93ef8191dc121146e9ea86f81772dd297baf5679eaa9f4d7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/test-failed-1.png",
+      "size": 86295,
+      "sha256": "93fc65f77d513d8f80d1862779f789f48771f6174eb714ebea53de523862d3df"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/trace.zip",
+      "size": 4911079,
+      "sha256": "693d684531e7b560ac851c740aed4743191cb72a7787a807e0aad47121be13a0"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-ranking-classe-à-l-32e53-er-et-conserve-chaque-ordre-chromium/video.webm",
+      "size": 174408,
+      "sha256": "9c0022ac5f506c5d6546b6692feff13519ee6d131266458f74e98dd38a02b2c0"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-redesign-glisser-u-f8006-’un-sprint-vide-le-planifie-chromium/error-context.md",
+      "size": 25914,
+      "sha256": "576e9f82705f00e00da006904532eb84e0af5bdb8ff98d7088eb3edc0b3c6323"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-redesign-glisser-u-f8006-’un-sprint-vide-le-planifie-chromium/test-failed-1.png",
+      "size": 152190,
+      "sha256": "95b12af2d28d4f51bbce0d0b3289a98d2c3305aa580d31a91512d8d88eea275f"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-redesign-glisser-u-f8006-’un-sprint-vide-le-planifie-chromium/trace.zip",
+      "size": 2866643,
+      "sha256": "13cd6743e85be950769347191cff67ad8c2c0f109e54b3fca0aa93506e52953a"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-redesign-glisser-u-f8006-’un-sprint-vide-le-planifie-chromium/video.webm",
+      "size": 748669,
+      "sha256": "c4f2fd787256fbec8f594a3cd8304e2c671b68a4524e93d4952a8127d36be45d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-chromium/error-context.md",
+      "size": 25767,
+      "sha256": "e4ad40d56f59f2c78f4d1dcc1cd99c52a5089c8459558f23650b914864f5b3ad"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-chromium/test-failed-1.png",
+      "size": 159531,
+      "sha256": "ad79300eb0163cfd25127084fbad903c6e134a6ae82939a91fab36d2747086c3"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-chromium/trace.zip",
+      "size": 4283446,
+      "sha256": "541bd1fc18d9a2ac05c86c750328581d68aedd81e34e92f39e67302d5b9a3620"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-redesign-une-ligne-e0c84--vides-et-s’édite-sur-place-chromium/video.webm",
+      "size": 780999,
+      "sha256": "b3502b929354682ac773d0f0f3378e12812273b3e2432f06077dd21b2bc24991"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-chromium/error-context.md",
+      "size": 28890,
+      "sha256": "56d84759f804089a29978316722a4a08ff229d790ec4fac514c4dce3219f5577"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-chromium/test-failed-1.png",
+      "size": 174252,
+      "sha256": "e92fbbb8a5b6d435b4df3e512a06f53d763dd4db7861549ce6c87881a66b82cd"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-chromium/trace.zip",
+      "size": 7242221,
+      "sha256": "c66d78f80466f39d1b04d39ed71a9d92fd7f3d0125d497eb7426b1040beff6e9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlog-redesign-«-Créer-u-cb94f-ans-le-backlog-Échap-annule-chromium/video.webm",
+      "size": 869004,
+      "sha256": "cba79093bc1f04b777ec86e0eacf91f6a0e816d23e6919df83ff12700f5ab778"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlogs-home-affiche-le-r-dc358-hoisi-dans-l’administration-chromium/jir82-home-lead-desktop-1440.png",
+      "size": 68395,
+      "sha256": "fc5fb3839f67959f39385753c85f5854d0035b5f6040ac6eb8d233b85d05a264"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlogs-home-liste-les-ba-1aeb4-rgement-et-ouvre-le-backlog-chromium/jir82-home-desktop-1440.png",
+      "size": 66369,
+      "sha256": "45522865b4c9ccf6051831b845c5d7e0cde7058d838d285daa5363e8e2412a89"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/backlogs-home-reste-lisible-sans-débordement-à-390-par-844-chromium/jir82-home-mobile-390.png",
+      "size": 25494,
+      "sha256": "6756f4b2a3228226f5335f0839c7e49b5896bfcf212321649f50ca774d0b9995"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/board-empty-columns-affich-a0931-e-bandeau-sans-sprint-actif-chromium/jir89-board-no-sprint-desktop.png",
+      "size": 80087,
+      "sha256": "14e79fbe2f5644fc7ce09bd3999a772d1ae4faf6a535f7062a426ae2c672f5a5"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/board-empty-columns-affich-a0931-e-bandeau-sans-sprint-actif-chromium/jir89-board-no-sprint-phone.png",
+      "size": 39962,
+      "sha256": "6f9e5af12376aef4963c0987ca7fe1592e676968d043e2616aa325abfec89064"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/browse-users-browsing-user-14097--permission-and-persists-it-chromium/error-context.md",
+      "size": 12512,
+      "sha256": "9da3c4b59280da771fa8b686ccb86dbb64a0b5805ff0591a841d3f71430402ef"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/browse-users-browsing-user-14097--permission-and-persists-it-chromium/test-failed-1.png",
+      "size": 197759,
+      "sha256": "2b012ef5bc21f6627c4bf1e1ee848c44da13b58e7d1b8eed3056a1dee60a100d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/browse-users-browsing-user-14097--permission-and-persists-it-chromium/test-failed-2.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/browse-users-browsing-user-14097--permission-and-persists-it-chromium/trace.zip",
+      "size": 206471,
+      "sha256": "ebf7e0b95fcf751eeac54b49494e44016670d389514dd5ce9ce3252b3ed0fa6c"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-chromium/error-context.md",
+      "size": 10665,
+      "sha256": "ec249c2c6b27b16a4fec9be588e14526d14be433f52933412cac5d7fd9ee25af"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-chromium/test-failed-1.png",
+      "size": 127353,
+      "sha256": "33ffd49adc9700d0daeeb409f9f77d673c8fade43a95c6b58650ad3d0510f0c9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-chromium/trace.zip",
+      "size": 2811701,
+      "sha256": "f4ad281d17e1f8ec97eff12777dd205b5b9d8bc93919e71db73b74357d643d04"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-crée-une-0927f-sans-appartenance-de-sprint-chromium/video.webm",
+      "size": 275659,
+      "sha256": "e9b854b76a76550ece74f33e2a7483ff909f449e7beaba1d2d3cb3c65879b444"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-chromium/error-context.md",
+      "size": 10586,
+      "sha256": "ae97f33ab550a44707d3ed11c8974c328f5a8eb8981fdfd4e435679db7ef5977"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-chromium/test-failed-1.png",
+      "size": 128580,
+      "sha256": "6aa739444c765283a3f81fd1eb42e527aea8a60cdb31703b64b25b65d8acea8c"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-chromium/trace.zip",
+      "size": 3307647,
+      "sha256": "85a81202164855ec921402b897751a0642314a73f181d63a9f6f12a2b347b0c6"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-crée-une-15414-sans-appartenance-de-sprint-chromium/video.webm",
+      "size": 195590,
+      "sha256": "b4f60a73f60d31a852b65e55dc09764d47dda34381f198bd778b0fdaa02fae13"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-chromium/error-context.md",
+      "size": 10475,
+      "sha256": "4995f36ac5591c24fd76903378c3590ec47d48fff93667f689ef39523ab64fcc"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-chromium/test-failed-1.png",
+      "size": 125406,
+      "sha256": "4bb1db98f9ead3b8615c957cf0f433dfeaeaada5d8390b09fb1ac9605e60289d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-chromium/trace.zip",
+      "size": 2369574,
+      "sha256": "9d14bc2f55b7f2dee8e5d7af470e6d093e7260007118777631e52d355dcf7949"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-crée-une-a3d17-sans-appartenance-de-sprint-chromium/video.webm",
+      "size": 202265,
+      "sha256": "06d44dd0da071bcab13cfde7744244524c57ef2fa44ed206ccc45988e339c340"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-chromium/error-context.md",
+      "size": 10500,
+      "sha256": "112d3f3a014e6299b179e4a3279f280d6ab6d47937f182b7b8787be67e929c4f"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-chromium/test-failed-1.png",
+      "size": 73218,
+      "sha256": "3a1132b3de3eee23b10065f6e97fb61fcabe2a47d852f1b82398d3cbcb3f740c"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-chromium/trace.zip",
+      "size": 1330659,
+      "sha256": "c10c85aae4b8b5ae3ecfdaeef2f477648d2a76a593a4c8a41743c6fa8b028ed1"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-everywhere-sans-dro-066f2-n-Créer-sur-les-trois-pages-chromium/video.webm",
+      "size": 67156,
+      "sha256": "b5496927b9e3cd94d376900b2a583fb277a19f5134bddaf232794cad068e4c27"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-under-version-filte-b48f2--par-un-filtre-Version-vide-chromium/jir92-1-inline-epic-masquee.png",
+      "size": 92094,
+      "sha256": "e136e81c15715e2c4e207e5d2d7d997125954b3ef30a045f32b3856c1c95c3c3"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-under-version-filte-b48f2--par-un-filtre-Version-vide-chromium/jir92-2-inline-cree-masquee.png",
+      "size": 98222,
+      "sha256": "1ff8e4b39c042aa7917e5b714bf9fea6d1590393a536a9993f1936845edfbc1d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-under-version-filte-b48f2--par-un-filtre-Version-vide-chromium/jir92-3-dialog-composant.png",
+      "size": 161858,
+      "sha256": "d046c8872de815b217581699b1348fe65e2115cc117a060fb885ed392213c392"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-under-version-filte-b48f2--par-un-filtre-Version-vide-chromium/jir92-4-dialog-epic.png",
+      "size": 162316,
+      "sha256": "71c6bb9d2db6364f9bc3a0ebed21b8425dda8e7bdf2871a3cbab6a1e65953c1a"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/create-under-version-filte-b48f2--par-un-filtre-Version-vide-chromium/jir92-5-dialog-cree-masquee.png",
+      "size": 99287,
+      "sha256": "27fb975b64b8149cb7f7355d2386e2e3dd2962c739a660269e5bd52bc76f8eb5"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/help-guide-ouvre-le-guide--c63ac-en-tête-et-suit-le-sommaire-chromium/jir67-desktop-1440.png",
+      "size": 230152,
+      "sha256": "3410960ec5c5efc4e6af97e425bcd6d87c9e7f8d06e8aaee95f4951b0e5ec060"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/help-guide-reste-lisible-sans-débordement-à-390-par-844-chromium/jir67-mobile-390.png",
+      "size": 89053,
+      "sha256": "a781aa494876723b12d7870e1409160891463fc1cae27b10725b704838c7694f"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-chromium/error-context.md",
+      "size": 32824,
+      "sha256": "34c1b06a5e3008dcb8495ef0f29fe6dc643c4a607718ee312ff550bfa3c04970"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-chromium/test-failed-1.png",
+      "size": 174040,
+      "sha256": "f8744d6916c978ac1158d8e5a1f493955621268b8ab1b25a14c7f3db2037214c"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-chromium/trace.zip",
+      "size": 1951678,
+      "sha256": "3f7c3ce9fa9e89dff5237aaf3c8962ba5b683b2ed0146b90c90700afc3df8c11"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-detail-drawer-panneau-ad3d7-comme-la-colonne-principale-chromium/video.webm",
+      "size": 132153,
+      "sha256": "0d7b8befed8d532b8cfc74b2d9477b0dbedecfb29fe9512d29a66eaf04eea53c"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-templates-an-administ-e984f-anagement-remains-protected-chromium/error-context.md",
+      "size": 16077,
+      "sha256": "ebf0fe09532d4691c2443889ea5fbd65c58d44d4ad0039409b9e4f10a57c4586"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-templates-an-administ-e984f-anagement-remains-protected-chromium/jir43-settings-1440.png",
+      "size": 93009,
+      "sha256": "e2514b21e82d8c01a764403e3828615cfb61c2aa31757a67ef0d954067cc67bb"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-templates-an-administ-e984f-anagement-remains-protected-chromium/jir43-settings-390.png",
+      "size": 51226,
+      "sha256": "a5705891c5f99032677a7487aa5f58bd8d87d6ac8a05f5454bd5f9c2a3d56a3b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-templates-an-administ-e984f-anagement-remains-protected-chromium/jir43-template-editor-1440.png",
+      "size": 152771,
+      "sha256": "ad185658a6de89f04087d33233cf9cdb6aae57697dc1703eb6ef7b9f6b2167d1"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-templates-an-administ-e984f-anagement-remains-protected-chromium/jir43-template-editor-390.png",
+      "size": 66390,
+      "sha256": "028df47327bb59a5799e85d4d0702aadc59c47be39e10523b93ab9581ce59348"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-templates-an-administ-e984f-anagement-remains-protected-chromium/test-failed-1.png",
+      "size": 93009,
+      "sha256": "e2514b21e82d8c01a764403e3828615cfb61c2aa31757a67ef0d954067cc67bb"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-templates-an-administ-e984f-anagement-remains-protected-chromium/test-failed-2.png",
+      "size": 56430,
+      "sha256": "628cef3aa4504e1d9b2e427fd945e316a3ed6de49569bb48a7566a45f07e50a6"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-templates-an-administ-e984f-anagement-remains-protected-chromium/trace.zip",
+      "size": 4647878,
+      "sha256": "f6db804e79b8e2f19bae51290efde9d4b3b15ded6b21511abf8eeeaa8bf221b8"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/item-templates-an-administ-e984f-anagement-remains-protected-chromium/video.webm",
+      "size": 335408,
+      "sha256": "2bb1a8986c131f08ce22efc3629ee02b98b9b7862cf16a8a747a41f1e2dd34d1"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/le-point-390px-keeps-both--7748b-e-card-text-and-no-overflow-chromium/error-context.md",
+      "size": 12464,
+      "sha256": "558a6d1b3d0c562745cf66c868ea08405139aeca7a415915bec27d3bbcb81002"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/le-point-390px-keeps-both--7748b-e-card-text-and-no-overflow-chromium/test-failed-1.png",
+      "size": 64227,
+      "sha256": "34898fe4b592099dd78e3f18bef549cabb00aacab72549db795c46bc954c60fd"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/le-point-390px-keeps-both--7748b-e-card-text-and-no-overflow-chromium/trace.zip",
+      "size": 736667,
+      "sha256": "cf3f997a5effa32b08a618d85a202f4837353710764dc9df9e146b929f1a614b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/le-point-390px-keeps-both--7748b-e-card-text-and-no-overflow-chromium/video.webm",
+      "size": 115000,
+      "sha256": "b5b15a6680a135fc8add491e6578f84668e4c8b86125006211671d9105e0c7c9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/le-point-keyboard-journey--77675-ocus-after-closing-a-ticket-chromium/error-context.md",
+      "size": 13508,
+      "sha256": "e644f152eb31bc5bdf2bf6331ac7afc7dcb2ac619147cf415ac8c1a37a03033b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/le-point-keyboard-journey--77675-ocus-after-closing-a-ticket-chromium/test-failed-1.png",
+      "size": 117038,
+      "sha256": "f4fcaa74900d491f809561c854a69b0d35134339426d2c89b5ea64ae2d141415"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/le-point-keyboard-journey--77675-ocus-after-closing-a-ticket-chromium/trace.zip",
+      "size": 1259308,
+      "sha256": "587cd97c132252fcd433f0bf5edee31ebd2a2e561fdd911a271cff114ff90d1c"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/le-point-keyboard-journey--77675-ocus-after-closing-a-ticket-chromium/video.webm",
+      "size": 175741,
+      "sha256": "1133055c73c29de8b249766cca5119cfb7089b6f7104506011836dac11e558db"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/content-admin.png",
+      "size": 106174,
+      "sha256": "2038f5217cfb2a01342abaadfa4fed862e0afe032a1e7686a9733cb315cd31c4"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/content-backlog-from-releases.png",
+      "size": 251895,
+      "sha256": "8dfe608cbc355c3d18725c14fb61285d547fc63295043b9f42bdf23d857d1186"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/content-backlog.png",
+      "size": 251895,
+      "sha256": "8dfe608cbc355c3d18725c14fb61285d547fc63295043b9f42bdf23d857d1186"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/content-board.png",
+      "size": 84453,
+      "sha256": "911817addbbfc93b33bf48dd71a9d40299a3d5725e1fa3abcc35cd8fa0903d08"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/content-home.png",
+      "size": 68600,
+      "sha256": "3b4d13694579a0711ab6c203b6e29effd0c2ac59ac8771c3f4157508aba18fa3"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/content-list.png",
+      "size": 227938,
+      "sha256": "1c8ba1eb9b9076a6fe3e05a9c262463ef1eb40940e8500b514c58b25e5a9b589"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/content-mine.png",
+      "size": 79682,
+      "sha256": "87b34b71dbde4d3faa526daf29c9fe7b5287e6c71e9800a308d075d76dd0a18e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/content-releases.png",
+      "size": 98958,
+      "sha256": "404526e0f02323d02e7308876aa53b6d5f09996557e039e1f7a228617660138a"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/content-roadmap.png",
+      "size": 111488,
+      "sha256": "d1579d0acd2e6dea4216a41ed1726a292b4e374738302f7f7da7ad65b8ac3b4e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/content-trash.png",
+      "size": 67587,
+      "sha256": "8141d1c03d10b26b7f74799812081a99269d8c4f6a395e45d598a50b054b32c9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/content-tree.png",
+      "size": 204872,
+      "sha256": "8c962c340a8d4b879ca44118e8c7e2fa907e8b8821f57bab1ed37b05c14f3e02"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/skeleton-admin.png",
+      "size": 52395,
+      "sha256": "3f1fa8ee892c90b9d40ea7595055a715bbd5045341fa2f9f57f9cc552a410054"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/skeleton-backlog-from-releases.png",
+      "size": 61659,
+      "sha256": "97395b5c0f14ffac844299a41a386ceac72045194039ff9a9624a6844fdb37bd"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/skeleton-backlog.png",
+      "size": 61532,
+      "sha256": "a0f5d1ad0370ed6d66bff7e938a06e3e1d3a77447ebb2878a6fc13c2cfa26ad1"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/skeleton-board.png",
+      "size": 59290,
+      "sha256": "7118c7c72c0ebb7ca0d992a981c374f4e97b1c011d2201b69a64ac47cb7618a7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/skeleton-home.png",
+      "size": 54347,
+      "sha256": "7aae3503a9c8caf2ec40ac9635f42c3581ee6fc080450c950d83d03580f7b9c6"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/skeleton-list.png",
+      "size": 61984,
+      "sha256": "0410af8817ac4829d5da6a5115f67a5cc98a678f88b340eaa97c48baf9ed834d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/skeleton-mine.png",
+      "size": 56055,
+      "sha256": "7d3fc92e628737ce3db0a748666cc7ca2bbf1af39e2eac79183275527e4c4517"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/skeleton-releases.png",
+      "size": 56702,
+      "sha256": "75c818633f9ab820f414285532b62bcd52d278fc23fda6c78e693c2a2c7c4f10"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/skeleton-roadmap.png",
+      "size": 53573,
+      "sha256": "d1a5a7f2d69cfa2268cb82b4f845e2e2b7e2dd5f8bb8ef5bb3039781c7fb8c3f"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/skeleton-trash.png",
+      "size": 54575,
+      "sha256": "efec39dde7fbda8353c31b428af4cfcd8b395e68cd0eeb9f8e87a0ed505d6e28"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/loading-skeletons-chaque-p-dbf36-ère-un-squelette-à-sa-forme-chromium/skeleton-tree.png",
+      "size": 54595,
+      "sha256": "249c0fc14b5dfa07b7af6cf548829754793a0455f83b5c3f3b245def1485dade"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/markdown-editor-éditeur-Ma-1df82-en-lecture-seule-au-lecteur-chromium/jir71-read-only.png",
+      "size": 364913,
+      "sha256": "ddd301f84f43d9563114ecaf5a6d5af1661b0a2f0dcabbfcb0c0253f5740a39a"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-chromium/jir71-bubble-menu.png",
+      "size": 225467,
+      "sha256": "cfc9702dae8009a4df665285208126448872db48fdb645ebcf76a1405238d9e9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-chromium/jir71-focus-slash-menu.png",
+      "size": 222413,
+      "sha256": "35717703ac4851571d598254587aa4551a207a4185a3840402636065bf4b6c10"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-chromium/jir71-rest-empty.png",
+      "size": 219847,
+      "sha256": "55c7f7101146a42e1d53bc556eb44912e01aa212a494a98ac18e92415a7044c7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/markdown-editor-éditeur-Ma-27fff-kdown-et-la-rouvre-formatée-chromium/jir71-rest.png",
+      "size": 222419,
+      "sha256": "46fe8b466b489d705f3917ab78ce6bccd5e8485d69047f55d5e06b781d2d4f4f"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/markdown-editor-éditeur-Ma-b7056-vec-mention-puis-le-modifie-chromium/comment-editor.png",
+      "size": 214150,
+      "sha256": "f04c783410f939eaf95cd74e6d485f892c369972557f2db79acd20a8eb0786a0"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/markdown-editor-éditeur-Ma-fb20c-gistré-comme-dans-l’éditeur-chromium/comment-heading.png",
+      "size": 8246,
+      "sha256": "1d8a7e0a1ba640d444b1d2622025bd78bc839e1a919dfbc9a5c2a01b5bd0bc97"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-chromium/jir91-1-epic-sans-composant.png",
+      "size": 149876,
+      "sha256": "e6e5d5b5e3e5b84e018a52e3f0c52b069968ac5681c17d131343621d943093ac"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-chromium/jir91-2-bascule-composant.png",
+      "size": 140546,
+      "sha256": "d2d7ad625e0fbc90105fc54f36ab14f689cde76c6c0e6ef90fd72b434ca7ee65"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-chromium/jir91-3-filtre-version.png",
+      "size": 144244,
+      "sha256": "81435b61c5e1d12aa41ca7504a85a8cffb0c1ec12e5f1a6c0772eda2c2db1692"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/new-item-missing-parent-«--122d3--créer-le-Composant-d’abord-chromium/jir91-4-epic-avec-composant.png",
+      "size": 162075,
+      "sha256": "7575dc36b5c0dd50a04eb76e0c138bbc20298df36aeab0f74f118e5986107f55"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/new-item-required-parent-«-1b045-igatoire-puis-crée-la-Tâche-chromium/jir69-1-parent-manquant.png",
+      "size": 160930,
+      "sha256": "a2d628cdc9c1f557d95d6ee4a794a3450ec7daf82c10484cab0ac62829676a18"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/new-item-required-parent-«-1b045-igatoire-puis-crée-la-Tâche-chromium/jir69-2-parent-choisi.png",
+      "size": 161861,
+      "sha256": "892f6c768c9bfa69e2393f49254ed70413c1dcc85543bb0183c5a9b38d41c8fc"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-10-pers-7e6cd-second-contexte-utilisateur-chromium/error-context.md",
+      "size": 28856,
+      "sha256": "cb69f620fc2e3ecd77420fdea7a2ff146a29636d920b4c90656d6202011a9810"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-10-pers-7e6cd-second-contexte-utilisateur-chromium/test-failed-1.png",
+      "size": 109199,
+      "sha256": "9e6508c4964664bea23f5f509f51a90311334aa645be4d1f437c1ae2261c9ef3"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-10-pers-7e6cd-second-contexte-utilisateur-chromium/test-failed-2.png",
+      "size": 191614,
+      "sha256": "f65ad0c751b9991550fd2dd3676bfe3a78d4dfe33fbaf32261c50d1200b4b0b4"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-10-pers-7e6cd-second-contexte-utilisateur-chromium/trace.zip",
+      "size": 2974439,
+      "sha256": "a91c5ed00e9c546594ca7b7c58766514eacbff49355cbcd7e9015b3d659307b0"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-10-pers-7e6cd-second-contexte-utilisateur-chromium/video.webm",
+      "size": 91143,
+      "sha256": "df1caef6b963ad5e6efacf44eadb4b257189bbc45bffcc79c6987561d175aca7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-2-isole-33601-de-groupe-à-un-seul-backlog-chromium/error-context.md",
+      "size": 10848,
+      "sha256": "b4a1ae37d607de88775bd97784767c2ec5f571f07a67f0948ec1c89753c8dbd9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-2-isole-33601-de-groupe-à-un-seul-backlog-chromium/test-failed-1.png",
+      "size": 4254,
+      "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-2-isole-33601-de-groupe-à-un-seul-backlog-chromium/test-failed-2.png",
+      "size": 35884,
+      "sha256": "5fa09cf090878dcf40e7a40d96f302d7c0c2954478cdb4e4c7bad4d854255e60"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-2-isole-33601-de-groupe-à-un-seul-backlog-chromium/trace.zip",
+      "size": 1365887,
+      "sha256": "181b63ab43442a698117996821c9d72638ff38aa588370264a913ed90ced5a6f"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-2-isole-33601-de-groupe-à-un-seul-backlog-chromium/video.webm",
+      "size": 3340,
+      "sha256": "2231ce06cadf7bb9b4a0b312e9cdc2697150ddfa3fa7dbebe341703ee16cf7ca"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/error-context.md",
+      "size": 28676,
+      "sha256": "6d70f4aa6f016551582d7230a34acace816de859aae9fb1cbe18d40bfa2f91b8"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/test-failed-1.png",
+      "size": 102316,
+      "sha256": "89460dbd8db5f9146e56adb6736c0a3a3e8532016bc85269e529b289267ce8a9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/trace.zip",
+      "size": 1536086,
+      "sha256": "1b4b305093c57c736a2bab99b184ac1fa9da18029e965907d1380910dd03ea05"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-3-expli-fe9a8--l’Assistant-de-permissions-chromium/video.webm",
+      "size": 81610,
+      "sha256": "5c8c602824594f48d33c0efd72406c0ef101b0e797cf04b0c3d94070814409c4"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-4-rejet-1a056-ction-forgée-par-le-lecteur-chromium/error-context.md",
+      "size": 27491,
+      "sha256": "5fc9bf96593ba530698ec203ef6cf2b724a6032a65ffc5bf58c4c266d414c8e3"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-4-rejet-1a056-ction-forgée-par-le-lecteur-chromium/test-failed-1.png",
+      "size": 113678,
+      "sha256": "f916cbc1361337f2d820536ea50c19475359f40a1a9c4e83c2d07a3837f4697e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-4-rejet-1a056-ction-forgée-par-le-lecteur-chromium/trace.zip",
+      "size": 1307761,
+      "sha256": "97242bc349b7d8048a81b0299768c04945f5ee05105f476ef29bfa431785811e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-4-rejet-1a056-ction-forgée-par-le-lecteur-chromium/video.webm",
+      "size": 83461,
+      "sha256": "97c6a9a8b9431a1568fb19bc35ed27f1fcf1deff8af88b33d25a03101cf60fb1"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-5-donne-18c77--édition-d’item-ni-workflow-chromium/error-context.md",
+      "size": 10859,
+      "sha256": "cc9c32879d2d35dcede2541fc15f27bf060e9f0f0286f0e4b808ad0508c8f29e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-5-donne-18c77--édition-d’item-ni-workflow-chromium/test-failed-1.png",
+      "size": 4254,
+      "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-5-donne-18c77--édition-d’item-ni-workflow-chromium/test-failed-2.png",
+      "size": 189665,
+      "sha256": "6f6faaadb34f0b03a30c2ec8c6d48d11f5f0a2c490d88785a516eef051e0de41"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-5-donne-18c77--édition-d’item-ni-workflow-chromium/trace.zip",
+      "size": 1081625,
+      "sha256": "e892c3a341da1c486b2415b8d653be4a6ff1cb2e8c02e32e7e1baaef5e36c8c7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-5-donne-18c77--édition-d’item-ni-workflow-chromium/video.webm",
+      "size": 2746,
+      "sha256": "6f061cfd9646f6914f0304c802f8f0c320225a052b68fbef15655d14d81aad4a"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-6-relie-bcb6f-ace-Releases-du-spécialiste-chromium/error-context.md",
+      "size": 28754,
+      "sha256": "e6875f8be642ddf5b1bb13f23bcdedbfc9fbb0b291486b0ea1f8cdf1d0267a79"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-6-relie-bcb6f-ace-Releases-du-spécialiste-chromium/test-failed-1.png",
+      "size": 102510,
+      "sha256": "ecb6aeedcf94ab1d84d737235e799fecda1d9945fe17ec5554b6ccd2f4e8c9ca"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-6-relie-bcb6f-ace-Releases-du-spécialiste-chromium/test-failed-2.png",
+      "size": 89948,
+      "sha256": "f51b503ed0fa9eff53a3f4d30a225138dd8adaf9d3590e98524d8dd31ae68486"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-6-relie-bcb6f-ace-Releases-du-spécialiste-chromium/trace.zip",
+      "size": 2617963,
+      "sha256": "9855fd52bcd1d80a2b93816a90392cc0e686c53c3fe48ffc8e2e69929478ee20"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-6-relie-bcb6f-ace-Releases-du-spécialiste-chromium/video.webm",
+      "size": 99304,
+      "sha256": "0cd69b17550aa3a964e7d34e3b93d1f7dd3202ca5dbcd37de059565da1c17f7a"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-7-retir-b52fa-écents-notifications-et-URL-chromium/error-context.md",
+      "size": 10838,
+      "sha256": "a1ada5164a0a8cae7c5103616ae5d59b25a5f10637e2ac1f5e3ff11efca07a5e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-7-retir-b52fa-écents-notifications-et-URL-chromium/test-failed-1.png",
+      "size": 4254,
+      "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-7-retir-b52fa-écents-notifications-et-URL-chromium/test-failed-2.png",
+      "size": 34347,
+      "sha256": "1fc538356900a26f29151a732ff1e543c639f260786f09771dcef4cac5e2ebc1"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-7-retir-b52fa-écents-notifications-et-URL-chromium/test-failed-3.png",
+      "size": 181570,
+      "sha256": "0b7d84cf0d1a3d6ae731c202a408310dc0ea56d016eddb4c394e25a50243f9c1"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-7-retir-b52fa-écents-notifications-et-URL-chromium/trace.zip",
+      "size": 5179695,
+      "sha256": "73433d88353b75cbc06b8cd38cee2018d21714013bb60a7ae1f11c55954eb762"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-7-retir-b52fa-écents-notifications-et-URL-chromium/video.webm",
+      "size": 5362,
+      "sha256": "f359da8b8fa7d6541e7abdb82840316d14d4e9b7ab9d1366e4f99489e3b52347"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-8-détec-26f58--version-sur-schéma-partagé-chromium/error-context.md",
+      "size": 11121,
+      "sha256": "c428477d45f81c4d0dd64e07fa192aafc7f5fcdea2da2debfa6f8973449bd5b3"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-8-détec-26f58--version-sur-schéma-partagé-chromium/test-failed-1.png",
+      "size": 4254,
+      "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-8-détec-26f58--version-sur-schéma-partagé-chromium/test-failed-2.png",
+      "size": 190596,
+      "sha256": "aba92cf51cad8a1d6dc42fff6334a824f3f48bf38a82ff5c4ab3f74669340680"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-8-détec-26f58--version-sur-schéma-partagé-chromium/test-failed-3.png",
+      "size": 192081,
+      "sha256": "8c3b63b999047c10256fe5e219dedb3c93503b39da6335c0bf4836caebc687f5"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-8-détec-26f58--version-sur-schéma-partagé-chromium/trace.zip",
+      "size": 4471812,
+      "sha256": "ec437aa5678ff070970707d03baf99ae225fa63375eb5d4338f444577f60ec8c"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/permission-schemes-8-détec-26f58--version-sur-schéma-partagé-chromium/video.webm",
+      "size": 4759,
+      "sha256": "f68e6b8c69b448314cd2b198c8b4b409d4a1621de6225f30c641dd69be281c9e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/realtime-realtime-between--b429c-resh-to-the-other-user-only-chromium/error-context.md",
+      "size": 9901,
+      "sha256": "c4fd4440cd5e59dfac9811764689cd367803f724fc3d40e37f7297562d5f2e73"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/realtime-realtime-between--b429c-resh-to-the-other-user-only-chromium/test-failed-1.png",
+      "size": 222934,
+      "sha256": "6a0dddaf3960711365ac22d7a2a1ace88609a2ecfcf79d7626aca75267b94c23"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/realtime-realtime-between--b429c-resh-to-the-other-user-only-chromium/test-failed-2.png",
+      "size": 218327,
+      "sha256": "95a3bb3bb52e1c66a0875e36641c1666b8e3118ceb3eb3b148c67a05de370117"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/realtime-realtime-between--b429c-resh-to-the-other-user-only-chromium/trace.zip",
+      "size": 435769,
+      "sha256": "fdcbda4301c84f9a099cfe758279eb9c897779ed9e2a5c3f247cebe1188d9799"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/realtime-realtime-between--e628d-user-s-bell-after-a-mention-chromium/error-context.md",
+      "size": 9884,
+      "sha256": "b128b2ced92d24a7879f976e2159f28b1cbb0023a3ba2cdca4a3203982a106f5"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/realtime-realtime-between--e628d-user-s-bell-after-a-mention-chromium/test-failed-1.png",
+      "size": 227734,
+      "sha256": "cb64aae79b7dc890909e2f937710e69297ca90c270da6d680b0d63f4fdd984bf"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/realtime-realtime-between--e628d-user-s-bell-after-a-mention-chromium/test-failed-2.png",
+      "size": 220107,
+      "sha256": "5a7a53c809ce4c54dcc85b3a13dc29359b247938812e8aee033c2d769c6c7236"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/realtime-realtime-between--e628d-user-s-bell-after-a-mention-chromium/trace.zip",
+      "size": 442786,
+      "sha256": "c2d217349ee1d01b4ab2ce6ef71bc2dc56ed1bd6d0b2c6aa7ffe5bcda8b474b1"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/realtime-realtime-between--f2583-r-s-open-item-automatically-chromium/error-context.md",
+      "size": 9899,
+      "sha256": "aaa0d3070347d00937d2a367cdd84db99b3a7262152ea29394d8ea70fde6bff9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/realtime-realtime-between--f2583-r-s-open-item-automatically-chromium/test-failed-1.png",
+      "size": 220686,
+      "sha256": "a79a4777274a20aa00096fc94e66e34c22b66e2bddac64f3e96eecb572bfe796"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/realtime-realtime-between--f2583-r-s-open-item-automatically-chromium/test-failed-2.png",
+      "size": 223636,
+      "sha256": "3ed87c1a2b081fe3a63e882ffe5f6f8f5858bce26b5120b79b7b3bfb848b6fda"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/realtime-realtime-between--f2583-r-s-open-item-automatically-chromium/trace.zip",
+      "size": 442864,
+      "sha256": "39cb5e6391045e5a03ed6dc9bc37006604d963634878eb9ff99a73fdefc4618d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-01-—-crée-puis-modifie-une-version-chromium/error-context.md",
+      "size": 18037,
+      "sha256": "ed848bd297b0254a0fc78bb2c59878652d198b1fc34146535e07edc4e70b8d43"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-01-—-crée-puis-modifie-une-version-chromium/test-failed-1.png",
+      "size": 119915,
+      "sha256": "ad4f02c2ad7ebee73028e358b26b15a1225652e57ce5988188438a5cacf7d641"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-01-—-crée-puis-modifie-une-version-chromium/trace.zip",
+      "size": 4370578,
+      "sha256": "515f94958e874690042fe8200ad2956f9ab8475a9d130ce73c41fbc74e0383ba"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-01-—-crée-puis-modifie-une-version-chromium/video.webm",
+      "size": 731716,
+      "sha256": "b7ef08ecb3859a378e2fd92d6efc9f425832b285226c36ba206010cc2d840038"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-02-—-persiste-deu-84533-ation-puis-depuis-le-détail-chromium/error-context.md",
+      "size": 52325,
+      "sha256": "f819137cf0e2e95934da70c77c1e8a0d0aa26dbafdaa8c908adf879fc7585089"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-02-—-persiste-deu-84533-ation-puis-depuis-le-détail-chromium/test-failed-1.png",
+      "size": 177164,
+      "sha256": "2bde0af516c5d126f014cc5d0282a52ec764033fb6351d7ff08077d88121457c"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-02-—-persiste-deu-84533-ation-puis-depuis-le-détail-chromium/trace.zip",
+      "size": 3893552,
+      "sha256": "ff04ba2ac704e8d9678cf655ef3940421dd847513aa1ef28b7ddf88eb385dde9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-02-—-persiste-deu-84533-ation-puis-depuis-le-détail-chromium/video.webm",
+      "size": 974688,
+      "sha256": "131e7a8b528db563b4cfc39b006ec0a0df786ef7bbb2c2538599d0ec0e25656e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-03-—-ajoute-rempl-1a149-etire-des-versions-en-masse-chromium/error-context.md",
+      "size": 45984,
+      "sha256": "f61389ce0ae4339675af97e23f92647df7c24407f1807625374a0214d71dcf1f"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-03-—-ajoute-rempl-1a149-etire-des-versions-en-masse-chromium/test-failed-1.png",
+      "size": 4254,
+      "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-03-—-ajoute-rempl-1a149-etire-des-versions-en-masse-chromium/test-failed-2.png",
+      "size": 212696,
+      "sha256": "41bc320b8bbf798a9c8a085b92d3e62501b7c67ea987d84dd259de0d6faf33ae"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-03-—-ajoute-rempl-1a149-etire-des-versions-en-masse-chromium/trace.zip",
+      "size": 7774038,
+      "sha256": "0da04c7d7ad84c4b6fce9860eb502016f4a438b67055aa9ac0dae317e6fe5e72"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-03-—-ajoute-rempl-1a149-etire-des-versions-en-masse-chromium/video.webm",
+      "size": 31404,
+      "sha256": "7892773c7fc6a5472831ca78b00ce3f5f49483b02f4d3d7018cce6cd9ebe63f9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-04-—-conserve-le--a0bab-et-dans-une-vue-enregistrée-chromium/error-context.md",
+      "size": 8439,
+      "sha256": "6bbe4530d25720cf911e3d494b195ede7aa5eff8ccd218af10e6a6a24f171ed4"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-04-—-conserve-le--a0bab-et-dans-une-vue-enregistrée-chromium/test-failed-1.png",
+      "size": 91316,
+      "sha256": "0be54bd0305f5b595d72e46a49e35ab5dd72f7f1f75ddeb29a61e2402f7f0afb"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-04-—-conserve-le--a0bab-et-dans-une-vue-enregistrée-chromium/trace.zip",
+      "size": 5823008,
+      "sha256": "b94254215d622eb349c370020ac1325053f360c35277a0d8ef1efa1489dae445"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-04-—-conserve-le--a0bab-et-dans-une-vue-enregistrée-chromium/video.webm",
+      "size": 661714,
+      "sha256": "a2fa88c16bbe7e8d0c7d0eabd144cc76a30966eaa125d749f29ce4dd58d1b22d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-06-—-permet-au-sp-c4158-n-conservant-les-incomplets-chromium/error-context.md",
+      "size": 9257,
+      "sha256": "1c165a7e6a019af5fa92a78d5f8a6fecb836f798c2a86d38521228e5a0b018b6"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-06-—-permet-au-sp-c4158-n-conservant-les-incomplets-chromium/test-failed-1.png",
+      "size": 4254,
+      "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-06-—-permet-au-sp-c4158-n-conservant-les-incomplets-chromium/test-failed-2.png",
+      "size": 129693,
+      "sha256": "54e8dbd82152936d926a7486475618b4151539b2e39b8e9caf3fd5ae6f3e0bb8"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-06-—-permet-au-sp-c4158-n-conservant-les-incomplets-chromium/trace.zip",
+      "size": 2140634,
+      "sha256": "d5cc4457690e3a434bed48d3e66d6c12b7d1816849f6f0bfc04c12f144f99fa9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-06-—-permet-au-sp-c4158-n-conservant-les-incomplets-chromium/video.webm",
+      "size": 3637,
+      "sha256": "3e98931192a0075a7b1b15c8160fd2b43331e4fea25e0d74cc543c52c285fec1"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-07-—-refuse-un-pu-7f098-ve-forgé-par-le-spécialiste-chromium/error-context.md",
+      "size": 20009,
+      "sha256": "b2ac775f8199d10f5ecd01131f3d5088e88d1369969705656b43705e305826ed"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-07-—-refuse-un-pu-7f098-ve-forgé-par-le-spécialiste-chromium/test-failed-1.png",
+      "size": 125365,
+      "sha256": "69a52ad19a38db26478d09b0a1a5202668def6673247b02332aa27fb0e07ba63"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-07-—-refuse-un-pu-7f098-ve-forgé-par-le-spécialiste-chromium/trace.zip",
+      "size": 1914355,
+      "sha256": "8e1240c2003e3b95c89ff47df9914c545491ad416e0bf3d460738d9660f100f5"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-07-—-refuse-un-pu-7f098-ve-forgé-par-le-spécialiste-chromium/video.webm",
+      "size": 264558,
+      "sha256": "da7595e1999995f32c127e0b891c098d7a96a904878fb409ad8d92db8a36c6ea"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-08-—-conserve-deu-337d1-ublication-et-republication-chromium/error-context.md",
+      "size": 21701,
+      "sha256": "88894f585499bbe217a06270229fc1608039fc22f693eb42e6b98b983881c771"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-08-—-conserve-deu-337d1-ublication-et-republication-chromium/test-failed-1.png",
+      "size": 132845,
+      "sha256": "5d03a848ea1b9728d8e78c56e5779971ef0184aedbc6bc58c0cf00c5a3a2dccd"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-08-—-conserve-deu-337d1-ublication-et-republication-chromium/trace.zip",
+      "size": 3425134,
+      "sha256": "ba540d70708a1d9a3e68bbeef091d0c1a6475576128cbcb615685adeb0f95fc7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-08-—-conserve-deu-337d1-ublication-et-republication-chromium/video.webm",
+      "size": 755821,
+      "sha256": "bbc3d0b6e28abf76652ca86c0fa84631994f8263b2ef3e556c4e47f2c8f92803"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-09-—-déplace-les--d6c09-leurs-versions-sans-rapport-chromium/error-context.md",
+      "size": 22133,
+      "sha256": "4bb462c72a4c61785e131e43247d51a709a07a02958b74e4c8b8c907f03d471a"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-09-—-déplace-les--d6c09-leurs-versions-sans-rapport-chromium/test-failed-1.png",
+      "size": 131506,
+      "sha256": "38b5729694e0393fc2e68b6080913b38315fd86515bb345ada8f9d98ad432900"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-09-—-déplace-les--d6c09-leurs-versions-sans-rapport-chromium/trace.zip",
+      "size": 1786467,
+      "sha256": "4055875a0d3f0ffca7ed709adeff86556b7fa2d95a579d551ab7fbaf91f61880"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-09-—-déplace-les--d6c09-leurs-versions-sans-rapport-chromium/video.webm",
+      "size": 125579,
+      "sha256": "28649326ca9f7c2cdf7fe834c57524a77173ccd1b6e4c1609eeea15477cf6512"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-10-—-masque-une-v-1fd77-dant-l’affectation-courante-chromium/error-context.md",
+      "size": 20007,
+      "sha256": "f87b8df347e1b6812d7faec175400d5ad50f2d9697111abdd2fe2aac5ae05ff0"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-10-—-masque-une-v-1fd77-dant-l’affectation-courante-chromium/test-failed-1.png",
+      "size": 129791,
+      "sha256": "f50bc40d518a5cc434bddb33295f7903f902308901ea9d120f834babe481a7c9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-10-—-masque-une-v-1fd77-dant-l’affectation-courante-chromium/trace.zip",
+      "size": 2757811,
+      "sha256": "347e7c3c1b6cc25aeb9c2788e4d20b279fa6a8022334ddbab2a9a405847ecf3d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-10-—-masque-une-v-1fd77-dant-l’affectation-courante-chromium/video.webm",
+      "size": 739727,
+      "sha256": "351c573b2a869b9d562d928bfaf65e7e291473188b80ed7250d857be15079d96"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-11-—-autorise-l’é-71c4b-ans-exposer-le-cycle-de-vie-chromium/error-context.md",
+      "size": 42274,
+      "sha256": "9cfd53388876ff2630fea3875cca73743c6531a2b025fb3f4b0f66fc3b779f05"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-11-—-autorise-l’é-71c4b-ans-exposer-le-cycle-de-vie-chromium/test-failed-1.png",
+      "size": 4254,
+      "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-11-—-autorise-l’é-71c4b-ans-exposer-le-cycle-de-vie-chromium/test-failed-2.png",
+      "size": 167530,
+      "sha256": "ffb7e113d4643c2aac43914ac2a108989f1324f24340949b94d324e477a0a8da"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-11-—-autorise-l’é-71c4b-ans-exposer-le-cycle-de-vie-chromium/trace.zip",
+      "size": 3033699,
+      "sha256": "b4db622cd42af89e3004dfa7bf13d637fcb4b60151bca85e58199d5d9125ff9e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-11-—-autorise-l’é-71c4b-ans-exposer-le-cycle-de-vie-chromium/video.webm",
+      "size": 31404,
+      "sha256": "606194e6941c2cd055d7709be2e982e79f4f7c5b1a0530002c7afbda5b2b12e7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-12-—-refuse-la-re-d62c1-ns-changer-DB-ni-historique-chromium/error-context.md",
+      "size": 19160,
+      "sha256": "603657120bdabe4d8230b6137b4898cf34635471b59f07f4de1236e0289f4209"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-12-—-refuse-la-re-d62c1-ns-changer-DB-ni-historique-chromium/test-failed-1.png",
+      "size": 4254,
+      "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-12-—-refuse-la-re-d62c1-ns-changer-DB-ni-historique-chromium/test-failed-2.png",
+      "size": 167986,
+      "sha256": "8e61fa90ea4f9255ed972d002bc5814bbebf52e133f5c0da011f00e7546dc0fd"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-12-—-refuse-la-re-d62c1-ns-changer-DB-ni-historique-chromium/trace.zip",
+      "size": 3058543,
+      "sha256": "059d55c7fc2d018731bb41ec2d979d228e17a3cfa0f1f4da4a371d5581540a06"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-12-—-refuse-la-re-d62c1-ns-changer-DB-ni-historique-chromium/video.webm",
+      "size": 8624,
+      "sha256": "d78cd79183079212a5a895a0b883e8116a51dd186b001a8c101b7eed986f545d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-13-—-détecte-une-édition-stale-entre-deux-contextes-chromium/error-context.md",
+      "size": 9092,
+      "sha256": "990933b140efbcf3008cbbf20d7e232ee140dec500949130274720defe52474f"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-13-—-détecte-une-édition-stale-entre-deux-contextes-chromium/test-failed-1.png",
+      "size": 4254,
+      "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-13-—-détecte-une-édition-stale-entre-deux-contextes-chromium/test-failed-2.png",
+      "size": 122127,
+      "sha256": "bd643a93e865145e5706af3982e620a5721609299df3436dd9e6ac98cc6a2661"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-13-—-détecte-une-édition-stale-entre-deux-contextes-chromium/test-failed-3.png",
+      "size": 121847,
+      "sha256": "b1e899b6cbc4b92a70b749adbb8fcf3149b4c9581cabeffd40ff8e2a03fbe777"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-13-—-détecte-une-édition-stale-entre-deux-contextes-chromium/trace.zip",
+      "size": 3394577,
+      "sha256": "677a4ecfadf87b24dfb9972dde24e98a665f3d5e246f6ea16cd32d58012bbadc"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-13-—-détecte-une-édition-stale-entre-deux-contextes-chromium/video.webm",
+      "size": 31404,
+      "sha256": "720016ce5e3abfe593df1c4a7be995b51be42b95bf1ec016f4c8c91bf1a62093"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-14-—-garde-le-dia-3404f-ck-après-publish-intercepté-chromium/error-context.md",
+      "size": 20861,
+      "sha256": "67fb84886049fbb0c23432796590e213d2efa9d190c9a8e63ea391b97ff2889d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-14-—-garde-le-dia-3404f-ck-après-publish-intercepté-chromium/test-failed-1.png",
+      "size": 132889,
+      "sha256": "5a91994958a9027bb1b2a2f80827c63b87af2367f90d6d3ae8e9a7cfd3601513"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-14-—-garde-le-dia-3404f-ck-après-publish-intercepté-chromium/trace.zip",
+      "size": 2007752,
+      "sha256": "b6dc9494fa9573ca582c0ae69975e538d6097c5e571aebb55f780350edd64a05"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-14-—-garde-le-dia-3404f-ck-après-publish-intercepté-chromium/video.webm",
+      "size": 293513,
+      "sha256": "07099c6888abdea701953b605973308f762ba1a9e67298b795d75868cbed0e4e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-15-—-rend-la-rele-c207a-ateur-et-isole-CASS-de-LABS-chromium/error-context.md",
+      "size": 12595,
+      "sha256": "171ca1ad2c80fabc223f39422ae6e35ba3380e517c18b59a5a1a6acffef2ea30"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-15-—-rend-la-rele-c207a-ateur-et-isole-CASS-de-LABS-chromium/test-failed-1.png",
+      "size": 50256,
+      "sha256": "2834feae126de80b23f9cc97057ecd4c958fa98614aaf1c9821182b28b7da96b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-15-—-rend-la-rele-c207a-ateur-et-isole-CASS-de-LABS-chromium/test-failed-2.png",
+      "size": 33715,
+      "sha256": "86c846b1367cd8336fa7cbb0f2c22f3826cf5b58a3cba5f13ab3c6b95c0e7253"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-15-—-rend-la-rele-c207a-ateur-et-isole-CASS-de-LABS-chromium/trace.zip",
+      "size": 2019806,
+      "sha256": "832580b2e6006a0483e9f915062508e23b6b487c8e289ae29ea16d59c30b8eef"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-15-—-rend-la-rele-c207a-ateur-et-isole-CASS-de-LABS-chromium/video.webm",
+      "size": 76627,
+      "sha256": "ec007e128a0e63ed48d88e08069911b42716e14ec1a09a10027eda4bfcc5f6ae"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-16-—-refuse-un-pu-c06e1-change-entre-deux-contextes-chromium/error-context.md",
+      "size": 10448,
+      "sha256": "3de317a2d069b60a231b8cae8d25bf9e9399fb2bcb7729562c379ee7e7531f9a"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-16-—-refuse-un-pu-c06e1-change-entre-deux-contextes-chromium/test-failed-1.png",
+      "size": 198811,
+      "sha256": "64cce7f934f4e530b124a5cd276fb58ef4cc788b473a36c2d6bde675f7a99451"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-16-—-refuse-un-pu-c06e1-change-entre-deux-contextes-chromium/test-failed-2.png",
+      "size": 162490,
+      "sha256": "a064b68ae97e7bf9af26bbb475ef32d31c1d0f4e262f12f3031f8dfbf3da5d7b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-16-—-refuse-un-pu-c06e1-change-entre-deux-contextes-chromium/trace.zip",
+      "size": 5142889,
+      "sha256": "c46553b3196b52bb6990fc424a9218187c65372b5ca5e5cc82d69a57a3687afe"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-16-—-refuse-un-pu-c06e1-change-entre-deux-contextes-chromium/video.webm",
+      "size": 538634,
+      "sha256": "93fbbd997673f0b99e58ebeb4a7b9356e308141e1a33f665a30d36b598a12b94"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-17-—-fusionne-une-ce6fd--liens-et-la-retire-partout-chromium/error-context.md",
+      "size": 72842,
+      "sha256": "f6d8cdfe4266e4e096a32c218e5bb68b18d76552183e5f1c4780766832c89e62"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-17-—-fusionne-une-ce6fd--liens-et-la-retire-partout-chromium/test-failed-1.png",
+      "size": 111730,
+      "sha256": "0d22c7710a3c00f4e7f2b50bf9572e10cb4d38a534d35420b3636c8bff27bbf7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-17-—-fusionne-une-ce6fd--liens-et-la-retire-partout-chromium/trace.zip",
+      "size": 2228306,
+      "sha256": "951b67160477a42ef08cc7763c8dfbf48a761f1facc1f7e68015758cdbdda72c"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-17-—-fusionne-une-ce6fd--liens-et-la-retire-partout-chromium/video.webm",
+      "size": 651080,
+      "sha256": "6413bc8d9ed03a6035bf78bb9f0edc651a6ce1d9ee7f0e4cee8b253e9014eb1f"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-18-—-fusionne-une-b5631-snapshots-ni-leurs-libellés-chromium/error-context.md",
+      "size": 21085,
+      "sha256": "0b0507517fe260c1e7d8b1881a168ba43d996d6db807e9d098a38f2941e036f8"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-18-—-fusionne-une-b5631-snapshots-ni-leurs-libellés-chromium/test-failed-1.png",
+      "size": 126450,
+      "sha256": "59a09f90b418129b8377fcf47b22e9fa7d9f7a875ea6b3303f9e73c3969c717e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-18-—-fusionne-une-b5631-snapshots-ni-leurs-libellés-chromium/trace.zip",
+      "size": 2392699,
+      "sha256": "2e84fce449ce00f7940e0442590a4d3609766286f16e8ba7abde8decdebb8d3b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-18-—-fusionne-une-b5631-snapshots-ni-leurs-libellés-chromium/video.webm",
+      "size": 127720,
+      "sha256": "c46008ee30d23de3e978b56ab10599c54b9381b8f193b1043a76d72b52a3a53e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-19-—-supprime-ave-9bc66-en-journalisant-chaque-item-chromium/error-context.md",
+      "size": 87000,
+      "sha256": "b65a6485e889c2ca1882653c5762e6a6f503ca505f2453177f0e80435dba266b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-19-—-supprime-ave-9bc66-en-journalisant-chaque-item-chromium/test-failed-1.png",
+      "size": 123113,
+      "sha256": "02f44e35075ccad84c2b1309f70dd2d2b967aa55927f856f5e638e3a07819c92"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-19-—-supprime-ave-9bc66-en-journalisant-chaque-item-chromium/trace.zip",
+      "size": 2109748,
+      "sha256": "76584c49549cd74d7b752a6df74ceffaca4240d8c24cd6752f3f00f2b5046d52"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-19-—-supprime-ave-9bc66-en-journalisant-chaque-item-chromium/video.webm",
+      "size": 710440,
+      "sha256": "03d6b6664eff2587cfb51df609ce21387ce6e1ed6c108da848d7717b73666286"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-20-—-laisse-le-sp-2d2c1--sans-edit-items-comme-Jira-chromium/error-context.md",
+      "size": 9609,
+      "sha256": "6d0a5fa359639730c0ef072ac7fec902755e076ffb96cb3e6d97bf8aad11bf81"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-20-—-laisse-le-sp-2d2c1--sans-edit-items-comme-Jira-chromium/test-failed-1.png",
+      "size": 4254,
+      "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-20-—-laisse-le-sp-2d2c1--sans-edit-items-comme-Jira-chromium/test-failed-2.png",
+      "size": 52360,
+      "sha256": "eb8f41b27020927df61615f2f3a70ece6e3a72b83ca1b654fff02b7f91e39597"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-20-—-laisse-le-sp-2d2c1--sans-edit-items-comme-Jira-chromium/trace.zip",
+      "size": 4242157,
+      "sha256": "1a8910c205fc26e526944196c444d77097f7189b905a20f237952643ff8a442b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-20-—-laisse-le-sp-2d2c1--sans-edit-items-comme-Jira-chromium/video.webm",
+      "size": 4891,
+      "sha256": "7e005a33ad60e044feb51124b1d64305642b3a550e1a83c13f4e2736a724461d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-21-—-masque-fusio-026db-fuse-leurs-requêtes-forgées-chromium/error-context.md",
+      "size": 57369,
+      "sha256": "398542ff3f4d122edf484bb02b3f9f9efd26b0ff508389987701c8e9f6d72660"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-21-—-masque-fusio-026db-fuse-leurs-requêtes-forgées-chromium/test-failed-1.png",
+      "size": 121317,
+      "sha256": "8b8502d0f05803b5e6f7fa94a9616c5883e73d3641b9cd1edb022760cb501ece"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-21-—-masque-fusio-026db-fuse-leurs-requêtes-forgées-chromium/trace.zip",
+      "size": 2190751,
+      "sha256": "f725700d11d4ffb785927ce9c913761f4ca2cff39bf57ecc5b66d14c1cb6bd30"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-21-—-masque-fusio-026db-fuse-leurs-requêtes-forgées-chromium/video.webm",
+      "size": 216102,
+      "sha256": "130d6aa294a0ea0b12fd473d86b1da4694eece2965d8004d83b1a506382a7eee"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-22-—-refuse-une-s-c4e79-u-d’impact-est-devenu-stale-chromium/error-context.md",
+      "size": 19195,
+      "sha256": "28ed7bec00f7426c57c41175f1a6a4adce5c369718cfaf90efdc6ba52d19b85a"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-22-—-refuse-une-s-c4e79-u-d’impact-est-devenu-stale-chromium/test-failed-1.png",
+      "size": 189411,
+      "sha256": "6ea23fd70daaa220b9f93e90a13c30cdb475cf5c8ada04eee730815c97d137e7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-22-—-refuse-une-s-c4e79-u-d’impact-est-devenu-stale-chromium/trace.zip",
+      "size": 1859825,
+      "sha256": "2f0c0a0682c875758ff05d624273235c08588dfdb49123841e78bd02474baa20"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-22-—-refuse-une-s-c4e79-u-d’impact-est-devenu-stale-chromium/video.webm",
+      "size": 87184,
+      "sha256": "4c8558ed266cb0ac4af8706ce7667b327c0f847878c2c3a98e714f0fa6840946"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-23-—-garde-le-dia-6d8f9-une-suppression-interceptée-chromium/error-context.md",
+      "size": 60017,
+      "sha256": "801f88f80e04afae066e2730144ddf009ed85ff7598fad9300ec1c75bc9c8ab2"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-23-—-garde-le-dia-6d8f9-une-suppression-interceptée-chromium/test-failed-1.png",
+      "size": 121354,
+      "sha256": "85a1b983ffceab7a8a368e9a7adf956c35a6b37b01e8e1532670c9a3b69dbbf0"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-23-—-garde-le-dia-6d8f9-une-suppression-interceptée-chromium/trace.zip",
+      "size": 2739562,
+      "sha256": "16ef4966480d3d29cfee857b06e8a74ffc400f5fd8e4abf2c69f017fd122af84"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-23-—-garde-le-dia-6d8f9-une-suppression-interceptée-chromium/video.webm",
+      "size": 241498,
+      "sha256": "92b8dabe5a4dcce18a9538adbca20a996d50d86e7da0e26a6a8020caa378f0e7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-24-—-réordonne-pa-fcbf4--pour-un-second-utilisateur-chromium/error-context.md",
+      "size": 78799,
+      "sha256": "22779684aa33d75b416b8beee8ff293971f3ed03b0e1f9492b9842ee498b0ead"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-24-—-réordonne-pa-fcbf4--pour-un-second-utilisateur-chromium/test-failed-1.png",
+      "size": 158208,
+      "sha256": "8588bb0b693adbe4b057cbca0e2026203ada7e9538f62b771ffc818dcec2897d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-24-—-réordonne-pa-fcbf4--pour-un-second-utilisateur-chromium/test-failed-2.png",
+      "size": 98555,
+      "sha256": "ad68b8eb51a7d04f2f94a702f690b94621fd0b08cfa0682023e86ebf560f9704"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-24-—-réordonne-pa-fcbf4--pour-un-second-utilisateur-chromium/trace.zip",
+      "size": 11857840,
+      "sha256": "405a9b253e8773501e1f68a78ebc4aaeeb421168d69a06a25b1e4d7bdb38cee7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-24-—-réordonne-pa-fcbf4--pour-un-second-utilisateur-chromium/video.webm",
+      "size": 591952,
+      "sha256": "27a673f7da88f24f7230e442fc1c241054338553f8388eac6e7b16937a02e46d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-25-—-génère-les-n-c2721-état-courant-publiée-ou-non-chromium/error-context.md",
+      "size": 16696,
+      "sha256": "ef4aae561e1be755d1cd46731fd51bb7165a532d91f5cfbae2a8d5baab027562"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-25-—-génère-les-n-c2721-état-courant-publiée-ou-non-chromium/test-failed-1.png",
+      "size": 113435,
+      "sha256": "8b579addea90574f0c4eac9cf4fc92f795092abd0d478ea618573c7aadd2c682"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-25-—-génère-les-n-c2721-état-courant-publiée-ou-non-chromium/trace.zip",
+      "size": 4540580,
+      "sha256": "50b3820b5f95a0cdf217d2598675c4a8983699de9008275731f91419b7bb68bf"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-25-—-génère-les-n-c2721-état-courant-publiée-ou-non-chromium/video.webm",
+      "size": 193864,
+      "sha256": "379eaf6eb68014cf87861909fabce265b8f208ee2f00190f00b76dae2140a877"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-26-—-édite-les-no-11dea-down-et-HTML-sans-HTML-brut-chromium/error-context.md",
+      "size": 16259,
+      "sha256": "b400db6c2fb11a8f375003f168a455c122d2e1a96e5bbde180678f908e223187"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-26-—-édite-les-no-11dea-down-et-HTML-sans-HTML-brut-chromium/test-failed-1.png",
+      "size": 121279,
+      "sha256": "766e11b29cd822fa7d291b98d859952bb63831f942d81605d180518f1bb4c134"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-26-—-édite-les-no-11dea-down-et-HTML-sans-HTML-brut-chromium/trace.zip",
+      "size": 2219596,
+      "sha256": "da84dcba37f902540f76bc545ce5ffe0214c347ba7bb1520632cb16a0676dacd"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-26-—-édite-les-no-11dea-down-et-HTML-sans-HTML-brut-chromium/video.webm",
+      "size": 106726,
+      "sha256": "28b72b33753844e3854ca6d0c1ebe97874636980c296e9c4980333665fbfaff9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-27-—-ignore-une-v-c7e88-gistrée-et-reste-responsive-chromium/error-context.md",
+      "size": 16585,
+      "sha256": "3fbb7bdfb310a203d4672f4fe2d6e7fa15b4609735fc5ab9833582b259b793a5"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-27-—-ignore-une-v-c7e88-gistrée-et-reste-responsive-chromium/test-failed-1.png",
+      "size": 106936,
+      "sha256": "bb96bedf4a049d92bba326462700379e5bd9933b86708e51ba0f56ac95a93a08"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-27-—-ignore-une-v-c7e88-gistrée-et-reste-responsive-chromium/trace.zip",
+      "size": 5546658,
+      "sha256": "cef9acc2f90767d60a1ad705d218c029ddd29332c1ddc61e7db8e5fc69473f51"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/releases-27-—-ignore-une-v-c7e88-gistrée-et-reste-responsive-chromium/video.webm",
+      "size": 384497,
+      "sha256": "677f9b42de8f65f15120ef2711755560ecb6124a7932d4bc198c7b522851d4dd"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-43034-the-reader-s-bars-read-only-chromium/error-context.md",
+      "size": 9970,
+      "sha256": "d865ae2bc43b2fe947eee92bdd716a7e922ba01dfb2cd77b0d8db34d76e7f439"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-43034-the-reader-s-bars-read-only-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-43034-the-reader-s-bars-read-only-chromium/test-failed-2.png",
+      "size": 136183,
+      "sha256": "ec09eba72dfccccdfa71665a06344485d21f64d6fd4985910cf5e86cce9e97a0"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-43034-the-reader-s-bars-read-only-chromium/trace.zip",
+      "size": 139714,
+      "sha256": "9b4836c363b6e030771513b94d82f12a827b1f322aca0bf61610974ac661fc47"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-5838a--two-one-day-keyboard-moves-chromium/error-context.md",
+      "size": 10038,
+      "sha256": "11428bfd03583752fe11f46e67d9889c4b5d5fed66c92803342541988e4b813a"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-5838a--two-one-day-keyboard-moves-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-5838a--two-one-day-keyboard-moves-chromium/test-failed-2.png",
+      "size": 137148,
+      "sha256": "48606435a7c73cc6453a41634f83bf59c456371d769f02515720685679aabd46"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-5838a--two-one-day-keyboard-moves-chromium/trace.zip",
+      "size": 141609,
+      "sha256": "9cfc0bbaf0e1d43631d0bc6e814a5df2259032e0cf2d889d16c5b159cab634b9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-d67a7-an-empty-row-and-keeps-them-chromium/error-context.md",
+      "size": 10063,
+      "sha256": "01eebee8bd1f854ce5a7bede91463c36dc2e16d7e94cb997b5da3a5074883983"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-d67a7-an-empty-row-and-keeps-them-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-d67a7-an-empty-row-and-keeps-them-chromium/test-failed-2.png",
+      "size": 137200,
+      "sha256": "91ecfe78feb1c9234e4547d0280bb7a5d68dba7c72320d39a837519c28cd4687"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-d67a7-an-empty-row-and-keeps-them-chromium/trace.zip",
+      "size": 140795,
+      "sha256": "2a2efa9c8788508457b4421baffd5c82d2a4775c5a6cc324e0b9f971e4129398"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-fe81f-atching-dates-in-its-drawer-chromium/error-context.md",
+      "size": 10131,
+      "sha256": "5afc075ba59b9495fe90a662775086b86980928d6f2c6c844a5de20c933a05dc"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-fe81f-atching-dates-in-its-drawer-chromium/test-failed-1.png",
+      "size": 5851,
+      "sha256": "99db2a93b06fa1bf617f5c495e02dcf6c0b76961108491217e2cf4fed8699d35"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-fe81f-atching-dates-in-its-drawer-chromium/test-failed-2.png",
+      "size": 220888,
+      "sha256": "b43149947ced4b6e655796394ec46cea68f50b099da9824889f6cce4b869b441"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/roadmap-planning-on-the-Ro-fe81f-atching-dates-in-its-drawer-chromium/trace.zip",
+      "size": 227298,
+      "sha256": "204dec80076a495894e28e301c95622c9892bf5f01bae78fddcc38af2327ac66"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-chromium/jir74-desktop-dark.png",
+      "size": 270613,
+      "sha256": "c36d34cca425bddfe5c038722eca3df20884aad2ab9bbfc6534df513c169688c"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-chromium/jir74-desktop-light.png",
+      "size": 265183,
+      "sha256": "9f22f1210ca138df6083779d913d22f1cd790ddda9857efe06842eede5113d64"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-chromium/jir74-mobile-drawer.png",
+      "size": 121902,
+      "sha256": "043ab6b85b76dae67ad084c98905136a8cd86d9b366ed4a4d89541ce103a7770"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/shell-redesign-capture-le--64bdd--en-sombre-et-sur-téléphone-chromium/jir74-mobile.png",
+      "size": 87774,
+      "sha256": "26446353224e7af272b61f352ae4d5721f91418f875b83e22e5430dfe83fe3f3"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-dates-démarre-un-sp-0c3ac-es-dates-saisies-sans-heure-chromium/jir87-start-prefilled.png",
+      "size": 30404,
+      "sha256": "7d77e91fc40d8aa64ae9b91256892baeb30df3b5dbebc20f1fc016d3daa2fce7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-dates-enregistre-de-6c711-ique-une-fin-avant-le-début-chromium/jir87-edit-date-only.png",
+      "size": 29019,
+      "sha256": "4f2d026939f1220b365a38f531f01d2e27648234a1b875307f4bf41f83325efc"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-dates-enregistre-de-6c711-ique-une-fin-avant-le-début-chromium/jir87-edit-end-before-start.png",
+      "size": 33900,
+      "sha256": "1b60824ea376c245505d9dcf0192057c28f58a81cb6277cc7ed522a512ee0deb"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-dates-enregistre-un-e858d--l’arrondi-flottant-JIR-90--chromium/jir90-capacity-two-decimals.png",
+      "size": 31535,
+      "sha256": "9ae3f844742f5a731593fc9e4b20e8b6d702bb6ce05c3483880927acec4b6d31"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-filter-filtre-la-Li-c4fd7-et-le-garde-au-rechargement-chromium/jir81-liste-filtre-sprint-termine.png",
+      "size": 95889,
+      "sha256": "11801559bcc17c8bf479c48cdc532531ddff655ef0d271a81b4d92ae9d8dba44"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-filter-filtre-la-Li-c4fd7-et-le-garde-au-rechargement-chromium/jir81-menu-sprint.png",
+      "size": 121515,
+      "sha256": "12b88f84acbfdbe8eda6c4733742fa2518c304254cfcd3d515ee93d98b8102a4"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/error-context.md",
+      "size": 109181,
+      "sha256": "d68daf7de8417282501936d55d81eecc98212b7630d0ae6589dd96b820aff1f8"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/test-failed-1.png",
+      "size": 199786,
+      "sha256": "0e7fe27432ab294c08e6d4d9cde9c1c1aa573b222e717b9c3638dd52837d2508"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/trace.zip",
+      "size": 6584861,
+      "sha256": "043f8b86fe4369a559bb30458322965ab1675ca767ee6a435f6d88a36b2cb9df"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-clôture-v-8d9bf-oque-une-sous-tâche-ouverte-chromium/video.webm",
+      "size": 2551361,
+      "sha256": "c61a10ee1ec593b7d9226fc1672b29c088465dd46150cce8dfb3ccbdbb802b3b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/error-context.md",
+      "size": 77685,
+      "sha256": "4b63bb3ab71699191fbf3c6bcbaebfaaf81a32b6cd91637b6889cc44d2102ece"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/test-failed-1.png",
+      "size": 224424,
+      "sha256": "e710623fb017b09a062228b85baab23a65d0873967d791f32c56bec4807258c0"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/trace.zip",
+      "size": 7754934,
+      "sha256": "4ec7656a849a07ebae439654251d8a383d54f42ebf83e7d932c7a845e1dd0009"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-conserve--33179-n-échec-réseau-au-démarrage-chromium/video.webm",
+      "size": 378385,
+      "sha256": "ea387a6c37908bcff891587f1c7478c5818216d6afedd624ab0ce188d4b14fb7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-démarre-u-a4a3e-bjectif-et-ses-dates-à-jour-chromium/error-context.md",
+      "size": 112244,
+      "sha256": "d6e0b6bcba5133c9dba00555e01c5a0a1ad7379fc237e3af77a237cc7aa16602"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-démarre-u-a4a3e-bjectif-et-ses-dates-à-jour-chromium/test-failed-1.png",
+      "size": 154516,
+      "sha256": "a3dec0ff13a1fdf33cdf88bc4f9328168568cb333a5460347bd91ba674b90009"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-démarre-u-a4a3e-bjectif-et-ses-dates-à-jour-chromium/trace.zip",
+      "size": 5773727,
+      "sha256": "6efde0d5109a0ac60a9a3a1e5d5b30ba3923e44567e01cc875a64363a63027c2"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-démarre-u-a4a3e-bjectif-et-ses-dates-à-jour-chromium/video.webm",
+      "size": 936649,
+      "sha256": "bb70e05c9ed2cc1d5181f32125a75886415298a9b951772354edba9013ba019e"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/error-context.md",
+      "size": 16367,
+      "sha256": "d07b63a8f14db0d7aa863437fe04dfa93d855aa80c7978fa12f45d4f52d95d3f"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/test-failed-1.png",
+      "size": 92298,
+      "sha256": "36ba86285abce61a18bde9e64049204e062dcd4ecf2048f640c933259b2a3b3a"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/trace.zip",
+      "size": 9909785,
+      "sha256": "ef66164720a89c4c35595f3af39a399bde4392db7dc95a1a816c541a0ecd29d8"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-laisse-le-5b232-e-Board-sans-aucun-contrôle-chromium/video.webm",
+      "size": 756311,
+      "sha256": "b5531f12612268380fa47a9281abf73681c82955f3d10f121f0b1bbcd09292c6"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/error-context.md",
+      "size": 116920,
+      "sha256": "c7c9e1d94c9d576cdda12009fe494f5b7efb8f09a4e67b4af1603a9d19320e54"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/test-failed-1.png",
+      "size": 168576,
+      "sha256": "8961fa34877e86588bf84b450c0c9eea0ed87b3cea7b52c41a15dbbc55288ed2"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/trace.zip",
+      "size": 24023476,
+      "sha256": "623573066d549074d4985543a6031df227789704e556c281bed0350defafb970"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-planifie--084db-ser-le-backlog-sur-le-Board-chromium/video.webm",
+      "size": 2977770,
+      "sha256": "832d9143e830beff39ef6455ee1067538f625ce5e2be50ee8d05d7b759584be4"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/error-context.md",
+      "size": 72582,
+      "sha256": "7795869c11dec2c77f83c46381fa645e711d2cd44adbf8a9353da7ac6acbfe66"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/test-failed-1.png",
+      "size": 198782,
+      "sha256": "d47bdbb2df6fc1698df5f1fb06b3258249cc6f7226239a42fc3cd84b92983a74"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/trace.zip",
+      "size": 2889920,
+      "sha256": "2a554c22c9ef4c1f1db9caeaadf3634e9bdb72861c43a975bd6c083c154f55de"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-planifie--4debb--section-après-rechargement-chromium/video.webm",
+      "size": 357999,
+      "sha256": "1016263e58c054b53f385931203444f68d4aa74a8996cf04c15fef64775476c9"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/error-context.md",
+      "size": 109362,
+      "sha256": "1d3d2ce30cdfc53539654b686c7055545a08cef5564f696363c399d7deb89232"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/test-failed-1.png",
+      "size": 198244,
+      "sha256": "5c1c0dcc85ae3f6e37c4722758679ba4e6bc61ce2227991bc2bfce2b842cf1ef"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/trace.zip",
+      "size": 1400116,
+      "sha256": "913e1259f97976c5871235115996bd27fbc94bceb27904c190f1f3d5330d75dc"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/sprint-lifecycle-restaure--ec4f2-ecs-réseau-de-planification-chromium/video.webm",
+      "size": 124139,
+      "sha256": "712702b5464e525409358adcea4c577c000c77434442b82f3ae2890addc569cb"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-chromium/error-context.md",
+      "size": 12562,
+      "sha256": "e8c35e1a8ee140c6e08ca2420f1e8eb4fe0d8ac0c63d6b2db5e3aa89f6a19c6d"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-chromium/test-failed-1.png",
+      "size": 210587,
+      "sha256": "d4c102cf60ee4f9f18f706c7b5ab53663f51c38f08934e5f7c0e61417b670248"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-chromium/trace.zip",
+      "size": 2503948,
+      "sha256": "95a18b5081fec706d7ba6ce5dcd164329da01c32464a56b8290024da2daf4569"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/ticket-drawer-fenêtre-«-No-4d5c9-ersion-l’écarte-de-la-liste-chromium/video.webm",
+      "size": 277567,
+      "sha256": "87403c06f853ae9f5908ba5c384c7c6474b1e57646c7acb611f656d308267f3c"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--chromium/jir80-create-dialog-contextual.png",
+      "size": 283849,
+      "sha256": "c16dad7910b04a5676c732ce3c1b4e9e4ccecd45862bfdbe62c1af333d4c37cd"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--chromium/jir80-create-dialog-short.png",
+      "size": 141622,
+      "sha256": "d5808a6a980b4b1822634766478edcd382f8419cb90d06859efbe5e871639c5b"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--chromium/jir80-create-dialog-type-open.png",
+      "size": 248490,
+      "sha256": "fe97852964e45cda7dc86b692061bb7df27a9dff53752e57fa6a3d207a8438d2"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/ticket-drawer-fenêtre-«-No-d5a71-ection-au-type-fixe-JIR-80--chromium/jir80-create-dialog.png",
+      "size": 244423,
+      "sha256": "fc695fc67053ef772ea253e5473a854373f379faa2118f79ca18b085452ff9c6"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-chromium/error-context.md",
+      "size": 14748,
+      "sha256": "3b8213502f53e78e1eaafd67a6c1252fecca7c0ec1e48d89bbaa205a2a8878b7"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-chromium/test-failed-1.png",
+      "size": 243748,
+      "sha256": "29d5bec803c60c1c90a338f2ae0c06e531239615ece5174d377f61ac70c72fac"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-chromium/trace.zip",
+      "size": 4776007,
+      "sha256": "1ba8b4cb6454f9dd84c14fb33b1df8dc4ce569c7c67a84d7e01940078f1bb543"
+    },
+    {
+      "path": ".playwright/test-results/baseline-chromium-20261028-233452/ticket-drawer-fenêtre-«-No-e7ccd--dernière-depuis-le-message-chromium/video.webm",
+      "size": 385144,
+      "sha256": "07aa8dafd9c3a94c092ec9d66b036174a3f011ec56f8f316cb34b2e5f469f896"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-2026-08-05-session-06-backlog-foundation-failure-console.log",
+      "size": 350,
+      "sha256": "36391d1160ba0670e44abea9573dad3cfe04c8c0843f4052234a15cb05f7fa21"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-2026-08-05-session-06-backlog-ranking-smoke-console.log",
+      "size": 584,
+      "sha256": "dffbd599dda865b3a4c06ed576c56814cf46ca6b8fbb6437976a267f086656c1"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-2026-08-05-session-08-sprint-capacity-console.log",
+      "size": 261,
+      "sha256": "7e7f73ea4ef91bc21228e5aed8ad82c73ab9ac75ea8fc95057f83c8b2b69dd37"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-2026-08-05-session-08-sprint-lifecycle-failure-console.log",
+      "size": 576,
+      "sha256": "8704ffe361ef9ddebdabfc5e765ade3344a587d9a68625c740357caef3a82e90"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-browse-users-assigns-another-user-with-only-the-default-global-permission-and-persists-it.log",
+      "size": 331,
+      "sha256": "eed6f7328da8230639c1c080375cbb549e2ab2a14c5557a770a5af5b47c64f90"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-create-everywhere-cr-e-une-t-che-depuis-board-sans-sprint-sans-appartenance-de-sprint.log",
+      "size": 151,
+      "sha256": "cc84a3eaee3f5ad82cab4cf42c8487c4e9199a1300ef1460c85ba1448a90e129"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-create-everywhere-cr-e-une-t-che-depuis-releases-sans-appartenance-de-sprint.log",
+      "size": 151,
+      "sha256": "cc84a3eaee3f5ad82cab4cf42c8487c4e9199a1300ef1460c85ba1448a90e129"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-create-everywhere-cr-e-une-t-che-depuis-roadmap-sans-appartenance-de-sprint.log",
+      "size": 151,
+      "sha256": "cc84a3eaee3f5ad82cab4cf42c8487c4e9199a1300ef1460c85ba1448a90e129"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-create-everywhere-le-lecteur-ne-voit-pas-de-bouton-cr-er-sur-les-trois-pages.log",
+      "size": 453,
+      "sha256": "e794615f09865fa72315ac80c0d475da536948603f476d1c7e7fb7a3921bc680"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-le-point-390px-keeps-both-perspectives-in-one-column-with-complete-card-text-and-no-overflow.log",
+      "size": 340,
+      "sha256": "2fe685eabd9fcb00610cb399b8c80d220baccb98cf06aa8107643a39af8ffd44"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-le-point-keyboard-journey-remembers-the-perspective-and-restores-focus-after-closing-a-ticket.log",
+      "size": 407,
+      "sha256": "7e238f58a982ce33fba1e69e8405b36a43ba2c98da7d415539923520b4da14ef"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-permission-schemes-01-create-group-role-scheme-console.log",
+      "size": 720,
+      "sha256": "dce68e57da17e585070942c3e19fbd8fa4b7f5e9f592a0bb2d59add66db8fd0c"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-permission-schemes-02-backlog-isolation-console.log",
+      "size": 360,
+      "sha256": "d12d7dd153eceab7584eb2ea39bd1a27751953cc362fa24daac35d28966f5fa3"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-permission-schemes-03-permission-helper-console.log",
+      "size": 219,
+      "sha256": "7c27d20e3c6074731c3e4cdc77d3faa6738c3f5b83eeb5d6ae91d96682b4c3c4"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-permission-schemes-04-reader-forged-action-console.log",
+      "size": 192,
+      "sha256": "b9b382903cbd2a30ec4ae46c3b80e973aebb113e267d63d284bf2bf8e75bb587"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-permission-schemes-05-specialist-controls-console.log",
+      "size": 213,
+      "sha256": "386332ac4603709d66b1030892fef573137cc43588cb4bf4f67c3aa507ab5b94"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-permission-schemes-06-release-permission-interface-console.log",
+      "size": 409,
+      "sha256": "142b329d2a6c85be6049ea2d2c12d28b14da615987964ab38b675915b0bfbd99"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-permission-schemes-07-browse-removal-console.log",
+      "size": 879,
+      "sha256": "8a1640e9b3fe07f0f14601102865f872e236809840b856d9396900632684b4ff"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-permission-schemes-08-stale-shared-scheme-console.log",
+      "size": 524,
+      "sha256": "15c2ebecf5f5255dd16c81c74fe3c88ca97d18ca6fc93d0890be3399cb353746"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-permission-schemes-09-security-history-console.log",
+      "size": 209,
+      "sha256": "7bc3881bbab147e51aa9baa4a1bad87f849ce22d502f1ba88e09ec14ad0ea46d"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-permission-schemes-10-reload-second-user-console.log",
+      "size": 560,
+      "sha256": "20f38004caa31f9c3abdbbde5408e657684400159aa18993f2b9cc594f14bb26"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-realtime-increments-the-other-user-s-bell-after-a-mention.log",
+      "size": 338,
+      "sha256": "05a6479370fb010e16b446e14ce16fd841c502fba598f7fc392da59574c8f197"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-realtime-offers-a-list-refresh-to-the-other-user-only.log",
+      "size": 338,
+      "sha256": "05a6479370fb010e16b446e14ce16fd841c502fba598f7fc392da59574c8f197"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-realtime-refreshes-the-other-user-s-open-item-automatically.log",
+      "size": 338,
+      "sha256": "05a6479370fb010e16b446e14ce16fd841c502fba598f7fc392da59574c8f197"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s01.log",
+      "size": 416,
+      "sha256": "677395e22811135bec1c21f5622ef904545928200f74f099e85c3aa0ea90fd50"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s02.log",
+      "size": 251,
+      "sha256": "47b026d98c549461a1269fbb585b5e533afd6c3ec9dd1dae091b51088c63a7ad"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s03.log",
+      "size": 231,
+      "sha256": "02c229911967be2bdfbd360334b66e89cef3f9469753d887beb7e8f098858f20"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s04.log",
+      "size": 416,
+      "sha256": "6b0b92eb508e90137be09f2f24defbcb9d95ebc2c77f749dd1d3f9cfda195eac"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s05.log",
+      "size": 194,
+      "sha256": "2857b0fbc42f10c520913e0e1d05f2e2fdea82053cd513eeb5726744d3991382"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s06.log",
+      "size": 377,
+      "sha256": "2d7d15e7355a8401c948dab3b7f173508e980a4314641e348b20fbdb66cd98d8"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s07.log",
+      "size": 833,
+      "sha256": "83ade797eeca5c442f5d68582ef4dfbe37a85d904627cfe831abfc629065e0a8"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s08.log",
+      "size": 251,
+      "sha256": "75ea6e322dc0a87a7aeb301958e68c750647028b47bfb2266148207c20325cc0"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s09.log",
+      "size": 496,
+      "sha256": "b2e3cffe89b4ca4ba75e243e6c2f8bd0b72e5963210515c4bc13dee440242c03"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s10.log",
+      "size": 252,
+      "sha256": "b2204815134b0d1685981ff64c6adf1fff45743641ecd11333aa836ccddfc701"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s11.log",
+      "size": 232,
+      "sha256": "6a347d0bbaab531f8612484ceee5bace4e5aab6f9f6e81031b2b2102020e42cb"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s12.log",
+      "size": 704,
+      "sha256": "dc1ab9242099241e3c622d6e874a3d79f053f14740e455539b21b31044ec14cc"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s13.log",
+      "size": 419,
+      "sha256": "5816fb8ac470529b85cd77f83191a6cc33c48983454abf570dbb4d1c82e865c6"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s14.log",
+      "size": 839,
+      "sha256": "84ca71f24b3e61da7e66b35aea6bb8bbddda7167eca4891ae572d7d18cd5121d"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s15.log",
+      "size": 1191,
+      "sha256": "351d2ca05e978e66f2a0a9b15dac3a718d52486ab5c18f5ed7fbc9411a40beba"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s16.log",
+      "size": 421,
+      "sha256": "b1bd091385da3933da087b37ab51c3d81de49bf111047d8d9b8a75db76bab991"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s17.log",
+      "size": 252,
+      "sha256": "0c68e9f5fc8e4f794cd87d35068ef48981fd6bdd8dfdd4546e9bb60fdfc77eb2"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s18.log",
+      "size": 817,
+      "sha256": "eabb697f56eeafa5896763f3e112f883492f0e4a511206a7b23e0bf7e1f26e37"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s19.log",
+      "size": 252,
+      "sha256": "85c6d0bd452c2c93e33207d56701143e0656763b560dc82fe7f0803e9d0cdb0a"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s20.log",
+      "size": 1069,
+      "sha256": "b9706fc1f32a3acaa016588627b39726234a82e8501ad6a0389e7cf87ff68945"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s21.log",
+      "size": 821,
+      "sha256": "73e63d5917734a30e29191d2f628a7444093454dab692ec78c4d6a7a036a1619"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s22.log",
+      "size": 362,
+      "sha256": "70b67b820836334abfedda2e8df506109c6035563e3558a107aee4ef95556b25"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s23.log",
+      "size": 835,
+      "sha256": "4c72fade830553d4902f6d4f65c672367b06080722e8ace7b0f705d8ab915918"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s24.log",
+      "size": 1264,
+      "sha256": "a18308fbcd6a6051ecc28b61b9f28da682a105fdb38f98f1986abe2e8e811386"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s25.log",
+      "size": 1493,
+      "sha256": "d7ef79ea43a34c1a3630645a0d630e2c3c7438734df684691f573d99e2794716"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s26.log",
+      "size": 368,
+      "sha256": "b962e611a210fd9a2bb179dd89509eb618b6794a1ce1e47366f37253ccab0b25"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-releases-s27.log",
+      "size": 2290,
+      "sha256": "3dadcb484941ce3c3bca7cb439165fe4ac275625d0f74299ba562aec0d02c78d"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-reports-s01.log",
+      "size": 798,
+      "sha256": "66b7bbb4e460a54ab35b7d460185477a8702c81122f6d4849b53fe2ff3120c38"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-reports-s02.log",
+      "size": 1792,
+      "sha256": "ae392409d0f1c2c7a9c6b2ceceff8df06a6b0bc6e6df708a0fac69d5fa5b2e2e"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-reports-s03.log",
+      "size": 3085,
+      "sha256": "5dce215257add9f6afefc85d672c0d9d44156abfc774df6cb777fdab0c8fe23b"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-reports-s04.log",
+      "size": 674,
+      "sha256": "343b52fddc4ba4828b6c48419c90c8ad48cf816620e403c6c9bdbc6823b135eb"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-reports-s05.log",
+      "size": 375,
+      "sha256": "7a76472f6d3b73aef994f42ae7c21853a81fc5cf43813656ad31980038af6585"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-reports-s06.log",
+      "size": 3054,
+      "sha256": "ed736602ac6b63eacd5625c114b3c22a928ba8254d4943f99a19ff83067f8b7c"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-reports-s07.log",
+      "size": 704,
+      "sha256": "f875fab837131ae05586bbebff30de5e94a52566fb5ff5d27e7449c13171baa0"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-reports-s08.log",
+      "size": 1043,
+      "sha256": "44c1074c46f3c8cf96de01dee773327a70fbd50a4572dbfa3a5cefb21e8a3093"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-reports-s09.log",
+      "size": 1949,
+      "sha256": "41eeec65f68b5bc5399f205c7d9bb7a877ea3be9210ddf26f7976d2b6bd9a8be"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-reports-s10.log",
+      "size": 922,
+      "sha256": "8854e37687c867bd60f43451f74371032474250f266cf9e8050805243e5b4f8a"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-reports-s11.log",
+      "size": 2571,
+      "sha256": "c696a879e37ed5948b8e7744dea2e70f68b1febf585eed55c3a1918904d842c7"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-reports-s12.log",
+      "size": 499,
+      "sha256": "898a354fc27517d87e0be9334ba0f993348c04e789bc7ef385c18158c75d0c35"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-roadmap-keeps-the-reader-s-bars-read-only.log",
+      "size": 316,
+      "sha256": "0a148c3ec523a7901e1508bf641778f9de40ea755d81e8e05af18d73d7a2065b"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-roadmap-persists-a-dragged-epic-and-opens-matching-dates-in-its-drawer.log",
+      "size": 316,
+      "sha256": "c703220e7231fa6d5452cc3ee5da17cc7b93b03eda3eb9445d0789a72ccdc4ce"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-roadmap-persists-two-one-day-keyboard-moves.log",
+      "size": 316,
+      "sha256": "c703220e7231fa6d5452cc3ee5da17cc7b93b03eda3eb9445d0789a72ccdc4ce"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-roadmap-plans-seven-days-from-a-click-on-an-empty-row-and-keeps-them.log",
+      "size": 316,
+      "sha256": "c703220e7231fa6d5452cc3ee5da17cc7b93b03eda3eb9445d0789a72ccdc4ce"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-roadmap-remembers-the-selected-zoom-after-reload.log",
+      "size": 316,
+      "sha256": "c703220e7231fa6d5452cc3ee5da17cc7b93b03eda3eb9445d0789a72ccdc4ce"
+    },
+    {
+      "path": "audit/console/baseline-chromium-20261028-233452-roadmap-shows-the-hierarchy-and-calendar-on-desktop-and-mobile.log",
+      "size": 165,
+      "sha256": "d64f0ec4539d00c9908da229e6bc649295dcbf7b039031cd4e45c4407036dec1"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-2026-08-05-session-06-backlog-foundation-failure-requests.log",
+      "size": 4502,
+      "sha256": "21501cc19165d0a0e598da3e27d0ecc6dfb2954964959de44a3cc537dd375ef8"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-2026-08-05-session-06-backlog-ranking-smoke-requests.log",
+      "size": 13366,
+      "sha256": "814b53125b7298d4953edfaebddbc88b32a5dcf641286c5d95f8db192f0c283b"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-2026-08-05-session-08-sprint-capacity-requests.log",
+      "size": 4362,
+      "sha256": "caf1fbb7ee325ee5d1a2f75a8ca2321543cb1c7a96330321f11684d3e2f5ea0f"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-2026-08-05-session-08-sprint-lifecycle-failure-requests.log",
+      "size": 9408,
+      "sha256": "72d1a3d5e6ea5b1c0b0f66f1ee16cca1ca37f553319012abe744ad87a75c3cb1"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-browse-users-assigns-another-user-with-only-the-default-global-permission-and-persists-it.log",
+      "size": 9977,
+      "sha256": "43638faf9bfd10253b00304d50ce3c5ea4ae52018a9c4eb2023e24d8410ed17d"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-create-everywhere-cr-e-une-t-che-depuis-board-sans-sprint-sans-appartenance-de-sprint.log",
+      "size": 5273,
+      "sha256": "f76241b252d451393654b307d58f43c5e81906cfef1ea0a6ce0ca8e39206d3bd"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-create-everywhere-cr-e-une-t-che-depuis-releases-sans-appartenance-de-sprint.log",
+      "size": 7304,
+      "sha256": "ddeee92690e13ca64e74e966cdcc4e1966c44241c0da5b72e2ca9500f072cbc0"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-create-everywhere-cr-e-une-t-che-depuis-roadmap-sans-appartenance-de-sprint.log",
+      "size": 4387,
+      "sha256": "e933275251be1564bad7177f80b10efcc3e5a67306d82d04f169d2f571e0b487"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-create-everywhere-le-lecteur-ne-voit-pas-de-bouton-cr-er-sur-les-trois-pages.log",
+      "size": 10686,
+      "sha256": "bca572bdbd5e3bc38a55246aaa24a8d03dc755e3cb1c007d41b9b8746f0a43d2"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-le-point-390px-keeps-both-perspectives-in-one-column-with-complete-card-text-and-no-overflow.log",
+      "size": 11902,
+      "sha256": "05223a3a2c3494d9e91ee79445640069f9fdf943387fe5c2be654b4272e7262b"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-le-point-keyboard-journey-remembers-the-perspective-and-restores-focus-after-closing-a-ticket.log",
+      "size": 12335,
+      "sha256": "49f2c1e5212eeaf4e33a006938385df5d5a05fed798e978ff7dd116562a93dc0"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-permission-schemes-01-create-group-role-scheme-network.log",
+      "size": 11287,
+      "sha256": "d55eb8c176687e6ec65f9124bd321fec9efc538e21ed8e6f9a235c2a996554c2"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-permission-schemes-02-backlog-isolation-network.log",
+      "size": 8558,
+      "sha256": "c6e3a8e1c1f04da8631a8d837e95168d2a338a97d6e8287d19bb109ae05cb117"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-permission-schemes-03-permission-helper-network.log",
+      "size": 3382,
+      "sha256": "e734cafd5f96fe99d20e133c5fb15e179c19152b34f0b1360257336ae4fdc202"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-permission-schemes-04-reader-forged-action-network.log",
+      "size": 2820,
+      "sha256": "f57e0845c9ccb58d2bfbb04c3a95adf4a2a68a2e26bce307e41e4c82c9878682"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-permission-schemes-05-specialist-controls-network.log",
+      "size": 4402,
+      "sha256": "b22323bcc2a835818a0c05b0c8a5291c41bfa12c32f1716b6d29f70b2c8732fb"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-permission-schemes-06-release-permission-interface-network.log",
+      "size": 8229,
+      "sha256": "2a87b1e9ea91bcddf4aac59a37ddb15fe2f33b3af0aed0ae769491201a029630"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-permission-schemes-07-browse-removal-network.log",
+      "size": 18428,
+      "sha256": "e0614b8705a79a70f8c0b0d684766fb58c8df2fd56d688af316a0f42b1e1530c"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-permission-schemes-08-stale-shared-scheme-network.log",
+      "size": 9433,
+      "sha256": "03b1edf660c0393aff902caa49dda7de64de4564d0aa7f9a58b3d0780e2e1e0a"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-permission-schemes-09-security-history-network.log",
+      "size": 2908,
+      "sha256": "7c940586b22cd0651fd9a37a67dd2f1d4bef6f885df17f4e29821b2354e4f5f5"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-permission-schemes-10-reload-second-user-network.log",
+      "size": 10522,
+      "sha256": "3591f894c9870bb23d52cbb5d027a7bd4168e91ee4de1adbbc0f91119b369e9e"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-realtime-increments-the-other-user-s-bell-after-a-mention.log",
+      "size": 9616,
+      "sha256": "94d34d88ebd45a2cf9aadedd823cf46ba23b066293b03f7d32a496dac571e293"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-realtime-offers-a-list-refresh-to-the-other-user-only.log",
+      "size": 9596,
+      "sha256": "7528f5fe63c17fd3957d059a8830eee3909f0fe5ea6de9ca1231049324e70107"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-realtime-refreshes-the-other-user-s-open-item-automatically.log",
+      "size": 9682,
+      "sha256": "88773afeaa869584154a4029755ab715cadf4d707eadf7b221e2b98cd90b8707"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s01.log",
+      "size": 19225,
+      "sha256": "ecae3f81c4841b083148b8094a412f55692b60df009a0a5752cf8f0d377a8893"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s02.log",
+      "size": 11661,
+      "sha256": "72769c3c895e64cb18f87183f65f8697ea37e32592e42c29bafd94338bd923ff"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s03.log",
+      "size": 11000,
+      "sha256": "e7a31f2ff78ca92aefbd9f773afa21987743c4ab3e0a59b032ae259217e9c3cd"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s04.log",
+      "size": 21914,
+      "sha256": "97f0a018a196bbb9ab20e8c6352f56b70ac88f337c9d29830b7e547a1f1d2367"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s05.log",
+      "size": 6587,
+      "sha256": "16f0964f20bda42132d7ed32ca46ee3091e00071e34a294740a1d6e74f89f439"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s06.log",
+      "size": 8296,
+      "sha256": "d4e9efebf82cbdb90ceb1a00d26f1091949fd3039a22f3f515550ad7afd51737"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s07.log",
+      "size": 7909,
+      "sha256": "9fc2d23e0d25685d050ad2ca8eb4df3ced65221d54817a4efc2e0a17d60b692a"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s08.log",
+      "size": 8592,
+      "sha256": "6debb32da13bf0ffd31ad0adc3f66beab06d6835987e9ddb3097e18453ee699f"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s09.log",
+      "size": 7899,
+      "sha256": "3955b70d83bba37ea7116f16f1c972a1eceef5639ed9a623c04532933e46bd94"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s10.log",
+      "size": 8127,
+      "sha256": "64e01aed1ea38fb79b404f2712b7c6f5e0296502255b3511881e89af7b9fcd82"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s11.log",
+      "size": 12155,
+      "sha256": "b22f40c7a42f9242dc6d6925b5f3675f110dfdc71ee981122c38a596dc3f0ef0"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s12.log",
+      "size": 13085,
+      "sha256": "3bf6229ff0ac1ecc8a5533413d9524f00d82fcb263cc875bcdf452c567f53f54"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s13.log",
+      "size": 16126,
+      "sha256": "780c15e670abb3d6b53bfcc6f32dd7a1b0987ff6ed49631fa488782da2049892"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s14.log",
+      "size": 7795,
+      "sha256": "521bfd125cd3d4a952e7315d5de3050f96272b31262e3d8aa1d69ba8cfae1dec"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s15.log",
+      "size": 36107,
+      "sha256": "b0c9a5a68cae3eabce40f259c58847f913b4080b6e937681b6e32113f3429644"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s16.log",
+      "size": 20637,
+      "sha256": "df2c96eefd34f2d564032f691696ddd88c3c0f079de1cf742065e28cf8d3c99e"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s17.log",
+      "size": 7455,
+      "sha256": "94f8e22dd142b28387e33602d3481a6e80ca1c44d9447f6cd3dde5c188e30a1e"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s18.log",
+      "size": 15759,
+      "sha256": "7f39e56b9301dae6ad27c03628820826b1644d6f33082a3be7d4248cf8ef85ef"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s19.log",
+      "size": 7455,
+      "sha256": "4252eb95dec36d2d488d9fa71eeabccc89b650393bd12a42368b27fde9e5efb7"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s20.log",
+      "size": 26057,
+      "sha256": "cf54043633e597df2b2a3fd2653b99f3ced6852538849d7ae93a57b989eb86c2"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s21.log",
+      "size": 9174,
+      "sha256": "5c0963fff3036462b0cd8dfba586342febc8752e8404ae503d81f7a5260745ca"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s22.log",
+      "size": 7764,
+      "sha256": "052657560d6ca3f5ab9b9a683f4e02e986478f6405ec9ca6c453fa1113947829"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s23.log",
+      "size": 9097,
+      "sha256": "a741b8ce8440a4b902cf5efd4d4f135aae41147cab5e34978ee5eb1230eeec37"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s24.log",
+      "size": 55115,
+      "sha256": "f8fa75d056b84af9e0bc0fb2c3ba227d09fa8e618eeef075c660da9c85ee315b"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s25.log",
+      "size": 38945,
+      "sha256": "08909d17ca4e227ecde670a60b1d99c6d8cb6598eb9a74566a029b55e4ec4dfb"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s26.log",
+      "size": 8925,
+      "sha256": "2b7e77400f174617aaee5174c9984d1a140b293f4a7acbe2b683b9a6ca9609da"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-releases-s27.log",
+      "size": 81606,
+      "sha256": "824e1d0760c3166a61a07d8abde11b81cb77261017393a49d0aaeec165d45313"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-reports-s01.log",
+      "size": 7636,
+      "sha256": "2bc2570cc899cde5b73bdebba09388eefc3011932977b0dc2df134bfd03d39d9"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-reports-s02.log",
+      "size": 30251,
+      "sha256": "0242d0bf98b6c8e6d95a5b1dd2bd483df37e550fdbb12db2a71b5ef7e8d312ee"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-reports-s03.log",
+      "size": 49006,
+      "sha256": "5b96d50c4e368845487020aaf0a46a3dd08370905bb58a8a9d34c6c2621c572c"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-reports-s04.log",
+      "size": 10283,
+      "sha256": "3280a223a208a317f7df2ff89bd64a9fbd83e96392d8a094fffc69d4f650a86b"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-reports-s05.log",
+      "size": 4063,
+      "sha256": "ed011f8ff112418b66e3d5718ac35396da2bd0a9b0b77254f5c981e8ae6f7670"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-reports-s06.log",
+      "size": 59647,
+      "sha256": "1d0abb81a5ea14c9b56df2164aa037538ffe5c84f75e35a1cf1b9e3afbf8bb2b"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-reports-s07.log",
+      "size": 7477,
+      "sha256": "f1de49e83fde242897ab942853977b9e22c963a73aac89dfe07fe65a7a51b7df"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-reports-s08.log",
+      "size": 18278,
+      "sha256": "43fe96c8f3dc8ada2bf333f3a9408168a54b8797668cbff14213be41b18aba38"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-reports-s09.log",
+      "size": 23623,
+      "sha256": "20ddcff1f3d56098d1423af8781084824e0f503ed34496aaed6933614ba262d8"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-reports-s10.log",
+      "size": 13081,
+      "sha256": "427757b99ea0f58271866c63c4fa980a0187c988ea6ca76307e1a239e85562e2"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-reports-s11.log",
+      "size": 32677,
+      "sha256": "53ccf56fc91632608728c83cbcd420a74d6d183fce9e8dc5c16c513437999cbf"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-reports-s12.log",
+      "size": 4110,
+      "sha256": "69e115c1df198a597184f291fd858cf179054d8c192b7858cf1f2f3200fb5f3f"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-roadmap-keeps-the-reader-s-bars-read-only.log",
+      "size": 7133,
+      "sha256": "e0252e19d2bb437aa640e9bce6e18099277a2fafc33d2c3ca5dcad0947624229"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-roadmap-persists-a-dragged-epic-and-opens-matching-dates-in-its-drawer.log",
+      "size": 7745,
+      "sha256": "758aefcf0bb6cb939bcd9c484b43c071b1388b4fe0a020a15de59857abc3b988"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-roadmap-persists-two-one-day-keyboard-moves.log",
+      "size": 7223,
+      "sha256": "fa5b10e6ba5fcf09eca64bf32f79ed3fe7bae89461547e753cf0889163962c69"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-roadmap-plans-seven-days-from-a-click-on-an-empty-row-and-keeps-them.log",
+      "size": 7175,
+      "sha256": "14c618b5f9ceb4af882c03c1d8bcf3cfca3ba44565efbf9cdde9edf3a06e3e84"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-roadmap-remembers-the-selected-zoom-after-reload.log",
+      "size": 6952,
+      "sha256": "c791b8c2448e73c0e8d8b90cc299af3cd9334922ed6d0386e7319679d75d340c"
+    },
+    {
+      "path": "audit/network/baseline-chromium-20261028-233452-roadmap-shows-the-hierarchy-and-calendar-on-desktop-and-mobile.log",
+      "size": 3483,
+      "sha256": "1fb4b7eff9d0602c8d72746c11074f1acd02b0eaea3efc1bc7a634a238838a51"
+    },
+    {
+      "path": "audit/runs/baseline-chromium-20261028-233452-junit.xml",
+      "size": 342606,
+      "sha256": "9a8ed83f4a18e08c02c14af28bdf89214807faa2d353d7f221a3f143d9ad0959"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-033-releases-s06.png",
+      "size": 130283,
+      "sha256": "ff53de4b40f7e243e85d25860441ee296d90efe214d8ae9d33c589990908fbda"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-034-releases-s07.png",
+      "size": 125365,
+      "sha256": "69a52ad19a38db26478d09b0a1a5202668def6673247b02332aa27fb0e07ba63"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-036-releases-s09.png",
+      "size": 131506,
+      "sha256": "38b5729694e0393fc2e68b6080913b38315fd86515bb345ada8f9d98ad432900"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-039-releases-s12.png",
+      "size": 167986,
+      "sha256": "8e61fa90ea4f9255ed972d002bc5814bbebf52e133f5c0da011f00e7546dc0fd"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-041-releases-s14.png",
+      "size": 132889,
+      "sha256": "5a91994958a9027bb1b2a2f80827c63b87af2367f90d6d3ae8e9a7cfd3601513"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-042-releases-s15.png",
+      "size": 50256,
+      "sha256": "2834feae126de80b23f9cc97057ecd4c958fa98614aaf1c9821182b28b7da96b"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-045-releases-s18.png",
+      "size": 126450,
+      "sha256": "59a09f90b418129b8377fcf47b22e9fa7d9f7a875ea6b3303f9e73c3969c717e"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-047-releases-s20.png",
+      "size": 237575,
+      "sha256": "b048f4b986593396bc54f99005390dd2467f4425358bb8b8c2456e8d05a1fc20"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-048-releases-s21.png",
+      "size": 121317,
+      "sha256": "8b8502d0f05803b5e6f7fa94a9616c5883e73d3641b9cd1edb022760cb501ece"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-049-releases-s22.png",
+      "size": 189824,
+      "sha256": "0597e3def880bb16746652e9572ddc1bf41fc6d5db0c0a900b2d37646f6b9d78"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-050-releases-s23.png",
+      "size": 121354,
+      "sha256": "85a1b983ffceab7a8a368e9a7adf956c35a6b37b01e8e1532670c9a3b69dbbf0"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-051-releases-s24.png",
+      "size": 171958,
+      "sha256": "681ea31306b9b4df06ccddfc1009046408214eb55f19c541e081fa00b8de7d44"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-052-releases-s25.png",
+      "size": 113435,
+      "sha256": "8b579addea90574f0c4eac9cf4fc92f795092abd0d478ea618573c7aadd2c682"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-053-releases-s26.png",
+      "size": 119846,
+      "sha256": "cb32a5f64f65f18e3d111b877dd87fbdd9fb4b751747887ed8452de6f403c0e7"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-BUG-JIR-054-releases-s27.png",
+      "size": 105163,
+      "sha256": "dd3a3d149556cccba64f50b4866ffcb5bb4d9849fb9af599b76216df74f4d1b8"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-EXPECTED-backlog-bulk-network-selection-retained.png",
+      "size": 122419,
+      "sha256": "543f26adc87d5d95ba0ecce03e3b9cd317d32a0962897b02a808c9a4ba824fe7"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-EXPECTED-backlog-rank-network-rollback.png",
+      "size": 100134,
+      "sha256": "6c992a4467169eb92e2742ada55b2f72a262f6af40af565c9cb696983f563f08"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-EXPECTED-sprint-complete-network-error.png",
+      "size": 240567,
+      "sha256": "ba6c039c652e9fd14ec6b22b36949277fd3c96dedd099993dd1bcea22a8154f1"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-EXPECTED-sprint-start-network-error.png",
+      "size": 228957,
+      "sha256": "1e6ddf792e8d8535ad0fb073caeea090266a72506d629254d73c1d28fa960013"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-FIXED-BUG-JIR-024-protected-admin-group-membership-controls.png",
+      "size": 112578,
+      "sha256": "f67c34ebc03d903749b490905293829a4b74db8f56e35ba6596af802174503e6"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-FIXED-BUG-JIR-025-project-role-blockers-clean-console.png",
+      "size": 37296,
+      "sha256": "7bc06c6b8f89ca39615426eb206977c488d89f7dd19bdd562c2f163f9b0e80e1"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-FIXED-PARTIAL-BUG-JIR-015-backlog-ranked.png",
+      "size": 71477,
+      "sha256": "b75515d703d6790b689b3cc50fa1a8d0442c2ce955746b2163afbc61a2faa1e3"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-FIXED-PARTIAL-BUG-JIR-015-board-sans-sprint-actif.png",
+      "size": 80629,
+      "sha256": "11da2ee1561575852c72cf57b3b74a4a25656e7c66bdc049d480ef5787e72768"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-FIXED-PARTIAL-BUG-JIR-015-capacite-depassee.png",
+      "size": 255036,
+      "sha256": "a572ae7c95d14b61e8affab4d368c3fccdd8d8060bd3781022e1f2337a52f8ac"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-browse-users-assigns-another-user-with-only-the-default-global-permission-and-persists-it-failure.png",
+      "size": 197759,
+      "sha256": "2b012ef5bc21f6627c4bf1e1ee848c44da13b58e7d1b8eed3056a1dee60a100d"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-burndown-active-chart-desktop.png",
+      "size": 32012,
+      "sha256": "313bed5b329060ef03da73f7e27eeb8c4e697244028d7433ac3406f3fae533db"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-burndown-active-chart-mobile.png",
+      "size": 22859,
+      "sha256": "d4f18d171c91825b17135c702da5934a3669cc4217ea874bd690b9fbada9cd9d"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-burndown-active-desktop.png",
+      "size": 112783,
+      "sha256": "be8eb419be542f623987b31823ddb2d5b06b699ee0bd6ef2fa9f6f8e3f687937"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-burndown-active-mobile.png",
+      "size": 54790,
+      "sha256": "73e491bed9250a326b2aec9942affa4930c1f389cdbbd1ccda472eb50253e851"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-burndown-completed-chart-desktop.png",
+      "size": 31190,
+      "sha256": "31ca22f2bd491a90e91af88fe6f96b6fa4bae42a30f7ddd9d4d52f01197a4416"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-burndown-completed-chart-mobile.png",
+      "size": 22399,
+      "sha256": "d021bc9c8eefc54887b7b94c3d2c64d628b9c5801de94cc8bcc1f3a95b2c9664"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-burndown-completed-desktop.png",
+      "size": 105532,
+      "sha256": "3721cdce167dfdc8624a050a3566fe16743924f674825bf6691e8e7e4a04ec55"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-burndown-completed-mobile.png",
+      "size": 55750,
+      "sha256": "0e60ac89a08646e7fef09cb80f3307102bf8a731eefb6bbcf3a981a61dee100c"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-burndown-planned-warning-desktop.png",
+      "size": 174316,
+      "sha256": "13d6b4245be9d395300d5c065652917bda29a4cdf0ba7a62cf97449718dc88b0"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-burndown-planned-warning-mobile.png",
+      "size": 102430,
+      "sha256": "c03dba3eb7c36a04833e7db842673e707b966b8d608a7e8a64150d7e7f0ff7aa"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-create-everywhere-board.png",
+      "size": 85451,
+      "sha256": "aea8a46ce34a90bcc52121867408dc712b7f9b6d68ae008ce7e030585d19ef6d"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-create-everywhere-cr-e-une-t-che-depuis-board-sans-sprint-sans-appartenance-de-sprint-failure.png",
+      "size": 128580,
+      "sha256": "6aa739444c765283a3f81fd1eb42e527aea8a60cdb31703b64b25b65d8acea8c"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-create-everywhere-cr-e-une-t-che-depuis-releases-sans-appartenance-de-sprint-failure.png",
+      "size": 127353,
+      "sha256": "33ffd49adc9700d0daeeb409f9f77d673c8fade43a95c6b58650ad3d0510f0c9"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-create-everywhere-cr-e-une-t-che-depuis-roadmap-sans-appartenance-de-sprint-failure.png",
+      "size": 125406,
+      "sha256": "4bb1db98f9ead3b8615c957cf0f433dfeaeaada5d8390b09fb1ac9605e60289d"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-create-everywhere-le-lecteur-ne-voit-pas-de-bouton-cr-er-sur-les-trois-pages-failure.png",
+      "size": 73218,
+      "sha256": "3a1132b3de3eee23b10065f6e97fb61fcabe2a47d852f1b82398d3cbcb3f740c"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-create-everywhere-releases-opened.png",
+      "size": 126719,
+      "sha256": "422a9425b0c8698df4cd410b72475f85c4faa251234910a55caf1fb2d354e6ea"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-create-everywhere-releases.png",
+      "size": 77474,
+      "sha256": "5a8d6af9db86c42573309f3aa47449885da0e908591c240035dee8fa5730a3d6"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-create-everywhere-roadmap.png",
+      "size": 75647,
+      "sha256": "2b06ff9c736f7a4c6d03234fae13280e11a43db94efd8006911800661d9a2e88"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-le-point-390px-keeps-both-perspectives-in-one-column-with-complete-card-text-and-no-overflow-failure.png",
+      "size": 64227,
+      "sha256": "34898fe4b592099dd78e3f18bef549cabb00aacab72549db795c46bc954c60fd"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-le-point-keyboard-journey-remembers-the-perspective-and-restores-focus-after-closing-a-ticket-failure.png",
+      "size": 117038,
+      "sha256": "f4fcaa74900d491f809561c854a69b0d35134339426d2c89b5ea64ae2d141415"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-realtime-bell.png",
+      "size": 227734,
+      "sha256": "cb64aae79b7dc890909e2f937710e69297ca90c270da6d680b0d63f4fdd984bf"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-realtime-drawer.png",
+      "size": 220686,
+      "sha256": "a79a4777274a20aa00096fc94e66e34c22b66e2bddac64f3e96eecb572bfe796"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-realtime-list-banner.png",
+      "size": 227217,
+      "sha256": "4c8c34bc9891794a160d9c988d069793fdaaba70ec664f8dab5215bee9c61664"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-reports-active-desktop.png",
+      "size": 116033,
+      "sha256": "580201e34f3b8da3639c2cf71c2ef7c298321d56f7aad4553f6b0736adbb47d6"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-reports-active-mobile.png",
+      "size": 61166,
+      "sha256": "387374fbbb124210e04d6affbff05fb0dc81fc0a58b096790c01007b47ebae69"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-reports-completed-desktop.png",
+      "size": 114592,
+      "sha256": "8878ae3bf177cde9122fa46d66ebad3e9263ef98a5b8a5d08437f0b7ffbfd2bd"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-reports-completed-mobile.png",
+      "size": 64293,
+      "sha256": "d0bb8f6fbf85b464d03d2f79c229e58dc4808b87240a03b163611b119fc37803"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-reports-velocity-desktop.png",
+      "size": 85054,
+      "sha256": "97e5c3460d047a0bb9b5eba657ecf95c7e2a0973a101f3b96c3abd6be44a3bec"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-reports-velocity-mobile.png",
+      "size": 47693,
+      "sha256": "95c39f4b32483214fbd870149ffa8bbb530cdbb8a5c32ee2abcf6d8a89a7d622"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-roadmap-desktop-1440.png",
+      "size": 127454,
+      "sha256": "8fc6e55aa5b8a09bde060a4d0d62a64e7dce9f21cd000d16a63a3513b2891461"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-roadmap-keeps-the-reader-s-bars-read-only-failure.png",
+      "size": 136183,
+      "sha256": "ec09eba72dfccccdfa71665a06344485d21f64d6fd4985910cf5e86cce9e97a0"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-roadmap-mobile-390.png",
+      "size": 52065,
+      "sha256": "10d0b22579558320fce029a73e4dcc12451bb5c04ff2e8ba1b611b18870fc6c3"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-roadmap-persists-a-dragged-epic-and-opens-matching-dates-in-its-drawer-failure.png",
+      "size": 220888,
+      "sha256": "b43149947ced4b6e655796394ec46cea68f50b099da9824889f6cce4b869b441"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-roadmap-persists-two-one-day-keyboard-moves-failure.png",
+      "size": 144188,
+      "sha256": "0cb82f98cefd0490db30e8928bfdc038e22c96ff6aa08720e4a5e47c283ed2bb"
+    },
+    {
+      "path": "audit/screenshots/baseline-chromium-20261028-233452-roadmap-plans-seven-days-from-a-click-on-an-empty-row-and-keeps-them-failure.png",
+      "size": 137200,
+      "sha256": "91ecfe78feb1c9234e4547d0280bb7a5d68dba7c72320d39a837519c28cd4687"
+    }
+  ]
+}
