@@ -338,8 +338,9 @@ export async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> 
     try {
       return await fn();
     } catch (e) {
-      const code = (e as { code?: string } | null)?.code;
-      if (code && RETRYABLE_PG_CODES.has(code) && attempt < tries - 1) {
+      const candidate = e as { code?: unknown; cause?: { code?: unknown } } | null;
+      const code = candidate?.code ?? candidate?.cause?.code;
+      if (typeof code === "string" && RETRYABLE_PG_CODES.has(code) && attempt < tries - 1) {
         lastErr = e;
         continue;
       }
