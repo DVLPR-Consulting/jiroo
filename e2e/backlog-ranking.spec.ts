@@ -1,3 +1,4 @@
+import { observePage } from "./support/capture";
 import { expect, test } from "@playwright/test";
 import { writeAuditScreenshot, writeAuditText } from "./audit-artifacts";
 
@@ -17,27 +18,15 @@ test("classe à la souris, restaure au clavier et conserve chaque ordre", async 
   const requestFailures: string[] = [];
   const httpErrors: string[] = [];
 
-  page.on("console", (message) => {
-    const line = `[${message.type()}] ${message.text()}`;
-    consoleLines.push(line);
-    if (message.type() === "error") consoleErrors.push(line);
-  });
-  page.on("pageerror", (error) => {
-    const line = `[pageerror] ${error.message}`;
-    consoleLines.push(line);
-    consoleErrors.push(line);
-  });
-  page.on("requestfailed", (request) => {
-    const line = `${request.method()} ${request.url()} — ${request.failure()?.errorText ?? "échec inconnu"}`;
-    networkLines.push(line);
-    requestFailures.push(line);
-  });
-  page.on("response", (response) => {
-    const request = response.request();
-    const line = `${response.status()} ${request.method()} ${response.url()}`;
-    networkLines.push(line);
-    if (response.status() >= 400) httpErrors.push(line);
-  });
+  observePage(page, {
+    console: consoleLines,
+    network: networkLines,
+    onFault: ({ kind, line }) => {
+      if (kind === "request") requestFailures.push(line);
+      else if (kind === "http") httpErrors.push(line);
+      else consoleErrors.push(line);
+    },
+  }, "admin");
 
   await page.goto("/b/CASS?view=backlog");
   await expect(page.getByRole("heading", { level: 1, name: "Backlog", exact: true })).toBeVisible();
