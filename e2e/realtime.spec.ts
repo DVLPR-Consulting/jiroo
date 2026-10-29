@@ -1,3 +1,4 @@
+import { observePage } from "./support/capture";
 import { expect, test as base, type Page } from "@playwright/test";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../lib/db";
@@ -20,24 +21,7 @@ type Capture = {
 
 function observe(page: Page, label: string): Capture {
   const capture: Capture = { console: [label], network: [label], errors: [] };
-  page.on("console", (message) => {
-    capture.console.push(`[${message.type()}] ${message.text()}`);
-    if (message.type() === "error") capture.errors.push(message.text());
-  });
-  page.on("pageerror", (error) => {
-    capture.console.push(`[pageerror] ${error.message}`);
-    capture.errors.push(error.message);
-  });
-  page.on("requestfailed", (request) => {
-    const line = `${request.method()} ${request.url()} ${request.failure()?.errorText}`;
-    capture.network.push(line);
-    capture.errors.push(line);
-  });
-  page.on("response", (response) => {
-    const line = `${response.status()} ${response.request().method()} ${response.url()}`;
-    capture.network.push(line);
-    if (response.status() >= 400) capture.errors.push(line);
-  });
+  observePage(page, { console: capture.console, network: capture.network, onFault: ({ line }) => capture.errors.push(line) }, label);
   return capture;
 }
 
