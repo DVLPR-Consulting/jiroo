@@ -1,3 +1,4 @@
+import { observePage } from "./support/capture";
 import { expect, test as base, type Page } from "@playwright/test";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../lib/db";
@@ -17,27 +18,10 @@ const EPIC = "Création depuis toutes les pages";
 let backlogId = "";
 let epicId = "";
 
-type Capture = { console: string[]; network: string[]; errors: string[]; navigating: boolean };
+type Capture = { console: string[]; network: string[]; errors: string[] };
 function observe(page: Page): Capture {
-  const capture: Capture = { console: [], network: [], errors: [], navigating: false };
-  page.on("console", (message) => {
-    capture.console.push(`[${message.type()}] ${message.text()}`);
-    if (message.type() === "error") capture.errors.push(message.text());
-  });
-  page.on("pageerror", (error) => capture.errors.push(error.message));
-  page.on("response", (response) => {
-    capture.network.push(`${response.status()} ${response.request().method()} ${response.url()}`);
-    if (response.status() >= 400) capture.errors.push(`${response.status()} ${response.url()}`);
-  });
-  page.on("requestfailed", (request) => {
-    const error = request.failure()?.errorText;
-    const line = `${request.method()} ${request.url()} ${error}`;
-    capture.network.push(line);
-    // A deliberate navigation aborts the previous page's SSE connection.
-    const expected = capture.navigating && new URL(request.url()).pathname === "/api/realtime"
-      && error === "net::ERR_ABORTED";
-    if (!expected) capture.errors.push(line);
-  });
+  const capture: Capture = { console: [], network: [], errors: [] };
+  observePage(page, { console: capture.console, network: capture.network, onFault: ({ line }) => capture.errors.push(line) }, "admin");
   return capture;
 }
 const test = base.extend<{ audit: Capture }>({
@@ -91,7 +75,7 @@ const pages = [
 ] as const;
 
 for (const scenario of pages) {
-  test(`crée une tâche depuis ${scenario.name}, sans appartenance de sprint`, async ({ page, audit }) => {
+  test(`crée une tâche depuis ${scenario.name}, sans appartenance de sprint`, async ({ page }) => {
     await page.goto(`/b/${KEY}${scenario.suffix}`);
     await expect(page.getByRole("heading", { name: scenario.heading, exact: true })).toBeVisible();
     const topbarCreate = page.locator('[data-slot="topbar-create"]').getByRole("button", { name: "Créer", exact: true });
@@ -146,20 +130,15 @@ for (const scenario of pages) {
     await expect(page.getByText(`${task.key} créé`, { exact: true })).toBeVisible();
     await writeAuditScreenshot(`audit/screenshots/create-everywhere-${scenario.name === "Roadmap" ? "roadmap" : scenario.name === "Releases" ? "releases" : "board"}.png`,
       (path) => page.screenshot({ path, caret: "initial" }));
-    audit.navigating = true;
-    try {
-      await page.getByRole("button", { name: "Ouvrir", exact: true }).click();
-      await expect(page.getByRole("dialog", { name: keyPattern(task.key) })).toBeVisible();
-      const opened = new URL(page.url());
-      expect(opened.pathname).toBe(`/b/${KEY}${scenario.name === "Roadmap" ? "/roadmap" : ""}`);
-      expect(opened.searchParams.get("item")).toBe(task.key);
-      if (scenario.name === "Board sans sprint") expect(opened.searchParams.get("view")).toBe("board");
-      if (scenario.name === "Releases") {
-        await writeAuditScreenshot("audit/screenshots/create-everywhere-releases-opened.png",
-          (path) => page.screenshot({ path, caret: "initial" }));
-      }
-    } finally {
-      audit.navigating = false;
+    await page.getByRole("button", { name: "Ouvrir", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: keyPattern(task.key) })).toBeVisible();
+    const opened = new URL(page.url());
+    expect(opened.pathname).toBe(`/b/${KEY}${scenario.name === "Roadmap" ? "/roadmap" : ""}`);
+    expect(opened.searchParams.get("item")).toBe(task.key);
+    if (scenario.name === "Board sans sprint") expect(opened.searchParams.get("view")).toBe("board");
+    if (scenario.name === "Releases") {
+      await writeAuditScreenshot("audit/screenshots/create-everywhere-releases-opened.png",
+        (path) => page.screenshot({ path, caret: "initial" }));
     }
     await expect(page.locator('[data-slot="topbar-create"] button')).toHaveCount(1);
     // C cannot create a second modal while an item drawer is open.
@@ -171,16 +150,11 @@ for (const scenario of pages) {
 
 test.describe("sans droit de création", () => {
   test.use({ storageState: ".playwright/.auth/reader.json" });
-  test("le lecteur ne voit pas de bouton Créer sur les trois pages", async ({ page, audit }) => {
+  test("le lecteur ne voit pas de bouton Créer sur les trois pages", async ({ page }) => {
     // The reader has browse_backlog on CASS but no create_items permission.
     for (const scenario of pages) {
-      audit.navigating = true;
-      try {
-        await page.goto(`/b/CASS${scenario.suffix}`);
-        await expect(page.getByRole("heading", { name: scenario.heading, exact: true })).toBeVisible();
-      } finally {
-        audit.navigating = false;
-      }
+      await page.goto(`/b/CASS${scenario.suffix}`);
+      await expect(page.getByRole("heading", { name: scenario.heading, exact: true })).toBeVisible();
       await expect(page.locator('[data-slot="topbar-create"] button')).toHaveCount(0);
     }
   });

@@ -1,3 +1,4 @@
+import { observePage } from "./support/capture";
 import { expect, test as base, type Page } from "@playwright/test";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../lib/db";
@@ -16,7 +17,7 @@ const REMOVE = "Retirer Parcourir les utilisateurs pour Tous les utilisateurs au
 const EVERYONE = and(eq(permissionGrants.scope, "global"), eq(permissionGrants.permissionKey, "browse_users"), eq(permissionGrants.principalType, "authenticated_user"));
 type Grant = typeof permissionGrants.$inferSelect;
 type Account = { id: string; name: string };
-type Capture = { console: string[]; network: string[]; errors: string[]; navigating: boolean };
+type Capture = { console: string[]; network: string[]; errors: string[] };
 const captures = new Map<Page, Capture>();
 let admin: Account;
 let member: Account;
@@ -26,25 +27,9 @@ let originalDirectGrants: Grant[] = [];
 let originalEveryone: Grant[] = [];
 
 function observe(page: Page, name: string) {
-  const capture: Capture = { console: [name], network: [name], errors: [], navigating: false };
+  const capture: Capture = { console: [name], network: [name], errors: [] };
   captures.set(page, capture);
-  page.on("console", (message) => {
-    capture.console.push(`[${message.type()}] ${message.text()}`);
-    if (message.type() === "error") capture.errors.push(message.text());
-  });
-  page.on("pageerror", (error) => { capture.console.push(error.message); capture.errors.push(error.message); });
-  page.on("response", (response) => {
-    const line = `${response.status()} ${response.request().method()} ${response.url()}`;
-    capture.network.push(line);
-    if (response.status() >= 400) capture.errors.push(line);
-  });
-  page.on("requestfailed", (request) => {
-    const error = request.failure()?.errorText;
-    const line = `${request.method()} ${request.url()} ${error}`;
-    capture.network.push(line);
-    const expected = capture.navigating && new URL(request.url()).pathname === "/api/realtime" && error === "net::ERR_ABORTED";
-    if (!expected) capture.errors.push(line);
-  });
+  observePage(page, { console: capture.console, network: capture.network, onFault: ({ line }) => capture.errors.push(line) }, name);
   return capture;
 }
 
@@ -74,10 +59,7 @@ const test = base.extend<{ pair: { adminPage: Page; memberPage: Page } }>({
 });
 
 async function navigate(page: Page, url: string) {
-  const capture = captures.get(page)!;
-  capture.navigating = true;
-  try { await page.goto(url); }
-  finally { capture.navigating = false; }
+  await page.goto(url);
 }
 
 async function fixture(scenario: string, assignedToMember = false) {
@@ -150,9 +132,7 @@ test.describe("browsing users by default and its removal", () => {
     await select.selectOption(admin.id);
     await expect.poll(async () => (await db.select({ id: items.assigneeId }).from(items).where(eq(items.id, item.id)))[0]?.id).toBe(admin.id);
     await expect(select).toBeEnabled();
-    const capture = captures.get(memberPage)!;
-    capture.navigating = true;
-    try { await memberPage.reload(); } finally { capture.navigating = false; }
+    await memberPage.reload();
     const selected = await editAssignee(memberPage, item.key);
     await expect(selected).toHaveValue(admin.id);
   });
