@@ -41,7 +41,22 @@ shared with the Liste) renders about 6 KB of HTML for 341 bytes of data
 active sprint's 200 tasks, sent whole as the ticket requires, plus the
 section's first 100 rows: about 1.8 MB of rows out of 2.2 MB. Even without any
 Backlog-section row, the 200 sprint rows and the page around them stay above
-1.40 MB. The extra statements read the window's rows, labels, versions,
+1.40 MB. 
+
+Why ÷ 10 is out of reach without lighter rows (accepted for this ticket on
+2026-11-11; the ÷ 10 stays a JIR-41 criterion, for a separate ticket that
+lightens a row's HTML in the Liste and the Backlog):
+
+- target: 14,026,358 ÷ 10 = 1,402,636 bytes;
+- the section's 100 rows cost at most 100 × (5,957 HTML + 341 data)
+  ≈ 629,800 bytes;
+- without any of them the page would still weigh about
+  2,277,404 − 629,800 ≈ 1,647,600 bytes, above the target, because the
+  active sprint's 200 rows (about 200 × 5,957 ≈ 1,191,400 bytes of HTML)
+  are sent whole (criterion 1, JIR-120 D4). A smaller first window
+  (50 rows, about ÷ 7) would not reach it either.
+
+The extra statements read the window's rows, labels, versions,
 blockers, users and group names. The page time falls from 420 to 118 ms (p50).
 
 The page still reads every live item of the backlog on the server for its
