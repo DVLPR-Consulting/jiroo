@@ -1,0 +1,2 @@
+CREATE INDEX "items_backlog_status_idx" ON "items" USING btree ("backlog_id","status_id");--> statement-breakpoint
+CREATE INDEX "items_backlog_parent_rank_idx" ON "items" USING btree ("backlog_id","parent_id","rank");
