@@ -378,7 +378,8 @@ export function ItemTree({
       return [...base, ...served.rows.filter((row) => !known.has(row.id)).map(asTreeItem)];
     });
     setLaterContext((previous) => {
-      const next = new Set(previous);
+      // A reload replaces the windows read after the first one, their ancestors too.
+      const next = new Set(replace ? [] : previous);
       for (const row of served.rows) if (!row.matched) next.add(row.id);
       return next;
     });
@@ -407,7 +408,6 @@ export function ItemTree({
     const structureIds = new Set(fresh.map((row) => row.id));
     const previous = treeItemsRef.current;
     const stale = previous.filter((row) => !structureIds.has(row.id));
-    setLaterContext(new Set());
     setLoadingParents(new Set());
     setLoadingMatches(false);
 
@@ -417,11 +417,14 @@ export function ItemTree({
       const firstCount = fresh.filter((row) => !contextIds.includes(row.id)).length;
       const reload = matchWindow?.nextCursor ? Math.min(extra, Math.max(0, TREE_RELOAD_LIMIT - firstCount)) : 0;
       setMatches({ cursor: matchWindow?.nextCursor ?? null, total: matchWindow?.total ?? null, extra: 0 });
+      // Until the reload arrives, the rows shown before it keep their dimmed ancestors.
+      if (reload === 0) setLaterContext(new Set());
       setTreeItems(reload > 0 ? [...fresh, ...stale] : fresh);
       if (reload > 0) void loadMoreMatches(matchWindow!.nextCursor, reload, fresh);
       return;
     }
 
+    setLaterContext(new Set());
     // The parents read again, in the order they were unfolded, within the limit.
     const parents: Array<{ parentId: string; cursor: null; limit: number }> = [];
     let budget = TREE_RELOAD_LIMIT;

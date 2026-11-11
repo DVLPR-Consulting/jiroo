@@ -671,4 +671,58 @@ describe("ItemTree by windows (JIR-147)", () => {
     // Filtered rows only show what was served: nothing to unfold on demand.
     expect(within(rowNamed("T3")).getByRole("button", { hidden: true })).not.toBeVisible();
   });
+
+  it("reads the matches shown after the first window again after a refresh, keeping their ancestors dimmed", async () => {
+    const user = userEvent.setup();
+    const ancestors = [
+      { ...row("c1", "composant", null, 0, "a0"), matched: false },
+      { ...row("e1", "epic", "c1", 1, "a1"), matched: false },
+      { ...row("e9", "epic", "c1", 1, "a9"), matched: false },
+    ];
+    const loadMatches = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      window: { total: 2, rows: [...ancestors, { ...row("t3", "tache", "e9", 2, "b3"), matched: true }], nextCursor: null },
+    });
+    const tree = (first: Row[]) => (
+      <ViewUrlStateProvider initialEntries={[["view", "tree"], ["q", "t"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={first}
+          contextIds={["c1", "e1"]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          filtersActive
+          window={{ total: 2, nextCursor: { depth: 2, rank: "b1" } }}
+          viewStateQuery="q=t"
+          loadMatches={loadMatches}
+        />
+      </ViewUrlStateProvider>
+    );
+    const first = [row("c1", "composant", null, 0, "a0"), row("e1", "epic", "c1", 1, "a1"), row("t1", "tache", "e1", 2, "b1")];
+    const { rerender } = render(tree(first));
+    await user.click(screen.getByRole("button", { name: "Charger la suite" }));
+    await waitFor(() => expect(names()).toEqual(["C1", "E1", "T1", "E9", "T3"]));
+
+    let answer: (value: unknown) => void = () => undefined;
+    loadMatches.mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
+    rerender(tree([...first]));
+    await waitFor(() =>
+      expect(loadMatches).toHaveBeenLastCalledWith({
+        backlogKey: "DEMO",
+        viewState: "q=t",
+        cursor: { depth: 2, rank: "b1" },
+        limit: 1,
+      }),
+    );
+    expect(names()).toEqual(["C1", "E1", "T1", "E9", "T3"]);
+    expect(rowNamed("E9")).toHaveAttribute("aria-disabled", "true");
+    answer({
+      ok: true,
+      window: { total: 2, rows: [...ancestors, { ...row("t3", "tache", "e9", 2, "b3"), title: "T3 BIS", matched: true }], nextCursor: null },
+    });
+    await waitFor(() => expect(names()).toEqual(["C1", "E1", "T1", "E9", "T3 BIS"]));
+    expect(rowNamed("E9")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText("2 affichés sur 2")).toBeVisible();
+  });
 });
