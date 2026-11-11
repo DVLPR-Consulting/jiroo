@@ -183,8 +183,16 @@ describe("HelpPage", () => {
     expect(views).toHaveTextContent("couvrent toute la section, même les tâches pas encore chargées. Chaque groupe indique son nombre total de tâches.");
     expect(views).toHaveTextContent("une tâche déposée en bas de la partie chargée se place juste après la dernière tâche chargée");
     const page = document.body;
-    expect(page).toHaveTextContent("Dans la « Liste » et le « Backlog », l’actualisation recharge aussi les tickets déjà affichés");
-    expect(page).toHaveTextContent("Dans la « Liste » et le « Backlog », J sur le dernier ticket chargé charge la suite");
+    expect(page).toHaveTextContent("Dans la « Liste », le « Backlog » et l’« Arbre », l’actualisation recharge aussi les tickets déjà affichés");
+    expect(page).toHaveTextContent("Dans la « Liste », le « Backlog » et l’« Arbre » filtré, J sur le dernier ticket chargé charge la suite");
+  });
+
+  it("documents the Arbre unfolded on demand, its filtered matches by 100 and where a drop lands (JIR-147)", () => {
+    render(<HelpPage />);
+    const views = document.querySelector("section#vues") as HTMLElement;
+    expect(views).toHaveTextContent("Les Composants et les Epics s’affichent d’emblée. Les tâches d’une Epic, et les sous-tâches d’une tâche, se chargent quand vous la dépliez : les 100 premières, puis les suivantes par 100 avec « Charger la suite » sous la dernière.");
+    expect(views).toHaveTextContent("Avec un filtre, l’Arbre affiche les 100 premiers tickets trouvés avec leurs parents grisés, puis les suivants par 100");
+    expect(views).toHaveTextContent("Un ticket déposé dans un parent déplié se place juste après son dernier enfant chargé ; dans un parent pas encore déplié, il se place en premier.");
   });
 
   it("documents the rich-text editor (JIR-66)", () => {
