@@ -166,7 +166,10 @@ function firstWindow(
   shown?: Pick<LoadedWindows, "rows" | "groups">,
 ): LoadedWindows {
   const firstCount = source.reduce((count, group) => count + group.items.length, 0);
-  const reload = shown ? Math.min(shown.rows.length, Math.max(0, LIST_RELOAD_LIMIT - firstCount)) : 0;
+  // A first window without a cursor already holds every row: nothing to read again.
+  const reload = shown && cursor
+    ? Math.min(shown.rows.length, Math.max(0, LIST_RELOAD_LIMIT - firstCount))
+    : 0;
   return {
     source,
     generation,
@@ -436,7 +439,8 @@ export function ItemList({
 
   const loadNext = useCallback(async (limit: number): Promise<boolean> => {
     const current = windowsRef.current;
-    if (!current.cursor || !viewStateQuery || loadingRef.current === current.generation) return false;
+    // The default Liste's view state is the empty query: only a missing one blocks.
+    if (!current.cursor || viewStateQuery === undefined || loadingRef.current === current.generation) return false;
     loadingRef.current = current.generation;
     setLoadingGeneration(current.generation);
     setLoadError(null);

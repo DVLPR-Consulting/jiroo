@@ -1065,6 +1065,45 @@ describe("ItemList by windows (JIR-145)", () => {
     expect(loadWindow).toHaveBeenCalledTimes(2);
   });
 
+  it("loads the next window of the default Liste, whose view state is the empty query", async () => {
+    const user = userEvent.setup();
+    const loadWindow = vi.fn(async () => nextWindow);
+    renderList({ ...windowedProps(loadWindow), viewStateQuery: "" });
+
+    await user.click(screen.getByRole("button", { name: "Charger la suite" }));
+
+    expect(loadWindow).toHaveBeenCalledWith(expect.objectContaining({ viewState: "", cursor }));
+    expect(await screen.findByText("4 affichés sur 4")).toBeVisible();
+  });
+
+  it("drops the rows loaded before a refresh whose first window holds every row", async () => {
+    const user = userEvent.setup();
+    const loadWindow = vi.fn(async () => nextWindow);
+    const input = windowedProps(loadWindow);
+    const { rerender } = renderList(input);
+    await user.click(screen.getByRole("button", { name: "Charger la suite" }));
+    await screen.findByText("4 affichés sur 4");
+
+    // The same view after deletions: one row left, nothing after it.
+    rerender(
+      <ViewUrlStateProvider initialEntries={Object.entries(initialUrlParams)}>
+        <ItemList
+          {...input}
+          groups={[{ ...input.groups[0]!, items: [input.groups[0]!.items[0]!] }]}
+          total={1}
+          nextCursor={null}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("listitem", { name: "DEMO-4 — Invoices" })).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("listitem", { name: "DEMO-3 — Tokens" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/affichés sur/)).not.toBeInTheDocument();
+    expect(loadWindow).toHaveBeenCalledTimes(1);
+  });
+
   it("selects the loaded rows only with Ctrl/⌘A", async () => {
     const user = userEvent.setup();
     renderList(windowedProps());
