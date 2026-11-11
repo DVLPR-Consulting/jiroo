@@ -327,8 +327,7 @@ describe("ItemBacklog", () => {
     expect(tables).toHaveLength(3);
     for (const table of tables) expect(table.getAttribute("style")).toBeNull();
     for (const row of screen.getAllByRole("row", { name: /DEMO-/ })) {
-      expect(row.className).toContain("min-h-[var(--row-h)]");
-      expect(row.className).toContain("flex-wrap");
+      expect(row).toHaveClass("ir-row");
     }
   });
 
@@ -724,9 +723,9 @@ describe("ItemBacklog", () => {
     // No priority and no estimate: the editors only show on hover or focus.
     const third = screen.getByRole("row", { name: "DEMO-3 — Déconnexion" });
     const priority = within(third).getByRole("button", { name: "Priorité : Aucune" });
-    expect(priority.parentElement?.parentElement?.className).toContain("opacity-0");
+    expect(priority.parentElement?.parentElement?.className).toContain("ir-reveal");
     const estimate = within(third).getByRole("button", { name: "Estimation : Non estimé" });
-    expect(estimate.closest(".opacity-0")).not.toBeNull();
+    expect(estimate.closest(".ir-reveal")).not.toBeNull();
     expect(within(third).queryByText("Non estimé")).not.toBeInTheDocument();
     expect(within(third).queryByText("Non assigné")).not.toBeInTheDocument();
     expect(within(third).getByRole("button", { name: "Assigné : Non assigné" })).toBeVisible();

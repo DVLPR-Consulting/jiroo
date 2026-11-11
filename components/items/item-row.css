@@ -1,0 +1,91 @@
+@reference "../../app/globals.css";
+
+/* Shared once per stylesheet instead of repeated in every server-rendered row.
+   The component layer keeps utility modifiers (wrapping, empty values) in control. */
+@layer components {
+  .ir-row {
+    @apply flex min-h-[var(--row-h)] flex-wrap items-center gap-x-2.5 gap-y-0.5 border-b border-border py-0.5 pl-2 pr-3 transition-colors last:border-b-0 hover:bg-[var(--muted)]/60 sm:pr-3.5;
+  }
+
+  .ir-reveal {
+    @apply opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100;
+  }
+
+  .ir-bug {
+    color: color-mix(in oklch, var(--danger) 80%, var(--foreground));
+    background: color-mix(in oklch, var(--danger) 12%, transparent);
+    @apply inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11.5px] font-medium;
+  }
+
+  .ir-due {
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-xs text-muted-foreground;
+  }
+
+  .ir-readonly {
+    @apply inline-flex min-h-7 max-w-full items-center gap-1.5 px-1.5 py-1 text-xs text-muted-foreground;
+  }
+
+  .ir-key {
+    @apply shrink-0 font-mono text-[11.5px] font-medium text-muted-foreground;
+  }
+
+  .ir-leading {
+    @apply flex shrink-0 items-center gap-0.5;
+  }
+
+  .ir-identity {
+    @apply flex min-w-0 flex-1 basis-48 items-center gap-2;
+  }
+
+  .ir-link {
+    @apply flex min-w-0 items-center gap-2 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-[var(--ring)];
+  }
+
+  .ir-blocked {
+    color: color-mix(in oklch, var(--danger) 80%, var(--foreground));
+    background: color-mix(in oklch, var(--danger) 14%, transparent);
+    @apply inline-flex flex-none items-center rounded px-1.5 py-0.5 text-[11px] font-medium;
+  }
+
+  .ir-fields {
+    @apply ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-0.5;
+  }
+
+  .ir-parent {
+    @apply inline-flex max-w-40 items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--accent-subtle)] px-2 py-0.5 text-xs font-medium text-[var(--accent-subtle-fg)];
+  }
+
+  .ir-labels {
+    @apply flex min-w-0 flex-wrap items-center gap-1;
+  }
+
+  .ir-status {
+    @apply inline-flex w-28 min-w-0 justify-start;
+  }
+
+  .ir-open {
+    @apply cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)];
+  }
+
+  .ir-grip {
+    @apply inline-flex size-6 cursor-grab items-center justify-center rounded text-[var(--subtle-foreground)] outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .ir-checkbox {
+    @apply mx-1 size-4 cursor-pointer accent-[var(--primary)];
+  }
+
+  .ir-points {
+    @apply inline-flex w-8 justify-center;
+  }
+
+  .ir-icon {
+    flex: none;
+    display: block;
+  }
+
+  .ir-icon:not([width]) {
+    width: 14px;
+    height: 14px;
+  }
+}
