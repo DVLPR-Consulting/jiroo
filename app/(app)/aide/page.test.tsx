@@ -187,12 +187,14 @@ describe("HelpPage", () => {
     expect(page).toHaveTextContent("Dans la « Liste », le « Backlog » et l’« Arbre » filtré, J sur le dernier ticket chargé charge la suite");
   });
 
-  it("documents the Arbre unfolded on demand, its filtered matches by 100 and where a drop lands (JIR-147)", () => {
+  it("documents the Arbre unfolded on demand, its filtered matches by 100 and reparenting positions (JIR-151)", () => {
     render(<HelpPage />);
     const views = document.querySelector("section#vues") as HTMLElement;
-    expect(views).toHaveTextContent("Les Composants et les Epics s’affichent d’emblée. Les tâches d’une Epic, et les sous-tâches d’une tâche, se chargent quand vous la dépliez : les 100 premières, puis les suivantes par 100 avec « Charger la suite » sous la dernière.");
+    expect(views).toHaveTextContent("Les Composants et les Epics s’affichent d’emblée. Dépliez une Epic pour charger ses tâches, ou une tâche pour charger ses sous-tâches : les 100 premières s’affichent, puis les suivantes par 100 avec « Charger la suite », sous le dernier enfant chargé.");
     expect(views).toHaveTextContent("Avec un filtre, l’Arbre affiche les 100 premiers tickets trouvés avec leurs parents grisés, puis les suivants par 100");
-    expect(views).toHaveTextContent("Un ticket déposé dans un parent déplié se place juste après son dernier enfant chargé ; dans un parent pas encore déplié, il se place en premier.");
+    expect(views).toHaveTextContent("Un ticket déposé dans un parent déplié se place juste après son dernier enfant chargé ; dans un parent replié, il se place avant le premier enfant. Si le parent est vide, le ticket garde son rang.");
+    expect(views).toHaveTextContent("« N affichés sur T » indique le nombre de tickets trouvés affichés sur le total après filtres, sans compter les parents grisés. J sur le dernier ticket chargé charge la suite et sélectionne le ticket suivant.");
+    expect(views).toHaveTextContent("Si vous changez le champ « Parent » depuis le panneau de détail, le ticket se place avant le premier enfant du nouveau parent ; si ce parent est vide, il garde son rang.");
   });
 
   it("documents the rich-text editor (JIR-66)", () => {
