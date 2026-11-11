@@ -31,6 +31,7 @@ import {
   treeViewRows,
 } from "@/lib/services/view-rows";
 import { listWindowIds, loadListWindow } from "@/lib/services/list-window";
+import { loadBacklogWindow } from "@/lib/services/backlog-window";
 import type { ListCursor } from "@/lib/items/list-window";
 import {
   legacyBacklogRows,
@@ -473,19 +474,57 @@ describeDb("view rows computed in SQL match the in-memory computation (JIR-143)"
     expect(mismatches).toEqual([]);
   }, 300_000);
 
-  it("Backlog: same rows per section, order and groups, and the same result count", async () => {
+  it("Backlog: same rows per sprint section, order and groups, and the same result count", async () => {
     const mismatches: string[] = [];
     for (const [label, state] of stateCases(fixture)) {
       const expected = legacyBacklogRows(await legacyInput(fixture.backlog.id, state));
+      // The Backlog section is served by windows (JIR-146), checked below.
+      const backlogSection = expected.sections.get("backlog") ?? [];
+      const expectedSprints = new Map([...expected.sections].filter(([section]) => section !== "backlog"));
       const actual = await backlogViewRows(fixture.backlog.id, state);
+      const window = await loadBacklogWindow(fixture.backlog.id, state, { cursor: null, limit: 1 });
       try {
-        expect(actual).toEqual(expected);
+        expect(actual.sections).toEqual(expectedSprints);
+        expect(actual.total + window.total).toBe(expected.total);
+        expect(window.total).toBe(backlogSection.reduce((count, group) => count + group.itemIds.length, 0));
       } catch {
         mismatches.push(label);
       }
     }
     expect(mismatches).toEqual([]);
   }, 300_000);
+
+  it("Backlog by windows (JIR-146): the windows, read from cursor to cursor, are the Backlog section's rows", async () => {
+    const mismatches: string[] = [];
+    for (const [label, state] of stateCases(fixture)) {
+      const expected = legacyBacklogRows(await legacyInput(fixture.backlog.id, state)).sections.get("backlog") ?? [];
+      const countByGroup = new Map(expected.map((group) => [group.key, group.itemIds.length]));
+      for (const limit of [1, 13, 100]) {
+        const groups: Array<{ key: string; itemIds: string[] }> = [];
+        let cursor: ListCursor | null = null;
+        try {
+          for (let windows = 0; windows < 1000; windows += 1) {
+            const window = await loadBacklogWindow(fixture.backlog.id, state, { cursor, limit });
+            expect(window.rows.length).toBeLessThanOrEqual(limit);
+            expect(window.groups.map((group) => group.key)).toEqual([...new Set(window.rows.map((row) => row.groupKey))]);
+            for (const group of window.groups) expect(group.count).toBe(countByGroup.get(group.key));
+            for (const row of window.rows) {
+              const last = groups.at(-1);
+              if (last && last.key === row.groupKey) last.itemIds.push(row.id);
+              else groups.push({ key: row.groupKey, itemIds: [row.id] });
+            }
+            cursor = window.nextCursor;
+            if (!cursor) break;
+            expect(window.rows).toHaveLength(limit);
+          }
+          expect(groups).toEqual(expected);
+        } catch {
+          mismatches.push(`${label} · windows of ${limit}`);
+        }
+      }
+    }
+    expect(mismatches).toEqual([]);
+  }, 600_000);
 
   it("Arbre: same matches and the same dimmed ancestors, in hierarchy order", async () => {
     const mismatches: string[] = [];

@@ -20,6 +20,7 @@ import {
   orderTerm,
   viewFilterCondition,
   viewOrderColumns,
+  type ViewOrderColumn,
 } from "@/lib/items/filter-sql";
 import {
   LIST_WINDOW_SIZE,
@@ -47,20 +48,29 @@ export type ListWindowIds = {
 
 const ref = (name: string): SQL => sql.raw(`"${name}"`);
 
+export type WindowOptions = {
+  cursor: ListCursor | null;
+  limit?: number;
+  /** Narrows the rows to one part of the view (the Backlog section, JIR-146). */
+  scope?: SQL;
+  /** The order inside a group; the view's sort by default. Must be total. */
+  columns?: ViewOrderColumn[];
+};
+
 /** The ids of one window, with the filtered total and the next cursor. */
 export async function listWindowIds(
   backlogId: string,
   state: ViewRowsState,
-  options: { cursor: ListCursor | null; limit?: number },
+  options: WindowOptions,
 ): Promise<ListWindowIds> {
   const limit = options.limit ?? LIST_WINDOW_SIZE;
-  const columns = viewOrderColumns(backlogId, state.sort);
+  const columns = options.columns ?? viewOrderColumns(backlogId, state.sort);
   const cursor = options.cursor;
   // A cursor of another sort (a stale page) has nothing to compare with.
   if (cursor && (cursor.first.length !== columns.length || cursor.last.length !== columns.length)) {
     throw new Error("Curseur de fenêtre invalide.");
   }
-  const where = and(liveItemsOf(backlogId), viewFilterCondition(backlogId, state.filters));
+  const where = and(liveItemsOf(backlogId), viewFilterCondition(backlogId, state.filters), options.scope);
   const own = columns.map((_, index) => ref(`c${index}`));
   const first = columns.map((_, index) => ref(`f${index}`));
   const list = (terms: SQL[]) => sql.join(terms, sql`, `);
@@ -98,7 +108,7 @@ export async function listWindowIds(
   const last = rows.at(-1);
   const total = found[0]
     ? Number(found[0].total)
-    : await countMatches(backlogId, state);
+    : await countMatches(backlogId, state, options.scope);
   return {
     total,
     rows: rows.map((row) => ({ id: row.id, groupKey: row.group_key })),
@@ -113,19 +123,19 @@ export async function listWindowIds(
 }
 
 /** The filtered total when a window comes back empty (past the last row). */
-async function countMatches(backlogId: string, state: ViewRowsState): Promise<number> {
+async function countMatches(backlogId: string, state: ViewRowsState, scope?: SQL): Promise<number> {
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(items)
     .leftJoin(statuses, and(eq(statuses.id, items.statusId), eq(statuses.backlogId, backlogId)))
-    .where(and(liveItemsOf(backlogId), viewFilterCondition(backlogId, state.filters)));
+    .where(and(liveItemsOf(backlogId), viewFilterCondition(backlogId, state.filters), scope));
   return row?.count ?? 0;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** The names of the groups `keys`, as the Liste headers show them. */
-async function groupLabels(
+export async function groupLabels(
   backlogId: string,
   group: GroupKey | null,
   keys: string[],
@@ -161,11 +171,14 @@ async function groupLabels(
   return labelsByKey;
 }
 
-/** What a Liste row shows of the window's items, in the window's order. */
-async function listRowsByIds(
+/**
+ * What a Liste row shows of the window's items, in the window's order, with
+ * their rank (the Backlog's rows carry it, JIR-146).
+ */
+export async function listRowsByIds(
   backlogId: string,
   window: ListWindowIds["rows"],
-): Promise<ListWindowRow[]> {
+): Promise<Array<ListWindowRow & { rank: string }>> {
   const ids = window.map((row) => row.id);
   if (ids.length === 0) return [];
   const parent = alias(items, "row_parent");
@@ -184,6 +197,7 @@ async function listRowsByIds(
         depth: items.depth,
         dueDate: items.dueDate,
         assigneeId: items.assigneeId,
+        rank: items.rank,
         parentKey: parent.key,
         parentTitle: parent.title,
         parentType: parent.type,
@@ -262,11 +276,16 @@ export async function loadListWindow(
 ): Promise<ListWindow> {
   const window = await listWindowIds(backlogId, state, options);
   const keys = [...new Set(window.rows.map((row) => row.groupKey))];
-  const [rows, summaries, names] = await Promise.all([
+  const [rankedRows, summaries, names] = await Promise.all([
     listRowsByIds(backlogId, window.rows),
     viewGroupSummaries(backlogId, state, keys),
     groupLabels(backlogId, state.group, keys),
   ]);
+  // The Liste's rows do not carry the rank.
+  const rows = rankedRows.map(({ rank, ...row }) => {
+    void rank;
+    return row;
+  });
   return {
     total: window.total,
     rows,

@@ -137,6 +137,37 @@ export function calculateSprintMetrics(
 }
 
 /**
+ * A section's figures with tasks moved in (`added`) and out (`removed`), for
+ * a section only part of which is loaded (the Backlog section by windows,
+ * JIR-146): its figures cover the whole section, so a drop shifts them
+ * instead of recounting the loaded rows. The velocity comparison is kept:
+ * the Backlog section has none.
+ */
+export function shiftSectionMetrics(
+  metrics: SprintMetrics,
+  added: ReadonlyArray<Pick<SprintPlanningItem, "estimatePoints" | "done">>,
+  removed: ReadonlyArray<Pick<SprintPlanningItem, "estimatePoints" | "done">>,
+): SprintMetrics {
+  const sum = (rows: typeof added, done: boolean) =>
+    rows.reduce((total, row) => total + (!done || row.done ? (row.estimatePoints ?? 0) : 0), 0);
+  const unestimated = (rows: typeof added) => rows.filter((row) => row.estimatePoints === null).length;
+  const estimatedPoints = roundPoints(metrics.estimatedPoints + sum(added, false) - sum(removed, false));
+  const completedPoints = roundPoints(metrics.completedPoints + sum(added, true) - sum(removed, true));
+  return {
+    ...metrics,
+    itemCount: metrics.itemCount + added.length - removed.length,
+    estimatedPoints,
+    completedPoints,
+    remainingPoints: roundPoints(estimatedPoints - completedPoints),
+    unestimatedCount: metrics.unestimatedCount + unestimated(added) - unestimated(removed),
+    overCapacityPoints:
+      metrics.capacityPoints === null
+        ? 0
+        : roundPoints(Math.max(0, estimatedPoints - metrics.capacityPoints)),
+  };
+}
+
+/**
  * The start commitment to compare for a sprint section: only the active sprint
  * has one. A missing or mismatched record is reported as unavailable rather
  * than falling back to the live scope.

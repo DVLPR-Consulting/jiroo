@@ -48,3 +48,22 @@ export function pointsByStatusCategory(
     })),
   );
 }
+
+/**
+ * A section's points per category with tasks moved in and out, for a section
+ * only part of which is loaded (the Backlog section by windows, JIR-146).
+ */
+export function shiftStatusPoints(
+  points: PointsByStatusCategory,
+  added: ReadonlyArray<{ statusId: string; estimatePoints: number | null }>,
+  removed: ReadonlyArray<{ statusId: string; estimatePoints: number | null }>,
+  statuses: ReadonlyArray<{ id: string; category: StatusCategory }>,
+): PointsByStatusCategory {
+  const plus = pointsByStatusCategory(added, statuses);
+  const minus = pointsByStatusCategory(removed, statuses);
+  return {
+    todo: roundPoints(points.todo + plus.todo - minus.todo),
+    inProgress: roundPoints(points.inProgress + plus.inProgress - minus.inProgress),
+    done: roundPoints(points.done + plus.done - minus.done),
+  };
+}

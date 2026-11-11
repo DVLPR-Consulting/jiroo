@@ -32,9 +32,9 @@ export type ListViewRows = {
 };
 
 export type BacklogViewRows = {
-  /** The Backlog's result count: filtered tasks in a sprint or not done. */
+  /** Filtered tasks in a sprint (the Backlog section's come with its windows). */
   total: number;
-  /** By section (a sprint id, or `"backlog"`); only sections and groups with rows. */
+  /** By sprint section (a sprint id); only sections and groups with rows. */
   sections: Map<string, Array<{ key: string; itemIds: string[] }>>;
 };
 
@@ -140,14 +140,15 @@ export async function listViewRows(backlogId: string, state: ViewRowsState): Pro
 export async function backlogViewRows(backlogId: string, state: ViewRowsState): Promise<BacklogViewRows> {
   const current = alias(sprintItems, "current_sprint_item");
   const currentSprint = alias(sprints, "current_sprint");
-  // A task sits in its current sprint, else in the Backlog section unless done.
-  const section = sql<string | null>`coalesce((
+  // A task sits in its current sprint; the Backlog section, without a
+  // sprint, is served by windows (`loadBacklogWindow`, JIR-146).
+  const section = sql<string | null>`(
     select ${current.sprintId}::text from ${sprintItems} ${current}
     inner join ${sprints} ${currentSprint} on ${currentSprint.id} = ${current.sprintId}
     where ${current.itemId} = ${items.id}
       and ${current.leftAt} is null
       and ${currentSprint.backlogId} = ${backlogId}
-  ), case when ${statuses.category} is distinct from 'done' then 'backlog' end)`;
+  )`;
   // Without a sort, the manual order: rank alone, as the drag and drop sees it.
   const order = state.sort ? viewOrder(backlogId, state.sort) : [asc(binaryTextOrder(items.rank))];
 

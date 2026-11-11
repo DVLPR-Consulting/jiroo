@@ -43,6 +43,7 @@ import {
   treeViewRows,
 } from "@/lib/services/view-rows";
 import { loadListWindow } from "@/lib/services/list-window";
+import { loadBacklogWindow } from "@/lib/services/backlog-window";
 import { PRIORITY_LABELS, type ItemType } from "@/lib/design/constants";
 import { hierarchyStartStep } from "@/lib/tree/hierarchy";
 import { requireAppPageSession } from "@/lib/auth/session";
@@ -227,9 +228,12 @@ export async function BacklogViewContent({
   // (JIR-143) on the effective filters; read meanwhile the rows to display.
   // The Liste only sends its first window (JIR-145), with its own rows.
   const filtersOn = isFiltersActive(viewState.filters);
+  // The Backlog sends its sprint sections whole and the first window of its
+  // « Backlog » section (JIR-146).
   const viewRowsPromise = Promise.all([
     view === "list" ? loadListWindow(backlog.id, viewState, { cursor: null }) : null,
     view === "backlog" ? backlogViewRows(backlog.id, viewState) : null,
+    view === "backlog" ? loadBacklogWindow(backlog.id, viewState, { cursor: null }) : null,
     view === "tree" && filtersOn ? treeViewRows(backlog.id, viewState.filters) : null,
     view === "board" && filtersOn ? matchingTaskIds(backlog.id, viewState.filters) : null,
   ]);
@@ -328,7 +332,7 @@ export async function BacklogViewContent({
     statusOrder: statusOrderById.get(i.statusId) ?? 0,
   })));
   const filterRowById = new Map(filterRows.map((row) => [row.id, row]));
-  const [listWindow, backlogRows, treeRows, boardTaskIds] = await viewRowsPromise;
+  const [listWindow, backlogRows, backlogWindow, treeRows, boardTaskIds] = await viewRowsPromise;
   const boardMatchedIds = boardTaskIds ? new Set(boardTaskIds) : null;
   const isBoardMatch = (id: string) => boardMatchedIds === null || boardMatchedIds.has(id);
 
@@ -491,9 +495,31 @@ export async function BacklogViewContent({
     activeSection?.items.map((item) => item.id) ?? [],
   );
   // Backlog view: each section's filtered rows, already sorted and grouped;
-  // its metrics stay those of the whole section, before the filters.
-  const planningSections = backlogRows
+  // its metrics stay those of the whole section, before the filters. The
+  // « Backlog » section shows its first window (JIR-146), its next ones are
+  // read on demand; its metrics still cover the whole section.
+  const planningSections = backlogRows && backlogWindow
     ? baseSprintSections.map((section) => {
+        if (section.kind === "backlog") {
+          const windowItems = (key: string) =>
+            backlogWindow.rows.flatMap(({ groupKey, ...item }) => (groupKey === key ? [item] : []));
+          const servedGroups = backlogWindow.groups.map((group) => ({
+            key: group.key,
+            label: group.label,
+            count: group.count,
+            items: windowItems(group.key),
+          }));
+          const groups = viewState.group || servedGroups.length > 0
+            ? servedGroups
+            : [{ key: "", label: "", count: 0, items: [] }];
+          return {
+            ...section,
+            statusPoints: pointsByStatusCategory(section.items, statusList),
+            items: groups.flatMap((group) => group.items),
+            groups,
+            window: { total: backlogWindow.total, nextCursor: backlogWindow.nextCursor },
+          };
+        }
         const sectionIds = new Set(section.items.map((item) => item.id));
         const sectionItems = (ids: string[]) =>
           ids.flatMap((id) => {
@@ -553,7 +579,7 @@ export async function BacklogViewContent({
     }));
   const resultCount =
     view === "backlog"
-      ? (backlogRows?.total ?? 0)
+      ? (backlogRows?.total ?? 0) + (backlogWindow?.total ?? 0)
       : view === "board"
         ? boardCards.length
         : view === "list"
@@ -740,6 +766,7 @@ export async function BacklogViewContent({
           releaseOptions={assignableReleaseOptions}
           releaseCapabilities={productCapabilities.releases}
           manualOrder={viewState.sort === null && viewState.group === null}
+          viewStateQuery={listViewQuery.toString()}
         />
       )}
       {view === "list" && (

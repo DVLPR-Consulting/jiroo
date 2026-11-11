@@ -21,9 +21,14 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GripVertical, Inbox, SearchX } from "lucide-react";
 import { rankBacklogItemAction } from "@/app/actions/items";
+import {
+  loadBacklogWindowAction,
+  type LoadBacklogWindowInput,
+  type LoadBacklogWindowResult,
+} from "@/app/actions/backlog-window";
 import {
   moveSprintItemAction as defaultMoveSprintItemAction,
   reorderSprintAction as defaultReorderSprintAction,
@@ -53,6 +58,7 @@ import {
   useRequestedItemKey,
   useViewUrlState,
 } from "@/components/shell/view-url-state";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import type {
   BulkItemCapabilities,
@@ -63,10 +69,21 @@ import type {
 import type { ItemKind } from "@/lib/design/constants";
 import {
   emptySelection,
+  MAX_SELECTION,
   reconcileSelection,
   selectAllVisible,
   toggleItemSelection,
 } from "@/lib/items/selection";
+import type { BacklogWindowRow } from "@/lib/items/backlog-window";
+import {
+  LIST_RELOAD_LIMIT,
+  LIST_WINDOW_SIZE,
+  type ListCursor,
+} from "@/lib/items/list-window";
+import {
+  LOAD_MORE_SHORTCUT_EVENT,
+  moveShortcutFocus,
+} from "@/lib/shortcuts/list-navigation";
 import { sprintBacklogCollisionDetection } from "@/lib/items/sprint-dnd";
 import type {
   SprintMetrics,
@@ -76,12 +93,14 @@ import type {
 import { countLabel } from "@/lib/format/plural";
 import {
   calculateSprintMetrics,
+  shiftSectionMetrics,
   sprintStartCommitmentFor,
   type ActiveSprintStartCommitment,
   type RecentVelocityContext,
 } from "@/lib/items/sprint-planning";
 import {
   pointsByStatusCategory,
+  shiftStatusPoints,
   type PointsByStatusCategory,
 } from "@/lib/items/status-points";
 
@@ -116,6 +135,8 @@ export type BacklogItem = {
 type BacklogGroup = {
   key: string;
   label: string;
+  /** The whole group's task count when only part of it is loaded (JIR-146). */
+  count?: number;
   items: BacklogItem[];
 };
 
@@ -267,7 +288,7 @@ function BacklogRowList({
           {grouped ? (
             <div role="row" className="border-b border-border bg-[var(--surface-2)]">
               <div role="rowheader" className="px-3 py-1.5 text-xs font-semibold">
-                {group.label} · {group.items.length}
+                {group.label} · {group.count ?? group.items.length}
               </div>
             </div>
           ) : null}
@@ -696,7 +717,62 @@ type SprintBacklogSection = SprintPlanningSection<BacklogItem> & {
   groups: BacklogGroup[];
   /** Points per status category of the whole section (server-computed). */
   statusPoints?: PointsByStatusCategory;
+  /**
+   * The « Backlog » section served by windows (JIR-146): its rows are its
+   * first window, its metrics and status points still cover it all.
+   */
+  window?: {
+    /** Every task of the section the filters keep, loaded or not. */
+    total: number;
+    /** Where the next window starts; null when the first one holds every row. */
+    nextCursor: ListCursor | null;
+  };
 };
+
+/** The windows of the Backlog section loaded after its first one (JIR-146). */
+type LoadedWindows = {
+  /** The server render they follow: a new one (a refresh) starts over. */
+  source: SprintBacklogSection[];
+  generation: number;
+  rows: BacklogWindowRow[];
+  groups: Map<string, { label: string; count: number }>;
+  cursor: ListCursor | null;
+  /** The filtered total of the latest window read. */
+  total: number | null;
+  /** Rows to read again at once after a refresh, to keep what was shown. */
+  reload: number;
+  /**
+   * The rows shown before the refresh, kept on screen until they are read
+   * again: the section keeps its length, so the scroll keeps its place.
+   */
+  stale: BacklogWindowRow[];
+};
+
+function firstWindows(
+  source: SprintBacklogSection[],
+  generation: number,
+  shown?: Pick<LoadedWindows, "rows" | "groups">,
+): LoadedWindows {
+  const section = source.find((candidate) => candidate.kind === "backlog");
+  const cursor = section?.window?.nextCursor ?? null;
+  const firstCount = section?.items.length ?? 0;
+  // A first window without a cursor already holds every row: nothing to read again.
+  const reload = shown && cursor
+    ? Math.min(shown.rows.length, Math.max(0, LIST_RELOAD_LIMIT - firstCount))
+    : 0;
+  return {
+    source,
+    generation,
+    rows: [],
+    groups: reload > 0 && shown ? shown.groups : new Map(),
+    cursor,
+    total: null,
+    reload,
+    stale: reload > 0 && shown ? shown.rows.slice(0, reload) : [],
+  };
+}
+
+const LOAD_FAILED = "Impossible de charger la suite. Réessayez avec « Charger la suite ».";
 
 type MoveSprintItemAction = (input: {
   backlogKey: string;
@@ -722,6 +798,9 @@ type SprintBacklogProps = SharedBacklogProps & {
   activeSprintCommitment?: ActiveSprintStartCommitment | null;
   moveSprintItemAction?: MoveSprintItemAction;
   reorderSprintAction?: typeof defaultReorderSprintAction;
+  /** The effective view state of the first window, as view URL parameters (JIR-146). */
+  viewStateQuery?: string;
+  loadWindow?: (input: LoadBacklogWindowInput) => Promise<LoadBacklogWindowResult>;
   createDialogProps?: Pick<NewItemButtonProps, "structure" | "statuses" | "canScheduleItems" | "releaseOptions" | "fieldOptions" | "viewFilters" | "templates">;
 };
 
@@ -780,6 +859,8 @@ function SprintItemBacklog({
   createDialogProps,
   recentVelocity = null,
   activeSprintCommitment = null,
+  viewStateQuery,
+  loadWindow = loadBacklogWindowAction,
 }: SprintBacklogProps) {
   const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
   const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
@@ -791,6 +872,122 @@ function SprintItemBacklog({
     ? Object.values(bulkCapabilities).some(Boolean)
     : legacyCanBulkChangeItems;
   const router = useRouter();
+
+  // The Backlog section's next windows (JIR-146), as in the Liste (JIR-145).
+  // A server render brings a new first window: the rows loaded after it are
+  // read again at once (up to the bulk limit) when the view state is the
+  // same, so a drop, an edit or « Actualiser » keeps what was shown; a new
+  // filter, sort or group starts from its first window.
+  const [windows, setWindows] = useState(() => firstWindows(sections, 0));
+  const [loadingGeneration, setLoadingGeneration] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [shownQuery, setShownQuery] = useState(viewStateQuery);
+  if (windows.source !== sections) {
+    const sameView = shownQuery === viewStateQuery;
+    setShownQuery(viewStateQuery);
+    setLoadError(null);
+    setWindows(firstWindows(sections, windows.generation + 1, sameView ? windows : undefined));
+  }
+  const windowsRef = useRef(windows);
+  const loadingRef = useRef<number | null>(null);
+  useEffect(() => {
+    windowsRef.current = windows;
+  });
+
+  const loadNext = useCallback(async (limit: number): Promise<boolean> => {
+    const current = windowsRef.current;
+    // The default view state is the empty query: only a missing one blocks.
+    if (!current.cursor || viewStateQuery === undefined || loadingRef.current === current.generation) return false;
+    loadingRef.current = current.generation;
+    setLoadingGeneration(current.generation);
+    setLoadError(null);
+    let result: LoadBacklogWindowResult;
+    try {
+      result = await loadWindow({ backlogKey, viewState: viewStateQuery, cursor: current.cursor, limit });
+    } catch {
+      result = { ok: false, error: LOAD_FAILED };
+    }
+    if (loadingRef.current === current.generation) {
+      loadingRef.current = null;
+      setLoadingGeneration(null);
+    }
+    // A refresh meanwhile replaced the windows this one would follow.
+    if (windowsRef.current.generation !== current.generation) return false;
+    if (!result.ok) {
+      setLoadError(result.error);
+      // Rows that could not be read again are not shown as current.
+      setWindows((previous) =>
+        previous.generation === current.generation && previous.reload > 0
+          ? { ...previous, reload: 0, stale: [] }
+          : previous);
+      return false;
+    }
+    const served = result.window;
+    setWindows((previous) => {
+      if (previous.generation !== current.generation) return previous;
+      // A row already shown (in a sprint, or dropped there) is not shown twice.
+      const seen = new Set([
+        ...previous.source.flatMap((section) => section.items.map((item) => item.id)),
+        // A reload replaces the rows it reads again.
+        ...(previous.reload > 0 ? [] : previous.rows.map((row) => row.id)),
+      ]);
+      const groups = new Map(previous.groups);
+      for (const group of served.groups) groups.set(group.key, { label: group.label, count: group.count });
+      return {
+        ...previous,
+        rows: [...(previous.reload > 0 ? [] : previous.rows), ...served.rows.filter((row) => !seen.has(row.id))],
+        groups,
+        cursor: served.nextCursor,
+        total: served.total,
+        reload: 0,
+        stale: [],
+      };
+    });
+    return true;
+  }, [backlogKey, loadWindow, viewStateQuery]);
+
+  // After a refresh, read again the rows that were shown beyond the first window.
+  const { generation, reload } = windows;
+  useEffect(() => {
+    if (reload > 0) void loadNext(reload);
+  }, [generation, reload, loadNext]);
+
+  // Until a reload arrives, the rows shown before it (but no row twice).
+  const extraRows = useMemo(() => {
+    if (windows.reload === 0) return windows.rows;
+    const served = new Set(windows.source.flatMap((section) => section.items.map((item) => item.id)));
+    return windows.stale.filter((row) => !served.has(row.id));
+  }, [windows]);
+
+  // The served sections with the Backlog section's loaded windows: a group
+  // can span several windows, its rows join its header.
+  const loadedSections = useMemo(() => {
+    if (extraRows.length === 0) return windows.source;
+    return windows.source.map((section) => {
+      if (section.kind !== "backlog") return section;
+      const groups = section.groups.map((group) => ({ ...group, items: [...group.items] }));
+      for (const row of extraRows) {
+        const last = groups.at(-1);
+        if (last && last.key === row.groupKey) {
+          last.items.push(row);
+        } else {
+          const group = windows.groups.get(row.groupKey);
+          groups.push({ key: row.groupKey, label: group?.label ?? "", count: group?.count, items: [row] });
+        }
+      }
+      return {
+        ...section,
+        groups,
+        items: groups.flatMap((group) => group.items),
+        window: section.window
+          ? { ...section.window, total: windows.total ?? section.window.total }
+          : undefined,
+      };
+    });
+  }, [extraRows, windows]);
+  const backlogLoading = loadingGeneration === windows.generation;
+  const backlogHasMore = windows.cursor !== null;
+
   const [renderedSections, setRenderedSections] = useState(sections);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(sections.map((section) => [section.id, true])),
@@ -834,9 +1031,51 @@ function SprintItemBacklog({
   }
   useEffect(() => {
     if (activeId !== null || mutationPending) return;
-    const handle = window.setTimeout(() => setRenderedSections(sections), 0);
+    const handle = window.setTimeout(() => setRenderedSections(loadedSections), 0);
     return () => window.clearTimeout(handle);
-  }, [activeId, mutationPending, sections]);
+  }, [activeId, mutationPending, loadedSections]);
+
+  // Scrolling near the end loads the next window; the button stays as a fallback.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const backlogExpanded = expanded.backlog ?? true;
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!backlogHasMore || !backlogExpanded || !sentinel || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void loadNext(LIST_WINDOW_SIZE);
+      },
+      { root: scrollRef.current, rootMargin: "0px 0px 400px 0px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [backlogExpanded, backlogHasMore, loadNext, windows.cursor]);
+
+  // « j » on the last loaded row loads the next window, then moves on to it.
+  const focusAfterLoad = useRef<number | null>(null);
+  const visibleCountRef = useRef(visibleItems.length);
+  useEffect(() => {
+    function onLoadMore() {
+      if (!windowsRef.current.cursor || !backlogExpanded) return;
+      const active = document.activeElement;
+      if (!(active instanceof Node) || !scrollRef.current?.contains(active)) return;
+      focusAfterLoad.current = visibleCountRef.current;
+      void loadNext(LIST_WINDOW_SIZE).then((loaded) => {
+        if (!loaded) focusAfterLoad.current = null;
+      });
+    }
+    window.addEventListener(LOAD_MORE_SHORTCUT_EVENT, onLoadMore);
+    return () => window.removeEventListener(LOAD_MORE_SHORTCUT_EVENT, onLoadMore);
+  }, [backlogExpanded, loadNext]);
+  useEffect(() => {
+    visibleCountRef.current = visibleItems.length;
+    const before = focusAfterLoad.current;
+    if (before !== null && visibleItems.length > before && scrollRef.current) {
+      focusAfterLoad.current = null;
+      moveShortcutFocus(scrollRef.current, 1);
+    }
+  }, [visibleItems.length]);
 
   const selectedItems = visibleItems.filter((item) => selection.selectedIds.has(item.id));
 
@@ -901,11 +1140,33 @@ function SprintItemBacklog({
     section: SprintBacklogSection,
     nextItems: BacklogItem[],
   ): SprintBacklogSection {
-    const planningItems = nextItems.map((item) => ({
+    const planning = (rows: BacklogItem[]) => rows.map((item) => ({
       ...item,
       done:
         statuses.find((status) => status.id === item.statusId)?.category === "done",
     }));
+    if (section.window) {
+      // Only part of the section is loaded: its whole-section figures shift
+      // by the moved tasks instead of being recounted on the loaded rows.
+      const kept = new Set(nextItems.map((item) => item.id));
+      const had = new Set(section.items.map((item) => item.id));
+      const added = nextItems.filter((item) => !had.has(item.id));
+      const removed = section.items.filter((item) => !kept.has(item.id));
+      return {
+        ...section,
+        items: nextItems,
+        groups: [{ key: "", label: "", items: nextItems }],
+        statusPoints: shiftStatusPoints(
+          section.statusPoints ?? pointsByStatusCategory(section.items, statuses),
+          added,
+          removed,
+          statuses,
+        ),
+        metrics: shiftSectionMetrics(section.metrics, planning(added), planning(removed)),
+        window: { ...section.window, total: section.window.total + added.length - removed.length },
+      };
+    }
+    const planningItems = planning(nextItems);
     return {
       ...section,
       items: nextItems,
@@ -1081,7 +1342,7 @@ function SprintItemBacklog({
         onDragEnd={manualOrder && canScheduleItems ? handleDragEnd : undefined}
         onDragCancel={manualOrder && canScheduleItems ? handleDragCancel : undefined}
       >
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
           <div className="flex flex-col gap-4 p-3 sm:p-4">
           {renderedSections.map((section) => {
             const sectionExpanded = expanded[section.id] ?? true;
@@ -1143,7 +1404,11 @@ function SprintItemBacklog({
                             if (selectedCount === sectionVisibleIds.length) {
                               sectionVisibleIds.forEach((id) => next.delete(id));
                             } else {
-                              sectionVisibleIds.forEach((id) => next.add(id));
+                              // A bulk change carries 500 items at most.
+                              for (const id of sectionVisibleIds) {
+                                if (next.size >= MAX_SELECTION) break;
+                                next.add(id);
+                              }
                             }
                             return { selectedIds: next, anchorId: null };
                           })
@@ -1242,6 +1507,31 @@ function SprintItemBacklog({
                       Aucune tâche dans cette section.
                     </p>
                   )
+                ) : null}
+                {sectionExpanded && section.window && (backlogHasMore || extraRows.length > 0) ? (
+                  <div className="flex flex-wrap items-center justify-center gap-3 border-t border-border px-3 py-2 text-sm text-muted-foreground">
+                    <span aria-live="polite">
+                      {section.items.length} affichés sur {Math.max(section.window.total, section.items.length)}
+                    </span>
+                    {backlogHasMore ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={backlogLoading}
+                        aria-busy={backlogLoading}
+                        onClick={() => void loadNext(LIST_WINDOW_SIZE)}
+                      >
+                        Charger la suite
+                      </Button>
+                    ) : null}
+                    {loadError ? (
+                      <span role="alert" className="text-destructive">{loadError}</span>
+                    ) : null}
+                  </div>
+                ) : null}
+                {sectionExpanded && section.window && backlogHasMore ? (
+                  <div ref={sentinelRef} aria-hidden className="h-px" />
                 ) : null}
                 {sectionExpanded && canCreateInSection ? (
                   <SectionCreateFooter

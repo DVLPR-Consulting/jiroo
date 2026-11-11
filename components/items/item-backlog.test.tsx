@@ -6,6 +6,8 @@ import {
   type BacklogItem,
 } from "@/components/items/item-backlog";
 import { hierarchyStartStep } from "@/lib/tree/hierarchy";
+import type { BacklogWindowRow } from "@/lib/items/backlog-window";
+import { moveShortcutFocus } from "@/lib/shortcuts/list-navigation";
 
 const mocks = vi.hoisted(() => ({
   bulkUpdateItemsAction: vi.fn(),
@@ -14,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   rankBacklogItemAction: vi.fn(),
   refresh: vi.fn(),
   moveSprintItemAction: vi.fn(),
+  loadWindow: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -40,6 +43,9 @@ vi.mock("@/app/actions/item-choices", () => ({
 vi.mock("@/app/actions/sprints", () => ({
   moveSprintItemAction: mocks.moveSprintItemAction,
   reorderSprintAction: vi.fn(),
+}));
+vi.mock("@/app/actions/backlog-window", () => ({
+  loadBacklogWindowAction: vi.fn(async () => ({ ok: false, error: "Impossible de charger la suite. Réessayez avec « Charger la suite »." })),
 }));
 
 const todoId = "11111111-1111-4111-8111-111111111111";
@@ -1263,4 +1269,174 @@ it.each(["legacy", "sprints"])("passes denied directory access through %s backlo
   render(<ItemBacklog {...(mode === "legacy" ? props() : sprintProps())} users={[]} canBrowseUsers={false} />);
   await user.click(screen.getAllByRole("button", { name: /^Assigné :/ })[0]!);
   expect(screen.getByText(/Il vous manque la permission globale/)).toBeVisible();
+});
+describe("ItemBacklog: the Backlog section by windows (JIR-146)", () => {
+  type SprintProps = Extract<React.ComponentProps<typeof ItemBacklog>, { sections: unknown }>;
+  const CURSOR = { group: "", first: ["a"], last: ["c0"] };
+
+  function row(id: string, key: string, title: string, overrides: Partial<BacklogWindowRow> = {}): BacklogWindowRow {
+    return { ...task(id, key, title), fixVersions: [], parent: null, groupKey: "", ...overrides } as BacklogWindowRow;
+  }
+
+  /** The Backlog section holds DEMO-3 only, the first of 40 tasks, 3 of which pass the filters. */
+  function windowedProps(): SprintProps {
+    const base = sprintProps() as SprintProps;
+    const [active, future, backlog] = base.sections;
+    return {
+      ...base,
+      viewStateQuery: "",
+      loadWindow: mocks.loadWindow,
+      sections: [active!, future!, {
+        ...backlog!,
+        metrics: { ...backlog!.metrics, itemCount: 40, estimatedPoints: 60, remainingPoints: 60, unestimatedCount: 3 },
+        statusPoints: { todo: 60, inProgress: 0, done: 0 },
+        window: { total: 3, nextCursor: CURSOR },
+      }],
+    };
+  }
+
+  function backlogSection(container: HTMLElement) {
+    return container.querySelector('[data-sprint-section="backlog"]') as HTMLElement;
+  }
+
+  beforeEach(() => {
+    mocks.loadWindow.mockReset();
+    mocks.moveSprintItemAction.mockReset();
+    mocks.refresh.mockReset();
+  });
+
+  it("loads the next window with « Charger la suite », once per row, and counts loaded rows on the filtered total", async () => {
+    const user = userEvent.setup();
+    mocks.loadWindow.mockResolvedValueOnce({
+      ok: true,
+      window: {
+        total: 3,
+        // DEMO-1 is already shown in its sprint: never twice.
+        rows: [row("item-4", "DEMO-4", "Profil"), row("item-1", "DEMO-1", "Authentification")],
+        groups: [{ key: "", label: "", count: 3 }],
+        nextCursor: { group: "", first: ["a"], last: ["d0"] },
+      },
+    }).mockResolvedValueOnce({
+      ok: true,
+      window: { total: 3, rows: [row("item-5", "DEMO-5", "Avatar")], groups: [{ key: "", label: "", count: 3 }], nextCursor: null },
+    });
+    const { container } = render(<ItemBacklog {...windowedProps()} />);
+    const section = backlogSection(container);
+    expect(within(section).getByText("1 affichés sur 3")).toBeVisible();
+    // The section's figures cover all of it, not the loaded rows.
+    expect(within(section).getByText("40 items · 3 non estimés")).toBeVisible();
+
+    await user.click(within(section).getByRole("button", { name: "Charger la suite" }));
+    expect(mocks.loadWindow).toHaveBeenCalledWith({ backlogKey: "DEMO", viewState: "", cursor: CURSOR, limit: 100 });
+    await waitFor(() => expect(within(section).getByText("2 affichés sur 3")).toBeVisible());
+    expect(within(section).getByText("Profil")).toBeVisible();
+    expect(within(section).queryByText("Authentification")).not.toBeInTheDocument();
+
+    await user.click(within(section).getByRole("button", { name: "Charger la suite" }));
+    await waitFor(() => expect(within(section).getByText("Avatar")).toBeVisible());
+    expect(within(section).queryByRole("button", { name: "Charger la suite" })).not.toBeInTheDocument();
+    expect(within(section).getByText("3 affichés sur 3")).toBeVisible();
+  });
+
+  it("says so when the next window cannot be read, and keeps the button", async () => {
+    const user = userEvent.setup();
+    mocks.loadWindow.mockResolvedValueOnce({ ok: false, error: "Impossible de charger la suite. Réessayez avec « Charger la suite »." });
+    const { container } = render(<ItemBacklog {...windowedProps()} />);
+    const section = backlogSection(container);
+    await user.click(within(section).getByRole("button", { name: "Charger la suite" }));
+    expect(await within(section).findByRole("alert")).toHaveTextContent("Impossible de charger la suite.");
+    expect(within(section).getByRole("button", { name: "Charger la suite" })).toBeEnabled();
+  });
+
+  it("reads again the rows shown after the first window on a refresh, keeping them shown meanwhile", async () => {
+    const user = userEvent.setup();
+    mocks.loadWindow.mockResolvedValueOnce({
+      ok: true,
+      window: {
+        total: 3,
+        rows: [row("item-4", "DEMO-4", "Profil"), row("item-5", "DEMO-5", "Avatar")],
+        groups: [{ key: "", label: "", count: 3 }],
+        nextCursor: { group: "", first: ["a"], last: ["e0"] },
+      },
+    });
+    const props = windowedProps();
+    const { container, rerender } = render(<ItemBacklog {...props} />);
+    const section = backlogSection(container);
+    await user.click(within(section).getByRole("button", { name: "Charger la suite" }));
+    await waitFor(() => expect(within(section).getByText("Avatar")).toBeVisible());
+
+    let resolveReload: (value: unknown) => void = () => undefined;
+    mocks.loadWindow.mockReturnValueOnce(new Promise((resolve) => { resolveReload = resolve; }));
+    // A refresh: the server renders the first window again.
+    rerender(<ItemBacklog {...props} sections={props.sections.map((candidate) => ({ ...candidate }))} />);
+    await waitFor(() => expect(mocks.loadWindow).toHaveBeenLastCalledWith({
+      backlogKey: "DEMO", viewState: "", cursor: CURSOR, limit: 2,
+    }));
+    expect(within(section).getByText("Avatar")).toBeVisible();
+    resolveReload({
+      ok: true,
+      window: {
+        total: 3,
+        rows: [row("item-5", "DEMO-5", "Avatar renommé"), row("item-4", "DEMO-4", "Profil")],
+        groups: [{ key: "", label: "", count: 3 }],
+        nextCursor: null,
+      },
+    });
+    await waitFor(() => expect(within(section).getByText("Avatar renommé")).toBeVisible());
+    expect(within(section).getAllByText(/^(Profil|Avatar renommé)$/)).toHaveLength(2);
+  });
+
+  it("« j » on the last loaded row loads the next window and moves on to it", async () => {
+    mocks.loadWindow.mockResolvedValueOnce({
+      ok: true,
+      window: { total: 3, rows: [row("item-4", "DEMO-4", "Profil")], groups: [{ key: "", label: "", count: 3 }], nextCursor: null },
+    });
+    const { container } = render(<ItemBacklog {...windowedProps()} />);
+    const last = container.querySelector<HTMLElement>('[data-shortcut-item="DEMO-3"]')!;
+    last.focus();
+    moveShortcutFocus(container, 1);
+    await waitFor(() => expect(document.activeElement).toBe(
+      container.querySelector('[data-shortcut-item="DEMO-4"]'),
+    ));
+    expect(mocks.loadWindow).toHaveBeenCalledOnce();
+  });
+
+  it("shifts the whole section's figures by a task dropped into it, never recounting the loaded rows", async () => {
+    const user = userEvent.setup();
+    const geometry = mockBacklogGeometry();
+    let resolveMove: (value: { ok: true; item: unknown }) => void = () => undefined;
+    mocks.moveSprintItemAction.mockReturnValueOnce(new Promise((resolve) => { resolveMove = resolve; }));
+    const { container } = render(<ItemBacklog {...windowedProps()} />);
+    const handle = screen.getByRole("button", { name: "Déplacer DEMO-2" });
+    handle.focus();
+    await user.keyboard("[Space][ArrowDown][Space]");
+    await waitFor(() => expect(mocks.moveSprintItemAction).toHaveBeenCalledWith(
+      expect.objectContaining({ itemId: "item-2", sprintId: null }),
+    ));
+    const section = backlogSection(container);
+    // DEMO-2 (5 points, in progress) joins the 40 tasks of 60 points.
+    expect(within(section).getByText("41 items · 3 non estimés")).toBeVisible();
+    expect(within(section).getByText("Points par statut : À faire 60, En cours 5, Terminé 0")).toBeInTheDocument();
+    expect(within(section).getByText("2 affichés sur 4")).toBeVisible();
+    resolveMove({ ok: true, item: items[1] });
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
+    geometry.mockRestore();
+  });
+
+  it("heads a group spanning several windows with the whole group's count", () => {
+    const props = windowedProps();
+    const [active, future, backlog] = props.sections;
+    render(
+      <ItemBacklog
+        {...props}
+        grouped
+        manualOrder={false}
+        sections={[active!, future!, {
+          ...backlog!,
+          groups: [{ key: epicId, label: "Connexion sécurisée", count: 12, items: [items[2]!] }],
+        }]}
+      />,
+    );
+    expect(screen.getByText("Connexion sécurisée · 12")).toBeVisible();
+  });
 });

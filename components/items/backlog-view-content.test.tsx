@@ -126,7 +126,13 @@ vi.mock("@/lib/services/view-rows", async () => {
   }
   return {
     listViewRows: async (_backlogId: string, state: State) => legacy.legacyListRows(await input(state)),
-    backlogViewRows: async (_backlogId: string, state: State) => legacy.legacyBacklogRows(await input(state)),
+    // Sprint sections only: the Backlog section comes by windows (JIR-146).
+    backlogViewRows: async (_backlogId: string, state: State) => {
+      const served = legacy.legacyBacklogRows(await input(state));
+      const backlog = served.sections.get("backlog") ?? [];
+      const sections = new Map([...served.sections].filter(([section]) => section !== "backlog"));
+      return { total: served.total - backlog.reduce((count, group) => count + group.itemIds.length, 0), sections };
+    },
     treeViewRows: async (_backlogId: string, filters: State["filters"]) =>
       legacy.legacyTreeRows(await input({ filters, sort: null, group: null })),
     matchingTaskIds: async (_backlogId: string, filters: State["filters"]) =>
@@ -198,6 +204,59 @@ vi.mock("@/lib/services/list-window", async () => {
           key,
           label: label(key),
           summary: served.groups.find((group) => group.key === key)!.summary,
+        })),
+        nextCursor: flat.length > limit ? { group: "", first: ["0"], last: ["0"] } : null,
+      };
+    },
+  };
+});
+// The Backlog section's first window (JIR-146), proven a slice of the same
+// rows by lib/services/view-rows.integration.test.ts: here the legacy
+// computation's Backlog section, shaped from the mocked reads.
+vi.mock("@/lib/services/backlog-window", async () => {
+  const legacy = await import("@/test-utils/legacy-view-rows");
+  const viewRows = (await import("@/lib/services/view-rows")) as unknown as {
+    viewRowsInput: (state: unknown) => Promise<Parameters<typeof legacy.legacyBacklogRows>[0]>;
+  };
+  type State = Parameters<typeof legacy.legacyBacklogRows>[0]["state"];
+  return {
+    loadBacklogWindow: async (_backlogId: string, state: State, options: { limit?: number }) => {
+      const data = await viewRows.viewRowsInput(state);
+      const groups = legacy.legacyBacklogRows(data).sections.get("backlog") ?? [];
+      const limit = options.limit ?? 100;
+      const flat = groups.flatMap((group) => group.itemIds.map((id) => ({ id, groupKey: group.key })));
+      const window = flat.slice(0, limit);
+      const itemById = new Map(data.items.map((item) => [item.id, item]));
+      const blocked = new Set(((await mocks.blockedItemIds.mock.results.at(-1)?.value) ?? []) as string[]);
+      const keys = [...new Set(window.map((row) => row.groupKey))];
+      return {
+        total: flat.length,
+        rows: window.flatMap(({ id, groupKey }) => {
+          const item = itemById.get(id);
+          if (!item) return [];
+          const parent = item.parentId ? itemById.get(item.parentId) : undefined;
+          return [{
+            id: item.id,
+            key: item.key,
+            title: item.title,
+            type: "tache" as const,
+            kind: item.kind,
+            statusId: item.statusId,
+            priority: item.priority,
+            estimatePoints: item.estimatePoints,
+            assigneeId: item.assigneeId,
+            assigneeName: null,
+            rank: item.rank,
+            blocked: blocked.has(id),
+            fixVersions: [],
+            parent: parent ? { key: parent.key, title: parent.title, type: parent.type } : null,
+            groupKey,
+          }];
+        }),
+        groups: keys.map((key) => ({
+          key,
+          label: state.group ? (itemById.get(key)?.title ?? key) : "",
+          count: groups.find((group) => group.key === key)!.itemIds.length,
         })),
         nextCursor: flat.length > limit ? { group: "", first: ["0"], last: ["0"] } : null,
       };
