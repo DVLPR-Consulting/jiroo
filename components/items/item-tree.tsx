@@ -17,7 +17,7 @@ import {
   type TreeChildrenWindow,
   type TreeMatchCursor,
 } from "@/lib/items/tree-window";
-import { LOAD_MORE_SHORTCUT_EVENT, moveShortcutFocus } from "@/lib/shortcuts/list-navigation";
+import { LOAD_MORE_SHORTCUT_EVENT, shortcutItems } from "@/lib/shortcuts/list-navigation";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
@@ -275,6 +275,8 @@ export function ItemTree({
   }));
   const [laterContext, setLaterContext] = useState<ReadonlySet<string>>(() => new Set());
   const [loadingMatches, setLoadingMatches] = useState(false);
+  // The read in flight, checked synchronously: one window at a time.
+  const loadingMatchesRef = useRef(false);
   // The props the rows were last seeded from (see the re-seed effect below).
   const seeded = useRef(items);
   const seededQuery = useRef(viewStateQuery);
@@ -352,8 +354,9 @@ export function ItemTree({
   /** The next filtered matches: an ancestor already shown is not added twice. */
   const loadMoreMatches = useCallback(async (cursor: TreeMatchCursor | null, limit: number, replace?: TreeItem[]) => {
     // The default view's state is the empty query: only a missing one blocks.
-    if (!cursor || viewStateQuery === undefined) return false;
+    if (!cursor || viewStateQuery === undefined || loadingMatchesRef.current) return false;
     const current = generation.current;
+    loadingMatchesRef.current = true;
     setLoadingMatches(true);
     setError(null);
     let result: LoadTreeMatchesResult;
@@ -363,6 +366,7 @@ export function ItemTree({
       result = { ok: false, error: LOAD_FAILED };
     }
     if (generation.current !== current) return false;
+    loadingMatchesRef.current = false;
     setLoadingMatches(false);
     if (!result.ok) {
       setError(result.error);
@@ -409,6 +413,7 @@ export function ItemTree({
     const previous = treeItemsRef.current;
     const stale = previous.filter((row) => !structureIds.has(row.id));
     setLoadingParents(new Set());
+    loadingMatchesRef.current = false;
     setLoadingMatches(false);
 
     if (filtersActive) {
@@ -470,44 +475,76 @@ export function ItemTree({
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const nextMatches = useCallback(
-    () => loadingMatches ? Promise.resolve(false) : loadMoreMatches(matches.cursor, TREE_WINDOW_SIZE),
-    [loadMoreMatches, loadingMatches, matches.cursor],
+    () => loadMoreMatches(matches.cursor, TREE_WINDOW_SIZE),
+    [loadMoreMatches, matches.cursor],
   );
+  const nextMatchesRef = useRef(nextMatches);
+  useEffect(() => {
+    nextMatchesRef.current = nextMatches;
+  });
+  // Observed again only when a window moves the cursor: a failed read leaves
+  // the observer as it was, so it does not retry by itself while the end
+  // stays in view; « Charger la suite » does.
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!hasMoreMatches || !sentinel || typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) void nextMatches();
+        if (entries.some((entry) => entry.isIntersecting)) void nextMatchesRef.current();
       },
       { root: scrollRef.current, rootMargin: "0px 0px 400px 0px" },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMoreMatches, nextMatches]);
+  }, [hasMoreMatches, matches.cursor]);
 
-  // « j » on the last loaded match loads the next ones, then moves on to them.
-  const focusAfterLoad = useRef<number | null>(null);
+  // « j » on the last row loads the next matches, then moves to the first
+  // one they bring. The tree places them by their parents, possibly above
+  // the focused row (a task under an earlier Epic): the row after it is not
+  // necessarily new, and moving on from it could ask for more again.
+  const focusAfterLoad = useRef<{ before: ReadonlySet<string>; done: boolean } | null>(null);
+  // Bumped when such a read ends, so the check below runs once its rows are shown.
+  const [focusCheck, setFocusCheck] = useState(0);
   useEffect(() => {
     function onLoadMore() {
-      if (!hasMoreMatches) return;
+      const root = scrollRef.current;
+      if (!hasMoreMatches || !root) return;
       const active = document.activeElement;
-      if (!(active instanceof Node) || !scrollRef.current?.contains(active)) return;
-      focusAfterLoad.current = treeItemsRef.current.length;
-      void nextMatches().then((loaded) => {
-        if (!loaded) focusAfterLoad.current = null;
+      if (!(active instanceof Node) || !root.contains(active)) return;
+      if (focusAfterLoad.current !== null) return;
+      const pending = {
+        before: new Set(shortcutItems(root).map((element) => element.getAttribute("data-shortcut-item")!)),
+        done: false,
+      };
+      focusAfterLoad.current = pending;
+      void nextMatchesRef.current().then((loaded) => {
+        if (focusAfterLoad.current !== pending) return;
+        if (!loaded) {
+          focusAfterLoad.current = null;
+          return;
+        }
+        pending.done = true;
+        setFocusCheck((tick) => tick + 1);
       });
     }
     window.addEventListener(LOAD_MORE_SHORTCUT_EVENT, onLoadMore);
     return () => window.removeEventListener(LOAD_MORE_SHORTCUT_EVENT, onLoadMore);
-  }, [hasMoreMatches, nextMatches]);
+  }, [hasMoreMatches]);
   useEffect(() => {
-    const before = focusAfterLoad.current;
-    if (before !== null && treeItems.length > before && scrollRef.current) {
+    const pending = focusAfterLoad.current;
+    const root = scrollRef.current;
+    if (pending === null || !root) return;
+    const added = shortcutItems(root).find((element) => !pending.before.has(element.getAttribute("data-shortcut-item")!));
+    if (added) {
       focusAfterLoad.current = null;
-      moveShortcutFocus(scrollRef.current, 1);
+      added.focus();
+      added.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    } else if (pending.done) {
+      // The window is shown without a row to move to (all under a folded
+      // parent): the focus stays, and the next « j » may load again.
+      focusAfterLoad.current = null;
     }
-  }, [treeItems.length]);
+  }, [treeItems, focusCheck]);
 
   function onDragStart(e: DragEvent<HTMLDivElement>, item: TreeItem) {
     if (!canScheduleItems) return;

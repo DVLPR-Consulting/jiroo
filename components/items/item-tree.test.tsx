@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { currentHref } from "@/test/history";
 import { ItemTree } from "@/components/items/item-tree";
 import { ViewUrlStateProvider } from "@/components/shell/view-url-state";
+import { moveShortcutFocus } from "@/lib/shortcuts/list-navigation";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
@@ -670,6 +671,121 @@ describe("ItemTree by windows (JIR-147)", () => {
     expect(screen.queryByRole("button", { name: "Charger la suite" })).not.toBeInTheDocument();
     // Filtered rows only show what was served: nothing to unfold on demand.
     expect(within(rowNamed("T3")).getByRole("button", { hidden: true })).not.toBeVisible();
+  });
+
+  function filteredTree(first: Row[], loadMatches: NonNullable<Parameters<typeof ItemTree>[0]["loadMatches"]>) {
+    return render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"], ["q", "t"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={first}
+          contextIds={first.filter((item) => item.type === "composant").map((item) => item.id)}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          filtersActive
+          window={{ total: 3, nextCursor: { depth: 1, rank: "a2" } }}
+          viewStateQuery="q=t"
+          loadMatches={loadMatches}
+        />
+      </ViewUrlStateProvider>,
+    );
+  }
+
+  it("does not retry on its own when the next matches fail while the end of the tree stays in view", async () => {
+    // A browser reports a visible target as soon as it is observed.
+    const observed: Array<() => void> = [];
+    class VisibleObserver {
+      constructor(private readonly callback: IntersectionObserverCallback) {}
+      observe() {
+        const fire = () => this.callback([{ isIntersecting: true } as IntersectionObserverEntry], this as never);
+        observed.push(fire);
+        fire();
+      }
+      disconnect() {}
+    }
+    vi.stubGlobal("IntersectionObserver", VisibleObserver);
+    try {
+      const loadMatches = vi.fn().mockResolvedValue({ ok: false, error: "Impossible de charger la suite. Réessayez avec « Charger la suite »." });
+      filteredTree([row("c1", "composant", null, 0, "a0"), row("e1", "epic", "c1", 1, "a1")], loadMatches);
+      expect(await screen.findByRole("alert")).toHaveTextContent("Impossible de charger la suite");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(loadMatches).toHaveBeenCalledTimes(1);
+      expect(observed).toHaveLength(1);
+
+      // « Charger la suite » is how to try again.
+      loadMatches.mockResolvedValueOnce({
+        ok: true,
+        window: { total: 2, rows: [{ ...row("e2", "epic", "c1", 1, "a2"), matched: true }], nextCursor: null },
+      });
+      await userEvent.setup().click(screen.getByRole("button", { name: "Charger la suite" }));
+      await waitFor(() => expect(names()).toEqual(["C1", "E1", "E2"]));
+      expect(loadMatches).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("moves « j » from the last row to the first match the next window brings, wherever the tree puts it", async () => {
+    // E2 is the last row shown; the next window's task sits under E1, above it.
+    const loadMatches = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      window: {
+        total: 3,
+        rows: [
+          { ...row("c1", "composant", null, 0, "a0"), matched: false },
+          { ...row("t1", "tache", "e1", 2, "b1"), matched: true },
+        ],
+        nextCursor: { depth: 2, rank: "b1" },
+      },
+    });
+    filteredTree(
+      [row("c1", "composant", null, 0, "a0"), row("e1", "epic", "c1", 1, "a1"), row("e2", "epic", "c1", 1, "a2")],
+      loadMatches,
+    );
+    rowNamed("E2").focus();
+    // What « j » does on the last row: ask for more, stay put meanwhile.
+    moveShortcutFocus(document.body, 1);
+    await waitFor(() => expect(names()).toEqual(["C1", "E1", "T1", "E2"]));
+    await waitFor(() => expect(rowNamed("T1")).toHaveFocus());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(loadMatches).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the focus and « j » usable when the next matches sit under a folded parent", async () => {
+    const user = userEvent.setup();
+    const loadMatches = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        window: {
+          total: 4,
+          rows: [{ ...row("c1", "composant", null, 0, "a0"), matched: false }, { ...row("t1", "tache", "e1", 2, "b1"), matched: true }],
+          nextCursor: { depth: 2, rank: "b1" },
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        window: { total: 4, rows: [{ ...row("t9", "tache", "e2", 2, "b9"), matched: true }], nextCursor: null },
+      });
+    filteredTree(
+      [
+        row("c1", "composant", null, 0, "a0"),
+        row("e1", "epic", "c1", 1, "a1"),
+        row("e2", "epic", "c1", 1, "a2"),
+        row("t0", "tache", "e1", 2, "b0"),
+      ],
+      loadMatches,
+    );
+    await user.click(within(rowNamed("E1")).getByRole("button", { name: "Replier" }));
+    rowNamed("E2").focus();
+    moveShortcutFocus(document.body, 1);
+    await waitFor(() => expect(loadMatches).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(rowNamed("E2")).toHaveFocus();
+    // The next « j » on the last row may load again.
+    moveShortcutFocus(document.body, 1);
+    await waitFor(() => expect(loadMatches).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(rowNamed("T9")).toHaveFocus());
   });
 
   it("reads the matches shown after the first window again after a refresh, keeping their ancestors dimmed", async () => {
