@@ -1,12 +1,13 @@
 "use client";
 
+import "./item-row.css";
+
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { CSSProperties, ReactNode } from "react";
 import { CalendarDays } from "lucide-react";
 import { KindIcon } from "@/components/icons/kind-icon";
-import { StatusDot } from "@/components/icons/status-dot";
-import { TypeIcon } from "@/components/icons/type-icon";
+import { RowStatusDot as StatusDot, RowTypeIcon as TypeIcon } from "./item-row-icons";
 import {
   FixVersionChips,
   type FixVersionOption,
@@ -84,7 +85,7 @@ export type ItemRowEditing = {
 };
 
 const ROW_CLASS =
-  "group/row flex min-h-[var(--row-h)] flex-wrap items-center gap-x-2.5 gap-y-0.5 border-b border-border py-0.5 pl-2 pr-3 transition-colors last:border-b-0 hover:bg-[var(--muted)]/60 sm:pr-3.5";
+  "group/row ir-row";
 
 /**
  * Editable but empty values (no priority, no estimate) stay out of sight
@@ -92,7 +93,7 @@ const ROW_CLASS =
  * quand une valeur est vide »), so inline editing is never lost.
  */
 const REVEAL_ON_ROW_HOVER =
-  "opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100";
+  "ir-reveal";
 
 const dueDateFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
@@ -137,7 +138,7 @@ export function RowSelectCheckbox({
         onToggle(event.shiftKey);
       }}
       aria-label={`Sélectionner ${itemKey}`}
-      className="mx-1 size-4 cursor-pointer accent-[var(--primary)]"
+      className="ir-checkbox"
     />
   );
 }
@@ -145,11 +146,7 @@ export function RowSelectCheckbox({
 function BugPill() {
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11.5px] font-medium"
-      style={{
-        color: "color-mix(in oklch, var(--danger) 80%, var(--foreground))",
-        background: "color-mix(in oklch, var(--danger) 12%, transparent)",
-      }}
+      className="ir-bug"
     >
       <span aria-hidden className="inline-flex">
         <KindIcon kind="bug" />
@@ -164,7 +161,7 @@ function DueDatePill({ value }: { value: string }) {
   if (!label) return null;
   return (
     <span
-      className="inline-flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-xs text-muted-foreground"
+      className="ir-due"
       title="Échéance"
     >
       <CalendarDays aria-hidden size={12} />
@@ -176,7 +173,7 @@ function DueDatePill({ value }: { value: string }) {
 
 function ReadOnlyStatus({ status }: { status: NonNullable<ItemRowData["status"]> }) {
   return (
-    <span className="inline-flex min-h-7 max-w-full items-center gap-1.5 px-1.5 py-1 text-xs text-muted-foreground">
+    <span className="ir-readonly">
       {status.category ? <StatusDot status={categoryStatusId(status.category)} /> : null}
       <span className="truncate">{status.name}</span>
     </span>
@@ -237,7 +234,7 @@ export function ItemRow({
   const identity = (
     <>
       {item.type ? <TypeIcon type={item.type} /> : null}
-      <span className="shrink-0 font-mono text-[11.5px] font-medium text-muted-foreground">
+      <span className="ir-key">
         {item.key}
       </span>
       <span className={cn("min-w-0 text-sm", wrapTitle ? "whitespace-normal break-words" : "truncate")}>{item.title}</span>
@@ -247,17 +244,17 @@ export function ItemRow({
   const content = (
     <>
       {leading !== undefined ? (
-        <div role={cellRole} className="flex shrink-0 items-center gap-0.5">
+        <div role={cellRole} className="ir-leading">
           {leading}
         </div>
       ) : null}
-      <div role={cellRole} className={cn("flex min-w-0 flex-1 basis-48 items-center gap-2", wrapTitle && "items-start")}>
+      <div role={cellRole} className={cn("ir-identity", wrapTitle && "items-start")}>
         {href ? (
           <Link
             href={href}
             onNavigate={onNavigate}
             title={linkTitle}
-            className={cn("flex min-w-0 items-center gap-2 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-[var(--ring)]", wrapTitle && "flex-1 items-start")}
+            className={cn("ir-link", wrapTitle && "flex-1 items-start")}
           >
             {identity}
           </Link>
@@ -266,11 +263,7 @@ export function ItemRow({
         )}
         {item.blocked ? (
           <span
-            className="inline-flex flex-none items-center rounded px-1.5 py-0.5 text-[11px] font-medium"
-            style={{
-              color: "color-mix(in oklch, var(--danger) 80%, var(--foreground))",
-              background: "color-mix(in oklch, var(--danger) 14%, transparent)",
-            }}
+            className="ir-blocked"
           >
             bloqué
           </span>
@@ -278,12 +271,12 @@ export function ItemRow({
       </div>
       <div
         role={cellRole}
-        className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-0.5"
+        className="ir-fields"
       >
         {item.kind === "bug" ? <BugPill /> : null}
         {item.parent ? (
           <span
-            className="inline-flex max-w-40 items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--accent-subtle)] px-2 py-0.5 text-xs font-medium text-[var(--accent-subtle-fg)]"
+            className="ir-parent"
             title={`${item.parent.key} — ${item.parent.title}`}
           >
             <TypeIcon type={item.parent.type ?? "epic"} size={11} />
@@ -291,7 +284,7 @@ export function ItemRow({
           </span>
         ) : null}
         {labels.length > 0 ? (
-          <span className="flex min-w-0 flex-wrap items-center gap-1">
+          <span className="ir-labels">
             {labels.map((label) => (
               <LabelPill key={label.id} name={label.name} color={label.color} />
             ))}
@@ -320,7 +313,7 @@ export function ItemRow({
           </span>
         ) : null}
         {editing && item.statusId !== undefined ? (
-          <span className="inline-flex w-28 min-w-0 justify-start">
+          <span className="ir-status">
             <InlineStatus
               itemId={item.id}
               backlogKey={backlogKey}
@@ -330,13 +323,13 @@ export function ItemRow({
             />
           </span>
         ) : item.status ? (
-          <span className="inline-flex w-28 min-w-0 justify-start">
+          <span className="ir-status">
             <ReadOnlyStatus status={item.status} />
           </span>
         ) : null}
         {editing || estimable ? (
           <span
-            className={`inline-flex w-8 justify-center ${
+            className={`ir-points ${
               estimable && item.estimatePoints === null && canEdit ? REVEAL_ON_ROW_HOVER : ""
             }`}
           >
@@ -403,7 +396,7 @@ export function ItemRow({
             onOpen();
           }
         }}
-        className={`${rowClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)] ${highlight}`}
+        className={`${rowClass} ir-open ${highlight}`}
         style={style}
       >
         {content}

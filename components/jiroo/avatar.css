@@ -1,0 +1,8 @@
+@reference "../../app/globals.css";
+
+@layer components {
+  .ji-avatar {
+    @apply inline-flex flex-none items-center justify-center rounded-full font-semibold text-white;
+    border: 1.5px solid var(--surface);
+  }
+}

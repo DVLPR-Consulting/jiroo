@@ -22,7 +22,7 @@ import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GripVertical, Inbox, SearchX } from "lucide-react";
+import { Inbox, SearchX } from "lucide-react";
 import { rankBacklogItemAction } from "@/app/actions/items";
 import {
   loadBacklogWindowAction,
@@ -35,6 +35,7 @@ import {
 } from "@/app/actions/sprints";
 import { BulkItemToolbar } from "@/components/items/bulk-item-toolbar";
 import { type FixVersionOption } from "@/components/items/fix-version-picker";
+import { RowGripIcon } from "./item-row-icons";
 import { ItemRow, RowSelectCheckbox } from "@/components/items/item-row";
 import { ItemSection, SectionSelectAll } from "@/components/items/item-section";
 import {
@@ -242,9 +243,9 @@ function BacklogRow({
               data-rank-handle={item.id}
               disabled={mutationPending}
               onClick={(event) => event.stopPropagation()}
-              className="inline-flex size-6 cursor-grab items-center justify-center rounded text-[var(--subtle-foreground)] outline-none hover:bg-[var(--muted)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--ring)] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
+              className="ir-grip"
             >
-              <GripVertical aria-hidden size={15} />
+              <RowGripIcon />
             </button>
           ) : null}
         </>

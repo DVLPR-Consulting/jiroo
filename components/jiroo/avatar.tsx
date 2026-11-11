@@ -1,4 +1,5 @@
 import { LABEL_COLOR_VAR, type LabelHue } from "@/lib/design/constants";
+import "./avatar.css";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -21,13 +22,12 @@ export function InitialsAvatar({
     <span
       role="img"
       aria-label={name}
-      className="inline-flex flex-none items-center justify-center rounded-full font-semibold text-white"
+      className="ji-avatar"
       style={{
         width: size,
         height: size,
         fontSize: size * 0.45,
         background: `var(${LABEL_COLOR_VAR[hue]})`,
-        border: "1.5px solid var(--surface)",
       }}
       title={name}
     >

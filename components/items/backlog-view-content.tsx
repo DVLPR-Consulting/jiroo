@@ -56,6 +56,7 @@ import { DisplayMenu } from "@/components/shell/display-menu";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewActions } from "@/components/shell/view-actions";
 import { ItemList, ListColumnsMenu } from "@/components/items/item-list";
+import { ItemRowIconProvider } from "./item-row-icons";
 import { ItemBacklog } from "@/components/items/item-backlog";
 import { ItemBoard } from "@/components/items/item-board";
 import { ItemTree } from "@/components/items/item-tree";
@@ -741,6 +742,7 @@ export async function BacklogViewContent({
         }
       />
       {view === "backlog" && (
+        <ItemRowIconProvider>
         <ItemBacklog
           sections={planningSections}
           sprints={sprintSnapshot.sprints}
@@ -772,8 +774,10 @@ export async function BacklogViewContent({
           manualOrder={viewState.sort === null && viewState.group === null}
           viewStateQuery={listViewQuery.toString()}
         />
+        </ItemRowIconProvider>
       )}
       {view === "list" && (
+        <ItemRowIconProvider>
         <ItemList
           groups={listGroups}
           total={listWindow?.total ?? 0}
@@ -806,6 +810,7 @@ export async function BacklogViewContent({
           showLabels={viewState.filters.showLabels === true}
           showDueDate={viewState.filters.showDueDate === true}
         />
+        </ItemRowIconProvider>
       )}
       {view === "board" && (
         <ItemBoard

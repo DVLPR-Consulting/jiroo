@@ -1,0 +1,72 @@
+{
+  "list-desktop": {
+    "width": 1440,
+    "height": 900,
+    "differingPixels": 0
+  },
+  "list-hover": {
+    "width": 1440,
+    "height": 900,
+    "differingPixels": 0
+  },
+  "list-priority": {
+    "width": 1440,
+    "height": 900,
+    "differingPixels": 0
+  },
+  "list-dark": {
+    "width": 1440,
+    "height": 900,
+    "differingPixels": 0
+  },
+  "list-compact": {
+    "width": 1440,
+    "height": 900,
+    "differingPixels": 0
+  },
+  "list-mobile": {
+    "width": 390,
+    "height": 844,
+    "differingPixels": 0
+  },
+  "backlog-desktop": {
+    "width": 1440,
+    "height": 900,
+    "differingPixels": 0
+  },
+  "backlog-hover": {
+    "width": 1440,
+    "height": 900,
+    "differingPixels": 0
+  },
+  "backlog-priority": {
+    "width": 1440,
+    "height": 900,
+    "differingPixels": 0
+  },
+  "backlog-dark": {
+    "width": 1440,
+    "height": 900,
+    "differingPixels": 14
+  },
+  "backlog-compact": {
+    "width": 1440,
+    "height": 900,
+    "differingPixels": 0
+  },
+  "backlog-mobile": {
+    "width": 390,
+    "height": 844,
+    "differingPixels": 0
+  },
+  "list": {
+    "accessibleRowIdentical": true,
+    "before": "- listitem \"PERFA-1 — composant 1 — recherche, sécurité et traitement des dossiers\":\n  - img \"Composant\"\n  - text: PERFA-1 composant 1 — recherche, sécurité et traitement des dossiers Bug\n  - 'button \"Priorité : Aucune\"':\n    - img \"Aucune\"\n  - 'button \"Statut : À faire\"':\n    - img \"À faire\"\n    - text: À faire\n  - 'button \"Assigné : Performance administrator\"':\n    - img \"Performance administrator\": PA",
+    "after": "- listitem \"PERFA-1 — composant 1 — recherche, sécurité et traitement des dossiers\":\n  - img \"Composant\"\n  - text: PERFA-1 composant 1 — recherche, sécurité et traitement des dossiers Bug\n  - 'button \"Priorité : Aucune\"':\n    - img \"Aucune\"\n  - 'button \"Statut : À faire\"':\n    - img \"À faire\"\n    - text: À faire\n  - 'button \"Assigné : Performance administrator\"':\n    - img \"Performance administrator\": PA"
+  },
+  "backlog": {
+    "accessibleRowIdentical": true,
+    "before": "- row \"PERFA-3 — tache 1 — recherche, sécurité et traitement des dossiers\":\n  - cell \"Déplacer PERFA-3\":\n    - button \"Déplacer PERFA-3\"\n  - cell \"Tâche PERFA-3 tache 1 — recherche, sécurité et traitement des dossiers\":\n    - img \"Tâche\"\n    - text: PERFA-3 tache 1 — recherche, sécurité et traitement des dossiers\n  - 'cell \"Bug Epic epic 1 — recherche, sécurité et traitement des dossiers Priorité : Aucune Statut : À faire Estimation : 1 pt Assigné : Performance administrator\"':\n    - text: Bug\n    - img \"Epic\"\n    - text: epic 1 — recherche, sécurité et traitement des dossiers\n    - 'button \"Priorité : Aucune\"':\n      - img \"Aucune\"\n    - 'button \"Statut : À faire\"':\n      - img \"À faire\"\n      - text: À faire\n    - 'button \"Estimation : 1 pt\"': \"1\"\n    - 'button \"Assigné : Performance administrator\"':\n      - img \"Performance administrator\": PA",
+    "after": "- row \"PERFA-3 — tache 1 — recherche, sécurité et traitement des dossiers\":\n  - cell \"Déplacer PERFA-3\":\n    - button \"Déplacer PERFA-3\"\n  - cell \"Tâche PERFA-3 tache 1 — recherche, sécurité et traitement des dossiers\":\n    - img \"Tâche\"\n    - text: PERFA-3 tache 1 — recherche, sécurité et traitement des dossiers\n  - 'cell \"Bug Epic epic 1 — recherche, sécurité et traitement des dossiers Priorité : Aucune Statut : À faire Estimation : 1 pt Assigné : Performance administrator\"':\n    - text: Bug\n    - img \"Epic\"\n    - text: epic 1 — recherche, sécurité et traitement des dossiers\n    - 'button \"Priorité : Aucune\"':\n      - img \"Aucune\"\n    - 'button \"Statut : À faire\"':\n      - img \"À faire\"\n      - text: À faire\n    - 'button \"Estimation : 1 pt\"': \"1\"\n    - 'button \"Assigné : Performance administrator\"':\n      - img \"Performance administrator\": PA"
+  }
+}

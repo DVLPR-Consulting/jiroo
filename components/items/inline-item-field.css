@@ -1,0 +1,30 @@
+@reference "../../app/globals.css";
+
+/* Shared once per stylesheet instead of repeated in every server-rendered row.
+   The component layer keeps utility modifiers (wrapping, empty values) in control. */
+@layer components {
+  .if-error {
+    @apply absolute right-0 top-full z-50 mt-1 w-max max-w-56 rounded bg-[var(--danger)] px-2 py-1 text-xs text-white shadow-[var(--shadow-sm)];
+  }
+
+  .if-shell {
+    @apply relative inline-flex min-w-0;
+  }
+
+  .if-trigger {
+    @apply inline-flex min-h-7 max-w-full items-center gap-1.5 rounded px-1.5 py-1 text-xs text-muted-foreground outline-none hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60;
+  }
+
+  .if-readonly {
+    @apply inline-flex min-h-7 max-w-full items-center gap-1.5 px-1.5 py-1 text-xs text-muted-foreground;
+  }
+
+  .if-badge {
+    @apply inline-flex h-6 min-w-[22px] items-center justify-center rounded-full bg-[var(--muted)] px-1.5 text-xs font-semibold tabular-nums text-muted-foreground;
+  }
+
+  .if-compact {
+    @apply inline-flex min-h-7 items-center justify-center rounded px-0.5 outline-none hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60;
+  }
+
+}
