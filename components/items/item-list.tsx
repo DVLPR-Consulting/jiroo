@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -57,11 +57,27 @@ import type {
 import { pointsByStatusCategory } from "@/lib/items/status-points";
 import {
   emptySelection,
+  MAX_SELECTION,
   reconcileSelection,
   selectAllVisible,
   toggleItemSelection,
 } from "@/lib/items/selection";
 import type { HierarchyStartStep } from "@/lib/tree/hierarchy";
+import {
+  LIST_RELOAD_LIMIT,
+  LIST_WINDOW_SIZE,
+  type ListCursor,
+  type ListWindowRow,
+} from "@/lib/items/list-window";
+import {
+  loadViewWindowAction,
+  type LoadViewWindowInput,
+  type LoadViewWindowResult,
+} from "@/app/actions/view-window";
+import {
+  LOAD_MORE_SHORTCUT_EVENT,
+  moveShortcutFocus,
+} from "@/lib/shortcuts/list-navigation";
 import { ViewStartGuide } from "@/components/items/backlog-start-guide";
 
 type LabelChip = { id: string; name: string; color: string };
@@ -89,9 +105,6 @@ export type ListItem = {
   assigneeName: string | null;
   labels: LabelChip[];
   blocked: boolean;
-  statusOrder: number;
-  ancestorIds: string[];
-  componentId: string | null;
   fixVersions?: FixVersionOption[];
   /** The direct parent, shown as a pill: the Liste is flat (JIR-93). */
   parent?: { key: string; title: string; type: ItemType } | null;
@@ -126,6 +139,45 @@ type OptionalColumns = { labels: boolean; dueDate: boolean; fixVersions: boolean
 
 /** The ungrouped Liste's single card, named like the « Tous les items » filter. */
 const ALL_ITEMS = { key: "\u0000all", label: "Tous les items" };
+
+/** The windows loaded after the first one (JIR-145), reset by every server render. */
+type LoadedWindows = {
+  /** The first window they follow: a new one (a refresh) starts over. */
+  source: Group[];
+  generation: number;
+  rows: ListWindowRow[];
+  groups: Map<string, { label: string; summary: ViewGroupSummary }>;
+  cursor: ListCursor | null;
+  /** The filtered total of the latest window read. */
+  total: number | null;
+  /** Rows to read again at once after a refresh, to keep what was shown. */
+  reload: number;
+  /**
+   * The rows shown before the refresh, kept on screen until they are read
+   * again: the list keeps its length, so the scroll keeps its place.
+   */
+  stale: ListWindowRow[];
+};
+
+function firstWindow(
+  source: Group[],
+  cursor: ListCursor | null,
+  generation: number,
+  shown?: Pick<LoadedWindows, "rows" | "groups">,
+): LoadedWindows {
+  const firstCount = source.reduce((count, group) => count + group.items.length, 0);
+  const reload = shown ? Math.min(shown.rows.length, Math.max(0, LIST_RELOAD_LIMIT - firstCount)) : 0;
+  return {
+    source,
+    generation,
+    rows: [],
+    groups: reload > 0 && shown ? shown.groups : new Map(),
+    cursor,
+    total: null,
+    reload,
+    stale: reload > 0 && shown ? shown.rows.slice(0, reload) : [],
+  };
+}
 
 /** Only tasks are estimated: the other levels neither add points nor count as unestimated. */
 function estimateOf(item: ListItem) {
@@ -298,7 +350,12 @@ export function ItemList({
   showFixVersions = false,
   showLabels = false,
   showDueDate = false,
+  total: servedTotal,
+  nextCursor = null,
+  viewStateQuery,
+  loadWindow = loadViewWindowAction,
 }: {
+  /** The first window's rows, by group (JIR-145: at most 100 rows). */
   groups: Group[];
   grouped: boolean;
   statuses: StatusOption[];
@@ -331,6 +388,13 @@ export function ItemList({
   showFixVersions?: boolean;
   showLabels?: boolean;
   showDueDate?: boolean;
+  /** Every row the filters keep, loaded or not; the loaded rows when absent. */
+  total?: number;
+  /** Where the next window starts; null when the first one holds every row. */
+  nextCursor?: ListCursor | null;
+  /** The effective view state of the first window, as view URL parameters. */
+  viewStateQuery?: string;
+  loadWindow?: (input: LoadViewWindowInput) => Promise<LoadViewWindowResult>;
 }) {
   const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
   const canEditItems = itemCapabilities?.edit ?? legacyCanEditItems;
@@ -348,19 +412,157 @@ export function ItemList({
   const [selection, setSelection] = useState(emptySelection);
   const [selectionScope, setSelectionScope] = useState<string | null>(null);
   const { epics, parentId, setParentId } = useInlineCreateParent(createDialogProps?.structure);
-  const total = groups.reduce((count, group) => count + group.items.length, 0);
-  // One card per group, or a single « Tous les items » card (JIR-97).
-  const sections: Group[] = useMemo(
-    () =>
-      grouped
-        ? groups
-        : [{
-            ...ALL_ITEMS,
-            items: groups.flatMap((group) => group.items),
-            summary: groups.length === 1 ? groups[0]!.summary : undefined,
-          }],
-    [grouped, groups],
-  );
+
+  // The next windows (JIR-145). A server render brings a new first window:
+  // the rows loaded after it are read again at once (up to the bulk limit)
+  // when the view state is the same, so an edit or « Actualiser » keeps
+  // what was shown; a new filter, sort or group starts from its first window.
+  const [windows, setWindows] = useState(() => firstWindow(groups, nextCursor, 0));
+  const [loadingGeneration, setLoadingGeneration] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [shownQuery, setShownQuery] = useState(viewStateQuery);
+  const firstCount = groups.reduce((count, group) => count + group.items.length, 0);
+  if (windows.source !== groups) {
+    const sameView = shownQuery === viewStateQuery;
+    setShownQuery(viewStateQuery);
+    setLoadError(null);
+    setWindows(firstWindow(groups, nextCursor, windows.generation + 1, sameView ? windows : undefined));
+  }
+  const windowsRef = useRef(windows);
+  const loadingRef = useRef<number | null>(null);
+  useEffect(() => {
+    windowsRef.current = windows;
+  });
+
+  const loadNext = useCallback(async (limit: number): Promise<boolean> => {
+    const current = windowsRef.current;
+    if (!current.cursor || !viewStateQuery || loadingRef.current === current.generation) return false;
+    loadingRef.current = current.generation;
+    setLoadingGeneration(current.generation);
+    setLoadError(null);
+    let result: LoadViewWindowResult;
+    try {
+      result = await loadWindow({ backlogKey, viewState: viewStateQuery, cursor: current.cursor, limit });
+    } catch {
+      result = { ok: false, error: "Impossible de charger la suite. Réessayez avec « Charger la suite »." };
+    }
+    if (loadingRef.current === current.generation) {
+      loadingRef.current = null;
+      setLoadingGeneration(null);
+    }
+    // A refresh meanwhile replaced the windows this one would follow.
+    if (windowsRef.current.generation !== current.generation) return false;
+    if (!result.ok) {
+      setLoadError(result.error);
+      // Rows that could not be read again are not shown as current.
+      setWindows((previous) =>
+        previous.generation === current.generation && previous.reload > 0
+          ? { ...previous, reload: 0, stale: [] }
+          : previous);
+      return false;
+    }
+    const served = result.window;
+    setWindows((previous) => {
+      if (previous.generation !== current.generation) return previous;
+      const seen = new Set([
+        ...previous.source.flatMap((group) => group.items.map((item) => item.id)),
+        // A reload replaces the rows it reads again.
+        ...(previous.reload > 0 ? [] : previous.rows.map((row) => row.id)),
+      ]);
+      const groupsByKey = new Map(previous.groups);
+      for (const group of served.groups) groupsByKey.set(group.key, group);
+      return {
+        ...previous,
+        rows: [...(previous.reload > 0 ? [] : previous.rows), ...served.rows.filter((row) => !seen.has(row.id))],
+        groups: groupsByKey,
+        cursor: served.nextCursor,
+        total: served.total,
+        reload: 0,
+        stale: [],
+      };
+    });
+    return true;
+  }, [backlogKey, loadWindow, viewStateQuery]);
+
+  // After a refresh, read again the rows that were shown beyond the first window.
+  const { generation, reload } = windows;
+  useEffect(() => {
+    if (reload > 0) void loadNext(reload);
+  }, [generation, reload, loadNext]);
+
+  // Until a reload arrives, the rows shown before it (but no row twice).
+  const extraRows = useMemo(() => {
+    if (windows.reload === 0) return windows.rows;
+    const first = new Set(windows.source.flatMap((group) => group.items.map((item) => item.id)));
+    return windows.stale.filter((row) => !first.has(row.id));
+  }, [windows]);
+  const loadedCount = firstCount + extraRows.length;
+  const total = windows.total ?? servedTotal ?? loadedCount;
+  const loading = loadingGeneration === windows.generation;
+
+  // One card per group, or a single « Tous les items » card (JIR-97). A
+  // group can span several windows: its rows join its header.
+  const sections: Group[] = useMemo(() => {
+    const merged: Group[] = windows.source.map((group) => ({ ...group, items: [...group.items] }));
+    for (const row of extraRows) {
+      const last = merged.at(-1);
+      if (last && last.key === row.groupKey) {
+        last.items.push(row);
+      } else {
+        const group = windows.groups.get(row.groupKey);
+        merged.push({ key: row.groupKey, label: group?.label ?? "", summary: group?.summary, items: [row] });
+      }
+    }
+    return grouped
+      ? merged
+      : [{
+          ...ALL_ITEMS,
+          items: merged.flatMap((group) => group.items),
+          summary: merged.length === 1 ? merged[0]!.summary : undefined,
+        }];
+  }, [extraRows, grouped, windows]);
+
+  // Scrolling near the end loads the next window; the button stays as a fallback.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const hasMore = windows.cursor !== null;
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!hasMore || !sentinel || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void loadNext(LIST_WINDOW_SIZE);
+      },
+      { root: scrollRef.current, rootMargin: "0px 0px 400px 0px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadNext, windows.cursor]);
+
+  // « j » on the last loaded row loads the next window, then moves on to it.
+  const focusAfterLoad = useRef<number | null>(null);
+  const firstCountRef = useRef(firstCount);
+  useEffect(() => {
+    function onLoadMore() {
+      if (!windowsRef.current.cursor) return;
+      const active = document.activeElement;
+      if (!(active instanceof Node) || !scrollRef.current?.contains(active)) return;
+      focusAfterLoad.current = firstCountRef.current + windowsRef.current.rows.length;
+      void loadNext(LIST_WINDOW_SIZE).then((loaded) => {
+        if (!loaded) focusAfterLoad.current = null;
+      });
+    }
+    window.addEventListener(LOAD_MORE_SHORTCUT_EVENT, onLoadMore);
+    return () => window.removeEventListener(LOAD_MORE_SHORTCUT_EVENT, onLoadMore);
+  }, [loadNext]);
+  useEffect(() => {
+    firstCountRef.current = firstCount;
+    const before = focusAfterLoad.current;
+    if (before !== null && loadedCount > before && scrollRef.current) {
+      focusAfterLoad.current = null;
+      moveShortcutFocus(scrollRef.current, 1);
+    }
+  }, [firstCount, loadedCount]);
   const visibleItems = useMemo(
     () =>
       sections.flatMap((section) =>
@@ -456,7 +658,7 @@ export function ItemList({
     });
   }
 
-  if (total === 0) {
+  if (loadedCount === 0) {
     const showNoResults = filtersActive && (hasItems ?? total > 0);
     if (!showNoResults && startStep && createDialogProps) {
       return (
@@ -556,7 +758,11 @@ export function ItemList({
                     if (selectedCount === sectionIds.length) {
                       sectionIds.forEach((id) => next.delete(id));
                     } else {
-                      sectionIds.forEach((id) => next.add(id));
+                      // A bulk change carries 500 items at most.
+                      for (const id of sectionIds) {
+                        if (next.size >= MAX_SELECTION) break;
+                        next.add(id);
+                      }
                     }
                     return { selectedIds: next, anchorId: null };
                   })
@@ -606,6 +812,7 @@ export function ItemList({
 
   return (
     <div
+      ref={scrollRef}
       className="min-h-0 flex-1 overflow-auto"
       onKeyDown={canSelectItems ? handleSelectionShortcut : undefined}
     >
@@ -626,6 +833,27 @@ export function ItemList({
           />
         ) : null}
         {sections.map(renderSection)}
+        {hasMore || extraRows.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-center gap-3 pb-2 text-sm text-muted-foreground">
+            <span aria-live="polite">{loadedCount} affichés sur {total}</span>
+            {hasMore ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loading}
+                aria-busy={loading}
+                onClick={() => void loadNext(LIST_WINDOW_SIZE)}
+              >
+                Charger la suite
+              </Button>
+            ) : null}
+            {loadError ? (
+              <span role="alert" className="text-destructive">{loadError}</span>
+            ) : null}
+          </div>
+        ) : null}
+        {hasMore ? <div ref={sentinelRef} aria-hidden className="h-px" /> : null}
       </div>
       {canSelectItems && selectedItems.length > 0 ? (
         <BulkItemToolbar

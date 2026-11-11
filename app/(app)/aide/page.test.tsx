@@ -145,9 +145,9 @@ describe("HelpPage", () => {
     const views = document.querySelector("section#vues") as HTMLElement;
     expect(views).not.toHaveTextContent("colonnes triables");
     expect(views).toHaveTextContent(
-      "dans le même tableau que le Backlog, intitulé « Tous les items » (nombre d’items et de non estimés, points par statut, « Créer un item » en bas) ; la ligne « Trier » de son en-tête pour trier",
+      "dans le tableau « Tous les items », comme dans le Backlog (nombre d’items et de non estimés, points par statut, « Créer un item » en bas). « Trier » change l’ordre",
     );
-    expect(views).toHaveTextContent("elle montre un tableau par groupe, repliable comme les sections du Backlog");
+    expect(views).toHaveTextContent("permet de les grouper en tableaux repliables");
     expect(views).not.toHaveTextContent("au-dessus des lignes");
     expect(views).not.toHaveTextContent("bandeau d’en-tête");
     const row = within(views)
@@ -163,6 +163,17 @@ describe("HelpPage", () => {
       expect(sorting).toHaveTextContent(`« ${label} »`);
     }
     expect(sorting).toHaveTextContent("enregistrés avec une vue");
+  });
+
+  it("documents the Liste loaded by 100 and what « tout » selects there (JIR-145)", () => {
+    render(<HelpPage />);
+    const views = document.querySelector("section#vues") as HTMLElement;
+    expect(views).toHaveTextContent("Les 100 premiers tickets s’affichent, puis les suivants par 100 en défilant jusqu’en bas, ou avec « Charger la suite »");
+    expect(views).toHaveTextContent("les totaux (nombre et points) couvrent tout le groupe");
+    const page = document.body;
+    expect(page).toHaveTextContent("Dans la « Liste », ces raccourcis sélectionnent uniquement les tickets déjà chargés, dans la limite de 500.");
+    expect(page).toHaveTextContent("sur le dernier ticket chargé charge la suite et sélectionne le ticket suivant");
+    expect(page).toHaveTextContent("l’actualisation recharge aussi les tickets déjà affichés (jusqu’à 500), en conservant votre place");
   });
 
   it("documents the rich-text editor (JIR-66)", () => {

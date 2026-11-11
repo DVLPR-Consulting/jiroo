@@ -131,6 +131,77 @@ vi.mock("@/lib/services/view-rows", async () => {
       legacy.legacyTreeRows(await input({ filters, sort: null, group: null })),
     matchingTaskIds: async (_backlogId: string, filters: State["filters"]) =>
       legacy.legacyMatchingTaskIds(await input({ filters, sort: null, group: null })),
+    viewRowsInput: input,
+  };
+});
+// The Liste's first window (JIR-145), proven a slice of the same rows by
+// lib/services/view-rows.integration.test.ts: here the first rows of the
+// legacy computation, shaped from the mocked reads as the service shapes them.
+vi.mock("@/lib/services/list-window", async () => {
+  const legacy = await import("@/test-utils/legacy-view-rows");
+  const viewRows = (await import("@/lib/services/view-rows")) as unknown as {
+    viewRowsInput: (state: unknown) => Promise<Parameters<typeof legacy.legacyListRows>[0]>;
+  };
+  type State = Parameters<typeof legacy.legacyListRows>[0]["state"];
+  return {
+    loadListWindow: async (_backlogId: string, state: State, options: { limit?: number }) => {
+      const data = await viewRows.viewRowsInput(state);
+      const served = legacy.legacyListRows(data);
+      const limit = options.limit ?? 100;
+      const flat = served.groups.flatMap((group) => group.itemIds.map((id) => ({ id, groupKey: group.key })));
+      const window = flat.slice(0, limit);
+      const itemById = new Map(data.items.map((item) => [item.id, item]));
+      const releases = ((await mocks.listReleaseSummaries.mock.results.at(-1)?.value) ?? []) as Array<{
+        id: string; name: string; released: boolean; archived: boolean;
+      }>;
+      const blocked = new Set(((await mocks.blockedItemIds.mock.results.at(-1)?.value) ?? []) as string[]);
+      const keys = [...new Set(window.map((row) => row.groupKey))];
+      const label = (key: string) => {
+        if (!state.group) return "";
+        if (key === "none") {
+          return state.group === "assignee" ? "Non assigné" : state.group === "component" ? "Sans composant" : "Sans parent";
+        }
+        return itemById.get(key)?.title ?? key;
+      };
+      return {
+        total: served.total,
+        rows: window.flatMap(({ id, groupKey }) => {
+          const item = itemById.get(id);
+          if (!item) return [];
+          const parent = item.parentId ? itemById.get(item.parentId) : undefined;
+          return [{
+            id: item.id,
+            key: item.key,
+            type: item.type,
+            kind: item.kind,
+            title: item.title,
+            statusId: item.statusId,
+            priority: item.priority,
+            estimatePoints: item.estimatePoints,
+            depth: item.depth,
+            dueDate: item.dueDate,
+            assigneeId: item.assigneeId,
+            assigneeName: null,
+            labels: (data.labelPairs as Array<{ itemId: string; labelId: string; name: string; color: string }>)
+              .filter((pair) => pair.itemId === id)
+              .map((pair) => ({ id: pair.labelId, name: pair.name, color: pair.color })),
+            fixVersions: data.fixVersionPairs
+              .filter((pair) => pair.itemId === id)
+              .flatMap((pair) => releases.filter((release) => release.id === pair.releaseId))
+              .map(({ id: releaseId, name, released, archived }) => ({ id: releaseId, name, released, archived })),
+            blocked: blocked.has(id),
+            parent: parent ? { key: parent.key, title: parent.title, type: parent.type } : null,
+            groupKey,
+          }];
+        }),
+        groups: keys.map((key) => ({
+          key,
+          label: label(key),
+          summary: served.groups.find((group) => group.key === key)!.summary,
+        })),
+        nextCursor: flat.length > limit ? { group: "", first: ["0"], last: ["0"] } : null,
+      };
+    },
   };
 });
 vi.mock("@/lib/services/item-fix-versions", () => ({
@@ -743,7 +814,6 @@ describe("BacklogViewContent read boundary", () => {
     expect(listProps.groups.flatMap((group) => group.items)).toEqual([
       expect.objectContaining({
         id: "item-2",
-        fixVersionIds: ["release-selected"],
         fixVersions: [
           { id: "release-selected", name: "2026.09", released: true, archived: true },
         ],

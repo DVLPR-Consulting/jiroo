@@ -7,6 +7,12 @@
 
 export const SHORTCUT_ITEM_SELECTOR = "[data-shortcut-item]";
 
+/**
+ * Sent on `window` when « j » is pressed on the last item: a view loaded by
+ * windows (the Liste, JIR-145) loads its next one.
+ */
+export const LOAD_MORE_SHORTCUT_EVENT = "jiroo:load-more-items";
+
 function isShown(element: HTMLElement): boolean {
   if (element.closest("[hidden], [inert]")) return false;
   return typeof element.checkVisibility === "function"
@@ -35,6 +41,9 @@ export function moveShortcutFocus(root: ParentNode, step: 1 | -1): HTMLElement |
   if (items.length === 0) return null;
   const current = currentShortcutItem();
   const index = current ? items.indexOf(current) : -1;
+  if (step === 1 && index === items.length - 1) {
+    window.dispatchEvent(new Event(LOAD_MORE_SHORTCUT_EVENT));
+  }
   const nextIndex =
     index === -1 ? 0 : Math.min(items.length - 1, Math.max(0, index + step));
   const next = items[nextIndex]!;

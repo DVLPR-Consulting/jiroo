@@ -33,14 +33,16 @@ import {
   isFiltersActive,
   enrichHierarchy,
   withKnownReleaseIds,
+  writeViewState,
+  EMPTY_SUMMARY,
   type FilterItem,
 } from "@/lib/items/filter";
 import {
   backlogViewRows,
-  listViewRows,
   matchingTaskIds,
   treeViewRows,
 } from "@/lib/services/view-rows";
+import { loadListWindow } from "@/lib/services/list-window";
 import { PRIORITY_LABELS, type ItemType } from "@/lib/design/constants";
 import { hierarchyStartStep } from "@/lib/tree/hierarchy";
 import { requireAppPageSession } from "@/lib/auth/session";
@@ -223,9 +225,10 @@ export async function BacklogViewContent({
   };
   // The view's rows are filtered, sorted, grouped and counted by PostgreSQL
   // (JIR-143) on the effective filters; read meanwhile the rows to display.
+  // The Liste only sends its first window (JIR-145), with its own rows.
   const filtersOn = isFiltersActive(viewState.filters);
   const viewRowsPromise = Promise.all([
-    view === "list" ? listViewRows(backlog.id, viewState) : null,
+    view === "list" ? loadListWindow(backlog.id, viewState, { cursor: null }) : null,
     view === "backlog" ? backlogViewRows(backlog.id, viewState) : null,
     view === "tree" && filtersOn ? treeViewRows(backlog.id, viewState.filters) : null,
     view === "board" && filtersOn ? matchingTaskIds(backlog.id, viewState.filters) : null,
@@ -325,20 +328,21 @@ export async function BacklogViewContent({
     statusOrder: statusOrderById.get(i.statusId) ?? 0,
   })));
   const filterRowById = new Map(filterRows.map((row) => [row.id, row]));
-  const [listRows, backlogRows, treeRows, boardTaskIds] = await viewRowsPromise;
-  // An item created or deleted between the two reads is left out until the
-  // next render, never shown half-loaded.
-  const loadedRows = (ids: string[]) =>
-    ids.flatMap((id) => filterRowById.get(id) ?? []);
+  const [listWindow, backlogRows, treeRows, boardTaskIds] = await viewRowsPromise;
   const boardMatchedIds = boardTaskIds ? new Set(boardTaskIds) : null;
   const isBoardMatch = (id: string) => boardMatchedIds === null || boardMatchedIds.has(id);
 
-  // List view: rows already sorted and grouped (first-seen group order).
-  const listGroups = (listRows?.groups ?? []).map((group) => ({
-    key: group.key,
-    summary: group.summary,
-    rows: loadedRows(group.itemIds),
+  // List view: the first window's rows, by group (first-seen group order);
+  // the ungrouped Liste always has its one card, even empty.
+  const listGroups = (listWindow?.groups ?? []).map((group) => ({
+    ...group,
+    items: listWindow!.rows.filter((row) => row.groupKey === group.key),
   }));
+  if (listWindow && viewState.group === null && listGroups.length === 0) {
+    listGroups.push({ key: "", label: "", summary: EMPTY_SUMMARY, items: [] });
+  }
+  const listViewQuery = new URLSearchParams();
+  writeViewState(listViewQuery, viewState);
 
   const statusCategoryById = new Map(
     statusRows.map((status) => [status.id, status.category]),
@@ -413,7 +417,6 @@ export async function BacklogViewContent({
     [...referencedUsers, ...directoryUsers].map((candidate) => [candidate.id, candidate]),
   ).values()];
   const userName = new Map(displayUsers.map((u) => [u.id, u.name]));
-  const estimateByItem = new Map(items.map((item) => [item.id, item.estimatePoints]));
 
   const groupLabel = (key: string): string => {
     if (!viewState.group || key === "") return "";
@@ -554,7 +557,7 @@ export async function BacklogViewContent({
       : view === "board"
         ? boardCards.length
         : view === "list"
-          ? (listRows?.total ?? 0)
+          ? (listWindow?.total ?? 0)
           : treeRows
             ? treeRows.matchedIds.length
             : items.length;
@@ -741,20 +744,10 @@ export async function BacklogViewContent({
       )}
       {view === "list" && (
         <ItemList
-          groups={listGroups.map(({ key, summary, rows }) => ({
-            key,
-            label: groupLabel(key),
-            summary,
-            items: rows.map((r) => ({
-              ...r,
-              estimatePoints: estimateByItem.get(r.id) ?? null,
-              assigneeName: r.assigneeId ? (userName.get(r.assigneeId) ?? null) : null,
-              labels: labelsByItem.get(r.id) ?? [],
-              fixVersions: fixVersionsByItem.get(r.id) ?? [],
-              blocked: blockedSet.has(r.id),
-              parent: parentPill(r.parentId),
-            })),
-          }))}
+          groups={listGroups}
+          total={listWindow?.total ?? 0}
+          nextCursor={listWindow?.nextCursor ?? null}
+          viewStateQuery={listViewQuery.toString()}
           grouped={viewState.group !== null}
           statuses={statusList}
           users={assigneeCandidates}

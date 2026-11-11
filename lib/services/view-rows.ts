@@ -1,11 +1,11 @@
 import "server-only";
 
-import { and, asc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import { binaryTextOrder } from "@/lib/db/order";
 import { items, sprintItems, sprints, statuses } from "@/lib/db/schema/domain";
-import type { Filters, ViewGroupSummary, ViewState } from "@/lib/items/filter";
+import { EMPTY_SUMMARY, type Filters, type ViewGroupSummary, type ViewState } from "@/lib/items/filter";
 import {
   groupKeyExpression,
   hierarchyOrder,
@@ -54,11 +54,52 @@ function points(value: string | number | null): number {
   return value === null ? 0 : Number(value);
 }
 
-const EMPTY_SUMMARY: ViewGroupSummary = {
-  count: 0,
-  unestimated: 0,
-  points: { todo: 0, inProgress: 0, done: 0 },
-};
+/**
+ * The Liste's group figures over the whole filtered set: count, tasks without
+ * an estimate and task points per status category, for the groups `keys`
+ * names (every group when null).
+ */
+export async function viewGroupSummaries(
+  backlogId: string,
+  state: ViewRowsState,
+  keys: string[] | null,
+): Promise<Map<string, ViewGroupSummary>> {
+  if (keys !== null && keys.length === 0) return new Map();
+  const where = and(liveItemsOf(backlogId), viewFilterCondition(backlogId, state.filters));
+  const groupKey = groupKeyExpression(backlogId, state.group);
+  const counted = db
+    .select({
+      groupKey: groupKey.as("group_key"),
+      type: items.type,
+      estimatePoints: items.estimatePoints,
+      category: statuses.category,
+    })
+    .from(items)
+    .leftJoin(statuses, and(eq(statuses.id, items.statusId), eq(statuses.backlogId, backlogId)))
+    .where(where)
+    .as("counted");
+  const estimatedTask = sql`${counted.type} = 'tache' and ${counted.estimatePoints} is not null`;
+  // An unknown status counts as to do, as in `pointsByCategory`.
+  const summaryRows = await db
+    .select({
+      groupKey: counted.groupKey,
+      count: sql<number>`count(*)::int`,
+      unestimated: sql<number>`(count(*) filter (where ${counted.type} = 'tache' and ${counted.estimatePoints} is null))::int`,
+      todo: sql<string | null>`sum(${counted.estimatePoints}) filter (where ${estimatedTask}
+        and ${counted.category} is distinct from 'done' and ${counted.category} is distinct from 'in_progress')`,
+      inProgress: sql<string | null>`sum(${counted.estimatePoints}) filter (where ${estimatedTask} and ${counted.category} = 'in_progress')`,
+      done: sql<string | null>`sum(${counted.estimatePoints}) filter (where ${estimatedTask} and ${counted.category} = 'done')`,
+    })
+    .from(counted)
+    .where(keys === null ? undefined : inArray(counted.groupKey, keys))
+    .groupBy(counted.groupKey);
+
+  return new Map(summaryRows.map((row): [string, ViewGroupSummary] => [row.groupKey, {
+    count: row.count,
+    unestimated: row.unestimated,
+    points: { todo: points(row.todo), inProgress: points(row.inProgress), done: points(row.done) },
+  }]));
+}
 
 export async function listViewRows(backlogId: string, state: ViewRowsState): Promise<ListViewRows> {
   const where = and(liveItemsOf(backlogId), viewFilterCondition(backlogId, state.filters));
@@ -81,38 +122,7 @@ export async function listViewRows(backlogId: string, state: ViewRowsState): Pro
     .from(ranked)
     .orderBy(sql`min(${ranked.position}) over (partition by ${ranked.groupKey})`, asc(ranked.position));
 
-  const counted = db
-    .select({
-      groupKey: groupKey.as("group_key"),
-      type: items.type,
-      estimatePoints: items.estimatePoints,
-      category: statuses.category,
-    })
-    .from(items)
-    .leftJoin(statuses, and(eq(statuses.id, items.statusId), eq(statuses.backlogId, backlogId)))
-    .where(where)
-    .as("counted");
-  const estimatedTask = sql`${counted.type} = 'tache' and ${counted.estimatePoints} is not null`;
-  // An unknown status counts as to do, as in `pointsByCategory`.
-  const summaryQuery = db
-    .select({
-      groupKey: counted.groupKey,
-      count: sql<number>`count(*)::int`,
-      unestimated: sql<number>`(count(*) filter (where ${counted.type} = 'tache' and ${counted.estimatePoints} is null))::int`,
-      todo: sql<string | null>`sum(${counted.estimatePoints}) filter (where ${estimatedTask}
-        and ${counted.category} is distinct from 'done' and ${counted.category} is distinct from 'in_progress')`,
-      inProgress: sql<string | null>`sum(${counted.estimatePoints}) filter (where ${estimatedTask} and ${counted.category} = 'in_progress')`,
-      done: sql<string | null>`sum(${counted.estimatePoints}) filter (where ${estimatedTask} and ${counted.category} = 'done')`,
-    })
-    .from(counted)
-    .groupBy(counted.groupKey);
-
-  const [rows, summaryRows] = await Promise.all([rowsQuery, summaryQuery]);
-  const summaries = new Map(summaryRows.map((row): [string, ViewGroupSummary] => [row.groupKey, {
-    count: row.count,
-    unestimated: row.unestimated,
-    points: { todo: points(row.todo), inProgress: points(row.inProgress), done: points(row.done) },
-  }]));
+  const [rows, summaries] = await Promise.all([rowsQuery, viewGroupSummaries(backlogId, state, null)]);
 
   const groups: ListViewRows["groups"] = [];
   for (const row of rows) {

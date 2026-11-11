@@ -37,6 +37,12 @@ export type ViewGroupSummary = {
   points: { todo: number; inProgress: number; done: number };
 };
 
+export const EMPTY_SUMMARY: ViewGroupSummary = {
+  count: 0,
+  unestimated: 0,
+  points: { todo: 0, inProgress: 0, done: 0 },
+};
+
 // `parent` remains a GroupKey so legacy saved views can still be decoded. New
 // controls should use only the entries in this list and never offer `parent`.
 export const GROUP_KEYS: Exclude<GroupKey, "parent">[] = ["status", "assignee", "priority", "component"];

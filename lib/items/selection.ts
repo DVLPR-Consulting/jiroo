@@ -1,3 +1,9 @@
+/**
+ * A bulk change carries at most this many items (`lib/validation/bulk-item.ts`):
+ * « tout sélectionner » and Maj ranges stop there, in display order (JIR-145).
+ */
+export const MAX_SELECTION = 500;
+
 export type SelectionState = {
   selectedIds: ReadonlySet<string>;
   anchorId: string | null;
@@ -22,8 +28,13 @@ export function toggleItemSelection(
   if (extendRange && anchorIndex >= 0 && itemIndex >= 0) {
     const start = Math.min(anchorIndex, itemIndex);
     const end = Math.max(anchorIndex, itemIndex);
+    const range = visibleIds.slice(start, end + 1);
+    // From the anchor towards the clicked row, up to the limit.
+    const capped = itemIndex >= anchorIndex
+      ? range.slice(0, MAX_SELECTION)
+      : range.slice(-MAX_SELECTION);
     return {
-      selectedIds: new Set(visibleIds.slice(start, end + 1)),
+      selectedIds: new Set(capped),
       anchorId: state.anchorId,
     };
   }
@@ -39,7 +50,7 @@ export function toggleItemSelection(
 
 export function selectAllVisible(visibleIds: string[]): SelectionState {
   return {
-    selectedIds: new Set(visibleIds),
+    selectedIds: new Set(visibleIds.slice(0, MAX_SELECTION)),
     anchorId: visibleIds[0] ?? null,
   };
 }

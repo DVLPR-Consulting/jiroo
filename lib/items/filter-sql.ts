@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL, type SQLWrapper } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, or, sql, type SQL, type SQLWrapper } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
   itemFixVersions,
@@ -197,35 +197,102 @@ export function hierarchyOrder(): SQL[] {
  * without case or accents, « Œuvre » = « oeuvre ») and with `numeric: true`
  * (« -9 » before « -10 »), both on ICU's root rules like JavaScript's.
  */
-const TITLE_COLLATION = sql.raw(`"jiroo_base"`);
-const KEY_COLLATION = sql.raw(`"jiroo_numeric"`);
+const TITLE_COLLATION = "jiroo_base";
+const KEY_COLLATION = "jiroo_numeric";
 
-function sortExpression(backlogId: string, field: SortField): SQL {
+/**
+ * One term of a view's order, kept apart from its collation and SQL type so
+ * a window cursor (JIR-145) can compare a row with the sort values of
+ * another: the same column, collation and direction as the `order by`.
+ */
+export type ViewOrderColumn = {
+  expression: SQL;
+  direction: "asc" | "desc";
+  /** Missing values last whatever the direction (due dates). */
+  nullsLast: boolean;
+  /** What a sort value sent as text is cast back to. */
+  type: "integer" | "timestamptz" | "date" | "text";
+  collation: string | null;
+};
+
+function sortColumn(backlogId: string, field: SortField): Omit<ViewOrderColumn, "direction"> {
+  const column = (expression: SQL, type: ViewOrderColumn["type"], collation: string | null = null) =>
+    ({ expression, type, collation, nullsLast: false });
   switch (field) {
-    case "priority": return sql`${items.priority}`;
+    case "priority": return column(sql`${items.priority}`, "integer");
     // The old comparison saw JavaScript dates: milliseconds, not microseconds.
-    case "created": return sql`date_trunc('milliseconds', ${items.createdAt})`;
-    case "updated": return sql`date_trunc('milliseconds', ${items.updatedAt})`;
-    case "key": return sql`${items.key} collate ${KEY_COLLATION}`;
-    case "title": return sql`${items.title} collate ${TITLE_COLLATION}`;
+    case "created": return column(sql`date_trunc('milliseconds', ${items.createdAt})`, "timestamptz");
+    case "updated": return column(sql`date_trunc('milliseconds', ${items.updatedAt})`, "timestamptz");
+    case "key": return column(sql`${items.key}`, "text", KEY_COLLATION);
+    case "title": return column(sql`${items.title}`, "text", TITLE_COLLATION);
     // A status of another backlog (never expected) orders as 0, like before.
-    case "status": return sql`coalesce((select ${statuses.order} from ${statuses}
-      where ${statuses.id} = ${items.statusId} and ${statuses.backlogId} = ${backlogId}), 0)`;
-    case "dueDate": return sql`${items.dueDate}`;
+    case "status": return column(sql`coalesce((select ${statuses.order} from ${statuses}
+      where ${statuses.id} = ${items.statusId} and ${statuses.backlogId} = ${backlogId}), 0)`, "integer");
+    case "dueDate": return { ...column(sql`${items.dueDate}`, "date"), nullsLast: true };
   }
 }
 
 /**
- * `sortItems`: the chosen field in its direction (due dates always last when
- * missing), ties in hierarchy order whatever the direction.
+ * `sortItems`' terms: the chosen field in its direction (due dates always
+ * last when missing), ties in hierarchy order whatever the direction. Depth
+ * and rank alone are unique in a backlog: the order is total.
  */
+export function viewOrderColumns(
+  backlogId: string,
+  sort: { field: SortField; dir: SortDir } | null,
+): ViewOrderColumn[] {
+  const hierarchy: ViewOrderColumn[] = [
+    { expression: sql`${items.depth}`, direction: "asc", nullsLast: false, type: "integer", collation: null },
+    { expression: sql`${items.rank}`, direction: "asc", nullsLast: false, type: "text", collation: "C" },
+    { expression: sql`${items.key}`, direction: "asc", nullsLast: false, type: "text", collation: null },
+  ];
+  return sort ? [{ ...sortColumn(backlogId, sort.field), direction: sort.dir }, ...hierarchy] : hierarchy;
+}
+
+/** A column reference (or its expression) under the term's collation. */
+export function collated(column: ViewOrderColumn, reference: SQL = column.expression): SQL {
+  return column.collation ? sql`${reference} collate ${sql.raw(`"${column.collation}"`)}` : reference;
+}
+
+/** The `order by` term of a column, on its expression or a reference to it. */
+export function orderTerm(column: ViewOrderColumn, reference?: SQL): SQL {
+  const ordered = sql`${collated(column, reference)} ${sql.raw(column.direction)}`;
+  return column.nullsLast ? sql`${ordered} nulls last` : ordered;
+}
+
+/**
+ * Rows strictly after the sort values `values` in the order of `columns`,
+ * read on `references` (a window cursor, JIR-145): lexicographic, each term
+ * in its own direction and collation, missing due dates last.
+ */
+export function afterSortValues(
+  columns: ViewOrderColumn[],
+  references: SQL[],
+  values: ReadonlyArray<string | null>,
+): SQL {
+  const value = (index: number) =>
+    sql`cast(${values[index]} as ${sql.raw(columns[index]!.type)})`;
+  const equal = (index: number) =>
+    values[index] === null
+      ? sql`${references[index]} is null`
+      : sql`${collated(columns[index]!, references[index])} = ${value(index)}`;
+  const after = (index: number) => {
+    const column = columns[index]!;
+    if (values[index] === null) return sql`false`;
+    const reference = collated(column, references[index]);
+    const operator = sql.raw(column.direction === "asc" ? ">" : "<");
+    return column.nullsLast
+      ? sql`(${references[index]} is null or ${reference} ${operator} ${value(index)})`
+      : sql`${reference} ${operator} ${value(index)}`;
+  };
+  const branches = columns.map((_, index) =>
+    and(...columns.slice(0, index).map((__, before) => equal(before)), after(index))!);
+  return sql`(${or(...branches)})`;
+}
+
+/** `sortItems` as `order by` terms. */
 export function viewOrder(backlogId: string, sort: { field: SortField; dir: SortDir } | null): SQL[] {
-  if (!sort) return hierarchyOrder();
-  const expression = sortExpression(backlogId, sort.field);
-  const ordered = sort.field === "dueDate"
-    ? sql`${expression} ${sql.raw(sort.dir === "asc" ? "asc" : "desc")} nulls last`
-    : sort.dir === "asc" ? asc(expression) : desc(expression);
-  return [ordered, ...hierarchyOrder()];
+  return viewOrderColumns(backlogId, sort).map((column) => orderTerm(column));
 }
 
 /** `groupItems`' key of a row, as text; `''` when the view is not grouped. */

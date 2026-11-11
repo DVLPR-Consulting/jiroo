@@ -30,6 +30,8 @@ import {
   matchingTaskIds,
   treeViewRows,
 } from "@/lib/services/view-rows";
+import { listWindowIds, loadListWindow } from "@/lib/services/list-window";
+import type { ListCursor } from "@/lib/items/list-window";
 import {
   legacyBacklogRows,
   legacyListRows,
@@ -514,6 +516,135 @@ describeDb("view rows computed in SQL match the in-memory computation (JIR-143)"
     }
     expect(mismatches).toEqual([]);
   }, 120_000);
+
+  /** Every window of a Liste, read from cursor to cursor, joined back by group. */
+  async function walkWindows(state: ViewState, limit: number) {
+    const groups: Array<{ key: string; itemIds: string[] }> = [];
+    let cursor: ListCursor | null = null;
+    let total = -1;
+    for (let windows = 0; windows < 1000; windows += 1) {
+      const window = await listWindowIds(fixture.backlog.id, state, { cursor, limit });
+      expect(window.rows.length).toBeLessThanOrEqual(limit);
+      total = window.total;
+      for (const row of window.rows) {
+        const last = groups.at(-1);
+        if (last && last.key === row.groupKey) last.itemIds.push(row.id);
+        else groups.push({ key: row.groupKey, itemIds: [row.id] });
+      }
+      cursor = window.nextCursor;
+      if (!cursor) break;
+      // A window that is not the last one is full.
+      expect(window.rows).toHaveLength(limit);
+    }
+    return { total, groups };
+  }
+
+  it("Liste by windows (JIR-145): the windows, read from cursor to cursor, are the Liste's rows", async () => {
+    const mismatches: string[] = [];
+    for (const [label, state] of stateCases(fixture)) {
+      const expected = await listViewRows(fixture.backlog.id, state);
+      const expectedGroups = expected.groups
+        .filter((group) => group.itemIds.length > 0)
+        .map(({ key, itemIds }) => ({ key, itemIds }));
+      for (const limit of [1, 13, 100]) {
+        const actual = await walkWindows(state, limit);
+        try {
+          expect(actual).toEqual({ total: expected.total, groups: expectedGroups });
+        } catch {
+          mismatches.push(`${label} · windows of ${limit}`);
+        }
+      }
+    }
+    expect(mismatches).toEqual([]);
+  }, 600_000);
+
+  it("Liste by windows: each window names its groups with their figures over the whole group", async () => {
+    const mismatches: string[] = [];
+    const sample = stateCases(fixture).filter((_, index) => index % 7 === 0);
+    for (const [label, state] of sample) {
+      const expected = await listViewRows(fixture.backlog.id, state);
+      const summaryByKey = new Map(expected.groups.map((group) => [group.key, group.summary]));
+      const shown: string[] = [];
+      let cursor: ListCursor | null = null;
+      do {
+        const window = await loadListWindow(fixture.backlog.id, state, { cursor, limit: 40 });
+        try {
+          expect(window.total).toBe(expected.total);
+          expect(window.groups.map((group) => group.key)).toEqual(
+            [...new Set(window.rows.map((row) => row.groupKey))],
+          );
+          for (const group of window.groups) {
+            expect(group.summary).toEqual(summaryByKey.get(group.key));
+            if (state.group === null) expect(group.label).toBe("");
+            else expect(group.label).not.toBe("");
+          }
+        } catch {
+          mismatches.push(label);
+        }
+        shown.push(...window.rows.map((row) => row.id));
+        cursor = window.nextCursor;
+      } while (cursor);
+      if (shown.join() !== expected.groups.flatMap((group) => group.itemIds).join()) mismatches.push(`${label} · rows`);
+    }
+    expect(mismatches).toEqual([]);
+  }, 300_000);
+
+  it("Liste by windows: rows carry what a Liste row shows", async () => {
+    const state: ViewState = { filters: NO_FILTERS, sort: null, group: "parent" };
+    const window = await loadListWindow(fixture.backlog.id, state, { cursor: null, limit: 100 });
+    expect(window.rows).toHaveLength(100);
+    expect(window.nextCursor).not.toBeNull();
+    const [labelPairs, versionPairs] = await Promise.all([
+      listItemLabelPairs(fixture.backlog.id),
+      listItemFixVersionPairs(fixture.backlog.id),
+    ]);
+    const all = await listItems(fixture.backlog.id);
+    const byId = new Map(all.map((item) => [item.id, item]));
+    for (const row of window.rows) {
+      const item = byId.get(row.id)!;
+      expect(row).toMatchObject({
+        key: item.key,
+        type: item.type,
+        title: item.title,
+        statusId: item.statusId,
+        estimatePoints: item.estimatePoints,
+        dueDate: item.dueDate,
+        assigneeId: item.assigneeId,
+      });
+      expect(row.assigneeName === null).toBe(item.assigneeId === null);
+      expect(row.labels.map((label) => label.id).sort()).toEqual(
+        labelPairs.filter((pair) => pair.itemId === row.id).map((pair) => pair.labelId).sort(),
+      );
+      expect(row.fixVersions.map((release) => release.id).sort()).toEqual(
+        versionPairs.filter((pair) => pair.itemId === row.id).map((pair) => pair.releaseId).sort(),
+      );
+      const parent = item.parentId ? byId.get(item.parentId) : undefined;
+      expect(row.parent).toEqual(parent ? { key: parent.key, title: parent.title, type: parent.type } : null);
+      expect(row).not.toHaveProperty("description");
+    }
+  });
+
+  it("Liste by windows: a cursor is a position in the order, not an offset", async () => {
+    const state: ViewState = { filters: NO_FILTERS, sort: { field: "title", dir: "asc" }, group: "status" };
+    const first = await listWindowIds(fixture.backlog.id, state, { cursor: null, limit: 20 });
+    const before = await walkWindows(state, 1000);
+    const allIds = before.groups.flatMap((group) => group.itemIds);
+    // An item of the first window disappears: the next window neither skips nor repeats a row.
+    const removed = first.rows[3]!.id;
+    await db.update(items).set({ deletedAt: new Date() }).where(eq(items.id, removed));
+    try {
+      const next = await listWindowIds(fixture.backlog.id, state, { cursor: first.nextCursor, limit: 20 });
+      expect(next.rows.map((row) => row.id)).toEqual(allIds.slice(20, 40));
+      expect(next.total).toBe(allIds.length - 1);
+    } finally {
+      await db.update(items).set({ deletedAt: null }).where(eq(items.id, removed));
+    }
+    // A cursor of another sort is refused rather than misread.
+    await expect(listWindowIds(fixture.backlog.id, { ...state, sort: null }, {
+      cursor: first.nextCursor,
+      limit: 20,
+    })).rejects.toThrow();
+  });
 
   it("the dataset holds the cases the parity must cover", async () => {
     const rows = await db
