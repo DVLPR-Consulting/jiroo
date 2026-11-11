@@ -30,15 +30,17 @@ import { listReleaseSummaries } from "@/lib/services/releases";
 import { moveItemAction, reparentItemAction } from "@/app/actions/items";
 import {
   parseViewState,
-  matchItem,
   isFiltersActive,
-  groupItems,
-  sortItems,
-  withAncestors,
   enrichHierarchy,
   withKnownReleaseIds,
   type FilterItem,
 } from "@/lib/items/filter";
+import {
+  backlogViewRows,
+  listViewRows,
+  matchingTaskIds,
+  treeViewRows,
+} from "@/lib/services/view-rows";
 import { PRIORITY_LABELS, type ItemType } from "@/lib/design/constants";
 import { hierarchyStartStep } from "@/lib/tree/hierarchy";
 import { requireAppPageSession } from "@/lib/auth/session";
@@ -219,6 +221,17 @@ export async function BacklogViewContent({
     ...viewState.filters,
     sprintIds: withKnownSprintIds(requestedViewState.filters, knownSprintIds).sprintIds,
   };
+  // The view's rows are filtered, sorted, grouped and counted by PostgreSQL
+  // (JIR-143) on the effective filters; read meanwhile the rows to display.
+  const filtersOn = isFiltersActive(viewState.filters);
+  const viewRowsPromise = Promise.all([
+    view === "list" ? listViewRows(backlog.id, viewState) : null,
+    view === "backlog" ? backlogViewRows(backlog.id, viewState) : null,
+    view === "tree" && filtersOn ? treeViewRows(backlog.id, viewState.filters) : null,
+    view === "board" && filtersOn ? matchingTaskIds(backlog.id, viewState.filters) : null,
+  ]);
+  // Awaited below; a failure meanwhile must not surface as an unhandled rejection.
+  viewRowsPromise.catch(() => undefined);
   // Only unknown versions were requested: show every item, not an empty list.
   const releaseFilteredItems =
     requestedViewState.filters.releaseIds.length > 0 && viewState.filters.releaseIds.length === 0
@@ -234,8 +247,8 @@ export async function BacklogViewContent({
   // read the live backlog's structure (Composants and Epics), never the
   // Version-filtered rows: a version without items must not pass for a new
   // backlog, nor hide the Epics a new task can go under. Only the Version
-  // filter narrows the rows loaded here; the other filters are applied to
-  // them below, so without it no extra read is needed. Tâches and
+  // filter narrows the rows loaded here; the other filters only pick among
+  // them (in SQL), so without it no extra read is needed. Tâches and
   // Sous-tâches never ship as choices: the Parent fields search on demand
   // (JIR-118).
   const structureTypes: readonly string[] = STRUCTURE_ITEM_TYPES;
@@ -311,40 +324,25 @@ export async function BacklogViewContent({
     kind: i.kind,
     statusOrder: statusOrderById.get(i.statusId) ?? 0,
   })));
-  const filtersOn = isFiltersActive(viewState.filters);
-  const nonReleaseFilters = { ...viewState.filters, releaseIds: [] };
-  const matchedIds = new Set(
-    filterRows
-      .filter((r) =>
-        (!releaseFilterActive || releaseMatchedIds.has(r.id))
-        && matchItem(r, nonReleaseFilters),
-      )
-      .map((r) => r.id),
-  );
-  const isMatch = (id: string) => !filtersOn || matchedIds.has(id);
+  const filterRowById = new Map(filterRows.map((row) => [row.id, row]));
+  const [listRows, backlogRows, treeRows, boardTaskIds] = await viewRowsPromise;
+  // An item created or deleted between the two reads is left out until the
+  // next render, never shown half-loaded.
+  const loadedRows = (ids: string[]) =>
+    ids.flatMap((id) => filterRowById.get(id) ?? []);
+  const boardMatchedIds = boardTaskIds ? new Set(boardTaskIds) : null;
+  const isBoardMatch = (id: string) => boardMatchedIds === null || boardMatchedIds.has(id);
 
-  // List view: sort then group the filtered rows.
-  const listRows = filterRows.filter((r) => isMatch(r.id));
-  const listSorted = viewState.sort ? sortItems(listRows, viewState.sort) : listRows;
-  const listGroups: Array<[string, typeof listSorted]> = viewState.group
-    ? groupItems(listSorted, viewState.group)
-    : [["", listSorted]];
+  // List view: rows already sorted and grouped (first-seen group order).
+  const listGroups = (listRows?.groups ?? []).map((group) => ({
+    key: group.key,
+    summary: group.summary,
+    rows: loadedRows(group.itemIds),
+  }));
 
   const statusCategoryById = new Map(
     statusRows.map((status) => [status.id, status.category]),
   );
-  const currentSprintItemIds = new Set(
-    sprintSnapshot.memberships
-      .filter((membership) => membership.leftAt === null)
-      .map((membership) => membership.itemId),
-  );
-  const backlogResultCount = filterRows.filter(
-    (item) =>
-      item.type === "tache" &&
-      isMatch(item.id) &&
-      (currentSprintItemIds.has(item.id) ||
-        statusCategoryById.get(item.statusId) !== "done"),
-  ).length;
   const hasBacklogItems = filterRows.some(
     (item) =>
       item.type === "tache" &&
@@ -444,7 +442,6 @@ export async function BacklogViewContent({
   for (const i of items) {
     if (i.parentId) childCount.set(i.parentId, (childCount.get(i.parentId) ?? 0) + 1);
   }
-  const filterRowById = new Map(filterRows.map((row) => [row.id, row]));
   const itemById = new Map(items.map((item) => [item.id, item]));
   const parentPill = (parentId: string | null) => {
     const parent = parentId ? itemById.get(parentId) : undefined;
@@ -490,32 +487,36 @@ export async function BacklogViewContent({
   const activeSprintItemIds = new Set(
     activeSection?.items.map((item) => item.id) ?? [],
   );
-  const planningSections = baseSprintSections.map((section) => {
-    const sectionIds = new Set(section.items.map((item) => item.id));
-    const rows = filterRows.filter(
-      (row) => row.type === "tache" && sectionIds.has(row.id) && isMatch(row.id),
-    );
-    const sorted = viewState.sort ? sortItems(rows, viewState.sort) : rows.sort((left, right) => {
-      const leftRank = itemById.get(left.id)?.rank ?? "";
-      const rightRank = itemById.get(right.id)?.rank ?? "";
-      return leftRank < rightRank ? -1 : leftRank > rightRank ? 1 : 0;
-    });
-    const groupedRows: Array<[string, typeof sorted]> = viewState.group
-      ? groupItems(sorted, viewState.group)
-      : [["", sorted]];
-    const visibleItems = sorted.map((row) => planningItemById.get(row.id)!);
-    return {
-      ...section,
-      // Like the section metrics, the status lozenges cover the whole section.
-      statusPoints: pointsByStatusCategory(section.items, statusList),
-      items: visibleItems,
-      groups: groupedRows.map(([groupKey, groupRows]) => ({
-        key: groupKey,
-        label: groupLabel(groupKey),
-        items: groupRows.map((row) => planningItemById.get(row.id)!),
-      })),
-    };
-  });
+  // Backlog view: each section's filtered rows, already sorted and grouped;
+  // its metrics stay those of the whole section, before the filters.
+  const planningSections = backlogRows
+    ? baseSprintSections.map((section) => {
+        const sectionIds = new Set(section.items.map((item) => item.id));
+        const sectionItems = (ids: string[]) =>
+          ids.flatMap((id) => {
+            const item = sectionIds.has(id) ? planningItemById.get(id) : undefined;
+            return item ? [item] : [];
+          });
+        const servedGroups = (backlogRows.sections.get(section.id) ?? [])
+          .map((group) => ({
+            key: group.key,
+            label: groupLabel(group.key),
+            items: sectionItems(group.itemIds),
+          }))
+          .filter((group) => group.items.length > 0);
+        // An ungrouped section always has its one (possibly empty) group.
+        const groups = viewState.group || servedGroups.length > 0
+          ? servedGroups
+          : [{ key: "", label: groupLabel(""), items: [] }];
+        return {
+          ...section,
+          // Like the section metrics, the status lozenges cover the whole section.
+          statusPoints: pointsByStatusCategory(section.items, statusList),
+          items: groups.flatMap((group) => group.items),
+          groups,
+        };
+      })
+    : [];
   // Jira-style mono-level board: cards are the working level (Tâche) only. Sous-tâches stay
   // nested under their tâche (shown as the subCount badge); Composant/Epic are structure,
   // navigated in the tree/list — never sibling cards next to their own children.
@@ -524,7 +525,7 @@ export async function BacklogViewContent({
       (i) =>
         i.type === "tache" &&
         activeSprintItemIds.has(i.id) &&
-        isMatch(i.id),
+        isBoardMatch(i.id),
     )
     .map((i) => ({
       id: i.id,
@@ -549,12 +550,14 @@ export async function BacklogViewContent({
     }));
   const resultCount =
     view === "backlog"
-      ? backlogResultCount
+      ? (backlogRows?.total ?? 0)
       : view === "board"
         ? boardCards.length
-        : filtersOn
-          ? matchedIds.size
-          : items.length;
+        : view === "list"
+          ? (listRows?.total ?? 0)
+          : treeRows
+            ? treeRows.matchedIds.length
+            : items.length;
 
   // Board swimlanes: status is the columns, so it never groups the board. Build
   // the label for each band key the same way the board partitions its cards.
@@ -594,10 +597,10 @@ export async function BacklogViewContent({
   // Tree rows: the flat item list (already ordered depth,rank,key) reshaped for ItemTree.
   // When filters are active, restrict to matched items + their ancestors (context). Ancestors
   // are passed separately so the tree can render them dimmed and non-interactive.
-  const treeVisibleIds = filtersOn ? withAncestors(filterRows, matchedIds) : null;
-  const contextIds = filtersOn
-    ? new Set([...treeVisibleIds!].filter((id) => !matchedIds.has(id)))
-    : new Set<string>();
+  const treeVisibleIds = treeRows
+    ? new Set([...treeRows.matchedIds, ...treeRows.contextIds])
+    : null;
+  const contextIds = new Set(treeRows?.contextIds ?? []);
   const treeData =
     view === "tree"
       ? items
@@ -738,9 +741,10 @@ export async function BacklogViewContent({
       )}
       {view === "list" && (
         <ItemList
-          groups={listGroups.map(([key, rows]) => ({
+          groups={listGroups.map(({ key, summary, rows }) => ({
             key,
             label: groupLabel(key),
+            summary,
             items: rows.map((r) => ({
               ...r,
               estimatePoints: estimateByItem.get(r.id) ?? null,

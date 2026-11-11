@@ -47,7 +47,7 @@ import {
   useViewUrlState,
 } from "@/components/shell/view-url-state";
 import type { ItemKind, ItemType } from "@/lib/design/constants";
-import type { SortDir, SortField } from "@/lib/items/filter";
+import type { SortDir, SortField, ViewGroupSummary } from "@/lib/items/filter";
 import type {
   BulkItemCapabilities,
   ItemCapabilities,
@@ -97,7 +97,13 @@ export type ListItem = {
   parent?: { key: string; title: string; type: ItemType } | null;
 };
 
-type Group = { key: string; label: string; items: ListItem[] };
+type Group = {
+  key: string;
+  label: string;
+  items: ListItem[];
+  /** The group's figures computed by the server (JIR-143); from its rows when absent. */
+  summary?: ViewGroupSummary;
+};
 type CurrentSort = { field: SortField; dir: SortDir } | null;
 
 /** The Liste sort fields, in display order (the same `sort=` as before). */
@@ -348,7 +354,11 @@ export function ItemList({
     () =>
       grouped
         ? groups
-        : [{ ...ALL_ITEMS, items: groups.flatMap((group) => group.items) }],
+        : [{
+            ...ALL_ITEMS,
+            items: groups.flatMap((group) => group.items),
+            summary: groups.length === 1 ? groups[0]!.summary : undefined,
+          }],
     [grouped, groups],
   );
   const visibleItems = useMemo(
@@ -517,8 +527,10 @@ export function ItemList({
     const expanded = !collapsedGroups.has(section.key);
     const sectionIds = expanded ? section.items.map((item) => item.id) : [];
     const selectedCount = sectionIds.filter((id) => selection.selectedIds.has(id)).length;
-    const unestimatedCount = section.items.filter((item) => estimateOf(item) === null).length;
-    const statusPoints = pointsByStatusCategory(
+    const itemCount = section.summary?.count ?? section.items.length;
+    const unestimatedCount = section.summary?.unestimated
+      ?? section.items.filter((item) => estimateOf(item) === null).length;
+    const statusPoints = section.summary?.points ?? pointsByStatusCategory(
       section.items.map((item) => ({
         statusId: item.statusId,
         estimatePoints: estimateOf(item) ?? null,
@@ -559,7 +571,7 @@ export function ItemList({
           }
           summary={
             <ItemSectionSummary>
-              {itemsSummaryLabel(section.items.length, unestimatedCount)}
+              {itemsSummaryLabel(itemCount, unestimatedCount)}
             </ItemSectionSummary>
           }
           aside={<StatusPointsPills value={statusPoints} />}

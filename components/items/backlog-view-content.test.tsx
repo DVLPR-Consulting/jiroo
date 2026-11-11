@@ -89,6 +89,50 @@ vi.mock("@/lib/services/items", () => ({
 vi.mock("@/lib/services/links", () => ({
   blockedItemIds: mocks.blockedItemIds,
 }));
+// The views' rows come from SQL (JIR-143), proven equal to the former
+// in-memory computation by lib/services/view-rows.integration.test.ts. Here
+// that computation stands in for the database, fed with the mocked reads, so
+// these tests keep checking what each view receives.
+vi.mock("@/lib/services/view-rows", async () => {
+  const legacy = await import("@/test-utils/legacy-view-rows");
+  type State = Parameters<typeof legacy.legacyListRows>[0]["state"];
+  const last = async (fn: { mock: { results: Array<{ value: unknown }> } }) =>
+    (await fn.mock.results.at(-1)?.value) as never;
+  async function input(state: State) {
+    // The page awaits these rows after its own reads, which all resolve
+    // within microtasks: let them settle, then reuse what they returned.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const releaseActive = state.filters.releaseIds.length > 0;
+    const releaseCall = mocks.listItems.mock.calls.findIndex(
+      ([, options]) => ((options as { releaseIds?: string[] } | undefined)?.releaseIds ?? []).length > 0,
+    );
+    const releaseRows = releaseActive
+      ? ((await mocks.listItems.mock.results[releaseCall]?.value) as Array<{ id: string }>)
+      : null;
+    const snapshot = (await last(mocks.listSprintsForBacklog)) as Awaited<
+      ReturnType<typeof import("@/lib/services/sprints").listSprintsForBacklog>
+    >;
+    return {
+      items: releaseActive ? await last(mocks.listItemsWithAncestors) : await last(mocks.listItems),
+      releaseMatchedIds: releaseRows ? new Set(releaseRows.map((row) => row.id)) : null,
+      labelPairs: await last(mocks.listItemLabelPairs),
+      fixVersionPairs: await last(mocks.listItemFixVersionPairs),
+      sprints: snapshot.sprints,
+      memberships: snapshot.memberships,
+      // The statuses read (db.select) returns no rows in these tests.
+      statuses: [],
+      state,
+    };
+  }
+  return {
+    listViewRows: async (_backlogId: string, state: State) => legacy.legacyListRows(await input(state)),
+    backlogViewRows: async (_backlogId: string, state: State) => legacy.legacyBacklogRows(await input(state)),
+    treeViewRows: async (_backlogId: string, filters: State["filters"]) =>
+      legacy.legacyTreeRows(await input({ filters, sort: null, group: null })),
+    matchingTaskIds: async (_backlogId: string, filters: State["filters"]) =>
+      legacy.legacyMatchingTaskIds(await input({ filters, sort: null, group: null })),
+  };
+});
 vi.mock("@/lib/services/item-fix-versions", () => ({
   listItemFixVersionPairs: mocks.listItemFixVersionPairs,
 }));

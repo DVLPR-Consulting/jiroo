@@ -183,6 +183,13 @@
       "when": 1794397427206,
       "tag": "0025_mysterious_cerebro",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794397427207,
+      "tag": "0026_view_sort_collations",
+      "breakpoints": true
     }
   ]
 }

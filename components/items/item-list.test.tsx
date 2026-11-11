@@ -767,6 +767,26 @@ describe("ItemList", () => {
     expect(screen.queryByRole("button", { name: /^Déplacer/ })).not.toBeInTheDocument();
   });
 
+  it("shows the figures the server counted over the whole group, not over its rows (JIR-143)", () => {
+    renderList({
+      ...listProps(),
+      grouped: true,
+      groups: [
+        {
+          key: "billing",
+          label: "Facturation",
+          items: [item("item-2", "DEMO-2", "Invoices", { estimatePoints: 2 })],
+          summary: { count: 140, unestimated: 12, points: { todo: 21.5, inProgress: 8, done: 3.25 } },
+        },
+      ],
+    });
+
+    const billing = screen.getByRole("region", { name: "Facturation" });
+    expect(within(billing).getByText("140 items · 12 non estimés")).toBeVisible();
+    expect(within(billing).getByText("Points par statut : À faire 21,5, En cours 8, Terminé 3,25"))
+      .toBeInTheDocument();
+  });
+
   it("collapses the card and drops its hidden rows from the selection", async () => {
     const user = userEvent.setup();
     renderList();
