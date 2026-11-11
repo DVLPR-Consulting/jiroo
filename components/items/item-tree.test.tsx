@@ -24,6 +24,11 @@ vi.mock("@/app/actions/item-choices", () => ({
   searchBacklogItemsAction: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
 }));
 
+vi.mock("@/app/actions/tree-window", () => ({
+  loadTreeChildrenAction: vi.fn(async () => ({ ok: false, error: "Impossible de charger la suite. Réessayez avec « Charger la suite »." })),
+  loadTreeMatchesAction: vi.fn(async () => ({ ok: false, error: "Impossible de charger la suite. Réessayez avec « Charger la suite »." })),
+}));
+
 const reviewStatusId = "33333333-3333-4333-8333-333333333333";
 
 const statuses: Array<{
@@ -425,5 +430,245 @@ describe("ItemTree", () => {
     expect(screen.getByText("Aucun Composant n’y a encore été créé.")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Nouveau Composant" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Nouvel item" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ItemTree by windows (JIR-147)", () => {
+  type Row = Parameters<typeof ItemTree>[0]["items"][number];
+  const todo = statuses[0]!.id;
+  function row(id: string, type: Row["type"], parentId: string | null, depth: number, rank: string, childCount?: number): Row {
+    return {
+      id,
+      key: `DEMO-${id.toUpperCase()}`,
+      type,
+      title: id.toUpperCase(),
+      parentId,
+      statusId: todo,
+      priority: 2,
+      depth,
+      rank,
+      path: parentId ? `root.${parentId}.${id}` : `root.${id}`,
+      labels: [],
+      assigneeId: null,
+      assigneeName: null,
+      ...(childCount === undefined ? {} : { childCount }),
+    };
+  }
+  const c1 = row("c1", "composant", null, 0, "a0", 2);
+  const e1 = row("e1", "epic", "c1", 1, "a1", 3);
+  const e2 = row("e2", "epic", "c1", 1, "a2", 0);
+  const t1 = row("t1", "tache", "e1", 2, "b1", 0);
+  const t2 = row("t2", "tache", "e1", 2, "b2", 0);
+  const t3 = row("t3", "tache", "e1", 2, "b3", 0);
+  const children = (parentId: string, rows: Row[], nextCursor: string | null, total: number) => ({
+    ok: true as const,
+    windows: [{ parentId, total, rows, nextCursor }],
+  });
+  const names = () =>
+    screen.getAllByRole("button", { name: /^DEMO-/ }).map((element) => element.getAttribute("aria-label")?.split(" — ")[1]);
+  const rowNamed = (title: string) => screen.getByRole("button", { name: `DEMO-${title} — ${title}` });
+
+  function renderTree(props: Partial<Parameters<typeof ItemTree>[0]> = {}) {
+    const loadChildren = vi.fn();
+    const reparentItemAction = vi.fn().mockResolvedValue({ ok: true, item: { ...t1 } });
+    const view = render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[c1, e1, e2]}
+          statuses={statuses}
+          reparentItemAction={reparentItemAction}
+          moveItemAction={vi.fn()}
+          loadChildren={loadChildren}
+          {...props}
+        />
+      </ViewUrlStateProvider>,
+    );
+    return { ...view, loadChildren, reparentItemAction };
+  }
+
+  async function dropOn(dragged: HTMLElement, target: HTMLElement, clientY: number) {
+    const dataTransfer = { effectAllowed: "none", dropEffect: "none", setData: vi.fn() };
+    fireEvent.dragStart(dragged, { dataTransfer });
+    const over = createEvent.dragOver(target, { dataTransfer });
+    // jsdom rows have no height: 0 is the "into" zone, anything below "after".
+    Object.defineProperty(over, "clientY", { value: clientY });
+    fireEvent(target, over);
+    fireEvent.drop(target, { dataTransfer });
+  }
+
+  it("loads an Epic's children when it is unfolded, by windows of 100 ending with « Charger la suite »", async () => {
+    const user = userEvent.setup();
+    const { loadChildren } = renderTree();
+    loadChildren
+      .mockResolvedValueOnce(children("e1", [t1, t2], "b2", 3))
+      .mockResolvedValueOnce(children("e1", [t3], null, 3));
+
+    // Composants show their Epics; an Epic's tasks wait for it to be unfolded.
+    expect(names()).toEqual(["C1", "E1", "E2"]);
+    expect(within(rowNamed("E2")).getByRole("button", { hidden: true })).not.toBeVisible();
+    await user.click(within(rowNamed("E1")).getByRole("button", { name: "Déplier" }));
+    expect(loadChildren).toHaveBeenCalledWith({
+      backlogKey: "DEMO",
+      parents: [{ parentId: "e1", cursor: null, limit: 100 }],
+    });
+    await waitFor(() => expect(names()).toEqual(["C1", "E1", "T1", "T2", "E2"]));
+    expect(within(rowNamed("E1")).getByRole("button", { name: "Replier" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Charger la suite de E1" }));
+    expect(loadChildren).toHaveBeenLastCalledWith({
+      backlogKey: "DEMO",
+      parents: [{ parentId: "e1", cursor: "b2", limit: 100 }],
+    });
+    await waitFor(() => expect(names()).toEqual(["C1", "E1", "T1", "T2", "T3", "E2"]));
+    expect(screen.queryByRole("button", { name: /Charger la suite/ })).not.toBeInTheDocument();
+
+    // Folded then unfolded again: the children are already there.
+    await user.click(within(rowNamed("E1")).getByRole("button", { name: "Replier" }));
+    expect(names()).toEqual(["C1", "E1", "E2"]);
+    await user.click(within(rowNamed("E1")).getByRole("button", { name: "Déplier" }));
+    expect(names()).toEqual(["C1", "E1", "T1", "T2", "T3", "E2"]);
+    expect(loadChildren).toHaveBeenCalledTimes(2);
+  });
+
+  it("says when a parent's children cannot be loaded, and lets the user try again", async () => {
+    const user = userEvent.setup();
+    const { loadChildren } = renderTree();
+    loadChildren.mockResolvedValueOnce({ ok: false, error: "Impossible de charger la suite. Réessayez avec « Charger la suite »." });
+    await user.click(within(rowNamed("E1")).getByRole("button", { name: "Déplier" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Impossible de charger la suite");
+    expect(names()).toEqual(["C1", "E1", "E2"]);
+    loadChildren.mockResolvedValueOnce(children("e1", [t1], null, 1));
+    await user.click(within(rowNamed("E1")).getByRole("button", { name: "Déplier" }));
+    await waitFor(() => expect(names()).toEqual(["C1", "E1", "T1", "E2"]));
+  });
+
+  it("drops into an Epic not unfolded without neighbors, so the server puts it first", async () => {
+    const user = userEvent.setup();
+    const closed = { ...e2, childCount: 4 };
+    const { loadChildren, reparentItemAction } = renderTree({ items: [c1, e1, closed] });
+    loadChildren.mockResolvedValueOnce(children("e1", [t1, t2], "b2", 3));
+    await user.click(within(rowNamed("E1")).getByRole("button", { name: "Déplier" }));
+    await waitFor(() => expect(names()).toContain("T1"));
+
+    await dropOn(rowNamed("T1"), rowNamed("E2"), 0);
+    await waitFor(() =>
+      expect(reparentItemAction).toHaveBeenCalledWith({
+        backlogKey: "DEMO",
+        id: "t1",
+        newParentId: "e2",
+        beforeId: null,
+        afterId: null,
+      }),
+    );
+    // Its new parent is still folded: the task leaves the rows shown.
+    await waitFor(() => expect(names()).toEqual(["C1", "E1", "T2", "E2"]));
+  });
+
+  it("drops into an unfolded Epic right after its last loaded child, even with more to load", async () => {
+    const user = userEvent.setup();
+    const other = row("e3", "epic", "c1", 1, "a3", 1);
+    const t9 = row("t9", "tache", "e3", 2, "c9", 0);
+    const { loadChildren, reparentItemAction } = renderTree({ items: [c1, e1, e2, other] });
+    loadChildren
+      .mockResolvedValueOnce(children("e1", [t1, t2], "b2", 3))
+      .mockResolvedValueOnce(children("e3", [t9], null, 1));
+    await user.click(within(rowNamed("E1")).getByRole("button", { name: "Déplier" }));
+    await waitFor(() => expect(names()).toContain("T2"));
+    await user.click(within(rowNamed("E3")).getByRole("button", { name: "Déplier" }));
+    await waitFor(() => expect(names()).toContain("T9"));
+
+    await dropOn(rowNamed("T9"), rowNamed("E1"), 0);
+    await waitFor(() =>
+      expect(reparentItemAction).toHaveBeenCalledWith({
+        backlogKey: "DEMO",
+        id: "t9",
+        newParentId: "e1",
+        beforeId: "t2",
+        afterId: null,
+      }),
+    );
+  });
+
+  it("reads the unfolded parents again in one call after a refresh, keeping their rows meanwhile", async () => {
+    const user = userEvent.setup();
+    const { loadChildren, rerender } = renderTree();
+    loadChildren.mockResolvedValueOnce(children("e1", [t1, t2], "b2", 3));
+    await user.click(within(rowNamed("E1")).getByRole("button", { name: "Déplier" }));
+    await waitFor(() => expect(names()).toEqual(["C1", "E1", "T1", "T2", "E2"]));
+
+    let answer: (value: unknown) => void = () => undefined;
+    loadChildren.mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
+    rerender(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[c1, { ...e1, childCount: 4 }, e2]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          loadChildren={loadChildren}
+        />
+      </ViewUrlStateProvider>,
+    );
+    await waitFor(() =>
+      expect(loadChildren).toHaveBeenLastCalledWith({
+        backlogKey: "DEMO",
+        parents: [{ parentId: "e1", cursor: null, limit: 2 }],
+      }),
+    );
+    expect(names()).toEqual(["C1", "E1", "T1", "T2", "E2"]);
+    const t0 = row("t0", "tache", "e1", 2, "b0", 0);
+    answer(children("e1", [t0, t1], "b1", 4));
+    await waitFor(() => expect(names()).toEqual(["C1", "E1", "T0", "T1", "E2"]));
+    expect(screen.getByRole("button", { name: "Charger la suite de E1" })).toBeVisible();
+  });
+
+  it("shows filtered matches with their dimmed ancestors and loads the next matches without a row twice", async () => {
+    const user = userEvent.setup();
+    const loadMatches = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      window: {
+        total: 2,
+        rows: [
+          { ...row("c1", "composant", null, 0, "a0"), matched: false },
+          { ...row("e1", "epic", "c1", 1, "a1"), matched: false },
+          { ...row("t3", "tache", "e1", 2, "b3"), matched: true },
+        ],
+        nextCursor: null,
+      },
+    });
+    render(
+      <ViewUrlStateProvider initialEntries={[["view", "tree"], ["q", "t"]]}>
+        <ItemTree
+          backlogKey="DEMO"
+          items={[row("c1", "composant", null, 0, "a0"), row("e1", "epic", "c1", 1, "a1"), row("t1", "tache", "e1", 2, "b1")]}
+          contextIds={["c1", "e1"]}
+          statuses={statuses}
+          reparentItemAction={vi.fn()}
+          moveItemAction={vi.fn()}
+          filtersActive
+          window={{ total: 2, nextCursor: { depth: 2, rank: "b1" } }}
+          viewStateQuery="q=t"
+          loadMatches={loadMatches}
+        />
+      </ViewUrlStateProvider>,
+    );
+    expect(names()).toEqual(["C1", "E1", "T1"]);
+    expect(rowNamed("C1")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText("1 affichés sur 2")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Charger la suite" }));
+    expect(loadMatches).toHaveBeenCalledWith({
+      backlogKey: "DEMO",
+      viewState: "q=t",
+      cursor: { depth: 2, rank: "b1" },
+      limit: 100,
+    });
+    await waitFor(() => expect(names()).toEqual(["C1", "E1", "T1", "T3"]));
+    expect(screen.getByText("2 affichés sur 2")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Charger la suite" })).not.toBeInTheDocument();
+    // Filtered rows only show what was served: nothing to unfold on demand.
+    expect(within(rowNamed("T3")).getByRole("button", { hidden: true })).not.toBeVisible();
   });
 });

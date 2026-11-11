@@ -40,10 +40,10 @@ import {
 import {
   backlogViewRows,
   matchingTaskIds,
-  treeViewRows,
 } from "@/lib/services/view-rows";
 import { loadListWindow } from "@/lib/services/list-window";
 import { loadBacklogWindow } from "@/lib/services/backlog-window";
+import { loadTreeMatchWindow } from "@/lib/services/tree-window";
 import { PRIORITY_LABELS, type ItemType } from "@/lib/design/constants";
 import { hierarchyStartStep } from "@/lib/tree/hierarchy";
 import { requireAppPageSession } from "@/lib/auth/session";
@@ -234,7 +234,8 @@ export async function BacklogViewContent({
     view === "list" ? loadListWindow(backlog.id, viewState, { cursor: null }) : null,
     view === "backlog" ? backlogViewRows(backlog.id, viewState) : null,
     view === "backlog" ? loadBacklogWindow(backlog.id, viewState, { cursor: null }) : null,
-    view === "tree" && filtersOn ? treeViewRows(backlog.id, viewState.filters) : null,
+    // The filtered Arbre sends its first window of matches (JIR-147).
+    view === "tree" && filtersOn ? loadTreeMatchWindow(backlog.id, viewState.filters, { cursor: null }) : null,
     view === "board" && filtersOn ? matchingTaskIds(backlog.id, viewState.filters) : null,
   ]);
   // Awaited below; a failure meanwhile must not surface as an unhandled rejection.
@@ -332,7 +333,7 @@ export async function BacklogViewContent({
     statusOrder: statusOrderById.get(i.statusId) ?? 0,
   })));
   const filterRowById = new Map(filterRows.map((row) => [row.id, row]));
-  const [listWindow, backlogRows, backlogWindow, treeRows, boardTaskIds] = await viewRowsPromise;
+  const [listWindow, backlogRows, backlogWindow, treeWindow, boardTaskIds] = await viewRowsPromise;
   const boardMatchedIds = boardTaskIds ? new Set(boardTaskIds) : null;
   const isBoardMatch = (id: string) => boardMatchedIds === null || boardMatchedIds.has(id);
 
@@ -584,8 +585,8 @@ export async function BacklogViewContent({
         ? boardCards.length
         : view === "list"
           ? (listWindow?.total ?? 0)
-          : treeRows
-            ? treeRows.matchedIds.length
+          : treeWindow
+            ? treeWindow.total
             : items.length;
 
   // Board swimlanes: status is the columns, so it never groups the board. Build
@@ -623,34 +624,37 @@ export async function BacklogViewContent({
     }
   }
 
-  // Tree rows: the flat item list (already ordered depth,rank,key) reshaped for ItemTree.
-  // When filters are active, restrict to matched items + their ancestors (context). Ancestors
-  // are passed separately so the tree can render them dimmed and non-interactive.
-  const treeVisibleIds = treeRows
-    ? new Set([...treeRows.matchedIds, ...treeRows.contextIds])
-    : null;
-  const contextIds = new Set(treeRows?.contextIds ?? []);
+  // Tree rows (JIR-147). Without a filter, the structure only: Composants and
+  // Epics (already ordered depth, rank, key) with their live children counted,
+  // so an Epic reads its tasks when it is unfolded. With one, the first window
+  // of matches and the ancestors they need, shown dimmed and non-interactive.
   const treeData =
-    view === "tree"
-      ? items
-          .filter((i) => treeVisibleIds === null || treeVisibleIds.has(i.id))
-          .map((i) => ({
-            id: i.id,
-            key: i.key,
-            type: i.type,
-            title: i.title,
-            parentId: i.parentId,
-            statusId: i.statusId,
-            priority: i.priority,
-            depth: i.depth,
-            rank: i.rank,
-            path: i.path,
-            labels: labelsByItem.get(i.id) ?? [],
-            assigneeId: i.assigneeId,
-            assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
-            fixVersions: fixVersionsByItem.get(i.id) ?? [],
-          }))
-      : [];
+    view !== "tree"
+      ? []
+      : treeWindow
+        ? treeWindow.rows.map(({ matched, ...row }) => {
+            void matched;
+            return row;
+          })
+        : items
+            .filter((i) => structureTypes.includes(i.type))
+            .map((i) => ({
+              id: i.id,
+              key: i.key,
+              type: i.type,
+              title: i.title,
+              parentId: i.parentId,
+              statusId: i.statusId,
+              priority: i.priority,
+              depth: i.depth,
+              rank: i.rank,
+              path: i.path,
+              labels: labelsByItem.get(i.id) ?? [],
+              assigneeId: i.assigneeId,
+              assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
+              childCount: childCount.get(i.id) ?? 0,
+            }));
+  const contextIds = treeWindow?.rows.flatMap((row) => (row.matched ? [] : [row.id])) ?? [];
 
   // Bug 2: board status filter hides unselected columns — pass only the selected
   // statuses when a status filter is active; all statuses otherwise.
@@ -838,7 +842,9 @@ export async function BacklogViewContent({
           backlogKey={key}
           items={treeData}
           statuses={statusList}
-          contextIds={[...contextIds]}
+          contextIds={contextIds}
+          window={treeWindow ? { total: treeWindow.total, nextCursor: treeWindow.nextCursor } : null}
+          viewStateQuery={listViewQuery.toString()}
           reparentItemAction={reparentItemAction}
           moveItemAction={moveItemAction}
           filtersActive={filtersOn}
