@@ -171,9 +171,20 @@ describe("HelpPage", () => {
     expect(views).toHaveTextContent("Les 100 premiers tickets s’affichent, puis les suivants par 100 en défilant jusqu’en bas, ou avec « Charger la suite »");
     expect(views).toHaveTextContent("les totaux (nombre et points) couvrent tout le groupe");
     const page = document.body;
-    expect(page).toHaveTextContent("Dans la « Liste », ces raccourcis sélectionnent uniquement les tickets déjà chargés, dans la limite de 500.");
+    expect(page).toHaveTextContent("Dans la « Liste » et le « Backlog », ces raccourcis sélectionnent uniquement les tickets déjà chargés, dans la limite de 500.");
     expect(page).toHaveTextContent("sur le dernier ticket chargé charge la suite et sélectionne le ticket suivant");
     expect(page).toHaveTextContent("l’actualisation recharge aussi les tickets déjà affichés (jusqu’à 500), en conservant votre place");
+  });
+
+  it("documents the Backlog section loaded by 100 and where a drop at its edge lands (JIR-146)", () => {
+    render(<HelpPage />);
+    const views = document.querySelector("section#vues") as HTMLElement;
+    expect(views).toHaveTextContent("Les sprints s’affichent en entier. La section Backlog affiche les 100 premières tâches, puis les suivantes par 100 en défilant jusqu’en bas, ou avec « Charger la suite »");
+    expect(views).toHaveTextContent("couvrent toute la section, même les tâches pas encore chargées. Chaque groupe indique son nombre total de tâches.");
+    expect(views).toHaveTextContent("une tâche déposée en bas de la partie chargée se place juste après la dernière tâche chargée");
+    const page = document.body;
+    expect(page).toHaveTextContent("Dans la « Liste » et le « Backlog », l’actualisation recharge aussi les tickets déjà affichés");
+    expect(page).toHaveTextContent("Dans la « Liste » et le « Backlog », J sur le dernier ticket chargé charge la suite");
   });
 
   it("documents the rich-text editor (JIR-66)", () => {
