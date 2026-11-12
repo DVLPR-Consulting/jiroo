@@ -221,10 +221,10 @@ export function HelpGuide() {
           ]}
         >
           <ul className="t-body list-disc space-y-1 pl-5">
-            <li><Ui>Backlog</Ui> : les tâches par sprint et la section Backlog, une ligne compacte par tâche ; glisser-déposer pour classer et planifier.</li>
+            <li><Ui>Backlog</Ui> : les tâches par sprint et la section Backlog, une ligne compacte par tâche ; glisser-déposer pour classer et planifier. Les sprints s’affichent en entier. La section Backlog affiche les 100 premières tâches, puis les suivantes par 100 en défilant jusqu’en bas, ou avec <Ui>Charger la suite</Ui>. En bas, <Ui>N affichés sur T</Ui> indique le nombre de tâches affichées sur le total après filtres. Les totaux de l’en-tête (tâches, non estimées et points par statut) couvrent toute la section, même les tâches pas encore chargées. Chaque groupe indique son nombre total de tâches. Dans la section Backlog, une tâche déposée en bas de la partie chargée se place juste après la dernière tâche chargée.</li>
             <li><Ui>Board</Ui> : les tâches du sprint actif, une colonne par statut ; déplacer une carte (depuis n’importe quel point, ou au clavier avec sa poignée) change son statut. Une carte se lit de haut en bas : la clé, la priorité et les points ; le titre ; ce qui la situe (<Ui>Bloqué</Ui>, le parent, les étiquettes) ; puis l’échéance (rouge si dépassée, ambre si elle tombe aujourd’hui ou dans les deux prochains jours), les sous-tâches et la personne. Une carte terminée est grisée, une carte bloquée porte un liseré rouge. Sans sprint actif, le bandeau <Ui>Aucun sprint actif</Ui> et son lien <Ui>Voir le Backlog</Ui> surmontent les colonnes, vides et sans glisser-déposer.</li>
-            <li><Ui>Liste</Ui> : tous les tickets, à plat, dans le même tableau que le Backlog, intitulé <Ui>Tous les items</Ui> (nombre d’items et de non estimés, points par statut, <Ui>Créer un item</Ui> en bas) ; la ligne <Ui>Trier</Ui> de son en-tête pour trier, le menu <Ui>Colonnes</Ui> pour afficher des informations en plus. Groupée (<Ui>Affichage</Ui>), elle montre un tableau par groupe, repliable comme les sections du Backlog.</li>
-            <li><Ui>Arbre</Ui> : la hiérarchie ; glisser un ticket sous un autre parent le rattache (règles de hiérarchie).</li>
+            <li><Ui>Liste</Ui> : tous les tickets à plat, dans le tableau <Ui>Tous les items</Ui>, comme dans le Backlog (nombre d’items et de non estimés, points par statut, <Ui>Créer un item</Ui> en bas). <Ui>Trier</Ui> change l’ordre ; <Ui>Colonnes</Ui> ajoute des informations. Les 100 premiers tickets s’affichent, puis les suivants par 100 en défilant jusqu’en bas, ou avec <Ui>Charger la suite</Ui>. En bas, <Ui>N affichés sur T</Ui> indique le nombre de tickets affichés sur le total après filtres. <Ui>Affichage</Ui> permet de les grouper en tableaux repliables ; les totaux (nombre et points) couvrent tout le groupe.</li>
+            <li><Ui>Arbre</Ui> : la hiérarchie ; glisser un ticket sous un autre parent le rattache (règles de hiérarchie). Les Composants et les Epics s’affichent d’emblée. Dépliez une Epic pour charger ses tâches, ou une tâche pour charger ses sous-tâches : les 100 premières s’affichent, puis les suivantes par 100 avec <Ui>Charger la suite</Ui>, sous le dernier enfant chargé. Avec un filtre, l’Arbre affiche les 100 premiers tickets trouvés avec leurs parents grisés, puis les suivants par 100 en défilant jusqu’en bas, ou avec <Ui>Charger la suite</Ui>. En bas, <Ui>N affichés sur T</Ui> indique le nombre de tickets trouvés affichés sur le total après filtres, sans compter les parents grisés. <Key>J</Key> sur le dernier ticket chargé charge la suite et sélectionne le ticket suivant. Un ticket déposé dans un parent déplié se place juste après son dernier enfant chargé ; dans un parent replié, il se place avant le premier enfant. Si le parent est vide, le ticket garde son rang. Si vous changez le champ <Ui>Parent</Ui> depuis le panneau de détail, le ticket se place avant le premier enfant du nouveau parent ; si ce parent est vide, il garde son rang.</li>
           </ul>
           <GuideNote>
             Le classement manuel par glisser-déposer n’est possible que sans tri ni regroupement actif.
@@ -473,7 +473,7 @@ export function HelpGuide() {
           title="Actions groupées"
           purpose="Modifier plusieurs tickets d’un coup."
           steps={[
-            <>En vue <Ui>Liste</Ui> ou <Ui>Backlog</Ui>, cochez les tickets (<Key>Maj</Key> + clic pour une plage, <Key>⌘/Ctrl</Key> + <Key>A</Key> pour tout).</>,
+            <>En vue <Ui>Liste</Ui> ou <Ui>Backlog</Ui>, cochez les tickets (<Key>Maj</Key> + clic pour une plage, <Key>⌘/Ctrl</Key> + <Key>A</Key> pour tout). Dans la <Ui>Liste</Ui> et le <Ui>Backlog</Ui>, ces raccourcis sélectionnent uniquement les tickets déjà chargés, dans la limite de 500. Pour atteindre d’autres tickets, faites défiler la vue ou affinez les filtres.</>,
             <>Dans la barre <Ui>Actions groupées</Ui>, changez <Ui>Statut</Ui>, <Ui>Priorité</Ui>, <Ui>Assigné</Ui>, <Ui>Sprint</Ui>, les points ou les Fix versions.</>,
             <><Ui>Effacer la sélection</Ui> (ou <Key>Échap</Key>) pour terminer.</>,
           ]}
@@ -499,7 +499,7 @@ export function HelpGuide() {
       <GuideSection id="collaboration">
         <ul className="t-body list-disc space-y-1 pl-5">
           <li>Quand quelqu’un d’autre modifie le backlog affiché, le bandeau <Ui>Ce backlog a été modifié par quelqu&apos;un d&apos;autre.</Ui> apparaît en haut de l’écran.</li>
-          <li>Les vues Backlog, Board, Liste et Arbre restent en place : cliquez sur <Ui>Actualiser</Ui> pour voir les changements, ou sur <Ui>Masquer</Ui> pour fermer le bandeau.</li>
+          <li>Les vues Backlog, Board, Liste et Arbre restent en place : cliquez sur <Ui>Actualiser</Ui> pour voir les changements, ou sur <Ui>Masquer</Ui> pour fermer le bandeau. Dans la <Ui>Liste</Ui>, le <Ui>Backlog</Ui> et l’<Ui>Arbre</Ui>, l’actualisation recharge aussi les tickets déjà affichés (jusqu’à 500), en conservant votre place.</li>
           <li>Vos propres modifications ne font pas apparaître ce bandeau.</li>
           <li>Le panneau de détail ouvert se met à jour tout seul quand quelqu’un d’autre modifie ce ticket.</li>
           <li>La cloche se met à jour toute seule quand quelqu’un vous mentionne dans un commentaire.</li>
@@ -695,7 +695,7 @@ export function HelpGuide() {
           steps={[
             <>Appuyez sur <Key>?</Key> (hors saisie) pour afficher la fenêtre <Ui>Raccourcis clavier</Ui> ; <Key>Échap</Key> la ferme.</>,
             <>Pour <Key>G</Key> puis une lettre, tapez les deux touches à moins d’une seconde d’intervalle. Hors d’un backlog, le dernier backlog consulté est utilisé.</>,
-            <>Dans une vue, <Key>J</Key> et <Key>K</Key> sélectionnent le ticket suivant ou précédent ; <Key>O</Key> ou <Key>Entrée</Key> l’ouvre.</>,
+            <>Dans une vue, <Key>J</Key> et <Key>K</Key> sélectionnent le ticket suivant ou précédent ; <Key>O</Key> ou <Key>Entrée</Key> l’ouvre. Dans la <Ui>Liste</Ui>, le <Ui>Backlog</Ui> et l’<Ui>Arbre</Ui> filtré, <Key>J</Key> sur le dernier ticket chargé charge la suite et sélectionne le ticket suivant.</>,
             <>Pour désactiver les raccourcis à une touche, décochez <Ui>Raccourcis à une touche</Ui> dans la fenêtre <Ui>Raccourcis clavier</Ui> ou dans <Ui>Préférences</Ui> (menu de votre profil). Ce choix est conservé sur cet appareil.</>,
           ]}
         >

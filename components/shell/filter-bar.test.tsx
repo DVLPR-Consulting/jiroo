@@ -37,6 +37,9 @@ vi.mock("@/app/actions/items", () => ({
   updateItemAction: vi.fn(),
 }));
 
+vi.mock("@/app/actions/view-window", () => ({
+  loadViewWindowAction: vi.fn(async () => ({ ok: false, error: "Impossible de charger la suite. Réessayez avec « Charger la suite »." })),
+}));
 vi.mock("@/app/actions/item-choices", () => ({
   searchBacklogItemsAction: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
 }));
@@ -1024,9 +1027,6 @@ describe("FilterBar", () => {
                   assigneeName: null,
                   labels: [],
                   blocked: false,
-                  statusOrder: 0,
-                  ancestorIds: [],
-                  componentId: null,
                 },
               ],
             },
@@ -1381,9 +1381,6 @@ describe("FilterBar", () => {
                   assigneeName: null,
                   labels: [],
                   blocked: false,
-                  statusOrder: 0,
-                  ancestorIds: [],
-                  componentId: null,
                 },
               ],
             },

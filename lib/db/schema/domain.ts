@@ -187,6 +187,8 @@ export const items = pgTable(
     // re-midpoints. rank is NOT NULL, so no NULLS-NOT-DISTINCT handling is needed.
     uniqueIndex("items_backlog_rank_idx").on(t.backlogId, t.rank),
     uniqueIndex("items_backlog_id_idx").on(t.backlogId, t.id),
+    index("items_backlog_status_idx").on(t.backlogId, t.statusId),
+    index("items_backlog_parent_rank_idx").on(t.backlogId, t.parentId, t.rank),
     index("items_path_idx").using("gist", t.path),
     index("items_search_idx").using("gin", t.search),
     check(

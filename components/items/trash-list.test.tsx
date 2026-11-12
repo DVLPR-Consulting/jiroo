@@ -143,7 +143,7 @@ describe("TrashList", () => {
     );
 
     const row = screen.getByRole("listitem");
-    expect(within(row).getByText("DEMO-1")).toHaveClass("font-mono");
+    expect(within(row).getByText("DEMO-1")).toHaveClass("ir-key");
     expect(within(row).getByText("Bug")).toBeVisible();
     expect(within(row).getByRole("img", { name: "En cours" })).toBeVisible();
     expect(within(row).getByText("supprimé il y a 2 jours")).toBeVisible();

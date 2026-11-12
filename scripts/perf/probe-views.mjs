@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Serial local probe. Node 24 built-ins only; Docker/psql read the owned PostgreSQL log.
+// Serial local probe. Window discovery optionally uses Chromium; measurement uses Node HTTP.
 // Configure PROBE_BASE_URL, BACKLOG, ITEM, EMAIL, PASSWORD, REQUESTS (all PROBE_ prefixed),
-// plus PROBE_PG_CONTAINER, DATABASE, OWNER and ROLE. See docs/perf/2026-10-jir-118-light-views.md.
+// plus PROBE_PG_CONTAINER, DATABASE, OWNER and ROLE. See docs/perf/2026-11-jir-120-windows.md.
+import { readFileSync } from "node:fs";
 import { createHmac, randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -51,6 +52,9 @@ export function validatePanel(text, itemKey) {
 }
 
 async function main() {
+  const { windowConfig, windowActionIds, discoverWindowRequest, validateWindowResponse } = await import("./probe-windows.mjs");
+  const { validateRead } = await import("./load-team-profile.mjs");
+  const windows = windowConfig(process.env);
   const env = process.env, required = (name) => {
     const value = env[`PROBE_${name}`]; if (!value) throw new Error(`Set PROBE_${name}`); return value;
   };
@@ -94,47 +98,67 @@ async function main() {
   await api("two-factor/verify-totp", { code: totp(secret) });
   const session = await api("get-session");
   if (session?.user?.role !== "contributor" || session.user.twoFactorEnabled !== true) throw new Error("The probe requires an enrolled contributor account");
-  const operations = [
+  let operations = [
     ["List", `/b/${encodeURIComponent(backlog)}?view=list`],
     ["Backlog", `/b/${encodeURIComponent(backlog)}?view=backlog`],
     ["Tree", `/b/${encodeURIComponent(backlog)}?view=tree`],
     ["Board", `/b/${encodeURIComponent(backlog)}?view=board`],
     ["Panel", `/api/backlogs/${encodeURIComponent(backlog)}/items/${encodeURIComponent(item)}`],
   ];
+  if (windows) {
+    const params = new URLSearchParams(windows.query); params.set("view", windows.view);
+    const path = `/b/${encodeURIComponent(backlog)}?${params}`;
+    const manifest = JSON.parse(readFileSync(new URL("../../.next/server/server-reference-manifest.json", import.meta.url), "utf8"));
+    const request = await discoverWindowRequest({ url: new URL(path, base).href,
+      cookies: [...cookies].map(([name, value]) => ({ name, value })), actionIds: windowActionIds(manifest, windows.actionName) });
+    operations = [[`${windows.view} first`, path], [`${windows.view} next`, request]];
+  }
   const read = async (operation, path) => {
     const started = performance.now();
-    const response = await fetch(new URL(path, base), { headers: headers(), redirect: "manual", signal: AbortSignal.timeout(120000) });
+    const request = typeof path === "string" ? { url: new URL(path, base).href } : path;
+    const response = await fetch(request.url, { ...request, headers: { ...request.headers, ...headers() }, redirect: "manual", signal: AbortSignal.timeout(120000) });
     const body = Buffer.from(await response.arrayBuffer()), fullMs = performance.now() - started;
     saveCookies(response.headers);
     if (!response.ok) throw new Error(`${operation}: HTTP ${response.status}, not a measured success`);
     if (operation === "Panel") validatePanel(body.toString(), item);
+    else if (operation.endsWith(" next")) {
+      if (!response.headers.get("content-type")?.startsWith("text/x-component")) throw new Error("Window continuation is not Flight");
+      validateWindowResponse(body);
+    } else validateRead(operation, response.headers.get("content-type"), body.toString(), backlog);
     return { bytes: body.length, fullMs, contentEncoding: response.headers.get("content-encoding") };
   };
   const results = [], date = new Date().toISOString();
   const commit = execFileSync("git", ["-C", fileURLToPath(new URL("../../", import.meta.url)), "rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
-  for (const [operation, path] of operations) {
-    await read(operation, path); // One serial warm-up, excluded from samples and SQL counts.
-    const samples = [];
-    for (let i = 0; i < requests; i++) {
-      const id = `probe_${randomUUID().replaceAll("-", "")}`, before = `${id}_before`, after = `${id}_after`;
-      mark(before);
-      const sample = await read(operation, path);
-      mark(after);
-      let log = "";
-      for (let attempt = 0; attempt < 20; attempt++) {
-        log = docker(["logs", "--tail", "20000", container]);
-        if (log.includes(after)) break;
-        await sleep(50);
+  const collected = new Map(operations.map(([operation]) => [operation, []]));
+  // Pair the initial response with its continuation on every repetition, including
+  // the excluded warm-up. Discovery and hydration are outside all SQL markers.
+  for (const group of windows ? [operations] : operations.map((operation) => [operation])) {
+    for (let i = -1; i < requests; i++) {
+      for (const [operation, path] of group) {
+        const id = `probe_${randomUUID().replaceAll("-", "")}`, before = `${id}_before`, after = `${id}_after`;
+        if (i >= 0) mark(before);
+        const sample = await read(operation, path);
+        if (i < 0) continue;
+        mark(after);
+        let log = "";
+        for (let attempt = 0; attempt < 20; attempt++) {
+          log = docker(["logs", "--tail", "20000", container]);
+          if (log.includes(after)) break;
+          await sleep(50);
+        }
+        sample.sql = countSql(log, before, after, role, database);
+        if (sample.sql === 0) throw new Error("No runtime SQL found: check role, duration logging and log prefix");
+        collected.get(operation).push(sample);
       }
-      sample.sql = countSql(log, before, after, role, database);
-      if (sample.sql === 0) throw new Error("No runtime SQL found: check role, duration logging and log prefix");
-      samples.push(sample);
     }
+  }
+  for (const [operation, path] of operations) {
+    const samples = collected.get(operation);
     const summarize = (field) => ({ p50: percentile(samples.map((s) => s[field]), 0.5), p95: percentile(samples.map((s) => s[field]), 0.95), min: Math.min(...samples.map((s) => s[field])), max: Math.max(...samples.map((s) => s[field])) });
     const bytes = summarize("bytes");
-    results.push({ operation, path, bytes, mib: (bytes.p50 / 1048576).toFixed(2), fullMs: summarize("fullMs"), sql: summarize("sql"), samples });
+    results.push({ operation, path: typeof path === "string" ? path : new URL(path.url).pathname + new URL(path.url).search, bytes, mib: (bytes.p50 / 1048576).toFixed(2), fullMs: summarize("fullMs"), sql: summarize("sql"), samples });
   }
-  const report = { date, commit, requests, warmupsPerOperation: 1, mode: "serial", results };
+  const report = { date, commit, requests, warmupsPerOperation: 1, mode: windows ? "window" : "serial", ...(windows ? { window: windows } : {}), results };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   process.stderr.write(`${formatTable(report)}\n`);
 }

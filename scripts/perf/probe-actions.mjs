@@ -24,7 +24,7 @@ export function buildActionRequest(base, backlog, actionId, input, routerState) 
     body: JSON.stringify([input]) }; // React encodeReply for one plain JSON argument; undefined fields omitted.
 }
 
-export function validateAction(text, expected) {
+export function readActionResult(text) {
   // Read Flight framing, skipping length-delimited text/binary by BYTE length (not newlines).
   const bytes = Buffer.from(text), rows = new Map(); let offset = 0;
   while (offset < bytes.length) {
@@ -44,6 +44,12 @@ export function validateAction(text, expected) {
     }
   }
   const ref = rows.get("0")?.a, result = typeof ref === "string" && /^\$@[a-f0-9]+$/.test(ref) ? rows.get(ref.slice(2)) : null;
+  if (!result) throw new Error("Missing action result");
+  return result;
+}
+
+export function validateAction(text, expected) {
+  const result = readActionResult(text);
   if (result?.ok !== true || !result.item?.id || !result.item.key || Object.entries(expected).some(([k, v]) => result.item[k] !== v)) throw new Error("Board action did not return a matching successful item");
   return result.item;
 }

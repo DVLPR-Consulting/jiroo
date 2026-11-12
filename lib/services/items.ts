@@ -393,12 +393,18 @@ async function applyStatusChange(
 // INCLUDES soft-deleted rows: the unique index spans all rows, so a deleted rank stays reserved
 // and must never be reused (restore re-enters the index), so computing against all rows yields a
 // rank that no live OR deleted row holds.
+//
+// `parent` scopes the case without a usable bound to a tree parent (JIR-147): its children may
+// not be loaded (a parent not unfolded, or read by windows), so instead of the backlog's last
+// rank, which would put the item after children the user does not see, it goes before the
+// parent's first live child, and keeps its own rank when the parent has no other child.
 export async function rankAtDrop(
   tx: Tx,
   backlogId: string,
   movedId: string,
   beforeId: string | null,
   afterId: string | null,
+  parent?: { id: string | null; currentRank: string },
 ): Promise<string> {
   const groupBase = and(eq(items.backlogId, backlogId), ne(items.id, movedId));
 
@@ -415,6 +421,22 @@ export async function rankAtDrop(
   }
   let before = beforeId ? (byId.get(beforeId) ?? null) : null;
   let after = afterId ? (byId.get(afterId) ?? null) : null;
+
+  if (before === null && after === null && parent) {
+    const [first] = await tx
+      .select({ rank: items.rank })
+      .from(items)
+      .where(and(
+        groupBase,
+        isNull(items.deletedAt),
+        parent.id === null ? isNull(items.parentId) : eq(items.parentId, parent.id),
+      ))
+      .orderBy(asc(binaryTextOrder(items.rank)))
+      .limit(1)
+      .for("update");
+    if (!first) return parent.currentRank;
+    after = first.rank;
+  }
 
   // D3: re-derive a missing bound from the DB (a forgotten interior neighbor self-heals).
   if (before === null && after !== null) {
@@ -1224,8 +1246,18 @@ export async function reparentItem(input: unknown, actorId: string) {
           .where(subtree);
       }
 
-      // rank under the NEW (or same) parent group
-      const newRank = await rankAtDrop(tx, node.backlogId, node.id, data.beforeId, data.afterId);
+      // Without neighbors, a drop into the same parent asks for no new place (JIR-147).
+      if (sameParent && data.beforeId === null && data.afterId === null) return node;
+
+      // rank under the NEW (or same) parent group; a new parent's children may not be loaded
+      const newRank = await rankAtDrop(
+        tx,
+        node.backlogId,
+        node.id,
+        data.beforeId,
+        data.afterId,
+        sameParent ? undefined : { id: data.newParentId, currentRank: node.rank },
+      );
 
       const patch: Partial<typeof items.$inferInsert> = {};
       const acts: (typeof activities.$inferInsert)[] = [];

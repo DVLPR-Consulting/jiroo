@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pointsByCategory, pointsByStatusCategory } from "@/lib/items/status-points";
+import { pointsByCategory, pointsByStatusCategory, shiftStatusPoints } from "@/lib/items/status-points";
 
 const statuses = [
   { id: "todo", category: "todo" as const },
@@ -70,5 +70,20 @@ describe("pointsByCategory", () => {
         { category: "done", estimatePoints: null },
       ]),
     ).toEqual({ todo: 3, inProgress: 1.5, done: 3 });
+  });
+});
+
+describe("shiftStatusPoints (JIR-146)", () => {
+  it("adds the points of the tasks moved in and takes off those moved out, by category", () => {
+    const whole = [
+      { statusId: "todo", estimatePoints: 3 },
+      { statusId: "doing", estimatePoints: 1.1 },
+      { statusId: "review", estimatePoints: null },
+    ];
+    const added = [{ statusId: "done", estimatePoints: 2.2 }, { statusId: "todo", estimatePoints: 0.1 }];
+    const removed = [whole[1]!];
+    expect(shiftStatusPoints(pointsByStatusCategory(whole, statuses), added, removed, statuses)).toEqual(
+      pointsByStatusCategory([whole[0]!, whole[2]!, ...added], statuses),
+    );
   });
 });

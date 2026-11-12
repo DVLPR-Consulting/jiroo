@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   emptySelection,
   reconcileSelection,
+  MAX_SELECTION,
   selectAllVisible,
   toggleItemSelection,
 } from "@/lib/items/selection";
@@ -71,5 +72,18 @@ describe("item selection", () => {
     expect([...reconciled.selectedIds]).toEqual(["a", "b"]);
     expect(reconciled.anchorId).toBeNull();
     expect([...state.selectedIds]).toEqual(["a", "b", "d"]);
+  });
+
+  it("stops « select all » and Maj ranges at the bulk limit of 500, in display order (JIR-145)", () => {
+    const many = Array.from({ length: 620 }, (_, index) => `id-${index}`);
+    expect(MAX_SELECTION).toBe(500);
+    expect([...selectAllVisible(many).selectedIds]).toEqual(many.slice(0, 500));
+
+    const fromTop = toggleItemSelection(emptySelection(), many, "id-10", false);
+    expect([...toggleItemSelection(fromTop, many, "id-600", true).selectedIds])
+      .toEqual(many.slice(10, 510));
+    const fromBottom = toggleItemSelection(emptySelection(), many, "id-600", false);
+    expect([...toggleItemSelection(fromBottom, many, "id-10", true).selectedIds])
+      .toEqual(many.slice(101, 601));
   });
 });

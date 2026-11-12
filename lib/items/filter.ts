@@ -28,6 +28,21 @@ export type ViewState = {
   sort: { field: SortField; dir: SortDir } | null;
 };
 
+/** A Liste group's header figures, over the whole filtered group (JIR-143). */
+export type ViewGroupSummary = {
+  count: number;
+  /** Tasks without an estimate: only tasks are estimated. */
+  unestimated: number;
+  /** Task points per status category. */
+  points: { todo: number; inProgress: number; done: number };
+};
+
+export const EMPTY_SUMMARY: ViewGroupSummary = {
+  count: 0,
+  unestimated: 0,
+  points: { todo: 0, inProgress: 0, done: 0 },
+};
+
 // `parent` remains a GroupKey so legacy saved views can still be decoded. New
 // controls should use only the entries in this list and never offer `parent`.
 export const GROUP_KEYS: Exclude<GroupKey, "parent">[] = ["status", "assignee", "priority", "component"];
@@ -193,9 +208,14 @@ export function isFiltersActive(f: Filters): boolean {
   );
 }
 
-function normalize(s: string): string {
+/**
+ * The search's text folding: lower case, then every diacritic dropped. The SQL
+ * filter (`lib/items/filter-sql.ts`) folds titles and keys the same way.
+ */
+export function normalizeSearchText(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
 }
+const normalize = normalizeSearchText;
 
 export function matchItem(it: FilterItem, f: Filters): boolean {
   if (f.types.length && !f.types.includes(it.type)) return false;
@@ -282,6 +302,11 @@ export function isHiddenByFilters(created: CreatedItem, filters: Filters | undef
   };
   return !matchItem(row, filters);
 }
+
+// The views now filter, sort and group in SQL (`lib/items/filter-sql.ts`,
+// JIR-143). `matchItem` still checks a just-created item; `withAncestors`,
+// `groupItems` and `sortItems` remain the reference the SQL is proven equal to
+// (`test-utils/legacy-view-rows.ts`).
 
 // Expand a matched id set to include the ancestors of every match, using the
 // self-inclusive ltree path: A is an ancestor of M iff M.path starts with A.path + ".".

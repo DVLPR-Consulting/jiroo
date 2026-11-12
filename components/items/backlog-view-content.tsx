@@ -30,15 +30,20 @@ import { listReleaseSummaries } from "@/lib/services/releases";
 import { moveItemAction, reparentItemAction } from "@/app/actions/items";
 import {
   parseViewState,
-  matchItem,
   isFiltersActive,
-  groupItems,
-  sortItems,
-  withAncestors,
   enrichHierarchy,
   withKnownReleaseIds,
+  writeViewState,
+  EMPTY_SUMMARY,
   type FilterItem,
 } from "@/lib/items/filter";
+import {
+  backlogViewRows,
+  matchingTaskIds,
+} from "@/lib/services/view-rows";
+import { loadListWindow } from "@/lib/services/list-window";
+import { loadBacklogWindow } from "@/lib/services/backlog-window";
+import { loadTreeMatchWindow } from "@/lib/services/tree-window";
 import { PRIORITY_LABELS, type ItemType } from "@/lib/design/constants";
 import { hierarchyStartStep } from "@/lib/tree/hierarchy";
 import { requireAppPageSession } from "@/lib/auth/session";
@@ -51,6 +56,7 @@ import { DisplayMenu } from "@/components/shell/display-menu";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewActions } from "@/components/shell/view-actions";
 import { ItemList, ListColumnsMenu } from "@/components/items/item-list";
+import { ItemRowIconProvider } from "./item-row-icons";
 import { ItemBacklog } from "@/components/items/item-backlog";
 import { ItemBoard } from "@/components/items/item-board";
 import { ItemTree } from "@/components/items/item-tree";
@@ -219,6 +225,22 @@ export async function BacklogViewContent({
     ...viewState.filters,
     sprintIds: withKnownSprintIds(requestedViewState.filters, knownSprintIds).sprintIds,
   };
+  // The view's rows are filtered, sorted, grouped and counted by PostgreSQL
+  // (JIR-143) on the effective filters; read meanwhile the rows to display.
+  // The Liste only sends its first window (JIR-145), with its own rows.
+  const filtersOn = isFiltersActive(viewState.filters);
+  // The Backlog sends its sprint sections whole and the first window of its
+  // « Backlog » section (JIR-146).
+  const viewRowsPromise = Promise.all([
+    view === "list" ? loadListWindow(backlog.id, viewState, { cursor: null }) : null,
+    view === "backlog" ? backlogViewRows(backlog.id, viewState) : null,
+    view === "backlog" ? loadBacklogWindow(backlog.id, viewState, { cursor: null }) : null,
+    // The filtered Arbre sends its first window of matches (JIR-147).
+    view === "tree" && filtersOn ? loadTreeMatchWindow(backlog.id, viewState.filters, { cursor: null }) : null,
+    view === "board" && filtersOn ? matchingTaskIds(backlog.id, viewState.filters) : null,
+  ]);
+  // Awaited below; a failure meanwhile must not surface as an unhandled rejection.
+  viewRowsPromise.catch(() => undefined);
   // Only unknown versions were requested: show every item, not an empty list.
   const releaseFilteredItems =
     requestedViewState.filters.releaseIds.length > 0 && viewState.filters.releaseIds.length === 0
@@ -234,8 +256,8 @@ export async function BacklogViewContent({
   // read the live backlog's structure (Composants and Epics), never the
   // Version-filtered rows: a version without items must not pass for a new
   // backlog, nor hide the Epics a new task can go under. Only the Version
-  // filter narrows the rows loaded here; the other filters are applied to
-  // them below, so without it no extra read is needed. Tâches and
+  // filter narrows the rows loaded here; the other filters only pick among
+  // them (in SQL), so without it no extra read is needed. Tâches and
   // Sous-tâches never ship as choices: the Parent fields search on demand
   // (JIR-118).
   const structureTypes: readonly string[] = STRUCTURE_ITEM_TYPES;
@@ -311,40 +333,26 @@ export async function BacklogViewContent({
     kind: i.kind,
     statusOrder: statusOrderById.get(i.statusId) ?? 0,
   })));
-  const filtersOn = isFiltersActive(viewState.filters);
-  const nonReleaseFilters = { ...viewState.filters, releaseIds: [] };
-  const matchedIds = new Set(
-    filterRows
-      .filter((r) =>
-        (!releaseFilterActive || releaseMatchedIds.has(r.id))
-        && matchItem(r, nonReleaseFilters),
-      )
-      .map((r) => r.id),
-  );
-  const isMatch = (id: string) => !filtersOn || matchedIds.has(id);
+  const filterRowById = new Map(filterRows.map((row) => [row.id, row]));
+  const [listWindow, backlogRows, backlogWindow, treeWindow, boardTaskIds] = await viewRowsPromise;
+  const boardMatchedIds = boardTaskIds ? new Set(boardTaskIds) : null;
+  const isBoardMatch = (id: string) => boardMatchedIds === null || boardMatchedIds.has(id);
 
-  // List view: sort then group the filtered rows.
-  const listRows = filterRows.filter((r) => isMatch(r.id));
-  const listSorted = viewState.sort ? sortItems(listRows, viewState.sort) : listRows;
-  const listGroups: Array<[string, typeof listSorted]> = viewState.group
-    ? groupItems(listSorted, viewState.group)
-    : [["", listSorted]];
+  // List view: the first window's rows, by group (first-seen group order);
+  // the ungrouped Liste always has its one card, even empty.
+  const listGroups = (listWindow?.groups ?? []).map((group) => ({
+    ...group,
+    items: listWindow!.rows.filter((row) => row.groupKey === group.key),
+  }));
+  if (listWindow && viewState.group === null && listGroups.length === 0) {
+    listGroups.push({ key: "", label: "", summary: EMPTY_SUMMARY, items: [] });
+  }
+  const listViewQuery = new URLSearchParams();
+  writeViewState(listViewQuery, viewState);
 
   const statusCategoryById = new Map(
     statusRows.map((status) => [status.id, status.category]),
   );
-  const currentSprintItemIds = new Set(
-    sprintSnapshot.memberships
-      .filter((membership) => membership.leftAt === null)
-      .map((membership) => membership.itemId),
-  );
-  const backlogResultCount = filterRows.filter(
-    (item) =>
-      item.type === "tache" &&
-      isMatch(item.id) &&
-      (currentSprintItemIds.has(item.id) ||
-        statusCategoryById.get(item.statusId) !== "done"),
-  ).length;
   const hasBacklogItems = filterRows.some(
     (item) =>
       item.type === "tache" &&
@@ -415,7 +423,6 @@ export async function BacklogViewContent({
     [...referencedUsers, ...directoryUsers].map((candidate) => [candidate.id, candidate]),
   ).values()];
   const userName = new Map(displayUsers.map((u) => [u.id, u.name]));
-  const estimateByItem = new Map(items.map((item) => [item.id, item.estimatePoints]));
 
   const groupLabel = (key: string): string => {
     if (!viewState.group || key === "") return "";
@@ -444,7 +451,6 @@ export async function BacklogViewContent({
   for (const i of items) {
     if (i.parentId) childCount.set(i.parentId, (childCount.get(i.parentId) ?? 0) + 1);
   }
-  const filterRowById = new Map(filterRows.map((row) => [row.id, row]));
   const itemById = new Map(items.map((item) => [item.id, item]));
   const parentPill = (parentId: string | null) => {
     const parent = parentId ? itemById.get(parentId) : undefined;
@@ -490,32 +496,58 @@ export async function BacklogViewContent({
   const activeSprintItemIds = new Set(
     activeSection?.items.map((item) => item.id) ?? [],
   );
-  const planningSections = baseSprintSections.map((section) => {
-    const sectionIds = new Set(section.items.map((item) => item.id));
-    const rows = filterRows.filter(
-      (row) => row.type === "tache" && sectionIds.has(row.id) && isMatch(row.id),
-    );
-    const sorted = viewState.sort ? sortItems(rows, viewState.sort) : rows.sort((left, right) => {
-      const leftRank = itemById.get(left.id)?.rank ?? "";
-      const rightRank = itemById.get(right.id)?.rank ?? "";
-      return leftRank < rightRank ? -1 : leftRank > rightRank ? 1 : 0;
-    });
-    const groupedRows: Array<[string, typeof sorted]> = viewState.group
-      ? groupItems(sorted, viewState.group)
-      : [["", sorted]];
-    const visibleItems = sorted.map((row) => planningItemById.get(row.id)!);
-    return {
-      ...section,
-      // Like the section metrics, the status lozenges cover the whole section.
-      statusPoints: pointsByStatusCategory(section.items, statusList),
-      items: visibleItems,
-      groups: groupedRows.map(([groupKey, groupRows]) => ({
-        key: groupKey,
-        label: groupLabel(groupKey),
-        items: groupRows.map((row) => planningItemById.get(row.id)!),
-      })),
-    };
-  });
+  // Backlog view: each section's filtered rows, already sorted and grouped;
+  // its metrics stay those of the whole section, before the filters. The
+  // « Backlog » section shows its first window (JIR-146), its next ones are
+  // read on demand; its metrics still cover the whole section.
+  const planningSections = backlogRows && backlogWindow
+    ? baseSprintSections.map((section) => {
+        if (section.kind === "backlog") {
+          const windowItems = (key: string) =>
+            backlogWindow.rows.flatMap(({ groupKey, ...item }) => (groupKey === key ? [item] : []));
+          const servedGroups = backlogWindow.groups.map((group) => ({
+            key: group.key,
+            label: group.label,
+            count: group.count,
+            items: windowItems(group.key),
+          }));
+          const groups = viewState.group || servedGroups.length > 0
+            ? servedGroups
+            : [{ key: "", label: "", count: 0, items: [] }];
+          return {
+            ...section,
+            statusPoints: pointsByStatusCategory(section.items, statusList),
+            items: groups.flatMap((group) => group.items),
+            groups,
+            window: { total: backlogWindow.total, nextCursor: backlogWindow.nextCursor },
+          };
+        }
+        const sectionIds = new Set(section.items.map((item) => item.id));
+        const sectionItems = (ids: string[]) =>
+          ids.flatMap((id) => {
+            const item = sectionIds.has(id) ? planningItemById.get(id) : undefined;
+            return item ? [item] : [];
+          });
+        const servedGroups = (backlogRows.sections.get(section.id) ?? [])
+          .map((group) => ({
+            key: group.key,
+            label: groupLabel(group.key),
+            items: sectionItems(group.itemIds),
+          }))
+          .filter((group) => group.items.length > 0);
+        // An ungrouped section always has its one (possibly empty) group.
+        const groups = viewState.group || servedGroups.length > 0
+          ? servedGroups
+          : [{ key: "", label: groupLabel(""), items: [] }];
+        return {
+          ...section,
+          // Like the section metrics, the status lozenges cover the whole section.
+          statusPoints: pointsByStatusCategory(section.items, statusList),
+          items: groups.flatMap((group) => group.items),
+          groups,
+        };
+      })
+    : [];
   // Jira-style mono-level board: cards are the working level (Tâche) only. Sous-tâches stay
   // nested under their tâche (shown as the subCount badge); Composant/Epic are structure,
   // navigated in the tree/list — never sibling cards next to their own children.
@@ -524,7 +556,7 @@ export async function BacklogViewContent({
       (i) =>
         i.type === "tache" &&
         activeSprintItemIds.has(i.id) &&
-        isMatch(i.id),
+        isBoardMatch(i.id),
     )
     .map((i) => ({
       id: i.id,
@@ -549,12 +581,14 @@ export async function BacklogViewContent({
     }));
   const resultCount =
     view === "backlog"
-      ? backlogResultCount
+      ? (backlogRows?.total ?? 0) + (backlogWindow?.total ?? 0)
       : view === "board"
         ? boardCards.length
-        : filtersOn
-          ? matchedIds.size
-          : items.length;
+        : view === "list"
+          ? (listWindow?.total ?? 0)
+          : treeWindow
+            ? treeWindow.total
+            : items.length;
 
   // Board swimlanes: status is the columns, so it never groups the board. Build
   // the label for each band key the same way the board partitions its cards.
@@ -591,34 +625,37 @@ export async function BacklogViewContent({
     }
   }
 
-  // Tree rows: the flat item list (already ordered depth,rank,key) reshaped for ItemTree.
-  // When filters are active, restrict to matched items + their ancestors (context). Ancestors
-  // are passed separately so the tree can render them dimmed and non-interactive.
-  const treeVisibleIds = filtersOn ? withAncestors(filterRows, matchedIds) : null;
-  const contextIds = filtersOn
-    ? new Set([...treeVisibleIds!].filter((id) => !matchedIds.has(id)))
-    : new Set<string>();
+  // Tree rows (JIR-147). Without a filter, the structure only: Composants and
+  // Epics (already ordered depth, rank, key) with their live children counted,
+  // so an Epic reads its tasks when it is unfolded. With one, the first window
+  // of matches and the ancestors they need, shown dimmed and non-interactive.
   const treeData =
-    view === "tree"
-      ? items
-          .filter((i) => treeVisibleIds === null || treeVisibleIds.has(i.id))
-          .map((i) => ({
-            id: i.id,
-            key: i.key,
-            type: i.type,
-            title: i.title,
-            parentId: i.parentId,
-            statusId: i.statusId,
-            priority: i.priority,
-            depth: i.depth,
-            rank: i.rank,
-            path: i.path,
-            labels: labelsByItem.get(i.id) ?? [],
-            assigneeId: i.assigneeId,
-            assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
-            fixVersions: fixVersionsByItem.get(i.id) ?? [],
-          }))
-      : [];
+    view !== "tree"
+      ? []
+      : treeWindow
+        ? treeWindow.rows.map(({ matched, ...row }) => {
+            void matched;
+            return row;
+          })
+        : items
+            .filter((i) => structureTypes.includes(i.type))
+            .map((i) => ({
+              id: i.id,
+              key: i.key,
+              type: i.type,
+              title: i.title,
+              parentId: i.parentId,
+              statusId: i.statusId,
+              priority: i.priority,
+              depth: i.depth,
+              rank: i.rank,
+              path: i.path,
+              labels: labelsByItem.get(i.id) ?? [],
+              assigneeId: i.assigneeId,
+              assigneeName: i.assigneeId ? (userName.get(i.assigneeId) ?? null) : null,
+              childCount: childCount.get(i.id) ?? 0,
+            }));
+  const contextIds = treeWindow?.rows.flatMap((row) => (row.matched ? [] : [row.id])) ?? [];
 
   // Bug 2: board status filter hides unselected columns — pass only the selected
   // statuses when a status filter is active; all statuses otherwise.
@@ -705,6 +742,7 @@ export async function BacklogViewContent({
         }
       />
       {view === "backlog" && (
+        <ItemRowIconProvider>
         <ItemBacklog
           sections={planningSections}
           sprints={sprintSnapshot.sprints}
@@ -734,23 +772,17 @@ export async function BacklogViewContent({
           releaseOptions={assignableReleaseOptions}
           releaseCapabilities={productCapabilities.releases}
           manualOrder={viewState.sort === null && viewState.group === null}
+          viewStateQuery={listViewQuery.toString()}
         />
+        </ItemRowIconProvider>
       )}
       {view === "list" && (
+        <ItemRowIconProvider>
         <ItemList
-          groups={listGroups.map(([key, rows]) => ({
-            key,
-            label: groupLabel(key),
-            items: rows.map((r) => ({
-              ...r,
-              estimatePoints: estimateByItem.get(r.id) ?? null,
-              assigneeName: r.assigneeId ? (userName.get(r.assigneeId) ?? null) : null,
-              labels: labelsByItem.get(r.id) ?? [],
-              fixVersions: fixVersionsByItem.get(r.id) ?? [],
-              blocked: blockedSet.has(r.id),
-              parent: parentPill(r.parentId),
-            })),
-          }))}
+          groups={listGroups}
+          total={listWindow?.total ?? 0}
+          nextCursor={listWindow?.nextCursor ?? null}
+          viewStateQuery={listViewQuery.toString()}
           grouped={viewState.group !== null}
           statuses={statusList}
           users={assigneeCandidates}
@@ -778,6 +810,7 @@ export async function BacklogViewContent({
           showLabels={viewState.filters.showLabels === true}
           showDueDate={viewState.filters.showDueDate === true}
         />
+        </ItemRowIconProvider>
       )}
       {view === "board" && (
         <ItemBoard
@@ -814,7 +847,9 @@ export async function BacklogViewContent({
           backlogKey={key}
           items={treeData}
           statuses={statusList}
-          contextIds={[...contextIds]}
+          contextIds={contextIds}
+          window={treeWindow ? { total: treeWindow.total, nextCursor: treeWindow.nextCursor } : null}
+          viewStateQuery={listViewQuery.toString()}
           reparentItemAction={reparentItemAction}
           moveItemAction={moveItemAction}
           filtersActive={filtersOn}
@@ -834,6 +869,10 @@ export async function BacklogViewContent({
         backlogKey={backlog.key}
         itemKey={itemKey ?? null}
         viewFilters={viewState.filters}
+        // Views served by windows: the drawer's K / J reach their rows not loaded (JIR-153).
+        neighborsSource={view === "list" || view === "backlog" || view === "tree"
+          ? { backlogKey: backlog.key, view, viewState: listViewQuery.toString() }
+          : undefined}
         detail={itemKey
           ? loadItemDetailData({ userId, backlogKey: backlog.key, itemKey })
           : null}

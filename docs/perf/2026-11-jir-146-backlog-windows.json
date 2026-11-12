@@ -1,0 +1,734 @@
+{
+  "date": "2026-11-11T15:57:41.621Z",
+  "commit": "6035eef",
+  "requests": 20,
+  "warmupsPerOperation": 1,
+  "mode": "serial",
+  "results": [
+    {
+      "operation": "List",
+      "path": "/b/PERFA?view=list",
+      "bytes": {
+        "p50": 691038,
+        "p95": 691038,
+        "min": 691038,
+        "max": 691038
+      },
+      "mib": "0.66",
+      "fullMs": {
+        "p50": 74.74237499999981,
+        "p95": 101.55187500000011,
+        "min": 67.0077080000001,
+        "max": 107.30849999999998
+      },
+      "sql": {
+        "p50": 65,
+        "p95": 65,
+        "min": 65,
+        "max": 65
+      },
+      "samples": [
+        {
+          "bytes": 691038,
+          "fullMs": 107.30849999999998,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 98.70345799999996,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 101.55187500000011,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 86.84020800000008,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 76.49504100000013,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 75.85037499999999,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 84.96258300000022,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 78.54691600000024,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 71.47916699999996,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 69.5369169999999,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 67.44345900000008,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 78.20633300000009,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 74.74237499999981,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 71.53237500000023,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 73.97570799999994,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 75.28895799999964,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 69.73012500000004,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 70.45558399999936,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 67.0077080000001,
+          "contentEncoding": "gzip",
+          "sql": 65
+        },
+        {
+          "bytes": 691038,
+          "fullMs": 67.61949999999979,
+          "contentEncoding": "gzip",
+          "sql": 65
+        }
+      ]
+    },
+    {
+      "operation": "Backlog",
+      "path": "/b/PERFA?view=backlog",
+      "bytes": {
+        "p50": 2277404,
+        "p95": 2277404,
+        "min": 2277404,
+        "max": 2277404
+      },
+      "mib": "2.17",
+      "fullMs": {
+        "p50": 117.56833300000017,
+        "p95": 133.20049999999992,
+        "min": 108.46833300000071,
+        "max": 141.64470900000015
+      },
+      "sql": {
+        "p50": 67,
+        "p95": 67,
+        "min": 67,
+        "max": 67
+      },
+      "samples": [
+        {
+          "bytes": 2277404,
+          "fullMs": 141.64470900000015,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 126.67091699999946,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 126.34400000000005,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 133.20049999999992,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 122.44841600000018,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 122.16625000000022,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 117.56833300000017,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 118.8247080000001,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 115.98816600000009,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 117.05412499999966,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 109.7312920000004,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 110.28104200000053,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 113.80845800000134,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 122.19516599999952,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 119.5502919999999,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 129.81812499999978,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 113.1732090000005,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 109.83508400000028,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 110.48779099999956,
+          "contentEncoding": "gzip",
+          "sql": 67
+        },
+        {
+          "bytes": 2277404,
+          "fullMs": 108.46833300000071,
+          "contentEncoding": "gzip",
+          "sql": 67
+        }
+      ]
+    },
+    {
+      "operation": "Tree",
+      "path": "/b/PERFA?view=tree",
+      "bytes": {
+        "p50": 13518065,
+        "p95": 13518065,
+        "min": 13518065,
+        "max": 13518065
+      },
+      "mib": "12.89",
+      "fullMs": {
+        "p50": 259.0724999999984,
+        "p95": 272.4425420000007,
+        "min": 243.27816600000006,
+        "max": 307.3871670000008
+      },
+      "sql": {
+        "p50": 57,
+        "p95": 57,
+        "min": 57,
+        "max": 57
+      },
+      "samples": [
+        {
+          "bytes": 13518065,
+          "fullMs": 268.7298329999994,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 252.21199999999953,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 248.0715420000015,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 258.84916599999997,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 247.4762499999997,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 264.00783299999966,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 267.4798329999994,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 267.153542,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 257.82929200000035,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 261.7462909999995,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 272.4425420000007,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 307.3871670000008,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 272.16920799999934,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 243.27816600000006,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 245.18820799999958,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 259.0724999999984,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 252.83566699999938,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 260.25470900000073,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 263.104083000002,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 13518065,
+          "fullMs": 256.1643330000006,
+          "contentEncoding": "gzip",
+          "sql": 57
+        }
+      ]
+    },
+    {
+      "operation": "Board",
+      "path": "/b/PERFA?view=board",
+      "bytes": {
+        "p50": 1958651,
+        "p95": 1958651,
+        "min": 1958651,
+        "max": 1958651
+      },
+      "mib": "1.87",
+      "fullMs": {
+        "p50": 89.187582999999,
+        "p95": 102.47970899999927,
+        "min": 84.50525000000198,
+        "max": 102.59191600000122
+      },
+      "sql": {
+        "p50": 57,
+        "p95": 57,
+        "min": 57,
+        "max": 57
+      },
+      "samples": [
+        {
+          "bytes": 1958651,
+          "fullMs": 92.50566699999763,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 102.47970899999927,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 93.86216599999898,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 89.187582999999,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 90.38516699999673,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 95.59487499999886,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 102.59191600000122,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 88.14775000000009,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 85.45545800000036,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 86.5747080000001,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 86.64645799999926,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 88.01487499999712,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 84.83000000000175,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 85.10224999999991,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 100.85270800000217,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 89.81641699999818,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 84.50525000000198,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 89.4699580000015,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 90.11341700000048,
+          "contentEncoding": "gzip",
+          "sql": 57
+        },
+        {
+          "bytes": 1958651,
+          "fullMs": 86.94562499999665,
+          "contentEncoding": "gzip",
+          "sql": 57
+        }
+      ]
+    },
+    {
+      "operation": "Panel",
+      "path": "/api/backlogs/PERFA/items/PERFA-3",
+      "bytes": {
+        "p50": 25343,
+        "p95": 25343,
+        "min": 25343,
+        "max": 25343
+      },
+      "mib": "0.02",
+      "fullMs": {
+        "p50": 14.47675000000163,
+        "p95": 17.087542000001122,
+        "min": 13.63300000000163,
+        "max": 18.51629200000025
+      },
+      "sql": {
+        "p50": 40,
+        "p95": 40,
+        "min": 40,
+        "max": 40
+      },
+      "samples": [
+        {
+          "bytes": 25343,
+          "fullMs": 16.424042000002373,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 15.322000000000116,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 17.087542000001122,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 16.326082999999926,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 14.023166000002675,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 15.162749999999505,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 15.266875000001164,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 14.362874999998894,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 14.230749999998807,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 15.913042000000132,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 14.801249999996799,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 14.47675000000163,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 14.01983299999847,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 18.51629200000025,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 14.762915999999677,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 13.723207999999431,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 13.805540999997902,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 13.958374999998341,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 13.63300000000163,
+          "contentEncoding": null,
+          "sql": 40
+        },
+        {
+          "bytes": 25343,
+          "fullMs": 14.010874999999942,
+          "contentEncoding": null,
+          "sql": 40
+        }
+      ]
+    }
+  ]
+}

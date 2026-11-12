@@ -1,8 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type DragEvent } from "react";
 import Link from "next/link";
 import { ChevronRight, Inbox, SearchX } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  loadTreeChildrenAction,
+  loadTreeMatchesAction,
+  type LoadTreeChildrenResult,
+  type LoadTreeMatchesResult,
+} from "@/app/actions/tree-window";
+import {
+  TREE_RELOAD_LIMIT,
+  TREE_RELOAD_PARENTS,
+  TREE_WINDOW_SIZE,
+  type TreeChildrenWindow,
+  type TreeMatchCursor,
+} from "@/lib/items/tree-window";
+import { LOAD_MORE_SHORTCUT_EVENT, shortcutItems } from "@/lib/shortcuts/list-navigation";
 import { TypeIcon } from "@/components/icons/type-icon";
 import { PrioIcon } from "@/components/icons/prio-icon";
 import { ItemKey } from "@/components/jiroo/item-key";
@@ -41,7 +56,30 @@ export type TreeItem = {
   labels: LabelChip[];
   assigneeId: string | null;
   assigneeName?: string | null;
+  /**
+   * The live children the row has, loaded or not (JIR-147): a parent with
+   * more children than loaded reads them when it is unfolded. Absent with a
+   * filter, or when every child is in `items`.
+   */
+  childCount?: number;
 };
+
+const LOAD_FAILED = "Impossible de charger la suite. Réessayez avec « Charger la suite ».";
+
+/** Rows served by a window replace the ones the tree had; the others stay. */
+function mergeRows(rows: TreeItem[], served: TreeItem[]): TreeItem[] {
+  const byId = new Map(served.map((row) => [row.id, row]));
+  const kept = rows.map((row) => byId.get(row.id) ?? row);
+  const known = new Set(rows.map((row) => row.id));
+  return [...kept, ...served.filter((row) => !known.has(row.id))];
+}
+
+/** A served row without its window-only fields. */
+function asTreeItem<T extends TreeItem>(row: T & { matched?: boolean }): TreeItem {
+  const { matched, ...item } = row;
+  void matched;
+  return item;
+}
 
 type LabelChip = { id: string; name: string; color: string };
 type StatusOption = {
@@ -121,8 +159,19 @@ function liveChildren(items: TreeItem[], parentId: string | null, excludeId: str
 
 // Optimistic local move: re-point the dragged node's parentId. The server reconciles
 // the true rank/path on revalidate; we keep the parent change so the indent updates.
+// The parents' child counts follow, so a folded new parent still unfolds to read its
+// children (JIR-147).
 function optimisticMove(items: TreeItem[], dragId: string, newParentId: string | null): TreeItem[] {
-  return items.map((i) => (i.id === dragId ? { ...i, parentId: newParentId } : i));
+  const oldParentId = items.find((i) => i.id === dragId)?.parentId ?? null;
+  if (oldParentId === newParentId) return items;
+  const shift = (i: TreeItem, by: number) =>
+    i.childCount === undefined ? i : { ...i, childCount: Math.max(0, i.childCount + by) };
+  return items.map((i) => {
+    if (i.id === dragId) return { ...i, parentId: newParentId };
+    if (i.id === oldParentId) return shift(i, -1);
+    if (i.id === newParentId) return shift(i, 1);
+    return i;
+  });
 }
 
 // Fresh copy of the server-provided rows (defensive: never mutate props).
@@ -161,6 +210,15 @@ type ItemTreeProps = {
   canScheduleItems?: boolean;
   itemCapabilities?: ItemCapabilities;
   planningCapabilities?: PlanningCapabilities;
+  /**
+   * With a filter (JIR-147): the matches of the first window `items` holds,
+   * out of `total`, and where the next window starts.
+   */
+  window?: { total: number; nextCursor: TreeMatchCursor | null } | null;
+  /** The effective view state as view URL parameters, for the next matches. */
+  viewStateQuery?: string;
+  loadChildren?: typeof loadTreeChildrenAction;
+  loadMatches?: typeof loadTreeMatchesAction;
 };
 
 export function ItemTree({
@@ -179,6 +237,10 @@ export function ItemTree({
   canScheduleItems: legacyCanScheduleItems = true,
   itemCapabilities,
   planningCapabilities,
+  window: matchWindow = null,
+  viewStateQuery,
+  loadChildren = loadTreeChildrenAction,
+  loadMatches = loadTreeMatchesAction,
 }: ItemTreeProps) {
   const canCreateItems = itemCapabilities?.create ?? legacyCanCreateItems;
   const canScheduleItems = planningCapabilities?.reparent ?? legacyCanScheduleItems;
@@ -200,23 +262,289 @@ export function ItemTree({
   // error, so a superseded older commit cannot clobber newer optimistic state.
   const seq = useRef(0);
 
+  // Windows (JIR-147). Without a filter: the parents whose children were read,
+  // with where their next window starts. With one: the next matches, and the
+  // ancestors later windows brought, shown dimmed.
+  const [fetched, setFetched] = useState<Map<string, { cursor: string | null }>>(() => new Map());
+  const [loadingParents, setLoadingParents] = useState<ReadonlySet<string>>(() => new Set());
+  const [matches, setMatches] = useState(() => ({
+    cursor: matchWindow?.nextCursor ?? null,
+    total: matchWindow?.total ?? null,
+    /** Matches loaded after the first window. */
+    extra: 0,
+  }));
+  const [laterContext, setLaterContext] = useState<ReadonlySet<string>>(() => new Set());
+  const [loadingMatches, setLoadingMatches] = useState(false);
+  // The read in flight, checked synchronously: one window at a time.
+  const loadingMatchesRef = useRef(false);
+  // The props the rows were last seeded from (see the re-seed effect below).
+  const seeded = useRef(items);
+  const seededQuery = useRef(viewStateQuery);
+  // Bumped by every server render: a window read for an older one is dropped.
+  const generation = useRef(0);
+  const treeItemsRef = useRef(treeItems);
+  const fetchedRef = useRef(fetched);
+  const matchesRef = useRef(matches);
+  useEffect(() => {
+    treeItemsRef.current = treeItems;
+    fetchedRef.current = fetched;
+    matchesRef.current = matches;
+  });
+
   // Set of ancestor ids that are shown as dimmed context when a filter is active.
   // Stable identity across renders via useMemo so downstream equality checks hold.
-  const contextSet = useMemo(() => new Set(contextIds), [contextIds]);
+  const contextSet = useMemo(() => new Set([...contextIds, ...laterContext]), [contextIds, laterContext]);
+
+  /**
+   * The children windows read: a first window (or a reload) replaces what its
+   * parent showed, a next one adds to it.
+   */
+  const applyChildren = useCallback((
+    windows: TreeChildrenWindow[],
+    structureIds: ReadonlySet<string>,
+    next = false,
+  ) => {
+    const parents = new Set(next ? [] : windows.map((window) => window.parentId));
+    const totals = new Map(windows.map((window) => [window.parentId, window.total]));
+    setTreeItems((previous) => mergeRows(
+      previous
+        .filter((row) => structureIds.has(row.id) || row.parentId === null || !parents.has(row.parentId))
+        .map((row) => (totals.has(row.id) ? { ...row, childCount: totals.get(row.id) } : row)),
+      windows.flatMap((window) => window.rows.map(asTreeItem)),
+    ));
+    setFetched((previous) => {
+      const next = new Map(previous);
+      for (const window of windows) next.set(window.parentId, { cursor: window.nextCursor });
+      return next;
+    });
+  }, []);
+
+  /** A parent's first or next window of children (without a filter). */
+  const loadChildrenOf = useCallback(async (parentId: string, cursor: string | null) => {
+    if (loadingParents.has(parentId)) return;
+    const current = generation.current;
+    setLoadingParents((previous) => new Set(previous).add(parentId));
+    setError(null);
+    let result: LoadTreeChildrenResult;
+    try {
+      result = await loadChildren({ backlogKey, parents: [{ parentId, cursor, limit: TREE_WINDOW_SIZE }] });
+    } catch {
+      result = { ok: false, error: LOAD_FAILED };
+    }
+    setLoadingParents((previous) => {
+      const next = new Set(previous);
+      next.delete(parentId);
+      return next;
+    });
+    // A refresh meanwhile replaced the rows this window would join.
+    if (generation.current !== current) return;
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    applyChildren(result.windows, new Set(seeded.current.map((row) => row.id)), cursor !== null);
+    setCollapsed((previous) => {
+      if (!previous.has(parentId)) return previous;
+      const next = new Set(previous);
+      next.delete(parentId);
+      return next;
+    });
+  }, [applyChildren, backlogKey, loadChildren, loadingParents]);
+
+  /** The next filtered matches: an ancestor already shown is not added twice. */
+  const loadMoreMatches = useCallback(async (cursor: TreeMatchCursor | null, limit: number, replace?: TreeItem[]) => {
+    // The default view's state is the empty query: only a missing one blocks.
+    if (!cursor || viewStateQuery === undefined || loadingMatchesRef.current) return false;
+    const current = generation.current;
+    loadingMatchesRef.current = true;
+    setLoadingMatches(true);
+    setError(null);
+    let result: LoadTreeMatchesResult;
+    try {
+      result = await loadMatches({ backlogKey, viewState: viewStateQuery, cursor, limit });
+    } catch {
+      result = { ok: false, error: LOAD_FAILED };
+    }
+    if (generation.current !== current) return false;
+    loadingMatchesRef.current = false;
+    setLoadingMatches(false);
+    if (!result.ok) {
+      setError(result.error);
+      // Rows that could not be read again are not shown as current.
+      if (replace) setTreeItems(replace);
+      return false;
+    }
+    const served = result.window;
+    const servedMatches = served.rows.filter((row) => row.matched).length;
+    setTreeItems((previous) => {
+      const base = replace ?? previous;
+      const known = new Set(base.map((row) => row.id));
+      return [...base, ...served.rows.filter((row) => !known.has(row.id)).map(asTreeItem)];
+    });
+    setLaterContext((previous) => {
+      // A reload replaces the windows read after the first one, their ancestors too.
+      const next = new Set(replace ? [] : previous);
+      for (const row of served.rows) if (!row.matched) next.add(row.id);
+      return next;
+    });
+    setMatches((previous) => ({
+      cursor: served.nextCursor,
+      total: served.total,
+      extra: (replace ? 0 : previous.extra) + servedMatches,
+    }));
+    return true;
+  }, [backlogKey, loadMatches, viewStateQuery]);
 
   // Re-seed from fresh server props only when no drag is active and nothing is
   // in flight, so a mid-drag revalidate cannot clobber the optimistic state.
   // Only props that changed since the last seed do: a reorder between siblings
   // answers with the row's rank and renders no page (JIR-119), so the end of
   // its commit must not rebuild the tree from the props it already had.
-  const seeded = useRef(items);
+  // Rows read by windows are read again at once (JIR-147), up to the reload
+  // limit, and stay shown until then: an edit or « Actualiser » keeps what
+  // was unfolded; a new filter starts from its first window.
+  const reseed = useEffectEvent(() => {
+    const sameView = seededQuery.current === viewStateQuery;
+    seeded.current = items;
+    seededQuery.current = viewStateQuery;
+    generation.current += 1;
+    const fresh = seed(items);
+    const structureIds = new Set(fresh.map((row) => row.id));
+    const previous = treeItemsRef.current;
+    const stale = previous.filter((row) => !structureIds.has(row.id));
+    setLoadingParents(new Set());
+    loadingMatchesRef.current = false;
+    setLoadingMatches(false);
+
+    if (filtersActive) {
+      setFetched(new Map());
+      const extra = sameView ? matchesRef.current.extra : 0;
+      const firstCount = fresh.filter((row) => !contextIds.includes(row.id)).length;
+      const reload = matchWindow?.nextCursor ? Math.min(extra, Math.max(0, TREE_RELOAD_LIMIT - firstCount)) : 0;
+      setMatches({ cursor: matchWindow?.nextCursor ?? null, total: matchWindow?.total ?? null, extra: 0 });
+      // Until the reload arrives, the rows shown before it keep their dimmed ancestors.
+      if (reload === 0) setLaterContext(new Set());
+      setTreeItems(reload > 0 ? [...fresh, ...stale] : fresh);
+      if (reload > 0) void loadMoreMatches(matchWindow!.nextCursor, reload, fresh);
+      return;
+    }
+
+    setLaterContext(new Set());
+    // The parents read again, in the order they were unfolded, within the limit.
+    const parents: Array<{ parentId: string; cursor: null; limit: number }> = [];
+    let budget = TREE_RELOAD_LIMIT;
+    for (const parentId of fetchedRef.current.keys()) {
+      const limit = Math.max(1, stale.filter((row) => row.parentId === parentId).length);
+      if (parents.length >= TREE_RELOAD_PARENTS || limit > budget) break;
+      parents.push({ parentId, cursor: null, limit });
+      budget -= limit;
+    }
+    const kept = new Set(parents.map((parent) => parent.parentId));
+    setFetched(new Map(parents.map((parent) => [parent.parentId, fetchedRef.current.get(parent.parentId)!])));
+    setTreeItems([...fresh, ...stale.filter((row) => row.parentId !== null && kept.has(row.parentId))]);
+    if (parents.length === 0) return;
+    const current = generation.current;
+    void (async () => {
+      let result: LoadTreeChildrenResult;
+      try {
+        result = await loadChildren({ backlogKey, parents });
+      } catch {
+        result = { ok: false, error: LOAD_FAILED };
+      }
+      if (generation.current !== current) return;
+      if (result.ok) {
+        applyChildren(result.windows, structureIds);
+        return;
+      }
+      // Children that could not be read again fold back rather than show as current.
+      setError(result.error);
+      setFetched(new Map());
+      setTreeItems((rows) => rows.filter((row) => structureIds.has(row.id)));
+    })();
+  });
   useEffect(() => {
     if (dragId !== null || pending.current !== 0 || seeded.current === items) return;
-    seeded.current = items;
-    setTreeItems(seed(items));
+    reseed();
   }, [items, dragId, settledTick]);
 
   const roots = buildTree(treeItems);
+  const matchedCount = filtersActive ? treeItems.filter((row) => !contextSet.has(row.id)).length : 0;
+  const hasMoreMatches = filtersActive && matches.cursor !== null;
+
+  // With a filter, scrolling near the end loads the next matches; the button stays as a fallback.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const nextMatches = useCallback(
+    () => loadMoreMatches(matches.cursor, TREE_WINDOW_SIZE),
+    [loadMoreMatches, matches.cursor],
+  );
+  const nextMatchesRef = useRef(nextMatches);
+  useEffect(() => {
+    nextMatchesRef.current = nextMatches;
+  });
+  // Observed again only when a window moves the cursor: a failed read leaves
+  // the observer as it was, so it does not retry by itself while the end
+  // stays in view; « Charger la suite » does.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!hasMoreMatches || !sentinel || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void nextMatchesRef.current();
+      },
+      { root: scrollRef.current, rootMargin: "0px 0px 400px 0px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreMatches, matches.cursor]);
+
+  // « j » on the last row loads the next matches, then moves to the first
+  // one they bring. The tree places them by their parents, possibly above
+  // the focused row (a task under an earlier Epic): the row after it is not
+  // necessarily new, and moving on from it could ask for more again.
+  const focusAfterLoad = useRef<{ before: ReadonlySet<string>; done: boolean } | null>(null);
+  // Bumped when such a read ends, so the check below runs once its rows are shown.
+  const [focusCheck, setFocusCheck] = useState(0);
+  useEffect(() => {
+    function onLoadMore() {
+      const root = scrollRef.current;
+      if (!hasMoreMatches || !root) return;
+      const active = document.activeElement;
+      if (!(active instanceof Node) || !root.contains(active)) return;
+      if (focusAfterLoad.current !== null) return;
+      const pending = {
+        before: new Set(shortcutItems(root).map((element) => element.getAttribute("data-shortcut-item")!)),
+        done: false,
+      };
+      focusAfterLoad.current = pending;
+      void nextMatchesRef.current().then((loaded) => {
+        if (focusAfterLoad.current !== pending) return;
+        if (!loaded) {
+          focusAfterLoad.current = null;
+          return;
+        }
+        pending.done = true;
+        setFocusCheck((tick) => tick + 1);
+      });
+    }
+    window.addEventListener(LOAD_MORE_SHORTCUT_EVENT, onLoadMore);
+    return () => window.removeEventListener(LOAD_MORE_SHORTCUT_EVENT, onLoadMore);
+  }, [hasMoreMatches]);
+  useEffect(() => {
+    const pending = focusAfterLoad.current;
+    const root = scrollRef.current;
+    if (pending === null || !root) return;
+    const added = shortcutItems(root).find((element) => !pending.before.has(element.getAttribute("data-shortcut-item")!));
+    if (added) {
+      focusAfterLoad.current = null;
+      added.focus();
+      added.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    } else if (pending.done) {
+      // The window is shown without a row to move to (all under a folded
+      // parent): the focus stays, and the next « j » may load again.
+      focusAfterLoad.current = null;
+    }
+  }, [treeItems, focusCheck]);
 
   function onDragStart(e: DragEvent<HTMLDivElement>, item: TreeItem) {
     if (!canScheduleItems) return;
@@ -369,8 +697,15 @@ export function ItemTree({
   }
 
   function renderNode(node: TreeNode): React.ReactNode {
-    const hasKids = node.children.length > 0;
-    const isCollapsed = collapsed.has(node.id);
+    // Without a filter, a parent with children not loaded yet unfolds by reading them.
+    const unread = !filtersActive
+      && node.childCount !== undefined
+      && node.childCount > node.children.length
+      && !fetched.has(node.id);
+    const hasKids = node.children.length > 0 || (!filtersActive && (node.childCount ?? 0) > 0);
+    const isCollapsed = collapsed.has(node.id) || unread;
+    const loadingKids = loadingParents.has(node.id);
+    const moreKids = fetched.get(node.id)?.cursor ?? null;
     const isSelected = node.key === selectedKey;
     const isTarget = target?.id === node.id;
     const zone = isTarget ? target.zone : null;
@@ -397,6 +732,8 @@ export function ItemTree({
           role="button"
           tabIndex={isContext ? -1 : 0}
           data-shortcut-item={isContext ? undefined : node.key}
+          // A branch the user folded: the drawer's K / J skip its children (JIR-153).
+          data-tree-folded={hasKids && collapsed.has(node.id) ? node.key : undefined}
           aria-disabled={isContext || undefined}
           aria-label={`${node.key} — ${node.title}`}
           className={`group relative flex min-h-[var(--row-h)] items-center gap-2 border-b border-border py-0.5 pr-3 text-sm transition-colors ${
@@ -420,9 +757,12 @@ export function ItemTree({
           <button
             type="button"
             aria-label={hasKids ? (isCollapsed ? "Déplier" : "Replier") : undefined}
+            aria-busy={loadingKids || undefined}
+            disabled={loadingKids}
             onClick={(e) => {
               e.stopPropagation();
-              if (hasKids) toggleCollapse(node.id);
+              if (unread) void loadChildrenOf(node.id, null);
+              else if (hasKids) toggleCollapse(node.id);
             }}
             className="grid size-4 flex-none place-items-center text-muted-foreground"
             style={{ visibility: hasKids ? "visible" : "hidden" }}
@@ -470,6 +810,24 @@ export function ItemTree({
           </span>
         </div>
         {hasKids && !isCollapsed && node.children.map((child) => renderNode(child))}
+        {hasKids && !isCollapsed && moreKids !== null ? (
+          <div
+            className="flex min-h-[var(--row-h)] items-center border-b border-border py-0.5 pr-3"
+            style={{ paddingLeft: 8 + (node.depth + 1) * 20 + 24 }}
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={`Charger la suite de ${node.title}`}
+              disabled={loadingKids}
+              aria-busy={loadingKids || undefined}
+              onClick={() => void loadChildrenOf(node.id, moreKids)}
+            >
+              Charger la suite
+            </Button>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -547,11 +905,29 @@ export function ItemTree({
           className="mx-3 mt-3 flex-none sm:mx-4"
         />
       ) : null}
-      <div className="flex-1 overflow-auto p-3 sm:p-4">
+      <div ref={scrollRef} className="flex-1 overflow-auto p-3 sm:p-4">
         <div className="min-w-fit overflow-hidden rounded-[var(--radius-lg)] border border-border bg-card">
           {/* min-w-fit lets the card widen with rows that cannot shrink, so the outer scroller reaches them; -mb-px hides the last separator. */}
           <div className="-mb-px">{roots.map((node) => renderNode(node))}</div>
         </div>
+        {filtersActive && (hasMoreMatches || matches.extra > 0) ? (
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-3 text-sm text-muted-foreground">
+            <span aria-live="polite">{matchedCount} affichés sur {matches.total ?? matchedCount}</span>
+            {hasMoreMatches ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loadingMatches}
+                aria-busy={loadingMatches}
+                onClick={() => void nextMatches()}
+              >
+                Charger la suite
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {hasMoreMatches ? <div ref={sentinelRef} aria-hidden className="h-px" /> : null}
       </div>
     </div>
   );

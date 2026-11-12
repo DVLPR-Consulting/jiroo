@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildSprintSections,
   calculateSprintMetrics,
+  shiftSectionMetrics,
   sprintStartCommitmentFor,
   type SprintPlanningItem,
   type SprintSummary,
@@ -304,5 +305,28 @@ describe("sprint planning", () => {
         ],
       }),
     ).toThrow("Un item ne peut appartenir qu’à un sprint courant.");
+  });
+});
+
+describe("shiftSectionMetrics (JIR-146)", () => {
+  it("shifts a whole section's figures by the tasks moved in and out, as if recomputed", () => {
+    const whole = [item("a", { estimatePoints: 3 }), item("b"), item("c", { estimatePoints: 2.5 })];
+    const metrics = calculateSprintMetrics(whole, null);
+    const added = [item("d", { estimatePoints: 1.25 }), item("e"), item("f", { estimatePoints: 2, done: true })];
+    const removed = [whole[1]!, whole[2]!];
+    expect(shiftSectionMetrics(metrics, added, removed)).toEqual(
+      calculateSprintMetrics([whole[0]!, ...added], null),
+    );
+  });
+
+  it("keeps the capacity and recomputes what exceeds it", () => {
+    const metrics = calculateSprintMetrics([item("a", { estimatePoints: 4 })], 5);
+    const shifted = shiftSectionMetrics(metrics, [item("b", { estimatePoints: 3 })], []);
+    expect(shifted).toMatchObject({ itemCount: 2, estimatedPoints: 7, capacityPoints: 5, overCapacityPoints: 2 });
+  });
+
+  it("changes nothing when nothing moves", () => {
+    const metrics = calculateSprintMetrics([item("a", { estimatePoints: 1 })], null);
+    expect(shiftSectionMetrics(metrics, [], [])).toEqual(metrics);
   });
 });

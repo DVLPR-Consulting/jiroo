@@ -31,6 +31,9 @@ vi.mock("@/app/actions/items", () => ({
   updateItemAction: mocks.updateItemAction,
 }));
 
+vi.mock("@/app/actions/view-window", () => ({
+  loadViewWindowAction: vi.fn(async () => ({ ok: false, error: "Impossible de charger la suite. Réessayez avec « Charger la suite »." })),
+}));
 vi.mock("@/app/actions/item-choices", () => ({
   searchBacklogItemsAction: vi.fn(async () => ({ ok: true as const, items: [], limit: 20 })),
 }));
@@ -94,9 +97,6 @@ function item(
     assigneeName: "Marie Lemaire",
     labels: [{ id: "urgent", name: "Urgent", color: "--label-3" }],
     blocked: false,
-    statusOrder: 0,
-    ancestorIds: [],
-    componentId: null,
     ...overrides,
   };
 }
@@ -767,6 +767,26 @@ describe("ItemList", () => {
     expect(screen.queryByRole("button", { name: /^Déplacer/ })).not.toBeInTheDocument();
   });
 
+  it("shows the figures the server counted over the whole group, not over its rows (JIR-143)", () => {
+    renderList({
+      ...listProps(),
+      grouped: true,
+      groups: [
+        {
+          key: "billing",
+          label: "Facturation",
+          items: [item("item-2", "DEMO-2", "Invoices", { estimatePoints: 2 })],
+          summary: { count: 140, unestimated: 12, points: { todo: 21.5, inProgress: 8, done: 3.25 } },
+        },
+      ],
+    });
+
+    const billing = screen.getByRole("region", { name: "Facturation" });
+    expect(within(billing).getByText("140 items · 12 non estimés")).toBeVisible();
+    expect(within(billing).getByText("Points par statut : À faire 21,5, En cours 8, Terminé 3,25"))
+      .toBeInTheDocument();
+  });
+
   it("collapses the card and drops its hidden rows from the selection", async () => {
     const user = userEvent.setup();
     renderList();
@@ -901,4 +921,196 @@ it("passes denied directory access to a list row's assignee menu", async () => {
   renderList({ ...listProps(), users: [], canBrowseUsers: false });
   await user.click(screen.getAllByRole("button", { name: /^Assigné :/ })[0]!);
   expect(screen.getByText(/Il vous manque la permission globale/)).toBeVisible();
+});
+describe("ItemList by windows (JIR-145)", () => {
+  const cursor = { group: "platform", first: ["0", "a", "DEMO-1"], last: ["0", "b", "DEMO-2"] };
+  const summary = (count: number) => ({ count, unestimated: count, points: { todo: 0, inProgress: 0, done: 0 } });
+  const row = (id: string, key: string, title: string, groupKey: string) => ({
+    ...item(id, key, title),
+    groupKey,
+    parent: null,
+    fixVersions: [],
+  });
+
+  function windowedProps(loadWindow = vi.fn()): React.ComponentProps<typeof ItemList> {
+    return {
+      ...listProps(),
+      grouped: true,
+      groups: [{
+        key: "platform",
+        label: "Plateforme",
+        summary: summary(3),
+        items: [item("item-1", "DEMO-1", "Authentication"), item("item-2", "DEMO-2", "Sessions")],
+      }],
+      total: 4,
+      nextCursor: cursor,
+      viewStateQuery: "group=parent",
+      loadWindow,
+    };
+  }
+
+  const nextWindow = {
+    ok: true as const,
+    window: {
+      total: 4,
+      rows: [row("item-3", "DEMO-3", "Tokens", "platform"), row("item-4", "DEMO-4", "Invoices", "billing")],
+      groups: [
+        { key: "platform", label: "Plateforme", summary: summary(3) },
+        { key: "billing", label: "Facturation", summary: summary(1) },
+      ],
+      nextCursor: null,
+    },
+  };
+
+  it("loads the next window from the button, under the headers of the groups it continues", async () => {
+    const user = userEvent.setup();
+    const loadWindow = vi.fn(async () => nextWindow);
+    renderList(windowedProps(loadWindow));
+
+    expect(screen.getByText("2 affichés sur 4")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Charger la suite" }));
+
+    expect(loadWindow).toHaveBeenCalledWith({
+      backlogKey: "DEMO",
+      viewState: "group=parent",
+      cursor,
+      limit: 100,
+    });
+    expect(await screen.findByText("4 affichés sur 4")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Charger la suite" })).not.toBeInTheDocument();
+    // One « Plateforme » card holds the rows of both windows.
+    const platform = screen.getByRole("list", { name: "Plateforme" });
+    expect(within(platform).getAllByRole("listitem").map((element) => element.getAttribute("data-shortcut-item")))
+      .toEqual(["DEMO-1", "DEMO-2", "DEMO-3"]);
+    expect(within(screen.getByRole("list", { name: "Facturation" })).getByRole("listitem", {
+      name: "DEMO-4 — Invoices",
+    })).toBeVisible();
+    expect(screen.getAllByRole("heading", { name: "Plateforme" })).toHaveLength(1);
+  });
+
+  it("loads the next window when the end of the list comes into view", async () => {
+    const callbacks: IntersectionObserverCallback[] = [];
+    vi.stubGlobal("IntersectionObserver", class {
+      constructor(callback: IntersectionObserverCallback) {
+        callbacks.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+    });
+    try {
+      const loadWindow = vi.fn(async () => nextWindow);
+      renderList(windowedProps(loadWindow));
+      callbacks.at(-1)!([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+      expect(await screen.findByText("4 affichés sur 4")).toBeVisible();
+      expect(loadWindow).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("loads the next window when « j » is pressed on the last loaded row, then moves on to it", async () => {
+    const { moveShortcutFocus } = await import("@/lib/shortcuts/list-navigation");
+    const loadWindow = vi.fn(async () => nextWindow);
+    renderList(windowedProps(loadWindow));
+
+    screen.getByRole("listitem", { name: "DEMO-2 — Sessions" }).focus();
+    moveShortcutFocus(document, 1);
+
+    await waitFor(() =>
+      expect(screen.getByRole("listitem", { name: "DEMO-3 — Tokens" })).toHaveFocus(),
+    );
+    expect(loadWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it("says when the next window cannot be loaded and keeps the button", async () => {
+    const user = userEvent.setup();
+    const loadWindow = vi.fn(async () => ({ ok: false as const, error: "Impossible de charger la suite. Réessayez avec « Charger la suite »." }));
+    renderList(windowedProps(loadWindow));
+
+    await user.click(screen.getByRole("button", { name: "Charger la suite" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Impossible de charger la suite. Réessayez avec « Charger la suite ».");
+    expect(screen.getByRole("button", { name: "Charger la suite" })).toBeEnabled();
+    expect(screen.getByText("2 affichés sur 4")).toBeVisible();
+  });
+
+  it("reads the shown rows again after a refresh, but starts over on another view state", async () => {
+    const user = userEvent.setup();
+    const loadWindow = vi.fn(async () => nextWindow);
+    const input = windowedProps(loadWindow);
+    const { rerender } = renderList(input);
+    await user.click(screen.getByRole("button", { name: "Charger la suite" }));
+    await screen.findByText("4 affichés sur 4");
+
+    // « Actualiser » or an edit: a new first window for the same view.
+    const refreshed = { ...input, groups: input.groups.map((group) => ({ ...group })) };
+    rerender(
+      <ViewUrlStateProvider initialEntries={Object.entries(initialUrlParams)}>
+        <ItemList {...refreshed} />
+      </ViewUrlStateProvider>,
+    );
+    await waitFor(() => expect(loadWindow).toHaveBeenCalledTimes(2));
+    expect(loadWindow).toHaveBeenLastCalledWith(expect.objectContaining({ cursor, limit: 2 }));
+    // The rows shown stay on screen while they are read again: the scroll keeps its place.
+    expect(screen.getByRole("listitem", { name: "DEMO-4 — Invoices" })).toBeVisible();
+    expect(await screen.findByText("4 affichés sur 4")).toBeVisible();
+
+    // Another sort: only its first window.
+    rerender(
+      <ViewUrlStateProvider initialEntries={Object.entries(initialUrlParams)}>
+        <ItemList {...refreshed} groups={[...refreshed.groups]} viewStateQuery="group=parent&sort=title%3Aasc" />
+      </ViewUrlStateProvider>,
+    );
+    expect(await screen.findByText("2 affichés sur 4")).toBeVisible();
+    expect(loadWindow).toHaveBeenCalledTimes(2);
+  });
+
+  it("loads the next window of the default Liste, whose view state is the empty query", async () => {
+    const user = userEvent.setup();
+    const loadWindow = vi.fn(async () => nextWindow);
+    renderList({ ...windowedProps(loadWindow), viewStateQuery: "" });
+
+    await user.click(screen.getByRole("button", { name: "Charger la suite" }));
+
+    expect(loadWindow).toHaveBeenCalledWith(expect.objectContaining({ viewState: "", cursor }));
+    expect(await screen.findByText("4 affichés sur 4")).toBeVisible();
+  });
+
+  it("drops the rows loaded before a refresh whose first window holds every row", async () => {
+    const user = userEvent.setup();
+    const loadWindow = vi.fn(async () => nextWindow);
+    const input = windowedProps(loadWindow);
+    const { rerender } = renderList(input);
+    await user.click(screen.getByRole("button", { name: "Charger la suite" }));
+    await screen.findByText("4 affichés sur 4");
+
+    // The same view after deletions: one row left, nothing after it.
+    rerender(
+      <ViewUrlStateProvider initialEntries={Object.entries(initialUrlParams)}>
+        <ItemList
+          {...input}
+          groups={[{ ...input.groups[0]!, items: [input.groups[0]!.items[0]!] }]}
+          total={1}
+          nextCursor={null}
+        />
+      </ViewUrlStateProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("listitem", { name: "DEMO-4 — Invoices" })).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("listitem", { name: "DEMO-3 — Tokens" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/affichés sur/)).not.toBeInTheDocument();
+    expect(loadWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it("selects the loaded rows only with Ctrl/⌘A", async () => {
+    const user = userEvent.setup();
+    renderList(windowedProps());
+
+    screen.getByRole("listitem", { name: "DEMO-1 — Authentication" }).focus();
+    await user.keyboard("{Meta>}a{/Meta}");
+
+    expect(screen.getByText("2 items sélectionnés")).toBeVisible();
+  });
 });

@@ -1,10 +1,11 @@
 "use client";
 
+import "./inline-item-field.css";
+
 import { useId, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { updateItemAction } from "@/app/actions/items";
-import { PrioIcon } from "@/components/icons/prio-icon";
-import { StatusDot } from "@/components/icons/status-dot";
+import { RowPrioIcon as PrioIcon, RowStatusDot as StatusDot } from "./item-row-icons";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
 import {
   DropdownMenu,
@@ -101,7 +102,7 @@ function InlineError({ id, error }: { id: string; error: string | null }) {
     <span
       id={id}
       role="alert"
-      className="absolute right-0 top-full z-50 mt-1 w-max max-w-56 rounded bg-[var(--danger)] px-2 py-1 text-xs text-white shadow-[var(--shadow-sm)]"
+      className="if-error"
     >
       {error}
     </span>
@@ -109,21 +110,21 @@ function InlineError({ id, error }: { id: string; error: string | null }) {
 }
 
 function EditorShell({ children }: { children: ReactNode }) {
-  return <span className="relative inline-flex min-w-0">{children}</span>;
+  return <span className="if-shell">{children}</span>;
 }
 
 const triggerClass =
-  "inline-flex min-h-7 max-w-full items-center gap-1.5 rounded px-1.5 py-1 text-xs text-muted-foreground outline-none hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60";
+  "if-trigger";
 const readOnlyClass =
-  "inline-flex min-h-7 max-w-full items-center gap-1.5 px-1.5 py-1 text-xs text-muted-foreground";
+  "if-readonly";
 
 const contentClass = "min-w-40";
 
 /** Compact rows (Backlog): the estimate is a small badge, the assignee an avatar. */
 const compactBadgeClass =
-  "inline-flex h-6 min-w-[22px] items-center justify-center rounded-full bg-[var(--muted)] px-1.5 text-xs font-semibold tabular-nums text-muted-foreground";
+  "if-badge";
 const compactTriggerClass =
-  "inline-flex min-h-7 items-center justify-center rounded px-0.5 outline-none hover:bg-[var(--muted)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60";
+  "if-compact";
 
 function UnassignedCircle({ compact = false }: { compact?: boolean }) {
   // Compact rows show nothing but this circle, so it needs a UI-contrast border.

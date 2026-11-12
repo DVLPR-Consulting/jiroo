@@ -145,9 +145,9 @@ describe("HelpPage", () => {
     const views = document.querySelector("section#vues") as HTMLElement;
     expect(views).not.toHaveTextContent("colonnes triables");
     expect(views).toHaveTextContent(
-      "dans le même tableau que le Backlog, intitulé « Tous les items » (nombre d’items et de non estimés, points par statut, « Créer un item » en bas) ; la ligne « Trier » de son en-tête pour trier",
+      "dans le tableau « Tous les items », comme dans le Backlog (nombre d’items et de non estimés, points par statut, « Créer un item » en bas). « Trier » change l’ordre",
     );
-    expect(views).toHaveTextContent("elle montre un tableau par groupe, repliable comme les sections du Backlog");
+    expect(views).toHaveTextContent("permet de les grouper en tableaux repliables");
     expect(views).not.toHaveTextContent("au-dessus des lignes");
     expect(views).not.toHaveTextContent("bandeau d’en-tête");
     const row = within(views)
@@ -163,6 +163,38 @@ describe("HelpPage", () => {
       expect(sorting).toHaveTextContent(`« ${label} »`);
     }
     expect(sorting).toHaveTextContent("enregistrés avec une vue");
+  });
+
+  it("documents the Liste loaded by 100 and what « tout » selects there (JIR-145)", () => {
+    render(<HelpPage />);
+    const views = document.querySelector("section#vues") as HTMLElement;
+    expect(views).toHaveTextContent("Les 100 premiers tickets s’affichent, puis les suivants par 100 en défilant jusqu’en bas, ou avec « Charger la suite »");
+    expect(views).toHaveTextContent("les totaux (nombre et points) couvrent tout le groupe");
+    const page = document.body;
+    expect(page).toHaveTextContent("Dans la « Liste » et le « Backlog », ces raccourcis sélectionnent uniquement les tickets déjà chargés, dans la limite de 500.");
+    expect(page).toHaveTextContent("sur le dernier ticket chargé charge la suite et sélectionne le ticket suivant");
+    expect(page).toHaveTextContent("l’actualisation recharge aussi les tickets déjà affichés (jusqu’à 500), en conservant votre place");
+  });
+
+  it("documents the Backlog section loaded by 100 and where a drop at its edge lands (JIR-146)", () => {
+    render(<HelpPage />);
+    const views = document.querySelector("section#vues") as HTMLElement;
+    expect(views).toHaveTextContent("Les sprints s’affichent en entier. La section Backlog affiche les 100 premières tâches, puis les suivantes par 100 en défilant jusqu’en bas, ou avec « Charger la suite »");
+    expect(views).toHaveTextContent("couvrent toute la section, même les tâches pas encore chargées. Chaque groupe indique son nombre total de tâches.");
+    expect(views).toHaveTextContent("une tâche déposée en bas de la partie chargée se place juste après la dernière tâche chargée");
+    const page = document.body;
+    expect(page).toHaveTextContent("Dans la « Liste », le « Backlog » et l’« Arbre », l’actualisation recharge aussi les tickets déjà affichés");
+    expect(page).toHaveTextContent("Dans la « Liste », le « Backlog » et l’« Arbre » filtré, J sur le dernier ticket chargé charge la suite");
+  });
+
+  it("documents the Arbre unfolded on demand, its filtered matches by 100 and reparenting positions (JIR-151)", () => {
+    render(<HelpPage />);
+    const views = document.querySelector("section#vues") as HTMLElement;
+    expect(views).toHaveTextContent("Les Composants et les Epics s’affichent d’emblée. Dépliez une Epic pour charger ses tâches, ou une tâche pour charger ses sous-tâches : les 100 premières s’affichent, puis les suivantes par 100 avec « Charger la suite », sous le dernier enfant chargé.");
+    expect(views).toHaveTextContent("Avec un filtre, l’Arbre affiche les 100 premiers tickets trouvés avec leurs parents grisés, puis les suivants par 100");
+    expect(views).toHaveTextContent("Un ticket déposé dans un parent déplié se place juste après son dernier enfant chargé ; dans un parent replié, il se place avant le premier enfant. Si le parent est vide, le ticket garde son rang.");
+    expect(views).toHaveTextContent("« N affichés sur T » indique le nombre de tickets trouvés affichés sur le total après filtres, sans compter les parents grisés. J sur le dernier ticket chargé charge la suite et sélectionne le ticket suivant.");
+    expect(views).toHaveTextContent("Si vous changez le champ « Parent » depuis le panneau de détail, le ticket se place avant le premier enfant du nouveau parent ; si ce parent est vide, il garde son rang.");
   });
 
   it("documents the rich-text editor (JIR-66)", () => {
