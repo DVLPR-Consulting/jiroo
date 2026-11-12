@@ -1,13 +1,11 @@
 "use server";
 
 import { mapActionAuthorizationError } from "@/lib/auth/action-error";
-import {
-  requireCommentPermission,
-  requireItemPermission,
-} from "@/lib/auth/action-authorization";
+import { requireCommentPermission } from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
-import { invalidateBacklog, notifyUsers } from "@/lib/realtime/publish";
-import { addComment, editComment, softDeleteComment } from "@/lib/services/comments";
+import { invalidateBacklog, revalidateBacklogPages } from "@/lib/realtime/publish";
+import { editComment, softDeleteComment } from "@/lib/services/comments";
+import { addCommentUseCase } from "@/lib/use-cases/comments";
 
 async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
@@ -35,19 +33,10 @@ export async function addCommentAction(input: {
   const actorId = await authenticatedActorId();
   const { backlogKey, itemId, body, mentionIds } = input;
   try {
-    const authorization = await requireItemPermission({
-      actorId,
-      itemId: input.itemId,
-      permission: "add_comments",
-    });
-    const { notifyUserIds, ...comment } = await addComment({ itemId, body, mentionIds }, actorId);
-    await invalidateBacklog(backlogKey, {
-      kind: "item",
-      backlogId: authorization.backlogId,
-      itemIds: [itemId],
-      actorId,
-    });
-    await notifyUsers(notifyUserIds, actorId);
+    const { comment } = await addCommentUseCase({ actorId, source: "ui" }, { itemId, body, mentionIds });
+    // The use case told the open tabs; the author's pages re-render on their
+    // next navigation (JIR-155).
+    revalidateBacklogPages(backlogKey);
     return { ok: true as const, comment };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
