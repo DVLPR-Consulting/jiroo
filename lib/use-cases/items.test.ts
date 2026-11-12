@@ -161,6 +161,46 @@ describe("createItemUseCase", () => {
     );
   });
 
+  it("checks the parent before the sprint, and hides a sprint from another backlog", async () => {
+    mocks.requireSprintPermission.mockResolvedValueOnce(stored(sprintId, otherBacklogId));
+
+    await expect(createItemUseCase(writer, createInput({ parentId, sprintId }))).rejects.toMatchObject({
+      name: "ResourceNotFoundError",
+      resourceType: "sprint",
+      resourceId: sprintId,
+    });
+    expect(mocks.requireItemPermission).toHaveBeenCalledTimes(2);
+    expect(mocks.requireItemPermission.mock.invocationCallOrder[1]).toBeLessThan(
+      mocks.requireSprintPermission.mock.invocationCallOrder[0]!,
+    );
+    expect(mocks.createItem).not.toHaveBeenCalled();
+  });
+
+  it("publishes nothing while the service is still running", async () => {
+    let finish!: (item: { id: string }) => void;
+    mocks.createItem.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+
+    const pending = createItemUseCase(writer, createInput());
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mocks.publishBacklogChange).not.toHaveBeenCalled();
+
+    finish({ id: itemId });
+    await pending;
+    expect(mocks.publishBacklogChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats a present but empty assignee as an assignment to nobody", async () => {
+    await createItemUseCase(writer, createInput({ assigneeId: null }));
+
+    expect(mocks.requireBacklogPermissionById).toHaveBeenLastCalledWith({
+      actorId: "writer-1",
+      backlogId,
+      permission: "assign_items",
+    });
+    expect(mocks.checkPermission).not.toHaveBeenCalled();
+  });
+
   it("hides a parent stored in another backlog and never reaches the service", async () => {
     mocks.requireItemPermission.mockResolvedValueOnce(stored(parentId, otherBacklogId));
 

@@ -77,6 +77,22 @@ describe("comment action permissions", () => {
     );
   });
 
+  it("publishes, notifies, then re-renders the pages, and reports a failed re-render", async () => {
+    await addCommentAction({ backlogKey: "DEMO", itemId: "item-1", body: "Message", mentionIds: [] });
+    const order = [mocks.publishBacklogChange, mocks.notifyUsers, mocks.revalidateBacklogPages]
+      .map((mock) => mock.mock.invocationCallOrder[0]!);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+
+    mocks.revalidateBacklogPages.mockImplementationOnce(() => {
+      throw new Error("revalidation failed");
+    });
+    await expect(
+      addCommentAction({ backlogKey: "DEMO", itemId: "item-1", body: "Message", mentionIds: [] }),
+    ).resolves.toEqual({ ok: false, error: "Action impossible sur le commentaire." });
+    // The comment is already committed and published: only the page render failed.
+    expect(mocks.publishBacklogChange).toHaveBeenCalledTimes(2);
+  });
+
   it("returns a structured comment permission denial", async () => {
     mocks.requireItemPermission.mockRejectedValueOnce(
       permissionDeniedError("add_comments", { type: "backlog", backlogId: "backlog-1" }),

@@ -34,8 +34,8 @@ export async function addCommentAction(input: {
   const { backlogKey, itemId, body, mentionIds } = input;
   try {
     const { comment } = await addCommentUseCase({ actorId, source: "ui" }, { itemId, body, mentionIds });
-    // The use case told the open tabs; the author's pages re-render on their
-    // next navigation (JIR-155).
+    // The use case told the open tabs; this re-renders the author's backlog
+    // pages for the current response and their later visits (JIR-155).
     revalidateBacklogPages(backlogKey);
     return { ok: true as const, comment };
   } catch (e) {

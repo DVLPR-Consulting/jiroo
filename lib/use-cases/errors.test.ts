@@ -31,6 +31,8 @@ describe("describeDomainError", () => {
 
   it("hides unexpected failures", () => {
     expect(describeDomainError(new Error("connect ECONNREFUSED 127.0.0.1:5432"))).toBeNull();
+    expect(describeDomainError(new Error("unique service unavailable"))).toBeNull();
+    expect(describeDomainError(new Error("Le backlog de l'item a changé pendant la mutation."))).toBeNull();
     expect(describeDomainError(new TypeError("Cannot read properties of undefined"))).toBeNull();
     expect(describeDomainError("Statut invalide pour ce backlog.")).toBeNull();
     expect(describeDomainError(null)).toBeNull();

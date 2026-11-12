@@ -30,9 +30,10 @@ export async function invalidateBacklog(backlogKey: string, change: BacklogChang
 }
 
 /**
- * Re-renders the backlog pages for the author on their next navigation. A
- * Server Action calls it after a use case has published the change itself
- * (JIR-155); the API and the MCP server have no page to re-render.
+ * Re-renders the backlog pages for the author: in the response of the Server
+ * Action that calls it, and on their later visits. An action calls it after
+ * a use case has published the change itself (JIR-155); the API and the MCP
+ * server have no page to re-render.
  */
 export function revalidateBacklogPages(backlogKey: string): void {
   revalidatePath(`/b/${backlogKey}`);

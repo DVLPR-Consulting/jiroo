@@ -52,11 +52,14 @@ const KNOWN_MESSAGES: ReadonlySet<string> = new Set(DOMAIN_ERROR_MESSAGES);
 
 /**
  * Failures whose text is not meant for the user, answered with the message
- * the actions already show for them.
+ * the actions already show for them. Invariant and concurrency failures of
+ * the services (« a changé pendant la mutation », « incohérente ») are left
+ * out on purpose: they are reported as unexpected, never described.
  */
 const REWORDED_FAILURES: ReadonlyArray<readonly [test: (message: string) => boolean, message: string]> = [
   [(m) => m === "Tous les items doivent appartenir au backlog.", "Un ou plusieurs items sont introuvables."],
-  [(m) => m.includes("unique"), "Cette clé est déjà utilisée."],
+  // PostgreSQL's unique violation (code 23505) on the item key.
+  [(m) => /duplicate key value violates unique constraint/i.test(m), "Cette clé est déjà utilisée."],
 ];
 
 /**
