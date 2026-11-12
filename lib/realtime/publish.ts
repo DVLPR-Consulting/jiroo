@@ -25,11 +25,21 @@ export type BacklogChange = {
  * backlog pages for the author and tells the other open tabs to refresh.
  */
 export async function invalidateBacklog(backlogKey: string, change: BacklogChange): Promise<void> {
+  revalidateBacklogPages(backlogKey);
+  await publishBacklogChange(change);
+}
+
+/**
+ * Re-renders the backlog pages for the author: in the response of the Server
+ * Action that calls it, and on their later visits. An action calls it after
+ * a use case has published the change itself (JIR-155); the API and the MCP
+ * server have no page to re-render.
+ */
+export function revalidateBacklogPages(backlogKey: string): void {
   revalidatePath(`/b/${backlogKey}`);
   revalidatePath(`/b/${backlogKey}/roadmap`);
   revalidatePath(`/b/${backlogKey}/reports`);
   revalidatePath(`/b/${backlogKey}/le-point`);
-  await publishBacklogChange(change);
 }
 
 /**

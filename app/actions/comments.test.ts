@@ -10,11 +10,19 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   invalidateBacklog: vi.fn(),
   notifyUsers: vi.fn(),
+  publishBacklogChange: vi.fn(),
+  revalidateBacklogPages: vi.fn(),
   softDeleteComment: vi.fn(),
 }));
 
+vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
-vi.mock("@/lib/realtime/publish", () => ({ invalidateBacklog: mocks.invalidateBacklog, notifyUsers: mocks.notifyUsers }));
+vi.mock("@/lib/realtime/publish", () => ({
+  invalidateBacklog: mocks.invalidateBacklog,
+  notifyUsers: mocks.notifyUsers,
+  publishBacklogChange: mocks.publishBacklogChange,
+  revalidateBacklogPages: mocks.revalidateBacklogPages,
+}));
 vi.mock("@/lib/auth/action-authorization", () => ({
   requireCommentPermission: mocks.requireCommentPermission,
   requireItemPermission: mocks.requireItemPermission,
@@ -55,7 +63,8 @@ describe("comment action permissions", () => {
       mentionIds: [],
     })).resolves.toEqual({ ok: true, comment: { id: "comment-1" } });
 
-    expect(mocks.invalidateBacklog).toHaveBeenCalledWith("FORGED", { kind: "item", backlogId: "backlog-1", itemIds: ["item-1"], actorId: "author-1" });
+    expect(mocks.publishBacklogChange).toHaveBeenCalledWith({ kind: "item", backlogId: "backlog-1", itemIds: ["item-1"], actorId: "author-1" });
+    expect(mocks.revalidateBacklogPages).toHaveBeenCalledWith("FORGED");
     expect(mocks.notifyUsers).toHaveBeenCalledWith(["recipient-1"], "author-1");
     expect(mocks.addComment.mock.invocationCallOrder[0]).toBeLessThan(mocks.notifyUsers.mock.invocationCallOrder[0]!);
     expect(mocks.requireItemPermission).toHaveBeenCalledWith({
@@ -66,6 +75,22 @@ describe("comment action permissions", () => {
     expect(mocks.requireItemPermission.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.addComment.mock.invocationCallOrder[0]!,
     );
+  });
+
+  it("publishes, notifies, then re-renders the pages, and reports a failed re-render", async () => {
+    await addCommentAction({ backlogKey: "DEMO", itemId: "item-1", body: "Message", mentionIds: [] });
+    const order = [mocks.publishBacklogChange, mocks.notifyUsers, mocks.revalidateBacklogPages]
+      .map((mock) => mock.mock.invocationCallOrder[0]!);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+
+    mocks.revalidateBacklogPages.mockImplementationOnce(() => {
+      throw new Error("revalidation failed");
+    });
+    await expect(
+      addCommentAction({ backlogKey: "DEMO", itemId: "item-1", body: "Message", mentionIds: [] }),
+    ).resolves.toEqual({ ok: false, error: "Action impossible sur le commentaire." });
+    // The comment is already committed and published: only the page render failed.
+    expect(mocks.publishBacklogChange).toHaveBeenCalledTimes(2);
   });
 
   it("returns a structured comment permission denial", async () => {
@@ -85,7 +110,8 @@ describe("comment action permissions", () => {
       error: "Vous n’avez pas la permission « Ajouter des commentaires » pour ce backlog.",
     });
     expect(mocks.addComment).not.toHaveBeenCalled();
-    expect(mocks.invalidateBacklog).not.toHaveBeenCalled();
+    expect(mocks.publishBacklogChange).not.toHaveBeenCalled();
+    expect(mocks.revalidateBacklogPages).not.toHaveBeenCalled();
     expect(mocks.notifyUsers).not.toHaveBeenCalled();
   });
 

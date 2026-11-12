@@ -8,162 +8,46 @@ import {
   requireItemPermission,
   requireSprintPermission,
   requireStatusPermission,
-  type AuthorizedResource,
 } from "@/lib/auth/action-authorization";
-import {
-  checkPermission,
-  PermissionDeniedError,
-  requirePermission,
-  ResourceNotFoundError,
-} from "@/lib/auth/authorization";
+import { requirePermission } from "@/lib/auth/authorization";
 import type { BacklogPermissionKey } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
 import { invalidateBacklog, publishBacklogChange } from "@/lib/realtime/publish";
 import { withRequestCache } from "@/lib/auth/request-cache";
-import type { ItemKind, ItemType } from "@/lib/design/constants";
 import { mapZodActionError } from "@/lib/validation/action-error";
 import { bulkUpdateItems } from "@/lib/services/item-bulk";
 import type { BulkItemPatch } from "@/lib/validation/bulk-item";
 import {
-  createItem,
   moveItem,
   rankBacklogItem,
   reparentItem,
   restoreItem,
   softDeleteItem,
-  updateItem,
 } from "@/lib/services/items";
+import {
+  assertSameBacklog,
+  assertStoredBacklog,
+  authorizeParent,
+  hasOwnField,
+  requireAssignableUser,
+} from "@/lib/use-cases/guards";
+import {
+  createItemUseCase,
+  updateItemUseCase,
+  type CreateItemUseCaseInput,
+  type UpdateItemUseCaseInput,
+} from "@/lib/use-cases/items";
 
-type CreateItemActionInput = {
-  backlogKey: string;
-  backlogId: string;
-  type: ItemType;
-  parentId: string | null;
-  title: string;
-  description?: string | null;
-  statusId?: string;
-  priority?: number;
-  assigneeId?: string | null;
-  startDate?: string | null;
-  dueDate?: string | null;
-  labelIds?: string[];
-  kind?: ItemKind;
-  sprintId?: string | null;
-  fixVersionIds?: string[];
-  estimatePoints?: number | null;
-};
+// The page key stays in the inputs for the callers; the answer is the item
+// alone, never a page render (JIR-119).
+type CreateItemActionInput = CreateItemUseCaseInput & { backlogKey: string };
 
-type UpdateItemActionInput = {
-  backlogKey: string;
-  id: string;
-  title?: string;
-  description?: string | null;
-  statusId?: string;
-  priority?: number;
-  estimatePoints?: number | null;
-  assigneeId?: string | null;
-  reporterId?: string;
-  startDate?: string | null;
-  dueDate?: string | null;
-  labelIds?: string[];
-  kind?: ItemKind;
-  fixVersionIds?: string[];
-};
+type UpdateItemActionInput = UpdateItemUseCaseInput & { backlogKey: string };
 
 async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
   if (!session?.user.id) throw new Error("Forbidden");
   return session.user.id;
-}
-
-function hasOwnField<T extends object>(input: T, field: PropertyKey): boolean {
-  return Object.prototype.hasOwnProperty.call(input, field);
-}
-
-function assertSameBacklog(
-  expected: AuthorizedResource,
-  actual: AuthorizedResource,
-  resourceType: string,
-): void {
-  if (expected.backlogId !== actual.backlogId) {
-    throw new ResourceNotFoundError(resourceType, actual.resourceId);
-  }
-}
-
-function assertStoredBacklog(
-  resource: AuthorizedResource,
-  backlogId: string,
-): void {
-  if (resource.backlogId !== backlogId) {
-    throw new ResourceNotFoundError("backlog", backlogId);
-  }
-}
-
-async function requireAssignableUser(input: {
-  assigneeId: string | null | undefined;
-  backlogId: string;
-}): Promise<void> {
-  if (!input.assigneeId) return;
-  const decision = await checkPermission({
-    actorId: input.assigneeId,
-    permission: "assignable_user",
-    scope: { type: "backlog", backlogId: input.backlogId },
-  });
-  if (!decision.allowed) throw new PermissionDeniedError(decision);
-}
-
-async function authorizeParent(input: {
-  actorId: string;
-  parentId: string | null;
-  childBacklog: AuthorizedResource;
-}): Promise<void> {
-  if (!input.parentId) return;
-  const parent = await requireItemPermission({
-    actorId: input.actorId,
-    itemId: input.parentId,
-    permission: "browse_backlog",
-  });
-  assertSameBacklog(input.childBacklog, parent, "item");
-  await requireItemPermission({
-    actorId: input.actorId,
-    itemId: input.parentId,
-    permission: "schedule_items",
-  });
-}
-
-async function authorizeItemUpdate(
-  actorId: string,
-  input: UpdateItemActionInput,
-): Promise<AuthorizedResource> {
-  const item = await requireItemPermission({
-    actorId,
-    itemId: input.id,
-    permission: "edit_items",
-  });
-  if (hasOwnField(input, "statusId")) {
-    await requireItemPermission({
-      actorId,
-      itemId: input.id,
-      permission: "transition_items",
-    });
-    if (input.statusId) {
-      const status = await requireStatusPermission({
-        actorId,
-        statusId: input.statusId,
-        permission: "transition_items",
-      });
-      assertSameBacklog(item, status, "status");
-    }
-  }
-  if (hasOwnField(input, "assigneeId")) {
-    await requireItemPermission({
-      actorId,
-      itemId: input.id,
-      permission: "assign_items",
-    });
-    await requireAssignableUser({ assigneeId: input.assigneeId, backlogId: item.backlogId });
-  }
-  return item;
 }
 
 function bulkPatchPermission(patch: BulkItemPatch): BacklogPermissionKey {
@@ -229,44 +113,9 @@ export async function createItemAction(input: CreateItemActionInput) {
 async function createItemActionBody(input: CreateItemActionInput) {
   const actorId = await authenticatedActorId();
   try {
-    const backlog = await requireBacklogPermissionById({
-      actorId,
-      backlogId: input.backlogId,
-      permission: "create_items",
-    });
-    await authorizeParent({
-      actorId,
-      parentId: input.parentId,
-      childBacklog: backlog,
-    });
-    if (input.sprintId) {
-      const sprint = await requireSprintPermission({
-        actorId,
-        sprintId: input.sprintId,
-        permission: "schedule_items",
-      });
-      assertSameBacklog(backlog, sprint, "sprint");
-    }
-    if (hasOwnField(input, "assigneeId")) {
-      await requireBacklogPermissionById({
-        actorId,
-        backlogId: backlog.backlogId,
-        permission: "assign_items",
-      });
-      await requireAssignableUser({ assigneeId: input.assigneeId, backlogId: backlog.backlogId });
-    }
     const { backlogKey, ...data } = input;
-    // The page key stays in the input for the callers; the answer is the
-    // item alone, never a page render (JIR-119).
     void backlogKey;
-    const requestCorrelationId = randomUUID();
-    const item = await createItem(data, actorId, requestCorrelationId);
-    await publishBacklogChange({
-      kind: "item",
-      backlogId: backlog.backlogId,
-      itemIds: [item.id, ...(input.parentId ? [input.parentId] : [])],
-      actorId,
-    });
+    const { item } = await createItemUseCase({ actorId, source: "ui" }, data);
     return { ok: true as const, item };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
@@ -285,19 +134,9 @@ export async function updateItemAction(input: UpdateItemActionInput) {
 async function updateItemActionBody(input: UpdateItemActionInput) {
   const actorId = await authenticatedActorId();
   try {
-    const authorization = await authorizeItemUpdate(actorId, input);
     const { backlogKey, ...data } = input;
     void backlogKey;
-    const requestCorrelationId = randomUUID();
-    const item = await updateItem(data, actorId, requestCorrelationId);
-    // The answer is the item alone: the views that need the page re-render
-    // ask for it themselves, the Board applies the item (JIR-119).
-    await publishBacklogChange({
-      kind: "item",
-      backlogId: authorization.backlogId,
-      itemIds: [input.id],
-      actorId,
-    });
+    const { item } = await updateItemUseCase({ actorId, source: "ui" }, data);
     return { ok: true as const, item };
   } catch (e) {
     const authorizationError = mapActionAuthorizationError(e);
