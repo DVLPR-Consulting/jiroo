@@ -157,3 +157,93 @@ after a network failure`); all 11 tests in that file passed on isolated rerun,
 and the complete four-worker rerun passed. Typecheck passed; lint has no errors
 and one existing warning in `lib/auth/client.ts`. Chromium fixture tests were
 also explicitly enabled and passed.
+
+## Final windows and team-load measurements (JIR-148)
+
+Measured on **2026-11-11** from the JIR-41 integration branch at application
+commit `b6e43bb` (full SHA in the raw results). This revision includes the
+windowed List, Backlog and Tree work and the row-HTML reduction. At measurement
+time `origin/main` still pointed to `7fb47d2`, before these changes; switching
+branches or creating another worktree was outside this ticket's constraints.
+The final measurement therefore records the integrated JIR-41 candidate that
+would become main after the issue branch is accepted, rather than claiming an
+already-updated `origin/main` run. No application files were changed by JIR-148.
+
+Both experiments used the unchanged 20,000-item team seed on Apple M5 Max,
+Node 24.18.1, Next 16.4.1 and PostgreSQL 17.11 in newly created tmpfs
+containers bound only to `127.0.0.1:5434`. The full migration set was applied
+to each disposable database, including both window indexes; neither run
+connected to Neon, DEV, a target environment or an existing database. Both
+containers were removed and their absence verified. The window probes used a
+fresh TOTP contributor for each view. They measured 20 serial samples after
+one warm-up; the Tree probe used `q=dossier` so its next filtered-match window
+could be replayed. Discovery aborted every POST and captured only the named
+read-only continuation; all other page actions remained blocked. These are
+decoded HTTP response bytes and full-body timings, not wire bytes or browser
+paint. The load run used the retained ten-client, twelve-operation,
+300-ms-think-time, 180-second closed-loop profile. It ran separately from the
+serial probes.
+
+### Concurrent team profile
+
+The previous column is JIR-142's post-JIR-118/119 run; the final column is the
+same load driver against `b6e43bb`. Full-response p95 is compared to the
+indicative threshold for each page or action. Change is descriptive: the host
+was shared and this is not a controlled causal estimate.
+
+| Operation | Before p95 ms | Final p95 ms | Change | Final body MiB (p50) | Threshold ms | Final result |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Backlog | 3,225.7 | 500.5 | −84.5% | 1.45 | 500 | Above |
+| List | 3,473.7 | 429.0 | −87.6% | 0.47 | 500 | Pass |
+| Board, active sprint | 2,235.4 | 423.7 | −81.0% | 1.90 | 500 | Pass |
+| Tree | 3,346.8 | 375.1 | −88.8% | 0.49 | 500 | Pass |
+| Roadmap | 2,245.2 | 251.5 | −88.8% | 1.51 | 500 | Pass |
+| Reports, active sprint | 2,088.7 | 270.0 | −87.1% | 0.23 | 500 | Pass |
+| My items | 2,220.3 | 292.7 | −86.8% | 0.95 | 500 | Pass |
+| Search: dossier | 1,594.8 | 223.9 | −86.0% | 0.006 | 300 | Pass |
+| Item panel API | 1,236.4 | 132.0 | −89.3% | 0.027 | 500 | Pass |
+| Create item | 2,827.5 | 333.5 | −88.2% | 0.0009 | 300 | Above |
+| Status | 2,313.8 | 378.8 | −83.6% | 0.0012 | 300 | Above |
+| Board move | 2,274.9 | 416.5 | −81.7% | 0.0012 | 300 | Above |
+
+The run lasted 180.25 seconds including drained requests and the final think
+pause: **3,757 successful requests, zero errors, 20.84 requests/second**. All
+ten realtime streams stayed ready; **1,256/1,256** expected mutation deliveries
+arrived, with no missing events or stream errors. The driver created 318 items,
+verified all writer states, and confirmed 20,318 total items. Server RSS had
+1-second samples: p50 911.4 MiB, p95 973.9 MiB, max 991.8 MiB. The driver
+reported `valid: true` and `cleanup: true`.
+
+Eight of twelve operations meet their indicative threshold. Backlog is just
+above it at 500.5 ms; Create, Status and Move remain above the 300-ms action
+threshold. The three formerly largest views now send 0.47 MiB (List), 1.45 MiB
+(Backlog) and 0.49 MiB (Tree) at the median in this concurrent run, compared
+with 24.13, 13.46 and 12.93 MiB in JIR-142. This measurement establishes that
+the remaining four tails are still present under the team workload; it does
+not identify their cause.
+
+### First and next windows
+
+The prior serial baseline is the indexed, pre-window measurement above; the
+final serial probe uses the same seed and runtime method on `b6e43bb`. The Tree
+before value is the unfiltered full-tree response; final Tree windows use the
+required `q=dossier` filtered-match path, so that row is not a like-for-like
+filter comparison. P95 values below are nearest-rank over 20 samples.
+
+| View / operation | Before bytes MiB | Final bytes MiB | Before p95 ms | Final p95 ms | Threshold ms | Final result |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| List, first | 24.05 | 0.47 | 1,393.1 | 85.8 | 500 | Pass |
+| List, next | — | 0.06 | — | 20.3 | 300 | Pass |
+| Backlog, first | 13.38 | 1.33 | 796.1 | 111.3 | 500 | Pass |
+| Backlog, next | — | 0.05 | — | 18.4 | 300 | Pass |
+| Tree, first (`q=dossier`) | 12.89* | 0.43 | 397.6* | 71.3 | 500 | Pass |
+| Tree, next match (`q=dossier`) | — | 0.05 | — | 26.6 | 300 | Pass |
+
+*Before Tree is unfiltered and included the full tree; the final filtered result
+is a separate path as explained above. SQL counts per response were 65 / 12
+(List first / next), 67 / 11 (Backlog), and 62 / 9 (Tree first / next). In the
+final indexed-before-window baseline, List and Backlog exceeded the 500-ms
+page threshold at p95 (1,393.1 and 796.1 ms); the Tree baseline was below it.
+All six measured final page/window responses pass their corresponding
+indicative threshold. The full load results and every retained sample are in
+[`2026-11-jir-120-windows-final.json`](2026-11-jir-120-windows-final.json).
