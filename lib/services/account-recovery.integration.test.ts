@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { account, session, twoFactor, user, verification } from "@/lib/db/schema/auth";
 import { permissionGrants, securityAuditEvents } from "@/lib/db/schema/domain";
 import { resetUserPassword, resetUserTwoFactor } from "@/lib/services/account-recovery";
+import { authenticateApiToken, createApiToken, listApiTokens } from "@/lib/services/api-tokens";
 import { createUser } from "@/lib/services/users";
 import { BetterAuthDevice } from "@/test-utils/better-auth-http";
 import { generateTotp } from "@/test-utils/totp";
@@ -221,6 +222,23 @@ describeDb("account recovery service", () => {
       expect(signIn.json).toMatchObject({ twoFactorRedirect: true });
     });
 
+    it("revokes the access tokens along with the sessions", async () => {
+      const target = await createTarget("password-tokens");
+      const { token } = await createApiToken({ name: "Herdr", scope: "write", expiresInDays: null }, target.id);
+      expect(await authenticateApiToken(token)).not.toBeNull();
+
+      await resetUserPassword(
+        { userId: target.id, temporaryPassword: "temporaire-tokens" },
+        adminId,
+        `recovery-${fixtureId}-password-tokens`,
+      );
+
+      expect(await authenticateApiToken(token)).toBeNull();
+      expect(await listApiTokens(target.id)).toEqual([]);
+      const events = await auditEventsFor(target.id);
+      expect(events[0]?.newValue).toMatchObject({ revokedTokens: 1 });
+    });
+
     it("invalidates a sign-in challenge opened with the old password", async () => {
       const target = await createTarget("password-challenge");
       const secret = await enrollOverHttp(target.email, ORIGINAL_PASSWORD);
@@ -367,6 +385,18 @@ describeDb("account recovery service", () => {
       expect(factors).toHaveLength(1);
       expect(await sessionCount(target.id)).toBe(1);
       expect(await auditEventsFor(target.id)).toHaveLength(0);
+    });
+
+    it("revokes the access tokens of the reset account", async () => {
+      const target = await createTarget("two-factor-tokens");
+      await enrollTwoFactor(target.id);
+      const { token } = await createApiToken({ name: "Agent", scope: "read", expiresInDays: null }, target.id);
+
+      await resetUserTwoFactor({ userId: target.id }, adminId, `recovery-${fixtureId}-2fa-tokens`);
+
+      expect(await authenticateApiToken(token)).toBeNull();
+      const events = await auditEventsFor(target.id);
+      expect(events[0]?.newValue).toMatchObject({ revokedTokens: 1 });
     });
 
     it("revokes trusted devices so a re-enrolled account always asks for the new TOTP", async () => {
