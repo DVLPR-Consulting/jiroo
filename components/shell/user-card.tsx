@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CircleUserRound, KeyRound, LogOut, SlidersHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CircleUserRound, KeyRound, LogOut, Plug, SlidersHorizontal } from "lucide-react";
 import { InitialsAvatar } from "@/components/jiroo/avatar";
 import { ChangePasswordDialog } from "@/components/shell/change-password-dialog";
 import { UserPreferencesDialog } from "@/components/shell/user-preferences-dialog";
@@ -33,6 +34,7 @@ export function UserCard({
   const [profileOpen, setProfileOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const router = useRouter();
 
   async function handleSignOut() {
     if (!(await prepareSignOut())) return;
@@ -82,6 +84,10 @@ export function UserCard({
           <DropdownMenuItem onSelect={() => setPasswordOpen(true)}>
             <KeyRound className="size-4" />
             Changer mon mot de passe
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => router.push("/jetons")}>
+            <Plug className="size-4" />
+            Jetons d’accès
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={handleSignOut}>
             <LogOut className="size-4" />
