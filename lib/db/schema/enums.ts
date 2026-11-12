@@ -11,6 +11,11 @@ export const activityActionEnum = pgEnum("activity_action", [
   "comment",
   "status_change",
 ]);
+// Where a write came from (JIR-155): the interface, the REST API, the MCP
+// server or a repository webhook. Mirrors ACTIVITY_SOURCES in lib/auth/actor-context.
+export const activitySourceEnum = pgEnum("activity_source", ["ui", "api", "mcp", "webhook"]);
+// What an access token may do (JIR-156): read, or read and write.
+export const apiTokenScopeEnum = pgEnum("api_token_scope", ["read", "write"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["mention", "assignment"]);
 export const displayModeEnum = pgEnum("display_mode", ["backlog", "board", "list", "tree"]);
 export const linkTypeEnum = pgEnum("link_type", ["blocks", "relates", "duplicates"]);

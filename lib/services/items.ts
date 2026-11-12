@@ -1,3 +1,4 @@
+import { currentActorContext } from "@/lib/auth/actor-context";
 import { and, asc, desc, eq, exists, getTableColumns, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { randomUUID } from "node:crypto";
@@ -280,7 +281,19 @@ function activityRow(
   oldValue: string | null = null,
   newValue: string | null = null,
 ): typeof activities.$inferInsert {
-  return { itemId, actorId, action, field, oldValue, newValue };
+  // The source and the token come from the actor scope the use case opened
+  // (JIR-156); a Server Action that writes without one records the interface.
+  const actor = currentActorContext();
+  return {
+    itemId,
+    actorId,
+    action,
+    field,
+    oldValue,
+    newValue,
+    source: actor?.source ?? "ui",
+    tokenId: actor?.tokenId ?? null,
+  };
 }
 
 async function resolveDefaultStatusId(tx: Tx, backlogId: string): Promise<string> {

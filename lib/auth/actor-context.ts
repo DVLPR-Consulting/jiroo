@@ -1,4 +1,5 @@
-import "server-only";
+// Not marked server-only on purpose: the services import it, and they are
+// plain Node modules the unit tests load directly (JIR-156).
 import { AsyncLocalStorage } from "node:async_hooks";
 
 /** Where a write came from; recorded with each activity (JIR-155). */
