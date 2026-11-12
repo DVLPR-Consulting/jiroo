@@ -16,6 +16,8 @@ const inputSchema = z.object({
   /** The effective view state the page rendered with, as view URL parameters. */
   viewState: z.string().max(8000),
   itemKey: z.string().trim().min(1).max(40),
+  /** Arbre: the branches the user folded, whose children K / J skip. */
+  folded: z.array(z.string().trim().min(1).max(40)).max(500).optional(),
 });
 
 export type LoadViewNeighborsInput = z.input<typeof inputSchema>;
@@ -37,7 +39,7 @@ export async function loadViewNeighborsAction(
   if (!session) throw new Error("Forbidden");
   const parsed = inputSchema.safeParse(input);
   if (!parsed.success) return { ok: false };
-  const { backlogKey, view, viewState, itemKey } = parsed.data;
+  const { backlogKey, view, viewState, itemKey, folded } = parsed.data;
   try {
     const backlog = await getBacklogByKeyForUser(backlogKey, session.user.id);
     if (!backlog || backlog.archivedAt) return { ok: false };
@@ -47,7 +49,7 @@ export async function loadViewNeighborsAction(
       : view === "backlog"
         // The Backlog is laid out by sprint: it ignores the Sprint facet, as the page does.
         ? await backlogSectionNeighbors(backlog.id, { ...state, filters: withKnownSprintIds(state.filters, null) }, itemKey)
-        : await treeNeighbors(backlog.id, state.filters, itemKey);
+        : await treeNeighbors(backlog.id, state.filters, itemKey, folded ?? []);
     return { ok: true, neighbors };
   } catch {
     return { ok: false };

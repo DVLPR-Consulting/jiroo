@@ -236,6 +236,20 @@ describeDb("Drawer neighbors beyond the rows shown (JIR-153)", () => {
         expect(await treeNeighbors(f.backlogId, filters, key), key).toEqual(filtered.get(key));
       }
       expect((await treeNeighbors(f.backlogId, filters, f.keyOf("E1"))).inView).toBe(false);
+
+      // A branch the user folded: its children are skipped, as the rows shown
+      // skip them; an item opened inside it keeps its place.
+      const e1 = f.rows.find((row) => row.title === "E1")!;
+      const insideE1 = (row: Row) => row.path.startsWith(`${e1.path}.`);
+      const unfolded = treeOrder(f, (row) => !insideE1(row));
+      const skipping = expected(unfolded);
+      for (const key of unfolded) {
+        expect(await treeNeighbors(f.backlogId, NO_FILTERS, key, [e1.key]), key).toEqual(skipping.get(key));
+      }
+      const t4 = f.rows.find((row) => row.title === "T4")!;
+      expect(insideE1(t4)).toBe(true);
+      const withT4 = treeOrder(f, (row) => !insideE1(row) || row.id === t4.id);
+      expect(await treeNeighbors(f.backlogId, NO_FILTERS, t4.key, [e1.key])).toEqual(expected(withT4).get(t4.key));
     } finally {
       await f.remove();
     }

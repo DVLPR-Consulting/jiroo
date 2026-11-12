@@ -8,21 +8,26 @@ stays under its ÷ 10 target (**1,392,131** bytes against **1,402,636**, ÷ 10.0
 
 ## What changed
 
-The drawer still takes its neighbors from the rows shown when it can. When the
-open item is not among them, or is the last of them, it asks the server once
-for its neighbors over the whole view (`loadViewNeighborsAction`), after the
-drawer opened:
+The drawer asks the server for the open item's neighbors over the whole view
+(`loadViewNeighborsAction`), after it opened:
 
 - **Liste**: the same filtered, grouped and sorted set as its windows
   (`viewNeighbors`, `lib/services/list-window.ts`), read with `lag` / `lead`.
+  Its windows load from the start, so the rows shown are right but at their
+  end: the server is asked only for an item outside them or the last of them.
 - **Backlog**: the « Backlog » section in its order (`backlogSectionNeighbors`).
   Sprint sections are sent whole, so an item outside the rows shown is in the
-  section, which comes last.
+  section, which comes last. Asked as for the Liste.
 - **Arbre**: the tree unfolded whole, a parent before its children, siblings
-  by rank; with a filter, only the matches (`treeNeighbors`).
+  by rank; with a filter, only the matches (`treeNeighbors`). Its rows shown
+  leave gaps anywhere (children not loaded yet, a filter's later matches), so
+  the server is always asked and its answer wins; the branches the user folded
+  (`data-tree-folded`) are skipped, as the rows shown skip them.
 
 The only addition to the first response is the view's name and state handed
-to the drawer; no window is read and the windows stay at 100 rows.
+to the drawer; no window is read and the windows stay at 100 rows. The
+measurement below was taken at 75a999e; the Arbre's correction that followed
+adds an attribute only to rows the user folds, absent from a first response.
 
 ## Measurement
 
@@ -56,10 +61,12 @@ Raw samples: [`2026-11-jir-153-drawer-neighbors.json`](2026-11-jir-153-drawer-ne
 
 - `lib/services/view-neighbors.integration.test.ts`: 130 Tâches (over 100),
   the Liste (manual, and sorted and grouped), a filter, the Backlog section and
-  the Arbre (whole and filtered), against orders computed in the test itself.
+  the Arbre (whole, filtered and with a folded branch), against orders
+  computed in the test itself.
 - `components/items/item-detail-panel.test.tsx`: an item outside the rows
   shown gets its buttons and K / J from the server; the last row shown asks for
-  its next item.
+  its next item; in the Arbre, T101 → K → T100 → J reaches T101 again, not the
+  next Epic shown after T100 (fails on 66c83e0).
 - Playwright Chromium, full suite on an owned `jiroo_e2e` database, local
   configuration override on port 3153 (3100 occupied): **172 passed**, including
   `ticket-drawer` « présente l'en-tête… » with the CASS Liste above 100 tickets.

@@ -32,7 +32,7 @@ function subscribe(onChange: () => void): () => void {
     subtree: true,
     childList: true,
     attributes: true,
-    attributeFilter: ["data-shortcut-item", "hidden", "inert"],
+    attributeFilter: ["data-shortcut-item", "data-tree-folded", "hidden", "inert"],
   });
   return () => observer.disconnect();
 }
@@ -43,15 +43,32 @@ function snapshot(): string {
   return root ? shortcutItemKeys(root).join("\n") : "";
 }
 
+/** The Arbre's branches the user folded (`data-tree-folded`), by key, sorted. */
+function foldedSnapshot(): string {
+  const root = listRoot();
+  if (!root) return "";
+  return Array.from(root.querySelectorAll("[data-tree-folded]"))
+    .flatMap((element) => {
+      const key = element.getAttribute("data-tree-folded");
+      return key ? [key] : [];
+    })
+    .sort()
+    .join("\n");
+}
+
 /**
  * The previous and next items around `itemKey` in the order of the view
  * shown behind the drawer (Jira's « previous / next issue »). `inList` is
  * false without a list context (search result, item not displayed).
  *
- * In a view served by windows (`source`), an item outside the rows shown, or
- * the last of them, asks the server for its neighbors over the whole view:
- * the rows not loaded yet still have their place in it (JIR-153). `version`
- * asks again when the item changed, as its place may have.
+ * In a view served by windows (`source`), the server tells the neighbors
+ * over the whole view, rows not loaded yet included (JIR-153). The Liste and
+ * the Backlog section are loaded from their start, so the rows shown are
+ * right but at their end: the server is asked for an item outside them or
+ * the last of them. The Arbre leaves gaps anywhere (children not loaded yet,
+ * a filter's later matches): the server always answers there, skipping the
+ * branches the user folded as the rows shown do. `version` asks again when
+ * the item changed, as its place may have.
  */
 export function useListNeighbors(
   itemKey: string,
@@ -59,15 +76,18 @@ export function useListNeighbors(
   version?: string,
 ): Neighbors {
   const keys = useSyncExternalStore(subscribe, snapshot, () => "");
+  const foldedKeys = useSyncExternalStore(subscribe, foldedSnapshot, () => "");
   const list = keys === "" ? [] : keys.split("\n");
   const shown: Neighbors = {
     inList: list.includes(itemKey),
     previous: adjacentItemKey(list, itemKey, -1),
     next: adjacentItemKey(list, itemKey, 1),
   };
-  const ask = source !== undefined && (!shown.inList || shown.next === null);
+  const tree = source?.view === "tree";
+  const folded = tree && foldedKeys !== "" ? foldedKeys.split("\n").slice(0, 500) : [];
+  const ask = source !== undefined && (tree || !shown.inList || shown.next === null);
   const request = ask
-    ? JSON.stringify([source.backlogKey, source.view, source.viewState, itemKey, version ?? ""])
+    ? JSON.stringify([source.backlogKey, source.view, source.viewState, itemKey, version ?? "", folded])
     : null;
   const [served, setServed] = useState<{ request: string; neighbors: Neighbors } | null>(null);
 
@@ -79,6 +99,7 @@ export function useListNeighbors(
       view: source.view,
       viewState: source.viewState,
       itemKey,
+      ...(folded.length > 0 ? { folded } : {}),
     })
       .then((result) => {
         if (!current || !result.ok) return;
@@ -93,11 +114,17 @@ export function useListNeighbors(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request]);
 
-  if (request === null || served === null) return shown;
-  // While another item's answer is on its way, the buttons stay in place, disabled.
-  const server = served.request === request
-    ? served.neighbors
-    : { inList: served.neighbors.inList, previous: null, next: null };
+  if (request === null) return shown;
+  const answered = served !== null && served.request === request;
+  if (!answered) {
+    // Until the answer comes, the buttons stay in place, disabled, in the
+    // Arbre (whose rows shown may skip the neighbor) or when the rows shown
+    // do not hold the item; elsewhere the rows shown are right meanwhile.
+    const inList = shown.inList || (served?.neighbors.inList ?? false);
+    return tree || !shown.inList ? { inList, previous: null, next: null } : shown;
+  }
+  const server = served.neighbors;
+  if (tree) return { ...server, inList: server.inList || shown.inList };
   return {
     inList: shown.inList || server.inList,
     previous: shown.previous ?? server.previous,

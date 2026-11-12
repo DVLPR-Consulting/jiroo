@@ -205,14 +205,27 @@ export async function loadTreeMatchWindow(
  * An item's neighbors in the Arbre unfolded whole, loaded or not (JIR-153):
  * a parent before its children, siblings in rank order (bytewise), as
  * `ItemTree` draws them. With a filter, only the matches count: the dimmed
- * ancestors cannot be opened. Each row's place is the ranks along its path,
- * joined by a separator below any rank character.
+ * ancestors cannot be opened. The children of the branches the user folded
+ * (`folded`, by key) are skipped, as the rows shown skip them; the open item
+ * itself always keeps its place. Each row's place is the ranks along its
+ * path, joined by a separator below any rank character.
  */
 export async function treeNeighbors(
   backlogId: string,
   filters: Filters,
   itemKey: string,
+  folded: readonly string[] = [],
 ): Promise<ViewNeighbors> {
+  const hidden = folded.length === 0
+    ? sql``
+    : sql`and (${items.key} = ${itemKey} or not exists (
+        select 1 from ${items} branch
+        where branch.backlog_id = ${backlogId}
+          and branch.deleted_at is null
+          and branch.key in (${sql.join(folded.map((key) => sql`${key}`), sql`, `)})
+          and branch.path @> ${items.path}
+          and branch.id <> ${items.id}
+      ))`;
   const result = await db.execute<{ previous: string | null; next: string | null }>(sql`
     with shown as (
       select ${items.key} as key,
@@ -222,6 +235,7 @@ export async function treeNeighbors(
         ) as place
       from ${items}
       where ${and(liveItemsOf(backlogId), viewFilterCondition(backlogId, filters))}
+        ${hidden}
     ), around as (
       select key,
         lag(key) over (order by place collate "C" asc, key asc) as previous,

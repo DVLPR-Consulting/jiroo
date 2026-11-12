@@ -1407,6 +1407,56 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
     expect(screen.getByRole("button", { name: "Item précédent (K)" })).toBeEnabled();
   });
 
+  it("follows the server in the Arbre, whose rows shown leave gaps between them (JIR-153)", async () => {
+    // An Epic unfolded with its first 100 children loaded, the next Epic after:
+    // the row after the last loaded child is not its next item.
+    const user = userEvent.setup();
+    mocks.loadViewNeighborsAction.mockImplementation(async ({ itemKey }: { itemKey: string }) => ({
+      ok: true,
+      neighbors: itemKey === "CASS-100"
+        ? { inView: true, previous: "CASS-99", next: "CASS-101" }
+        : { inView: true, previous: "CASS-100", next: "CASS-102" },
+    }));
+    const main = document.createElement("main");
+    for (const key of ["CASS-A", "CASS-99", "CASS-100", "CASS-B"]) {
+      const row = document.createElement("div");
+      row.setAttribute("data-shortcut-item", key);
+      if (key === "CASS-B") row.setAttribute("data-tree-folded", key);
+      main.append(row);
+    }
+    document.body.append(main);
+    const source = { backlogKey: "CASS", view: "tree" as const, viewState: "" };
+    const view = (key: string) => (
+      <KeyboardShortcutsProvider>
+        <DetailHarness initialEntries={[["view", "tree"], ["item", key]]}>
+          <ItemDetailPanel {...baseProps} detail={{ ...detail, key }} neighborsSource={source} />
+        </DetailHarness>
+      </KeyboardShortcutsProvider>
+    );
+
+    // T101, outside the rows shown: K goes back to T100.
+    const { rerender } = render(view("CASS-101"));
+    const previous = await screen.findByRole("button", { name: "Item précédent (K)" });
+    await waitFor(() => expect(previous).toBeEnabled());
+    await user.click(previous);
+    await waitFor(() => expect(currentHref()).toBe("/b/CASS?view=tree&item=CASS-100"));
+
+    // T100, shown just before Epic B: J goes on to T101, not to Epic B.
+    rerender(view("CASS-100"));
+    await waitFor(() => expect(mocks.loadViewNeighborsAction).toHaveBeenLastCalledWith({
+      backlogKey: "CASS",
+      view: "tree",
+      viewState: "",
+      itemKey: "CASS-100",
+      folded: ["CASS-B"],
+    }));
+    const next = screen.getByRole("button", { name: "Item suivant (J)" });
+    await waitFor(() => expect(next).toBeEnabled());
+    await user.click(next);
+    await waitFor(() => expect(currentHref()).toBe("/b/CASS?view=tree&item=CASS-101"));
+    expect(currentHref()).not.toContain("CASS-B");
+  });
+
   it("m brings the comments back from the history filter", async () => {
     render(
       <KeyboardShortcutsProvider>
