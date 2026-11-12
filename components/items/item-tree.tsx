@@ -732,6 +732,8 @@ export function ItemTree({
           role="button"
           tabIndex={isContext ? -1 : 0}
           data-shortcut-item={isContext ? undefined : node.key}
+          // A branch the user folded: the drawer's K / J skip its children (JIR-153).
+          data-tree-folded={hasKids && collapsed.has(node.id) ? node.key : undefined}
           aria-disabled={isContext || undefined}
           aria-label={`${node.key} — ${node.title}`}
           className={`group relative flex min-h-[var(--row-h)] items-center gap-2 border-b border-border py-0.5 pr-3 text-sm transition-colors ${

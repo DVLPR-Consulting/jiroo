@@ -13,7 +13,13 @@ import {
 } from "@/lib/items/filter-sql";
 import type { BacklogWindow, BacklogWindowRow } from "@/lib/items/backlog-window";
 import { LIST_WINDOW_SIZE, type ListCursor } from "@/lib/items/list-window";
-import { groupLabels, listRowsByIds, listWindowIds } from "@/lib/services/list-window";
+import {
+  groupLabels,
+  listRowsByIds,
+  listWindowIds,
+  viewNeighbors,
+  type ViewNeighbors,
+} from "@/lib/services/list-window";
 import type { ViewRowsState } from "@/lib/services/view-rows";
 
 /**
@@ -118,4 +124,20 @@ export async function loadBacklogWindow(
     groups: keys.map((key) => ({ key, label: names.get(key) ?? "", count: counts.get(key) ?? 0 })),
     nextCursor: window.nextCursor,
   };
+}
+
+/**
+ * A task's neighbors in the Backlog section, loaded or not (JIR-153). The
+ * section comes last in the Backlog and its first window is always shown, so
+ * an item outside the rows shown sits after them.
+ */
+export function backlogSectionNeighbors(
+  backlogId: string,
+  state: ViewRowsState,
+  itemKey: string,
+): Promise<ViewNeighbors> {
+  return viewNeighbors(backlogId, state, itemKey, {
+    scope: backlogSectionCondition(backlogId),
+    columns: sectionOrder(backlogId, state),
+  });
 }

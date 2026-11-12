@@ -14,6 +14,7 @@ import {
   type TreeRow,
 } from "@/lib/items/tree-window";
 import { listUsersByIds } from "@/lib/services/items";
+import type { ViewNeighbors } from "@/lib/services/list-window";
 
 /**
  * The Arbre by windows (JIR-147, JIR-120 D5). Ranks are unique in a backlog
@@ -198,4 +199,52 @@ export async function loadTreeMatchWindow(
     rows: rows.map((row): TreeMatchRow => ({ ...row, matched: matchedById.get(row.id) ?? false })),
     nextCursor: found.length > limit ? { depth: Number(last.depth), rank: last.rank } : null,
   };
+}
+
+/**
+ * An item's neighbors in the Arbre unfolded whole, loaded or not (JIR-153):
+ * a parent before its children, siblings in rank order (bytewise), as
+ * `ItemTree` draws them. With a filter, only the matches count: the dimmed
+ * ancestors cannot be opened. The children of the branches the user folded
+ * (`folded`, by key) are skipped, as the rows shown skip them; the open item
+ * itself always keeps its place. Each row's place is the ranks along its
+ * path, joined by a separator below any rank character.
+ */
+export async function treeNeighbors(
+  backlogId: string,
+  filters: Filters,
+  itemKey: string,
+  folded: readonly string[] = [],
+): Promise<ViewNeighbors> {
+  const hidden = folded.length === 0
+    ? sql``
+    : sql`and (${items.key} = ${itemKey} or not exists (
+        select 1 from ${items} branch
+        where branch.backlog_id = ${backlogId}
+          and branch.deleted_at is null
+          and branch.key in (${sql.join(folded.map((key) => sql`${key}`), sql`, `)})
+          and branch.path @> ${items.path}
+          and branch.id <> ${items.id}
+      ))`;
+  const result = await db.execute<{ previous: string | null; next: string | null }>(sql`
+    with shown as (
+      select ${items.key} as key,
+        (select string_agg(ancestor.rank, chr(1) order by ancestor.depth)
+          from ${items} ancestor
+          where ancestor.id = any(string_to_array(ltree2text(subpath(${items.path}, 1)), '.')::uuid[])
+        ) as place
+      from ${items}
+      where ${and(liveItemsOf(backlogId), viewFilterCondition(backlogId, filters))}
+        ${hidden}
+    ), around as (
+      select key,
+        lag(key) over (order by place collate "C" asc, key asc) as previous,
+        lead(key) over (order by place collate "C" asc, key asc) as next
+      from shown
+    )
+    select previous, next from around where key = ${itemKey}`);
+  const row = result.rows[0];
+  return row
+    ? { inView: true, previous: row.previous, next: row.next }
+    : { inView: false, previous: null, next: null };
 }

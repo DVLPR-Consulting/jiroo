@@ -524,11 +524,17 @@ describe("ItemTree by windows (JIR-147)", () => {
     await waitFor(() => expect(names()).toEqual(["C1", "E1", "T1", "T2", "T3", "E2"]));
     expect(screen.queryByRole("button", { name: /Charger la suite/ })).not.toBeInTheDocument();
 
-    // Folded then unfolded again: the children are already there.
+    // Folded then unfolded again: the children are already there. Only a
+    // branch the user folded is marked so the drawer's K / J skip it (JIR-153),
+    // not one folded until its children are read.
+    expect(rowNamed("E2")).not.toHaveAttribute("data-tree-folded");
+    expect(rowNamed("E1")).not.toHaveAttribute("data-tree-folded");
     await user.click(within(rowNamed("E1")).getByRole("button", { name: "Replier" }));
     expect(names()).toEqual(["C1", "E1", "E2"]);
+    expect(rowNamed("E1")).toHaveAttribute("data-tree-folded", rowNamed("E1").getAttribute("data-shortcut-item"));
     await user.click(within(rowNamed("E1")).getByRole("button", { name: "Déplier" }));
     expect(names()).toEqual(["C1", "E1", "T1", "T2", "T3", "E2"]);
+    expect(rowNamed("E1")).not.toHaveAttribute("data-tree-folded");
     expect(loadChildren).toHaveBeenCalledTimes(2);
   });
 

@@ -57,6 +57,76 @@ export type WindowOptions = {
   columns?: ViewOrderColumn[];
 };
 
+const list = (terms: SQL[]) => sql.join(terms, sql`, `);
+
+/**
+ * The view's rows as a `ranked` common table: each row's id, key, group,
+ * own sort values (`c0`…) and its group's first sort values (`f0`…), with
+ * the filtered total. `viewRowsOrder` orders it as `listViewRows` does.
+ */
+function rankedViewRows(
+  backlogId: string,
+  state: ViewRowsState,
+  columns: ViewOrderColumn[],
+  scope: SQL | undefined,
+): SQL {
+  const where = and(liveItemsOf(backlogId), viewFilterCondition(backlogId, state.filters), scope);
+  const own = columns.map((_, index) => ref(`c${index}`));
+  const first = columns.map((_, index) => ref(`f${index}`));
+  return sql`with base as (
+      select ${items.id} as id, ${items.key} as key, ${groupKeyExpression(backlogId, state.group)} as group_key,
+        ${list(columns.map((column, index) => sql`${column.expression} as ${own[index]}`))}
+      from ${items}
+      where ${where}
+    ), ranked as (
+      select base.*, count(*) over () as total,
+        ${list(columns.map((_, index) => sql`first_value(${own[index]}) over grp as ${first[index]}`))}
+      from base
+      window grp as (partition by group_key order by ${list(columns.map((column, index) => orderTerm(column, own[index])))})
+    )`;
+}
+
+/** Groups in first-seen order, rows in the view's sort inside them. */
+function viewRowsOrder(columns: ViewOrderColumn[]): SQL {
+  return list([
+    ...columns.map((column, index) => orderTerm(column, ref(`f${index}`))),
+    ...columns.map((column, index) => orderTerm(column, ref(`c${index}`))),
+  ]);
+}
+
+/** The keys before and after one item in the view's order (JIR-153). */
+export type ViewNeighbors = {
+  /** False when the filters (or the scope) leave the item out. */
+  inView: boolean;
+  previous: string | null;
+  next: string | null;
+};
+
+/**
+ * The item's neighbors over the whole view, loaded or not: the drawer's
+ * previous / next buttons (K / J) for an item opened outside the rows shown
+ * (JIR-153). Same set and order as the windows, so no window is read.
+ */
+export async function viewNeighbors(
+  backlogId: string,
+  state: ViewRowsState,
+  itemKey: string,
+  options: Pick<WindowOptions, "scope" | "columns"> = {},
+): Promise<ViewNeighbors> {
+  const columns = options.columns ?? viewOrderColumns(backlogId, state.sort);
+  const order = viewRowsOrder(columns);
+  const result = await db.execute<{ previous: string | null; next: string | null }>(sql`
+    ${rankedViewRows(backlogId, state, columns, options.scope)}, around as (
+      select key, lag(key) over (order by ${order}) as previous, lead(key) over (order by ${order}) as next
+      from ranked
+    )
+    select previous, next from around where key = ${itemKey}`);
+  const row = result.rows[0];
+  return row
+    ? { inView: true, previous: row.previous, next: row.next }
+    : { inView: false, previous: null, next: null };
+}
+
 /** The ids of one window, with the filtered total and the next cursor. */
 export async function listWindowIds(
   backlogId: string,
@@ -70,10 +140,8 @@ export async function listWindowIds(
   if (cursor && (cursor.first.length !== columns.length || cursor.last.length !== columns.length)) {
     throw new Error("Curseur de fenêtre invalide.");
   }
-  const where = and(liveItemsOf(backlogId), viewFilterCondition(backlogId, state.filters), options.scope);
   const own = columns.map((_, index) => ref(`c${index}`));
   const first = columns.map((_, index) => ref(`f${index}`));
-  const list = (terms: SQL[]) => sql.join(terms, sql`, `);
 
   // Each row carries its group's first row (first-seen order) and its own
   // sort values; ordering by both is `listViewRows`' order.
@@ -82,25 +150,12 @@ export async function listWindowIds(
         or (group_key = ${cursor.group} and ${afterSortValues(columns, own, cursor.last)})`
     : sql``;
   const result = await db.execute<Record<string, string | null> & { id: string; group_key: string; total: string }>(sql`
-    with base as (
-      select ${items.id} as id, ${groupKeyExpression(backlogId, state.group)} as group_key,
-        ${list(columns.map((column, index) => sql`${column.expression} as ${own[index]}`))}
-      from ${items}
-      where ${where}
-    ), ranked as (
-      select base.*, count(*) over () as total,
-        ${list(columns.map((_, index) => sql`first_value(${own[index]}) over grp as ${first[index]}`))}
-      from base
-      window grp as (partition by group_key order by ${list(columns.map((column, index) => orderTerm(column, own[index])))})
-    )
+    ${rankedViewRows(backlogId, state, columns, options.scope)}
     select id, group_key, total,
       ${list(columns.map((_, index) => sql`${own[index]}::text as ${ref(`c${index}_text`)}, ${first[index]}::text as ${ref(`f${index}_text`)}`))}
     from ranked
     ${after}
-    order by ${list([
-      ...columns.map((column, index) => orderTerm(column, first[index])),
-      ...columns.map((column, index) => orderTerm(column, own[index])),
-    ])}
+    order by ${viewRowsOrder(columns)}
     limit ${limit + 1}`);
 
   const found = result.rows;
