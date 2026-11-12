@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   restoreItem: vi.fn(),
 }));
 
+// The use cases behind the actions are server-only modules (JIR-155).
+vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({
   headers: mocks.headers,
   cookies: async () => ({ toString: () => "" }),
