@@ -26,7 +26,10 @@ import { NewItemButton, type NewItemButtonProps } from "@/components/items/new-i
 import { ItemPicker, type ItemChoice } from "@/components/items/item-picker";
 import type { Filters } from "@/lib/items/filter";
 import { useOptimisticFieldUpdate } from "@/components/items/detail/use-optimistic-field-update";
-import { useListNeighbors } from "@/components/items/detail/use-list-neighbors";
+import {
+  useListNeighbors,
+  type ViewNeighborsSource,
+} from "@/components/items/detail/use-list-neighbors";
 import { useViewUrlState } from "@/components/shell/view-url-state";
 import {
   DropdownMenu,
@@ -202,6 +205,7 @@ export function ItemDetailPanel({
   fixVersions = EMPTY_FIX_VERSIONS,
   releaseOptions = EMPTY_FIX_VERSIONS,
   viewFilters,
+  neighborsSource,
 }: {
   detail: ItemRow;
   activities: ActivityRow[];
@@ -238,6 +242,8 @@ export function ItemDetailPanel({
   releaseOptions?: FixVersionOption[];
   /** The filters of the view behind the drawer (JIR-92), for child creation's message. */
   viewFilters?: Filters;
+  /** The view behind the drawer when served by windows: K / J beyond its rows shown (JIR-153). */
+  neighborsSource?: ViewNeighborsSource;
 }) {
   const canEdit = itemCapabilities?.edit ?? canEditItems;
   const canTransition = itemCapabilities?.transition ?? (canEditItems && canTransitionItems);
@@ -285,7 +291,7 @@ export function ItemDetailPanel({
   }, [composerFocusRequest]);
 
   // ---- Previous / next item of the view (K / J) --------------------------
-  const neighbors = useListNeighbors(detail.key);
+  const neighbors = useListNeighbors(detail.key, neighborsSource, String(detail.updatedAt));
   const openItem = (key: string) => viewUrl.push((params) => params.set("item", key));
   useShortcutHandler("item.previous", neighbors.previous !== null && (() => openItem(neighbors.previous!)));
   useShortcutHandler("item.next", neighbors.next !== null && (() => openItem(neighbors.next!)));

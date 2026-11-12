@@ -869,6 +869,10 @@ export async function BacklogViewContent({
         backlogKey={backlog.key}
         itemKey={itemKey ?? null}
         viewFilters={viewState.filters}
+        // Views served by windows: the drawer's K / J reach their rows not loaded (JIR-153).
+        neighborsSource={view === "list" || view === "backlog" || view === "tree"
+          ? { backlogKey: backlog.key, view, viewState: listViewQuery.toString() }
+          : undefined}
         detail={itemKey
           ? loadItemDetailData({ userId, backlogKey: backlog.key, itemKey })
           : null}

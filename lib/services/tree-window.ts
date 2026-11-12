@@ -14,6 +14,7 @@ import {
   type TreeRow,
 } from "@/lib/items/tree-window";
 import { listUsersByIds } from "@/lib/services/items";
+import type { ViewNeighbors } from "@/lib/services/list-window";
 
 /**
  * The Arbre by windows (JIR-147, JIR-120 D5). Ranks are unique in a backlog
@@ -198,4 +199,38 @@ export async function loadTreeMatchWindow(
     rows: rows.map((row): TreeMatchRow => ({ ...row, matched: matchedById.get(row.id) ?? false })),
     nextCursor: found.length > limit ? { depth: Number(last.depth), rank: last.rank } : null,
   };
+}
+
+/**
+ * An item's neighbors in the Arbre unfolded whole, loaded or not (JIR-153):
+ * a parent before its children, siblings in rank order (bytewise), as
+ * `ItemTree` draws them. With a filter, only the matches count: the dimmed
+ * ancestors cannot be opened. Each row's place is the ranks along its path,
+ * joined by a separator below any rank character.
+ */
+export async function treeNeighbors(
+  backlogId: string,
+  filters: Filters,
+  itemKey: string,
+): Promise<ViewNeighbors> {
+  const result = await db.execute<{ previous: string | null; next: string | null }>(sql`
+    with shown as (
+      select ${items.key} as key,
+        (select string_agg(ancestor.rank, chr(1) order by ancestor.depth)
+          from ${items} ancestor
+          where ancestor.id = any(string_to_array(ltree2text(subpath(${items.path}, 1)), '.')::uuid[])
+        ) as place
+      from ${items}
+      where ${and(liveItemsOf(backlogId), viewFilterCondition(backlogId, filters))}
+    ), around as (
+      select key,
+        lag(key) over (order by place collate "C" asc, key asc) as previous,
+        lead(key) over (order by place collate "C" asc, key asc) as next
+      from shown
+    )
+    select previous, next from around where key = ${itemKey}`);
+  const row = result.rows[0];
+  return row
+    ? { inView: true, previous: row.previous, next: row.next }
+    : { inView: false, previous: null, next: null };
 }

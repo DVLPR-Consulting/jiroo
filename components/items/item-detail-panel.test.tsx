@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ViewNeighborsSource } from "@/components/items/detail/use-list-neighbors";
 import { currentHref } from "@/test/history";
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
 import { resetAutosaveRegistry } from "@/lib/autosave/use-autosave";
@@ -12,6 +13,7 @@ import type { ItemChoice } from "@/components/items/item-picker";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
+  loadViewNeighborsAction: vi.fn(),
   refresh: vi.fn(),
   replace: vi.fn(),
   restoreItemAction: vi.fn(),
@@ -33,6 +35,10 @@ vi.mock("next/navigation", () => ({
     refresh: mocks.refresh,
     replace: mocks.replace,
   }),
+}));
+
+vi.mock("@/app/actions/view-neighbors", () => ({
+  loadViewNeighborsAction: mocks.loadViewNeighborsAction,
 }));
 
 vi.mock("@/app/actions/items", () => ({
@@ -1307,7 +1313,7 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
     window.localStorage.clear();
   });
 
-  function renderInList(keys: string[]) {
+  function renderInList(keys: string[], neighborsSource?: ViewNeighborsSource) {
     const main = document.createElement("main");
     for (const key of keys) {
       const row = document.createElement("div");
@@ -1319,7 +1325,7 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
     return render(
       <KeyboardShortcutsProvider>
         <DetailHarness initialEntries={[["view", "board"], ["item", detail.key]]}>
-          <ItemDetailPanel {...baseProps} />
+          <ItemDetailPanel {...baseProps} neighborsSource={neighborsSource} />
         </DetailHarness>
       </KeyboardShortcutsProvider>,
     );
@@ -1349,6 +1355,56 @@ describe("ItemDetailPanel Jira layout (JIR-73)", () => {
 
     renderInList(["CASS-1"]);
     expect(screen.queryByRole("button", { name: "Item suivant (J)" })).not.toBeInTheDocument();
+  });
+
+  it("asks the server for the neighbors of an item outside the rows shown (JIR-153)", async () => {
+    const user = userEvent.setup();
+    mocks.loadViewNeighborsAction.mockResolvedValue({
+      ok: true,
+      neighbors: { inView: true, previous: "CASS-150", next: "CASS-152" },
+    });
+    const main = document.createElement("main");
+    for (const key of ["CASS-7", "CASS-8"]) {
+      const row = document.createElement("div");
+      row.setAttribute("data-shortcut-item", key);
+      main.append(row);
+    }
+    document.body.append(main);
+    expect(detail.key).not.toMatch(/^CASS-[78]$/);
+    render(
+      <KeyboardShortcutsProvider>
+        <DetailHarness initialEntries={[["view", "list"], ["item", detail.key]]}>
+          <ItemDetailPanel
+            {...baseProps}
+            neighborsSource={{ backlogKey: "CASS", view: "list", viewState: "sort=title" }}
+          />
+        </DetailHarness>
+      </KeyboardShortcutsProvider>,
+    );
+
+    const next = await screen.findByRole("button", { name: "Item suivant (J)" });
+    await waitFor(() => expect(next).toBeEnabled());
+    expect(mocks.loadViewNeighborsAction).toHaveBeenCalledWith({
+      backlogKey: "CASS",
+      view: "list",
+      viewState: "sort=title",
+      itemKey: detail.key,
+    });
+    expect(screen.getByRole("button", { name: "Item précédent (K)" })).toBeEnabled();
+    await user.click(next);
+    await waitFor(() => expect(currentHref()).toBe("/b/CASS?view=list&item=CASS-152"));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "k" });
+    await waitFor(() => expect(currentHref()).toBe("/b/CASS?view=list&item=CASS-150"));
+  });
+
+  it("keeps the shown neighbors and asks for the next one after the last row shown", async () => {
+    mocks.loadViewNeighborsAction.mockResolvedValue({
+      ok: true,
+      neighbors: { inView: true, previous: "CASS-1", next: "CASS-200" },
+    });
+    renderInList(["CASS-1", detail.key], { backlogKey: "CASS", view: "backlog", viewState: "" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Item suivant (J)" })).toBeEnabled());
+    expect(screen.getByRole("button", { name: "Item précédent (K)" })).toBeEnabled();
   });
 
   it("m brings the comments back from the history filter", async () => {

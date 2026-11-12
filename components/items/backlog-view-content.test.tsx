@@ -622,6 +622,8 @@ describe("BacklogViewContent read boundary", () => {
       itemKey: "DEMO-1",
       detail: detailPromise,
       viewFilters: expect.objectContaining({ releaseIds: [] }),
+      // The Liste is served by windows: K / J reach its rows not loaded (JIR-153).
+      neighborsSource: { backlogKey: "DEMO", view: "list", viewState: "" },
     });
   });
 

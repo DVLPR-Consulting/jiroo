@@ -16,6 +16,7 @@ import {
   useViewUrlState,
 } from "@/components/shell/view-url-state";
 import { ItemDetailPanel } from "@/components/items/item-detail-panel";
+import type { ViewNeighborsSource } from "@/components/items/detail/use-list-neighbors";
 import { RecentItemTracker } from "@/components/items/recent-item-tracker";
 import { DetailPanelSkeleton } from "@/components/items/view-skeletons";
 import { useRealtime } from "@/components/realtime/realtime-provider";
@@ -256,10 +257,13 @@ export function ItemDetailDrawer({
   itemKey,
   detail,
   viewFilters,
+  neighborsSource,
 }: {
   backlogKey: string;
   /** The effective filters of the view behind the drawer (JIR-92). */
   viewFilters?: Filters;
+  /** The view behind the drawer when served by windows (JIR-153). */
+  neighborsSource?: ViewNeighborsSource;
   /** The item the server loaded `detail` for, or null when none. */
   itemKey: string | null;
   /** The server's detail for `itemKey` (null: inaccessible backlog). */
@@ -284,6 +288,7 @@ export function ItemDetailDrawer({
             itemKey={requestedKey}
             detail={source}
             viewFilters={viewFilters}
+            neighborsSource={neighborsSource}
             onChangedElsewhere={() =>
               // A transition keeps the open panel on screen while it refetches.
               startTransition(() => {
@@ -305,11 +310,13 @@ function ItemDetailBody({
   itemKey,
   detail,
   viewFilters,
+  neighborsSource,
   onChangedElsewhere,
 }: {
   itemKey: string;
   detail: Promise<DrawerDetail | null>;
   viewFilters?: Filters;
+  neighborsSource?: ViewNeighborsSource;
   onChangedElsewhere: () => void;
 }) {
   const data = use(detail);
@@ -319,7 +326,12 @@ function ItemDetailBody({
     <>
       <RefreshOnChange itemId={data.panel.detail.id} onChange={onChangedElsewhere} />
       <RecentItemTracker itemKey={data.panel.detail.key} />
-      <ItemDetailPanel key={data.panel.detail.id} {...data.panel} viewFilters={viewFilters} />
+      <ItemDetailPanel
+        key={data.panel.detail.id}
+        {...data.panel}
+        viewFilters={viewFilters}
+        neighborsSource={neighborsSource}
+      />
     </>
   );
 }
