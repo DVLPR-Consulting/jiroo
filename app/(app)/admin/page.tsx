@@ -12,8 +12,9 @@ import {
 } from "@/lib/services/authorization-admin";
 import { AdminTabs, type AdminTab } from "@/components/admin/admin-tabs";
 import { ShellBreadcrumb } from "@/components/shell/shell-breadcrumb";
+import { listAllLiveApiTokens } from "@/lib/services/api-tokens";
 
-const ADMIN_TABS = ["backlogs", "users", "groups", "roles", "schemes"] as const;
+const ADMIN_TABS = ["backlogs", "users", "groups", "roles", "schemes", "tokens"] as const;
 
 function requestedTab(value: string | string[] | undefined): AdminTab {
   return typeof value === "string" && ADMIN_TABS.includes(value as AdminTab)
@@ -27,6 +28,8 @@ const TAB_PERMISSION = {
   groups: "manage_users_groups",
   roles: "manage_users_groups",
   schemes: "administer_jiroo",
+  // Every account's access tokens (JIR-161): Jiroo administrators only.
+  tokens: "administer_jiroo",
 } as const;
 
 export default async function AdminPage({
@@ -93,6 +96,21 @@ export default async function AdminPage({
           })()
         : activeTab === "roles"
           ? { tab: "roles" as const, roles: await listProjectRoles(session.user.id) }
+          : activeTab === "tokens"
+          ? {
+              tab: "tokens" as const,
+              now: new Date().toISOString(),
+              tokens: (await listAllLiveApiTokens(session.user.id)).map((token) => ({
+                id: token.id,
+                name: token.name,
+                tokenPrefix: token.tokenPrefix,
+                scope: token.scope,
+                expiresAt: token.expiresAt?.toISOString() ?? null,
+                lastUsedAt: token.lastUsedAt?.toISOString() ?? null,
+                createdAt: token.createdAt.toISOString(),
+                owner: { name: token.ownerName, email: token.ownerEmail },
+              })),
+            }
           : await (async () => {
               const [schemes, rawUsers, rawGroups, rawRoles] = await Promise.all([
                 listPermissionSchemes(),

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   listGroups: vi.fn(),
   listGlobalPermissionGrants: vi.fn(),
   listAdminUsers: vi.fn(),
+  listAllLiveApiTokens: vi.fn(),
   listAdminBacklogsForUser: vi.fn(),
   listPermissionSchemes: vi.fn(),
   listProjectRoles: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock("@/lib/services/backlogs", () => ({
   listAdminBacklogsForUser: mocks.listAdminBacklogsForUser,
 }));
 vi.mock("@/lib/services/users", () => ({ listAdminUsers: mocks.listAdminUsers }));
+vi.mock("@/lib/services/api-tokens", () => ({ listAllLiveApiTokens: mocks.listAllLiveApiTokens }));
 vi.mock("@/lib/services/items", () => ({ listUsers: mocks.listUsers }));
 vi.mock("@/lib/services/authorization-admin", () => ({
   listGroups: mocks.listGroups,
@@ -81,6 +83,50 @@ describe("AdminPage read authorization", () => {
     expect(mocks.listAdminUsers).not.toHaveBeenCalled();
     expect(mocks.listGroups).not.toHaveBeenCalled();
     expect(mocks.listPermissionSchemes).not.toHaveBeenCalled();
+  });
+
+  it("shows every account's tokens to a Jiroo administrator only, without hashes", async () => {
+    mocks.checkPermission.mockResolvedValue({ allowed: true });
+    mocks.listAllLiveApiTokens.mockResolvedValue([{
+      id: "token-1",
+      userId: "user-9",
+      name: "Herdr",
+      tokenPrefix: "Ab3dEf9h",
+      scope: "write",
+      expiresAt: new Date("2027-01-01T00:00:00.000Z"),
+      lastUsedAt: null,
+      revokedAt: null,
+      createdAt: new Date("2026-11-13T10:00:00.000Z"),
+      ownerName: "Ada",
+      ownerEmail: "ada@example.test",
+    }]);
+
+    render(await AdminPage({ searchParams: Promise.resolve({ tab: "tokens" }) }));
+
+    expect(mocks.checkPermission).toHaveBeenCalledWith({
+      actorId: "platform-admin-1",
+      permission: "administer_jiroo",
+      scope: { type: "global" },
+    });
+    expect(mocks.listAllLiveApiTokens).toHaveBeenCalledWith("platform-admin-1");
+    const props = mocks.adminTabsProps.mock.calls[0]![0] as { activeTab: string; data: { tab: string; tokens: unknown[] } };
+    expect(props.activeTab).toBe("tokens");
+    expect(props.data.tokens).toEqual([{
+      id: "token-1",
+      name: "Herdr",
+      tokenPrefix: "Ab3dEf9h",
+      scope: "write",
+      expiresAt: "2027-01-01T00:00:00.000Z",
+      lastUsedAt: null,
+      createdAt: "2026-11-13T10:00:00.000Z",
+      owner: { name: "Ada", email: "ada@example.test" },
+    }]);
+
+    vi.clearAllMocks();
+    mocks.redirect.mockImplementation((destination: string) => { throw new Error(`redirect:${destination}`); });
+    mocks.checkPermission.mockResolvedValue({ allowed: false });
+    await expect(AdminPage({ searchParams: Promise.resolve({ tab: "tokens" }) })).rejects.toThrow("redirect:/");
+    expect(mocks.listAllLiveApiTokens).not.toHaveBeenCalled();
   });
 
   it("redirects safely before administration reads when permission is denied", async () => {
