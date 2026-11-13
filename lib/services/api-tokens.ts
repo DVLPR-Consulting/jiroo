@@ -4,7 +4,11 @@ import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { apiTokens, securityAuditEvents } from "@/lib/db/schema/domain";
 import {
+  API_TOKEN_PREFIX,
   createApiTokenSchema,
+  MAX_LIVE_TOKENS_PER_USER,
+  STALE_SESSION_MESSAGE,
+  TOO_MANY_TOKENS_MESSAGE,
   type ApiTokenExpiryDays,
   type ApiTokenScope,
 } from "@/lib/validation/api-token";
@@ -16,7 +20,7 @@ import {
  * characters identify the token in the owner's list.
  */
 
-export const API_TOKEN_PREFIX = "jiroo_pat_";
+export { API_TOKEN_PREFIX, MAX_LIVE_TOKENS_PER_USER, TOO_MANY_TOKENS_MESSAGE };
 
 const SECRET_BYTES = 32;
 const SECRET_LENGTH = 43; // 32 bytes in base64url, unpadded
@@ -26,11 +30,6 @@ const TOKEN_FORMAT = new RegExp(`^${API_TOKEN_PREFIX}[A-Za-z0-9_-]{${SECRET_LENG
 /** `last_used_at` moves at most once a minute: one write per token, not per call. */
 export const LAST_USED_THROTTLE_MS = 60_000;
 
-/** Live tokens one user may hold; bounds the budget rows and the blast radius. */
-export const MAX_LIVE_TOKENS_PER_USER = 50;
-
-// WORDING: to be confirmed by Codex (JIR-156 wording brief).
-export const TOO_MANY_TOKENS_MESSAGE = `Vous avez déjà ${MAX_LIVE_TOKENS_PER_USER} jetons actifs : révoquez-en un avant d’en créer un autre.`;
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Queryable = typeof db | Transaction;
@@ -112,22 +111,50 @@ async function appendTokenAuditEvent(
   });
 }
 
+/** The session that asks for a token, as the Server Action read it. */
+export type TokenCreationSession = {
+  /** `user.auth_version` captured when the session's first factor was verified. */
+  authVersion: number;
+};
+
+/**
+ * The session is no longer good enough to mint a token: an administrator
+ * reset the account (auth version moved) or the second factor is gone.
+ */
+export class StaleAuthorizationError extends Error {
+  constructor() {
+    super(STALE_SESSION_MESSAGE);
+    this.name = "StaleAuthorizationError";
+  }
+}
+
 /**
  * Creates a token for `ownerId` and returns the secret, the only time it is
  * ever available. The caller has checked that the owner is signed in with
- * their second factor: the token itself never asks for it again.
+ * their second factor; the row lock below then waits for any account
+ * recovery in flight and re-checks that the session is still current, so a
+ * creation that started before a reset cannot land after it (lib/auth/auth-version.ts).
  */
 export async function createApiToken(
   input: unknown,
   ownerId: string,
+  session: TokenCreationSession,
   now = new Date(),
   requestCorrelationId: string = randomUUID(),
 ): Promise<{ token: string; row: ApiTokenRow }> {
   const data = createApiTokenSchema.parse(input);
   const { token, hash, prefix } = generateApiToken();
   const row = await db.transaction(async (tx) => {
-    // Serialise the owner's creations so the cap holds under concurrency.
-    await tx.select({ id: user.id }).from(user).where(eq(user.id, ownerId)).for("update");
+    // Serialises with the account recoveries (same lock) and the owner's
+    // other creations, so the freshness check and the cap hold under concurrency.
+    const [owner] = await tx
+      .select({ authVersion: user.authVersion, twoFactorEnabled: user.twoFactorEnabled })
+      .from(user)
+      .where(eq(user.id, ownerId))
+      .for("update");
+    if (!owner || owner.authVersion !== session.authVersion || owner.twoFactorEnabled !== true) {
+      throw new StaleAuthorizationError();
+    }
     const [live] = await tx
       .select({ count: count() })
       .from(apiTokens)

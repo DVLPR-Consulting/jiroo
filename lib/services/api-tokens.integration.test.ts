@@ -39,7 +39,7 @@ describeDb("api tokens (JIR-156)", () => {
   });
 
   it("returns the secret once and stores only its hash and prefix", async () => {
-    const { token, row } = await createApiToken({ name: "Herdr", scope: "read", expiresInDays: 90 }, owner.id);
+    const { token, row } = await createApiToken({ name: "Herdr", scope: "read", expiresInDays: 90 }, owner.id, { authVersion: 0 });
 
     expect(token).toMatch(/^jiroo_pat_/);
     expect(row).toMatchObject({ name: "Herdr", scope: "read", userId: owner.id, revokedAt: null, lastUsedAt: null });
@@ -53,9 +53,9 @@ describeDb("api tokens (JIR-156)", () => {
   });
 
   it("lists the owner's live tokens without their hashes, newest first", async () => {
-    const first = await createApiToken({ name: "Premier", scope: "read", expiresInDays: null }, owner.id);
-    const second = await createApiToken({ name: "Second", scope: "write", expiresInDays: 30 }, owner.id);
-    await createApiToken({ name: "Pas à moi", scope: "read", expiresInDays: null }, other.id);
+    const first = await createApiToken({ name: "Premier", scope: "read", expiresInDays: null }, owner.id, { authVersion: 0 });
+    const second = await createApiToken({ name: "Second", scope: "write", expiresInDays: 30 }, owner.id, { authVersion: 0 });
+    await createApiToken({ name: "Pas à moi", scope: "read", expiresInDays: null }, other.id, { authVersion: 0 });
 
     const listed = await listApiTokens(owner.id);
     const names = listed.map((t) => t.name);
@@ -69,14 +69,14 @@ describeDb("api tokens (JIR-156)", () => {
   });
 
   it("refuses to revoke another user's token and reports it", async () => {
-    const mine = await createApiToken({ name: "Mien", scope: "read", expiresInDays: null }, owner.id);
+    const mine = await createApiToken({ name: "Mien", scope: "read", expiresInDays: null }, owner.id, { authVersion: 0 });
 
     expect(await revokeApiToken(mine.row.id, other.id)).toBe(false);
     expect((await listApiTokens(owner.id)).map((t) => t.id)).toContain(mine.row.id);
   });
 
   it("authenticates a live token as its owner and records one use per minute", async () => {
-    const { token, row } = await createApiToken({ name: "Agent", scope: "write", expiresInDays: null }, owner.id);
+    const { token, row } = await createApiToken({ name: "Agent", scope: "write", expiresInDays: null }, owner.id, { authVersion: 0 });
     const now = new Date("2026-11-12T21:00:00.000Z");
 
     await expect(authenticateApiToken(token, now)).resolves.toEqual({
@@ -98,10 +98,10 @@ describeDb("api tokens (JIR-156)", () => {
   });
 
   it("rejects unknown, malformed, revoked and expired tokens alike", async () => {
-    const live = await createApiToken({ name: "Vivant", scope: "read", expiresInDays: null }, owner.id);
-    const revoked = await createApiToken({ name: "Révoqué", scope: "read", expiresInDays: null }, owner.id);
+    const live = await createApiToken({ name: "Vivant", scope: "read", expiresInDays: null }, owner.id, { authVersion: 0 });
+    const revoked = await createApiToken({ name: "Révoqué", scope: "read", expiresInDays: null }, owner.id, { authVersion: 0 });
     await revokeApiToken(revoked.row.id, owner.id);
-    const expiring = await createApiToken({ name: "Expiré", scope: "read", expiresInDays: 30 }, owner.id);
+    const expiring = await createApiToken({ name: "Expiré", scope: "read", expiresInDays: 30 }, owner.id, { authVersion: 0 });
 
     await expect(authenticateApiToken(`${live.token.slice(0, -1)}!`)).resolves.toBeNull();
     await expect(authenticateApiToken("jiroo_pat_" + "A".repeat(43))).resolves.toBeNull();
@@ -112,7 +112,7 @@ describeDb("api tokens (JIR-156)", () => {
   });
 
   it("records creation and revocation in the security audit trail without the secret", async () => {
-    const { token, row } = await createApiToken({ name: "Audité", scope: "write", expiresInDays: 30 }, owner.id, new Date(), "tokens-audit-create");
+    const { token, row } = await createApiToken({ name: "Audité", scope: "write", expiresInDays: 30 }, owner.id, { authVersion: 0 }, new Date(), "tokens-audit-create");
     await revokeApiToken(row.id, owner.id, new Date(), "tokens-audit-revoke");
 
     const events = await db
@@ -135,7 +135,7 @@ describeDb("api tokens (JIR-156)", () => {
   });
 
   it("rejects a token at the exact second it expires and never touches its last use when refused", async () => {
-    const created = await createApiToken({ name: "Limite", scope: "read", expiresInDays: 30 }, owner.id);
+    const created = await createApiToken({ name: "Limite", scope: "read", expiresInDays: 30 }, owner.id, { authVersion: 0 });
     const expiresAt = created.row.expiresAt!;
 
     await expect(authenticateApiToken(created.token, expiresAt)).resolves.toBeNull();
@@ -143,28 +143,46 @@ describeDb("api tokens (JIR-156)", () => {
     expect(row!.lastUsedAt).toBeNull();
   });
 
+  it("refuses a creation whose session predates an account reset or lost its second factor", async () => {
+    const stale = { id: `api-token-stale-${randomUUID()}`, email: `${randomUUID()}@tokens.test`, name: "Périmé" };
+    await db.insert(user).values({ ...stale, emailVerified: true, twoFactorEnabled: true, role: "contributor", authVersion: 3 });
+    try {
+      await expect(createApiToken({ name: "Avant reset", scope: "read", expiresInDays: null }, stale.id, { authVersion: 2 }))
+        .rejects.toMatchObject({ name: "StaleAuthorizationError" });
+      await expect(createApiToken({ name: "Courant", scope: "read", expiresInDays: null }, stale.id, { authVersion: 3 }))
+        .resolves.toBeTruthy();
+
+      await db.update(user).set({ twoFactorEnabled: false }).where(eq(user.id, stale.id));
+      await expect(createApiToken({ name: "Sans 2FA", scope: "read", expiresInDays: null }, stale.id, { authVersion: 3 }))
+        .rejects.toMatchObject({ name: "StaleAuthorizationError" });
+      expect(await listApiTokens(stale.id)).toHaveLength(1);
+    } finally {
+      await db.delete(user).where(eq(user.id, stale.id));
+    }
+  });
+
   it("caps the live tokens of a user", async () => {
     const capped = { id: `api-token-capped-${randomUUID()}`, email: `${randomUUID()}@tokens.test`, name: "Plafond" };
     await db.insert(user).values({ ...capped, emailVerified: true, twoFactorEnabled: true, role: "contributor" });
     try {
       for (let index = 0; index < MAX_LIVE_TOKENS_PER_USER; index += 1) {
-        await createApiToken({ name: `Jeton ${index}`, scope: "read", expiresInDays: null }, capped.id);
+        await createApiToken({ name: `Jeton ${index}`, scope: "read", expiresInDays: null }, capped.id, { authVersion: 0 });
       }
-      await expect(createApiToken({ name: "Un de trop", scope: "read", expiresInDays: null }, capped.id))
+      await expect(createApiToken({ name: "Un de trop", scope: "read", expiresInDays: null }, capped.id, { authVersion: 0 }))
         .rejects.toThrow(TOO_MANY_TOKENS_MESSAGE);
       const tokens = await listApiTokens(capped.id);
       expect(tokens).toHaveLength(MAX_LIVE_TOKENS_PER_USER);
       await revokeApiToken(tokens[0]!.id, capped.id);
-      await expect(createApiToken({ name: "Après révocation", scope: "read", expiresInDays: null }, capped.id)).resolves.toBeTruthy();
+      await expect(createApiToken({ name: "Après révocation", scope: "read", expiresInDays: null }, capped.id, { authVersion: 0 })).resolves.toBeTruthy();
     } finally {
       await db.delete(user).where(eq(user.id, capped.id));
     }
   });
 
   it("revokes every live token of a user inside the caller's transaction", async () => {
-    const a = await createApiToken({ name: "A", scope: "read", expiresInDays: null }, owner.id);
-    const b = await createApiToken({ name: "B", scope: "write", expiresInDays: null }, owner.id);
-    const theirs = await createApiToken({ name: "Autre", scope: "read", expiresInDays: null }, other.id);
+    const a = await createApiToken({ name: "A", scope: "read", expiresInDays: null }, owner.id, { authVersion: 0 });
+    const b = await createApiToken({ name: "B", scope: "write", expiresInDays: null }, owner.id, { authVersion: 0 });
+    const theirs = await createApiToken({ name: "Autre", scope: "read", expiresInDays: null }, other.id, { authVersion: 0 });
 
     const revokedCount = await db.transaction((tx) => revokeAllTokensForUser(tx, owner.id));
 

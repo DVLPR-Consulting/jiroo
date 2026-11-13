@@ -12,7 +12,12 @@ vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/services/api-tokens", () => ({
   createApiToken: mocks.createApiToken,
   revokeApiToken: mocks.revokeApiToken,
-  TOO_MANY_TOKENS_MESSAGE: "Vous avez déjà 50 jetons actifs : révoquez-en un avant d’en créer un autre.",
+  StaleAuthorizationError: class StaleAuthorizationError extends Error {
+    constructor() {
+      super("stale");
+      this.name = "StaleAuthorizationError";
+    }
+  },
 }));
 
 import { createApiTokenAction, revokeApiTokenAction } from "@/app/actions/api-tokens";
@@ -22,7 +27,7 @@ const row = { id: "token-1", name: "Herdr", tokenPrefix: "Ab3dEf9h", scope: "rea
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.getSession.mockResolvedValue({ user: { id: "user-1", twoFactorEnabled: true } });
+  mocks.getSession.mockResolvedValue({ user: { id: "user-1", twoFactorEnabled: true }, session: { authVersion: 4 } });
   mocks.createApiToken.mockResolvedValue({ token: "jiroo_pat_secret", row });
   mocks.revokeApiToken.mockResolvedValue(true);
 });
@@ -30,7 +35,7 @@ beforeEach(() => {
 describe("createApiTokenAction", () => {
   it("creates the token for the signed-in user and returns the secret once", async () => {
     await expect(createApiTokenAction(input)).resolves.toEqual({ ok: true, token: "jiroo_pat_secret", row });
-    expect(mocks.createApiToken).toHaveBeenCalledWith(input, "user-1");
+    expect(mocks.createApiToken).toHaveBeenCalledWith(input, "user-1", { authVersion: 4 });
   });
 
   it("refuses without a second-factor session and never reaches the service", async () => {
@@ -51,17 +56,33 @@ describe("createApiTokenAction", () => {
       error: "Donnez un nom à ce jeton.",
     });
 
-    mocks.createApiToken.mockRejectedValueOnce(new Error("Vous avez déjà 50 jetons actifs : révoquez-en un avant d’en créer un autre."));
+    mocks.createApiToken.mockRejectedValueOnce(new Error("Vous avez déjà 50 jetons : révoquez-en un avant d’en créer un autre."));
     await expect(createApiTokenAction(input)).resolves.toEqual({
       ok: false,
-      error: "Vous avez déjà 50 jetons actifs : révoquez-en un avant d’en créer un autre.",
+      error: "Vous avez déjà 50 jetons : révoquez-en un avant d’en créer un autre.",
     });
 
     mocks.createApiToken.mockRejectedValueOnce(new Error("connect ECONNREFUSED"));
     await expect(createApiTokenAction(input)).resolves.toEqual({
       ok: false,
-      error: "Création du jeton impossible. Réessayez.",
+      error: "Impossible de créer le jeton. Réessayez.",
     });
+  });
+
+  it("answers a session that an account reset outdated like an expired one", async () => {
+    const { StaleAuthorizationError } = await import("@/lib/services/api-tokens");
+    mocks.createApiToken.mockRejectedValueOnce(new StaleAuthorizationError());
+    await expect(createApiTokenAction(input)).resolves.toEqual({
+      ok: false,
+      error: "Votre session a expiré. Reconnectez-vous.",
+    });
+
+    mocks.getSession.mockResolvedValueOnce({ user: { id: "user-1" }, session: {} });
+    await expect(createApiTokenAction(input)).resolves.toEqual({
+      ok: false,
+      error: "Votre session a expiré. Reconnectez-vous.",
+    });
+    expect(mocks.createApiToken).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -75,7 +96,7 @@ describe("revokeApiTokenAction", () => {
     mocks.revokeApiToken.mockResolvedValueOnce(false);
     await expect(revokeApiTokenAction({ id: "token-9" })).resolves.toEqual({
       ok: false,
-      error: "Ce jeton n’existe plus.",
+      error: "Ce jeton n’est plus disponible.",
     });
   });
 

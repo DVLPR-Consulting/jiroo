@@ -224,7 +224,8 @@ describeDb("account recovery service", () => {
 
     it("revokes the access tokens along with the sessions", async () => {
       const target = await createTarget("password-tokens");
-      const { token } = await createApiToken({ name: "Herdr", scope: "write", expiresInDays: null }, target.id);
+      await enrollTwoFactor(target.id);
+      const { token } = await createApiToken({ name: "Herdr", scope: "write", expiresInDays: null }, target.id, { authVersion: 0 });
       expect(await authenticateApiToken(token)).not.toBeNull();
 
       await resetUserPassword(
@@ -390,7 +391,7 @@ describeDb("account recovery service", () => {
     it("revokes the access tokens of the reset account", async () => {
       const target = await createTarget("two-factor-tokens");
       await enrollTwoFactor(target.id);
-      const { token } = await createApiToken({ name: "Agent", scope: "read", expiresInDays: null }, target.id);
+      const { token } = await createApiToken({ name: "Agent", scope: "read", expiresInDays: null }, target.id, { authVersion: 0 });
 
       await resetUserTwoFactor({ userId: target.id }, adminId, `recovery-${fixtureId}-2fa-tokens`);
 

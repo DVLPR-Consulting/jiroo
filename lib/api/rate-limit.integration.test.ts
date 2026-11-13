@@ -19,7 +19,7 @@ describeDb("api request budget (JIR-156)", () => {
 
   beforeAll(async () => {
     await db.insert(user).values({ ...owner, emailVerified: true, twoFactorEnabled: true, role: "contributor" });
-    tokenId = (await createApiToken({ name: "Budget", scope: "read", expiresInDays: null }, owner.id)).row.id;
+    tokenId = (await createApiToken({ name: "Budget", scope: "read", expiresInDays: null }, owner.id, { authVersion: 0 })).row.id;
   });
 
   afterAll(async () => {
@@ -51,7 +51,7 @@ describeDb("api request budget (JIR-156)", () => {
   });
 
   it("disappears with its token", async () => {
-    const { row } = await createApiToken({ name: "Éphémère", scope: "read", expiresInDays: null }, owner.id);
+    const { row } = await createApiToken({ name: "Éphémère", scope: "read", expiresInDays: null }, owner.id, { authVersion: 0 });
     await reserveApiRequest(row.id, new Date("2030-01-01T10:00:00.000Z"));
     await db.delete(user).where(eq(user.id, owner.id));
     expect(await db.select().from(apiTokenRate).where(eq(apiTokenRate.tokenId, row.id))).toEqual([]);

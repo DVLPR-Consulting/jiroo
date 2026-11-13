@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Client } from "pg";
 import { describe, expect, it, vi } from "vitest";
+import { runWithActor } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { nextItemKey } from "@/lib/items/key";
 import { user } from "@/lib/db/schema/auth";
@@ -18,6 +19,7 @@ import {
   sprintItems,
   sprints,
   statuses,
+  apiTokens,
 } from "@/lib/db/schema/domain";
 import {
   createItem,
@@ -1517,6 +1519,32 @@ describeDb("updateItem description activity coalescing", () => {
           [fixture.actorId, "De l'autre", "De moi encore"],
         ]);
       });
+    } finally {
+      await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
+    }
+  });
+
+  it("starts a new entry when the same actor saves from another channel or token", async () => {
+    const fixture = await createUpdateFixture();
+    try {
+      const [token] = await db
+        .insert(apiTokens)
+        .values({ userId: fixture.actorId, name: "Agent", tokenHash: randomUUID(), tokenPrefix: "agent000", scope: "write" })
+        .returning({ id: apiTokens.id });
+      await updateItem({ id: fixture.item.id, description: "Depuis l’interface" }, fixture.actorId);
+      await runWithActor({ actorId: fixture.actorId, source: "api" }, () =>
+        updateItem({ id: fixture.item.id, description: "Depuis l’API" }, fixture.actorId));
+      await runWithActor({ actorId: fixture.actorId, source: "mcp", tokenId: token!.id }, () =>
+        updateItem({ id: fixture.item.id, description: "Depuis le MCP" }, fixture.actorId));
+      await runWithActor({ actorId: fixture.actorId, source: "mcp", tokenId: token!.id }, () =>
+        updateItem({ id: fixture.item.id, description: "Depuis le MCP, suite" }, fixture.actorId));
+
+      const audit = await descriptionAudit(fixture.item.id);
+      expect(audit.map(({ oldValue, newValue }) => [oldValue, newValue])).toEqual([
+        [null, "Depuis l’interface"],
+        ["Depuis l’interface", "Depuis l’API"],
+        ["Depuis l’API", "Depuis le MCP, suite"],
+      ]);
     } finally {
       await db.delete(backlogs).where(eq(backlogs.id, fixture.backlogId));
     }

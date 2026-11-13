@@ -878,10 +878,13 @@ async function coalesceDescriptionActivity(
 ): Promise<(typeof activities.$inferInsert)[]> {
   const change = acts.find((act) => act.field === "description");
   if (!change) return acts;
+  const actor = currentActorContext();
   const [latest, next] = await tx
     .select({
       id: activities.id,
       actorId: activities.actorId,
+      source: activities.source,
+      tokenId: activities.tokenId,
       action: activities.action,
       field: activities.field,
       oldValue: activities.oldValue,
@@ -901,6 +904,9 @@ async function coalesceDescriptionActivity(
     latest.action !== "update" ||
     latest.field !== "description" ||
     latest.actorId !== actorId ||
+    // Saves from another channel or another token keep their own entry (JIR-156).
+    latest.source !== (actor?.source ?? "ui") ||
+    (latest.tokenId ?? null) !== (actor?.tokenId ?? null) ||
     (latest.newValue ?? null) !== (change.oldValue ?? null)
   ) {
     return acts;
