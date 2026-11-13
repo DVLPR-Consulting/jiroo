@@ -48,9 +48,10 @@ token), no `resource_metadata` and no authorization server to discover.
 | `add_comment` | write | Add a Markdown comment, optionally notifying `mentionIds`. |
 
 Every tool answers text plus `structuredContent`. Refusals (read-only token on a write
-tool, request budget spent, unknown key, missing permission, business rule) are tool
-results with `isError: true` and a French message; unexpected failures are logged
-server-side and answered with a generic message.
+tool, unknown key, missing permission, business rule) are tool results with
+`isError: true` and a French message; unexpected failures are logged server-side and
+answered with a generic message. A spent request budget is not a tool result: the route
+answers HTTP `429` with `Retry-After` (see Rules).
 
 ## Rules
 

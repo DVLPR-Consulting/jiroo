@@ -81,7 +81,7 @@ describe("POST /api/mcp", () => {
     expect(refused.headers.get("retry-after")).toBe("17");
   });
 
-  it("refuses JSON-RPC batches and oversized bodies before spending budget or running a tool", async () => {
+  it("refuses JSON-RPC batches and oversized bodies, spending budget on each refusal and running no tool", async () => {
     const batch = await POST(rpc([
       { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "list_backlogs", arguments: {} } },
       { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "list_backlogs", arguments: {} } },
@@ -91,7 +91,11 @@ describe("POST /api/mcp", () => {
 
     const huge = await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "x".repeat(70 * 1024) } }, "Bearer jiroo_pat_valid"));
     expect(huge.status).toBe(413);
-    expect(mocks.reserveApiRequest).not.toHaveBeenCalled();
+    expect(mocks.reserveApiRequest).toHaveBeenCalledTimes(2);
+
+    mocks.reserveApiRequest.mockResolvedValueOnce({ allowed: false, count: 301, retryAfterSeconds: 5 });
+    const spentBatch = await POST(rpc([{ jsonrpc: "2.0", id: 1, method: "tools/list" }], "Bearer jiroo_pat_valid"));
+    expect(spentBatch.status).toBe(429);
   });
 
   it("hides a failed budget write", async () => {

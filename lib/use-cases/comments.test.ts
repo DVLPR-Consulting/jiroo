@@ -75,9 +75,21 @@ describe("addCommentUseCase", () => {
     });
     expect(mocks.addComment).toHaveBeenCalledWith({ itemId: "item-1", body: "Message", mentionIds: ["reader"] }, "author-1");
 
-    mocks.checkPermission.mockRejectedValueOnce(new Error("unknown user"));
-    await expect(addCommentUseCase(author, { itemId: "item-1", body: "Message", mentionIds: ["ghost"] })).resolves.toBeDefined();
-    expect(mocks.addComment).toHaveBeenLastCalledWith({ itemId: "item-1", body: "Message", mentionIds: [] }, "author-1");
+  });
+
+  it("surfaces a technical failure instead of dropping the mention, and bounds the list before any lookup", async () => {
+    mocks.addComment.mockClear();
+    mocks.checkPermission.mockRejectedValueOnce(new Error("connection lost"));
+    await expect(addCommentUseCase(author, { itemId: "item-1", body: "Message", mentionIds: ["reader"] })).rejects.toThrow("connection lost");
+    expect(mocks.addComment).not.toHaveBeenCalled();
+
+    mocks.checkPermission.mockClear();
+    const many = Array.from({ length: 51 }, (_, index) => `user-${index}`);
+    await expect(addCommentUseCase(author, { itemId: "item-1", body: "Message", mentionIds: [...many, ...many] }))
+      .rejects.toThrow("Un commentaire peut mentionner 50 personnes au plus.");
+    expect(mocks.checkPermission).not.toHaveBeenCalled();
+    const fifty = many.slice(0, 50);
+    await expect(addCommentUseCase(author, { itemId: "item-1", body: "Message", mentionIds: [...fifty, ...fifty] })).resolves.toBeDefined();
   });
 
   it("stops before the service when the actor may not comment", async () => {

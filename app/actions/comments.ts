@@ -21,6 +21,7 @@ function mapError(e: unknown): string {
   if (s.includes("Commentaire supprimé.")) return "Commentaire supprimé.";
   if (s.includes("Item introuvable.")) return "Item introuvable.";
   if (s.includes("Le commentaire ne peut pas être vide.")) return "Le commentaire ne peut pas être vide.";
+  if (s.includes("Un commentaire peut mentionner")) return "Un commentaire peut mentionner 50 personnes au plus.";
   return "Action impossible sur le commentaire.";
 }
 

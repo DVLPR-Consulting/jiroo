@@ -34,6 +34,19 @@ async function handler(request: Request): Promise<Response> {
       "WWW-Authenticate": bearerChallenge(authentication.reason),
     });
   }
+  // Every authenticated MCP request spends budget first, refused ones
+  // included: initialize, tools/list, pings, batches, oversized bodies (JIR-160).
+  try {
+    const budget = await reserveApiRequest(authentication.principal.tokenId);
+    if (!budget.allowed) {
+      return jsonRpcError(429, `Trop de requêtes pour ce jeton : réessayez dans ${budget.retryAfterSeconds} s.`, {
+        "Retry-After": String(budget.retryAfterSeconds),
+      });
+    }
+  } catch (error) {
+    console.error(`[mcp] budget failed: ${error instanceof Error ? error.name : typeof error}`);
+    return jsonRpcError(500, "Une erreur interne a empêché l’opération.");
+  }
   // Bounded body, and one JSON-RPC message per request: a batch array would
   // run many tools for one unit of budget (security review, JIR-160). The
   // current MCP transport no longer uses batches.
@@ -50,19 +63,6 @@ async function handler(request: Request): Promise<Response> {
       return jsonRpcError(400, "Une seule requête JSON-RPC par appel : les lots ne sont pas acceptés.");
     }
     forwarded = new Request(request.url, { method: "POST", headers: request.headers, body: text });
-  }
-  // Every authenticated MCP request spends budget, not only tool calls:
-  // initialize, tools/list and pings too (security audit, JIR-160).
-  try {
-    const budget = await reserveApiRequest(authentication.principal.tokenId);
-    if (!budget.allowed) {
-      return jsonRpcError(429, `Trop de requêtes pour ce jeton : réessayez dans ${budget.retryAfterSeconds} s.`, {
-        "Retry-After": String(budget.retryAfterSeconds),
-      });
-    }
-  } catch (error) {
-    console.error(`[mcp] budget failed: ${error instanceof Error ? error.name : typeof error}`);
-    return jsonRpcError(500, "Une erreur interne a empêché l’opération.");
   }
   const bearer = BEARER.exec(request.headers.get("authorization") ?? "")?.[1] ?? "";
   forwarded.auth = authInfoFor(bearer, authentication.principal, null);

@@ -24,19 +24,24 @@ export type AddedComment = Omit<Awaited<ReturnType<typeof addComment>>, "notifyU
  * notify someone about an item they cannot open, nor tell the author whether
  * a user id exists (security audit, JIR-160).
  */
+/** The most distinct users one comment may mention (the API's limit too). */
+export const MAX_MENTIONS = 50;
+// WORDING: provisional until Codex's proposal (JIR-160).
+export const TOO_MANY_MENTIONS_MESSAGE = `Un commentaire peut mentionner ${MAX_MENTIONS} personnes au plus.`;
+
 export async function readableMentions(mentionIds: string[], backlogId: string): Promise<string[]> {
   const unique = [...new Set(mentionIds)];
+  // Bounded before any lookup, whatever the entry point (JIR-160).
+  if (unique.length > MAX_MENTIONS) throw new Error(TOO_MANY_MENTIONS_MESSAGE);
+  // An unknown user is an ordinary refusal; a technical failure is thrown so
+  // the comment is not saved with a mention silently dropped.
   const decisions = await Promise.all(unique.map(async (userId) => {
-    try {
-      const decision = await checkPermission({
-        actorId: userId,
-        permission: "browse_backlog",
-        scope: { type: "backlog", backlogId },
-      });
-      return decision.allowed ? userId : null;
-    } catch {
-      return null;
-    }
+    const decision = await checkPermission({
+      actorId: userId,
+      permission: "browse_backlog",
+      scope: { type: "backlog", backlogId },
+    });
+    return decision.allowed ? userId : null;
   }));
   return decisions.filter((userId): userId is string => userId !== null);
 }
