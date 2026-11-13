@@ -252,8 +252,9 @@ describeDb("api tokens (JIR-156)", () => {
         eq(securityAuditEvents.actorId, admin.id),
         eq(securityAuditEvents.action, "platform_administrator_bypass"),
         eq(securityAuditEvents.targetId, target.row.id),
+        eq(securityAuditEvents.requestCorrelationId, "admin-revoke"),
       ));
-      expect(bypass).toMatchObject({ targetType: "api_token", requestCorrelationId: "admin-revoke" });
+      expect(bypass).toMatchObject({ targetType: "api_token" });
     } finally {
       await db.delete(securityAuditEvents).where(eq(securityAuditEvents.actorId, admin.id));
       await db.delete(permissionGrants).where(eq(permissionGrants.userId, admin.id));
