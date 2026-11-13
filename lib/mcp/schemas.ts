@@ -53,7 +53,10 @@ export const getItemInput = z.object({
   key: ITEM_KEY,
 });
 
-export const listMyItemsInput = z.object({});
+export const listMyItemsInput = z.object({
+  limit: z.number().int().min(1).max(100).default(50),
+  cursor: z.string().optional().describe("The nextCursor of a previous page."),
+});
 
 export const createItemInput = z.object({
   backlog: BACKLOG_KEY,

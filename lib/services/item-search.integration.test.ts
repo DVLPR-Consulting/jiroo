@@ -1,11 +1,11 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { items } from "@/lib/db/schema/domain";
-import { InvalidCursorError, searchItemsForActor } from "@/lib/services/item-search";
+import { findItemSummaryByKey, InvalidCursorError, searchItemsForActor } from "@/lib/services/item-search";
 import { listStatusesForBacklog } from "@/lib/services/statuses";
 import {
   createReadVisibilityFixture,
@@ -83,6 +83,11 @@ describeDb("item search for the API (JIR-157, JIR-158)", () => {
         createdAt: new Date(`2030-01-0${n}T00:00:00.000Z`),
       })))
       .returning({ id: items.id });
+    // Microsecond instants, as PostgreSQL stores them: a millisecond cursor
+    // would see the first item again and loop (review of JIR-158).
+    await db.update(items).set({ createdAt: sql`'2030-01-01 00:00:00.123456+00'::timestamptz` }).where(eq(items.id, ids[0]!));
+    await db.update(items).set({ createdAt: sql`'2030-01-01 00:00:00.654321+00'::timestamptz` }).where(eq(items.id, ids[1]!));
+    await db.update(items).set({ createdAt: sql`'2030-01-01 00:00:00.654321+00'::timestamptz` }).where(eq(items.id, ids[2]!));
     try {
       const first = await searchItemsForActor(fixture.actorA, { backlogKey: fixture.backlogA.key, limit: 2 });
       expect(first.items).toHaveLength(2);
@@ -90,13 +95,35 @@ describeDb("item search for the API (JIR-157, JIR-158)", () => {
       const second = await searchItemsForActor(fixture.actorA, { backlogKey: fixture.backlogA.key, limit: 2, cursor: first.nextCursor });
       const seen = [...first.items, ...second.items].map((i) => i.key);
       expect(new Set(seen).size).toBe(seen.length);
-      expect(seen.slice(-1)[0]).toBe(`${fixture.backlogA.key}-903`);
+      // 902 and 903 share one instant: the id breaks the tie, as in SQL.
+      const tied = [1, 2].sort((a, b) => (ids[a]! < ids[b]! ? -1 : 1)).map((index) => `${fixture.backlogA.key}-${901 + index}`);
+      expect(seen.slice(-3)).toEqual([`${fixture.backlogA.key}-901`, ...tied]);
       expect(second.nextCursor).toBeNull();
+
+      // One item per page over microsecond instants and an exact tie: every item once, then the end.
+      const walked: string[] = [];
+      let cursor: string | null = null;
+      for (let step = 0; step < 10; step += 1) {
+        const page = await searchItemsForActor(fixture.actorA, { backlogKey: fixture.backlogA.key, query: "Pagination", limit: 1, cursor });
+        walked.push(...page.items.map((i) => i.key));
+        cursor = page.nextCursor;
+        if (!cursor) break;
+      }
+      expect(walked).toEqual([`${fixture.backlogA.key}-901`, ...tied]);
+      expect(cursor).toBeNull();
 
       await expect(searchItemsForActor(fixture.actorA, { cursor: "forged" })).rejects.toBeInstanceOf(InvalidCursorError);
     } finally {
       await db.delete(items).where(inArray(items.id, inserted.map((row) => row.id)));
     }
+  });
+
+  it("finds one item by key for the actor, exactly, or nothing", async () => {
+    const mine = await findItemSummaryByKey(fixture.actorA, fixture.liveA.key.toLowerCase());
+    expect(mine).toMatchObject({ id: fixture.liveA.id, key: fixture.liveA.key });
+    expect(await findItemSummaryByKey(fixture.actorA, fixture.liveB.key)).toBeNull();
+    expect(await findItemSummaryByKey(fixture.actorA, fixture.trashA.key)).toBeNull();
+    expect(await findItemSummaryByKey(fixture.actorA, `${fixture.backlogA.key}-999999`)).toBeNull();
   });
 
   it("lists the statuses of a backlog in board order", async () => {

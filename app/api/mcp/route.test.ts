@@ -53,17 +53,21 @@ beforeEach(() => {
 });
 
 describe("POST /api/mcp", () => {
-  it("challenges a request without a bearer token", async () => {
+  it("challenges a request without a bearer token, without pointing at an OAuth server", async () => {
+    mocks.authenticateBearer.mockResolvedValueOnce({ ok: false, reason: "missing" });
     const response = await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }));
     expect(response.status).toBe(401);
-    expect(response.headers.get("www-authenticate")).toMatch(/^Bearer/);
+    expect(response.headers.get("www-authenticate")).toBe('Bearer realm="jiroo"');
+    expect(response.headers.get("www-authenticate")).not.toContain("resource_metadata");
+    expect(await response.json()).toMatchObject({ jsonrpc: "2.0", error: { code: -32001 }, id: null });
     expect(mocks.listBacklogsForUser).not.toHaveBeenCalled();
   });
 
-  it("rejects an unknown token with 401", async () => {
+  it("rejects an unknown token with 401 and the invalid_token challenge", async () => {
     mocks.authenticateBearer.mockResolvedValueOnce({ ok: false, reason: "invalid" });
     const response = await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "Bearer jiroo_pat_unknown"));
     expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toBe('Bearer realm="jiroo", error="invalid_token"');
   });
 
   it("lists the tools and runs one for the token's owner", async () => {

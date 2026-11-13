@@ -29,8 +29,9 @@ bearer_token_env_var = "JIROO_TOKEN"
 and export `JIROO_TOKEN=jiroo_pat_…` in the environment Codex starts from.
 
 **Generic MCP client**: Streamable HTTP, `Authorization: Bearer <token>`. OAuth is not
-supported: a request without a bearer token gets `401` with a `WWW-Authenticate: Bearer`
-challenge and no authorization server to discover.
+supported: a request without a valid bearer token gets `401` with a plain
+`WWW-Authenticate: Bearer realm="jiroo"` challenge (`error="invalid_token"` for a bad
+token), no `resource_metadata` and no authorization server to discover.
 
 ## Tools
 
@@ -40,7 +41,7 @@ challenge and no authorization server to discover.
 | `list_statuses` | read | Statuses of one backlog, with ids and categories. |
 | `search_items` | read | Live items, filtered by `backlog`, `statusId`, `assignee` (`"me"` or a user id), `type`, `query`; paged by `cursor` (creation order). |
 | `get_item` | read | One item by key with description, comments and activities. |
-| `list_my_items` | read | Items assigned to the owner. |
+| `list_my_items` | read | Items assigned to the owner, paged by `cursor` like `search_items`. |
 | `create_item` | write | Create an item (`backlog`, `type`, `title`, optional `parentKey`, `statusId`, `priority`, `assigneeId`, `estimatePoints`, dates, `kind`, `sprintId`). |
 | `update_item` | write | Change `title`, `description`, `priority`, `assigneeId`, `estimatePoints`, `startDate`, `dueDate`; only the fields sent change. |
 | `transition_item` | write | Move an item to a status of its backlog. |

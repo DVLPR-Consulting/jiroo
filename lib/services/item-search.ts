@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, ilike, isNull, or, type SQL } from "drizzle-orm";
+import { and, asc, eq, gt, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { toItemSummary, type ItemSummary } from "@/lib/api/dto";
 import { browseAccessPredicate } from "@/lib/auth/accessible-backlogs";
@@ -33,10 +33,17 @@ export type ItemSearchPage = { items: ItemSummary[]; nextCursor: string | null }
 
 const assignee = alias(user, "item_search_assignee");
 
-type Cursor = { createdAt: Date; id: string };
+/**
+ * The creation instant travels as PostgreSQL's own text (microseconds kept):
+ * a JavaScript Date would round it to the millisecond and the comparison
+ * would then see the last item of a page again on the next one.
+ */
+type Cursor = { createdAt: string; id: string };
+
+const PG_TIMESTAMPTZ = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?[+-]\d{2}(:?\d{2})?$/;
 
 export function encodeCursor(cursor: Cursor): string {
-  return Buffer.from(`${cursor.createdAt.toISOString()}|${cursor.id}`, "utf8").toString("base64url");
+  return Buffer.from(`${cursor.createdAt}|${cursor.id}`, "utf8").toString("base64url");
 }
 
 /** `null` for anything that is not a cursor this module produced. */
@@ -50,9 +57,9 @@ export function decodeCursor(value: string | null | undefined): Cursor | null {
   }
   const separator = decoded.indexOf("|");
   if (separator === -1) return null;
-  const createdAt = new Date(decoded.slice(0, separator));
+  const createdAt = decoded.slice(0, separator);
   const id = decoded.slice(separator + 1);
-  if (Number.isNaN(createdAt.getTime()) || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+  if (!PG_TIMESTAMPTZ.test(createdAt) || !/^[0-9a-f-]{36}$/i.test(id)) return null;
   return { createdAt, id };
 }
 
@@ -65,6 +72,49 @@ export class InvalidCursorError extends Error {
 
 function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+const summaryColumns = {
+  id: items.id,
+  key: items.key,
+  type: items.type,
+  kind: items.kind,
+  title: items.title,
+  priority: items.priority,
+  estimatePoints: items.estimatePoints,
+  parentId: items.parentId,
+  startDate: items.startDate,
+  dueDate: items.dueDate,
+  createdAt: items.createdAt,
+  // The exact instant, for the cursor (see Cursor).
+  createdAtExact: sql<string>`${items.createdAt}::text`,
+  updatedAt: items.updatedAt,
+  closedAt: items.closedAt,
+  backlogId: backlogs.id,
+  backlogKey: backlogs.key,
+  backlogName: backlogs.name,
+  statusId: items.statusId,
+  statusName: statuses.name,
+  statusCategory: statuses.category,
+  assigneeId: items.assigneeId,
+  assigneeName: assignee.name,
+};
+
+function summaryQuery() {
+  return db
+    .select(summaryColumns)
+    .from(items)
+    .innerJoin(backlogs, eq(items.backlogId, backlogs.id))
+    .innerJoin(statuses, eq(items.statusId, statuses.id))
+    .leftJoin(assignee, eq(items.assigneeId, assignee.id));
+}
+
+/** One live item by key, as the actor may see it; `null` when unknown or unreadable. */
+export async function findItemSummaryByKey(actorId: string, key: string): Promise<ItemSummary | null> {
+  const [row] = await summaryQuery()
+    .where(and(eq(items.key, key.toUpperCase()), isNull(items.deletedAt), browseAccessPredicate(actorId)))
+    .limit(1);
+  return row ? toItemSummary(row) : null;
 }
 
 export async function searchItemsForActor(actorId: string, filters: ItemSearchFilters = {}): Promise<ItemSearchPage> {
@@ -83,42 +133,17 @@ export async function searchItemsForActor(actorId: string, filters: ItemSearchFi
     conditions.push(or(ilike(items.key, pattern), ilike(items.title, pattern))!);
   }
   if (cursor) {
+    // Compared in PostgreSQL at its own precision, never through a JS Date.
+    const after = sql`${cursor.createdAt}::timestamptz`;
     conditions.push(
       or(
-        gt(items.createdAt, cursor.createdAt),
-        and(eq(items.createdAt, cursor.createdAt), gt(items.id, cursor.id)),
+        sql`${items.createdAt} > ${after}`,
+        and(sql`${items.createdAt} = ${after}`, gt(items.id, cursor.id)),
       )!,
     );
   }
 
-  const rows = await db
-    .select({
-      id: items.id,
-      key: items.key,
-      type: items.type,
-      kind: items.kind,
-      title: items.title,
-      priority: items.priority,
-      estimatePoints: items.estimatePoints,
-      parentId: items.parentId,
-      startDate: items.startDate,
-      dueDate: items.dueDate,
-      createdAt: items.createdAt,
-      updatedAt: items.updatedAt,
-      closedAt: items.closedAt,
-      backlogId: backlogs.id,
-      backlogKey: backlogs.key,
-      backlogName: backlogs.name,
-      statusId: items.statusId,
-      statusName: statuses.name,
-      statusCategory: statuses.category,
-      assigneeId: items.assigneeId,
-      assigneeName: assignee.name,
-    })
-    .from(items)
-    .innerJoin(backlogs, eq(items.backlogId, backlogs.id))
-    .innerJoin(statuses, eq(items.statusId, statuses.id))
-    .leftJoin(assignee, eq(items.assigneeId, assignee.id))
+  const rows = await summaryQuery()
     .where(and(...conditions))
     .orderBy(asc(items.createdAt), asc(items.id))
     .limit(limit + 1);
@@ -127,7 +152,7 @@ export async function searchItemsForActor(actorId: string, filters: ItemSearchFi
   const last = page[page.length - 1];
   return {
     items: page.map(toItemSummary),
-    nextCursor: rows.length > limit && last ? encodeCursor({ createdAt: last.createdAt, id: last.id }) : null,
+    nextCursor: rows.length > limit && last ? encodeCursor({ createdAt: last.createdAtExact, id: last.id }) : null,
   };
 }
 

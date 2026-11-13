@@ -7,7 +7,7 @@ import { withRequestCache } from "@/lib/auth/request-cache";
 import { getBacklogByKeyForUser, listBacklogsForUser } from "@/lib/services/backlogs";
 import { scopeAllows, type ApiPrincipal } from "@/lib/services/api-tokens";
 import { listComments } from "@/lib/services/comments";
-import { InvalidCursorError, searchItemsForActor } from "@/lib/services/item-search";
+import { findItemSummaryByKey, InvalidCursorError, searchItemsForActor } from "@/lib/services/item-search";
 import { getItemByKeyForBacklog, listActivities, listUsersByIds } from "@/lib/services/items";
 import { listStatusesForBacklog } from "@/lib/services/statuses";
 import { addCommentUseCase } from "@/lib/use-cases/comments";
@@ -73,9 +73,9 @@ async function resolveItem(actorId: string, key: string) {
   return { backlog, item };
 }
 
-async function summaryOf(actorId: string, backlogKey: string, key: string): Promise<ItemSummary | null> {
-  const page = await searchItemsForActor(actorId, { backlogKey, query: key, limit: 100 });
-  return page.items.find((item) => item.key === key) ?? null;
+/** The item's summary after a mutation, by exact key (the actor could already read it). */
+async function summaryOf(actorId: string, key: string): Promise<ItemSummary | null> {
+  return findItemSummaryByKey(actorId, key);
 }
 
 /** Only the fields the agent sent, so an absent field is not an assignment. */
@@ -135,7 +135,7 @@ export const JIROO_TOOLS = [
     async handler({ key }, actor) {
       const { backlog, item } = await resolveItem(actor.actorId, key);
       const [summary, comments, activities] = await Promise.all([
-        summaryOf(actor.actorId, backlog.key, key),
+        summaryOf(actor.actorId, key),
         listComments(item.id),
         listActivities(item.id),
       ]);
@@ -174,8 +174,8 @@ export const JIROO_TOOLS = [
     description: "The live items assigned to you, the token's owner.",
     inputSchema: listMyItemsInput,
     scope: "read",
-    async handler(_input, actor) {
-      const page = await searchItemsForActor(actor.actorId, { assignee: "me", limit: 100 });
+    async handler({ limit, cursor }, actor) {
+      const page = await searchItemsForActor(actor.actorId, { assignee: "me", limit, cursor });
       return { items: page.items, nextCursor: page.nextCursor };
     },
   }),
@@ -198,7 +198,7 @@ export const JIROO_TOOLS = [
       void _backlogKey;
       void _parentKey;
       const { item } = await createItemUseCase(actor, { ...presentFields(fields), backlogId: backlog.id, parentId, type: input.type, title: input.title });
-      return { item: (await summaryOf(actor.actorId, backlog.key, item.key)) ?? { id: item.id, key: item.key } };
+      return { item: (await summaryOf(actor.actorId, item.key)) ?? { id: item.id, key: item.key } };
     },
   }),
   define({
@@ -208,13 +208,13 @@ export const JIROO_TOOLS = [
     inputSchema: updateItemInput,
     scope: "write",
     async handler(input, actor) {
-      const { backlog, item } = await resolveItem(actor.actorId, input.key);
+      const { item } = await resolveItem(actor.actorId, input.key);
       const { key: _key, ...fields } = input;
       void _key;
       const changes = presentFields(fields);
       if (Object.keys(changes).length === 0) throw new ToolRefusal("Aucun champ à modifier.");
       await updateItemUseCase(actor, { id: item.id, ...changes });
-      return { item: await summaryOf(actor.actorId, backlog.key, item.key) };
+      return { item: await summaryOf(actor.actorId, item.key) };
     },
   }),
   define({
@@ -224,9 +224,9 @@ export const JIROO_TOOLS = [
     inputSchema: transitionItemInput,
     scope: "write",
     async handler({ key, statusId }, actor) {
-      const { backlog, item } = await resolveItem(actor.actorId, key);
+      const { item } = await resolveItem(actor.actorId, key);
       await updateItemUseCase(actor, { id: item.id, statusId });
-      return { item: await summaryOf(actor.actorId, backlog.key, item.key) };
+      return { item: await summaryOf(actor.actorId, item.key) };
     },
   }),
   define({
@@ -279,12 +279,13 @@ export async function runTool(
   if (!scopeAllows(principal.scope, tool.scope)) {
     return refusal(`Ce jeton est en lecture seule : l’outil ${tool.name} demande la portée « Lecture et écriture ».`);
   }
-  const budget = await reserveApiRequest(principal.tokenId, now);
-  if (!budget.allowed) {
-    return refusal(`Trop de requêtes pour ce jeton : réessayez dans ${budget.retryAfterSeconds} s.`);
-  }
   const actor: Actor = { actorId: principal.actorId, source: "mcp", tokenId: principal.tokenId };
   try {
+    // Inside the masking scope: a failed budget write must not reach the agent as SQL.
+    const budget = await reserveApiRequest(principal.tokenId, now);
+    if (!budget.allowed) {
+      return refusal(`Trop de requêtes pour ce jeton : réessayez dans ${budget.retryAfterSeconds} s.`);
+    }
     const input = tool.inputSchema.parse(rawInput ?? {});
     const structuredContent = await withRequestCache(() => tool.handler(input, actor));
     return { content: [{ type: "text", text: JSON.stringify(structuredContent, null, 2) }], structuredContent };

@@ -4,6 +4,7 @@ import { permissionDeniedError } from "@/test-utils/action-authorization-errors"
 const mocks = vi.hoisted(() => ({
   addCommentUseCase: vi.fn(),
   createItemUseCase: vi.fn(),
+  findItemSummaryByKey: vi.fn(),
   getBacklogByKeyForUser: vi.fn(),
   getItemByKeyForBacklog: vi.fn(),
   listActivities: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock("@/lib/services/backlogs", () => ({
 vi.mock("@/lib/services/comments", () => ({ listComments: mocks.listComments }));
 vi.mock("@/lib/services/item-search", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/services/item-search")>()),
+  findItemSummaryByKey: mocks.findItemSummaryByKey,
   searchItemsForActor: mocks.searchItemsForActor,
 }));
 vi.mock("@/lib/services/items", () => ({
@@ -60,6 +62,7 @@ beforeEach(() => {
   mocks.getBacklogByKeyForUser.mockResolvedValue(backlog);
   mocks.getItemByKeyForBacklog.mockResolvedValue(itemRow);
   mocks.searchItemsForActor.mockResolvedValue({ items: [summary], nextCursor: null });
+  mocks.findItemSummaryByKey.mockResolvedValue(summary);
   mocks.listBacklogsForUser.mockResolvedValue([backlog]);
   mocks.listStatusesForBacklog.mockResolvedValue([{ id: "status-1", name: "À faire", category: "todo", color: "#fff", order: 0 }]);
   mocks.listComments.mockResolvedValue([]);
@@ -101,6 +104,28 @@ describe("runTool", () => {
     expect(result).toMatchObject({ isError: true });
     expect(result.content[0]!.text).toContain("17 s");
     expect(mocks.listBacklogsForUser).not.toHaveBeenCalled();
+  });
+
+  it("hides a failed budget write like any unexpected failure", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.reserveApiRequest.mockRejectedValueOnce(new Error('insert into "api_token_rate" ... PRIVATE_BUDGET_FAILURE'));
+    const result = await runTool(tool("list_backlogs"), {}, reader);
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).not.toContain("PRIVATE_BUDGET_FAILURE");
+    expect(result.content[0]!.text).not.toContain("api_token_rate");
+    consoleError.mockRestore();
+  });
+
+  it("reads an item's summary by exact key after a mutation and pages my items", async () => {
+    await runTool(tool("transition_item"), { key: "CASS-12", statusId: "11111111-1111-4111-8111-111111111111" }, writer);
+    expect(mocks.findItemSummaryByKey).toHaveBeenCalledWith("user-1", "CASS-12");
+    expect(mocks.searchItemsForActor).not.toHaveBeenCalled();
+
+    mocks.searchItemsForActor.mockResolvedValueOnce({ items: [summary], nextCursor: "next-1" });
+    const first = await runTool(tool("list_my_items"), {}, reader);
+    expect(first.structuredContent).toEqual({ items: [summary], nextCursor: "next-1" });
+    await runTool(tool("list_my_items"), { cursor: "next-1", limit: 10 }, reader);
+    expect(mocks.searchItemsForActor).toHaveBeenLastCalledWith("user-1", { assignee: "me", limit: 10, cursor: "next-1" });
   });
 
   it("lists the backlogs for the token's owner as structured content", async () => {
