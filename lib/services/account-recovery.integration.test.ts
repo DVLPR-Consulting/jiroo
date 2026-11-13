@@ -225,7 +225,7 @@ describeDb("account recovery service", () => {
     it("revokes the access tokens along with the sessions", async () => {
       const target = await createTarget("password-tokens");
       await enrollTwoFactor(target.id);
-      const { token } = await createApiToken({ name: "Herdr", scope: "write", expiresInDays: null }, target.id, { authVersion: 0 });
+      const { token } = await createApiToken({ name: "Herdr", scope: "write", expiresInDays: 30 }, target.id, { authVersion: 0 });
       expect(await authenticateApiToken(token)).not.toBeNull();
 
       await resetUserPassword(
