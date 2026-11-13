@@ -866,6 +866,10 @@ bearer_token_env_var = "JIROO_TOKEN"`}</code></pre>
           ]}
         >
           <GuideNote>
+            Un administrateur Jiroo peut aussi révoquer l’un de vos jetons depuis <Ui>Administration</Ui> → <Ui>Jetons d’accès</Ui>.
+            L’outil qui utilise ce jeton perd alors son accès à Jiroo : si cet accès reste nécessaire, créez un nouveau jeton et remplacez l’ancien dans sa configuration.
+          </GuideNote>
+          <GuideNote>
             La limite est de 300 requêtes par minute et par jeton, partagée entre l’API REST et le MCP.
             Si elle est atteinte, attendez le délai indiqué avant de reprendre.
           </GuideNote>
