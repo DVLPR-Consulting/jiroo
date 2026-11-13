@@ -41,10 +41,13 @@ function AppShellFrame({
   // query hook: its server snapshot says "desktop", so the first render on a
   // phone would otherwise lay out the 248 px column and overflow until
   // hydration (JIR-127).
+  // Both the frame and <main> are positioned: a visually hidden label (absolute)
+  // inside a row would otherwise take the page as containing block and lengthen
+  // the document, which then scrolls the whole shell (JIR-162).
   return (
     <div
       className={cn(
-        "grid h-screen grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-clip transition-[grid-template-columns] duration-150",
+        "relative grid h-screen grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-clip transition-[grid-template-columns] duration-150",
         collapsed ? "md:grid-cols-[64px_minmax(0,1fr)]" : "md:grid-cols-[248px_minmax(0,1fr)]",
       )}
     >
@@ -69,7 +72,7 @@ function AppShellFrame({
       )}
       <div className="flex min-h-0 min-w-0 flex-col">
         {topbar}
-        <main className="min-h-0 flex-1 overflow-auto bg-background">{children}</main>
+        <main className="relative min-h-0 flex-1 overflow-auto bg-background">{children}</main>
       </div>
       <Toaster />
     </div>

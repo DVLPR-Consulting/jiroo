@@ -49,6 +49,15 @@ describe("AppShell", () => {
     expect(screen.getByRole("main")).toHaveTextContent("contenu");
   });
 
+  it("positions the frame and the main area so hidden absolute text cannot lengthen the page (JIR-162)", () => {
+    // A row's visually hidden label is absolutely positioned: without a positioned
+    // ancestor its containing block is the page, which then scrolls the whole shell.
+    installMatchMedia(false);
+    const { container } = renderShell();
+    expect((container.firstElementChild as HTMLElement).className.split(" ")).toContain("relative");
+    expect(screen.getByRole("main").className.split(" ")).toContain("relative");
+  });
+
   it("narrows the desktop column to the saved collapsed width", () => {
     installMatchMedia(false);
     document.documentElement.dataset.sidebar = "collapsed";
