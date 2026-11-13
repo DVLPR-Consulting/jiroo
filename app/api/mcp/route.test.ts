@@ -12,6 +12,7 @@ vi.mock("@/lib/api/authenticate", async (importOriginal) => ({
   authenticateBearer: mocks.authenticateBearer,
 }));
 vi.mock("@/lib/api/rate-limit", () => ({ reserveApiRequest: mocks.reserveApiRequest }));
+vi.mock("@/lib/auth/action-authorization", () => ({ requireBacklogPermissionByKey: vi.fn() }));
 vi.mock("@/lib/services/backlogs", () => ({
   getBacklogByKeyForUser: vi.fn(),
   listBacklogsForUser: mocks.listBacklogsForUser,
@@ -70,6 +71,27 @@ describe("POST /api/mcp", () => {
     expect(response.headers.get("www-authenticate")).toBe('Bearer realm="jiroo", error="invalid_token"');
   });
 
+  it("spends budget on every authenticated request and refuses past it with Retry-After", async () => {
+    await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "Bearer jiroo_pat_valid"));
+    expect(mocks.reserveApiRequest).toHaveBeenCalledWith("token-1");
+
+    mocks.reserveApiRequest.mockResolvedValueOnce({ allowed: false, count: 301, retryAfterSeconds: 17 });
+    const refused = await POST(rpc({ jsonrpc: "2.0", id: 2, method: "tools/list" }, "Bearer jiroo_pat_valid"));
+    expect(refused.status).toBe(429);
+    expect(refused.headers.get("retry-after")).toBe("17");
+  });
+
+  it("hides a failed budget write", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.reserveApiRequest.mockRejectedValueOnce(new Error('insert into "api_token_rate" PRIVATE_BUDGET_FAILURE'));
+    const response = await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "Bearer jiroo_pat_valid"));
+    expect(response.status).toBe(500);
+    const text = await response.text();
+    expect(text).not.toContain("PRIVATE_BUDGET_FAILURE");
+    expect(consoleError.mock.calls.flat().join(" ")).not.toContain("PRIVATE_BUDGET_FAILURE");
+    consoleError.mockRestore();
+  });
+
   it("lists the tools and runs one for the token's owner", async () => {
     const listed = await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "Bearer jiroo_pat_valid"));
     expect(listed.status).toBe(200);
@@ -87,6 +109,6 @@ describe("POST /api/mcp", () => {
       backlogs: [{ id: "b", key: "CASS", name: "Pôle civil", color: "#123456", archivedAt: null }],
     });
     expect(mocks.listBacklogsForUser).toHaveBeenCalledWith("user-1", { includeArchived: false });
-    expect(mocks.reserveApiRequest).toHaveBeenCalledWith("token-1", expect.any(Date));
+    expect(mocks.reserveApiRequest).toHaveBeenCalledWith("token-1");
   });
 });

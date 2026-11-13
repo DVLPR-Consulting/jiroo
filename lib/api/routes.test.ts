@@ -78,9 +78,26 @@ describe("REST v1 routes", () => {
   expect(await (await backlogs(req())).json()).toEqual({ backlogs: [{ id: "b", archivedAt: item.createdAt }] });
   expect(await (await statuses(req(), { params: Promise.resolve({ key: "test" }) })).json()).toEqual({ statuses: [{ id: uuid, name: "Todo", category: "todo", color: "blue", order: 0 }] });
  });
+ it("caps /me/items at ten pages and hands back the cursor to continue", async () => {
+  for (let page = 0; page < 10; page += 1) m.search.mockResolvedValueOnce({ items: [{ ...item, id: `p${page}` }], nextCursor: `c${page}` });
+  const body = await (await mine(req())).json();
+  expect(body.items).toHaveLength(10);
+  expect(body.nextCursor).toBe("c9");
+  expect(m.search).toHaveBeenCalledTimes(10);
+  m.search.mockResolvedValueOnce({ items: [], nextCursor: null });
+  await mine(new Request("http://localhost/api/v1/me/items?cursor=c9"));
+  expect(m.search).toHaveBeenLastCalledWith("u", { assignee: "me", limit: 100, cursor: "c9" });
+ });
+ it("authorizes a named backlog before listing its items", async () => {
+  m.search.mockResolvedValue({ items: [], nextCursor: null });
+  await list(req(undefined, "GET", "?backlog=test"));
+  expect(m.backlog).toHaveBeenCalledWith("u", "TEST");
+  m.backlog.mockRejectedValueOnce(Object.assign(new Error("hidden"), { name: "ResourceNotFoundError" }));
+  expect((await list(req(undefined, "GET", "?backlog=secret"))).status).toBe(404);
+ });
  it("returns every assigned page rather than silently stopping at 100", async () => {
   m.search.mockResolvedValueOnce({ items: [item], nextCursor: "second" }).mockResolvedValueOnce({ items: [{ ...item, id: "j" }], nextCursor: null });
-  expect(await (await mine(req())).json()).toEqual({ items: [item, { ...item, id: "j" }] });
+  expect(await (await mine(req())).json()).toEqual({ items: [item, { ...item, id: "j" }], nextCursor: null });
   expect(m.search).toHaveBeenLastCalledWith("u", { assignee: "me", limit: 100, cursor: "second" });
  });
  it("uses a problem response with Allow for unsupported methods", async () => { const r = await unsupported(); expect(r.status).toBe(405); expect(r.headers.get("allow")).toContain("POST"); expect(r.headers.get("cache-control")).toBe("private, no-store"); });
