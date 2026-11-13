@@ -40,7 +40,21 @@ const assignee = alias(user, "item_search_assignee");
  */
 type Cursor = { createdAt: string; id: string };
 
-const PG_TIMESTAMPTZ = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?[+-]\d{2}(:?\d{2})?$/;
+const PG_TIMESTAMPTZ = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(\.\d{1,6})?([+-]\d{2})(:?\d{2})?$/;
+
+/** A PostgreSQL timestamptz text whose calendar parts exist, so the cast cannot fail. */
+function isValidInstantText(value: string): boolean {
+  const match = PG_TIMESTAMPTZ.exec(value);
+  if (!match) return false;
+  const [, year, month, day, hour, minute, second, fraction = "", offsetHours, offsetMinutes = "00"] = match;
+  const iso = `${year}-${month}-${day}T${hour}:${minute}:${second}${fraction.slice(0, 4)}${offsetHours}:${offsetMinutes.replace(":", "")}`;
+  // Date.parse refuses an impossible date; comparing the day back rules out an accepted rollover.
+  const parsed = new Date(iso);
+  return !Number.isNaN(parsed.getTime())
+    && Number(hour) < 24 && Number(minute) < 60 && Number(second) < 60
+    && Number(month) >= 1 && Number(month) <= 12 && Number(day) >= 1
+    && Number(day) <= new Date(Date.UTC(Number(year), Number(month), 0)).getUTCDate();
+}
 
 export function encodeCursor(cursor: Cursor): string {
   return Buffer.from(`${cursor.createdAt}|${cursor.id}`, "utf8").toString("base64url");
@@ -59,7 +73,7 @@ export function decodeCursor(value: string | null | undefined): Cursor | null {
   if (separator === -1) return null;
   const createdAt = decoded.slice(0, separator);
   const id = decoded.slice(separator + 1);
-  if (!PG_TIMESTAMPTZ.test(createdAt) || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+  if (!isValidInstantText(createdAt) || !/^[0-9a-f-]{36}$/i.test(id)) return null;
   return { createdAt, id };
 }
 
