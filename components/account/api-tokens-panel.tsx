@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Plus } from "lucide-react";
 import { createApiTokenAction, revokeApiTokenAction } from "@/app/actions/api-tokens";
@@ -17,10 +17,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select";
-import { API_TOKEN_PREFIX } from "@/lib/services/api-tokens";
 import { toast } from "@/lib/toast";
 import {
   API_TOKEN_NAME_MAX,
+  API_TOKEN_PREFIX,
   type ApiTokenExpiryDays,
   type ApiTokenScope,
 } from "@/lib/validation/api-token";
@@ -37,7 +37,7 @@ export type ApiTokenView = {
 
 type Revealed = { token: string; name: string };
 
-// WORDING: every label below is provisional until Codex's proposal (JIR-156).
+// Wording: Codex proposal for JIR-156 (column A).
 const SCOPE_LABELS: Record<ApiTokenScope, string> = {
   read: "Lecture",
   write: "Lecture et écriture",
@@ -45,7 +45,7 @@ const SCOPE_LABELS: Record<ApiTokenScope, string> = {
 
 const SCOPE_OPTIONS = [
   { value: "read", label: "Lecture : consulter les backlogs et les items" },
-  { value: "write", label: "Lecture et écriture : créer, modifier, commenter" },
+  { value: "write", label: "Lecture et écriture : consulter, créer, modifier, commenter" },
 ] as const;
 
 type ExpiryChoice = "30" | "90" | "365" | "never";
@@ -76,11 +76,11 @@ async function copyToClipboard(value: string): Promise<void> {
     await navigator.clipboard.writeText(value);
     toast.success("Jeton copié.");
   } catch {
-    toast.error("Copie impossible : sélectionnez le jeton et copiez-le.");
+    toast.error("Copie impossible. Sélectionnez le jeton et copiez-le manuellement.");
   }
 }
 
-export function ApiTokensPanel({ tokens }: { tokens: ApiTokenView[] }) {
+export function ApiTokensPanel({ tokens, now }: { tokens: ApiTokenView[]; now: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
@@ -90,8 +90,19 @@ export function ApiTokensPanel({ tokens }: { tokens: ApiTokenView[] }) {
   const [createError, setCreateError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<Revealed | null>(null);
   const [revoking, setRevoking] = useState<ApiTokenView | null>(null);
-  // Read once per mount: the list is re-rendered by router.refresh() anyway.
-  const [now] = useState(() => Date.now());
+  // The clock the expiry badges read: the server's instant on each render of
+  // the page (so a refresh re-evaluates it) and a tick every minute while the
+  // page stays open, so a token that expires meanwhile shows it.
+  const [clock, setClock] = useState(() => Date.parse(now));
+  const [seenNow, setSeenNow] = useState(now);
+  if (now !== seenNow) {
+    setSeenNow(now);
+    setClock(Date.parse(now));
+  }
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   function resetCreateForm() {
     setName("");
@@ -134,7 +145,7 @@ export function ApiTokensPanel({ tokens }: { tokens: ApiTokenView[] }) {
         <p className="t-sm text-muted-foreground">
           {tokens.length === 0
             ? "Vous n’avez aucun jeton."
-            : `${tokens.length} ${tokens.length > 1 ? "jetons actifs" : "jeton actif"}.`}
+            : `${tokens.length} ${tokens.length > 1 ? "jetons" : "jeton"}`}
         </p>
         <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="size-4" aria-hidden />
@@ -145,7 +156,7 @@ export function ApiTokensPanel({ tokens }: { tokens: ApiTokenView[] }) {
       {tokens.length > 0 && (
         <ul className="divide-y divide-border rounded-[var(--radius)] border border-border" aria-label="Jetons d’accès">
           {tokens.map((token) => {
-            const expiryState = expiryLabel(token, now);
+            const expiryState = expiryLabel(token, clock);
             return (
               <li key={token.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
                 <div className="min-w-0 flex-1 space-y-0.5">
@@ -159,7 +170,7 @@ export function ApiTokensPanel({ tokens }: { tokens: ApiTokenView[] }) {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {`Créé le ${formatDate(token.createdAt)} · ${expiryState.text} · `}
-                    {token.lastUsedAt ? `Dernier usage le ${formatDate(token.lastUsedAt)}` : "Jamais utilisé"}
+                    {token.lastUsedAt ? `Dernière utilisation le ${formatDate(token.lastUsedAt)}` : "Jamais utilisé"}
                   </p>
                 </div>
                 <Button
@@ -168,7 +179,7 @@ export function ApiTokensPanel({ tokens }: { tokens: ApiTokenView[] }) {
                   size="sm"
                   disabled={pending}
                   onClick={() => setRevoking(token)}
-                  aria-label={`Révoquer le jeton ${token.name}`}
+                  aria-label={`Révoquer le jeton « ${token.name} »`}
                 >
                   Révoquer
                 </Button>
@@ -192,7 +203,8 @@ export function ApiTokensPanel({ tokens }: { tokens: ApiTokenView[] }) {
           <DialogHeader>
             <DialogTitle>Créer un jeton d’accès</DialogTitle>
             <DialogDescription>
-              Le jeton agit en votre nom, avec vos droits. Il ne sera affiché qu’une seule fois.
+              Le jeton donne accès à Jiroo en votre nom, selon vos droits et la portée choisie. Il ne
+              sera affiché qu’une seule fois.
             </DialogDescription>
           </DialogHeader>
           <form
@@ -208,7 +220,7 @@ export function ApiTokensPanel({ tokens }: { tokens: ApiTokenView[] }) {
                 id="api-token-name"
                 value={name}
                 maxLength={API_TOKEN_NAME_MAX}
-                placeholder="Herdr, Claude Code, script de reporting…"
+                placeholder="Herdr, Claude Code, script de bilan…"
                 autoComplete="off"
                 onChange={(event) => setName(event.target.value)}
               />
@@ -249,10 +261,10 @@ export function ApiTokensPanel({ tokens }: { tokens: ApiTokenView[] }) {
           {revealed && (
             <>
               <DialogHeader>
-                <DialogTitle>Jeton « {revealed.name} » créé</DialogTitle>
+                <DialogTitle>Jeton créé</DialogTitle>
                 <DialogDescription>
-                  Copiez-le maintenant : il ne sera plus jamais affiché. En cas de perte, révoquez-le
-                  et créez-en un nouveau.
+                  Copiez et conservez ce jeton : il ne sera plus affiché après fermeture. En cas de
+                  perte, révoquez-le et créez-en un nouveau.
                 </DialogDescription>
               </DialogHeader>
               <div className="flex gap-2">
@@ -269,7 +281,7 @@ export function ApiTokensPanel({ tokens }: { tokens: ApiTokenView[] }) {
                 </Button>
               </div>
               <DialogFooter>
-                <Button type="button" onClick={() => setRevealed(null)}>J’ai copié le jeton</Button>
+                <Button type="button" onClick={() => setRevealed(null)}>J’ai conservé le jeton</Button>
               </DialogFooter>
             </>
           )}
@@ -281,9 +293,10 @@ export function ApiTokensPanel({ tokens }: { tokens: ApiTokenView[] }) {
           {revoking && (
             <>
               <DialogHeader>
-                <DialogTitle>Révoquer le jeton « {revoking.name} » ?</DialogTitle>
+                <DialogTitle>Révoquer ce jeton ?</DialogTitle>
                 <DialogDescription>
-                  Les outils qui l’utilisent seront refusés dès maintenant. Cette action est définitive.
+                  Le jeton « {revoking.name} » ne permettra plus d’accéder à Jiroo. Cette action est
+                  définitive.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>

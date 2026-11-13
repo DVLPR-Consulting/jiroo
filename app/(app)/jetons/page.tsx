@@ -25,15 +25,15 @@ export default async function ApiTokensPage() {
     <div className="flex h-full flex-col">
       <div className="space-y-1 border-b border-border px-6 py-4">
         <ShellBreadcrumb />
-        {/* WORDING: page title and description to be confirmed by Codex (JIR-156). */}
+        {/* Wording: Codex proposal for JIR-156 (column A). */}
         <h1 className="t-h1">Jetons d’accès</h1>
         <p className="t-sm text-muted-foreground">
-          Un jeton permet à un outil ou à un agent d’agir en votre nom dans Jiroo, avec vos droits,
-          par l’API ou le serveur MCP.
+          Reliez un outil ou un agent à Jiroo. Son accès dépend de vos droits et de la portée du
+          jeton.
         </p>
       </div>
       <div className="flex-1 overflow-y-auto px-6 py-4">
-        <ApiTokensPanel tokens={views} />
+        <ApiTokensPanel tokens={views} now={new Date().toISOString()} />
       </div>
     </div>
   );
