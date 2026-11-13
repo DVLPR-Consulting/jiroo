@@ -126,22 +126,34 @@ describe("revokeApiTokenAction", () => {
 });
 
 describe("revokeApiTokenAsAdministratorAction", () => {
+  const TOKEN_ID = "6f1c2a4e-8b3d-4c7a-9e21-0d5b7f3a9c10";
+
+  it("answers a malformed id as a gone token without reaching the service", async () => {
+    for (const id of ["token-9", "", "6f1c2a4e-8b3d-4c7a-9e21-0d5b7f3a9c1", 42 as unknown as string]) {
+      await expect(revokeApiTokenAsAdministratorAction({ id })).resolves.toEqual({
+        ok: false,
+        error: "Ce jeton n’est plus disponible.",
+      });
+    }
+    expect(mocks.revokeApiTokenAsAdministrator).not.toHaveBeenCalled();
+  });
+
   it("revokes through the administrator service with the signed-in actor", async () => {
     mocks.revokeApiTokenAsAdministrator.mockResolvedValueOnce(true);
-    await expect(revokeApiTokenAsAdministratorAction({ id: "token-9" })).resolves.toEqual({ ok: true });
-    expect(mocks.revokeApiTokenAsAdministrator).toHaveBeenCalledWith("token-9", "user-1");
+    await expect(revokeApiTokenAsAdministratorAction({ id: TOKEN_ID })).resolves.toEqual({ ok: true });
+    expect(mocks.revokeApiTokenAsAdministrator).toHaveBeenCalledWith(TOKEN_ID, "user-1");
   });
 
   it("refuses a non-administrator and a missing session, reports a gone token", async () => {
     mocks.revokeApiTokenAsAdministrator.mockRejectedValueOnce(Object.assign(new Error("denied"), { name: "PermissionDeniedError" }));
-    await expect(revokeApiTokenAsAdministratorAction({ id: "token-9" })).resolves.toEqual({
+    await expect(revokeApiTokenAsAdministratorAction({ id: TOKEN_ID })).resolves.toEqual({
       ok: false,
       error: "Cette action est réservée aux administrateurs Jiroo.",
     });
     mocks.revokeApiTokenAsAdministrator.mockResolvedValueOnce(false);
-    await expect(revokeApiTokenAsAdministratorAction({ id: "token-9" })).resolves.toMatchObject({ ok: false });
+    await expect(revokeApiTokenAsAdministratorAction({ id: TOKEN_ID })).resolves.toMatchObject({ ok: false });
     mocks.getSession.mockResolvedValueOnce(null);
-    await expect(revokeApiTokenAsAdministratorAction({ id: "token-9" })).resolves.toMatchObject({ ok: false });
+    await expect(revokeApiTokenAsAdministratorAction({ id: TOKEN_ID })).resolves.toMatchObject({ ok: false });
     expect(mocks.revokeApiTokenAsAdministrator).toHaveBeenCalledTimes(2);
   });
 });

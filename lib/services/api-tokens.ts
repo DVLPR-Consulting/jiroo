@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { and, count, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
-import { requirePermissionWithoutBypassAudit } from "@/lib/auth/authorization";
+import { requirePermission, requirePermissionWithoutBypassAudit } from "@/lib/auth/authorization";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { apiTokens, securityAuditEvents } from "@/lib/db/schema/domain";
@@ -222,13 +222,11 @@ export async function revokeApiToken(
 /** A live token as Administration lists it: its metadata and its owner, never its hash. */
 export type AdministeredApiTokenRow = ApiTokenRow & { ownerName: string; ownerEmail: string };
 
+const TOKEN_ADMINISTRATION = { permission: "administer_jiroo", scope: { type: "global" } } as const;
+
 async function requireTokenAdministrator(actorId: string): Promise<void> {
   // Same gate as the account recoveries: only a Jiroo administrator (JIR-161).
-  await requirePermissionWithoutBypassAudit({
-    actorId,
-    permission: "administer_jiroo",
-    scope: { type: "global" },
-  });
+  await requirePermissionWithoutBypassAudit({ actorId, ...TOKEN_ADMINISTRATION });
 }
 
 /** Every live token of every account, newest first, for Administration (JIR-161). */
@@ -253,7 +251,11 @@ export async function revokeApiTokenAsAdministrator(
   now = new Date(),
   requestCorrelationId: string = randomUUID(),
 ): Promise<boolean> {
-  await requireTokenAdministrator(actorId);
+  // Unlike the listing, a revocation reaches one token: trace the bypass against it.
+  await requirePermission(
+    { actorId, ...TOKEN_ADMINISTRATION },
+    { targetType: "api_token", targetId: id, requestCorrelationId },
+  );
   return db.transaction(async (tx) => {
     const revoked = await tx
       .update(apiTokens)
