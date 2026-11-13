@@ -154,7 +154,7 @@ export function ApiTokensPanel({ tokens, now }: { tokens: ApiTokenView[]; now: s
       </div>
 
       {tokens.length > 0 && (
-        <ul className="divide-y divide-border rounded-[var(--radius)] border border-border" aria-label="Jetons d’accès">
+        <ul className="divide-y divide-border rounded-[var(--radius)] border border-border bg-card" aria-label="Jetons d’accès">
           {tokens.map((token) => {
             const expiryState = expiryLabel(token, clock);
             return (
