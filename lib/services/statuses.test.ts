@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 import { buildStatusMigrationActivities } from "@/lib/services/statuses";
 
 describe("status migration audit", () => {
@@ -12,6 +14,9 @@ describe("status migration audit", () => {
       ),
     ).toEqual([
       {
+        // Outside any use case the interface is the channel (JIR-156).
+        source: "ui",
+        tokenId: null,
         itemId: "item-1",
         actorId: "admin-1",
         action: "status_change",

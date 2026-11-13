@@ -1,5 +1,6 @@
 
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { activityAttribution } from "@/lib/auth/actor-context";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { nextItemRevision } from "@/lib/services/item-revision";
@@ -224,6 +225,7 @@ export async function bulkUpdateItems(
         .set({ ...patch, updatedAt: nextItemRevision() })
         .where(eq(items.id, row.id));
       await tx.insert(activities).values({
+        ...activityAttribution(),
         ...activityForPatch(row, actorId, data.patch),
         requestCorrelationId: correlationId,
       });

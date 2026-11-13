@@ -9,6 +9,7 @@ import { revokePendingSignIns, revokeTrustedDevices } from "@/lib/auth/pending-a
 import { db } from "@/lib/db";
 import { account, session, twoFactor, user } from "@/lib/db/schema/auth";
 import { securityAuditEvents } from "@/lib/db/schema/domain";
+import { revokeAllTokensForUser } from "@/lib/services/api-tokens";
 import { resetUserPasswordInput, resetUserTwoFactorInput } from "@/lib/items/users";
 
 // Administrator-driven account recovery (JIR-61). Jiroo sends no e-mail, so an
@@ -145,11 +146,14 @@ export async function resetUserPassword(
     // A challenge opened with the old password would otherwise still finish
     // the sign-in with a TOTP alone.
     await revokePendingSignIns(tx, userId);
+    // Access tokens act as the user with no second factor: they go the way
+    // of the sessions (JIR-156).
+    const revokedTokens = await revokeAllTokensForUser(tx, userId);
     await appendRecoveryAuditEvent(tx, {
       actorId,
       action: "user_password_reset",
       targetId: userId,
-      newValue: { revokedSessions, revokedTrustedDevices },
+      newValue: { revokedSessions, revokedTrustedDevices, revokedTokens },
       requestCorrelationId,
     });
     return { revokedSessions };
@@ -183,12 +187,13 @@ export async function resetUserTwoFactor(
     // factor it was granted for and skip the newly enrolled TOTP.
     const revokedTrustedDevices = await revokeTrustedDevices(tx, userId);
     await revokePendingSignIns(tx, userId);
+    const revokedTokens = await revokeAllTokensForUser(tx, userId);
     await appendRecoveryAuditEvent(tx, {
       actorId,
       action: "user_two_factor_reset",
       targetId: userId,
       oldValue: { twoFactorEnabled: target.twoFactorEnabled === true },
-      newValue: { twoFactorEnabled: false, revokedSessions, revokedTrustedDevices },
+      newValue: { twoFactorEnabled: false, revokedSessions, revokedTrustedDevices, revokedTokens },
       requestCorrelationId,
     });
     return { revokedSessions };

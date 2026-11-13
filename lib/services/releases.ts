@@ -11,6 +11,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { createHash } from "node:crypto";
+import { activityAttribution } from "@/lib/auth/actor-context";
 import { generateKeyBetween } from "fractional-indexing";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -671,6 +672,7 @@ export async function publishRelease(
         afterById.set(destination!.id, { id: destination!.id, name: destination!.name });
         const after = [...afterById.values()].sort((a, b) => a.id.localeCompare(b.id));
         return {
+          ...activityAttribution(),
           itemId,
           actorId: actor.id,
           action: "update" as const,
@@ -1026,6 +1028,7 @@ async function removeReleaseInTx(
       if (target) afterById.set(target.id, { id: target.id, name: target.name });
       const after = [...afterById.values()].sort((a, b) => a.id.localeCompare(b.id));
       return {
+        ...activityAttribution(),
         itemId,
         actorId: actor.id,
         action: "update" as const,

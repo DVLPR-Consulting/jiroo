@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { activityAttribution } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import {
   activities,
@@ -174,6 +175,7 @@ export async function assignItemsToSprintInTx(
       }
     }
     activityRows.push({
+      ...activityAttribution(),
       itemId: item.id,
       actorId,
       action: "update",

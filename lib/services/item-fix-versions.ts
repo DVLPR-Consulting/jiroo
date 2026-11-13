@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, isNull, notInArray } from "drizzle-orm";
+import { activityAttribution } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import {
   activities,
@@ -177,6 +178,7 @@ async function mutateItemFixVersionsInTx(
       additions.push({ backlogId: input.backlogId, itemId, releaseId, addedBy: actorId });
     }
     activityRows.push({
+      ...activityAttribution(),
       itemId,
       actorId,
       action: "update",

@@ -72,6 +72,16 @@ describe("UserCard", () => {
     expect(within(dialog).getByLabelText("Mot de passe actuel")).toBeVisible();
   });
 
+  it("leads to the access tokens page from its menu", async () => {
+    const interaction = userEvent.setup();
+    renderUserCard();
+
+    await interaction.click(screen.getByRole("button", { name: "Profil de Ada Lovelace" }));
+    await interaction.click(screen.getByRole("menuitem", { name: "Jetons d’accès" }));
+
+    expect(mocks.push).toHaveBeenCalledWith("/jetons");
+  });
+
   it("opens the persisted theme and density preferences", async () => {
     const interaction = userEvent.setup();
     renderUserCard();

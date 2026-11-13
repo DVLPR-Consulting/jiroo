@@ -40,3 +40,9 @@ export function currentActorContext(): Actor | null {
 export function currentActivitySource(): ActivitySource {
   return storage.getStore()?.source ?? "ui";
 }
+
+/** The two attribution columns every activity row carries (JIR-156). */
+export function activityAttribution(): { source: ActivitySource; tokenId: string | null } {
+  const actor = storage.getStore();
+  return { source: actor?.source ?? "ui", tokenId: actor?.tokenId ?? null };
+}

@@ -58,6 +58,8 @@ export function deriveShellContext({
     // The team's absences, outside any backlog (JIR-124).
     "/presences": { section: "Calendrier d’équipe", activeNav: "presences" as const },
     "/trash": { section: "Corbeille", activeNav: "trash" as const },
+    // The user's access tokens for the API and the MCP server (JIR-156).
+    "/jetons": { section: "Jetons d’accès", activeNav: null },
     "/admin": { section: "Administration", activeNav: "admin" as const },
     "/aide": { section: "Aide", activeNav: null },
   }[pathname];

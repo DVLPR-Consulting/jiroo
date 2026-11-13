@@ -1,3 +1,4 @@
+import { currentActorContext } from "@/lib/auth/actor-context";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { activities, comments, items, notifications } from "@/lib/db/schema/domain";
@@ -104,6 +105,7 @@ export async function addComment(input: unknown, authorId: string) {
     }
 
     // Log activity
+    const actor = currentActorContext();
     await tx.insert(activities).values({
       itemId: data.itemId,
       actorId: authorId,
@@ -111,6 +113,8 @@ export async function addComment(input: unknown, authorId: string) {
       field: null,
       oldValue: null,
       newValue: null,
+      source: actor?.source ?? "ui",
+      tokenId: actor?.tokenId ?? null,
     });
 
     return { ...comment!, notifyUserIds: targets };

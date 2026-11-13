@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { activityAttribution } from "@/lib/auth/actor-context";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { nextItemRevision } from "@/lib/services/item-revision";
@@ -337,6 +338,7 @@ export async function moveItemToSprint(
       .where(eq(items.id, current.id))
       .returning();
     await tx.insert(activities).values({
+      ...activityAttribution(),
       itemId: current.id,
       actorId,
       action: "move",

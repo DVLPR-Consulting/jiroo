@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Client } from "pg";
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import {

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ transaction: vi.fn() }));
+vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ db: { transaction: mocks.transaction } }));
 
 import { addComment } from "@/lib/services/comments";

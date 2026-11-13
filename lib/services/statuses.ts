@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { activityAttribution } from "@/lib/auth/actor-context";
 import { db } from "@/lib/db";
 import { activities, backlogs, items, statuses } from "@/lib/db/schema/domain";
 import {
@@ -47,6 +48,7 @@ export function buildStatusMigrationActivities(
   actorId: string,
 ) {
   return affected.map(({ id }) => ({
+    ...activityAttribution(),
     itemId: id,
     actorId,
     action: "status_change" as const,
@@ -155,6 +157,7 @@ export async function updateStatus(input: unknown, actorId: string) {
       if (affected.length > 0) {
         await tx.insert(activities).values(
           affected.map(({ id }) => ({
+            ...activityAttribution(),
             itemId: id,
             actorId,
             action: "update" as const,

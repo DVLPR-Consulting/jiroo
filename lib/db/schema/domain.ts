@@ -22,6 +22,8 @@ import { user } from "./auth";
 import {
   accessModeEnum,
   activityActionEnum,
+  activitySourceEnum,
+  apiTokenScopeEnum,
   displayModeEnum,
   itemKindEnum,
   itemTypeEnum,
@@ -887,7 +889,51 @@ export const activities = pgTable("activities", {
   newValue: text("new_value"),
   requestCorrelationId: text("request_correlation_id"),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  // How the actor reached Jiroo and, for the API and MCP, with which token
+  // (JIR-156). A revoked or deleted token leaves the activity in place.
+  source: activitySourceEnum("source").notNull().default("ui"),
+  tokenId: uuid("token_id").references(() => apiTokens.id, { onDelete: "set null" }),
 });
+
+// Personal access tokens (JIR-156): a token acts as its owner, with the
+// owner's permissions, for the REST API and the MCP server. Only the SHA-256
+// of the secret is stored; the prefix identifies the token in the list.
+export const apiTokens = pgTable(
+  "api_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    tokenPrefix: text("token_prefix").notNull(),
+    scope: apiTokenScopeEnum("scope").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("api_tokens_hash_idx").on(t.tokenHash),
+    index("api_tokens_user_idx").on(t.userId),
+  ],
+);
+
+// Authenticated API requests per token and minute (JIR-156): the request
+// budget, reserved atomically and shared by every instance, like the
+// repository webhooks' budget.
+export const apiTokenRate = pgTable(
+  "api_token_rate",
+  {
+    tokenId: uuid("token_id")
+      .notNull()
+      .references(() => apiTokens.id, { onDelete: "cascade" }),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.tokenId, t.windowStart] })],
+);
 
 export const notifications = pgTable("notifications", {
   id: uuid("id").primaryKey().defaultRandom(),

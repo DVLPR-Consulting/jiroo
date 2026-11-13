@@ -334,6 +334,21 @@ export async function applyOwnPasswordChange(
   return false;
 }
 
+/**
+ * The auth version a session was granted with, read from its row: Better Auth
+ * hides the field from `getSession()` (`returned: false`), so a caller that
+ * must compare it with the user's current version (token creation, JIR-156)
+ * asks the database. `null` for a session that no longer exists.
+ */
+export async function sessionAuthVersion(sessionId: string): Promise<number | null> {
+  const [row] = await db
+    .select({ authVersion: session.authVersion })
+    .from(session)
+    .where(eq(session.id, sessionId))
+    .limit(1);
+  return row?.authVersion ?? null;
+}
+
 export const AUTH_VERSION_FIELD = {
   type: "number",
   required: false,
