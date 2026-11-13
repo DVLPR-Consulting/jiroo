@@ -3,6 +3,7 @@ import { permissionDeniedError } from "@/test-utils/action-authorization-errors"
 
 const mocks = vi.hoisted(() => ({
   addComment: vi.fn(),
+  checkPermission: vi.fn(),
   notifyUsers: vi.fn(),
   publishBacklogChange: vi.fn(),
   requireItemPermission: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock("@/lib/auth/action-authorization", () => ({
   requireItemPermission: mocks.requireItemPermission,
 }));
 vi.mock("@/lib/services/comments", () => ({ addComment: mocks.addComment }));
+vi.mock("@/lib/auth/authorization", () => ({ checkPermission: mocks.checkPermission }));
 
 import { currentActivitySource, type Actor } from "@/lib/auth/actor-context";
 import { addCommentUseCase } from "@/lib/use-cases/comments";
@@ -30,6 +32,7 @@ beforeEach(() => {
   mocks.addComment.mockResolvedValue({ id: "comment-1", body: "Message", notifyUserIds: ["recipient-1"] });
   mocks.publishBacklogChange.mockResolvedValue(undefined);
   mocks.notifyUsers.mockResolvedValue(undefined);
+  mocks.checkPermission.mockResolvedValue({ allowed: true });
 });
 
 describe("addCommentUseCase", () => {
@@ -59,6 +62,22 @@ describe("addCommentUseCase", () => {
       mocks.notifyUsers,
     ].map((mock) => mock.mock.invocationCallOrder[0]!);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it("only mentions users who may read the backlog, and never says why the others were dropped", async () => {
+    mocks.checkPermission.mockImplementation(async ({ actorId }: { actorId: string }) => ({ allowed: actorId === "reader" }));
+    await addCommentUseCase(author, { itemId: "item-1", body: "Message", mentionIds: ["reader", "outsider", "reader", "ghost"] });
+
+    expect(mocks.checkPermission).toHaveBeenCalledWith({
+      actorId: "outsider",
+      permission: "browse_backlog",
+      scope: { type: "backlog", backlogId: "backlog-1" },
+    });
+    expect(mocks.addComment).toHaveBeenCalledWith({ itemId: "item-1", body: "Message", mentionIds: ["reader"] }, "author-1");
+
+    mocks.checkPermission.mockRejectedValueOnce(new Error("unknown user"));
+    await expect(addCommentUseCase(author, { itemId: "item-1", body: "Message", mentionIds: ["ghost"] })).resolves.toBeDefined();
+    expect(mocks.addComment).toHaveBeenLastCalledWith({ itemId: "item-1", body: "Message", mentionIds: [] }, "author-1");
   });
 
   it("stops before the service when the actor may not comment", async () => {

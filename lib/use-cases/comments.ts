@@ -1,6 +1,7 @@
 import "server-only";
 import { runWithActor, type Actor } from "@/lib/auth/actor-context";
 import { requireItemPermission } from "@/lib/auth/action-authorization";
+import { checkPermission } from "@/lib/auth/authorization";
 import { notifyUsers, publishBacklogChange } from "@/lib/realtime/publish";
 import { addComment } from "@/lib/services/comments";
 
@@ -18,6 +19,28 @@ export type AddCommentUseCaseInput = {
 
 export type AddedComment = Omit<Awaited<ReturnType<typeof addComment>>, "notifyUserIds">;
 
+/**
+ * Keeps the mentioned users who may read the backlog: a mention must not
+ * notify someone about an item they cannot open, nor tell the author whether
+ * a user id exists (security audit, JIR-160).
+ */
+async function readableMentions(mentionIds: string[], backlogId: string): Promise<string[]> {
+  const unique = [...new Set(mentionIds)];
+  const decisions = await Promise.all(unique.map(async (userId) => {
+    try {
+      const decision = await checkPermission({
+        actorId: userId,
+        permission: "browse_backlog",
+        scope: { type: "backlog", backlogId },
+      });
+      return decision.allowed ? userId : null;
+    } catch {
+      return null;
+    }
+  }));
+  return decisions.filter((userId): userId is string => userId !== null);
+}
+
 export async function addCommentUseCase(
   actor: Actor,
   input: AddCommentUseCaseInput,
@@ -29,7 +52,8 @@ export async function addCommentUseCase(
       itemId: input.itemId,
       permission: "add_comments",
     });
-    const { notifyUserIds, ...comment } = await addComment(input, actorId);
+    const mentionIds = await readableMentions(input.mentionIds, authorization.backlogId);
+    const { notifyUserIds, ...comment } = await addComment({ ...input, mentionIds }, actorId);
     await publishBacklogChange({
       kind: "item",
       backlogId: authorization.backlogId,
