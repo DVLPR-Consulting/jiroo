@@ -89,6 +89,21 @@ async function assertUniqueName(
   if (duplicate) throw new Error("Un statut portant ce nom existe déjà.");
 }
 
+/** The statuses of a backlog in board order, for the API and the MCP server (JIR-157, JIR-158). */
+export function listStatusesForBacklog(backlogId: string) {
+  return db
+    .select({
+      id: statuses.id,
+      name: statuses.name,
+      category: statuses.category,
+      color: statuses.color,
+      order: statuses.order,
+    })
+    .from(statuses)
+    .where(eq(statuses.backlogId, backlogId))
+    .orderBy(asc(statuses.order), asc(statuses.id));
+}
+
 export async function createStatus(input: unknown) {
   const data = createStatusSchema.parse(input);
   return db.transaction(async (tx) => {
