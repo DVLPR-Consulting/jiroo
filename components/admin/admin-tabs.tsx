@@ -16,15 +16,17 @@ import {
   type ProjectRoleAdminProps,
 } from "@/components/admin/project-role-admin";
 import { UserAdmin, type UserAdminDto } from "@/components/admin/user-admin";
+import { ApiTokensAdmin, type AdministeredApiToken } from "@/components/admin/api-tokens-admin";
 
-export type AdminTab = "backlogs" | "users" | "groups" | "roles" | "schemes";
+export type AdminTab = "backlogs" | "users" | "groups" | "roles" | "schemes" | "tokens";
 
 export type AdminTabData =
   | { tab: "backlogs"; backlogs: Backlog[]; leadOptions?: BacklogLeadOption[] }
   | { tab: "users"; users: UserAdminDto[]; currentUserId: string; canRecoverAccounts: boolean }
   | ({ tab: "groups" } & GroupAdminProps)
   | ({ tab: "roles" } & ProjectRoleAdminProps)
-  | ({ tab: "schemes" } & PermissionSchemeAdminProps);
+  | ({ tab: "schemes" } & PermissionSchemeAdminProps)
+  | { tab: "tokens"; tokens: AdministeredApiToken[]; now: string };
 
 export function AdminTabs({
   activeTab,
@@ -39,6 +41,7 @@ export function AdminTabs({
     { id: "groups", label: "Groupes", href: "/admin?tab=groups" },
     { id: "roles", label: "Rôles de projet", href: "/admin?tab=roles" },
     { id: "schemes", label: "Schémas de permissions", href: "/admin?tab=schemes" },
+    { id: "tokens", label: "Jetons d’accès", href: "/admin?tab=tokens" },
   ];
 
   function moveFocus(event: React.KeyboardEvent<HTMLAnchorElement>, index: number) {
@@ -100,6 +103,7 @@ export function AdminTabs({
         {data.tab === "groups" && <GroupAdmin {...data} />}
         {data.tab === "roles" && <ProjectRoleAdmin {...data} />}
         {data.tab === "schemes" && <PermissionSchemeAdmin {...data} />}
+        {data.tab === "tokens" && <ApiTokensAdmin tokens={data.tokens} now={data.now} />}
       </section>
     </div>
   );

@@ -1,20 +1,22 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { sessionAuthVersion } from "@/lib/auth/auth-version";
 import { db } from "@/lib/db";
 import { session, user } from "@/lib/db/schema/auth";
-import { apiTokens, securityAuditEvents } from "@/lib/db/schema/domain";
+import { apiTokens, permissionGrants, securityAuditEvents } from "@/lib/db/schema/domain";
 import {
   authenticateApiToken,
   createApiToken,
   hashApiToken,
   listApiTokens,
   MAX_LIVE_TOKENS_PER_USER,
+  listAllLiveApiTokens,
   revokeAllTokensForUser,
   revokeApiToken,
+  revokeApiTokenAsAdministrator,
   TOO_MANY_TOKENS_MESSAGE,
 } from "@/lib/services/api-tokens";
 
@@ -203,6 +205,38 @@ describeDb("api tokens (JIR-156)", () => {
   it("refuses a write token without expiry", async () => {
     await expect(createApiToken({ name: "Éternel", scope: "write", expiresInDays: null }, owner.id, { authVersion: 0 }))
       .rejects.toMatchObject({ name: "ZodError" });
+  });
+
+  it("lets only a Jiroo administrator list and revoke every account's tokens, with an audit event", async () => {
+    const admin = { id: `api-token-admin-${randomUUID()}`, email: `${randomUUID()}@tokens.test`, name: "Admin jetons" };
+    await db.insert(user).values({ ...admin, emailVerified: true, twoFactorEnabled: true, role: "admin" });
+    await db.insert(permissionGrants).values({ scope: "global", permissionKey: "administer_jiroo", principalType: "user", userId: admin.id });
+    try {
+      const target = await createApiToken({ name: "À couper", scope: "read", expiresInDays: 30 }, owner.id, { authVersion: 0 });
+
+      await expect(listAllLiveApiTokens(other.id)).rejects.toMatchObject({ name: "PermissionDeniedError" });
+      await expect(revokeApiTokenAsAdministrator(target.row.id, other.id)).rejects.toMatchObject({ name: "PermissionDeniedError" });
+      expect(await authenticateApiToken(target.token)).not.toBeNull();
+
+      const listed = await listAllLiveApiTokens(admin.id);
+      const row = listed.find((token) => token.id === target.row.id);
+      expect(row).toMatchObject({ name: "À couper", ownerName: "Propriétaire", ownerEmail: owner.email });
+      expect(listed.every((token) => !("tokenHash" in token))).toBe(true);
+
+      expect(await revokeApiTokenAsAdministrator(target.row.id, admin.id, new Date(), "admin-revoke")).toBe(true);
+      expect(await authenticateApiToken(target.token)).toBeNull();
+      expect(await revokeApiTokenAsAdministrator(target.row.id, admin.id)).toBe(false);
+      const [event] = await db.select().from(securityAuditEvents).where(and(
+        eq(securityAuditEvents.targetId, target.row.id),
+        eq(securityAuditEvents.action, "api_token_revoked_by_administrator"),
+      ));
+      expect(event).toMatchObject({ actorId: admin.id, targetType: "api_token", requestCorrelationId: "admin-revoke", newValue: { ownerId: owner.id, name: "À couper", scope: "read" } });
+      expect(JSON.stringify(event)).not.toContain(target.token);
+    } finally {
+      await db.delete(securityAuditEvents).where(eq(securityAuditEvents.actorId, admin.id));
+      await db.delete(permissionGrants).where(eq(permissionGrants.userId, admin.id));
+      await db.delete(user).where(eq(user.id, admin.id));
+    }
   });
 
   it("caps the live tokens of a user", async () => {

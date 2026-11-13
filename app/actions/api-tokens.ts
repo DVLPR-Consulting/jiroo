@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth/session";
 import {
   createApiToken,
   revokeApiToken,
+  revokeApiTokenAsAdministrator,
   StaleAuthorizationError,
   type ApiTokenRow,
 } from "@/lib/services/api-tokens";
@@ -60,6 +61,23 @@ export async function revokeApiTokenAction(input: { id: string }): Promise<{ ok:
     return revoked ? { ok: true } : { ok: false, error: TOKEN_GONE };
   } catch (error) {
     console.error("[api-tokens] revocation failed", error);
+    return { ok: false, error: REVOKE_FAILED };
+  }
+}
+
+// WORDING: provisional until Codex's proposal (JIR-161).
+const NOT_ADMINISTRATOR = "Seul un administrateur Jiroo peut révoquer le jeton d’un autre compte.";
+
+/** Administration → Jetons d’accès: revoke any account's token (JIR-161). */
+export async function revokeApiTokenAsAdministratorAction(input: { id: string }): Promise<{ ok: true } | ActionFailure> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: STALE_SESSION_MESSAGE };
+  try {
+    const revoked = await revokeApiTokenAsAdministrator(input.id, session.user.id);
+    return revoked ? { ok: true } : { ok: false, error: TOKEN_GONE };
+  } catch (error) {
+    if (error instanceof Error && error.name === "PermissionDeniedError") return { ok: false, error: NOT_ADMINISTRATOR };
+    console.error(`[api-tokens] administrator revocation failed: ${error instanceof Error ? error.name : typeof error}`);
     return { ok: false, error: REVOKE_FAILED };
   }
 }

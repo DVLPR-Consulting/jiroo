@@ -7,6 +7,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("@/components/admin/api-tokens-admin", () => ({ ApiTokensAdmin: () => <p>Jetons actifs</p> }));
 vi.mock("@/components/admin/backlog-admin", () => ({ BacklogAdmin: () => <p>Backlogs actifs</p> }));
 vi.mock("@/components/admin/user-admin", () => ({ UserAdmin: () => <p>Utilisateurs actifs</p> }));
 vi.mock("@/components/admin/group-admin", () => ({ GroupAdmin: () => <p>Groupes actifs</p> }));
@@ -18,18 +19,20 @@ vi.mock("@/components/admin/permission-scheme-admin", () => ({
 import { AdminTabs } from "@/components/admin/admin-tabs";
 
 describe("AdminTabs", () => {
-  it("expose exactement cinq onglets avec la sélection et les liens attendus", () => {
+  it("expose exactement six onglets avec la sélection et les liens attendus", () => {
     render(<AdminTabs activeTab="groups" data={{ tab: "groups", groups: [], users: [], globalGrants: [], canAdministerGlobals: false }} />);
 
     const tabs = screen.getAllByRole("tab");
-    expect(tabs).toHaveLength(5);
+    expect(tabs).toHaveLength(6);
     expect(tabs.map((tab) => tab.textContent)).toEqual([
       "Backlogs",
       "Utilisateurs",
       "Groupes",
       "Rôles de projet",
       "Schémas de permissions",
+      "Jetons d’accès",
     ]);
+    expect(screen.getByRole("tab", { name: "Jetons d’accès" })).toHaveAttribute("href", "/admin?tab=tokens");
     expect(screen.getByRole("tab", { name: "Groupes" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Schémas de permissions" })).toHaveAttribute(
       "href",

@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { and, count, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { requirePermissionWithoutBypassAudit } from "@/lib/auth/authorization";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { apiTokens, securityAuditEvents } from "@/lib/db/schema/domain";
@@ -88,7 +89,7 @@ async function appendTokenAuditEvent(
   tx: Queryable,
   event: {
     actorId: string;
-    action: "api_token_created" | "api_token_revoked";
+    action: "api_token_created" | "api_token_revoked" | "api_token_revoked_by_administrator";
     tokenId: string;
     newValue: Record<string, unknown>;
     requestCorrelationId: string;
@@ -212,6 +213,60 @@ export async function revokeApiToken(
       action: "api_token_revoked",
       tokenId: token.id,
       newValue: { name: token.name, scope: token.scope },
+      requestCorrelationId,
+    });
+    return true;
+  });
+}
+
+/** A live token as Administration lists it: its metadata and its owner, never its hash. */
+export type AdministeredApiTokenRow = ApiTokenRow & { ownerName: string; ownerEmail: string };
+
+async function requireTokenAdministrator(actorId: string): Promise<void> {
+  // Same gate as the account recoveries: only a Jiroo administrator (JIR-161).
+  await requirePermissionWithoutBypassAudit({
+    actorId,
+    permission: "administer_jiroo",
+    scope: { type: "global" },
+  });
+}
+
+/** Every live token of every account, newest first, for Administration (JIR-161). */
+export async function listAllLiveApiTokens(actorId: string): Promise<AdministeredApiTokenRow[]> {
+  await requireTokenAdministrator(actorId);
+  return db
+    .select({ ...publicColumns, ownerName: user.name, ownerEmail: user.email })
+    .from(apiTokens)
+    .innerJoin(user, eq(apiTokens.userId, user.id))
+    .where(isNull(apiTokens.revokedAt))
+    .orderBy(desc(apiTokens.createdAt), desc(apiTokens.id));
+}
+
+/**
+ * Revokes any account's live token on an administrator's behalf, recorded in
+ * the security audit trail with the owner (JIR-161). `false` when the token
+ * is unknown or already revoked.
+ */
+export async function revokeApiTokenAsAdministrator(
+  id: string,
+  actorId: string,
+  now = new Date(),
+  requestCorrelationId: string = randomUUID(),
+): Promise<boolean> {
+  await requireTokenAdministrator(actorId);
+  return db.transaction(async (tx) => {
+    const revoked = await tx
+      .update(apiTokens)
+      .set({ revokedAt: now })
+      .where(and(eq(apiTokens.id, id), isNull(apiTokens.revokedAt)))
+      .returning({ id: apiTokens.id, ownerId: apiTokens.userId, name: apiTokens.name, scope: apiTokens.scope });
+    const token = revoked[0];
+    if (!token) return false;
+    await appendTokenAuditEvent(tx, {
+      actorId,
+      action: "api_token_revoked_by_administrator",
+      tokenId: token.id,
+      newValue: { ownerId: token.ownerId, name: token.name, scope: token.scope },
       requestCorrelationId,
     });
     return true;
