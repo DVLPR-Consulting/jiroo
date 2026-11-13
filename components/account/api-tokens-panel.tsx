@@ -208,7 +208,9 @@ export function ApiTokensPanel({ tokens, now }: { tokens: ApiTokenView[]; now: s
             </DialogDescription>
           </DialogHeader>
           <form
-            className="space-y-4"
+            // The dialog is a grid: without min-w-0 its track grows to the
+            // longest option label instead of truncating it (JIR-156).
+            className="min-w-0 space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
               if (!pending && name.trim().length > 0) submitCreate();
@@ -267,7 +269,7 @@ export function ApiTokensPanel({ tokens, now }: { tokens: ApiTokenView[]; now: s
                   perte, révoquez-le et créez-en un nouveau.
                 </DialogDescription>
               </DialogHeader>
-              <div className="flex gap-2">
+              <div className="flex min-w-0 gap-2">
                 <Input
                   readOnly
                   value={revealed.token}
