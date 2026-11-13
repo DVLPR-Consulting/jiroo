@@ -104,3 +104,35 @@ export function toItemSummary(row: ItemSummaryRow): ItemSummary {
 export function toBacklogSummary(row: { id: string; key: string; name: string; color: string; archivedAt: Date | null }): BacklogSummary {
   return { id: row.id, key: row.key, name: row.name, color: row.color, archivedAt: isoDate(row.archivedAt) };
 }
+
+export type ApiComment = {
+  id: string; author: UserRef; body: string; createdAt: string; updatedAt: string | null; deletedAt: string | null;
+};
+export type ApiActivity = {
+  id: string; actor: UserRef; action: string; field: string | null; oldValue: string | null; newValue: string | null;
+  source: "ui" | "api" | "mcp" | "webhook"; at: string;
+};
+export type ItemDetail = ItemSummary & {
+  description: string | null;
+  reporter: UserRef | null;
+  parent: { id: string; key: string; title: string } | null;
+  children: { id: string; key: string; title: string; statusId: string }[];
+  labels: { id: string; name: string; color: string }[];
+  comments: ApiComment[];
+  activities: ApiActivity[];
+  url: string;
+};
+export type CommentDtoRow = Omit<ApiComment, "createdAt" | "updatedAt" | "deletedAt"> & {
+  createdAt: Date; editedAt: Date | null; deletedAt: Date | null;
+};
+export function toApiComment(row: CommentDtoRow): ApiComment {
+  return { id: row.id, author: row.author, body: row.deletedAt ? "" : row.body,
+    createdAt: isoDate(row.createdAt), updatedAt: isoDate(row.editedAt), deletedAt: isoDate(row.deletedAt) };
+}
+export function toItemDetail(summary: ItemSummary, detail: Omit<ItemDetail, keyof ItemSummary | "comments" | "activities" | "url"> & {
+  comments: CommentDtoRow[]; activities: (Omit<ApiActivity, "at"> & { at: Date })[];
+}): ItemDetail {
+  return { ...summary, ...detail, comments: detail.comments.map(toApiComment),
+    activities: detail.activities.map((activity) => ({ ...activity, at: isoDate(activity.at) })),
+    url: `/b/${summary.backlog.key}?item=${summary.key}` };
+}

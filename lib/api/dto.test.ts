@@ -67,3 +67,17 @@ describe("toItemSummary", () => {
       .toBe("2026-01-01T00:00:00.000Z");
   });
 });
+
+describe("item detail DTO", () => {
+  it("serializes the detail and blanks deleted comment bodies", async () => {
+    const { toItemDetail } = await import("./dto");
+    const result = toItemDetail({ key: "AB-1", backlog: { key: "AB" } } as import("./dto").ItemSummary, {
+      description: null, reporter: null, parent: null, children: [], labels: [],
+      comments: [{ id: "c", author: { id: "u", name: "User" }, body: "deleted secret", createdAt: new Date("2026-01-01Z"), editedAt: null, deletedAt: new Date("2026-01-02Z") }],
+      activities: [{ id: "a", actor: { id: "u", name: "User" }, action: "created", field: null, oldValue: null, newValue: null, source: "api", at: new Date("2026-01-01Z") }],
+    });
+    expect(result.url).toBe("/b/AB?item=AB-1");
+    expect(result.comments[0]).toEqual({ id: "c", author: { id: "u", name: "User" }, body: "", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: null, deletedAt: "2026-01-02T00:00:00.000Z" });
+    expect(result.activities[0]!.at).toBe("2026-01-01T00:00:00.000Z");
+  });
+});
