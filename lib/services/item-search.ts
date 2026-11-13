@@ -50,7 +50,11 @@ function isValidInstantText(value: string): boolean {
   const iso = `${year}-${month}-${day}T${hour}:${minute}:${second}${fraction.slice(0, 4)}${offsetHours}:${offsetMinutes.replace(":", "")}`;
   // Date.parse refuses an impossible date; comparing the day back rules out an accepted rollover.
   const parsed = new Date(iso);
+  const offsetMinutesTotal = Math.abs(Number(offsetHours)) * 60 + Number(offsetMinutes.replace(":", ""));
   return !Number.isNaN(parsed.getTime())
+    // PostgreSQL has no year 0 and caps a zone offset at 15:59.
+    && Number(year) >= 1
+    && offsetMinutesTotal <= 15 * 60 + 59 && Number(offsetMinutes.replace(":", "")) < 60
     && Number(hour) < 24 && Number(minute) < 60 && Number(second) < 60
     && Number(month) >= 1 && Number(month) <= 12 && Number(day) >= 1
     && Number(day) <= new Date(Date.UTC(Number(year), Number(month), 0)).getUTCDate();
