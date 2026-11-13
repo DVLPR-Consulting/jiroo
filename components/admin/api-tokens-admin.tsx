@@ -28,7 +28,7 @@ export type AdministeredApiToken = {
   owner: { name: string; email: string };
 };
 
-// WORDING: provisional until Codex's proposal (JIR-161); scope labels as on the personal page.
+// WORDING (Codex, JIR-161); scope labels as on the personal page.
 const SCOPE_LABELS: Record<ApiTokenScope, string> = { read: "Lecture", write: "Lecture et écriture" };
 
 function formatDate(iso: string): string {
@@ -49,7 +49,7 @@ export function ApiTokensAdmin({ tokens, now }: { tokens: AdministeredApiToken[]
         toast.error(result.error);
         return;
       }
-      toast.success(`Jeton « ${token.name} » de ${token.owner.name} révoqué.`);
+      toast.success(`Jeton « ${token.name} » du compte « ${token.owner.name} » révoqué.`);
       router.refresh();
     });
   }
@@ -58,8 +58,8 @@ export function ApiTokensAdmin({ tokens, now }: { tokens: AdministeredApiToken[]
     <div className="space-y-4" data-slot="api-tokens-admin">
       <p className="t-sm text-muted-foreground">
         {tokens.length === 0
-          ? "Aucun jeton actif."
-          : `${tokens.length} ${tokens.length > 1 ? "jetons" : "jeton"}. Chaque utilisateur crée ses jetons depuis son menu ; un administrateur peut les révoquer ici.`}
+          ? "Aucun jeton à afficher."
+          : `${tokens.length} ${tokens.length > 1 ? "jetons non révoqués" : "jeton non révoqué"}. Chaque utilisateur crée ses jetons depuis son menu utilisateur. Vous pouvez les révoquer ici, même après leur expiration.`}
       </p>
 
       {tokens.length > 0 && (
@@ -94,7 +94,7 @@ export function ApiTokensAdmin({ tokens, now }: { tokens: AdministeredApiToken[]
                   size="sm"
                   disabled={pending}
                   onClick={() => setRevoking(token)}
-                  aria-label={`Révoquer le jeton « ${token.name} » de ${token.owner.name}`}
+                  aria-label={`Révoquer le jeton « ${token.name} » du compte « ${token.owner.name} »`}
                 >
                   Révoquer
                 </Button>
@@ -111,8 +111,8 @@ export function ApiTokensAdmin({ tokens, now }: { tokens: AdministeredApiToken[]
               <DialogHeader>
                 <DialogTitle>Révoquer ce jeton ?</DialogTitle>
                 <DialogDescription className="[overflow-wrap:anywhere]">
-                  Le jeton « {revoking.name} » de {revoking.owner.name} ne permettra plus d’accéder à Jiroo.
-                  Cette action est définitive et inscrite dans le journal de sécurité.
+                  Le jeton « {revoking.name} » du compte « {revoking.owner.name} » ne pourra plus être utilisé pour accéder à Jiroo.
+                  Cette révocation est définitive et sera enregistrée dans le journal de sécurité.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>

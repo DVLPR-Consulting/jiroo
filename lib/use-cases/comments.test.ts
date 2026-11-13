@@ -86,7 +86,7 @@ describe("addCommentUseCase", () => {
     mocks.checkPermission.mockClear();
     const many = Array.from({ length: 51 }, (_, index) => `user-${index}`);
     await expect(addCommentUseCase(author, { itemId: "item-1", body: "Message", mentionIds: [...many, ...many] }))
-      .rejects.toThrow("Un commentaire peut mentionner 50 personnes au plus.");
+      .rejects.toThrow("Un commentaire peut mentionner au maximum 50 personnes. Retirez des mentions pour l’enregistrer.");
     expect(mocks.checkPermission).not.toHaveBeenCalled();
     const fifty = many.slice(0, 50);
     await expect(addCommentUseCase(author, { itemId: "item-1", body: "Message", mentionIds: [...fifty, ...fifty] })).resolves.toBeDefined();

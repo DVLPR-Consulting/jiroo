@@ -26,8 +26,8 @@ export type AddedComment = Omit<Awaited<ReturnType<typeof addComment>>, "notifyU
  */
 /** The most distinct users one comment may mention (the API's limit too). */
 export const MAX_MENTIONS = 50;
-// WORDING: provisional until Codex's proposal (JIR-160).
-export const TOO_MANY_MENTIONS_MESSAGE = `Un commentaire peut mentionner ${MAX_MENTIONS} personnes au plus.`;
+// WORDING (Codex, JIR-161). Mirrored verbatim in DOMAIN_ERROR_MESSAGES and the comment actions' mapping.
+export const TOO_MANY_MENTIONS_MESSAGE = `Un commentaire peut mentionner au maximum ${MAX_MENTIONS} personnes. Retirez des mentions pour l’enregistrer.`;
 
 export async function readableMentions(mentionIds: string[], backlogId: string): Promise<string[]> {
   const unique = [...new Set(mentionIds)];

@@ -11,8 +11,8 @@ export const MAX_LIVE_TOKENS_PER_USER = 50;
 // WORDING (Codex, JIR-156): user-facing messages shared by the service and the UI.
 export const TOO_MANY_TOKENS_MESSAGE = `Vous avez déjà ${MAX_LIVE_TOKENS_PER_USER} jetons : révoquez-en un avant d’en créer un autre.`;
 export const STALE_SESSION_MESSAGE = "Votre session a expiré. Reconnectez-vous.";
-// WORDING: provisional until Codex's proposal (JIR-160).
-export const WRITE_TOKEN_NEEDS_EXPIRY_MESSAGE = "Un jeton en lecture et écriture doit avoir une date d’expiration.";
+// WORDING (Codex, JIR-161).
+export const WRITE_TOKEN_NEEDS_EXPIRY_MESSAGE = "Un jeton « Lecture et écriture » doit expirer. Choisissez une durée d’expiration.";
 
 /** The durations the « Jetons d'accès » page offers, or no expiry (null). */
 export const API_TOKEN_EXPIRY_DAYS = [30, 90, 365] as const;

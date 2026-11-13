@@ -45,7 +45,7 @@ describe("ApiTokensAdmin", () => {
 
   it("says when no token is live", () => {
     render(<ApiTokensAdmin tokens={[]} now={now} />);
-    expect(screen.getByText("Aucun jeton actif.")).toBeVisible();
+    expect(screen.getByText("Aucun jeton à afficher.")).toBeVisible();
   });
 
   it("revokes another account's token after confirmation naming its owner", async () => {
@@ -53,24 +53,24 @@ describe("ApiTokensAdmin", () => {
     mocks.revoke.mockResolvedValue({ ok: true });
     render(<ApiTokensAdmin tokens={tokens} now={now} />);
 
-    await interaction.click(screen.getByRole("button", { name: "Révoquer le jeton « Herdr » de Ada" }));
+    await interaction.click(screen.getByRole("button", { name: "Révoquer le jeton « Herdr » du compte « Ada »" }));
     const dialog = await screen.findByRole("dialog", { name: "Révoquer ce jeton ?" });
-    expect(within(dialog).getByText(/« Herdr » de Ada/)).toBeVisible();
+    expect(within(dialog).getByText(/Le jeton « Herdr » du compte « Ada » ne pourra plus être utilisé pour accéder à Jiroo\. Cette révocation est définitive et sera enregistrée dans le journal de sécurité\./)).toBeVisible();
     expect(mocks.revoke).not.toHaveBeenCalled();
     await interaction.click(within(dialog).getByRole("button", { name: "Révoquer" }));
 
     await waitFor(() => expect(mocks.revoke).toHaveBeenCalledWith({ id: "token-1" }));
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
-    expect(mocks.toastSuccess).toHaveBeenCalledWith("Jeton « Herdr » de Ada révoqué.");
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Jeton « Herdr » du compte « Ada » révoqué.");
   });
 
   it("reports a refused revocation", async () => {
     const interaction = userEvent.setup();
-    mocks.revoke.mockResolvedValue({ ok: false, error: "Seul un administrateur Jiroo peut révoquer le jeton d’un autre compte." });
+    mocks.revoke.mockResolvedValue({ ok: false, error: "Cette action est réservée aux administrateurs Jiroo." });
     render(<ApiTokensAdmin tokens={tokens} now={now} />);
-    await interaction.click(screen.getByRole("button", { name: "Révoquer le jeton « Script » de Grace" }));
+    await interaction.click(screen.getByRole("button", { name: "Révoquer le jeton « Script » du compte « Grace »" }));
     await interaction.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Révoquer" }));
-    await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith("Seul un administrateur Jiroo peut révoquer le jeton d’un autre compte."));
+    await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith("Cette action est réservée aux administrateurs Jiroo."));
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 });

@@ -136,7 +136,7 @@ describe("revokeApiTokenAsAdministratorAction", () => {
     mocks.revokeApiTokenAsAdministrator.mockRejectedValueOnce(Object.assign(new Error("denied"), { name: "PermissionDeniedError" }));
     await expect(revokeApiTokenAsAdministratorAction({ id: "token-9" })).resolves.toEqual({
       ok: false,
-      error: "Seul un administrateur Jiroo peut révoquer le jeton d’un autre compte.",
+      error: "Cette action est réservée aux administrateurs Jiroo.",
     });
     mocks.revokeApiTokenAsAdministrator.mockResolvedValueOnce(false);
     await expect(revokeApiTokenAsAdministratorAction({ id: "token-9" })).resolves.toMatchObject({ ok: false });

@@ -64,7 +64,7 @@ describe("createApiTokenSchema", () => {
     // A write token must expire (security audit, JIR-160).
     const forever = createApiTokenSchema.safeParse({ name: "Agents", scope: "write", expiresInDays: null });
     expect(forever.success).toBe(false);
-    if (!forever.success) expect(forever.error.issues[0]?.message).toBe("Un jeton en lecture et écriture doit avoir une date d’expiration.");
+    if (!forever.success) expect(forever.error.issues[0]?.message).toBe("Un jeton « Lecture et écriture » doit expirer. Choisissez une durée d’expiration.");
     expect(createApiTokenSchema.parse({ name: "Agents", scope: "write", expiresInDays: 30 }).expiresInDays).toBe(30);
   });
 
