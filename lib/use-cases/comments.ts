@@ -24,7 +24,7 @@ export type AddedComment = Omit<Awaited<ReturnType<typeof addComment>>, "notifyU
  * notify someone about an item they cannot open, nor tell the author whether
  * a user id exists (security audit, JIR-160).
  */
-async function readableMentions(mentionIds: string[], backlogId: string): Promise<string[]> {
+export async function readableMentions(mentionIds: string[], backlogId: string): Promise<string[]> {
   const unique = [...new Set(mentionIds)];
   const decisions = await Promise.all(unique.map(async (userId) => {
     try {

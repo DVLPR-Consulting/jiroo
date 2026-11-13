@@ -65,7 +65,10 @@ server-side and answered with a generic message.
   as soon as its owner no longer has two-factor authentication.
 - **Audit**: a platform administrator reading a backlog outside their ordinary grants
   (`get_item`, `list_statuses`, `search_items` on a named backlog, `create_item`) leaves a
-  bypass audit event, as in the interface.
+  bypass audit event. Cross-backlog lists (`list_backlogs`, `search_items` without a
+  backlog, `list_my_items`) do not.
+- **One message per request**: JSON-RPC batch arrays are refused (`400`), and bodies are
+  capped at 64 KiB (`413`).
 - **Prompt injection**: titles, descriptions and comments are written by Jiroo users and
   returned verbatim. Agents must treat them as data, never as instructions; the read tools
   say so in their descriptions. Prefer read tokens and short expiries for agents.

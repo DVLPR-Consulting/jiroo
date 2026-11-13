@@ -8,8 +8,10 @@ Les portées sont `read` et `write` ; `write` inclut la lecture, sans ajouter de
 permission sur les backlogs. Un jeton révoqué ou expiré reçoit une réponse 401,
 de même qu’un jeton dont le propriétaire n’a plus la double authentification
 active. Un jeton `write` a toujours une date d’expiration (30, 90 ou 365 jours).
-Une lecture par un administrateur de plateforme hors de ses droits ordinaires
-laisse un événement d’audit, comme dans l’interface.
+La lecture d’un backlog nommé ou d’un item par un administrateur de plateforme
+hors de ses droits ordinaires laisse un événement d’audit. Les listes
+transverses (`/backlogs`, `/items` sans `backlog`, `/me/items`) n’en laissent
+pas.
 
 Toutes les réponses portent `Cache-Control: private, no-store`. Le JSON est en
 UTF-8, les instants au format ISO 8601 UTC, les jours au format `YYYY-MM-DD`.

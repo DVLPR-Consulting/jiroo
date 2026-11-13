@@ -193,6 +193,13 @@ describeDb("api tokens (JIR-156)", () => {
     }
   });
 
+  it("stops authenticating a legacy write token that never expires", async () => {
+    const { token, row } = await createApiToken({ name: "Ancien", scope: "write", expiresInDays: 30 }, owner.id, { authVersion: 0 });
+    expect(await authenticateApiToken(token)).not.toBeNull();
+    await db.update(apiTokens).set({ expiresAt: null }).where(eq(apiTokens.id, row.id));
+    expect(await authenticateApiToken(token)).toBeNull();
+  });
+
   it("refuses a write token without expiry", async () => {
     await expect(createApiToken({ name: "Éternel", scope: "write", expiresInDays: null }, owner.id, { authVersion: 0 }))
       .rejects.toMatchObject({ name: "ZodError" });

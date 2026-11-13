@@ -81,6 +81,19 @@ describe("POST /api/mcp", () => {
     expect(refused.headers.get("retry-after")).toBe("17");
   });
 
+  it("refuses JSON-RPC batches and oversized bodies before spending budget or running a tool", async () => {
+    const batch = await POST(rpc([
+      { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "list_backlogs", arguments: {} } },
+      { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "list_backlogs", arguments: {} } },
+    ], "Bearer jiroo_pat_valid"));
+    expect(batch.status).toBe(400);
+    expect(mocks.listBacklogsForUser).not.toHaveBeenCalled();
+
+    const huge = await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "x".repeat(70 * 1024) } }, "Bearer jiroo_pat_valid"));
+    expect(huge.status).toBe(413);
+    expect(mocks.reserveApiRequest).not.toHaveBeenCalled();
+  });
+
   it("hides a failed budget write", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     mocks.reserveApiRequest.mockRejectedValueOnce(new Error('insert into "api_token_rate" PRIVATE_BUDGET_FAILURE'));

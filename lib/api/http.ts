@@ -36,10 +36,10 @@ export function problem(code: ProblemCode, options: { detail?: string; errors?: 
   }), { status, headers: headersFor("application/problem+json", options.headers) });
 }
 class InvalidJsonError extends Error {}
-class PayloadTooLargeError extends Error {}
+export class PayloadTooLargeError extends Error {}
 
 /** Reads at most MAX_JSON_BODY_BYTES, whatever Content-Length claims. */
-async function readBoundedText(request: Request): Promise<string> {
+export async function readBoundedText(request: Request): Promise<string> {
   const declared = Number(request.headers.get("content-length") ?? "");
   if (Number.isFinite(declared) && declared > MAX_JSON_BODY_BYTES) throw new PayloadTooLargeError();
   if (!request.body) return "";

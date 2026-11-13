@@ -82,7 +82,7 @@ async function resolveBacklog(actorId: string, backlogKey: string) {
 }
 
 async function resolveItem(actorId: string, key: string) {
-  const backlog = await resolveBacklog(actorId, key.split("-")[0]!);
+  const backlog = await resolveBacklog(actorId, key.slice(0, key.lastIndexOf("-")));
   const item = await getItemByKeyForBacklog(key, backlog.id);
   // The same answer for an unknown key and a backlog the actor may not read.
   if (!item) throw new ToolRefusal(NOT_FOUND);
