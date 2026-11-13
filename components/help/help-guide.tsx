@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { GuideNote, GuideSection, GuideTopic, Key, Ui } from "@/components/help/guide-blocks";
 import { ShortcutList } from "@/components/shortcuts/shortcut-list";
 
@@ -766,6 +767,111 @@ export function HelpGuide() {
             vôtre. Les accès dépendent des permissions du backlog : elles peuvent être attribuées à une personne, à
             un groupe, à un rôle ou à tous les utilisateurs connectés. Vérifiez les accès avant de créer un compte de
             test. Pas de désactivation de compte dans l’interface.
+          </GuideNote>
+        </GuideTopic>
+      </GuideSection>
+
+      <GuideSection id="api-mcp">
+        <GuideTopic
+          title="Comprendre les jetons d’accès"
+          purpose="Permettre à un outil de travailler dans Jiroo avec les droits de votre compte, sans lui donner votre mot de passe."
+        >
+          <p className="t-body">
+            Un jeton d’accès est un secret qui identifie votre compte auprès de l’API REST ou du serveur MCP.
+            Sa portée limite les actions de l’outil : <Ui>Lecture</Ui> (<code>read</code>) permet de consulter ;
+            <Ui>Lecture et écriture</Ui> (<code>write</code>) permet aussi de créer, modifier et commenter.
+            Le jeton n’ajoute aucun droit : seuls les backlogs et les actions autorisés à son propriétaire sont accessibles.
+          </p>
+          <GuideNote>
+            Le jeton n’est affiché qu’une seule fois, à sa création. Conservez-le dans un gestionnaire de secrets,
+            comme un mot de passe ; ne le collez ni dans un ticket, ni dans une conversation, ni dans un dépôt.
+            Les activités enregistrent le compte propriétaire du jeton et leur origine, « API » ou « MCP ».
+          </GuideNote>
+        </GuideTopic>
+
+        <GuideTopic
+          title="Créer un jeton d’accès"
+          purpose="Donner à chaque outil un accès identifiable, que vous pourrez révoquer séparément."
+          steps={[
+            <>Ouvrez le menu utilisateur, puis <Link href="/jetons" className="underline underline-offset-4"><Ui>Jetons d’accès</Ui></Link>. Votre compte doit avoir sa double authentification configurée.</>,
+            <>Cliquez sur <Ui>Créer un jeton</Ui>. Donnez-lui un <Ui>Nom</Ui> qui indique son usage, puis choisissez sa <Ui>Portée</Ui>.</>,
+            <>Choisissez l’<Ui>Expiration</Ui>, ou <Ui>Sans expiration</Ui> si cet accès doit durer jusqu’à sa révocation. Un jeton expiré ne permet plus aucun accès.</>,
+            <>Cliquez sur <Ui>Créer le jeton</Ui>, puis <Ui>Copier</Ui>. Enregistrez le secret dans votre gestionnaire de secrets avant de cliquer sur <Ui>J’ai conservé le jeton</Ui> : vous ne pourrez plus le relire dans Jiroo.</>,
+          ]}
+        />
+
+        <GuideTopic
+          title="Utiliser l’API REST"
+          purpose="Consulter ou modifier les tickets depuis un script ou un outil connecté."
+          steps={[
+            <>Définissez <code>JIROO_ORIGIN</code> avec l’origine de votre instance Jiroo (protocole et nom d’hôte, sans barre finale) et <code>JIROO_TOKEN</code> avec le secret de votre jeton, qui commence par <code>jiroo_pat_</code>.</>,
+            <>Envoyez le jeton dans l’en-tête <code>Authorization: Bearer …</code> pour chaque requête vers <code>/api/v1</code>. Cet exemple de lecture affiche le compte et le jeton utilisés.</>,
+          ]}
+        >
+          <pre className="max-w-full overflow-x-auto rounded-[var(--radius-md)] border border-border bg-[var(--surface-2)] p-3 text-xs leading-relaxed"><code>{`curl "$JIROO_ORIGIN/api/v1/me" \\
+  -H "Authorization: Bearer $JIROO_TOKEN"`}</code></pre>
+          <p className="t-body">
+            Les routes, filtres, écritures et erreurs sont décrits dans la référence du dépôt :{" "}
+            <a href="https://github.com/DVLPR-Consulting/jiroo/blob/63e87bc5d3f3ce0033b1f1a4d156ebe90fb4cd46/docs/api-v1.md" className="underline underline-offset-4">docs/api-v1.md</a>.
+          </p>
+        </GuideTopic>
+
+        <GuideTopic
+          title="Connecter Claude Code ou Codex en MCP"
+          purpose="Laisser un agent consulter les tickets et effectuer les actions que vous lui autorisez."
+          steps={[
+            <>Préparez la variable d’environnement <code>JIROO_TOKEN</code> comme pour l’API. Le serveur MCP est à l’adresse <code>/api/mcp</code> de votre instance ; il utilise le même jeton.</>,
+            <>Pour Claude Code, ajoutez le serveur HTTP avec la commande ci-dessous. Pour Codex, ajoutez le bloc dans <code>~/.codex/config.toml</code>, puis démarrez Codex depuis l’environnement qui contient <code>JIROO_TOKEN</code>.</>,
+          ]}
+        >
+          <p className="t-body">
+            Les adresses ci-dessous sont celles de l’instance de développement.
+            Remplacez-les par l’adresse de votre instance si vous en utilisez une autre.
+          </p>
+          <pre className="max-w-full overflow-x-auto rounded-[var(--radius-md)] border border-border bg-[var(--surface-2)] p-3 text-xs leading-relaxed"><code>{`claude mcp add --transport http jiroo https://jiroo-dev.vercel.app/api/mcp \\
+  --header "Authorization: Bearer $JIROO_TOKEN"`}</code></pre>
+          <pre className="max-w-full overflow-x-auto rounded-[var(--radius-md)] border border-border bg-[var(--surface-2)] p-3 text-xs leading-relaxed"><code>{`[mcp_servers.jiroo]
+url = "https://jiroo-dev.vercel.app/api/mcp"
+bearer_token_env_var = "JIROO_TOKEN"`}</code></pre>
+          <p className="t-body">
+            Les outils de lecture sont <code>list_backlogs</code>, <code>list_statuses</code>,{" "}
+            <code>search_items</code>, <code>get_item</code> et <code>list_my_items</code>.
+            Avec la portée <Ui>Lecture et écriture</Ui>, l’agent peut aussi utiliser{" "}
+            <code>create_item</code>, <code>update_item</code>, <code>transition_item</code> et <code>add_comment</code>,
+            dans les limites des droits du compte.
+          </p>
+          <p className="t-body">
+            La configuration et le rôle de chaque outil figurent dans{" "}
+            <a href="https://github.com/DVLPR-Consulting/jiroo/blob/63e87bc5d3f3ce0033b1f1a4d156ebe90fb4cd46/docs/mcp.md" className="underline underline-offset-4">docs/mcp.md</a>.
+          </p>
+        </GuideTopic>
+
+        <GuideTopic
+          title="Préparer un compte « Agents »"
+          purpose="Attribuer les actions des agents à un compte dédié, distinct des personnes de l’équipe."
+          steps={[
+            <>Demandez à un administrateur Jiroo de créer un compte « Agents », avec le rôle <Ui>Contributeur</Ui>, puis de lui donner les droits nécessaires dans les backlogs concernés.</>,
+            <>Connectez-vous à ce compte et configurez une fois sa double authentification. Conservez aussi ses codes de récupération en lieu sûr.</>,
+            <>Créez un jeton avec la portée <Ui>Lecture et écriture</Ui> (<code>write</code>) et conservez-le dans le gestionnaire de secrets utilisé par vos outils.</>,
+            <>Configurez les clients API ou MCP avec ce jeton : leurs actions seront attribuées au compte « Agents », avec l’origine « API » ou « MCP ». L’utilisation du jeton ne demande pas de code de double authentification à chaque appel.</>,
+          ]}
+        />
+
+        <GuideTopic
+          title="Révoquer un jeton et connaître les limites"
+          purpose="Couper un accès devenu inutile et comprendre ce qui peut interrompre un outil."
+          steps={[
+            <>Menu utilisateur → <Ui>Jetons d’accès</Ui> : cliquez sur <Ui>Révoquer</Ui> à côté du jeton concerné, puis confirmez avec <Ui>Révoquer</Ui>. Cet accès est coupé immédiatement ; les autres jetons restent utilisables.</>,
+            <>Pour remplacer un jeton expiré, révoqué ou perdu, créez-en un nouveau et mettez à jour le secret dans l’outil.</>,
+          ]}
+        >
+          <GuideNote>
+            La limite est de 300 requêtes par minute et par jeton, partagée entre l’API REST et le MCP.
+            Si elle est atteinte, attendez le délai indiqué avant de reprendre.
+          </GuideNote>
+          <GuideNote>
+            Vos jetons sont révoqués si un administrateur réinitialise votre mot de passe ou votre double authentification.
+            Si vous changez vous-même votre mot de passe, vos jetons sont conservés.
           </GuideNote>
         </GuideTopic>
       </GuideSection>

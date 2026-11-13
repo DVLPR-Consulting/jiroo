@@ -34,6 +34,7 @@ describe("HelpPage", () => {
       "Rapports",
       "Recherche, notifications et raccourcis",
       "Rôles et droits",
+      "API et MCP",
       "Environnement de test",
     ]);
   });
@@ -345,4 +346,30 @@ describe("HelpPage", () => {
     const rights = document.querySelector("section#droits") as HTMLElement;
     expect(rights).toHaveTextContent("« Développement » pour connecter des dépôts GitHub ou GitLab");
   });
+  it("explains API/MCP setup, token ownership and recovery rules (JIR-159)", () => {
+    render(<HelpPage />);
+    const api = document.querySelector("section#api-mcp") as HTMLElement;
+    expect(api).not.toBeNull();
+    const section = within(api);
+    expect(section.getByRole("link", { name: /Jetons d’accès/ })).toHaveAttribute("href", "/jetons");
+    for (const label of ["Lecture", "Lecture et écriture", "Sans expiration", "Révoquer", "J’ai conservé le jeton"]) {
+      expect(api).toHaveTextContent(`« ${label} »`);
+    }
+    expect(api).toHaveTextContent("Vos jetons sont révoqués si un administrateur réinitialise votre mot de passe ou votre double authentification.");
+    expect(api).toHaveTextContent("Si vous changez vous-même votre mot de passe, vos jetons sont conservés.");
+    expect(api).toHaveTextContent("300 requêtes par minute et par jeton");
+    expect(api).toHaveTextContent("compte « Agents »");
+    expect(api).toHaveTextContent("Contributeur");
+    expect(api).toHaveTextContent("gestionnaire de secrets");
+    expect(api).toHaveTextContent("affiché qu’une seule fois");
+    expect(api).toHaveTextContent("Authorization: Bearer $JIROO_TOKEN");
+    expect(api).toHaveTextContent("/api/v1/me");
+    expect(api).toHaveTextContent("claude mcp add --transport http");
+    expect(api).toHaveTextContent('bearer_token_env_var = "JIROO_TOKEN"');
+    expect(api).toHaveTextContent("/api/mcp");
+    expect(api).toHaveTextContent("search_items");
+    expect(section.getByRole("link", { name: /docs\/api-v1.md/ })).toHaveAttribute("href", "https://github.com/DVLPR-Consulting/jiroo/blob/63e87bc5d3f3ce0033b1f1a4d156ebe90fb4cd46/docs/api-v1.md");
+    expect(section.getByRole("link", { name: /docs\/mcp.md/ })).toHaveAttribute("href", "https://github.com/DVLPR-Consulting/jiroo/blob/63e87bc5d3f3ce0033b1f1a4d156ebe90fb4cd46/docs/mcp.md");
+  });
+
 });

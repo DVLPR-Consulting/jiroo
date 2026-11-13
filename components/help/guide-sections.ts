@@ -12,6 +12,7 @@ export const GUIDE_SECTIONS = [
   { id: "rapports", title: "Rapports" },
   { id: "recherche", title: "Recherche, notifications et raccourcis" },
   { id: "droits", title: "Rôles et droits" },
+  { id: "api-mcp", title: "API et MCP" },
   { id: "recette", title: "Environnement de test" },
 ] as const;
 

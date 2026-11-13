@@ -34,6 +34,10 @@ test("ouvre le guide depuis l’en-tête et suit le sommaire", async ({ page }, 
   await expect(page.locator('[data-slot="shell-breadcrumb-current"]')).toHaveText("Aide");
   await page.screenshot({ path: testInfo.outputPath("jir67-desktop-1440.png") });
 
+  await tocLink(page, /API et MCP/).click();
+  await expect(page).toHaveURL(/\/aide#api-mcp$/);
+  await expect(page.locator("section#api-mcp").getByRole("heading", { level: 2 })).toBeInViewport();
+
   const roadmap = page.locator("section#roadmap");
   await expect(roadmap).not.toBeInViewport();
   await tocLink(page, /Roadmap/).click();
@@ -54,9 +58,9 @@ test("reste lisible sans débordement à 390 par 844", async ({ page }, testInfo
   await expectNoPageOverflow(page);
 
   await toc(page).locator("summary").click();
-  await tocLink(page, /Sprints/).click();
-  await expect(page).toHaveURL(/\/aide#sprints$/);
-  await expect(page.locator("section#sprints").getByRole("heading", { level: 2 })).toBeInViewport();
+  await tocLink(page, /API et MCP/).click();
+  await expect(page).toHaveURL(/\/aide#api-mcp$/);
+  await expect(page.locator("section#api-mcp").getByRole("heading", { level: 2 })).toBeInViewport();
   await expectNoPageOverflow(page);
 
   await page.goto("/aide");
