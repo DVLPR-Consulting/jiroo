@@ -3,8 +3,9 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { sessionAuthVersion } from "@/lib/auth/auth-version";
 import { db } from "@/lib/db";
-import { user } from "@/lib/db/schema/auth";
+import { session, user } from "@/lib/db/schema/auth";
 import { apiTokens, securityAuditEvents } from "@/lib/db/schema/domain";
 import {
   authenticateApiToken,
@@ -158,6 +159,24 @@ describeDb("api tokens (JIR-156)", () => {
       expect(await listApiTokens(stale.id)).toHaveLength(1);
     } finally {
       await db.delete(user).where(eq(user.id, stale.id));
+    }
+  });
+
+  it("reads the auth version a session was granted with, which getSession hides", async () => {
+    const sessionId = `api-token-session-${randomUUID()}`;
+    await db.insert(session).values({
+      id: sessionId,
+      token: randomUUID(),
+      userId: owner.id,
+      expiresAt: new Date(Date.now() + 60_000),
+      updatedAt: new Date(),
+      authVersion: 2,
+    });
+    try {
+      expect(await sessionAuthVersion(sessionId)).toBe(2);
+      expect(await sessionAuthVersion("missing-session")).toBeNull();
+    } finally {
+      await db.delete(session).where(eq(session.id, sessionId));
     }
   });
 

@@ -1056,7 +1056,12 @@ describeDb("item fix version integration", () => {
       })
       .returning();
     try {
-      const created = await createItem(
+      const [agentToken] = await db
+        .insert(apiTokens)
+        .values({ userId: fixture.actorId, name: "Agent API", tokenHash: randomUUID(), tokenPrefix: "agent001", scope: "write" })
+        .returning({ id: apiTokens.id });
+      const created = await runWithActor({ actorId: fixture.actorId, source: "api", tokenId: agentToken!.id }, () =>
+        createItem(
         {
           backlogId: fixture.backlogId,
           title: "Créée avec version",
@@ -1067,6 +1072,7 @@ describeDb("item fix version integration", () => {
         },
         fixture.actorId,
         "item-create-fix-versions",
+      ),
       );
 
       expect(
@@ -1080,14 +1086,16 @@ describeDb("item fix version integration", () => {
           .select({
             field: activities.field,
             correlationId: activities.requestCorrelationId,
+            source: activities.source,
+            tokenId: activities.tokenId,
           })
           .from(activities)
           .where(eq(activities.itemId, created.id))
           .orderBy(asc(activities.field)),
       ).toEqual([
-        { field: "fix_versions", correlationId: "item-create-fix-versions" },
-        { field: "sprint", correlationId: "item-create-fix-versions" },
-        { field: null, correlationId: "item-create-fix-versions" },
+        { field: "fix_versions", correlationId: "item-create-fix-versions", source: "api", tokenId: agentToken!.id },
+        { field: "sprint", correlationId: "item-create-fix-versions", source: "api", tokenId: agentToken!.id },
+        { field: null, correlationId: "item-create-fix-versions", source: "api", tokenId: agentToken!.id },
       ]);
     } finally {
       await cleanupReleaseBacklogs([fixture.backlogId]);

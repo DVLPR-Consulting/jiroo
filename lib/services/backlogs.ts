@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { activityAttribution } from "@/lib/auth/actor-context";
 import {
   browseAccessPredicate,
   listAccessibleBacklogs,
@@ -277,6 +278,7 @@ export async function updateBacklog(input: unknown, actorId: string) {
     if (rewrites.length > 0) {
       await tx.insert(activities).values(
         rewrites.map((rewrite) => ({
+          ...activityAttribution(),
           itemId: rewrite.id,
           actorId,
           action: "update" as const,

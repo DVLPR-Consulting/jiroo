@@ -1,6 +1,7 @@
 "use server";
 
 import { ZodError } from "zod";
+import { sessionAuthVersion } from "@/lib/auth/auth-version";
 import { getSession } from "@/lib/auth/session";
 import {
   createApiToken,
@@ -31,9 +32,10 @@ export async function createApiTokenAction(
 ): Promise<({ ok: true; token: string; row: ApiTokenRow }) | ActionFailure> {
   const session = await getSession();
   if (!session) return { ok: false, error: STALE_SESSION_MESSAGE };
-  // The session's auth version is an additional Better Auth field (lib/auth/index.ts).
-  const authVersion = (session.session as { authVersion?: unknown }).authVersion;
-  if (typeof authVersion !== "number") return { ok: false, error: STALE_SESSION_MESSAGE };
+  // Better Auth hides the session's auth version from getSession(): read it
+  // from the session row, then let the service compare it under the owner lock.
+  const authVersion = await sessionAuthVersion(session.session.id);
+  if (authVersion === null) return { ok: false, error: STALE_SESSION_MESSAGE };
   try {
     const { token, row } = await createApiToken(input, session.user.id, { authVersion });
     return { ok: true, token, row };

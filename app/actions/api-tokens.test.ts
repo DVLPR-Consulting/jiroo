@@ -5,10 +5,12 @@ const mocks = vi.hoisted(() => ({
   createApiToken: vi.fn(),
   getSession: vi.fn(),
   revokeApiToken: vi.fn(),
+  sessionAuthVersion: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
+vi.mock("@/lib/auth/auth-version", () => ({ sessionAuthVersion: mocks.sessionAuthVersion }));
 vi.mock("@/lib/services/api-tokens", () => ({
   createApiToken: mocks.createApiToken,
   revokeApiToken: mocks.revokeApiToken,
@@ -27,7 +29,9 @@ const row = { id: "token-1", name: "Herdr", tokenPrefix: "Ab3dEf9h", scope: "rea
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.getSession.mockResolvedValue({ user: { id: "user-1", twoFactorEnabled: true }, session: { authVersion: 4 } });
+  // Better Auth returns the session without its auth version (returned: false).
+  mocks.getSession.mockResolvedValue({ user: { id: "user-1", twoFactorEnabled: true }, session: { id: "session-1" } });
+  mocks.sessionAuthVersion.mockResolvedValue(4);
   mocks.createApiToken.mockResolvedValue({ token: "jiroo_pat_secret", row });
   mocks.revokeApiToken.mockResolvedValue(true);
 });
@@ -36,6 +40,7 @@ describe("createApiTokenAction", () => {
   it("creates the token for the signed-in user and returns the secret once", async () => {
     await expect(createApiTokenAction(input)).resolves.toEqual({ ok: true, token: "jiroo_pat_secret", row });
     expect(mocks.createApiToken).toHaveBeenCalledWith(input, "user-1", { authVersion: 4 });
+    expect(mocks.sessionAuthVersion).toHaveBeenCalledWith("session-1");
   });
 
   it("refuses without a second-factor session and never reaches the service", async () => {
@@ -77,7 +82,7 @@ describe("createApiTokenAction", () => {
       error: "Votre session a expiré. Reconnectez-vous.",
     });
 
-    mocks.getSession.mockResolvedValueOnce({ user: { id: "user-1" }, session: {} });
+    mocks.sessionAuthVersion.mockResolvedValueOnce(null);
     await expect(createApiTokenAction(input)).resolves.toEqual({
       ok: false,
       error: "Votre session a expiré. Reconnectez-vous.",

@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { activityAttribution } from "@/lib/auth/actor-context";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { binaryTextOrder } from "@/lib/db/order";
@@ -205,6 +206,7 @@ export async function startSprint(
       if (committedItems.length > 0) {
         await tx.insert(activities).values(
           committedItems.map((item) => ({
+            ...activityAttribution(),
             itemId: item.id,
             actorId,
             action: "update" as const,
@@ -642,6 +644,7 @@ export async function completeSprint(
         });
       }
       await tx.insert(activities).values({
+        ...activityAttribution(),
         itemId: item.id,
         actorId,
         action: "update",

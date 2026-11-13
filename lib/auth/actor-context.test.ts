@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import {
+  activityAttribution,
   currentActivitySource,
   currentActorContext,
   runWithActor,
@@ -15,6 +16,16 @@ describe("actor context", () => {
   it("has no actor and defaults to the interface outside a scope", () => {
     expect(currentActorContext()).toBeNull();
     expect(currentActivitySource()).toBe("ui");
+    expect(activityAttribution()).toEqual({ source: "ui", tokenId: null });
+  });
+
+  it("gives every activity row the actor's source and token", async () => {
+    await runWithActor(writer, async () => {
+      expect(activityAttribution()).toEqual({ source: "api", tokenId: "token-1" });
+    });
+    await runWithActor({ actorId: "agent", source: "mcp" }, async () => {
+      expect(activityAttribution()).toEqual({ source: "mcp", tokenId: null });
+    });
   });
 
   it("exposes the actor to the work it wraps, including awaited reads", async () => {
