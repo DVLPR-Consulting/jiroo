@@ -89,6 +89,17 @@ describe("createApiTokenAction", () => {
     });
     expect(mocks.createApiToken).toHaveBeenCalledTimes(1);
   });
+
+  it("answers a failed session-version read like any other creation failure", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.sessionAuthVersion.mockRejectedValueOnce(new Error("PRIVATE_SESSION_LOOKUP_FAILURE"));
+    await expect(createApiTokenAction(input)).resolves.toEqual({
+      ok: false,
+      error: "Impossible de créer le jeton. Réessayez.",
+    });
+    expect(mocks.createApiToken).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
 });
 
 describe("revokeApiTokenAction", () => {
