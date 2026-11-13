@@ -2,7 +2,12 @@
 
 import { ZodError } from "zod";
 import { getSession } from "@/lib/auth/session";
-import { createApiToken, revokeApiToken, type ApiTokenRow } from "@/lib/services/api-tokens";
+import {
+  createApiToken,
+  revokeApiToken,
+  TOO_MANY_TOKENS_MESSAGE,
+  type ApiTokenRow,
+} from "@/lib/services/api-tokens";
 import type { CreateApiTokenInput } from "@/lib/validation/api-token";
 
 /**
@@ -34,6 +39,9 @@ export async function createApiTokenAction(
   } catch (error) {
     if (error instanceof ZodError) {
       return { ok: false, error: error.issues[0]?.message ?? CREATE_FAILED };
+    }
+    if (error instanceof Error && error.message === TOO_MANY_TOKENS_MESSAGE) {
+      return { ok: false, error: TOO_MANY_TOKENS_MESSAGE };
     }
     console.error("[api-tokens] creation failed", error);
     return { ok: false, error: CREATE_FAILED };

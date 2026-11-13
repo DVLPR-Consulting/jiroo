@@ -1,7 +1,8 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { and, count, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { apiTokens } from "@/lib/db/schema/domain";
+import { user } from "@/lib/db/schema/auth";
+import { apiTokens, securityAuditEvents } from "@/lib/db/schema/domain";
 import {
   createApiTokenSchema,
   type ApiTokenExpiryDays,
@@ -24,6 +25,12 @@ const TOKEN_FORMAT = new RegExp(`^${API_TOKEN_PREFIX}[A-Za-z0-9_-]{${SECRET_LENG
 
 /** `last_used_at` moves at most once a minute: one write per token, not per call. */
 export const LAST_USED_THROTTLE_MS = 60_000;
+
+/** Live tokens one user may hold; bounds the budget rows and the blast radius. */
+export const MAX_LIVE_TOKENS_PER_USER = 50;
+
+// WORDING: to be confirmed by Codex (JIR-156 wording brief).
+export const TOO_MANY_TOKENS_MESSAGE = `Vous avez déjà ${MAX_LIVE_TOKENS_PER_USER} jetons actifs : révoquez-en un avant d’en créer un autre.`;
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Queryable = typeof db | Transaction;
@@ -74,6 +81,38 @@ const publicColumns = {
 };
 
 /**
+ * Token lifecycle events join the security audit trail (never the secret nor
+ * its hash): a token acts without a second factor, so minting or revoking one
+ * must leave the same trace as the account recoveries.
+ */
+async function appendTokenAuditEvent(
+  tx: Queryable,
+  event: {
+    actorId: string;
+    action: "api_token_created" | "api_token_revoked";
+    tokenId: string;
+    newValue: Record<string, unknown>;
+    requestCorrelationId: string;
+  },
+): Promise<void> {
+  const [actor] = await tx
+    .select({ name: user.name })
+    .from(user)
+    .where(eq(user.id, event.actorId))
+    .limit(1);
+  await tx.insert(securityAuditEvents).values({
+    actorId: event.actorId,
+    actorLabel: actor?.name ?? event.actorId,
+    action: event.action,
+    scope: "global",
+    targetType: "api_token",
+    targetId: event.tokenId,
+    newValue: event.newValue,
+    requestCorrelationId: event.requestCorrelationId,
+  });
+}
+
+/**
  * Creates a token for `ownerId` and returns the secret, the only time it is
  * ever available. The caller has checked that the owner is signed in with
  * their second factor: the token itself never asks for it again.
@@ -82,21 +121,39 @@ export async function createApiToken(
   input: unknown,
   ownerId: string,
   now = new Date(),
+  requestCorrelationId: string = randomUUID(),
 ): Promise<{ token: string; row: ApiTokenRow }> {
   const data = createApiTokenSchema.parse(input);
   const { token, hash, prefix } = generateApiToken();
-  const [row] = await db
-    .insert(apiTokens)
-    .values({
-      userId: ownerId,
-      name: data.name,
-      tokenHash: hash,
-      tokenPrefix: prefix,
-      scope: data.scope,
-      expiresAt: expiresAtFor(data.expiresInDays, now),
-    })
-    .returning(publicColumns);
-  return { token, row: row! };
+  const row = await db.transaction(async (tx) => {
+    // Serialise the owner's creations so the cap holds under concurrency.
+    await tx.select({ id: user.id }).from(user).where(eq(user.id, ownerId)).for("update");
+    const [live] = await tx
+      .select({ count: count() })
+      .from(apiTokens)
+      .where(and(eq(apiTokens.userId, ownerId), isNull(apiTokens.revokedAt)));
+    if ((live?.count ?? 0) >= MAX_LIVE_TOKENS_PER_USER) throw new Error(TOO_MANY_TOKENS_MESSAGE);
+    const [created] = await tx
+      .insert(apiTokens)
+      .values({
+        userId: ownerId,
+        name: data.name,
+        tokenHash: hash,
+        tokenPrefix: prefix,
+        scope: data.scope,
+        expiresAt: expiresAtFor(data.expiresInDays, now),
+      })
+      .returning(publicColumns);
+    await appendTokenAuditEvent(tx, {
+      actorId: ownerId,
+      action: "api_token_created",
+      tokenId: created!.id,
+      newValue: { name: data.name, scope: data.scope, expiresAt: created!.expiresAt?.toISOString() ?? null },
+      requestCorrelationId,
+    });
+    return created!;
+  });
+  return { token, row };
 }
 
 /** The owner's tokens not yet revoked, newest first (expired ones included, flagged by the UI). */
@@ -109,13 +166,29 @@ export async function listApiTokens(ownerId: string): Promise<ApiTokenRow[]> {
 }
 
 /** Revokes one of the owner's live tokens; `false` when it is not theirs or already revoked. */
-export async function revokeApiToken(id: string, ownerId: string, now = new Date()): Promise<boolean> {
-  const revoked = await db
-    .update(apiTokens)
-    .set({ revokedAt: now })
-    .where(and(eq(apiTokens.id, id), eq(apiTokens.userId, ownerId), isNull(apiTokens.revokedAt)))
-    .returning({ id: apiTokens.id });
-  return revoked.length === 1;
+export async function revokeApiToken(
+  id: string,
+  ownerId: string,
+  now = new Date(),
+  requestCorrelationId: string = randomUUID(),
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const revoked = await tx
+      .update(apiTokens)
+      .set({ revokedAt: now })
+      .where(and(eq(apiTokens.id, id), eq(apiTokens.userId, ownerId), isNull(apiTokens.revokedAt)))
+      .returning({ id: apiTokens.id, name: apiTokens.name, scope: apiTokens.scope });
+    const token = revoked[0];
+    if (!token) return false;
+    await appendTokenAuditEvent(tx, {
+      actorId: ownerId,
+      action: "api_token_revoked",
+      tokenId: token.id,
+      newValue: { name: token.name, scope: token.scope },
+      requestCorrelationId,
+    });
+    return true;
+  });
 }
 
 /**

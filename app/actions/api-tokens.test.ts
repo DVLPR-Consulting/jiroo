@@ -12,6 +12,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/services/api-tokens", () => ({
   createApiToken: mocks.createApiToken,
   revokeApiToken: mocks.revokeApiToken,
+  TOO_MANY_TOKENS_MESSAGE: "Vous avez déjà 50 jetons actifs : révoquez-en un avant d’en créer un autre.",
 }));
 
 import { createApiTokenAction, revokeApiTokenAction } from "@/app/actions/api-tokens";
@@ -48,6 +49,12 @@ describe("createApiTokenAction", () => {
     await expect(createApiTokenAction({ ...input, name: "" })).resolves.toEqual({
       ok: false,
       error: "Donnez un nom à ce jeton.",
+    });
+
+    mocks.createApiToken.mockRejectedValueOnce(new Error("Vous avez déjà 50 jetons actifs : révoquez-en un avant d’en créer un autre."));
+    await expect(createApiTokenAction(input)).resolves.toEqual({
+      ok: false,
+      error: "Vous avez déjà 50 jetons actifs : révoquez-en un avant d’en créer un autre.",
     });
 
     mocks.createApiToken.mockRejectedValueOnce(new Error("connect ECONNREFUSED"));

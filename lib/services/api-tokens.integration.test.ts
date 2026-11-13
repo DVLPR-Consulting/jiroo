@@ -5,14 +5,16 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
-import { apiTokens } from "@/lib/db/schema/domain";
+import { apiTokens, securityAuditEvents } from "@/lib/db/schema/domain";
 import {
   authenticateApiToken,
   createApiToken,
   hashApiToken,
   listApiTokens,
+  MAX_LIVE_TOKENS_PER_USER,
   revokeAllTokensForUser,
   revokeApiToken,
+  TOO_MANY_TOKENS_MESSAGE,
 } from "@/lib/services/api-tokens";
 
 vi.mock("server-only", () => ({}));
@@ -107,6 +109,56 @@ describeDb("api tokens (JIR-156)", () => {
     await expect(authenticateApiToken(revoked.token)).resolves.toBeNull();
     await expect(authenticateApiToken(expiring.token, new Date(expiring.row.expiresAt!.getTime() + 1))).resolves.toBeNull();
     await expect(authenticateApiToken(expiring.token, new Date(expiring.row.expiresAt!.getTime() - 1))).resolves.not.toBeNull();
+  });
+
+  it("records creation and revocation in the security audit trail without the secret", async () => {
+    const { token, row } = await createApiToken({ name: "Audité", scope: "write", expiresInDays: 30 }, owner.id, new Date(), "tokens-audit-create");
+    await revokeApiToken(row.id, owner.id, new Date(), "tokens-audit-revoke");
+
+    const events = await db
+      .select()
+      .from(securityAuditEvents)
+      .where(eq(securityAuditEvents.targetId, row.id))
+      .orderBy(securityAuditEvents.createdAt);
+    expect(events.map((e) => e.action)).toEqual(["api_token_created", "api_token_revoked"]);
+    expect(events[0]).toMatchObject({
+      actorId: owner.id,
+      actorLabel: "Propriétaire",
+      scope: "global",
+      targetType: "api_token",
+      requestCorrelationId: "tokens-audit-create",
+      newValue: { name: "Audité", scope: "write" },
+    });
+    const serialised = JSON.stringify(events);
+    expect(serialised).not.toContain(token);
+    expect(serialised).not.toContain(hashApiToken(token));
+  });
+
+  it("rejects a token at the exact second it expires and never touches its last use when refused", async () => {
+    const created = await createApiToken({ name: "Limite", scope: "read", expiresInDays: 30 }, owner.id);
+    const expiresAt = created.row.expiresAt!;
+
+    await expect(authenticateApiToken(created.token, expiresAt)).resolves.toBeNull();
+    const [row] = await db.select({ lastUsedAt: apiTokens.lastUsedAt }).from(apiTokens).where(eq(apiTokens.id, created.row.id));
+    expect(row!.lastUsedAt).toBeNull();
+  });
+
+  it("caps the live tokens of a user", async () => {
+    const capped = { id: `api-token-capped-${randomUUID()}`, email: `${randomUUID()}@tokens.test`, name: "Plafond" };
+    await db.insert(user).values({ ...capped, emailVerified: true, twoFactorEnabled: true, role: "contributor" });
+    try {
+      for (let index = 0; index < MAX_LIVE_TOKENS_PER_USER; index += 1) {
+        await createApiToken({ name: `Jeton ${index}`, scope: "read", expiresInDays: null }, capped.id);
+      }
+      await expect(createApiToken({ name: "Un de trop", scope: "read", expiresInDays: null }, capped.id))
+        .rejects.toThrow(TOO_MANY_TOKENS_MESSAGE);
+      const tokens = await listApiTokens(capped.id);
+      expect(tokens).toHaveLength(MAX_LIVE_TOKENS_PER_USER);
+      await revokeApiToken(tokens[0]!.id, capped.id);
+      await expect(createApiToken({ name: "Après révocation", scope: "read", expiresInDays: null }, capped.id)).resolves.toBeTruthy();
+    } finally {
+      await db.delete(user).where(eq(user.id, capped.id));
+    }
   });
 
   it("revokes every live token of a user inside the caller's transaction", async () => {
