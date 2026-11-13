@@ -368,8 +368,8 @@ describe("HelpPage", () => {
     expect(api).toHaveTextContent('bearer_token_env_var = "JIROO_TOKEN"');
     expect(api).toHaveTextContent("/api/mcp");
     expect(api).toHaveTextContent("search_items");
-    expect(section.getByRole("link", { name: /docs\/api-v1.md/ })).toHaveAttribute("href", "https://github.com/DVLPR-Consulting/jiroo/blob/63e87bc5d3f3ce0033b1f1a4d156ebe90fb4cd46/docs/api-v1.md");
-    expect(section.getByRole("link", { name: /docs\/mcp.md/ })).toHaveAttribute("href", "https://github.com/DVLPR-Consulting/jiroo/blob/63e87bc5d3f3ce0033b1f1a4d156ebe90fb4cd46/docs/mcp.md");
+    expect(section.getByRole("link", { name: /docs\/api-v1.md/ })).toHaveAttribute("href", "https://github.com/DVLPR-Consulting/jiroo/blob/main/docs/api-v1.md");
+    expect(section.getByRole("link", { name: /docs\/mcp.md/ })).toHaveAttribute("href", "https://github.com/DVLPR-Consulting/jiroo/blob/main/docs/mcp.md");
   });
 
 });

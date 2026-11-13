@@ -795,7 +795,7 @@ export function HelpGuide() {
           steps={[
             <>Ouvrez le menu utilisateur, puis <Link href="/jetons" className="underline underline-offset-4"><Ui>Jetons d’accès</Ui></Link>. Votre compte doit avoir sa double authentification configurée.</>,
             <>Cliquez sur <Ui>Créer un jeton</Ui>. Donnez-lui un <Ui>Nom</Ui> qui indique son usage, puis choisissez sa <Ui>Portée</Ui>.</>,
-            <>Choisissez l’<Ui>Expiration</Ui>, ou <Ui>Sans expiration</Ui> si cet accès doit durer jusqu’à sa révocation. Un jeton expiré ne permet plus aucun accès.</>,
+            <>Choisissez l’<Ui>Expiration</Ui>. Un jeton <Ui>Lecture et écriture</Ui> expire toujours (30 jours, 90 jours ou 1 an) ; seul un jeton <Ui>Lecture</Ui> peut être <Ui>Sans expiration</Ui>. Un jeton expiré ne permet plus aucun accès.</>,
             <>Cliquez sur <Ui>Créer le jeton</Ui>, puis <Ui>Copier</Ui>. Enregistrez le secret dans votre gestionnaire de secrets avant de cliquer sur <Ui>J’ai conservé le jeton</Ui> : vous ne pourrez plus le relire dans Jiroo.</>,
           ]}
         />
@@ -812,7 +812,7 @@ export function HelpGuide() {
   -H "Authorization: Bearer $JIROO_TOKEN"`}</code></pre>
           <p className="t-body">
             Les routes, filtres, écritures et erreurs sont décrits dans la référence du dépôt :{" "}
-            <a href="https://github.com/DVLPR-Consulting/jiroo/blob/63e87bc5d3f3ce0033b1f1a4d156ebe90fb4cd46/docs/api-v1.md" className="underline underline-offset-4">docs/api-v1.md</a>.
+            <a href="https://github.com/DVLPR-Consulting/jiroo/blob/main/docs/api-v1.md" className="underline underline-offset-4">docs/api-v1.md</a>.
           </p>
         </GuideTopic>
 
@@ -842,7 +842,7 @@ bearer_token_env_var = "JIROO_TOKEN"`}</code></pre>
           </p>
           <p className="t-body">
             La configuration et le rôle de chaque outil figurent dans{" "}
-            <a href="https://github.com/DVLPR-Consulting/jiroo/blob/63e87bc5d3f3ce0033b1f1a4d156ebe90fb4cd46/docs/mcp.md" className="underline underline-offset-4">docs/mcp.md</a>.
+            <a href="https://github.com/DVLPR-Consulting/jiroo/blob/main/docs/mcp.md" className="underline underline-offset-4">docs/mcp.md</a>.
           </p>
         </GuideTopic>
 
@@ -852,7 +852,7 @@ bearer_token_env_var = "JIROO_TOKEN"`}</code></pre>
           steps={[
             <>Demandez à un administrateur Jiroo de créer un compte « Agents », avec le rôle <Ui>Contributeur</Ui>, puis de lui donner les droits nécessaires dans les backlogs concernés.</>,
             <>Connectez-vous à ce compte et configurez une fois sa double authentification. Conservez aussi ses codes de récupération en lieu sûr.</>,
-            <>Créez un jeton avec la portée <Ui>Lecture et écriture</Ui> (<code>write</code>) et conservez-le dans le gestionnaire de secrets utilisé par vos outils.</>,
+            <>Créez un jeton avec la portée la plus réduite possible : <Ui>Lecture</Ui> si l’agent n’a qu’à consulter, <Ui>Lecture et écriture</Ui> (<code>write</code>) avec une expiration courte sinon. Conservez-le dans le gestionnaire de secrets utilisé par vos outils.</>,
             <>Configurez les clients API ou MCP avec ce jeton : leurs actions seront attribuées au compte « Agents », avec l’origine « API » ou « MCP ». L’utilisation du jeton ne demande pas de code de double authentification à chaque appel.</>,
           ]}
         />
@@ -871,7 +871,12 @@ bearer_token_env_var = "JIROO_TOKEN"`}</code></pre>
           </GuideNote>
           <GuideNote>
             Vos jetons sont révoqués si un administrateur réinitialise votre mot de passe ou votre double authentification.
+            Ils cessent aussi de fonctionner si la double authentification de votre compte est désactivée.
             Si vous changez vous-même votre mot de passe, vos jetons sont conservés.
+          </GuideNote>
+          <GuideNote>
+            Un agent lit les titres, descriptions et commentaires tels qu’ils ont été écrits. Un texte peut contenir des
+            consignes trompeuses : ne confiez un jeton d’écriture qu’à un agent que vous surveillez.
           </GuideNote>
         </GuideTopic>
       </GuideSection>
