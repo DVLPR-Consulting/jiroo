@@ -77,7 +77,7 @@ describeDb("api tokens (JIR-156)", () => {
   });
 
   it("authenticates a live token as its owner and records one use per minute", async () => {
-    const { token, row } = await createApiToken({ name: "Agent", scope: "write", expiresInDays: null }, owner.id, { authVersion: 0 });
+    const { token, row } = await createApiToken({ name: "Agent", scope: "write", expiresInDays: 30 }, owner.id, { authVersion: 0 });
     const now = new Date("2026-11-12T21:00:00.000Z");
 
     await expect(authenticateApiToken(token, now)).resolves.toEqual({
@@ -180,6 +180,31 @@ describeDb("api tokens (JIR-156)", () => {
     }
   });
 
+  it("stops authenticating a token once its owner loses the second factor", async () => {
+    const owner2 = { id: `api-token-2fa-${randomUUID()}`, email: `${randomUUID()}@tokens.test`, name: "Sans 2FA" };
+    await db.insert(user).values({ ...owner2, emailVerified: true, twoFactorEnabled: true, role: "contributor" });
+    try {
+      const { token } = await createApiToken({ name: "Lecture", scope: "read", expiresInDays: 30 }, owner2.id, { authVersion: 0 });
+      expect(await authenticateApiToken(token)).not.toBeNull();
+      await db.update(user).set({ twoFactorEnabled: false }).where(eq(user.id, owner2.id));
+      expect(await authenticateApiToken(token)).toBeNull();
+    } finally {
+      await db.delete(user).where(eq(user.id, owner2.id));
+    }
+  });
+
+  it("stops authenticating a legacy write token that never expires", async () => {
+    const { token, row } = await createApiToken({ name: "Ancien", scope: "write", expiresInDays: 30 }, owner.id, { authVersion: 0 });
+    expect(await authenticateApiToken(token)).not.toBeNull();
+    await db.update(apiTokens).set({ expiresAt: null }).where(eq(apiTokens.id, row.id));
+    expect(await authenticateApiToken(token)).toBeNull();
+  });
+
+  it("refuses a write token without expiry", async () => {
+    await expect(createApiToken({ name: "Éternel", scope: "write", expiresInDays: null }, owner.id, { authVersion: 0 }))
+      .rejects.toMatchObject({ name: "ZodError" });
+  });
+
   it("caps the live tokens of a user", async () => {
     const capped = { id: `api-token-capped-${randomUUID()}`, email: `${randomUUID()}@tokens.test`, name: "Plafond" };
     await db.insert(user).values({ ...capped, emailVerified: true, twoFactorEnabled: true, role: "contributor" });
@@ -200,7 +225,7 @@ describeDb("api tokens (JIR-156)", () => {
 
   it("revokes every live token of a user inside the caller's transaction", async () => {
     const a = await createApiToken({ name: "A", scope: "read", expiresInDays: null }, owner.id, { authVersion: 0 });
-    const b = await createApiToken({ name: "B", scope: "write", expiresInDays: null }, owner.id, { authVersion: 0 });
+    const b = await createApiToken({ name: "B", scope: "write", expiresInDays: 30 }, owner.id, { authVersion: 0 });
     const theirs = await createApiToken({ name: "Autre", scope: "read", expiresInDays: null }, other.id, { authVersion: 0 });
 
     const revokedCount = await db.transaction((tx) => revokeAllTokensForUser(tx, owner.id));

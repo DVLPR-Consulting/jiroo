@@ -23,13 +23,13 @@ describe("API authorization boundary", () => {
     expect(mocks.reserve).not.toHaveBeenCalled();
     expect(handler).not.toHaveBeenCalled();
   });
-  it("rejects a read token before writes or budget reservation", async () => {
+  it("rejects a read token before any write, and still spends budget on the refusal", async () => {
     mocks.authenticate.mockResolvedValue({ ok: true, principal: { ...principal, scope: "read" } });
     const handler = vi.fn();
     const response = await withApiAuth("write", handler)(request());
     expect(response.status).toBe(403);
     expect((await response.json()).type).toContain("insufficient_scope");
-    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(mocks.reserve).toHaveBeenCalledWith("t");
     expect(handler).not.toHaveBeenCalled();
   });
   it("returns 429 and Retry-After without calling the handler", async () => {

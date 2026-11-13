@@ -232,7 +232,11 @@ export function ApiTokensPanel({ tokens, now }: { tokens: ApiTokenView[]; now: s
               <SelectField
                 id="api-token-scope"
                 value={scope}
-                onValueChange={(value) => setScope(value)}
+                onValueChange={(value) => {
+                  setScope(value);
+                  // A write token must expire (JIR-160): fall back to the default duration.
+                  if (value === "write" && expiry === "never") setExpiry("90");
+                }}
                 options={SCOPE_OPTIONS}
               />
             </div>
@@ -242,7 +246,7 @@ export function ApiTokensPanel({ tokens, now }: { tokens: ApiTokenView[]; now: s
                 id="api-token-expiry"
                 value={expiry}
                 onValueChange={(value) => setExpiry(value)}
-                options={EXPIRY_OPTIONS}
+                options={scope === "write" ? EXPIRY_OPTIONS.filter((option) => option.value !== "never") : EXPIRY_OPTIONS}
               />
             </div>
             {createError && <p role="alert" className="text-sm text-destructive">{createError}</p>}

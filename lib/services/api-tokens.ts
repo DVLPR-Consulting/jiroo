@@ -249,13 +249,20 @@ export async function authenticateApiToken(rawToken: string, now = new Date()): 
       tokenHash: apiTokens.tokenHash,
       expiresAt: apiTokens.expiresAt,
       revokedAt: apiTokens.revokedAt,
+      ownerTwoFactorEnabled: user.twoFactorEnabled,
     })
     .from(apiTokens)
+    .innerJoin(user, eq(apiTokens.userId, user.id))
     .where(eq(apiTokens.tokenHash, hash))
     .limit(1);
   if (!row) return null;
   const matches = timingSafeEqual(Buffer.from(row.tokenHash, "hex"), Buffer.from(hash, "hex"));
   if (!matches || row.revokedAt !== null) return null;
+  // A token never outlives its owner's second factor (security audit, JIR-160):
+  // an account without 2FA could not mint it, so it may not use it either.
+  if (row.ownerTwoFactorEnabled !== true) return null;
+  // Write tokens created before expiry became mandatory stop working (JIR-160).
+  if (row.scope === "write" && row.expiresAt === null) return null;
   if (row.expiresAt !== null && row.expiresAt.getTime() <= now.getTime()) return null;
   await touchLastUsed(row.id, now);
   return { actorId: row.userId, tokenId: row.id, scope: row.scope };

@@ -5,7 +5,7 @@ import { requireCommentPermission } from "@/lib/auth/action-authorization";
 import { getSession } from "@/lib/auth/session";
 import { invalidateBacklog, revalidateBacklogPages } from "@/lib/realtime/publish";
 import { editComment, softDeleteComment } from "@/lib/services/comments";
-import { addCommentUseCase } from "@/lib/use-cases/comments";
+import { addCommentUseCase, readableMentions } from "@/lib/use-cases/comments";
 
 async function authenticatedActorId(): Promise<string> {
   const session = await getSession();
@@ -21,6 +21,7 @@ function mapError(e: unknown): string {
   if (s.includes("Commentaire supprimé.")) return "Commentaire supprimé.";
   if (s.includes("Item introuvable.")) return "Item introuvable.";
   if (s.includes("Le commentaire ne peut pas être vide.")) return "Le commentaire ne peut pas être vide.";
+  if (s.includes("Un commentaire peut mentionner")) return "Un commentaire peut mentionner 50 personnes au plus.";
   return "Action impossible sur le commentaire.";
 }
 
@@ -59,7 +60,9 @@ export async function editCommentAction(input: {
       commentId: input.id,
       ownPermission: "edit_own_comments",
     });
-    const comment = await editComment(id, { body, mentionIds }, actorId);
+    // Same rule as when adding: only users who can read the backlog (JIR-160).
+    const readable = await readableMentions(mentionIds, authorization.backlogId);
+    const comment = await editComment(id, { body, mentionIds: readable }, actorId);
     await invalidateBacklog(backlogKey, {
       kind: "item",
       backlogId: authorization.backlogId,

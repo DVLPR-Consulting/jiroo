@@ -12,18 +12,26 @@ export const getBacklogs = withApiAuth("read", async (_request, actor) => jsonOk
 export const getStatuses = withApiAuth<{ key: string }>("read", async (_request, actor, params) => jsonOk({ statuses: await listApiStatuses(actor.actorId, BACKLOG_KEY.parse(params.key)) }));
 export const getItems = withApiAuth("read", async (request, actor) => {
   const { backlog, query, statusId, ...filters } = parseSearchParams(request.url);
+  // A named backlog is authorized (and audited for an administrator) first;
+  // an unreadable one answers 404 like an unknown one.
+  if (backlog) await resolveApiBacklog(actor.actorId, backlog);
   return jsonOk(await searchItemsForActor(actor.actorId, { ...filters, backlogKey: backlog, statusId, query }));
 });
 export const getItem = withApiAuth<{ key: string }>("read", async (_request, actor, params) => jsonOk({ item: await getApiItemDetail(actor.actorId, ITEM_KEY.parse(params.key)) }));
-export const getMyItems = withApiAuth("read", async (_request, actor) => {
+/** At most this many items in one /me/items answer; beyond, follow nextCursor (JIR-160). */
+export const MY_ITEMS_MAX_PAGES = 10;
+
+export const getMyItems = withApiAuth("read", async (request, actor) => {
   const items = [];
-  let cursor: string | null = null;
+  let cursor: string | null = new URL(request.url).searchParams.get("cursor");
+  let pages = 0;
   do {
     const page = await searchItemsForActor(actor.actorId, { assignee: "me", limit: 100, cursor });
     items.push(...page.items);
     cursor = page.nextCursor;
-  } while (cursor);
-  return jsonOk({ items });
+    pages += 1;
+  } while (cursor && pages < MY_ITEMS_MAX_PAGES);
+  return jsonOk({ items, nextCursor: cursor });
 });
 export const postItem = withApiAuth("write", async (request, actor) => {
   const { backlogKey, parentKey, ...input } = await parseJson(request, createRestItemInput);

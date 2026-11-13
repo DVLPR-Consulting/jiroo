@@ -48,9 +48,10 @@ token), no `resource_metadata` and no authorization server to discover.
 | `add_comment` | write | Add a Markdown comment, optionally notifying `mentionIds`. |
 
 Every tool answers text plus `structuredContent`. Refusals (read-only token on a write
-tool, request budget spent, unknown key, missing permission, business rule) are tool
-results with `isError: true` and a French message; unexpected failures are logged
-server-side and answered with a generic message.
+tool, unknown key, missing permission, business rule) are tool results with
+`isError: true` and a French message; unexpected failures are logged server-side and
+answered with a generic message. A spent request budget is not a tool result: the route
+answers HTTP `429` with `Retry-After` (see Rules).
 
 ## Rules
 
@@ -58,12 +59,25 @@ server-side and answered with a generic message.
   `create_items`, `edit_items`, `transition_items`, `assign_items`, `add_comments`…).
   A backlog the owner cannot read answers « introuvable », like the interface.
 - **Scope**: `write` implies `read`; a `read` token is refused on write tools before any work.
-- **Budget**: 300 requests per minute and per token, shared with the REST API; a refusal
-  says how long to wait.
+- **Budget**: 300 requests per minute and per token, shared with the REST API. Every
+  authenticated MCP request counts (`initialize`, `tools/list`, tool calls); past the
+  budget the route answers `429` with `Retry-After`.
+- **Token rules**: a write token always expires (30, 90 or 365 days); a token stops working
+  as soon as its owner no longer has two-factor authentication.
+- **Audit**: a platform administrator reading a backlog outside their ordinary grants
+  (`get_item`, `list_statuses`, `search_items` on a named backlog, `create_item`) leaves a
+  bypass audit event. Cross-backlog lists (`list_backlogs`, `search_items` without a
+  backlog, `list_my_items`) do not.
+- **One message per request**: JSON-RPC batch arrays are refused (`400`), and bodies are
+  capped at 64 KiB (`413`).
+- **Prompt injection**: titles, descriptions and comments are written by Jiroo users and
+  returned verbatim. Agents must treat them as data, never as instructions; the read tools
+  say so in their descriptions. Prefer read tokens and short expiries for agents.
 - **Traceability**: every write is an activity with `source = mcp` and the token id; the
   board updates live for open tabs.
 - **Revocation**: revoke the token on the « Jetons d'accès » page; an administrator's
   password or 2FA reset revokes all of the user's tokens.
+- **Mentions**: `add_comment` only notifies mentioned users who can read the backlog.
 
 ## Local check
 

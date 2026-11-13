@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { isoDate, toApiComment, toBacklogSummary, toItemDetail, toItemSummary } from "@/lib/api/dto";
-import { requireBacklogReadPermissionByKey } from "@/lib/auth/action-authorization";
+import { requireBacklogPermissionByKey } from "@/lib/auth/action-authorization";
 import { ResourceNotFoundError } from "@/lib/auth/authorization";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
@@ -22,8 +22,13 @@ export async function getApiMe(actorId: string, tokenId: string) {
 export async function listApiBacklogs(actorId: string) {
   return (await listBacklogsForUser(actorId, { includeArchived: true })).map(toBacklogSummary);
 }
+/**
+ * Authorizes a read of the backlog for the token's owner. A platform
+ * administrator reading outside their ordinary grants leaves a bypass audit
+ * event, as in the interface (security audit, JIR-160).
+ */
 export function resolveApiBacklog(actorId: string, key: string) {
-  return requireBacklogReadPermissionByKey({ actorId, backlogKey: key, permission: "browse_backlog" });
+  return requireBacklogPermissionByKey({ actorId, backlogKey: key, permission: "browse_backlog" });
 }
 export async function listApiStatuses(actorId: string, key: string) {
   const backlog = await resolveApiBacklog(actorId, key);
