@@ -58,7 +58,12 @@ describe("createApiTokenSchema", () => {
       scope: "read",
       expiresInDays: 90,
     });
-    expect(createApiTokenSchema.parse({ name: "Agents", scope: "write", expiresInDays: null }).expiresInDays).toBeNull();
+    expect(createApiTokenSchema.parse({ name: "Lecture", scope: "read", expiresInDays: null }).expiresInDays).toBeNull();
+    // A write token must expire (security audit, JIR-160).
+    const forever = createApiTokenSchema.safeParse({ name: "Agents", scope: "write", expiresInDays: null });
+    expect(forever.success).toBe(false);
+    if (!forever.success) expect(forever.error.issues[0]?.message).toBe("Un jeton en lecture et écriture doit avoir une date d’expiration.");
+    expect(createApiTokenSchema.parse({ name: "Agents", scope: "write", expiresInDays: 30 }).expiresInDays).toBe(30);
   });
 
   it("refuses an empty or too long name, an unknown scope and an arbitrary duration", () => {

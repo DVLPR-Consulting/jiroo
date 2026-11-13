@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { jsonOk, mapErrorToProblem, problem } from "./http";
 
@@ -19,9 +19,32 @@ describe("REST responses", () => {
     expect(await response.json()).toMatchObject({ type: "https://jiroo.dev/problems/validation_error", errors: [{ path: ["title"] }] });
   });
   it.each([new Error("postgres://private-password"), { message: "secret" }, null])("hides unexpected failures %s", async (error) => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const response = mapErrorToProblem(error);
     expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({ type: "https://jiroo.dev/problems/internal_error", title: "Une erreur interne est survenue.", status: 500 });
+    const body = await response.json();
+    expect(body).toEqual({
+      type: "https://jiroo.dev/problems/internal_error",
+      title: "Une erreur interne est survenue.",
+      status: 500,
+      detail: expect.stringMatching(/^Référence : [0-9a-f-]{36}$/),
+    });
+    // The log carries the reference and the error's kind, never its message.
+    const logged = consoleError.mock.calls.flat().join(" ");
+    expect(logged).toContain(body.detail.replace("Référence : ", ""));
+    expect(logged).not.toContain("private-password");
+    expect(logged).not.toContain("secret");
+    consoleError.mockRestore();
+  });
+  it("refuses a body over the cap, declared or streamed", async () => {
+    const { parseJson, MAX_JSON_BODY_BYTES } = await import("./http");
+    const schema = z.object({ title: z.string() });
+    const declared = new Request("http://localhost", { method: "POST", headers: { "content-length": String(MAX_JSON_BODY_BYTES + 1) }, body: "{}" });
+    await expect(parseJson(declared, schema).catch((error) => mapErrorToProblem(error).status)).resolves.toBe(413);
+    const streamed = new Request("http://localhost", { method: "POST", body: JSON.stringify({ title: "x".repeat(MAX_JSON_BODY_BYTES) }) });
+    await expect(parseJson(streamed, schema).catch((error) => mapErrorToProblem(error).status)).resolves.toBe(413);
+    const fine = new Request("http://localhost", { method: "POST", body: JSON.stringify({ title: "ok" }) });
+    await expect(parseJson(fine, schema)).resolves.toEqual({ title: "ok" });
   });
   it("describes only known business rules", async () => {
     const response = mapErrorToProblem(new Error("Hiérarchie invalide pour ce type."));

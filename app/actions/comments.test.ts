@@ -3,6 +3,7 @@ import { permissionDeniedError } from "@/test-utils/action-authorization-errors"
 
 const mocks = vi.hoisted(() => ({
   addComment: vi.fn(),
+  checkPermission: vi.fn(),
   editComment: vi.fn(),
   getSession: vi.fn(),
   requireCommentPermission: vi.fn(),
@@ -28,6 +29,7 @@ vi.mock("@/lib/auth/action-authorization", () => ({
   requireItemPermission: mocks.requireItemPermission,
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
+vi.mock("@/lib/auth/authorization", () => ({ checkPermission: mocks.checkPermission }));
 vi.mock("@/lib/services/comments", () => ({
   addComment: mocks.addComment,
   editComment: mocks.editComment,
@@ -53,6 +55,13 @@ describe("comment action permissions", () => {
     mocks.addComment.mockResolvedValue({ id: "comment-1", notifyUserIds: ["recipient-1"] });
     mocks.editComment.mockResolvedValue({ id: "comment-1", itemId: "item-1" });
     mocks.softDeleteComment.mockResolvedValue({ id: "comment-1", itemId: "item-1" });
+    mocks.checkPermission.mockResolvedValue({ allowed: true });
+  });
+
+  it("keeps only readable mentions when editing a comment", async () => {
+    mocks.checkPermission.mockImplementation(async ({ actorId }: { actorId: string }) => ({ allowed: actorId === "reader" }));
+    await editCommentAction({ backlogKey: "DEMO", id: "comment-1", body: "Corrigé", mentionIds: ["reader", "outsider"] });
+    expect(mocks.editComment).toHaveBeenCalledWith("comment-1", { body: "Corrigé", mentionIds: ["reader"] }, "author-1");
   });
 
   it("requires add_comments from the item stored backlog", async () => {

@@ -44,6 +44,7 @@ export const DOMAIN_ERROR_MESSAGES = [
   "Commentaire introuvable.",
   "Commentaire supprimé.",
   "Le commentaire ne peut pas être vide.",
+  "Un commentaire peut mentionner 50 personnes au plus.",
 ] as const;
 
 export type DomainErrorMessage = (typeof DOMAIN_ERROR_MESSAGES)[number];

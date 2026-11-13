@@ -14,9 +14,10 @@ export function withApiAuth<P = Record<string, never>>(scope: "read" | "write", 
       const authentication = await authenticateBearer(request);
       if (!authentication.ok) return problem("unauthorized", { headers: { "WWW-Authenticate": bearerChallenge(authentication.reason) } });
       const { principal } = authentication;
-      if (!scopeAllows(principal.scope, scope)) return problem("insufficient_scope");
+      // Every authenticated request spends budget, refused ones included (JIR-160).
       const budget = await reserveApiRequest(principal.tokenId);
       if (!budget.allowed) return problem("rate_limited", { headers: { "Retry-After": String(budget.retryAfterSeconds) } });
+      if (!scopeAllows(principal.scope, scope)) return problem("insufficient_scope");
       const actor: Actor = { actorId: principal.actorId, tokenId: principal.tokenId, source: "api" };
       const params = context ? await context.params : {} as P;
       return await runWithActor(actor, () => handler(request, actor, params));

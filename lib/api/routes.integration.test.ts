@@ -27,7 +27,7 @@ describeDb("REST v1 with real tokens and permissions", () => {
    { id: actorId, name: "REST owner", email: `${randomUUID()}@rest.test`, emailVerified: true, twoFactorEnabled: true, role: "admin" },
    { id: outsiderId, name: "REST outsider", email: `${randomUUID()}@rest.test`, emailVerified: true, twoFactorEnabled: true, role: "contributor" },
   ]);
-  const issued = await createApiToken({ name: "REST integration", scope: "write", expiresInDays: null }, actorId, { authVersion: 0 });
+  const issued = await createApiToken({ name: "REST integration", scope: "write", expiresInDays: 30 }, actorId, { authVersion: 0 });
   token = issued.token; tokenId = issued.row.id;
   outsiderToken = (await createApiToken({ name: "Other", scope: "read", expiresInDays: null }, outsiderId, { authVersion: 0 })).token;
   const backlog = await createBacklog({ key: `R${randomUUID().replaceAll(/[^a-f]/g, "").slice(0, 5).toUpperCase()}`, name: "REST integration", color: "#475569" }, actorId);
@@ -43,7 +43,7 @@ describeDb("REST v1 with real tokens and permissions", () => {
  });
  it("reads only the public identity and token metadata", async () => {
   const response = await getMe(request("me"));
-  expect(await response.json()).toEqual({ user: { id: actorId, name: "REST owner", email: expect.any(String) }, token: { id: tokenId, name: "REST integration", scope: "write", expiresAt: null } });
+  expect(await response.json()).toEqual({ user: { id: actorId, name: "REST owner", email: expect.any(String) }, token: { id: tokenId, name: "REST integration", scope: "write", expiresAt: expect.stringMatching(/Z$/) } });
  });
  it("records status transitions as api with the authenticating token id", async () => {
   const [target] = await db.select().from(statuses).where(and(eq(statuses.backlogId, backlogId), eq(statuses.category, "done"))).limit(1);
@@ -72,8 +72,13 @@ describeDb("REST v1 with real tokens and permissions", () => {
   const absent = await detail(request("items/UNKNOWN-1", "GET", undefined, outsiderToken), { params: Promise.resolve({ key: "UNKNOWN-1" }) });
   expect(forbidden.status).toBe(404); expect(absent.status).toBe(404);
   expect(await forbidden.json()).toEqual(await absent.json());
+  // A named backlog the token cannot read answers 404, like an unknown one (JIR-160).
   const listing = await list(request(`items?backlog=${key.split("-")[0]}`, "GET", undefined, outsiderToken));
-  expect(await listing.json()).toEqual({ items: [], nextCursor: null });
+  const unknownListing = await list(request("items?backlog=NOPE", "GET", undefined, outsiderToken));
+  expect(listing.status).toBe(404); expect(unknownListing.status).toBe(404);
+  expect(await listing.json()).toEqual(await unknownListing.json());
+  const unfiltered = await list(request("items", "GET", undefined, outsiderToken));
+  expect((await unfiltered.json()).items.map((i: { key: string }) => i.key)).not.toContain(key);
  });
  it("includes archived readable backlogs", async () => {
   const archivedAt = new Date("2026-01-01Z");

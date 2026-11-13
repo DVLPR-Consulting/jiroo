@@ -11,6 +11,8 @@ export const MAX_LIVE_TOKENS_PER_USER = 50;
 // WORDING (Codex, JIR-156): user-facing messages shared by the service and the UI.
 export const TOO_MANY_TOKENS_MESSAGE = `Vous avez déjà ${MAX_LIVE_TOKENS_PER_USER} jetons : révoquez-en un avant d’en créer un autre.`;
 export const STALE_SESSION_MESSAGE = "Votre session a expiré. Reconnectez-vous.";
+// WORDING: provisional until Codex's proposal (JIR-160).
+export const WRITE_TOKEN_NEEDS_EXPIRY_MESSAGE = "Un jeton en lecture et écriture doit avoir une date d’expiration.";
 
 /** The durations the « Jetons d'accès » page offers, or no expiry (null). */
 export const API_TOKEN_EXPIRY_DAYS = [30, 90, 365] as const;
@@ -30,6 +32,10 @@ export const createApiTokenSchema = z.object({
     .max(API_TOKEN_NAME_MAX, `Le nom ne doit pas dépasser ${API_TOKEN_NAME_MAX} caractères.`),
   scope: z.enum(API_TOKEN_SCOPES),
   expiresInDays: z.union([z.literal(30), z.literal(90), z.literal(365), z.null()]),
+}).refine((input) => input.scope !== "write" || input.expiresInDays !== null, {
+  // A leaked write token that never expires is the classic incident (JIR-160).
+  message: WRITE_TOKEN_NEEDS_EXPIRY_MESSAGE,
+  path: ["expiresInDays"],
 });
 
 export type CreateApiTokenInput = z.infer<typeof createApiTokenSchema>;
