@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   createApiToken: vi.fn(),
   getSession: vi.fn(),
   revokeApiToken: vi.fn(),
+  revokeApiTokenAsAdministrator: vi.fn(),
   sessionAuthVersion: vi.fn(),
 }));
 
@@ -14,6 +15,7 @@ vi.mock("@/lib/auth/auth-version", () => ({ sessionAuthVersion: mocks.sessionAut
 vi.mock("@/lib/services/api-tokens", () => ({
   createApiToken: mocks.createApiToken,
   revokeApiToken: mocks.revokeApiToken,
+  revokeApiTokenAsAdministrator: mocks.revokeApiTokenAsAdministrator,
   StaleAuthorizationError: class StaleAuthorizationError extends Error {
     constructor() {
       super("stale");
@@ -22,7 +24,7 @@ vi.mock("@/lib/services/api-tokens", () => ({
   },
 }));
 
-import { createApiTokenAction, revokeApiTokenAction } from "@/app/actions/api-tokens";
+import { createApiTokenAction, revokeApiTokenAction, revokeApiTokenAsAdministratorAction } from "@/app/actions/api-tokens";
 
 const input = { name: "Herdr", scope: "read" as const, expiresInDays: 90 as const };
 const row = { id: "token-1", name: "Herdr", tokenPrefix: "Ab3dEf9h", scope: "read" };
@@ -120,5 +122,26 @@ describe("revokeApiTokenAction", () => {
     mocks.getSession.mockResolvedValueOnce(null);
     await expect(revokeApiTokenAction({ id: "token-1" })).resolves.toMatchObject({ ok: false });
     expect(mocks.revokeApiToken).not.toHaveBeenCalled();
+  });
+});
+
+describe("revokeApiTokenAsAdministratorAction", () => {
+  it("revokes through the administrator service with the signed-in actor", async () => {
+    mocks.revokeApiTokenAsAdministrator.mockResolvedValueOnce(true);
+    await expect(revokeApiTokenAsAdministratorAction({ id: "token-9" })).resolves.toEqual({ ok: true });
+    expect(mocks.revokeApiTokenAsAdministrator).toHaveBeenCalledWith("token-9", "user-1");
+  });
+
+  it("refuses a non-administrator and a missing session, reports a gone token", async () => {
+    mocks.revokeApiTokenAsAdministrator.mockRejectedValueOnce(Object.assign(new Error("denied"), { name: "PermissionDeniedError" }));
+    await expect(revokeApiTokenAsAdministratorAction({ id: "token-9" })).resolves.toEqual({
+      ok: false,
+      error: "Seul un administrateur Jiroo peut révoquer le jeton d’un autre compte.",
+    });
+    mocks.revokeApiTokenAsAdministrator.mockResolvedValueOnce(false);
+    await expect(revokeApiTokenAsAdministratorAction({ id: "token-9" })).resolves.toMatchObject({ ok: false });
+    mocks.getSession.mockResolvedValueOnce(null);
+    await expect(revokeApiTokenAsAdministratorAction({ id: "token-9" })).resolves.toMatchObject({ ok: false });
+    expect(mocks.revokeApiTokenAsAdministrator).toHaveBeenCalledTimes(2);
   });
 });
