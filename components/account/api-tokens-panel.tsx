@@ -154,14 +154,14 @@ export function ApiTokensPanel({ tokens, now }: { tokens: ApiTokenView[]; now: s
       </div>
 
       {tokens.length > 0 && (
-        <ul className="divide-y divide-border rounded-[var(--radius)] border border-border" aria-label="Jetons d’accès">
+        <ul className="divide-y divide-border rounded-[var(--radius)] border border-border bg-card" aria-label="Jetons d’accès">
           {tokens.map((token) => {
             const expiryState = expiryLabel(token, clock);
             return (
               <li key={token.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{token.name}</span>
+                    <span className="min-w-0 font-medium [overflow-wrap:anywhere]">{token.name}</span>
                     <Badge variant="outline">{SCOPE_LABELS[token.scope]}</Badge>
                     {expiryState.expired && <Badge variant="destructive">Expiré</Badge>}
                   </div>
@@ -208,7 +208,9 @@ export function ApiTokensPanel({ tokens, now }: { tokens: ApiTokenView[]; now: s
             </DialogDescription>
           </DialogHeader>
           <form
-            className="space-y-4"
+            // The dialog is a grid: without min-w-0 its track grows to the
+            // longest option label instead of truncating it (JIR-156).
+            className="min-w-0 space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
               if (!pending && name.trim().length > 0) submitCreate();
@@ -267,7 +269,7 @@ export function ApiTokensPanel({ tokens, now }: { tokens: ApiTokenView[]; now: s
                   perte, révoquez-le et créez-en un nouveau.
                 </DialogDescription>
               </DialogHeader>
-              <div className="flex gap-2">
+              <div className="flex min-w-0 gap-2">
                 <Input
                   readOnly
                   value={revealed.token}
@@ -294,7 +296,8 @@ export function ApiTokensPanel({ tokens, now }: { tokens: ApiTokenView[]; now: s
             <>
               <DialogHeader>
                 <DialogTitle>Révoquer ce jeton ?</DialogTitle>
-                <DialogDescription>
+                {/* A 60-character name without spaces must wrap, not widen the dialog. */}
+                <DialogDescription className="[overflow-wrap:anywhere]">
                   Le jeton « {revoking.name} » ne permettra plus d’accéder à Jiroo. Cette action est
                   définitive.
                 </DialogDescription>
