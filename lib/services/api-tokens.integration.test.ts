@@ -207,6 +207,21 @@ describeDb("api tokens (JIR-156)", () => {
       .rejects.toMatchObject({ name: "ZodError" });
   });
 
+  it("refuses a user who manages users and groups but does not administer Jiroo", async () => {
+    const manager = { id: `api-token-manager-${randomUUID()}`, email: `${randomUUID()}@tokens.test`, name: "Gestion des comptes" };
+    await db.insert(user).values({ ...manager, emailVerified: true, twoFactorEnabled: true, role: "contributor" });
+    await db.insert(permissionGrants).values({ scope: "global", permissionKey: "manage_users_groups", principalType: "user", userId: manager.id });
+    try {
+      const target = await createApiToken({ name: "Hors de portée", scope: "read", expiresInDays: 30 }, owner.id, { authVersion: 0 });
+      await expect(listAllLiveApiTokens(manager.id)).rejects.toMatchObject({ name: "PermissionDeniedError" });
+      await expect(revokeApiTokenAsAdministrator(target.row.id, manager.id)).rejects.toMatchObject({ name: "PermissionDeniedError" });
+      expect(await authenticateApiToken(target.token)).not.toBeNull();
+    } finally {
+      await db.delete(permissionGrants).where(eq(permissionGrants.userId, manager.id));
+      await db.delete(user).where(eq(user.id, manager.id));
+    }
+  });
+
   it("lets only a Jiroo administrator list and revoke every account's tokens, with an audit event", async () => {
     const admin = { id: `api-token-admin-${randomUUID()}`, email: `${randomUUID()}@tokens.test`, name: "Admin jetons" };
     await db.insert(user).values({ ...admin, emailVerified: true, twoFactorEnabled: true, role: "admin" });
@@ -232,6 +247,14 @@ describeDb("api tokens (JIR-156)", () => {
       ));
       expect(event).toMatchObject({ actorId: admin.id, targetType: "api_token", requestCorrelationId: "admin-revoke", newValue: { ownerId: owner.id, name: "À couper", scope: "read" } });
       expect(JSON.stringify(event)).not.toContain(target.token);
+      // The administrator's bypass is traced against the token it reached.
+      const [bypass] = await db.select().from(securityAuditEvents).where(and(
+        eq(securityAuditEvents.actorId, admin.id),
+        eq(securityAuditEvents.action, "platform_administrator_bypass"),
+        eq(securityAuditEvents.targetId, target.row.id),
+        eq(securityAuditEvents.requestCorrelationId, "admin-revoke"),
+      ));
+      expect(bypass).toMatchObject({ targetType: "api_token" });
     } finally {
       await db.delete(securityAuditEvents).where(eq(securityAuditEvents.actorId, admin.id));
       await db.delete(permissionGrants).where(eq(permissionGrants.userId, admin.id));

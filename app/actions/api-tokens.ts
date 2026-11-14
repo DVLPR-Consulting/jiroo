@@ -1,6 +1,6 @@
 "use server";
 
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import { sessionAuthVersion } from "@/lib/auth/auth-version";
 import { getSession } from "@/lib/auth/session";
 import {
@@ -65,15 +65,18 @@ export async function revokeApiTokenAction(input: { id: string }): Promise<{ ok:
   }
 }
 
-// WORDING: provisional until Codex's proposal (JIR-161).
-const NOT_ADMINISTRATOR = "Seul un administrateur Jiroo peut révoquer le jeton d’un autre compte.";
+// WORDING (Codex, JIR-161).
+const NOT_ADMINISTRATOR = "Cette action est réservée aux administrateurs Jiroo.";
 
 /** Administration → Jetons d’accès: revoke any account's token (JIR-161). */
 export async function revokeApiTokenAsAdministratorAction(input: { id: string }): Promise<{ ok: true } | ActionFailure> {
   const session = await getSession();
   if (!session) return { ok: false, error: STALE_SESSION_MESSAGE };
+  // A malformed id cannot name a token: answer as for a gone one, before any query.
+  const id = z.uuid().safeParse(input?.id);
+  if (!id.success) return { ok: false, error: TOKEN_GONE };
   try {
-    const revoked = await revokeApiTokenAsAdministrator(input.id, session.user.id);
+    const revoked = await revokeApiTokenAsAdministrator(id.data, session.user.id);
     return revoked ? { ok: true } : { ok: false, error: TOKEN_GONE };
   } catch (error) {
     if (error instanceof Error && error.name === "PermissionDeniedError") return { ok: false, error: NOT_ADMINISTRATOR };
